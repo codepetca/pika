@@ -89,7 +89,7 @@ describe('GET /api/student/tests/[id]', () => {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             maybeSingle: vi.fn().mockResolvedValue({
-              data: { responses: {}, is_submitted: true },
+              data: { responses: {}, is_submitted: true, draft_revision: 7 },
               error: null,
             }),
           })),
@@ -161,6 +161,7 @@ describe('GET /api/student/tests/[id]', () => {
                     data: {
                       responses: {},
                       is_submitted: true,
+      draft_revision: 7,
                     },
                     error: null,
                   }
@@ -291,7 +292,8 @@ describe('GET /api/student/tests/[id]', () => {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             maybeSingle: vi.fn().mockResolvedValue({
-              data: { responses: {}, is_submitted: true, returned_at: null },
+              data: { responses: {}, is_submitted: true,
+      draft_revision: 7, returned_at: null },
               error: null,
             }),
           })),
@@ -362,6 +364,7 @@ describe('GET /api/student/tests/[id]', () => {
               data: {
                 responses: {},
                 is_submitted: true,
+      draft_revision: 7,
                 returned_at: '2026-03-05T12:00:00.000Z',
               },
               error: null,
@@ -462,4 +465,11 @@ describe('GET /api/student/tests/[id]', () => {
     expect(response.status).toBe(404)
     expect(data.error).toBe('Test not found')
   })
+})
+
+ it('fails closed when migration 244 revision column is unavailable', async () => {
+  mockSupabaseClient.from.mockImplementation(() => ({ select: () => ({ eq: vi.fn().mockReturnThis(), maybeSingle: async () => ({ data: null, error: { code: '42703', message: 'column draft_revision does not exist' } }) }) }))
+  const response = await GET(new NextRequest('http://localhost/api/student/tests/test-1'), { params: Promise.resolve({ id: 'test-1' }) })
+  expect(response.status).toBe(503)
+  expect(await response.json()).toEqual({ error: 'Test lifecycle migration 244 is required' })
 })

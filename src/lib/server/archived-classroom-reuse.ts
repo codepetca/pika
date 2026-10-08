@@ -1,6 +1,7 @@
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import {
   buildCourseBlueprintSnapshot,
+  COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION,
   hashCanonicalJson,
 } from '@/lib/server/course-blueprint-versions'
 import {
@@ -19,6 +20,7 @@ import {
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE } from '@/lib/course-blueprint-authoring-guidance'
 
 type ReusableArea =
   | 'overview'
@@ -57,6 +59,19 @@ function reusableBlueprintContent(snapshot: CourseBlueprintSnapshot) {
   return {
     ...content,
     planned_site: { config: snapshot.planned_site.config },
+  }
+}
+
+function normalizeHistoricalSnapshotForReuse(
+  snapshot: CourseBlueprintSnapshot,
+): CourseBlueprintSnapshot {
+  // Version 2 predates authoring guidance. Compare its meaning against a
+  // current snapshot without changing the immutable stored Version.
+  if ((snapshot as { schema_version: number }).schema_version !== 2) return snapshot
+  return {
+    ...snapshot,
+    schema_version: COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION,
+    authoring_guidance: EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
   }
 }
 
@@ -117,9 +132,15 @@ export function classifyArchivedClassroomReuseSnapshots(args: {
   // portable question IDs. Normalize that older serialization in memory so a
   // format-only marker addition is not mistaken for authored Blueprint or
   // Classroom divergence. Persisted Version snapshots remain immutable.
-  const baseVersion = normalizeTestQuestionIdentityFormat(args.baseVersion)
-  const currentBlueprint = normalizeTestQuestionIdentityFormat(args.currentBlueprint)
-  const currentClassroom = normalizeTestQuestionIdentityFormat(args.currentClassroom)
+  const baseVersion = normalizeTestQuestionIdentityFormat(
+    normalizeHistoricalSnapshotForReuse(args.baseVersion),
+  )
+  const currentBlueprint = normalizeTestQuestionIdentityFormat(
+    normalizeHistoricalSnapshotForReuse(args.currentBlueprint),
+  )
+  const currentClassroom = normalizeTestQuestionIdentityFormat(
+    normalizeHistoricalSnapshotForReuse(args.currentClassroom),
+  )
   const classroomBaseline = normalizeVersionForClassroom(
     baseVersion,
     args.appliedLessonArtifactIds,
@@ -398,8 +419,9 @@ export async function prepareArchivedClassroomReuse(args: {
     return { ok: false, status: 500, error: 'Failed to inspect lesson provenance' }
   }
 
-  const baseVersion =
-    versionResult.data.snapshot_json as unknown as CourseBlueprintSnapshot
+  const baseVersion = normalizeHistoricalSnapshotForReuse(
+    versionResult.data.snapshot_json as unknown as CourseBlueprintSnapshot,
+  )
   const currentBlueprint = buildCourseBlueprintSnapshot(blueprint)
   const currentClassroom = buildClassroomCourseBlueprintSnapshot({
     source,

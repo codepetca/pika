@@ -42,6 +42,10 @@ export const gradingTokenUsageSchema = z.object({
   totalTokens: z.number().int().nonnegative().nullable(),
 })
 
+// The stored provenance schemas must match the database exactly. Migrations 101-104 add
+// CHECK constraints that whitelist these keys, at the top level and inside tokenUsage;
+// any extra key makes every grade save fail. Adding a field here requires a migration
+// that widens those constraints first.
 export const gradingProvenanceSchema = z.object({
   schemaVersion: z.literal('assignment-grading-provenance-v1'),
   provider: z.string().min(1).max(120),
@@ -100,10 +104,17 @@ export const gradingResultSchema = z.object({
   rubricVersion: z.string().min(1),
   tokenUsage: gradingTokenUsageSchema,
   providerRequestCount: z.number().int().positive(),
+  reasoningEffortUsed: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
 })
 
 export type GradingRubric = z.infer<typeof gradingRubricSchema>
-export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema>
+// Providers may also report cost detail. It is measured in memory only: the stored schema
+// above strips it, because the database accepts exactly those three keys.
+export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema> & {
+  cachedInputTokens?: number
+  uncachedInputTokens?: number
+  reasoningTokens?: number
+}
 export type GradingProvenance = z.infer<typeof gradingProvenanceSchema>
 export type TestGradingProvenance = z.infer<typeof testGradingProvenanceSchema>
 export type GradingResult = z.infer<typeof gradingResultSchema>

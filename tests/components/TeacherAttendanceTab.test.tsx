@@ -1,4 +1,6 @@
 import React from 'react'
+// Missing-check-in label containment and reduced-motion scrolling are verified
+// in the "Daily scroll containment" browser cases in e2e/experience-matrix.spec.ts.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -22,6 +24,7 @@ const appMessageMock = vi.hoisted(() => ({
 const logSummaryMock = vi.hoisted(() => ({
   available: true,
   deferAvailabilityForDate: null as string | null,
+  studentNames: [] as string[],
 }))
 
 vi.mock('@/lib/timezone', () => ({
@@ -84,8 +87,10 @@ vi.mock('@/components/StudentLogHistory', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
-  LogSummary: ({ date, onAvailabilityChange }: {
+  LogSummary: ({ date, firstNames, onStudentClick, onAvailabilityChange }: {
+    firstNames?: Record<string, string>
     date: string
+    onStudentClick?: (name: string) => void
     onAvailabilityChange?: (available: boolean) => void
   }) => {
     React.useEffect(() => {
@@ -93,7 +98,14 @@ vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
       onAvailabilityChange?.(logSummaryMock.available)
     }, [date, onAvailabilityChange])
 
-    return <div data-testid="class-log-summary">Cached class summary</div>
+    return <div data-testid="class-log-summary" data-first-names={JSON.stringify(firstNames)}>
+      Cached class summary
+      {logSummaryMock.studentNames.map((name) => (
+        <button key={name} type="button" onClick={() => onStudentClick?.(name)}>
+          Jump to {name}
+        </button>
+      ))}
+    </div>
   },
 }))
 
@@ -475,6 +487,7 @@ function mockManyLogsFetch(count = 30) {
   return fetchMock
 }
 
+// Long-table viewport and gesture containment are covered in the experience matrix browser suite.
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()
@@ -491,6 +504,7 @@ describe('TeacherAttendanceTab', () => {
     appMessageMock.clearMessage.mockReset()
     logSummaryMock.available = true
     logSummaryMock.deferAvailabilityForDate = null
+    logSummaryMock.studentNames = []
     vi.unstubAllGlobals()
   })
 
@@ -589,17 +603,9 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByText('Student1').closest('td')).toHaveClass('px-3', 'py-1')
     expect(screen.queryByLabelText('Complete')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Incomplete')).not.toBeInTheDocument()
-    const summaryTitle = screen.getByText('Class Log Summary')
-    expect(summaryTitle).toBeInTheDocument()
-    expect(summaryTitle.parentElement).not.toHaveClass('border-b', 'border-border')
-    expect(summaryTitle.parentElement).toHaveClass('pt-3')
-    expect(summaryTitle.parentElement).not.toHaveClass('min-h-10')
-    expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Hide class log summary' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
-    const summaryResizeHandle = screen.getByRole('separator', { name: 'Resize class log summary' })
-    expect(summaryResizeHandle).toBeInTheDocument()
-    expect(summaryResizeHandle).not.toHaveClass('border-b', 'border-border')
+    expect(screen.getByTestId('class-log-summary')).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
 
     const firstColumnResize = screen.getByRole('separator', { name: 'Resize First column' })
@@ -689,6 +695,33 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.queryByText('Manual marking')).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /Edit time/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeInTheDocument()
+  })
+
+  it('disables manual settings during a mark save while keeping row corrections available', async () => {
+    const fetchMock = mockManualAttendanceFetch()
+    const baseFetch = fetchMock.getMockImplementation()!
+    const saving = deferred<Response>()
+    fetchMock.mockImplementation((input, init) => {
+      if (String(input) === '/api/teacher/manual-attendance' && init?.method === 'POST') return saving.promise
+      return baseFetch(input, init)
+    })
+    const user = userEvent.setup()
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} manualAttendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+    await user.click(await screen.findByRole('button', { name: 'Mark Student2 Test absent' }))
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test absent' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Mark Student2 Test present' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: /Edit time/ })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeEnabled()
+    await act(async () => { saving.resolve(await mockJson({ savedCount: 1 })) })
+    await waitFor(() => expect(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+      .toBeEnabled())
+    await user.click(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(true))
   })
 
   it('blocks passive attendance times longer than 12 hours', async () => {
@@ -795,7 +828,9 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'Refresh attendance' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sort Present first, 1 student' })).toBeInTheDocument()
+    const presentSort = screen.getByRole('button', { name: 'Sort Present first, 1 student' })
+    expect(presentSort).toBeInTheDocument()
+    expect(presentSort.querySelector('svg')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sort Absent first, 1 student' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeEnabled()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
@@ -973,6 +1008,72 @@ describe('TeacherAttendanceTab', () => {
     expect(document.querySelectorAll('colgroup col')).toHaveLength(9)
   })
 
+  it('restores automatic attendance before the undo request completes', async () => {
+    const base = combinedAttendanceView()
+    const overridden = {
+      ...base,
+      students: base.students.map((student, index) => index === 0 ? {
+        ...student,
+        status: 'absent' as const,
+        source: 'staff' as const,
+        hasManualOverride: true,
+      } : student),
+    }
+    let resolvePost!: (value: Response) => void
+    const post = new Promise<Response>((resolve) => { resolvePost = resolve })
+    let overrideActive = true
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: base.students.map((student) => ({
+            student_id: student.studentId,
+            student_email: `${student.studentId}@example.com`,
+            student_first_name: student.firstName,
+            student_last_name: student.lastName,
+            entry: null,
+            history_preview: [],
+          })),
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) {
+        return mockJson(overrideActive ? overridden : base)
+      }
+      if (url === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        overrideActive = false
+        return post
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const undo = await screen.findByRole('button', { name: 'Undo override for Student1 Test' })
+    await user.click(undo)
+
+    expect(screen.queryByRole('button', { name: 'Undo override for Student1 Test' }))
+      .not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test late' }))
+      .toHaveAttribute('aria-pressed', 'true')
+
+    await act(async () => {
+      resolvePost(new Response(JSON.stringify({ outcome: 'applied', appliedCount: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+  })
+
   it('keeps the entitled Attendance table stable while a date projection is not configured', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -1110,7 +1211,7 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
-  it('keeps revalidating a pending mark until confirmation arrives after the bounded poll', async () => {
+  it('reconciles a committed mark in the background while keeping controls responsive', async () => {
     let attendanceReadCount = 0
     const initialAttendance = combinedAttendanceView()
     const confirmedAttendance = combinedAttendanceView({
@@ -1140,10 +1241,10 @@ describe('TeacherAttendanceTab', () => {
       }
       if (url.startsWith('/api/teacher/attendance/session?')) {
         attendanceReadCount += 1
-        return mockJson(attendanceReadCount >= 10 ? confirmedAttendance : initialAttendance)
+        return mockJson(attendanceReadCount >= 4 ? confirmedAttendance : initialAttendance)
       }
       if (url === '/api/teacher/attendance/marks' && init?.method === 'POST') {
-        return mockJson({ outcome: 'accepted', appliedCount: 0 })
+        return mockJson({ outcome: 'applied', appliedCount: 1 })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -1165,16 +1266,20 @@ describe('TeacherAttendanceTab', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test late' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Undo override for Student1 Test' }))
+      .toBeInTheDocument()
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_250)
     })
 
     const waitingLateButton = screen.getByRole('button', { name: 'Mark Student1 Test late' })
-    expect(attendanceReadCount).toBe(9)
-    expect(waitingLateButton).toBeDisabled()
-    expect(waitingLateButton).toHaveAttribute('aria-pressed', 'false')
+    expect(attendanceReadCount).toBe(3)
+    expect(waitingLateButton).toBeEnabled()
+    expect(waitingLateButton).toHaveAttribute('aria-pressed', 'true')
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({
-      text: 'Update sent; waiting for attendance confirmation',
+      text: '1 student marked late',
       tone: 'info',
     })
 
@@ -1183,7 +1288,7 @@ describe('TeacherAttendanceTab', () => {
     })
 
     const confirmedLateButton = screen.getByRole('button', { name: 'Mark Student1 Test late' })
-    expect(attendanceReadCount).toBe(10)
+    expect(attendanceReadCount).toBe(4)
     expect(confirmedLateButton).toBeEnabled()
     expect(confirmedLateButton).toHaveAttribute('aria-pressed', 'true')
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({
@@ -1689,7 +1794,7 @@ describe('TeacherAttendanceTab', () => {
 
     const contextBar = screen.getByRole('region', { name: 'Daily controls' })
     const scrollPane = screen.getByTestId('daily-student-scroll-pane')
-    const workspaceFrame = scrollPane.parentElement?.parentElement?.parentElement
+    const workspaceFrame = scrollPane.closest('.rounded-none')
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     expect(scrollPane).toHaveClass('rounded-lg')
     expect(workspaceFrame).toHaveClass('rounded-none', 'border-0', 'bg-page')
@@ -1829,74 +1934,159 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
   })
 
-  it('collapses and restores the class log summary from a double click', async () => {
+  it('sizes the class log summary to its content without a duplicate heading or resize control', async () => {
     mockLogsFetch()
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    const summary = screen.getByTestId('class-log-summary')
 
-    fireEvent.doubleClick(panel)
-
-    expect(screen.getByTestId('class-log-summary')).not.toBeVisible()
-    expect(panel).toHaveStyle({ height: '40px' })
-    expect(panel).toHaveAttribute('data-state', 'collapsed')
-    expect(screen.getByText('Log Summary')).toBeInTheDocument()
-
-    fireEvent.doubleClick(panel)
-
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    expect(panel).toHaveClass('min-h-0', 'shrink-0', 'rounded-lg', 'bg-surface')
+    expect(panel.style.height).toBe('')
+    expect(panel.style.minHeight).toBe('')
+    expect(panel).not.toHaveClass('min-h-[140px]', 'h-10', 'min-h-10')
+    expect(panel.parentElement?.parentElement?.parentElement).toHaveClass('min-w-0')
+    expect(summary).toHaveAttribute('data-first-names', JSON.stringify({ 'Student1 Test': 'Student1', 'Student2 Test': 'Student2' }))
+    expect(summary).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()
   })
 
-  it('resizes the class log summary card from the handle with keyboard controls', async () => {
+  it('leaves summary disclosure to the child when the parent pane is double clicked', async () => {
     mockLogsFetch()
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
-    const separator = screen.getByRole('separator', { name: 'Resize class log summary' })
-
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(separator).toHaveClass('cursor-ns-resize')
-
-    fireEvent.keyDown(separator, { key: 'ArrowUp' })
-    expect(panel).toHaveStyle({ height: '212px' })
-
-    fireEvent.keyDown(separator, { key: 'ArrowDown' })
-    expect(panel).toHaveStyle({ height: '180px' })
-
-    fireEvent.keyDown(separator, { key: 'ArrowUp' })
-    fireEvent.keyDown(separator, { key: 'Enter' })
-    expect(panel).toHaveStyle({ height: '180px' })
-  })
-
-  it('reopens the collapsed class log summary by dragging the handle upward', async () => {
-    mockLogsFetch()
-
-    render(<TeacherAttendanceTab classroom={classroom} />)
-
-    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+    const summary = screen.getByTestId('class-log-summary')
 
     fireEvent.doubleClick(panel)
-    expect(panel).toHaveStyle({ height: '40px' })
-    expect(panel).toHaveAttribute('data-state', 'collapsed')
 
-    fireEvent(
-      screen.getByRole('separator', { name: 'Resize class log summary' }),
-      new MouseEvent('pointerdown', { clientY: 300, bubbles: true })
-    )
-    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 90, bubbles: true }))
-    window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
-
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '250px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    expect(screen.getByTestId('class-log-summary')).toBe(summary)
+    expect(summary).toBeVisible()
+    expect(panel.style.height).toBe('')
   })
+
+  it('jumps from a summary name to its row, retaining the compact summary and the new scroll position', async () => {
+    let latestAnimationFrame: FrameRequestCallback | null = null
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      latestAnimationFrame = callback
+      return 1
+    })
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    logSummaryMock.studentNames = ['Student25 Test', 'Missing Student']
+    mockManyLogsFetch()
+    const onSelectEntry = vi.fn()
+    render(<TeacherAttendanceTab classroom={classroom} onSelectEntry={onSelectEntry} />)
+    const row = (await screen.findByRole('cell', { name: 'Student25', exact: true })).closest('tr')!
+    const pane = screen.getByTestId('daily-student-scroll-pane')
+    const summary = screen.getByTestId('class-log-summary')
+    const focus = vi.spyOn(row, 'focus')
+    const scroll = vi.fn(() => { pane.scrollTop = 520 })
+    Object.defineProperty(row, 'scrollIntoView', { configurable: true, value: scroll })
+    onSelectEntry.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student25 Test' }))
+
+    expect(row).toHaveFocus()
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+    expect(scroll).toHaveBeenCalledWith({ behavior: 'auto', block: 'center', inline: 'nearest' })
+    expect(row).toHaveAttribute('aria-selected', 'true')
+    expect(row).toHaveClass('bg-info-bg', 'hover:bg-info-bg-hover')
+    expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+    expect(summary).toBeVisible()
+    expect(screen.getByTestId('class-log-summary')).toBe(summary)
+    expect(onSelectEntry).not.toHaveBeenCalled()
+
+    pane.scrollTop = 0
+    act(() => { latestAnimationFrame?.(0) })
+    expect(pane.scrollTop).toBe(520)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student25 Test' }))
+    expect(scroll).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Missing Student' }))
+    expect(scroll).toHaveBeenCalledTimes(2)
+    expect(row).toHaveAttribute('aria-selected', 'true')
+    expect(onSelectEntry).not.toHaveBeenCalled()
+  })
+
+  it('matches the full summary name when students share a first name', async () => {
+    logSummaryMock.studentNames = ['Alex Baker']
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({ logs: [
+      { student_id: 'alex-1', student_email: 'alex1@example.com', student_first_name: 'Alex', student_last_name: 'Adams', entry: null, history_preview: [] },
+      { student_id: 'alex-2', student_email: 'alex2@example.com', student_first_name: 'Alex', student_last_name: 'Baker', entry: null, history_preview: [] },
+    ] })))
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const target = (await screen.findByRole('cell', { name: 'Baker', exact: true })).closest('tr')!
+    const other = screen.getByRole('cell', { name: 'Adams', exact: true }).closest('tr')!
+    const scroll = vi.fn()
+    Object.defineProperty(target, 'scrollIntoView', { configurable: true, value: scroll })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Alex Baker' }))
+
+    expect(target).toHaveFocus()
+    expect(target).toHaveAttribute('aria-selected', 'true')
+    expect(other).toHaveAttribute('aria-selected', 'false')
+    expect(scroll).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('class-log-summary')).toBeVisible()
+  })
+
+  it('lets a row click supersede the summary highlight without restoring it after inspection', async () => {
+    logSummaryMock.studentNames = ['Student1 Test']
+    mockLogsFetch()
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const highlighted = (await screen.findByRole('cell', { name: 'Student1', exact: true })).closest('tr')!
+    Object.defineProperty(highlighted, 'scrollIntoView', { configurable: true, value: vi.fn() })
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student1 Test' }))
+    fireEvent.click(screen.getByRole('cell', { name: 'Student2', exact: true }))
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-2')
+    expect(highlighted).toHaveAttribute('aria-selected', 'false')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(highlighted).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByTestId('class-log-summary')).toBeVisible()
+  })
+
+  it('continues table keyboard navigation from the summary-highlighted row', async () => {
+    logSummaryMock.studentNames = ['Student1 Test']
+    mockLogsFetch()
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const highlighted = (await screen.findByRole('cell', { name: 'Student1', exact: true })).closest('tr')!
+    Object.defineProperty(highlighted, 'scrollIntoView', { configurable: true, value: vi.fn() })
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student1 Test' }))
+    fireEvent.keyDown(highlighted, { key: 'ArrowDown' })
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-2')
+    expect(screen.getByRole('cell', { name: 'Student2', exact: true }).closest('tr'))
+      .toHaveAttribute('aria-selected', 'true')
+    expect(highlighted).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it.each(['Escape', 'outside click', 'date change', 'classroom change'])(
+    'clears the summary row highlight on %s', async (action) => {
+      logSummaryMock.studentNames = ['Student1 Test']
+      mockLogsFetch()
+      const onSelectEntry = vi.fn()
+      const view = render(<TeacherAttendanceTab classroom={classroom} onSelectEntry={onSelectEntry} />)
+      const row = (await screen.findByRole('cell', { name: 'Student1', exact: true })).closest('tr')!
+      Object.defineProperty(row, 'scrollIntoView', { configurable: true, value: vi.fn() })
+      fireEvent.click(screen.getByRole('button', { name: 'Jump to Student1 Test' }))
+      onSelectEntry.mockClear()
+      if (action === 'Escape') fireEvent.keyDown(row, { key: 'Escape' })
+      if (action === 'outside click') fireEvent.pointerDown(document.body)
+      if (action === 'date change') fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+      if (action === 'classroom change') view.rerender(<TeacherAttendanceTab classroom={secondClassroom} onSelectEntry={onSelectEntry} />)
+      await waitFor(() => {
+        expect(screen.getByRole('cell', { name: 'Student1', exact: true }).closest('tr'))
+          .toHaveAttribute('aria-selected', 'false')
+      })
+      expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument()
+      if (action === 'Escape') {
+        expect(screen.getByRole('region', { name: 'Attendance students' })).toHaveFocus()
+        expect(onSelectEntry).not.toHaveBeenCalled()
+      }
+      if (action === 'outside click') expect(onSelectEntry).not.toHaveBeenCalled()
+    },
+  )
 
   it('returns to the full-width log table after deselecting a selected student', async () => {
     mockLogsFetch()
@@ -1910,7 +2100,7 @@ describe('TeacherAttendanceTab', () => {
     expect(within(screen.getByRole('cell', { name: 'Student1', exact: true })).getByText('Student1')).toHaveClass('truncate')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Log' })).toHaveAttribute('aria-sort', 'none')
-    expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
+    expect(screen.getByTestId('class-log-summary').closest('section')).toHaveAttribute('aria-hidden', 'true')
 
     fireEvent.click(screen.getByRole('cell', { name: 'Student1', exact: true }))
 
@@ -1951,17 +2141,25 @@ describe('TeacherAttendanceTab', () => {
     expect(selectedScrollPane.scrollTop).toBe(520)
   })
 
-  it('deselects the selected student when Escape is pressed', async () => {
+  it('deselects with Escape when the mounted user menu is hidden, but lets an open menu handle Escape', async () => {
     mockLogsFetch()
 
-    render(<TeacherAttendanceTab classroom={classroom} />)
+    render(<>
+      <div role="menu" aria-label="User menu" aria-hidden="true" />
+      <TeacherAttendanceTab classroom={classroom} />
+    </>)
 
     fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
 
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    const userMenu = screen.getByRole('menu', { hidden: true })
+    userMenu.setAttribute('aria-hidden', 'false')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    userMenu.setAttribute('aria-hidden', 'true')
+    fireEvent.keyDown(window, { key: 'Escape' })
 
     await waitFor(() => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
@@ -2008,27 +2206,55 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
   })
 
-  it('uses entry animations when switching between the full table and selected workspace', async () => {
+  it('keeps the same table, focused row and summary mounted across inspection changes', async () => {
     mockLogsFetch()
-
-    const { container } = render(<TeacherAttendanceTab classroom={classroom} />)
-
-    await screen.findByRole('columnheader', { name: /^Log/ })
-    expect(container.querySelector('.daily-table-enter')).toBeInTheDocument()
-
-    fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
-
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const cell = await screen.findByRole('cell', { name: 'Student1', exact: true })
+    const row = cell.closest('tr')!
+    const scrollPane = screen.getByTestId('daily-student-scroll-pane')
+    const summary = screen.getByTestId('class-log-summary')
+    row.focus()
+    fireEvent.click(cell)
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
-    expect(container.querySelector('.daily-workspace-enter')).toBeInTheDocument()
-    expect(container.querySelector('.daily-inspector-enter')).toBeInTheDocument()
-
+    expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
+    expect(screen.getByRole('row', { name: /Student1 Test/ })).toBe(row)
+    expect(row).toHaveFocus()
+    expect(summary.closest('section')).toHaveAttribute('aria-hidden', 'true')
+    expect(summary.closest('section')).toHaveAttribute('inert')
+    expect(summary).not.toBeVisible()
+    fireEvent.click(screen.getByRole('cell', { name: 'Student2', exact: true }))
+    expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
+    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-2')
     fireEvent.pointerDown(document.body)
+    expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
+    expect(screen.getByTestId('class-log-summary')).toBe(summary)
+    expect(summary.closest('section')).not.toHaveAttribute('inert')
+    expect(summary).toBeVisible()
+  })
 
-    await waitFor(() => {
-      expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
-    })
-    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
-    expect(container.querySelector('.daily-table-enter')).toBeInTheDocument()
+  it('preserves the selected student when the same date refreshes on reactivation', async () => {
+    const fetchMock = mockLogsFetch()
+    const view = render(<TeacherAttendanceTab classroom={classroom} isActive />)
+    fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive={false} />)
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive />)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByTestId('refreshing-indicator')).not.toBeInTheDocument())
+    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    expect(screen.getByRole('row', { name: /Student1 Test/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('clears selection if the selected student is absent from a refreshed roster', async () => {
+    const fetchMock = mockLogsFetch()
+    const view = render(<TeacherAttendanceTab classroom={classroom} isActive />)
+    fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
+    expect(await screen.findByTestId('student-log-history')).toBeInTheDocument()
+    fetchMock.mockImplementation(() => mockJson({ logs: [] }))
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive={false} />)
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive />)
+    await waitFor(() => expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument())
+    expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
   })
 
   it('ignores an older classroom log request after switching classrooms', async () => {

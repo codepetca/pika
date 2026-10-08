@@ -7,6 +7,7 @@ import {
 describe('submitTestResponsesSchema', () => {
   it('normalizes legacy and typed response values', () => {
     const result = submitTestResponsesSchema.safeParse({
+      expected_revision: 1,
       responses: {
         'q-4': { question_type: 'open_response', response_text: 'Typed' },
         'q-3': { selected_option: 2 },
@@ -18,6 +19,7 @@ describe('submitTestResponsesSchema', () => {
     expect(result).toEqual({
       success: true,
       data: {
+        expectedRevision: 1,
         responses: {
           'q-1': { question_type: 'multiple_choice', selected_option: 0 },
           'q-2': { question_type: 'open_response', response_text: 'Legacy open' },
@@ -28,7 +30,9 @@ describe('submitTestResponsesSchema', () => {
     })
   })
 
-  it.each([null, undefined, [], {}, { responses: null }, { responses: [] }])(
+  it.each([null, undefined, [], {}, { expected_revision: 1,
+      responses: null }, { expected_revision: 1,
+      responses: [] }])(
     'rejects a missing or non-object responses map: %j',
     (input) => {
       const result = submitTestResponsesSchema.safeParse(input)
@@ -42,6 +46,7 @@ describe('submitTestResponsesSchema', () => {
 describe('saveTestAttemptSchema', () => {
   it('normalizes telemetry and an optional history trigger', () => {
     expect(saveTestAttemptSchema.safeParse({
+      expected_revision: 1,
       responses: { q: 0 },
       trigger: 'blur',
       paste_word_count: 2.6,
@@ -49,6 +54,7 @@ describe('saveTestAttemptSchema', () => {
     })).toEqual({
       success: true,
       data: {
+        expectedRevision: 1,
         responses: { q: { question_type: 'multiple_choice', selected_option: 0 } },
         trigger: 'blur',
         pasteWordCount: 3,
@@ -57,8 +63,13 @@ describe('saveTestAttemptSchema', () => {
     })
   })
 
+  it.each([undefined, null, 0, -1, 1.5, '1', Number.MAX_SAFE_INTEGER + 1])('rejects invalid revision %j', (revision) => {
+    expect(saveTestAttemptSchema.safeParse({ responses: {}, expected_revision: revision }).success).toBe(false)
+    expect(submitTestResponsesSchema.safeParse({ responses: {}, expected_revision: revision }).success).toBe(false)
+  })
+
   it('rejects unsupported history triggers', () => {
-    const result = saveTestAttemptSchema.safeParse({ responses: {}, trigger: 'submit' })
+    const result = saveTestAttemptSchema.safeParse({ expected_revision: 1, responses: {}, trigger: 'submit' })
     expect(result.success).toBe(false)
     if (!result.success) expect(result.error.issues[0]?.message).toBe('Invalid trigger')
   })

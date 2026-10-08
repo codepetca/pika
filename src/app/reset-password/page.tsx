@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, FormEvent, Suspense } from 'react'
+import { useState, useRef, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AppMessageFallback, Input, Button, FormField, AlertDialog } from '@/ui'
-import { useAlertDialog } from '@/hooks/useAlertDialog'
+import { AppMessageFallback, Input, Button, FormField } from '@/ui'
+import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
+import { useAuthFormContinuity, useUppercaseAuthCode } from '@/hooks/useAuthFormContinuity'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -12,79 +14,92 @@ function ResetPasswordForm() {
 
   const [step, setStep] = useState<'verify' | 'reset'>('verify')
   const [email, setEmail] = useState(emailFromUrl)
-  const [code, setCode] = useState('')
+  const resetCode = useUppercaseAuthCode()
+  const code = resetCode.code
   const [handoffToken, setHandoffToken] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const continuity = useAuthFormContinuity(loading)
 
-  const { alertState, showSuccess, showError, closeAlert } = useAlertDialog()
+  const verifyingRef = useRef(false)
+  const resend = useAuthCodeResend({
+    kind: 'reset',
+    email,
+    isBlocked: () => verifyingRef.current,
+    onStart: () => {
+      setError('')
+      setHandoffToken('')
+    },
+  })
 
   async function handleVerifyCode(e: FormEvent) {
     e.preventDefault()
+    if (verifyingRef.current || resend.isPending()) return
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
+    verifyingRef.current = true
+    resend.clearFeedback()
     setError('')
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/reset-password/verify', {
+      const response = await fetchAuthSubmit('/api/auth/reset-password/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
 
       if (!response.ok) {
         throw new Error(data.error || 'Invalid code')
       }
 
+      if (!continuity.isCurrent(request)) return
       setHandoffToken(data.handoffToken)
+      continuity.release(request)
       setStep('reset')
+      verifyingRef.current = false
       setLoading(false)
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
       setError(err.message || 'An error occurred')
+      verifyingRef.current = false
       setLoading(false)
+      continuity.finish(request)
     }
   }
 
   async function handleResetPassword(e: FormEvent) {
     e.preventDefault()
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
     setError('')
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/reset-password/confirm', {
+      const response = await fetchAuthSubmit('/api/auth/reset-password/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, passwordConfirmation, handoffToken }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to reset password')
       }
 
+      if (!continuity.isCurrent(request)) return
       // Redirect based on user role
       router.push(data.redirectUrl)
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
       setError(err.message || 'An error occurred')
       setLoading(false)
-    }
-  }
-
-  async function handleResendCode() {
-    try {
-      setHandoffToken('')
-      await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      showSuccess('Code Sent', 'New reset code sent!')
-    } catch (err) {
-      showError('Error', 'Failed to resend code')
+      continuity.finish(request)
     }
   }
 
@@ -108,49 +123,55 @@ function ResetPasswordForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  disabled={loading}
+                  disabled={loading || resend.pending}
                 />
               </FormField>
 
-              <FormField label="Reset Code" error={error} required>
+              <FormField label="Reset Code" error={error || resend.error} reserveErrorSpace required>
                 <Input
                   type="text"
                   placeholder="A7Q2F"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  ref={resetCode.inputRef}
+                  onChange={resetCode.onChange}
                   required
-                  disabled={loading}
+                  disabled={loading || resend.pending}
                   maxLength={5}
                 />
               </FormField>
 
               <Button
+                aria-busy={loading || undefined}
                 type="submit"
                 className="w-full mt-6"
-                disabled={loading || !email || code.length !== 5}
+                disabled={loading || resend.pending || !email || code.length !== 5}
               >
                 {loading ? 'Verifying...' : 'Verify Code'}
               </Button>
             </form>
 
             <div className="mt-4 text-center space-y-2">
-              <button
-                onClick={handleResendCode}
-                className="text-sm text-primary hover:underline block w-full"
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                fullWidth
+                onClick={resend.resend}
+                disabled={loading || resend.pending || !email}
+                aria-busy={resend.pending || undefined}
               >
-                Resend reset code
-              </button>
-              <button
-                onClick={() => router.push('/login')}
-                className="text-sm text-text-muted hover:underline block w-full"
+                {resend.pending ? 'Sending…' : 'Resend reset code'}
+              </Button>
+              <Button
+                type="button" variant="ghost" size="sm" fullWidth
+                onClick={() => { continuity.retire(); router.push('/login') }}
               >
                 Back to login
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
-        <AlertDialog {...alertState} onClose={closeAlert} />
       </>
     )
   }
@@ -178,7 +199,7 @@ function ResetPasswordForm() {
               />
             </FormField>
 
-            <FormField label="Confirm Password" error={error} required>
+            <FormField label="Confirm Password" error={error} reserveErrorSpace required>
               <Input
                 type="password"
                 placeholder="Re-enter your password"
@@ -197,6 +218,7 @@ function ResetPasswordForm() {
             </div>
 
             <Button
+              aria-busy={loading || undefined}
               type="submit"
               className="w-full mt-6"
               disabled={loading || !password || !passwordConfirmation}
@@ -207,7 +229,6 @@ function ResetPasswordForm() {
         </div>
       </div>
 
-      <AlertDialog {...alertState} onClose={closeAlert} />
     </>
   )
 }

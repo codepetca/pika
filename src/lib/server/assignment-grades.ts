@@ -1,4 +1,7 @@
 import { ApiError, apiErrors } from '@/lib/api-handler'
+import { AssignmentAiGradingLeaseLostError } from '@/lib/server/assignment-ai-grading-lease'
+import { throwAssignmentAiUsageError } from '@/lib/server/assignment-ai-grading-usage'
+import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { ParsedAssignmentGradePayload } from '@/lib/validations/assignment-grading'
 import { assignmentGradeSaveResultSchema } from '@/lib/validations/assignment-grading'
@@ -48,6 +51,9 @@ function throwAssignmentGradeRpcError(error: { code?: string; message: string },
     throw new ApiError(403, error.message)
   }
   if (error.code === '40001') {
+    if (error.message.includes('Assignment AI grading lease was lost')) {
+      throw new AssignmentAiGradingLeaseLostError()
+    }
     throw apiErrors.conflict('Assignment grade changed; reload and retry')
   }
   if (error.code === '22023') {
@@ -102,7 +108,7 @@ export async function saveAssignmentGradesAtomic(opts: {
     if (error.code === '42501') {
       throw new ApiError(403, error.message)
     }
-    if (error.code === '40001') {
+    if (error.code === '40001' || error.code === 'PT409') {
       throw apiErrors.conflict('Assignment grade changed; reload and retry')
     }
     if (error.code === '22023') {
@@ -114,6 +120,86 @@ export async function saveAssignmentGradesAtomic(opts: {
   const parsed = assignmentGradeSaveResultSchema.safeParse(data)
   if (!parsed.success || parsed.data.docs.length !== studentIds.length) {
     throw new ApiError(500, 'Invalid assignment grade save result')
+  }
+
+  return parsed.data.docs
+}
+
+/**
+ * Contextual manual grading boundary. The database function fences and rechecks
+ * the current Assignment owner; this adapter binds every returned document to
+ * the exact Assignment and requested student set.
+ */
+export async function saveAssignmentGradesForOwner(opts: {
+  supabase: SupabaseClient
+  assignmentId: string
+  actorId: string
+  studentIds: string[]
+  expectedDocUpdatedAtByStudent: Record<string, string | null>
+  grade: ParsedAssignmentGradePayload
+}) {
+  const {
+    supabase,
+    assignmentId,
+    actorId,
+    studentIds,
+    expectedDocUpdatedAtByStudent,
+    grade,
+  } = opts
+  const requestedStudentIds = new Set(studentIds.map((studentId) => studentId.toLowerCase()))
+  if (requestedStudentIds.size !== studentIds.length) {
+    throw apiErrors.badRequest('Assignment grading students must be unique')
+  }
+
+  const applyGrade = grade.apply_target === 'grade' || grade.apply_target === 'grade-and-comments'
+  const applyComments = grade.apply_target === 'comments' || grade.apply_target === 'grade-and-comments'
+  const missingRevisionStudentIds = studentIds.filter(
+    (studentId) => !Object.prototype.hasOwnProperty.call(expectedDocUpdatedAtByStudent, studentId),
+  )
+  if (missingRevisionStudentIds.length > 0) {
+    throw apiErrors.conflict('Assignment grade revision is required; reload and retry')
+  }
+
+  const { data, error } = await supabase.rpc('save_assignment_grades_for_owner_v1', {
+    p_actor_id: actorId,
+    p_assignment_id: assignmentId,
+    p_student_ids: studentIds,
+    p_expected_doc_updated_at_by_student: expectedDocUpdatedAtByStudent,
+    p_apply_grade: applyGrade,
+    p_score_completion: grade.score_completion,
+    p_score_thinking: grade.score_thinking,
+    p_score_workflow: grade.score_workflow,
+    p_mark_graded: grade.shouldMarkGraded,
+    p_apply_comments: applyComments,
+    p_feedback: grade.feedback,
+    p_now: new Date().toISOString(),
+  })
+
+  if (error) {
+    if (error.code === 'P0002') throw new ApiError(404, 'Assignment not found')
+    if (error.code === '42501') throw new ApiError(403, 'Unauthorized')
+    if (error.code === '55000' && error.message === 'assignment_grading_archived') {
+      throw new ApiError(403, 'Assignment is archived')
+    }
+    if (error.code === '40001' || error.code === 'PT409' || isRetryableDatabaseContention(error)) {
+      throw apiErrors.conflict('Assignment grade changed; reload and retry')
+    }
+    if (error.code === '22023') throw apiErrors.badRequest(error.message)
+    throw new ApiError(503, 'Unable to save assignment grade')
+  }
+
+  const parsed = assignmentGradeSaveResultSchema.safeParse(data)
+  const returnedStudentIds = parsed.success
+    ? new Set(parsed.data.docs.map((doc) => doc.student_id.toLowerCase()))
+    : new Set<string>()
+  if (
+    !parsed.success
+    || parsed.data.docs.length !== requestedStudentIds.size
+    || returnedStudentIds.size !== requestedStudentIds.size
+    || parsed.data.docs.some((doc) => doc.assignment_id.toLowerCase() !== assignmentId.toLowerCase())
+    || Array.from(requestedStudentIds).some((studentId) => !returnedStudentIds.has(studentId))
+  ) {
+    throw new ApiError(503, 'Unable to verify assignment grade save')
   }
 
   return parsed.data.docs
@@ -179,6 +265,8 @@ export async function saveAssignmentAiGradeAtomic(opts: {
 export async function finalizeAssignmentAiGradingItemAtomic(opts: {
   supabase: SupabaseClient
   itemId: string
+  leaseToken: string
+  leaseFencingEnabled: boolean
   teacherId: string
   grade: Omit<AssignmentAiGradeInput, 'studentId' | 'expectedDocUpdatedAt'>
   attemptCount: number
@@ -186,7 +274,7 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
   skipReason?: 'missing_doc' | 'empty_doc' | null
   now?: string
 }) {
-  const { data, error } = await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_atomic', {
+  const commonArgs = {
     p_item_id: opts.itemId,
     p_teacher_id: opts.teacherId,
     p_score_completion: opts.grade.scoreCompletion,
@@ -203,9 +291,16 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
     p_item_status: opts.itemStatus,
     p_skip_reason: opts.skipReason ?? null,
     p_now: opts.now ?? new Date().toISOString(),
-  })
+  }
+  const { data, error } = opts.leaseFencingEnabled
+    ? await opts.supabase.rpc('finalize_assignment_ai_grading_item_and_settle_usage_v1', {
+        ...commonArgs,
+        p_lease_token: opts.leaseToken,
+      })
+    : await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_atomic', commonArgs)
 
   if (error) {
+    if (opts.leaseFencingEnabled) throwAssignmentAiUsageError(error)
     throwAssignmentGradeRpcError(error, 'Failed to finalize AI assignment grade')
   }
 

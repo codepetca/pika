@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useEffect, useRef, useState } from 'react'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { AlertDialog, ConfirmDialog, ContentDialog, DialogPanel } from '@/ui'
 
 describe('AlertDialog', () => {
@@ -304,6 +304,24 @@ describe('ContentDialog', () => {
     expect(footer.className).toContain('flex-shrink-0')
   })
 
+  it('keeps custom draft actions visible outside the scrollable content', () => {
+    render(
+      <ContentDialog
+        {...defaultProps}
+        footer={<button type="button">Create draft</button>}
+      >
+        <div data-testid="draft-content">Editable Markdown</div>
+      </ContentDialog>,
+    )
+
+    const scrollArea = screen.getByTestId('draft-content').parentElement!
+    const createButton = screen.getByRole('button', { name: 'Create draft' })
+    expect(scrollArea).toHaveClass('overflow-y-auto')
+    expect(createButton.parentElement).toHaveClass('flex-shrink-0')
+    expect(scrollArea).not.toContainElement(createButton)
+    expect(screen.queryByRole('button', { name: 'Close', exact: true })).toBeInTheDocument()
+  })
+
   it('keeps focus and Escape behavior with custom panel sizing and no footer', async () => {
     render(<ContentDialog {...defaultProps} panelClassName="h-full" showFooterClose={false} />)
     const dialog = screen.getByRole('dialog')
@@ -347,4 +365,60 @@ describe('DialogPanel', () => {
     await waitFor(() => expect(input).toHaveFocus())
   })
 
+})
+
+describe('Dialog exit adoption', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    const originalComputedStyle = window.getComputedStyle.bind(window)
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+      const style = originalComputedStyle(element)
+      style.setProperty('--motion-duration-standard', '170ms')
+      return style
+    })
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it.each(['alert', 'confirm'] as const)('retains the %s static presentation by default while hiding its semantics immediately', (kind) => {
+    const renderDialog = (isOpen: boolean, exitMotion?: 'none' | 'opacity') => kind === 'alert'
+      ? <AlertDialog isOpen={isOpen} title={isOpen ? 'Original title' : 'Cleared title'} onClose={vi.fn()} exitMotion={exitMotion} />
+      : <ConfirmDialog isOpen={isOpen} title={isOpen ? 'Original title' : 'Cleared title'} onCancel={vi.fn()} onConfirm={vi.fn()} exitMotion={exitMotion} />
+    const { rerender } = render(renderDialog(true))
+    const panel = screen.getByRole(kind === 'alert' ? 'alertdialog' : 'dialog')
+    rerender(renderDialog(false))
+    expect(screen.queryByRole(kind === 'alert' ? 'alertdialog' : 'dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Original title')).toBeInTheDocument()
+    expect(screen.queryByText('Cleared title')).not.toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(170))
+    expect(panel).not.toBeInTheDocument()
+    rerender(renderDialog(true, 'none'))
+    rerender(renderDialog(false, 'none'))
+    expect(screen.queryByText('Original title')).not.toBeInTheDocument()
+  })
+
+  it.each(['content', 'panel'] as const)('keeps generic %s descendants immediate by default and forwards an explicit opt-in', (kind) => {
+    const dispose = vi.fn()
+    function Child() {
+      useEffect(() => dispose, [])
+      return <p>Generic child</p>
+    }
+    const renderDialog = (isOpen: boolean, exitMotion?: 'none' | 'opacity') => kind === 'content'
+      ? <ContentDialog isOpen={isOpen} title="Generic" onClose={vi.fn()} exitMotion={exitMotion}><Child /></ContentDialog>
+      : <DialogPanel isOpen={isOpen} onClose={vi.fn()} exitMotion={exitMotion}><Child /></DialogPanel>
+    const { rerender } = render(renderDialog(true))
+    rerender(renderDialog(false))
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Generic child')).not.toBeInTheDocument()
+    rerender(renderDialog(true, 'opacity'))
+    rerender(renderDialog(false, 'opacity'))
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(screen.getByText('Generic child')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(170))
+    expect(dispose).toHaveBeenCalledTimes(2)
+  })
 })

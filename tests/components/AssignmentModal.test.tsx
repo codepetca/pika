@@ -8,6 +8,10 @@ import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
 import { TooltipProvider } from '@/ui'
 
+vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
+  ClassroomBlueprintDraftSource: () => null,
+}))
+
 function render(ui: ReactElement) {
   return renderWithProviders(ui, { wrapper: TooltipProvider })
 }
@@ -71,8 +75,7 @@ describe('AssignmentModal', () => {
 
       expect(screen.getByLabelText(/Title/)).toHaveValue('Original title')
       const heading = screen.getByRole('heading', { name: 'Edit Draft' })
-      expect(heading).not.toHaveClass('sr-only')
-      expect(heading.parentElement).toContainElement(screen.getByRole('status'))
+      expect(heading).toHaveClass('sr-only')
       expect(screen.getByRole('status')).toHaveTextContent('Saved')
       expect(screen.getByDisplayValue('2025-01-15')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Wed Jan 15' })).toBeInTheDocument()
@@ -81,6 +84,9 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
       const details = screen.getByTestId('assignment-editor-details-pane')
       const content = screen.getByTestId('assignment-editor-content-pane')
+      expect(details).toContainElement(screen.getByRole('status'))
+      expect(within(details).getByText('Title')).not.toHaveClass('sr-only')
+      expect(within(details).getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
       expect(details).toContainElement(screen.getByLabelText(/Title/))
       expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
       expect(details.lastElementChild).toBe(screen.getByTestId('assignment-editor-primary-actions'))
@@ -1014,9 +1020,15 @@ describe('AssignmentModal', () => {
       await waitFor(() => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
+      expect(screen.getByRole('heading', { name: 'Edit Draft' })).toHaveClass('sr-only')
 
       expect(screen.getByPlaceholderText('Title')).toHaveValue('')
       expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toHaveClass('h-[90dvh]')
+      const details = screen.getByTestId('assignment-editor-details-pane')
+      const content = screen.getByTestId('assignment-editor-content-pane')
+      expect(details).toContainElement(screen.getByRole('button', { name: 'Close assignment modal' }))
+      expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
+      expect(content).toContainElement(screen.getByRole('textbox', { name: 'Instructions' }))
       expect(screen.queryByDisplayValue('Untitled Assignment')).not.toBeInTheDocument()
 
       // Should have called POST to create the draft

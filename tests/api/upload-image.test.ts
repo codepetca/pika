@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { DELETE, PATCH, POST } from '@/app/api/upload-image/route'
 import { IMAGE_MAX_SIZE } from '@/lib/image-upload'
@@ -72,6 +72,24 @@ describe('/api/upload-image direct storage flow', () => {
       error: null,
     })
     rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'reserve_assignment_inline_image_for_member_v1') {
+        return { data: {
+          ok: true,
+          classroom_id: classroomId,
+          assignment_id: assignmentId,
+          assignment_doc_id: assignmentDocId,
+          managed_object_id: args.p_object_id,
+        }, error: null }
+      }
+      if (name === 'finalize_assignment_inline_image_for_member_v1') {
+        return { data: {
+          ok: true,
+          classroom_id: classroomId,
+          assignment_id: assignmentId,
+          assignment_doc_id: assignmentDocId,
+          managed_object_id: args.p_managed_object_id,
+        }, error: null }
+      }
       if (name === 'begin_managed_storage_upload') {
         managedObject = {
           ...managedObject,
@@ -109,6 +127,51 @@ describe('/api/upload-image direct storage flow', () => {
         from: vi.fn(() => ({ createSignedUploadUrl, info })),
       },
     } as unknown as ReturnType<typeof getServiceRoleClient>)
+  })
+
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each([['POST', POST], ['PATCH', PATCH], ['DELETE', DELETE]] as const)(
+    'validates shared admission after auth and before %s body or discovery',
+    async (method, handler) => {
+      vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'malformed')
+      const input = request(method, {})
+      const json = vi.spyOn(input, 'json')
+      expect((await handler(input)).status).toBe(503)
+      expect(json).not.toHaveBeenCalled()
+      expect(getServiceRoleClient).not.toHaveBeenCalled()
+      expect(rpc).not.toHaveBeenCalled()
+      const authError = new Error('Not authenticated')
+      authError.name = 'AuthenticationError'
+      vi.mocked(requireAuth).mockRejectedValueOnce(authError)
+      expect((await handler(input)).status).toBe(401)
+      expect(json).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['teacher', 'student'] as const)('uses contextual image reserve and finalize RPCs for a shared admitted %s', async (role) => {
+    const actorId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, email: 'member@example.com', role } as any)
+    managedObject = { ...managedObject, created_by_user_id: actorId, data_subject_user_id: actorId }
+    expect((await POST(request('POST', reservationBody()))).status).toBe(200)
+    expect((await PATCH(request('PATCH', { assignment_doc_id: assignmentDocId, managed_object_id: objectId }))).status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('reserve_assignment_inline_image_for_member_v1', expect.objectContaining({ p_actor_id: actorId }))
+    expect(rpc).toHaveBeenCalledWith('finalize_assignment_inline_image_for_member_v1', expect.objectContaining({ p_actor_id: actorId }))
+    expect(rpc).not.toHaveBeenCalledWith('begin_managed_storage_upload', expect.anything())
+    expect(rpc).not.toHaveBeenCalledWith('verify_managed_storage_upload', expect.anything())
+  })
+
+  it('does not reserve or sign after the contextual transaction denies the admitted actor', async () => {
+    const actorId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, email: 'member@example.com', role: 'teacher' } as any)
+    rpc.mockResolvedValue({ data: { ok: false, status: 403, error: 'Forbidden' }, error: null })
+    expect((await POST(request('POST', reservationBody()))).status).toBe(403)
+    expect(createSignedUploadUrl).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalledWith('begin_managed_storage_upload', expect.anything())
   })
 
   it('rejects unauthenticated and identity-less sessions', async () => {
@@ -151,6 +214,26 @@ describe('/api/upload-image direct storage flow', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
+  it('lets a teacher-valued exact member reserve through the contextual transaction', async () => {
+    const contextualMemberId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', JSON.stringify([{
+      userId: contextualMemberId, classroomId,
+    }]))
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: contextualMemberId, email: 'member@example.com', role: 'teacher',
+    } as Awaited<ReturnType<typeof requireAuth>>)
+
+    const response = await POST(request('POST', reservationBody()))
+
+    expect(response.status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('reserve_assignment_inline_image_for_member_v1', expect.objectContaining({
+      p_actor_id: contextualMemberId, p_assignment_doc_id: assignmentDocId,
+      p_expected_classroom_id: classroomId,
+    }))
+    expect(rpc).not.toHaveBeenCalledWith('begin_managed_storage_upload', expect.anything())
+  })
+
   it('finalizes only an exact uploaded object whose size and MIME match', async () => {
     const response = await PATCH(request('PATCH', {
       assignment_doc_id: assignmentDocId,
@@ -189,5 +272,17 @@ describe('/api/upload-image direct storage flow', () => {
     expect(rpc).toHaveBeenCalledWith('queue_managed_storage_cleanup', expect.objectContaining({
       p_object_id: objectId,
     }))
+  })
+
+  it('queues an owned finalized image that was not inserted into student work', async () => {
+    managedObject = { ...managedObject, status: 'verified' }
+
+    const response = await DELETE(request('DELETE', { managed_object_id: objectId }))
+
+    expect(response.status).toBe(204)
+    expect(rpc).toHaveBeenCalledWith('queue_managed_storage_cleanup', {
+      p_error_code: 'submission_image_not_inserted',
+      p_object_id: objectId,
+    })
   })
 })

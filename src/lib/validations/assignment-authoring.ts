@@ -16,6 +16,15 @@ export const assignmentSubmissionRequirementDraftSchema = z.object({
   validation_policy_json: submissionValidationPolicySchema.nullable().optional(),
 }).strict()
 
+export const teacherAssignmentCreateSchema = z.object({
+  classroom_id: z.string().uuid(),
+  title: z.string().trim().min(1).max(500),
+  instructions_markdown: z.string().max(200_000).optional(),
+  rich_instructions: assignmentSubmissionContentSchema.nullable().optional(),
+  due_at: z.string().datetime({ offset: true }),
+  submission_requirements: z.array(assignmentSubmissionRequirementDraftSchema).max(50).optional(),
+}).strict()
+
 export const teacherAssignmentPatchSchema = z.object({
   title: z.string().trim().min(1).max(500).optional(),
   instructions_markdown: z.string().max(200_000).optional(),
@@ -27,3 +36,4 @@ export const teacherAssignmentPatchSchema = z.object({
 }).strict()
 
 export type TeacherAssignmentPatch = z.infer<typeof teacherAssignmentPatchSchema>
+export type TeacherAssignmentCreate = z.infer<typeof teacherAssignmentCreateSchema>

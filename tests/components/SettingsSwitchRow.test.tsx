@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
+import { Users } from 'lucide-react'
+import { SettingsSwitch, SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
+import { TooltipProvider } from '@/ui'
 
 describe('SettingsSwitchRow', () => {
   it('exposes its checked state and toggles from the keyboard', async () => {
@@ -31,5 +33,75 @@ describe('SettingsSwitchRow', () => {
     )
 
     expect(screen.getByRole('switch', { name: 'Disabled setting' })).toBeDisabled()
+  })
+
+  it('can explain a compact switch with a tooltip', async () => {
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <SettingsSwitch
+          checked={false}
+          onChange={vi.fn()}
+          ariaLabel="Student grades visibility"
+          tooltip="Show grades to students"
+        />
+      </TooltipProvider>,
+    )
+
+    await user.hover(screen.getByRole('switch', { name: 'Student grades visibility' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
+  })
+
+  it('supports an optional green checked treatment with an icon inside the larger thumb', () => {
+    const { rerender } = render(
+      <SettingsSwitch
+        checked={false}
+        checkedTone="success"
+        checkedIcon={<Users data-testid="checked-icon" />}
+        uncheckedIcon={<Users data-testid="unchecked-icon" />}
+        onChange={vi.fn()}
+        ariaLabel="Visible to students"
+      />,
+    )
+
+    const switchControl = screen.getByRole('switch', { name: 'Visible to students' })
+    expect(switchControl).toHaveClass('w-16')
+    expect(switchControl.firstElementChild).toHaveClass('bg-surface-2')
+    expect(switchControl.firstElementChild?.lastElementChild).toHaveClass('bg-text-muted', 'translate-x-1')
+    expect(screen.queryByTestId('checked-icon')).not.toBeInTheDocument()
+    expect(screen.getByTestId('unchecked-icon').parentElement).toHaveClass('right-1')
+
+    rerender(
+      <SettingsSwitch
+        checked
+        checkedTone="success"
+        checkedIcon={<Users data-testid="checked-icon" />}
+        uncheckedIcon={<Users data-testid="unchecked-icon" />}
+        onChange={vi.fn()}
+        ariaLabel="Visible to students"
+      />,
+    )
+
+    expect(switchControl.firstElementChild).toHaveClass('bg-success-solid')
+    expect(switchControl.firstElementChild?.firstElementChild).toHaveClass('h-6', 'w-6', 'translate-x-9')
+    expect(screen.getByTestId('checked-icon')).toBeInTheDocument()
+    expect(screen.queryByTestId('unchecked-icon')).not.toBeInTheDocument()
+  })
+
+  it('can retain its checked tone while a save temporarily disables it', () => {
+    render(
+      <SettingsSwitch
+        checked
+        checkedTone="success"
+        retainCheckedToneWhenDisabled
+        disabled
+        onChange={vi.fn()}
+        ariaLabel="Saving visible state"
+      />,
+    )
+
+    const switchControl = screen.getByRole('switch', { name: 'Saving visible state' })
+    expect(switchControl).toBeDisabled()
+    expect(switchControl.firstElementChild).toHaveClass('bg-success-solid')
   })
 })

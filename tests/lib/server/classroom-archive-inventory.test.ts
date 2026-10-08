@@ -27,7 +27,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 const CLASSROOM_ID = '11111111-1111-4111-8111-111111111111'
 const ASSIGNMENT_ID = '22222222-2222-4222-8222-222222222222'
 
-function remoteArchiveContract(includeOverrides = false) {
+function remoteArchiveContract(includeOverrides = false, includeGuidedDraftProvenance = false) {
   const v1Tables = new Set<string>(
     CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
   )
@@ -35,8 +35,9 @@ function remoteArchiveContract(includeOverrides = false) {
   const resources = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
-  return getClassroomResourceOrder('export')
-    .filter((table) => v1Tables.has(table))
+  const tables = getClassroomResourceOrder('export').filter((table) => v1Tables.has(table))
+  if (includeGuidedDraftProvenance) tables.push('classroom_guided_draft_provenance')
+  return tables
     .map((table, exportPosition) => {
       const resource = resources.get(table)!
       return {
@@ -381,7 +382,7 @@ describe('classroom archive production inventory', () => {
       'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
     )).toMatchObject({ PGHOST: '127.0.0.1', PGPORT: '54322', PGSSLMODE: 'disable' })
     expect(() => localSupabasePsqlEnvironment(
-      'postgresql://postgres:postgres@staging.example.com:5432/postgres',
+      'postgresql://postgres:postgres@remote.example.com:5432/postgres',
     )).toThrow('loopback')
   })
 
@@ -615,6 +616,35 @@ it('validates the post157 legacy catalog including override identity', () => {
   const override = contract.find((row) => row.table_name === 'gradebook_score_overrides')!
   override.actor_columns = []
   expect(() => verifyRemoteClassroomContracts(contract, gradex)).toThrow()
+})
+
+it('accepts the additive guided draft archive contract only with its actor and dependencies', () => {
+  const contract = remoteArchiveContract(true, true)
+  const gradex = GRADEX_RESOURCE_TABLES.map((table) => ({ table_name: table }))
+  expect(() => verifyRemoteClassroomContracts(contract, gradex)).not.toThrow()
+  const provenance = contract.find((row) => row.table_name === 'classroom_guided_draft_provenance')!
+  provenance.actor_columns = []
+  expect(() => verifyRemoteClassroomContracts(contract, gradex)).toThrow()
+})
+
+it('inventories pre221 schemas without querying absent guided draft provenance', async () => {
+  const base = reader()
+  const readResourceRows = vi.fn(base.readResourceRows)
+  const document = openApiDocument()
+  delete document.definitions.classroom_guided_draft_provenance
+  const compatibleReader = {
+    ...base,
+    readOpenApiSchema: async () => document,
+    readArchiveV2ResourceTables: async () => CLASSROOM_ARCHIVE_V2_RESOURCES
+      .filter((resource) => resource.table !== 'classroom_guided_draft_provenance')
+      .map((resource) => resource.table),
+    readResourceRows,
+  }
+  const graph = await readClassroomArchiveResourceGraph(compatibleReader, CLASSROOM_ID)
+  expect(graph).not.toHaveProperty('classroom_guided_draft_provenance')
+  expect(readResourceRows.mock.calls.some(([query]) =>
+    query.table === 'classroom_guided_draft_provenance')).toBe(false)
+  await expect(inventoryArchivedClassrooms(compatibleReader)).resolves.toBeTruthy()
 })
 
 it('inventories pre161 schemas without querying either standalone resource', async () => {

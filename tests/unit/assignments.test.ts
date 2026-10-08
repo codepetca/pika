@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   canUnsubmitAssignmentDoc,
   calculateAssignmentStatus,
+  calculateStudentAssignmentStatus,
   calculateAssignmentStats,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
@@ -403,6 +404,39 @@ describe('assignment utilities', () => {
       const status = calculateAssignmentStatus(assignment, doc)
 
       expect(status).toBe('in_progress')
+    })
+  })
+
+  describe('calculateStudentAssignmentStatus', () => {
+    it('keeps an unreturned AI grade private and shows the submission status', () => {
+      vi.setSystemTime(new Date('2024-10-21T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-18T20:00:00Z',
+        graded_at: '2024-10-21T10:00:00Z',
+        graded_by: 'ai',
+      })
+
+      expect(calculateStudentAssignmentStatus(assignment, doc)).toBe('submitted_on_time')
+    })
+
+    it('shows returned only after the teacher returns the work', () => {
+      vi.setSystemTime(new Date('2024-10-22T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-18T20:00:00Z',
+        graded_at: '2024-10-21T10:00:00Z',
+        graded_by: 'ai',
+        returned_at: '2024-10-21T14:00:00Z',
+      })
+
+      expect(calculateStudentAssignmentStatus(assignment, doc)).toBe('returned')
     })
   })
 

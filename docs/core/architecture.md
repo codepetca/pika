@@ -6,7 +6,7 @@ Defines the system architecture, patterns, and technical details for **Pika**. P
 
 ## System Overview
 
-Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It uses server components plus API routes, iron-session cookies for auth, and Supabase for persistence.
+Pika is a Next.js App Router application (versions: `package.json` and `pnpm-lock.yaml`) deployed on Vercel with a Supabase backend. It uses server components plus API routes, iron-session cookies for auth, and Supabase for persistence.
 
 ```
 ┌────────────────────────────┐
@@ -60,8 +60,8 @@ src/
 │   ├── api-handler.ts             # withErrorHandler wrapper + ApiError (MANDATORY for routes)
 │   ├── request-cache.ts           # Client-side in-memory cache (15–20s TTL)
 │   ├── tiptap-content.ts          # Tiptap editor utilities + parseContentField
-│   ├── ai-grading.ts              # AI grading for assignments (OpenAI)
-│   ├── ai-test-grading.ts         # AI grading for tests (OpenAI, gpt-5-nano)
+│   ├── ai-grading.ts              # AI grading for assignments (DeepSeek)
+│   ├── ai-test-grading.ts         # AI grading for tests (DeepSeek, deepseek-flash)
 │   ├── server/
 │   │   ├── assessment-drafts.ts   # Test draft system (JSON Patch)
 │   │   └── tests.ts               # Test query helpers
@@ -135,8 +135,12 @@ provide the policy/resolver foundation. Off-by-default compatibility observers d
 authorize requests. The separate [classroom-core gate](../guidance/classroom-core-contextual-access.md)
 enforces contextual access only for exact server-configured account/classroom pairs
 on its listed APIs; other requests retain legacy guards. Signup and UI routing remain
-unchanged. No general subscription store or billing integration exists. Further domains
-require their own resource checks, rollout gates and quota/transaction safeguards.
+unchanged. The dormant [shared admission contract](../guidance/classroom-experience-admission.md)
+begins consolidating rollout admission for the complete classroom experience;
+material-list reads are its first consumer. It does not activate home/page routing
+or replace resource, relationship, quota or transaction safeguards. Other domains
+retain their existing pilot/legacy paths until explicitly integrated. Billing and
+entitlement decisions remain separate from classroom admission.
 
 ### Attendance Logic
 - Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
@@ -181,24 +185,54 @@ export const GET = withErrorHandler('GetClassrooms', async (request) => {
 Use `/migrate-error-handler` slash command to convert existing manual routes.
 
 ### Client-Side Data Fetching (Required Pattern)
-Use `fetchJSONWithCache` from `@/lib/request-cache` for repeated client-side API calls.
-This avoids duplicate in-flight requests and caches responses for 15–20 seconds.
+Use `fetchCachedJSON` from `@/lib/request-cache` for repeated client-side API
+reads. It checks HTTP success, throws on errors and deduplicates/cache successful
+responses for the selected TTL (15 seconds by default).
 
 ```ts
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchCachedJSON, fetchJSON } from '@/lib/request-cache'
 
-// ✅ CORRECT — deduplicated + cached
-const data = await fetchJSONWithCache(
+// Repeated reads: failed HTTP responses reject and are not cached as data.
+const data = await fetchCachedJSON(
   `gradebook:${classroomId}:${studentId}`,
-  () => fetch(`/api/teacher/gradebook?...`).then(r => r.json()),
-  60_000  // 1 min TTL
+  `/api/teacher/gradebook?classroom_id=${classroomId}&student_id=${studentId}`,
+  { ttlMs: 60_000, errorMessage: 'Failed to load gradebook' }
 )
 
-// ❌ WRONG — raw fetch in components (causes duplicate requests, no caching)
-const data = await fetch(`/api/teacher/gradebook?...`).then(r => r.json())
+// Freshness-critical reads (for example grading polls): bypass the cache.
+const fresh = await fetchJSON('/api/teacher/tests/.../attempts', {
+  init: { cache: 'no-store' },
+  errorMessage: 'Failed to load grading status'
+})
 ```
 
-Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshness is critical.
+For custom fetchers, `fetchJSONWithCache(key, fetcher, ttlMs)` requires the fetcher
+to **throw** on HTTP/domain failure; resolving `response.json()` without checking
+`response.ok` stores error payloads as successful data. Prefer `fetchCachedJSON`
+for ordinary JSON reads. Use a stable identity key, invalidate after mutations,
+and bypass caching for reads that must always be fresh. Raw `fetch()` is also
+appropriate for one-off mutations (POST/PATCH/DELETE).
+
+Classroom and Course Blueprint list clients resolve the current actor before
+using actor-scoped caches. `client-identity` shares that lookup only among callers
+started in the same synchronous batch; an awaited or browser-event boundary
+starts a fresh lookup, even while the earlier lookup remains pending. It does
+not retain an identity cache. `AuthSessionWatcher` uses its own fresh lookup,
+checks every minute while visible and focused, and checks immediately on focus.
+Blur and hidden-page transitions fence older responses. Server authorization
+continues to validate the session independently on every protected request.
+
+Teacher Assignment and Test grading use `ai-grading-run-poll` for their browser
+driver. A successful, validated status for the selected resource and run must
+precede each tick. Permanent HTTP or invalid-response failures stop the browser
+driver; transient failures back off with jitter, bounded by six consecutive
+failures and a two-minute failure deadline. Future retry times suppress ticks
+until due, with status reconciliation at most once a minute during longer waits.
+Cancellation aborts pending requests and prevents late state writes or ticks.
+If status becomes unavailable, the existing error banner offers page reload to
+reconnect to the saved run; the blocking loading overlay is removed, while the
+durable run and active-run mutation guards remain intact. Provider attempt
+limits, leases, and background server drivers retain their separate contracts.
 
 ### Assessments Pattern
 Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed.

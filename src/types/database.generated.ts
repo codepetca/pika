@@ -9,6 +9,96 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_plan_audit: {
+        Row: {
+          actor_ref: string
+          created_at: string
+          entitlement_revision: number
+          id: string
+          new_classroom_limit: number
+          new_plan_key: string
+          operation_id: string
+          plan_revision: number
+          previous_plan_key: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Insert: {
+          actor_ref: string
+          created_at?: string
+          entitlement_revision: number
+          id?: string
+          new_classroom_limit: number
+          new_plan_key: string
+          operation_id: string
+          plan_revision: number
+          previous_plan_key?: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Update: {
+          actor_ref?: string
+          created_at?: string
+          entitlement_revision?: number
+          id?: string
+          new_classroom_limit?: number
+          new_plan_key?: string
+          operation_id?: string
+          plan_revision?: number
+          previous_plan_key?: string | null
+          reason_code?: string
+          request_fingerprint?: string
+          subject_user_id?: string
+        }
+        Relationships: []
+      }
+      account_plans: {
+        Row: {
+          billing_offering_version_id: string | null
+          created_at: string
+          management_source: string
+          plan_key: string
+          revision: number
+          subject_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          billing_offering_version_id?: string | null
+          created_at?: string
+          management_source?: string
+          plan_key: string
+          revision: number
+          subject_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          billing_offering_version_id?: string | null
+          created_at?: string
+          management_source?: string
+          plan_key?: string
+          revision?: number
+          subject_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_plans_billing_offering_version_id_fkey"
+            columns: ["billing_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_plans_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcement_reads: {
         Row: {
           announcement_id: string
@@ -165,9 +255,11 @@ export type Database = {
           assignment_doc_id: string | null
           assignment_doc_updated_at: string | null
           assignment_id: string
+          assignment_source_fingerprint: string | null
           attempt_count: number
           completed_at: string | null
           created_at: string
+          gradex_submission_id: string | null
           id: string
           last_error_code: string | null
           last_error_message: string | null
@@ -184,9 +276,11 @@ export type Database = {
           assignment_doc_id?: string | null
           assignment_doc_updated_at?: string | null
           assignment_id: string
+          assignment_source_fingerprint?: string | null
           attempt_count?: number
           completed_at?: string | null
           created_at?: string
+          gradex_submission_id?: string | null
           id?: string
           last_error_code?: string | null
           last_error_message?: string | null
@@ -203,9 +297,11 @@ export type Database = {
           assignment_doc_id?: string | null
           assignment_doc_updated_at?: string | null
           assignment_id?: string
+          assignment_source_fingerprint?: string | null
           attempt_count?: number
           completed_at?: string | null
           created_at?: string
+          gradex_submission_id?: string | null
           id?: string
           last_error_code?: string | null
           last_error_message?: string | null
@@ -258,6 +354,7 @@ export type Database = {
           error_samples_json: Json
           failed_count: number
           gradable_count: number
+          gradex_idempotency_key: string | null
           gradex_last_polled_at: string | null
           gradex_run_id: string | null
           gradex_status: string | null
@@ -276,6 +373,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         Insert: {
           assignment_id: string
@@ -285,6 +383,7 @@ export type Database = {
           error_samples_json?: Json
           failed_count?: number
           gradable_count?: number
+          gradex_idempotency_key?: string | null
           gradex_last_polled_at?: string | null
           gradex_run_id?: string | null
           gradex_status?: string | null
@@ -303,6 +402,7 @@ export type Database = {
           status?: string
           triggered_by: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Update: {
           assignment_id?: string
@@ -312,6 +412,7 @@ export type Database = {
           error_samples_json?: Json
           failed_count?: number
           gradable_count?: number
+          gradex_idempotency_key?: string | null
           gradex_last_polled_at?: string | null
           gradex_run_id?: string | null
           gradex_status?: string | null
@@ -330,6 +431,7 @@ export type Database = {
           status?: string
           triggered_by?: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Relationships: [
           {
@@ -1055,6 +1157,8 @@ export type Database = {
           description: string
           due_at: string
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -1079,6 +1183,8 @@ export type Database = {
           description?: string
           due_at: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -1103,6 +1209,8 @@ export type Database = {
           description?: string
           due_at?: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -2317,6 +2425,482 @@ export type Database = {
           },
         ]
       }
+      billing_account_access: {
+        Row: {
+          access_ends_at: string
+          account_plan_revision: number
+          end_reason: string
+          entitlement_revision: number | null
+          expiry_applied_at: string | null
+          failed_renewal_invoice_id: string | null
+          last_paid_invoice_id: string | null
+          last_provider_verified_at: string | null
+          offering_version_id: string | null
+          paid_period_start: string | null
+          paid_through: string | null
+          revision: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          subscription_id: string | null
+          trial_subject_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_ends_at: string
+          account_plan_revision: number
+          end_reason: string
+          entitlement_revision?: number | null
+          expiry_applied_at?: string | null
+          failed_renewal_invoice_id?: string | null
+          last_paid_invoice_id?: string | null
+          last_provider_verified_at?: string | null
+          offering_version_id?: string | null
+          paid_period_start?: string | null
+          paid_through?: string | null
+          revision?: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          subscription_id?: string | null
+          trial_subject_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_ends_at?: string
+          account_plan_revision?: number
+          end_reason?: string
+          entitlement_revision?: number | null
+          expiry_applied_at?: string | null
+          failed_renewal_invoice_id?: string | null
+          last_paid_invoice_id?: string | null
+          last_provider_verified_at?: string | null
+          offering_version_id?: string | null
+          paid_period_start?: string | null
+          paid_through?: string | null
+          revision?: number
+          source?: string
+          starts_at?: string
+          subject_user_id?: string
+          subscription_id?: string | null
+          trial_subject_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_account_access_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_trial_subject_user_id_fkey"
+            columns: ["trial_subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "billing_trials"
+            referencedColumns: ["subject_user_id"]
+          },
+        ]
+      }
+      billing_lifecycle_audit: {
+        Row: {
+          created_at: string
+          id: string
+          next_state: Json
+          operation_id: string
+          previous_state: Json | null
+          reason: string
+          subject_user_id: string
+          subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          next_state: Json
+          operation_id: string
+          previous_state?: Json | null
+          reason: string
+          subject_user_id: string
+          subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          next_state?: Json
+          operation_id?: string
+          previous_state?: Json | null
+          reason?: string
+          subject_user_id?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_lifecycle_audit_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_lifecycle_audit_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_renewal_closeouts: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          cutoff: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          id: string
+          invoice_id: string
+          next_attempt_at: string | null
+          paid_through: string
+          reason: string | null
+          revision: number
+          stage: string
+          status: string
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          cutoff: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          id?: string
+          invoice_id: string
+          next_attempt_at?: string | null
+          paid_through: string
+          reason?: string | null
+          revision?: number
+          stage?: string
+          status?: string
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          cutoff?: string
+          expected_access_revision?: number
+          expected_account_plan_revision?: number
+          expected_entitlement_revision?: number
+          id?: string
+          invoice_id?: string
+          next_attempt_at?: string | null
+          paid_through?: string
+          reason?: string | null
+          revision?: number
+          stage?: string
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_renewal_closeouts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_trial_definitions: {
+        Row: {
+          classroom_limit: number
+          duration_seconds: number
+          id: string
+          plan_key: string
+        }
+        Insert: {
+          classroom_limit: number
+          duration_seconds: number
+          id: string
+          plan_key: string
+        }
+        Update: {
+          classroom_limit?: number
+          duration_seconds?: number
+          id?: string
+          plan_key?: string
+        }
+        Relationships: []
+      }
+      billing_trials: {
+        Row: {
+          converted_to_paid_at: string | null
+          definition_id: string
+          ends_at: string
+          operation_id: string
+          started_at: string
+          subject_user_id: string
+        }
+        Insert: {
+          converted_to_paid_at?: string | null
+          definition_id: string
+          ends_at: string
+          operation_id: string
+          started_at: string
+          subject_user_id: string
+        }
+        Update: {
+          converted_to_paid_at?: string | null
+          definition_id?: string
+          ends_at?: string
+          operation_id?: string
+          started_at?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_trials_definition_id_fkey"
+            columns: ["definition_id"]
+            isOneToOne: false
+            referencedRelation: "billing_trial_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_trials_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_upgrade_operations: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          confirmed: boolean
+          created_at: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          expires_at: string
+          id: string
+          invoice_id: string | null
+          last_paid_invoice_id: string
+          next_attempt_at: string | null
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string | null
+          quote: Json | null
+          quote_digest: string | null
+          quote_revision: number | null
+          reason: string | null
+          revision: number
+          source_binding: Json
+          source_offering_version_id: string
+          stage: string
+          status: string
+          subject_user_id: string
+          subscription_id: string
+          target: Json
+          target_offering_version_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          confirmed?: boolean
+          created_at?: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          expires_at: string
+          id: string
+          invoice_id?: string | null
+          last_paid_invoice_id: string
+          next_attempt_at?: string | null
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id?: string | null
+          quote?: Json | null
+          quote_digest?: string | null
+          quote_revision?: number | null
+          reason?: string | null
+          revision?: number
+          source_binding: Json
+          source_offering_version_id: string
+          stage?: string
+          status?: string
+          subject_user_id: string
+          subscription_id: string
+          target: Json
+          target_offering_version_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          confirmed?: boolean
+          created_at?: string
+          expected_access_revision?: number
+          expected_account_plan_revision?: number
+          expected_entitlement_revision?: number
+          expires_at?: string
+          id?: string
+          invoice_id?: string | null
+          last_paid_invoice_id?: string
+          next_attempt_at?: string | null
+          paid_period_start?: string
+          paid_through?: string
+          payment_intent_id?: string | null
+          quote?: Json | null
+          quote_digest?: string | null
+          quote_revision?: number | null
+          reason?: string | null
+          revision?: number
+          source_binding?: Json
+          source_offering_version_id?: string
+          stage?: string
+          status?: string
+          subject_user_id?: string
+          subscription_id?: string
+          target?: Json
+          target_offering_version_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_upgrade_operations_source_offering_version_id_fkey"
+            columns: ["source_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_target_offering_version_id_fkey"
+            columns: ["target_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_upgrade_receipts: {
+        Row: {
+          account_plan_revision: number
+          amount_paid: number
+          created_at: string
+          currency: string
+          evidence: Json
+          invoice_id: string
+          operation_id: string
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string
+          source_offering_version_id: string
+          stripe_account: string
+          subscription_id: string
+          target_offering_version_id: string
+        }
+        Insert: {
+          account_plan_revision: number
+          amount_paid: number
+          created_at?: string
+          currency: string
+          evidence: Json
+          invoice_id: string
+          operation_id: string
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string
+          source_offering_version_id: string
+          stripe_account: string
+          subscription_id: string
+          target_offering_version_id: string
+        }
+        Update: {
+          account_plan_revision?: number
+          amount_paid?: number
+          created_at?: string
+          currency?: string
+          evidence?: Json
+          invoice_id?: string
+          operation_id?: string
+          paid_period_start?: string
+          paid_through?: string
+          payment_intent_id?: string
+          source_offering_version_id?: string
+          stripe_account?: string
+          subscription_id?: string
+          target_offering_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_upgrade_receipts_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: true
+            referencedRelation: "billing_upgrade_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_source_offering_version_id_fkey"
+            columns: ["source_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_target_offering_version_id_fkey"
+            columns: ["target_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_days: {
         Row: {
           classroom_id: string
@@ -3331,6 +3915,92 @@ export type Database = {
           },
         ]
       }
+      classroom_guided_draft_provenance: {
+        Row: {
+          assignment_id: string | null
+          classroom_id: string
+          content_version_id: string | null
+          created_at: string
+          created_by: string
+          created_content_sha256: string
+          draft_id: string
+          id: string
+          rules_markdown: string
+          seed_sha256: string
+          source_blueprint_version_id: string
+          source_blueprint_version_number: number
+          source_draft_revision: number
+          test_id: string | null
+          unit_exception_id: string | null
+          unit_label: string | null
+        }
+        Insert: {
+          assignment_id?: string | null
+          classroom_id: string
+          content_version_id?: string | null
+          created_at?: string
+          created_by: string
+          created_content_sha256: string
+          draft_id: string
+          id?: string
+          rules_markdown: string
+          seed_sha256: string
+          source_blueprint_version_id: string
+          source_blueprint_version_number: number
+          source_draft_revision: number
+          test_id?: string | null
+          unit_exception_id?: string | null
+          unit_label?: string | null
+        }
+        Update: {
+          assignment_id?: string | null
+          classroom_id?: string
+          content_version_id?: string | null
+          created_at?: string
+          created_by?: string
+          created_content_sha256?: string
+          draft_id?: string
+          id?: string
+          rules_markdown?: string
+          seed_sha256?: string
+          source_blueprint_version_id?: string
+          source_blueprint_version_number?: number
+          source_draft_revision?: number
+          test_id?: string | null
+          unit_exception_id?: string | null
+          unit_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: true
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: true
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_join_rate_limits: {
         Row: {
           attempt_timestamps: string[]
@@ -3884,6 +4554,7 @@ export type Database = {
           actual_site_slug: string | null
           allow_enrollment: boolean
           archived_at: string | null
+          authoring_guidance_version_id: string | null
           blueprint_source_revision: number
           class_code: string
           course_outline_markdown: string
@@ -3915,6 +4586,7 @@ export type Database = {
           actual_site_slug?: string | null
           allow_enrollment?: boolean
           archived_at?: string | null
+          authoring_guidance_version_id?: string | null
           blueprint_source_revision?: number
           class_code: string
           course_outline_markdown?: string
@@ -3946,6 +4618,7 @@ export type Database = {
           actual_site_slug?: string | null
           allow_enrollment?: boolean
           archived_at?: string | null
+          authoring_guidance_version_id?: string | null
           blueprint_source_revision?: number
           class_code?: string
           course_outline_markdown?: string
@@ -3972,6 +4645,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classrooms_authoring_guidance_version_id_fkey"
+            columns: ["authoring_guidance_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classrooms_source_blueprint_id_fkey"
             columns: ["source_blueprint_id"]
@@ -4345,6 +5025,51 @@ export type Database = {
           },
         ]
       }
+      course_blueprint_authoring_guidance_revisions: {
+        Row: {
+          content_revision: number
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          guidance: Json
+          id: string
+          source_kind: string
+        }
+        Insert: {
+          content_revision: number
+          course_blueprint_id: string
+          created_at?: string
+          created_by: string
+          guidance: Json
+          id?: string
+          source_kind: string
+        }
+        Update: {
+          content_revision?: number
+          course_blueprint_id?: string
+          created_at?: string
+          created_by?: string
+          guidance?: Json
+          id?: string
+          source_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_authoring_guidance_re_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_authoring_guidance_revisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_blueprint_change_proposals: {
         Row: {
           applied_at: string | null
@@ -4454,6 +5179,38 @@ export type Database = {
             foreignKeyName: "course_blueprint_change_proposals_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_draft_admissions: {
+        Row: {
+          active_lease_expires_at: string | null
+          active_lease_token: string | null
+          attempt_timestamps: string[]
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          active_lease_expires_at?: string | null
+          active_lease_token?: string | null
+          attempt_timestamps: string[]
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          active_lease_expires_at?: string | null
+          active_lease_token?: string | null
+          attempt_timestamps?: string[]
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_draft_admissions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -4983,6 +5740,7 @@ export type Database = {
       }
       course_blueprints: {
         Row: {
+          authoring_guidance: Json
           authority_mode: string
           content_revision: number
           course_code: string
@@ -5007,6 +5765,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          authoring_guidance?: Json
           authority_mode?: string
           content_revision?: number
           course_code?: string
@@ -5031,6 +5790,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          authoring_guidance?: Json
           authority_mode?: string
           content_revision?: number
           course_code?: string
@@ -5391,6 +6151,74 @@ export type Database = {
           },
         ]
       }
+      feature_usage_reservations: {
+        Row: {
+          created_at: string
+          entitlement_revision: number
+          expires_at: string
+          feature_key: string
+          id: string
+          operation_id: string
+          operation_kind: string
+          release_reason: string | null
+          released_at: string | null
+          request_fingerprint: string
+          reserved_at: string
+          settled_at: string | null
+          status: string
+          subject_user_id: string
+          units: number
+          updated_at: string
+          usage_ref: string
+        }
+        Insert: {
+          created_at?: string
+          entitlement_revision: number
+          expires_at: string
+          feature_key: string
+          id?: string
+          operation_id: string
+          operation_kind: string
+          release_reason?: string | null
+          released_at?: string | null
+          request_fingerprint: string
+          reserved_at: string
+          settled_at?: string | null
+          status: string
+          subject_user_id: string
+          units: number
+          updated_at?: string
+          usage_ref: string
+        }
+        Update: {
+          created_at?: string
+          entitlement_revision?: number
+          expires_at?: string
+          feature_key?: string
+          id?: string
+          operation_id?: string
+          operation_kind?: string
+          release_reason?: string | null
+          released_at?: string | null
+          request_fingerprint?: string
+          reserved_at?: string
+          settled_at?: string | null
+          status?: string
+          subject_user_id?: string
+          units?: number
+          updated_at?: string
+          usage_ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_usage_reservations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gradebook_categories: {
         Row: {
           classroom_id: string
@@ -5496,6 +6324,8 @@ export type Database = {
           created_at: string
           created_by: string
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -5508,6 +6338,8 @@ export type Database = {
           created_at?: string
           created_by: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -5520,6 +6352,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -6373,6 +7207,546 @@ export type Database = {
           },
         ]
       }
+      stripe_billing_customers: {
+        Row: {
+          created_at: string
+          provider_mode: string
+          stripe_account: string
+          stripe_customer_id: string
+          subject_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          provider_mode?: string
+          stripe_account: string
+          stripe_customer_id: string
+          subject_user_id: string
+        }
+        Update: {
+          created_at?: string
+          provider_mode?: string
+          stripe_account?: string
+          stripe_customer_id?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_customers_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_event_inbox: {
+        Row: {
+          attempt_count: number
+          attention_at: string | null
+          completed_at: string | null
+          event_created_at: string | null
+          event_type: string
+          exception_code: string | null
+          id: string
+          next_attempt_at: string | null
+          payload_hash: string
+          provider_mode: string
+          received_at: string
+          status: string
+          stripe_account: string
+          stripe_customer_id: string | null
+          stripe_event_id: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          attention_at?: string | null
+          completed_at?: string | null
+          event_created_at?: string | null
+          event_type: string
+          exception_code?: string | null
+          id?: string
+          next_attempt_at?: string | null
+          payload_hash: string
+          provider_mode?: string
+          received_at?: string
+          status?: string
+          stripe_account: string
+          stripe_customer_id?: string | null
+          stripe_event_id: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          attention_at?: string | null
+          completed_at?: string | null
+          event_created_at?: string | null
+          event_type?: string
+          exception_code?: string | null
+          id?: string
+          next_attempt_at?: string | null
+          payload_hash?: string
+          provider_mode?: string
+          received_at?: string
+          status?: string
+          stripe_account?: string
+          stripe_customer_id?: string | null
+          stripe_event_id?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_event_inbox_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_invoice_effects: {
+        Row: {
+          account_plan_revision: number
+          created_at: string
+          event_inbox_id: string | null
+          id: string
+          offering_version_id: string
+          period_end: string
+          period_start: string
+          stripe_account: string
+          stripe_invoice_id: string
+          subscription_id: string
+        }
+        Insert: {
+          account_plan_revision: number
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id: string
+          period_end: string
+          period_start: string
+          stripe_account: string
+          stripe_invoice_id: string
+          subscription_id: string
+        }
+        Update: {
+          account_plan_revision?: number
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string
+          period_end?: string
+          period_start?: string
+          stripe_account?: string
+          stripe_invoice_id?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_event_inbox_id_fkey"
+            columns: ["event_inbox_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_event_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offering_availability: {
+        Row: {
+          available_from: string | null
+          available_until: string | null
+          is_available: boolean
+          offering_version_id: string
+          updated_at: string
+        }
+        Insert: {
+          available_from?: string | null
+          available_until?: string | null
+          is_available?: boolean
+          offering_version_id: string
+          updated_at?: string
+        }
+        Update: {
+          available_from?: string | null
+          available_until?: string | null
+          is_available?: boolean
+          offering_version_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_offering_availability_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: true
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offering_versions: {
+        Row: {
+          ai_definition: Json | null
+          classroom_limit: number
+          created_at: string
+          currency: string
+          features: Json
+          id: string
+          interval: string
+          offering_id: string
+          provider_mode: string
+          stripe_account: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount: number
+          version: number
+        }
+        Insert: {
+          ai_definition?: Json | null
+          classroom_limit: number
+          created_at?: string
+          currency: string
+          features: Json
+          id?: string
+          interval: string
+          offering_id: string
+          provider_mode?: string
+          stripe_account: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount: number
+          version: number
+        }
+        Update: {
+          ai_definition?: Json | null
+          classroom_limit?: number
+          created_at?: string
+          currency?: string
+          features?: Json
+          id?: string
+          interval?: string
+          offering_id?: string
+          provider_mode?: string
+          stripe_account?: string
+          stripe_price_id?: string
+          stripe_product_id?: string
+          unit_amount?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_offering_versions_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offerings: {
+        Row: {
+          created_at: string
+          id: string
+          plan_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_key?: string
+        }
+        Relationships: []
+      }
+      stripe_billing_subscription_audit: {
+        Row: {
+          account_plan_revision: number | null
+          actor_ref: string | null
+          created_at: string
+          event_inbox_id: string | null
+          id: string
+          offering_version_id: string | null
+          outcome: string
+          reason_code: string | null
+          subscription_id: string
+          subscription_revision: number
+        }
+        Insert: {
+          account_plan_revision?: number | null
+          actor_ref?: string | null
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string | null
+          outcome: string
+          reason_code?: string | null
+          subscription_id: string
+          subscription_revision: number
+        }
+        Update: {
+          account_plan_revision?: number | null
+          actor_ref?: string | null
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string | null
+          outcome?: string
+          reason_code?: string | null
+          subscription_id?: string
+          subscription_revision?: number
+        }
+        Relationships: []
+      }
+      stripe_billing_subscription_bindings: {
+        Row: {
+          created_at: string
+          fencing_token: number
+          id: string
+          is_current: boolean
+          last_exception_code: string | null
+          last_period_end: string | null
+          last_period_start: string | null
+          last_provider_status: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_reconcile_at: string | null
+          obligations_cleared_at: string | null
+          offering_version_id: string
+          provider_mode: string
+          reconcile_attempt_count: number
+          reconcile_attention_at: string | null
+          reconcile_state: string
+          revision: number
+          stripe_account: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          subject_user_id: string
+          terminal_confirmed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          is_current?: boolean
+          last_exception_code?: string | null
+          last_period_end?: string | null
+          last_period_start?: string | null
+          last_provider_status?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_reconcile_at?: string | null
+          obligations_cleared_at?: string | null
+          offering_version_id: string
+          provider_mode?: string
+          reconcile_attempt_count?: number
+          reconcile_attention_at?: string | null
+          reconcile_state?: string
+          revision?: number
+          stripe_account: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          subject_user_id: string
+          terminal_confirmed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          is_current?: boolean
+          last_exception_code?: string | null
+          last_period_end?: string | null
+          last_period_start?: string | null
+          last_provider_status?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_reconcile_at?: string | null
+          obligations_cleared_at?: string | null
+          offering_version_id?: string
+          provider_mode?: string
+          reconcile_attempt_count?: number
+          reconcile_attention_at?: string | null
+          reconcile_state?: string
+          revision?: number
+          stripe_account?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          subject_user_id?: string
+          terminal_confirmed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_subscription_bindings_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_subscription_bindings_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_checkout_attempts: {
+        Row: {
+          cancel_url: string
+          checkout_url: string | null
+          created_at: string
+          fencing_token: number
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          lookup_key: string
+          next_attempt_at: string
+          offering_version_id: string
+          reason_code: string | null
+          request_fingerprint: string
+          reserved_plan_revision: number | null
+          retry_count: number
+          status: string
+          stripe_customer_id: string | null
+          stripe_session_id: string | null
+          subject_user_id: string
+          subscription_id: string | null
+          success_url: string
+          write_deadline: string
+        }
+        Insert: {
+          cancel_url: string
+          checkout_url?: string | null
+          created_at?: string
+          fencing_token?: number
+          id: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          lookup_key: string
+          next_attempt_at?: string
+          offering_version_id: string
+          reason_code?: string | null
+          request_fingerprint: string
+          reserved_plan_revision?: number | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          subject_user_id: string
+          subscription_id?: string | null
+          success_url: string
+          write_deadline?: string
+        }
+        Update: {
+          cancel_url?: string
+          checkout_url?: string | null
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          lookup_key?: string
+          next_attempt_at?: string
+          offering_version_id?: string
+          reason_code?: string | null
+          request_fingerprint?: string
+          reserved_plan_revision?: number | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          subject_user_id?: string
+          subscription_id?: string | null
+          success_url?: string
+          write_deadline?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_attempts_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_checkout_attempts_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_checkout_attempts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_checkout_audit: {
+        Row: {
+          action: string
+          attempt_id: string
+          created_at: string
+          fencing_token: number
+          id: number
+          reason_code: string | null
+        }
+        Insert: {
+          action: string
+          attempt_id: string
+          created_at?: string
+          fencing_token: number
+          id?: never
+          reason_code?: string | null
+        }
+        Update: {
+          action?: string
+          attempt_id?: string
+          created_at?: string
+          fencing_token?: number
+          id?: never
+          reason_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_audit_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_checkout_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles: {
         Row: {
           created_at: string
@@ -7128,6 +8502,7 @@ export type Database = {
           closed_for_grading_at: string | null
           closed_for_grading_by: string | null
           created_at: string
+          draft_revision: number
           id: string
           is_submitted: boolean
           responses: Json
@@ -7144,6 +8519,7 @@ export type Database = {
           closed_for_grading_at?: string | null
           closed_for_grading_by?: string | null
           created_at?: string
+          draft_revision?: number
           id?: string
           is_submitted?: boolean
           responses?: Json
@@ -7160,6 +8536,7 @@ export type Database = {
           closed_for_grading_at?: string | null
           closed_for_grading_by?: string | null
           created_at?: string
+          draft_revision?: number
           id?: string
           is_submitted?: boolean
           responses?: Json
@@ -7542,6 +8919,8 @@ export type Database = {
           created_by: string
           documents: Json
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -7563,6 +8942,8 @@ export type Database = {
           created_by: string
           documents?: Json
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -7584,6 +8965,8 @@ export type Database = {
           created_by?: string
           documents?: Json
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -7718,6 +9101,7 @@ export type Database = {
           purpose: string
           used_at: string | null
           user_id: string
+          verification_generation: number
         }
         Insert: {
           attempts?: number
@@ -7731,6 +9115,7 @@ export type Database = {
           purpose: string
           used_at?: string | null
           user_id: string
+          verification_generation: number
         }
         Update: {
           attempts?: number
@@ -7744,6 +9129,7 @@ export type Database = {
           purpose?: string
           used_at?: string | null
           user_id?: string
+          verification_generation?: number
         }
         Relationships: [
           {
@@ -7760,8 +9146,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_course_blueprint_draft_slot: {
+        Args: { p_teacher_id: string }
+        Returns: Json
+      }
       acquire_course_guide_import_extraction_slot: {
         Args: { p_teacher_id: string }
+        Returns: Json
+      }
+      activate_classroom_creation_entitlement_cutover_v1: {
+        Args: { p_actor_ref: string; p_operation_id: string }
         Returns: Json
       }
       activate_managed_storage_enforcement: {
@@ -7773,6 +9167,18 @@ export type Database = {
           p_expected_draft_version: number
           p_teacher_id: string
           p_test_id: string
+        }
+        Returns: Json
+      }
+      adopt_classroom_authoring_guidance_v1: {
+        Args: {
+          p_actor_id: string
+          p_blueprint_id: string
+          p_classroom_id: string
+          p_expected_content_version_id: string
+          p_expected_draft_revision: number
+          p_expected_guidance_version_id: string
+          p_guidance_version_id: string
         }
         Returns: Json
       }
@@ -7945,6 +9351,45 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      apply_course_blueprint_proposal_with_guidance_atomic: {
+        Args: {
+          p_candidate_sha256: string
+          p_candidate_snapshot: Json
+          p_proposal_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       apply_ordered_lesson_plan_mutation: {
         Args: {
           p_classroom_id: string
@@ -7968,6 +9413,18 @@ export type Database = {
           p_subject_user_id: string
         }
         Returns: undefined
+      }
+      assert_classroom_guided_draft_context_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_expected_blueprint_version_id: string
+          p_expected_content_version_id?: string
+          p_rules_markdown: string
+          p_target: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
       }
       attendance_classroom_has_state_v1: {
         Args: { p_classroom_id: string }
@@ -8298,6 +9755,77 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_checkpoint_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_checkpoint_upgrade_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_claim_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_claim_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_claim_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_confirm_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_finish_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_finish_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_access_status_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_applied_upgrade_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_get_checkout_offering_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_list_checkout_offerings_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_checkout_work_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_renewal_closeouts_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_requeue_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_reserve_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_save_checkout_progress_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_start_trial_v1: { Args: { p_request: Json }; Returns: Json }
       bind_classroom_archive_restore_managed_object: {
         Args: {
           p_managed_object_id: string
@@ -8328,6 +9856,7 @@ export type Database = {
           error_samples_json: Json
           failed_count: number
           gradable_count: number
+          gradex_idempotency_key: string | null
           gradex_last_polled_at: string | null
           gradex_run_id: string | null
           gradex_status: string | null
@@ -8346,6 +9875,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }[]
         SetofOptions: {
           from: "*"
@@ -8834,6 +10364,10 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_removed_student_cleanup_job: {
+        Args: { p_lease_token: string }
+        Returns: Json
+      }
       claim_student_purge_object: {
         Args: {
           p_lease_seconds?: number
@@ -9232,6 +10766,15 @@ export type Database = {
         Args: { p_actor_key_hash: string; p_invitation_key_hash: string }
         Returns: Json
       }
+      consume_latest_password_reset_and_revoke_sessions_v1: {
+        Args: {
+          p_generation: number
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
+      }
       consume_password_reset_and_revoke_sessions: {
         Args: {
           p_handoff_token_hash: string
@@ -9239,6 +10782,25 @@ export type Database = {
           p_user_id: string
         }
         Returns: number
+      }
+      consume_signup_password_handoff_v1: {
+        Args: {
+          p_expected_credential_version: number
+          p_generation: number
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      copy_lesson_plan_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_from_date: string
+          p_to_date: string
+        }
+        Returns: Json
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
       count_pal_membership_outbox_ready: { Args: never; Returns: number }
@@ -9261,6 +10823,17 @@ export type Database = {
       course_blueprint_purge_membership_sha256: {
         Args: { p_blueprint_id: string }
         Returns: string
+      }
+      create_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: string
+          p_is_draft: boolean
+          p_scheduled_for: string
+          p_title: string
+        }
+        Returns: Json
       }
       create_archived_classroom_blueprint_atomic: {
         Args: {
@@ -9294,6 +10867,7 @@ export type Database = {
           error_samples_json: Json
           failed_count: number
           gradable_count: number
+          gradex_idempotency_key: string | null
           gradex_last_polled_at: string | null
           gradex_run_id: string | null
           gradex_status: string | null
@@ -9312,6 +10886,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         SetofOptions: {
           from: "*"
@@ -9326,6 +10901,19 @@ export type Database = {
           p_pal_event: Json
           p_student_id: string
           p_viewed_at: string
+        }
+        Returns: Json
+      }
+      create_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_description: string
+          p_due_at: string
+          p_instructions_markdown: string
+          p_requirements: Json
+          p_rich_instructions: Json
+          p_title: string
         }
         Returns: Json
       }
@@ -9371,6 +10959,26 @@ export type Database = {
         }
         Returns: Json
       }
+      create_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
+      create_classwork_material_for_owner_v2: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
       create_course_blueprint_atomic: {
         Args: {
           p_expected_source_revision: number
@@ -9396,6 +11004,18 @@ export type Database = {
         Returns: Json
       }
       create_course_blueprint_atomic_v2_pre_managed_storage: {
+        Args: {
+          p_expected_source_revision: number
+          p_operation_id: string
+          p_operation_type: string
+          p_plan: Json
+          p_request_sha256: string
+          p_source_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      create_course_blueprint_atomic_v3: {
         Args: {
           p_expected_source_revision: number
           p_operation_id: string
@@ -9498,6 +11118,149 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_guided_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_description: string
+          p_draft_id: string
+          p_due_at: string
+          p_expected_blueprint_version_id: string
+          p_expected_content_version_id?: string
+          p_instructions_markdown: string
+          p_points_possible: number
+          p_requirements: Json
+          p_rich_instructions: Json
+          p_rules_markdown: string
+          p_seed_sha256: string
+          p_title: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
+      }
+      create_guided_test_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_documents: Json
+          p_draft_content: Json
+          p_draft_id: string
+          p_expected_blueprint_version_id: string
+          p_expected_content_version_id?: string
+          p_rules_markdown: string
+          p_seed_sha256: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
+      }
+      create_metered_assignment_ai_grading_run_v1: {
+        Args: {
+          p_assignment_id: string
+          p_gradable_count: number
+          p_item_rows: Json
+          p_model: string
+          p_now?: string
+          p_requested_student_ids: string[]
+          p_selection_hash: string
+          p_skipped_empty_count: number
+          p_skipped_missing_count: number
+          p_teacher_id: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_metered_assignment_ai_grading_run_v2: {
+        Args: {
+          p_assignment_id: string
+          p_gradable_count: number
+          p_item_rows: Json
+          p_model: string
+          p_now?: string
+          p_requested_student_ids: string[]
+          p_selection_hash: string
+          p_skipped_empty_count: number
+          p_skipped_missing_count: number
+          p_teacher_id: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_survey_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_dynamic_responses: boolean
+          p_show_results: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
       create_test_ai_grading_run_atomic: {
         Args: {
           p_eligible_student_count: number
@@ -9515,11 +11278,48 @@ export type Database = {
         }
         Returns: Json
       }
+      create_test_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_title: string
+        }
+        Returns: Json
+      }
+      delete_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_announcement_id: string
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
+      delete_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirement_id: string
+        }
+        Returns: Json
+      }
+      delete_assignment_for_owner_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
       delete_assignment_submission_artifact_atomic: {
         Args: {
           p_assignment_id: string
           p_requirement_id: string
           p_student_id: string
+        }
+        Returns: Json
+      }
+      delete_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_material_id: string
         }
         Returns: Json
       }
@@ -9543,12 +11343,41 @@ export type Database = {
         }
         Returns: Json
       }
+      discard_pristine_assignment_draft_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_updated_at: string
+        }
+        Returns: Json
+      }
       discard_pristine_test_draft_atomic: {
         Args: {
           p_expected_draft_version: number
           p_expected_test_updated_at: string
           p_teacher_id: string
           p_test_id: string
+        }
+        Returns: Json
+      }
+      discard_pristine_test_draft_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_deadline: string
+          p_expected_draft_version: number
+          p_expected_test_updated_at: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      discover_retained_student_cleanup_groups: {
+        Args: {
+          p_after_student_id?: string
+          p_classroom_id: string
+          p_include_unreserved?: boolean
+          p_snapshot_sha256?: string
+          p_student_id?: string
+          p_teacher_id: string
         }
         Returns: Json
       }
@@ -9660,6 +11489,87 @@ export type Database = {
       ensure_blueprint_json_artifact_ids: {
         Args: { p_items: Json }
         Returns: Json
+      }
+      fail_assignment_ai_grading_item_and_release_usage_with_lease_v1: {
+        Args: {
+          p_attempt_count: number
+          p_error_code: string
+          p_error_message: string
+          p_item_id: string
+          p_lease_token: string
+          p_release_reason: string
+        }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          assignment_source_fingerprint: string | null
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          gradex_submission_id: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fail_assignment_ai_grading_run_and_release_usage_with_lease_v1: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_lease_token: string
+          p_release_reason: string
+          p_run_id: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       fail_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
@@ -9787,6 +11697,28 @@ export type Database = {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
         Returns: boolean
       }
+      finalize_assignment_ai_grading_item_and_settle_usage_v1: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_lease_token: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_assignment_ai_grading_item_atomic: {
         Args: {
           p_ai_feedback_model: string
@@ -9825,6 +11757,50 @@ export type Database = {
           p_score_workflow: number
           p_skip_reason: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      finalize_assignment_ai_grading_item_with_provenance_lease_v1: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_lease_token: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      finalize_assignment_inline_image_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_expected_classroom_id: string
+          p_managed_object_id: string
+        }
+        Returns: Json
+      }
+      finalize_auth_verification_attempt_v1: {
+        Args: {
+          p_candidate_generation: number
+          p_candidate_id: string
+          p_code_matched: boolean
+          p_handoff_expires_at: string
+          p_handoff_token_hash: string
+          p_max_attempts: number
+          p_purpose: string
+          p_user_id: string
         }
         Returns: Json
       }
@@ -9901,6 +11877,46 @@ export type Database = {
         }
         Returns: boolean
       }
+      finish_test_draft_get_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_deadline: string
+          p_expected_source_sha256: string
+          p_operation: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      finish_test_draft_save_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_deadline: string
+          p_documents: Json
+          p_expected_source_sha256: string
+          p_expected_version: number
+          p_operation: string
+          p_test_id: string
+          p_update_documents: boolean
+        }
+        Returns: Json
+      }
+      get_assignment_ai_grading_usage_contract_v2: {
+        Args: never
+        Returns: Json
+      }
+      get_assignment_doc_history_for_actor_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_member_only?: boolean
+          p_requested_student_id?: string
+        }
+        Returns: Json
+      }
       get_attendance_classroom_access_v1: {
         Args: { p_at?: string; p_classroom_id: string; p_teacher_id: string }
         Returns: Json
@@ -9933,6 +11949,10 @@ export type Database = {
         Args: { p_at?: string; p_subject_user_id: string }
         Returns: Json
       }
+      get_classroom_creation_entitlement_cutover_status_v1: {
+        Args: never
+        Returns: Json
+      }
       get_cleanup_history_cron_health_snapshot: {
         Args: { p_scheduled_max_age_minutes?: number; p_stale_minutes?: number }
         Returns: Json
@@ -9951,6 +11971,10 @@ export type Database = {
       }
       get_hot_archived_classroom_purge_inventory: {
         Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      get_latest_auth_verification_code_v1: {
+        Args: { p_purpose: string; p_user_id: string }
         Returns: Json
       }
       get_managed_deletion_deep_health_snapshot: { Args: never; Returns: Json }
@@ -10026,6 +12050,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      inspect_latest_auth_handoff_v1: {
+        Args: { p_handoff_token_hash: string; p_purpose: string }
+        Returns: Json
+      }
       instantiate_course_blueprint_atomic: {
         Args: {
           p_blueprint_id: string
@@ -10089,6 +12117,10 @@ export type Database = {
         Args: { p_mode: string }
         Returns: boolean
       }
+      is_course_blueprint_authoring_guidance: {
+        Args: { value: Json }
+        Returns: boolean
+      }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       issue_auth_session: {
         Args: {
@@ -10101,6 +12133,15 @@ export type Database = {
           p_workos_user_id: string
         }
         Returns: boolean
+      }
+      issue_auth_verification_code_v1: {
+        Args: {
+          p_code_hash: string
+          p_expires_at: string
+          p_purpose: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       join_classroom_by_code_atomic_v1: {
         Args: {
@@ -10247,6 +12288,10 @@ export type Database = {
           storage_path: string
         }[]
       }
+      mark_announcements_read_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_cutoff: string }
+        Returns: Json
+      }
       mutate_gradebook_item: {
         Args: {
           p_action: string
@@ -10269,6 +12314,18 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      normalize_classroom_archive_restore_row_pre_v205: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      normalize_classroom_archive_restore_row_pre_v210: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      normalize_classroom_archive_restore_row_pre_v222: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
       normalize_classroom_archive_restore_row_v143: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
@@ -10277,7 +12334,109 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      normalize_classroom_archive_restore_row_v243: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      open_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_pal_event?: Json
+          p_viewed_at: string
+        }
+        Returns: Json
+      }
+      patch_assignment_ai_grading_item_with_lease_v1: {
+        Args: { p_item_id: string; p_lease_token: string; p_patch: Json }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          assignment_source_fingerprint: string | null
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          gradex_submission_id: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      patch_assignment_ai_grading_run_with_lease_v1: {
+        Args: { p_lease_token: string; p_patch: Json; p_run_id: string }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
+      prepare_assignment_ai_gradex_submission_v1: {
+        Args: {
+          p_idempotency_key: string
+          p_item_refs: Json
+          p_lease_token: string
+          p_run_id: string
+        }
+        Returns: Json
+      }
+      prepare_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirement_id: string
+        }
+        Returns: Json
+      }
+      prepare_assignment_doc_submission_for_member_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
       prepare_attendance_snapshot_v1: {
         Args: {
           p_classroom_id: string
@@ -10305,9 +12464,34 @@ export type Database = {
         }
         Returns: Json
       }
+      publish_test_from_draft_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_expected_authoring_sha256: string
+          p_expected_draft_version: number
+          p_test_id: string
+          p_validated_content: Json
+        }
+        Returns: Json
+      }
       queue_managed_storage_cleanup: {
         Args: { p_error_code?: string; p_object_id: string }
         Returns: boolean
+      }
+      read_assignment_inline_image_for_context_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_expected_classroom_id: string
+          p_managed_object_id: string
+        }
+        Returns: Json
+      }
+      read_gradebook_maximum_state: {
+        Args: { p_classroom_id: string }
+        Returns: Json
       }
       reconcile_managed_storage_json_references: {
         Args: never
@@ -10316,6 +12500,52 @@ export type Database = {
       reconcile_managed_storage_relational_references: {
         Args: never
         Returns: number
+      }
+      record_assignment_ai_gradex_submission_v1: {
+        Args: {
+          p_gradex_run_id: string
+          p_gradex_status: string
+          p_idempotency_key: string
+          p_last_polled_at: string
+          p_lease_token: string
+          p_run_id: string
+          p_submitted_at: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       record_attendance_decommission_receipt: {
         Args: {
@@ -10439,12 +12669,53 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      release_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_released_at: string
+          p_scheduled: boolean
+        }
+        Returns: Json
+      }
+      release_course_blueprint_draft_slot: {
+        Args: { p_lease_token: string; p_teacher_id: string }
+        Returns: boolean
+      }
       release_course_guide_import_extraction_slot: {
         Args: { p_lease_token: string; p_teacher_id: string }
         Returns: boolean
       }
+      release_feature_usage_v1: {
+        Args: {
+          p_expected_units: number
+          p_feature_key: string
+          p_operation_id: string
+          p_release_reason: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
+      release_removed_student_cleanup_job: {
+        Args: {
+          p_completed: boolean
+          p_error_code?: string
+          p_job_id: string
+          p_lease_token: string
+          p_retry_delay_seconds?: number
+        }
+        Returns: boolean
+      }
       remove_classroom_roster_entries_atomic: {
         Args: { p_classroom_id: string; p_roster_ids: string[] }
+        Returns: Json
+      }
+      remove_classroom_students_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_roster_ids: string[]
+        }
         Returns: Json
       }
       remove_classroom_students_preserving_data: {
@@ -10491,6 +12762,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      reorder_assignments_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_ids: Json
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       reorder_assignments_preserve_materials: {
         Args: { p_assignment_ids: Json; p_classroom_id: string }
         Returns: undefined
@@ -10498,6 +12777,10 @@ export type Database = {
       reorder_classwork_items: {
         Args: { p_classroom_id: string; p_items: Json }
         Returns: undefined
+      }
+      reorder_classwork_items_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_items: Json }
+        Returns: Json
       }
       replace_assignment_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json }
@@ -10547,6 +12830,34 @@ export type Database = {
         Args: { p_outbox_id: string }
         Returns: boolean
       }
+      reserve_assignment_ai_grading_item_usage_with_lease_v1: {
+        Args: { p_item_id: string; p_lease_token: string }
+        Returns: Json
+      }
+      reserve_assignment_inline_image_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_byte_size: number
+          p_content_type: string
+          p_expected_classroom_id: string
+          p_extension: string
+          p_object_id: string
+        }
+        Returns: Json
+      }
+      reserve_feature_usage_v1: {
+        Args: {
+          p_feature_key: string
+          p_operation_id: string
+          p_operation_kind: string
+          p_subject_user_id: string
+          p_ttl_seconds?: number
+          p_units: number
+          p_usage_ref: string
+        }
+        Returns: Json
+      }
       reserve_student_provider_cleanup: {
         Args: {
           p_classroom_id: string
@@ -10572,6 +12883,14 @@ export type Database = {
           p_table_name: string
         }
         Returns: string
+      }
+      resolve_classroom_guided_rules_v1: {
+        Args: {
+          p_guidance: Json
+          p_target: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
       }
       resolve_managed_storage_blueprint_copy_source: {
         Args: {
@@ -10625,6 +12944,23 @@ export type Database = {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: Json
       }
+      restore_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_history_id: string
+          p_metric_session_id: string
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_word_count: number
+        }
+        Returns: Json
+      }
       restore_removed_classroom_students: {
         Args: {
           p_classroom_id: string
@@ -10665,6 +13001,15 @@ export type Database = {
           skipped_count: number
         }[]
       }
+      return_assignment_docs_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_now: string
+          p_student_ids: string[]
+        }
+        Returns: Json
+      }
       return_assignment_docs_with_feedback_atomic: {
         Args: {
           p_assignment_id: string
@@ -10685,11 +13030,30 @@ export type Database = {
         }
         Returns: Json
       }
+      return_assignment_feedback_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_feedback: string
+          p_now: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       return_test_attempts_atomic: {
         Args: {
           p_returned_by: string
           p_student_ids: string[]
           p_submitted_at_by_student?: Json
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      return_test_attempts_checked_atomic: {
+        Args: {
+          p_returned_by: string
+          p_student_ids: string[]
           p_test_id: string
         }
         Returns: Json
@@ -10761,6 +13125,25 @@ export type Database = {
         }
         Returns: Json
       }
+      save_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_keystroke_count: number
+          p_metric_session_id: string
+          p_paste_word_count: number
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_trigger: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
       save_assignment_grades_atomic: {
         Args: {
           p_apply_comments: boolean
@@ -10775,6 +13158,41 @@ export type Database = {
           p_score_workflow: number
           p_student_ids: string[]
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_assignment_grades_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_apply_comments: boolean
+          p_apply_grade: boolean
+          p_assignment_id: string
+          p_expected_doc_updated_at_by_student: Json
+          p_feedback: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_student_ids: string[]
+        }
+        Returns: Json
+      }
+      save_assignment_repo_target_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_now: string
+          p_student_id: string
+          p_target: Json
+        }
+        Returns: Json
+      }
+      save_assignments_bulk_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignments: Json
+          p_classroom_id: string
         }
         Returns: Json
       }
@@ -10809,8 +13227,68 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_daily_log_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_date: string
+          p_expected_entry_id?: string
+          p_expected_version?: number
+          p_minutes_reported?: number
+          p_mood?: string
+          p_on_time: boolean
+          p_pal_event?: Json
+          p_rich_content: Json
+          p_text: string
+        }
+        Returns: Json
+      }
+      save_gradebook_effective_mark: {
+        Args: {
+          p_assessment_id: string
+          p_assessment_type: string
+          p_classroom_id: string
+          p_earned: number
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_lesson_plan_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_client_id?: string
+          p_content: Json
+          p_content_markdown: string
+          p_date: string
+          p_delete: boolean
+          p_sequence?: number
+        }
+        Returns: Json
+      }
+      save_lesson_plans_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_cleared_dates: string[]
+          p_client_id?: string
+          p_plans: Json
+          p_sequence?: number
+        }
+        Returns: Json
+      }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
+      save_test_attempt_revision_atomic: {
+        Args: {
+          p_expected_revision: number
+          p_responses: Json
+          p_student_id: string
+          p_test_id: string
+        }
         Returns: Json
       }
       save_test_draft_atomic: {
@@ -10859,6 +13337,17 @@ export type Database = {
           p_expected_object_count: number
           p_operation_id: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      set_account_plan_v1: {
+        Args: {
+          p_actor_ref: string
+          p_expected_revision?: number
+          p_operation_id: string
+          p_plan_key: string
+          p_reason_code: string
+          p_subject_user_id: string
         }
         Returns: Json
       }
@@ -10923,6 +13412,19 @@ export type Database = {
         }
         Returns: Json
       }
+      set_gradebook_maximum_override: {
+        Args: {
+          p_assessment_id: string
+          p_assessment_type: string
+          p_classroom_id: string
+          p_expected_maximum: number
+          p_expected_scale: number
+          p_maximum: number
+          p_mode: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       set_pika_manual_attendance_marks: {
         Args: {
           p_class_date: string
@@ -10959,6 +13461,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      settle_feature_usage_v1: {
+        Args: {
+          p_expected_units: number
+          p_feature_key: string
+          p_operation_id: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
       settle_managed_storage_blueprint_copy_owner: {
         Args: {
           p_created_by_user_id: string
@@ -10968,6 +13479,49 @@ export type Database = {
           p_source_course_blueprint_id: string
         }
         Returns: boolean
+      }
+      skip_assignment_ai_grading_item_and_release_usage_v1: {
+        Args: {
+          p_attempt_count: number
+          p_item_id: string
+          p_lease_token: string
+          p_skip_reason: string
+        }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          assignment_source_fingerprint: string | null
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          gradex_submission_id: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      snapshot_test_draft_for_owner_v1: {
+        Args: { p_actor_id: string; p_deadline: string; p_test_id: string }
+        Returns: Json
+      }
+      snapshot_test_draft_save_for_owner_v1: {
+        Args: { p_actor_id: string; p_deadline: string; p_test_id: string }
+        Returns: Json
       }
       stage_attendance_roster_snapshot_v1: {
         Args: {
@@ -11068,6 +13622,10 @@ export type Database = {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      start_test_attempt_revision_atomic: {
+        Args: { p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
       student_purge_conflict: {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: string
@@ -11116,6 +13674,20 @@ export type Database = {
             }
             Returns: Json
           }
+      submit_assignment_doc_for_member_v1: {
+        Args: {
+          p_acknowledged_missing_requirement_ids: string[]
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_emit_pal_event: boolean
+          p_expected_updated_at: string
+          p_pal_event: Json
+          p_word_count: number
+        }
+        Returns: Json
+      }
       submit_assignment_doc_with_pal_event_atomic:
         | {
             Args: {
@@ -11144,6 +13716,16 @@ export type Database = {
           }
       submit_test_attempt_atomic: {
         Args: {
+          p_responses: Json
+          p_student_id: string
+          p_submitted_at?: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      submit_test_attempt_revision_atomic: {
+        Args: {
+          p_expected_revision: number
           p_responses: Json
           p_student_id: string
           p_submitted_at?: string
@@ -11204,6 +13786,10 @@ export type Database = {
         Args: { p_assignment_id: string; p_student_id: string }
         Returns: Json
       }
+      unsubmit_assignment_doc_for_member_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
       unsubmit_test_attempts_atomic: {
         Args: {
           p_student_ids: string[]
@@ -11212,8 +13798,49 @@ export type Database = {
         }
         Returns: Json
       }
+      update_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_announcement_id: string
+          p_classroom_id: string
+          p_patch: Json
+        }
+        Returns: Json
+      }
+      update_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirements?: Json
+          p_updates: Json
+        }
+        Returns: Json
+      }
       update_assignment_with_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
+        Returns: Json
+      }
+      update_classroom_metadata_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_patch: Json }
+        Returns: Json
+      }
+      update_classroom_roster_counselor_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_counselor_email: string
+          p_expected_updated_at: string
+          p_roster_id: string
+        }
+        Returns: Json
+      }
+      update_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_material_id: string
+          p_patch: Json
+        }
         Returns: Json
       }
       update_test_documents_atomic: {
@@ -11238,6 +13865,26 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
+        }
+        Returns: Json
+      }
+      upsert_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_github_login?: string
+          p_github_validation_message?: string
+          p_github_validation_status?: string
+          p_managed_object_id: string
+          p_metadata_json: Json
+          p_requirement_id: string
+          p_save_github_identity?: boolean
+          p_storage_path: string
+          p_type: string
+          p_url: string
+          p_validated_at: string
+          p_validation_message: string
+          p_validation_status: string
         }
         Returns: Json
       }
@@ -11280,6 +13927,15 @@ export type Database = {
           p_expected_revision?: number
           p_opens_local: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      upsert_classroom_roster_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_mode: string
+          p_students: Json
         }
         Returns: Json
       }

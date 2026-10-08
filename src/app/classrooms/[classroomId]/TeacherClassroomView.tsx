@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useMemo, useState, useEffect, useId, useRef } from 'react'
+import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
+
+import { useCallback, useMemo, useState, useEffect, useId, useRef, type MouseEvent } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -27,7 +29,6 @@ import {
   Copy,
   EllipsisVertical,
   GripVertical,
-  LoaderCircle,
   Lock,
   Menu,
   MessageSquare,
@@ -41,14 +42,16 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, DialogPanel, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { CircularProgress, Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
+import { ClassroomBlueprintDraftDialog } from '@/components/ClassroomBlueprintDraftDialog'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
-import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
 import {
@@ -68,6 +71,7 @@ import {
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import {
@@ -92,6 +96,7 @@ import {
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
+import { invalidateClassworkLists, saveCreatedClassworkPlacement } from '@/lib/created-classwork-placement'
 import type {
   Classroom,
   Assignment,
@@ -455,20 +460,6 @@ function isAssignmentAiGradingRunActive(run: AssignmentAiGradingRunSummary | nul
   return !!run && (run.status === 'queued' || run.status === 'running')
 }
 
-function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null): number {
-  if (!run || !isAssignmentAiGradingRunActive(run) || !run.next_retry_at) {
-    return 2000
-  }
-
-  const retryAt = new Date(run.next_retry_at).getTime()
-  if (!Number.isFinite(retryAt)) {
-    return 2000
-  }
-
-  const delay = retryAt - Date.now() + 250
-  return Math.min(Math.max(delay, 1000), 10_000)
-}
-
 function isGradeSelectedScoreValueValid(value: string, allowBlank: boolean): boolean {
   const trimmed = value.trim()
   if (allowBlank && !trimmed) return true
@@ -623,8 +614,11 @@ export function TeacherClassroomView({
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [classworkLoadError, setClassworkLoadError] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isBlueprintDraftOpen, setIsBlueprintDraftOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
-  const [isSurveyCreateModalOpen, setIsSurveyCreateModalOpen] = useState(false)
+  const [creatingSurvey, setCreatingSurvey] = useState(false)
+  const surveyCreationPendingRef = useRef(false)
+  const surveyCloseRef = useRef<(() => Promise<void>) | null>(null)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
   const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
   const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
@@ -656,6 +650,7 @@ export function TeacherClassroomView({
     assignment: Assignment
     students: StudentSubmissionRow[]
   } | null>(null)
+  const [unavailableAssignmentAiPollKey, setUnavailableAssignmentAiPollKey] = useState<string | null>(null)
   const [assignmentAiGradingRun, setAssignmentAiGradingRun] = useState<AssignmentAiGradingRunSummary | null>(null)
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
   const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
@@ -684,6 +679,7 @@ export function TeacherClassroomView({
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
+  const classworkRegionRef = useRef<HTMLDivElement | null>(null)
   const workspaceContainerRef = useRef<HTMLDivElement | null>(null)
   const defaultedWorkspaceKeyRef = useRef<string | null>(null)
   const syncedStudentUrlKeyRef = useRef<string | null>(null)
@@ -695,6 +691,7 @@ export function TeacherClassroomView({
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
+  const [showBatchAutoGradeConfirm, setShowBatchAutoGradeConfirm] = useState(false)
   const [gradeSelectedConfirmTarget, setGradeSelectedConfirmTarget] =
     useState<GradeSelectedApplyTarget | null>(null)
   const gradeSelectedConfirmTitleId = useId()
@@ -707,6 +704,8 @@ export function TeacherClassroomView({
   const [classPaneRestoreCounter, setClassPaneRestoreCounter] = useState(0)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
+  const selectedAssignmentSnapshotRef = useRef(selectedAssignmentData)
+  selectedAssignmentSnapshotRef.current = selectedAssignmentData
   const loadRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
   const wasActiveRef = useRef(isActive)
@@ -731,13 +730,10 @@ export function TeacherClassroomView({
     updateModeLayout,
   } = useAssignmentGradingLayout(classroom.id, workspaceWidth)
 
-  const loadAssignments = useCallback(async (options?: { preserveContent?: boolean }) => {
+  const loadAssignments = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1
     loadRequestIdRef.current = requestId
-    const preserveContent = options?.preserveContent ?? false
-    if (!preserveContent) {
-      setLoading(true)
-    }
+    setLoading(true)
     setClassworkLoadError(false)
     try {
       const [assignmentsData, materialsData, surveysData, classDaysData] = await Promise.all([
@@ -776,11 +772,7 @@ export function TeacherClassroomView({
       )
     } catch (err) {
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
-      setAssignments([])
-      setMaterials([])
-      setSurveys([])
-      setClassDays([])
-      setLoadedClassroomId(classroom.id)
+      // A failed read cannot replace the last successful snapshot, including an empty list.
       setHasLoadedOnce(true)
       setClassworkLoadError(true)
       console.error('Error loading assignments:', err)
@@ -817,12 +809,36 @@ export function TeacherClassroomView({
     loadAssignments()
   }, [loadAssignments])
 
-  const retryLoadAssignments = useCallback(() => {
+  const retryLoadAssignments = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    // Retry can disappear as soon as loading starts; keep keyboard focus in Classwork.
+    if (event.currentTarget === document.activeElement) {
+      classworkRegionRef.current?.focus({ preventScroll: true })
+    }
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     invalidateCachedJSON(`teacher-materials:${classroom.id}`)
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
     void loadAssignments()
   }, [classroom.id, loadAssignments])
+
+  const positionedCreationKeysRef = useRef(new Set<string>())
+  const positionCreatedClasswork = useCallback(async (type: 'assignment' | 'material' | 'survey', id: string) => {
+    const key = `${classroom.id}:${type}:${id}`
+    if (positionedCreationKeysRef.current.has(key)) {
+      invalidateClassworkLists(classroom.id)
+      if (currentClassroomIdRef.current === classroom.id) void loadAssignments()
+      return
+    }
+    positionedCreationKeysRef.current.add(key)
+    try {
+      await saveCreatedClassworkPlacement(classroom.id, { type, id })
+    } catch {
+      if (currentClassroomIdRef.current === classroom.id) {
+        showMessage({ text: 'Classwork was created, but its position could not be saved. Drag it into place.', tone: 'warning' })
+      }
+    } finally {
+      if (currentClassroomIdRef.current === classroom.id) void loadAssignments()
+    }
+  }, [classroom.id, loadAssignments, showMessage])
 
   const handleMaterialSaved = useCallback((material: ClassworkMaterial) => {
     invalidateCachedJSON(`teacher-materials:${classroom.id}`)
@@ -835,7 +851,10 @@ export function TeacherClassroomView({
     })
     setEditMaterial(null)
     setIsMaterialModalOpen(false)
-  }, [classroom.id])
+    if (!editMaterial) {
+      void positionCreatedClasswork('material', material.id)
+    }
+  }, [classroom.id, editMaterial, positionCreatedClasswork])
 
   const handleSurveySaved = useCallback((
     survey: Survey,
@@ -870,8 +889,32 @@ export function TeacherClassroomView({
       params.delete('surveyId')
       params.delete('assignmentStudentId')
     }, { replace: true })
-    void loadAssignments({ preserveContent: true })
-  }, [classroom.id, loadAssignments, updateSearchParams])
+    void positionCreatedClasswork('survey', survey.id)
+  }, [classroom.id, positionCreatedClasswork, updateSearchParams])
+
+  const createSurveyDraft = async () => {
+    if (isReadOnly || surveyCreationPendingRef.current) return
+    surveyCreationPendingRef.current = true
+    setCreatingSurvey(true)
+    try {
+      const response = await fetch('/api/teacher/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_id: classroom.id, title: getFallbackAssessmentTitle(), show_results: true, dynamic_responses: false }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to create survey')
+      if (currentClassroomIdRef.current !== classroom.id) return
+      handleSurveySaved(data.survey, { initialEditMode: 'edit', focusTitle: true })
+    } catch (err) {
+      if (currentClassroomIdRef.current === classroom.id) {
+        showMessage({ text: err instanceof Error ? err.message : 'Failed to create survey', tone: 'warning' })
+      }
+    } finally {
+      surveyCreationPendingRef.current = false
+      setCreatingSurvey(false)
+    }
+  }
 
   const handleSurveyQuestionCountChanged = useCallback((surveyId: string, questionsCount: number) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
@@ -963,10 +1006,16 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (isActive && !wasActiveRef.current && hasLoadedOnce) {
-      loadAssignments({ preserveContent: !classworkLoadError })
+      loadAssignments()
+      // Reactivation is an intentional freshness read, independent of list metadata changes.
+      if (hasCurrentClassroomData && selection.mode === 'assignment' &&
+        selectedAssignmentData?.assignment.id === selection.assignmentId &&
+        selectedAssignmentData.assignment.classroom_id === classroom.id) {
+        setRefreshCounter((count) => count + 1)
+      }
     }
     wasActiveRef.current = isActive
-  }, [classworkLoadError, hasLoadedOnce, isActive, loadAssignments])
+  }, [classroom.id, hasCurrentClassroomData, hasLoadedOnce, isActive, loadAssignments, selectedAssignmentData, selection])
 
   useEffect(() => {
     const node = workspaceContainerRef.current
@@ -1060,7 +1109,7 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (isUrlSelectionControlled) return
-    if (loading) return
+    // A current snapshot remains authoritative for navigation during warm reads.
     if (!hasCurrentClassroomData) return
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const value = readCookie(cookieName)
@@ -1090,7 +1139,7 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (!isUrlSelectionControlled) return
-    if (loading) return
+    // A current snapshot remains authoritative for navigation during warm reads.
     if (!hasCurrentClassroomData) return
 
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
@@ -1173,13 +1222,14 @@ export function TeacherClassroomView({
     if (selection.mode !== 'assignment') return null
     return currentAssignments.find((item) => item.id === selection.assignmentId) ?? null
   }, [currentAssignments, selection])
+  const selectedAssignmentIdentity = selection.mode === 'assignment' ? selection.assignmentId : null
   const selectedAssignmentBelongsToCurrentClassroom =
     selection.mode === 'assignment' &&
     hasCurrentClassroomData &&
     selectedAssignmentSummary?.classroom_id === classroom.id
 
   useEffect(() => {
-    if (selection.mode !== 'assignment' || !selectedAssignmentBelongsToCurrentClassroom) {
+    if (!selectedAssignmentIdentity || !selectedAssignmentBelongsToCurrentClassroom) {
       setSelectedAssignmentData(null)
       setAssignmentAiGradingRun(null)
       setSelectedAssignmentError('')
@@ -1187,13 +1237,20 @@ export function TeacherClassroomView({
       return
     }
 
-    const assignmentId = selection.assignmentId
+    const assignmentId = selectedAssignmentIdentity
     const classroomId = classroom.id
+    const snapshot = selectedAssignmentSnapshotRef.current
+    const hasOwnedSnapshot = snapshot?.assignment.id === assignmentId &&
+      snapshot.assignment.classroom_id === classroomId
     let ignore = false
 
     async function loadSelectedAssignment() {
       setSelectedAssignmentLoading(true)
       setSelectedAssignmentError('')
+      if (!hasOwnedSnapshot) {
+        setSelectedAssignmentData(null)
+        setAssignmentAiGradingRun(null)
+      }
       try {
         const data = await fetchJSONWithCache(
           `teacher-assignment-detail:${assignmentId}:${refreshCounter}`,
@@ -1218,8 +1275,11 @@ export function TeacherClassroomView({
       } catch (err: any) {
         if (ignore || currentClassroomIdRef.current !== classroomId) return
         setSelectedAssignmentError(err.message || 'Failed to load assignment')
-        setSelectedAssignmentData(null)
-        setAssignmentAiGradingRun(null)
+        // Warm failures preserve this owner's successful student rows and active run.
+        if (!hasOwnedSnapshot) {
+          setSelectedAssignmentData(null)
+          setAssignmentAiGradingRun(null)
+        }
       } finally {
         if (!ignore && currentClassroomIdRef.current === classroomId) {
           setSelectedAssignmentLoading(false)
@@ -1231,7 +1291,7 @@ export function TeacherClassroomView({
     return () => {
       ignore = true
     }
-  }, [classroom.id, refreshCounter, selectedAssignmentBelongsToCurrentClassroom, selection])
+  }, [classroom.id, refreshCounter, selectedAssignmentBelongsToCurrentClassroom, selectedAssignmentIdentity])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
@@ -1250,6 +1310,14 @@ export function TeacherClassroomView({
       ? selectedAssignmentData
       : null
   }, [classroom.id, selectedAssignmentBelongsToCurrentClassroom, selectedAssignmentData, selection])
+
+  const selectedAssignmentColdLoading = selectedAssignmentLoading && !activeSelectedAssignmentData
+  const retrySelectedAssignment = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    if (event.currentTarget === document.activeElement) {
+      classworkRegionRef.current?.focus({ preventScroll: true })
+    }
+    setRefreshCounter((count) => count + 1)
+  }, [])
 
   const activeAssignmentAiRun = useMemo(() => {
     if (selection.mode !== 'assignment' || !selectedAssignmentBelongsToCurrentClassroom || !assignmentAiGradingRun) {
@@ -1339,14 +1407,24 @@ export function TeacherClassroomView({
   }, [assignmentEditMode])
 
   function handleCreateSuccess(created: Assignment) {
+    if (currentClassroomIdRef.current !== classroom.id) {
+      invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+      void positionCreatedClasswork('assignment', created.id)
+      return
+    }
     // Optimistically add the new assignment to the list
-    setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
-    // Reload to get accurate stats from server
-    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
-    loadAssignments()
+    setAssignments((prev) => {
+      const existing = prev.find((item) => item.id === created.id)
+      return existing
+        ? prev.map((item) => item.id === created.id ? { ...item, ...created } : item)
+        : [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }]
+    })
+    void positionCreatedClasswork('assignment', created.id)
   }
 
   function handleEditSuccess(updated: Assignment) {
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+    if (currentClassroomIdRef.current !== classroom.id) return
     // Optimistically update the assignment in the list
     setAssignments((prev) =>
       prev.map((assignment) =>
@@ -1359,7 +1437,6 @@ export function TeacherClassroomView({
       return { ...prev, assignment: updated }
     })
     // Reload to ensure consistency
-    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     loadAssignments()
   }
 
@@ -1527,69 +1604,20 @@ export function TeacherClassroomView({
   useEffect(() => {
     if (!selectedAssignmentKey || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
 
-    let isCancelled = false
-    let timeoutId: number | undefined
-
-    const syncRun = async () => {
-      const assignmentId = selectedAssignmentKey
-      const runId = activeAssignmentAiRunId
-      let shouldContinue = true
-      let nextDelayMs = 2000
-
-      try {
-        const statusResponse = await fetch(
-          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}`,
-        )
-        const statusData = await statusResponse.json().catch(() => ({}))
-        if (!isCancelled && statusResponse.ok && statusData.run) {
-          const nextRun = statusData.run as AssignmentAiGradingRunSummary
-          setAssignmentAiGradingRun(nextRun)
-          if (!isAssignmentAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-            return
-          }
-
-          const statusDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
-          nextDelayMs = statusDelayMs
-          if (statusDelayMs > 2500) {
-            return
-          }
-        }
-
-        const tickResponse = await fetch(
-          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}/tick`,
-          {
-            method: 'POST',
-          },
-        )
-        const tickData = await tickResponse.json().catch(() => ({}))
-        if (!isCancelled && tickResponse.ok && tickData.run) {
-          const nextRun = tickData.run as AssignmentAiGradingRunSummary
-          setAssignmentAiGradingRun(nextRun)
-          if (!isAssignmentAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-          } else {
-            nextDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
-          }
-        }
-      } catch {
-        // Keep the run state visible; the next poll cycle can recover.
-      } finally {
-        if (!isCancelled && shouldContinue) {
-          timeoutId = window.setTimeout(syncRun, nextDelayMs)
-        }
-      }
-    }
-
-    void syncRun()
-
-    return () => {
-      isCancelled = true
-      if (timeoutId) {
-        window.clearTimeout(timeoutId)
-      }
-    }
-  }, [activeAssignmentAiRunId, hasActiveAssignmentAiRun, selectedAssignmentKey])
+    setUnavailableAssignmentAiPollKey(null)
+    const pollKey = `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
+    return startAiGradingRunPolling({
+      resource: 'assignment',
+      resourceId: selectedAssignmentKey,
+      runId: activeAssignmentAiRunId,
+      statusUrl: `/api/teacher/assignments/${selectedAssignmentKey}/auto-grade-runs/${activeAssignmentAiRunId}`,
+      onRun: setAssignmentAiGradingRun,
+      onUnavailable: () => {
+        setUnavailableAssignmentAiPollKey(pollKey)
+        setError('Grading status is unavailable. Reload this page to reconnect to the saved run.')
+      },
+    })
+  }, [activeAssignmentAiRunId, classroom.id, hasActiveAssignmentAiRun, selectedAssignmentKey])
 
   useEffect(() => {
     if (!activeAssignmentAiRun || hasActiveAssignmentAiRun) return
@@ -1720,7 +1748,7 @@ export function TeacherClassroomView({
       setInfo(summaryParts.join(' • '))
       setShowReturnConfirm(false)
       invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
-      await loadAssignments({ preserveContent: true })
+      await loadAssignments()
       // Reload assignment detail data to refresh statuses/grades
       setRefreshCounter((c) => c + 1)
     } catch (err: any) {
@@ -1914,14 +1942,14 @@ export function TeacherClassroomView({
     preserveScrollPosition: preserveClassPaneScrollPosition,
   } = useScrollPositionMemory<HTMLDivElement>({
     key: selectedAssignmentId,
-    enabled: splitPaneView !== 'content-grading' && !selectedAssignmentLoading,
+    enabled: splitPaneView !== 'content-grading' && !selectedAssignmentColdLoading,
     storageKey: selectedAssignmentId
       ? `teacher-assignment-student-scroll:${classroom.id}:${selectedAssignmentId}`
       : null,
     restoreToken: [
       activeSelectedStudentId ?? 'none',
       currentStudentRows.length,
-      selectedAssignmentLoading ? 'loading' : 'ready',
+      selectedAssignmentColdLoading ? 'loading' : 'ready',
       classPaneRestoreCounter,
     ].join(':'),
   })
@@ -2193,7 +2221,8 @@ export function TeacherClassroomView({
       : gradeSelectedConfirmTarget === 'comments'
         ? isApplyCommentsSelectedDisabled
         : true
-  const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
+  const assignmentAiPollUnavailable = unavailableAssignmentAiPollKey === `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
+  const showAssignmentAiRunOverlay = isAutoGrading || (hasActiveAssignmentAiRun && !assignmentAiPollUnavailable)
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
@@ -2233,8 +2262,8 @@ export function TeacherClassroomView({
       onToggleSort={toggleSort}
       dueAtMs={dueAtMs}
       density={activeSelectedStudentId ? 'tight' : 'compact'}
-      loading={selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError)}
-      error={selectedAssignmentError}
+      loading={selectedAssignmentColdLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError)}
+      error={activeSelectedAssignmentData ? '' : selectedAssignmentError}
       busyOverlay={studentBusyOverlay}
     />
   )
@@ -2242,7 +2271,7 @@ export function TeacherClassroomView({
   const classPane = (
     <div
       ref={classPaneScrollRef}
-      className="h-full min-h-0 overflow-auto scrollbar-hover"
+      className="h-full min-h-0 overflow-auto overscroll-y-contain scrollbar-hover"
       data-testid="assignment-student-scroll-pane"
       onScroll={preserveClassPaneScrollPosition}
     >
@@ -2300,11 +2329,9 @@ export function TeacherClassroomView({
   const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'ai-grade-selected',
-      label: 'AI Grade',
+      label: `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => {
-        void handleBatchAutoGrade()
-      },
+      onSelect: () => setShowBatchAutoGradeConfirm(true),
       disabled: selectedStudentActionsBusy,
     },
     {
@@ -2406,7 +2433,7 @@ export function TeacherClassroomView({
 
   const workspaceStatus = workspaceLoading ? (
     <div aria-live="polite" className="inline-flex items-center text-text-muted">
-      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <CircularProgress className="h-4 w-4" />
       <span className="sr-only">Updating assignment workspace</span>
     </div>
   ) : null
@@ -2584,6 +2611,13 @@ export function TeacherClassroomView({
       disabled: isReadOnly,
     },
     {
+      id: 'blueprint-assignment',
+      label: 'Draft assignment with Blueprint',
+      icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setIsBlueprintDraftOpen(true),
+      disabled: isReadOnly,
+    },
+    {
       id: 'material',
       label: 'Material',
       icon: <Paperclip className="h-4 w-4" aria-hidden="true" />,
@@ -2597,8 +2631,8 @@ export function TeacherClassroomView({
       id: 'survey',
       label: 'Survey',
       icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => setIsSurveyCreateModalOpen(true),
-      disabled: isReadOnly,
+      onSelect: () => { void createSurveyDraft() },
+      disabled: isReadOnly || creatingSurvey,
     },
   ]
 
@@ -2662,19 +2696,26 @@ export function TeacherClassroomView({
         ariaLabel={selection.mode === 'survey' ? 'Survey actions' : 'Assignment actions'}
         className={selection.mode === 'assignment' ? 'py-2 sm:py-1' : undefined}
         context={selection.mode === 'assignment' ? (
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex w-full min-w-0 items-center gap-2">
             {selectedAssignmentSummary ? (
-              <span
-                className="block max-w-full truncate font-medium text-text-default sm:max-w-32 xl:max-w-64"
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={`Edit ${selectedAssignmentSummary.title}`}
                 title={selectedAssignmentSummary.title}
+                disabled={isReadOnly}
+                aria-disabled={!canEditAssignment || undefined}
+                onClick={() => openSelectedAssignmentEditor()}
+                className="h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50 sm:text-xl"
               >
-                {selectedAssignmentSummary.title}
-              </span>
+                <span className="min-w-0 truncate">{selectedAssignmentSummary.title}</span>
+              </Button>
             ) : null}
             {workspaceStatus}
           </div>
         ) : null}
-        contextClassName={selection.mode === 'assignment' ? 'col-span-3 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1' : undefined}
+        contextClassName={selection.mode === 'assignment' ? 'col-span-3 row-start-1 w-full max-w-full justify-self-stretch overflow-visible sm:col-span-1 sm:col-start-1 sm:row-start-1' : undefined}
         primary={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
         primaryClassName={selection.mode === 'assignment' ? 'col-start-2 row-start-2 sm:row-start-1' : undefined}
         actions={selection.mode === 'assignment' ? assignmentWorkspaceUtilities : null}
@@ -2684,6 +2725,20 @@ export function TeacherClassroomView({
 
   const feedback = (
     <>
+      {activeSelectedAssignmentData && selectedAssignmentLoading ? <RefreshingIndicator label="Refreshing assignment" /> : null}
+      {activeSelectedAssignmentData && selectedAssignmentError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          <span>Assignment could not be refreshed. Showing the last loaded student work.</span>
+          <Button type="button" variant="secondary" size="sm" aria-label="Retry assignment" onClick={retrySelectedAssignment}>Retry</Button>
+        </div>
+      ) : null}
+      {hasCurrentClassroomData && loading ? <RefreshingIndicator label="Refreshing classwork" /> : null}
+      {hasCurrentClassroomData && classworkLoadError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          <span>Classwork could not be refreshed. Showing the last loaded classwork.</span>
+          <Button type="button" variant="secondary" size="sm" onClick={retryLoadAssignments}>Retry</Button>
+        </div>
+      ) : null}
       {error && (
         <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {error}
@@ -2692,9 +2747,9 @@ export function TeacherClassroomView({
     </>
   )
 
-  const summaryContent = loading || !hasLoadedOnce || !hasCurrentClassroomData ? (
+  const summaryContent = !hasCurrentClassroomData && (loading || !hasLoadedOnce) ? (
     <PageState kind="loading" title="Loading classwork" />
-  ) : classworkLoadError ? (
+  ) : !hasCurrentClassroomData && classworkLoadError ? (
     <PageState
       kind="error"
       title="Classwork couldn't load"
@@ -2777,14 +2832,13 @@ export function TeacherClassroomView({
     </TeacherWorkItemList>
   )
 
-  const workspaceContent = selectedSurvey ? (
-    <TeacherSurveyResultsPane survey={selectedSurvey} />
-  ) : selectedAssignmentId == null ? null : activeSelectedStudentId ? (
+  const selectedStudentWork = selectedAssignmentId && activeSelectedStudentId ? (
     <TeacherStudentWorkPanel
       classroomId={classroom.id}
       assignmentId={selectedAssignmentId}
       studentId={activeSelectedStudentId}
       mode="workspace"
+      workspaceInspectorOnly={splitPaneView !== 'content-grading'}
       classPane={classPane}
       splitPaneView={splitPaneView}
       studentHeader={selectedStudentControls}
@@ -2801,31 +2855,73 @@ export function TeacherClassroomView({
       mutationsDisabled={isReturning || isGradeSelectedSaving}
       onGradePersistenceStateChange={handleGradePersistenceStateChange}
     />
-  ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
+  ) : null
+  const assignmentPrimary = activeSelectedStudentId ? classPane : selectedAssignmentColdLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
     <div className="flex flex-1 items-center justify-center py-12">
       <Spinner />
     </div>
-  ) : selectedAssignmentError ? (
-    <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
-      {selectedAssignmentError}
-    </div>
+  ) : selectedAssignmentError && !activeSelectedAssignmentData ? (
+    <PageState kind="error" title="Assignment couldn't load" description={selectedAssignmentError}
+      action={<Button type="button" aria-label="Retry assignment" onClick={retrySelectedAssignment}>Retry</Button>} />
   ) : (
     classPane
+  )
+  const workspaceContent = selectedSurvey ? (
+    <TeacherSurveyResultsPane survey={selectedSurvey} />
+  ) : selectedAssignmentId == null ? null : (
+    <TeacherWorkspaceSplit
+      splitVariant="gapped"
+      animateInspector
+      primaryCollapsed={!!activeSelectedStudentId && splitPaneView === 'content-grading'}
+      primary={assignmentPrimary}
+      inspector={selectedStudentWork}
+      inspectorCollapsed={false}
+      inspectorWidth={activeWorkspaceLayout.inspectorWidth}
+      onInspectorWidthChange={(inspectorWidth) => updateModeLayout(activeWorkspaceMode, {
+        ...activeWorkspaceLayout,
+        inspectorWidth,
+        inspectorCollapsed: false,
+      })}
+      minPrimaryPx={ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx}
+      minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
+      primaryClassName="min-h-0 rounded-lg bg-surface"
+      inspectorClassName="min-h-0 rounded-lg bg-surface"
+      dividerLabel={splitPaneView === 'students-content'
+        ? 'Resize students and content panes'
+        : 'Resize students and grading panes'}
+    />
   )
 
   return (
     <>
-      <TeacherWorkSurfaceShell
-        state={selection.mode === 'summary' ? 'summary' : 'workspace'}
-        primary={primaryButtons}
-        actions={[]}
-        trailing={undefined}
-        feedback={feedback}
-        summary={summaryContent}
-        workspace={workspaceContent}
-        workspaceFrame="standalone"
-        workspaceFrameClassName={selectedSurvey || activeSelectedStudentId ? 'border-0 bg-page' : undefined}
-        workspaceRef={workspaceContainerRef}
+      <div ref={classworkRegionRef} role="region" aria-label="Classwork" tabIndex={-1} className="h-full min-h-0 outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface">
+        <TeacherWorkSurfaceShell
+          state={selection.mode === 'summary' ? 'summary' : 'workspace'}
+          primary={primaryButtons}
+          actions={[]}
+          trailing={undefined}
+          feedback={feedback}
+          summary={summaryContent}
+          workspace={workspaceContent}
+          workspaceFrame="standalone"
+          workspaceFrameClassName={`${selectedSurvey ? '' : 'workspace-entry'}${selectedSurvey || activeSelectedStudentId ? ' border-0 bg-page' : ''}`}
+          workspaceRef={workspaceContainerRef}
+        />
+      </div>
+
+      <ConfirmDialog
+        isOpen={showBatchAutoGradeConfirm}
+        title={`AI grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`}
+        description="This will overwrite existing grade, comments and teacher edits."
+        confirmLabel="AI grade"
+        confirmVariant="danger"
+        isConfirmDisabled={selectedStudentActionsBusy || batchSelectedCount === 0}
+        onCancel={() => setShowBatchAutoGradeConfirm(false)}
+        onConfirm={() => {
+          if (selectedStudentActionsBusy || batchSelectedCount === 0) return
+          setShowBatchAutoGradeConfirm(false)
+          void handleBatchAutoGrade()
+        }}
       />
 
       <ConfirmDialog
@@ -2941,10 +3037,24 @@ export function TeacherClassroomView({
           } else {
             handleCreateSuccess(assignment)
           }
-          if (options?.closeModal === false) {
+          if (options?.closeModal === false || currentClassroomIdRef.current !== classroom.id) {
             return
           }
           closeAssignmentModal()
+        }}
+      />
+
+      <ClassroomBlueprintDraftDialog
+        isOpen={isBlueprintDraftOpen}
+        classroomId={classroom.id}
+        target="assignments"
+        onClose={() => setIsBlueprintDraftOpen(false)}
+        onCreated={({ assignment }) => {
+          if (assignment) {
+            handleCreateSuccess(assignment)
+            setEditAssignment(assignment)
+            setAssignmentInstructionsMode('markdown')
+          }
         }}
       />
 
@@ -2960,28 +3070,21 @@ export function TeacherClassroomView({
         onRequestDelete={setPendingMaterialDelete}
       />
 
-      <SurveyCreationModal
-        isOpen={isSurveyCreateModalOpen}
-        classroomId={classroom.id}
-        onClose={() => setIsSurveyCreateModalOpen(false)}
-        onSuccess={(survey) => {
-          setIsSurveyCreateModalOpen(false)
-          handleSurveySaved(survey, { initialEditMode: 'edit' })
-        }}
-      />
-
-      <DialogPanel
+      <CreationModalShell
         isOpen={!!surveyModalId}
-        onClose={() => closeSurveyModal()}
-        ariaLabelledBy="survey-workspace-dialog-title"
-        maxWidth="max-w-6xl"
-        className="h-[85vh] overflow-hidden p-0"
+        onClose={() => { void surveyCloseRef.current?.() }}
+        title="Edit survey"
+        titleId="survey-workspace-dialog-title"
+        closeLabel="Close survey editor"
+        showCloseButton={false}
+        maxWidth="!max-w-6xl"
+        panelClassName="!p-0"
+        contentClassName="!overflow-hidden !p-0"
+        tall
       >
-        <h2 id="survey-workspace-dialog-title" className="sr-only">
-          Survey
-        </h2>
         {surveyModalId ? (
           <TeacherSurveyWorkspace
+            key={surveyModalId}
             classroomId={classroom.id}
             surveyId={surveyModalId}
             isReadOnly={isReadOnly}
@@ -2996,6 +3099,7 @@ export function TeacherClassroomView({
             }
             onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
             onBack={() => closeSurveyModal()}
+            onCloseReady={(close) => { surveyCloseRef.current = close }}
             onSurveyUpdated={(updatedSurvey) => {
               setSurveys((current) =>
                 current.map((survey) =>
@@ -3014,7 +3118,7 @@ export function TeacherClassroomView({
             }}
           />
         ) : null}
-      </DialogPanel>
+      </CreationModalShell>
 
     </>
   )

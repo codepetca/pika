@@ -1,3 +1,4 @@
+import { logServerError } from '@/lib/server/diagnostics'
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } from '@/lib/server/tests'
@@ -34,6 +35,9 @@ export const POST = withErrorHandler('PostTeacherTestAutoGrade', async (request,
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot grade a draft test' }, { status: 400 })
+  }
 
   const supabase = getServiceRoleClient()
   const enrollmentValidation = await validateSelectedTestStudentEnrollment(
@@ -43,7 +47,7 @@ export const POST = withErrorHandler('PostTeacherTestAutoGrade', async (request,
   )
 
   if (!enrollmentValidation.ok) {
-    console.error('Error validating selected students for test auto-grade:', enrollmentValidation.error)
+    logServerError('grading.test_enrollment', enrollmentValidation.error)
     return NextResponse.json({ error: 'Failed to validate selected students' }, { status: 500 })
   }
 

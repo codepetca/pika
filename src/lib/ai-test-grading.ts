@@ -33,7 +33,8 @@ import {
   parsePikaTestBatchGradeOutput,
   parsePikaTestReferenceOutput,
   parsePikaTestSingleGradeOutput,
-  PIKA_TEST_BATCH_GRADE_OUTPUT,
+  pikaTestBatchGradeOutput,
+  PIKA_TEST_MAX_BATCH_RESPONSES,
   PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
   PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION,
   PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION,
@@ -41,13 +42,21 @@ import {
   PIKA_TEST_SINGLE_GRADE_OUTPUT,
   resolvePikaTestPromptGuideline,
 } from '@/lib/grading/profiles/pika-test-open-response'
-import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
-import { GradingProviderError } from '@/lib/grading/providers/types'
+import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
+import {
+  GradingProviderError,
+  type StructuredOutputRequest,
+} from '@/lib/grading/providers/types'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'deepseek-flash'
 const MAX_REFERENCE_ANSWERS = 3
-const TEST_AI_REASONING_EFFORT = 'minimal'
-const TEST_AI_REQUEST_TIMEOUT_MS = 25_000
+const TEST_AI_REASONING_EFFORT = 'medium'
+// 25s was set when a test grade was capped at 220 output tokens. DeepSeek now thinks at
+// its 'high' tier and a single grade can legitimately emit ~4.5k reasoning tokens, which
+// does not fit in 25s. An 80-response calibration run failed repeatedly around response 41
+// and completed only at 60s.
+const TEST_AI_REQUEST_TIMEOUT_MS = 60_000
+
 
 export type TestOpenResponsePromptProfile = 'manual' | 'bulk'
 type ReferenceAnswerSource = 'teacher_key' | 'provided' | 'generated'
@@ -124,6 +133,8 @@ export interface TestOpenResponseSuggestion {
   grading_basis: TestAiGradingBasis
   reference_answers: string[]
   provenance: TestGradingProvenance
+  // Populated on the single-grade path so calibration tooling can price a run.
+  usage?: OpenAIResponseUsage
 }
 
 export interface TestOpenResponseReferences {
@@ -140,15 +151,19 @@ export interface TestOpenResponseBatchSuggestion extends TestOpenResponseSuggest
   responseId: string
 }
 
-function getOpenAIKey(): string | null {
-  const key = process.env.OPENAI_API_KEY
-  if (!key) return null
-  const trimmed = key.trim()
-  return trimmed || null
+function requireDeepSeekKey(): string {
+  const key = process.env.DEEPSEEK_API_KEY
+  const trimmed = key?.trim()
+  if (trimmed) return trimmed
+  throw new TestAiGradingError({
+    kind: 'config',
+    message: 'AI grading is not configured.',
+    retryable: false,
+  })
 }
 
 export function getTestOpenResponseGradingModel(): string {
-  return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  return process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
 
 function toTestAiGradingError(error: unknown): TestAiGradingError {
@@ -179,7 +194,7 @@ function toTestAiGradingError(error: unknown): TestAiGradingError {
   ) {
     return new TestAiGradingError({
       kind: 'timeout',
-      message: 'OpenAI grading request timed out',
+      message: 'Grading request timed out',
       retryable: true,
     })
   }
@@ -199,7 +214,7 @@ function toTestAiGradingError(error: unknown): TestAiGradingError {
   })
 }
 
-async function callOpenAIForJson(opts: {
+async function callProviderForJson(opts: {
   apiKey: string
   model: string
   systemPrompt: string
@@ -207,6 +222,9 @@ async function callOpenAIForJson(opts: {
   output: StructuredOutputSpec
   parseOutput(outputText: string): unknown
   requestTimeoutMs?: number
+  // Calibration tooling varies this to measure what reasoning effort buys.
+  // Production leaves it unset and gets TEST_AI_REASONING_EFFORT.
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort']
 }): Promise<{
   parsed: any
   usage: OpenAIResponseUsage
@@ -214,12 +232,13 @@ async function callOpenAIForJson(opts: {
 }> {
   try {
     const result = await executeStructuredOutput({
-      provider: createOpenAiResponsesProvider({ apiKey: opts.apiKey }),
+      provider: createDeepSeekChatProvider({ apiKey: opts.apiKey }),
       policy: {
         version: PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
         model: opts.model,
         requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
-        reasoningEffort: TEST_AI_REASONING_EFFORT,
+        reasoningEffort: opts.reasoningEffort ?? TEST_AI_REASONING_EFFORT,
+        allowEffortDowngrade: false,
       },
       prompt: {
         systemPrompt: opts.systemPrompt,
@@ -460,7 +479,7 @@ async function generateReferenceAnswers(opts: {
   })
 
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
-  const { parsed, usage } = await callOpenAIForJson({
+  const { parsed, usage } = await callProviderForJson({
     apiKey: opts.apiKey,
     model: opts.model,
     systemPrompt,
@@ -624,10 +643,7 @@ export async function generateTestOpenResponseReferences(input: {
   maxPoints: number
   responseMonospace?: boolean
 }): Promise<TestOpenResponseReferences> {
-  const apiKey = getOpenAIKey()
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
 
   const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
@@ -714,10 +730,7 @@ export async function prepareTestOpenResponseGradingContext(input: {
     })
   }
 
-  const apiKey = getOpenAIKey()
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
 
   const referenceAnswers = await generateReferenceAnswers({
     apiKey,
@@ -772,15 +785,13 @@ export async function suggestTestOpenResponseGradeWithContext(
   responseText: string,
   telemetryContext?: TestOpenResponseTelemetryContext,
   requestTimeoutMs?: number,
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<TestOpenResponseSuggestion> {
-  const apiKey = getOpenAIKey()
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
 
   const userPrompt = buildTestOpenResponseSingleUserPrompt(prepared, responseText)
   const promptMetrics = estimatePromptMetrics(prepared.systemPrompt, userPrompt)
-  const { parsed, usage, execution } = await callOpenAIForJson({
+  const { parsed, usage, execution } = await callProviderForJson({
     apiKey,
     model: prepared.model,
     systemPrompt: prepared.systemPrompt,
@@ -788,6 +799,7 @@ export async function suggestTestOpenResponseGradeWithContext(
     output: PIKA_TEST_SINGLE_GRADE_OUTPUT,
     parseOutput: parsePikaTestSingleGradeOutput,
     requestTimeoutMs,
+    reasoningEffort,
   })
 
   if (telemetryContext) {
@@ -824,6 +836,7 @@ export async function suggestTestOpenResponseGradeWithContext(
       operation: 'single',
       batchSize: 1,
     }),
+    usage,
   }
 }
 
@@ -832,12 +845,21 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   responses: TestOpenResponseBatchRequest[],
   telemetryContext?: TestOpenResponseTelemetryContext,
   requestTimeoutMs?: number,
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<TestOpenResponseBatchSuggestion[]> {
-  const apiKey = getOpenAIKey()
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
   if (responses.length === 0) return []
+  // Documented ceilings that nothing enforces are how the previous starvation happened.
+  // Past this size the budget clamp gives each response less room, not more. Checked before
+  // any prompt is built, and reported as a malformed request: `config` would tell teachers
+  // AI grading is not configured, which is not the cause.
+  if (responses.length > PIKA_TEST_MAX_BATCH_RESPONSES) {
+    throw new TestAiGradingError({
+      kind: 'bad_response',
+      message: `Batch of ${responses.length} exceeds the ${PIKA_TEST_MAX_BATCH_RESPONSES} responses this output budget can serve`,
+      retryable: false,
+    })
+  }
 
   const providerRequests = createProviderRefMap(
     responses.map((response) => ({
@@ -856,14 +878,15 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     })),
   )
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
-  const { parsed, usage, execution } = await callOpenAIForJson({
+  const { parsed, usage, execution } = await callProviderForJson({
     apiKey,
     model: prepared.model,
     systemPrompt,
     userPrompt,
-    output: PIKA_TEST_BATCH_GRADE_OUTPUT,
+    output: pikaTestBatchGradeOutput(responses.length),
     parseOutput: parsePikaTestBatchGradeOutput,
     requestTimeoutMs,
+    reasoningEffort,
   })
 
   if (telemetryContext) {
@@ -947,6 +970,7 @@ export async function suggestTestOpenResponseGrade(input: {
   telemetryContext?: TestOpenResponseTelemetryContext
   requestTimeoutMs?: number
   sanitizationContext?: AiSanitizationContext | null
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort']
 }): Promise<TestOpenResponseSuggestion> {
   const prepared = await prepareTestOpenResponseGradingContext(input)
   return suggestTestOpenResponseGradeWithContext(
@@ -954,6 +978,7 @@ export async function suggestTestOpenResponseGrade(input: {
     input.responseText,
     input.telemetryContext,
     input.requestTimeoutMs,
+    input.reasoningEffort,
   )
 }
 

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
@@ -10,6 +10,17 @@ describe('TestDocumentsEditor', () => {
   afterEach(() => {
     cleanup()
     vi.unstubAllGlobals()
+  })
+
+  it('shows rejected SVG uploads inside the open dialog without uploading', () => {
+    uploadFileDirectly.mockClear()
+    render(<TestDocumentsEditor testId="test-1" isEditable />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }))
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [new File(['<svg/>'], 'world.svg', { type: 'image/svg+xml' })] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Upload document' }))
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Invalid file type')
+    expect(uploadFileDirectly).not.toHaveBeenCalled()
   })
 
   it('exposes document types as keyboard-navigable tabs without adding a panel tab stop', async () => {
@@ -68,13 +79,13 @@ describe('TestDocumentsEditor', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
-    fireEvent.click(screen.getByRole('tab', { name: 'PDF' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload' }))
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')
     expect(input).not.toBeNull()
     fireEvent.change(input!, {
       target: { files: [new File(['pdf'], 'file.pdf', { type: 'application/pdf' })] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Upload pdf document' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Upload document' }))
 
     await vi.waitFor(() => expect(onDocumentsChange).toHaveBeenCalledWith([
       expect.objectContaining({

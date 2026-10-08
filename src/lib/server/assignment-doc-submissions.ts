@@ -4,6 +4,7 @@ import { countCharacters, countWords } from '@/lib/tiptap-content'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
 import type { AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 import type { v1 } from '@/vendor/pal-contract'
+import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 
 type SupabaseLike = any
 
@@ -111,6 +112,14 @@ function isMissingAtomicMigration(error: any) {
 }
 
 function mapRpcError(error: any, operation: 'save' | 'submit' | 'unsubmit'): AssignmentDocMutationResult {
+  if (isRetryableDatabaseContention(error)) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Assignment work changed during this operation. Refresh and try again.',
+      errorCode: 'assignment_doc_contention',
+    }
+  }
   if (error?.code === '23514' && error?.message?.includes('assignment_submission_requirements_missing')) {
     return {
       ok: false,

@@ -14,7 +14,7 @@ type ArtifactCollection =
   | 'materials'
   | 'surveys'
 type SnapshotArtifact = CourseBlueprintSnapshot[ArtifactCollection][number]
-type SingletonKey = 'metadata' | 'sections' | 'grading' | 'planned_site'
+type SingletonKey = 'metadata' | 'sections' | 'grading' | 'planned_site' | 'authoring_guidance'
 
 export type CourseBlueprintChangeOperation =
   | {
@@ -150,7 +150,9 @@ export function buildCourseBlueprintChangeProposal(
   }
 
   const operations: CourseBlueprintChangeOperation[] = []
-  const singletonKeys: SingletonKey[] = ['metadata', 'sections', 'grading', 'planned_site']
+  const singletonKeys: SingletonKey[] = [
+    'metadata', 'sections', 'grading', 'planned_site', 'authoring_guidance',
+  ]
   singletonKeys.forEach((key) => {
     if (!isEqual(base[key], candidate[key])) {
       operations.push({

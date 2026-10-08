@@ -1,5 +1,5 @@
 import { getTestEditingPolicy } from '@/lib/server/test-editing-policy'
-import { allowsTestQuestionChanges, TEST_WORDING_ONLY_MESSAGE } from '@/lib/test-editing-policy'
+import { allowsTestQuestionChanges, TEST_CORRECTIONS_MESSAGE } from '@/lib/test-editing-policy'
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -20,6 +20,11 @@ import {
 } from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TestDraftContent } from '@/types'
+import { authorizeSharedTestDetailReadActor } from '@/lib/server/contextual-test-detail-read'
+import { getContextualTestDraft } from '@/lib/server/contextual-test-draft-get'
+import { contextualTestDraftGetQuerySchema } from '@/lib/validations/contextual-test-draft-get'
+import { saveContextualTestDraft } from '@/lib/server/contextual-test-draft-save'
+import { contextualTestDraftSaveQuerySchema, contextualTestDraftSaveRequestSchema, readContextualTestDraftSaveBody, TEST_DRAFT_SAVE_DEADLINE_MS } from '@/lib/validations/contextual-test-draft-save'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -43,6 +48,12 @@ const TEST_DRAFT_CONFIG = {
 }
 
 export const GET = withErrorHandler('GetTestDraft', async (request, context) => {
+  const actor = await authorizeSharedTestDetailReadActor()
+  if (actor.mode === 'shared') {
+    const { id } = await context.params
+    const { testId } = contextualTestDraftGetQuerySchema.parse({ testId: id })
+    return NextResponse.json(await getContextualTestDraft({ supabase: getServiceRoleClient(), actorId: actor.user.id, testId }))
+  }
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
 
@@ -65,6 +76,15 @@ export const GET = withErrorHandler('GetTestDraft', async (request, context) => 
 })
 
 export const PATCH = withErrorHandler('PatchTestDraft', async (request, context) => {
+  const actor = await authorizeSharedTestDetailReadActor()
+  if (actor.mode === 'shared') {
+    const deadline = Date.now() + TEST_DRAFT_SAVE_DEADLINE_MS
+    const { id } = await context.params
+    const { testId } = contextualTestDraftSaveQuerySchema.parse({ testId: id })
+    const input = contextualTestDraftSaveRequestSchema.parse(await readContextualTestDraftSaveBody(request, deadline))
+    const result = await saveContextualTestDraft({ supabase: getServiceRoleClient(), actorId: actor.user.id, testId, input, deadline })
+    return NextResponse.json(result.body, { status: result.status })
+  }
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const body = testDraftRequestSchema.parse(await request.json())
@@ -120,7 +140,7 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
 
   const editingPolicy = await getTestEditingPolicy(testId)
   if (!allowsTestQuestionChanges(currentDraft.content.questions, nextContentResult.content.questions, editingPolicy)) {
-    return NextResponse.json({ error: TEST_WORDING_ONLY_MESSAGE, draft: currentDraft, editingPolicy }, { status: 409 })
+    return NextResponse.json({ error: TEST_CORRECTIONS_MESSAGE, draft: currentDraft, editingPolicy }, { status: 409 })
   }
 
   const saveResult = await saveTestDraftAtomic(supabase, {

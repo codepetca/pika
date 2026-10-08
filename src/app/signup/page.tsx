@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { AppMessageFallback } from '@/ui'
 import { SignupClient } from './SignupClient'
 import { isWorkOSMagicAuthPilotEnabled, safePikaPath } from '@/lib/server/workos-pilot'
 import { hasActivePendingWorkOSMagicAuth } from '@/lib/server/workos-magic-pending'
@@ -16,7 +17,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
     : false
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AppMessageFallback />}>
       <SignupClient
         magicAuthEnabled={magicAuthEnabled}
         hasPendingMagicAuthChallenge={hasPendingChallenge}

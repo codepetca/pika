@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { authorizeContextualClassworkReorderRequest } from '@/lib/server/contextual-classwork-reorder-access'
+import {
+  reorderClassworkForOwner,
+  type ContextualClassworkReorderItem,
+} from '@/lib/server/contextual-classwork-reorder'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -36,8 +40,10 @@ function getKnownReorderError(error: any) {
 }
 
 export const POST = withErrorHandler('PostTeacherClassworkReorder', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id: classroomId } = await context.params
+  const access = await authorizeContextualClassworkReorderRequest(async () => (
+    await context.params
+  ).id)
+  const classroomId = access.classroomId
   const body = await request.json()
   const items = (body as { items?: ReorderItem[] }).items
 
@@ -60,12 +66,23 @@ export const POST = withErrorHandler('PostTeacherClassworkReorder', async (reque
     return NextResponse.json({ error: 'items must be unique' }, { status: 400 })
   }
 
-  const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
+  const supabase = getServiceRoleClient()
+
+  if (access.mode === 'contextual') {
+    await reorderClassworkForOwner({
+      supabase,
+      actorId: access.user.id,
+      classroomId,
+      items: items as ContextualClassworkReorderItem[],
+    })
+    return NextResponse.json({ success: true })
+  }
+
+  const ownership = await assertTeacherCanMutateClassroom(access.user.id, classroomId)
   if (!ownership.ok) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
 
-  const supabase = getServiceRoleClient()
   const { error } = await supabase.rpc('reorder_classwork_items', {
     p_classroom_id: classroomId,
     p_items: items,

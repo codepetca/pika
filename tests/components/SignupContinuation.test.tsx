@@ -37,6 +37,22 @@ describe('signup continuation', () => {
     vi.useRealTimers()
   })
 
+  it('keeps the footer Login canonical and keyboard activatable with safe continuation', async () => {
+    mockGet.mockImplementation((key: string) => key === 'next' ? '/classrooms?entry=recovery' : null)
+    const user = userEvent.setup()
+    render(<SignupClient />)
+    const login = screen.getByRole('button', { name: 'Login', exact: true })
+    expect(login).toHaveClass('min-h-control', 'min-w-control', 'focus-visible:ring-focus')
+    expect(login).not.toHaveClass('min-h-0', 'p-0')
+    await user.type(screen.getByLabelText(/school email/i), 'retry@example.invalid')
+    screen.getByRole('button', { name: 'Send Verification Code' }).focus()
+    await user.tab()
+    expect(login).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(mockPush).toHaveBeenCalledWith('/login?next=%2Fclassrooms%3Fentry%3Drecovery')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('carries the attendance destination from classic signup to verification', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     mockGet.mockImplementation((key: string) => (
@@ -79,6 +95,7 @@ describe('signup continuation', () => {
       }),
     ))
   })
+
 
   it('carries the attendance destination from verification to password creation', async () => {
     mockGet.mockImplementation((key: string) => {

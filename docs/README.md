@@ -25,6 +25,11 @@ This file provides:
 
 ## Folder Structure
 
+For classroom assessment content, start with
+[Teacher Test Authoring](guidance/teacher-test-authoring.md) and the
+[Teacher Tests Markdown Schema](guidance/teacher-tests-markdown-schema.md).
+These are separate from the application testing guidance in `core/tests.md`.
+
 ```
 /DESIGN.md                      # Canonical product design entry point
 /docs

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { parseContentField } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
@@ -11,16 +10,82 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { sanitizeDocForStudent } from '@/lib/assignments'
 import { saveAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
 import { assignmentDocRestoreRequestSchema } from '@/lib/validations/assignment-doc-submissions'
+import { authorizeContextualAssignmentDocRestoreRequest } from '@/lib/server/contextual-assignment-doc-access'
+import {
+  getContextualAssignmentDocHistory,
+  restoreContextualAssignmentDoc,
+} from '@/lib/server/contextual-assignment-doc-history'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const POST = withErrorHandler('PostRestoreAssignmentDoc', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId } = await context.params
+  const access = await authorizeContextualAssignmentDocRestoreRequest(async () => (
+    await context.params
+  ).id)
+  const { user, assignmentId } = access
   const { history_id: historyId } = assignmentDocRestoreRequestSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+
+  if (access.mode === 'contextual') {
+    const evidence = await getContextualAssignmentDocHistory({
+      supabase,
+      actorId: user.id,
+      assignmentId,
+      memberOnly: true,
+    })
+    const doc = evidence.doc
+    if (!doc) {
+      return NextResponse.json(
+        { error: 'Assignment doc not found' },
+        { status: 404 },
+      )
+    }
+    if (doc.is_submitted) {
+      return NextResponse.json(
+        { error: 'Cannot restore a submitted document' },
+        { status: 403 },
+      )
+    }
+
+    const targetEntry = evidence.history.find((entry) => entry.id === historyId)
+    if (!targetEntry) {
+      return NextResponse.json(
+        { error: 'History entry not found' },
+        { status: 404 },
+      )
+    }
+    const restoredContent = reconstructAssignmentDocContent(evidence.history, historyId)
+    if (!restoredContent) {
+      return NextResponse.json(
+        { error: 'Failed to reconstruct document content' },
+        { status: 500 },
+      )
+    }
+
+    const saveSessionId = randomUUID()
+    const restoreResult = await restoreContextualAssignmentDoc({
+      supabase,
+      actorId: user.id,
+      assignmentId,
+      historyId,
+      previousContent: parseContentField(doc.content),
+      content: restoredContent,
+      expectedUpdatedAt: doc.updated_at,
+      saveSessionId,
+      saveSequence: 1,
+      metricSessionId: saveSessionId,
+    })
+    if (!restoreResult.ok) {
+      return NextResponse.json(
+        { error: restoreResult.error },
+        { status: restoreResult.status },
+      )
+    }
+
+    return NextResponse.json({ doc: sanitizeDocForStudent(restoreResult.doc) })
+  }
 
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
@@ -42,11 +107,11 @@ export const POST = withErrorHandler('PostRestoreAssignmentDoc', async (request,
     )
   }
 
-  const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
-  if (!access.ok) {
+  const classroomAccess = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+  if (!classroomAccess.ok) {
     return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
+      { error: classroomAccess.error },
+      { status: classroomAccess.status }
     )
   }
 

@@ -14,6 +14,8 @@ import { getClassroomThemeDefinition, getClassroomThemeStyle, type ClassroomThem
 import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 interface AppHeaderProps {
+  /** Server snapshot reused by the first client render, in epoch milliseconds. */
+  initialNow: number
   user?: {
     email: string
     role: 'student' | 'teacher'
@@ -28,6 +30,7 @@ interface AppHeaderProps {
   }>
   currentClassroomId?: string
   onOpenSidebar?: () => void
+  sidebarTriggerLabel?: string
   onNavigateHome?: (href: string) => boolean
   examModeHeader?: {
     testTitle: string
@@ -50,21 +53,24 @@ const EXIT_COUNT_PULSE_MS = 1600
  * Compact global header (48px) with logo, classroom title, date, and user menu.
  */
 export function AppHeader({
+  initialNow,
   user,
   classrooms,
   currentClassroomId,
   onOpenSidebar,
+  sidebarTriggerLabel = 'Open classroom navigation',
   onNavigateHome,
   examModeHeader,
   pageTitle,
 }: AppHeaderProps) {
-  const [now, setNow] = useState(() => new Date())
+  const [now, setNow] = useState(() => new Date(initialNow))
   const [exitCountPulseActive, setExitCountPulseActive] = useState(false)
   const previousExamExitCountRef = useRef<number | null>(null)
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
   const hints = useKeyboardShortcutHint()
 
   useEffect(() => {
+    setNow(new Date())
     const id = window.setInterval(() => setNow(new Date()), 60_000)
     return () => window.clearInterval(id)
   }, [])
@@ -126,7 +132,7 @@ export function AppHeader({
   return (
     <header
       className={[
-        'sticky top-0 z-app-chrome grid h-12 grid-cols-[1fr_minmax(0,1fr)_1fr] items-center border-b border-border bg-surface px-4',
+        'sticky top-0 z-app-chrome grid h-12 grid-cols-[1fr_minmax(0,1fr)_1fr] items-center bg-surface px-4',
         classroomTheme ? 'classroom-theme classroom-theme-appbar' : '',
       ].filter(Boolean).join(' ')}
       data-classroom-theme-color={classroomTheme?.value}
@@ -146,7 +152,7 @@ export function AppHeader({
               type="button"
               onClick={onOpenSidebar}
               className="-ml-2 flex min-h-11 min-w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default lg:hidden"
-              aria-label="Open classroom navigation"
+              aria-label={sidebarTriggerLabel}
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -244,10 +250,12 @@ export function AppHeader({
             </button>
           </Tooltip>
         )}
-        <span className="mr-2 hidden whitespace-nowrap text-base font-semibold tabular-nums text-text-default sm:inline-flex">
-          <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
-          <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
-        </span>
+        {(isFullscreen || isExamMode) && (
+          <span data-testid="header-date-time" className="mr-2 hidden whitespace-nowrap text-base font-semibold tabular-nums text-text-default sm:inline-flex">
+            <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
+            <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
+          </span>
+        )}
         <UserMenu user={user} />
       </div>
     </header>

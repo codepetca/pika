@@ -14,8 +14,15 @@ async function result(request: PromiseLike<{
 }>) {
   const response = await request
   if (response.error) {
-    if (response.error.code === '55000' && response.error.message === 'student_provider_cleanup_disabled')
-      throw new StudentProviderCleanupError('disabled')
+    if (response.error.code === '55000' && [
+      'student_provider_cleanup_disabled', 'student_live_cleanup_disabled',
+      'student_live_cleanup_prerequisite_paused',
+    ].includes(response.error.message ?? ''))
+      throw new StudentProviderCleanupError('disabled', true)
+    if (response.error.code === '55000' && [
+      'student_provider_operation_conflict', 'student_provider_copy_policy_required',
+    ].includes(response.error.message ?? ''))
+      throw new StudentProviderCleanupError('persistence_unavailable', true)
     if (['42501', '22023', '55000'].includes(response.error.code ?? ''))
       throw new StudentProviderCleanupError('binding_invalid')
     throw new StudentProviderCleanupError('persistence_unavailable', true)

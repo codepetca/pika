@@ -22,11 +22,14 @@ interface AssignmentFormProps {
   onDueAtChange: (next: string) => void
   onPreviewInstructions?: () => void
   disabled?: boolean
+  /** Retire live editor controls while preserving outgoing field presentation. */
+  interactionActive?: boolean
   error?: string
   titleInputRef?: RefObject<HTMLInputElement>
   onBlur?: () => void
   topRowActions?: ReactNode
   statusContent?: ReactNode
+  titleAccessory?: ReactNode
   markdownWarning?: string | null
   fillHeight?: boolean
   desktopSplit?: boolean
@@ -45,11 +48,13 @@ export function AssignmentForm({
   onDueAtChange,
   onPreviewInstructions,
   disabled = false,
+  interactionActive = true,
   error,
   titleInputRef,
   onBlur,
   topRowActions,
   statusContent,
+  titleAccessory,
   markdownWarning,
   fillHeight = false,
   desktopSplit = false,
@@ -92,6 +97,7 @@ export function AssignmentForm({
           placeholder="Instructions"
           disabled={disabled}
           editable={!disabled}
+          interactionActive={interactionActive}
           toolbarPreset="markdown-safe"
           className={[
             'overflow-hidden rounded-lg border border-border-strong',
@@ -112,7 +118,13 @@ export function AssignmentForm({
           data-testid="assignment-editor-details-pane"
           className="flex flex-col gap-4 border-b border-border p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0"
         >
-          <FormField label="Title" required hideLabel collapseHiddenLabel>
+          <FormField
+            label="Title"
+            required
+            hideLabel={!titleAccessory}
+            collapseHiddenLabel={!titleAccessory}
+            labelAccessory={titleAccessory}
+          >
             <Input
               ref={titleInputRef}
               type="text"

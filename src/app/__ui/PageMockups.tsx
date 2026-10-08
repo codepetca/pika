@@ -58,6 +58,7 @@ import { WorkSurfaceMockup } from './WorkSurfaceMockup'
 import { GradebookAssessmentEditorMockup } from './GradebookAssessmentEditorMockup'
 import { GradebookCategoryEditorMockup } from './GradebookCategoryEditorMockup'
 import { GradebookWeightInputMockup } from './GradebookWeightInputMockup'
+import { TeacherGradebookVisibilityControl } from './StudentGradesPattern'
 import {
   Button,
   Card,
@@ -560,6 +561,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
   const [showStudentIds, setShowStudentIds] = useState(false)
   const [showWeights, setShowWeights] = useState(false)
   const [keepKeyColumnsVisible, setKeepKeyColumnsVisible] = useState(true)
+  const [gradesVisible, setGradesVisible] = useState(false)
   const [firstColumnWidth, setFirstColumnWidth] = useState(96)
   const [lastColumnWidth, setLastColumnWidth] = useState(96)
   const [selected, setSelected] = useState<string[]>([])
@@ -787,19 +789,22 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
             /></span>
           </div>
         </TeacherWorkSurfaceActionCluster>}
-        actions={<MoreMenu label="Gradebook" items={[
-          { id: 'edit-gradebook', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => setGradebookEditorOpen(true) },
-          { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
-          { id: 'name-order', dividerBefore: true, label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
-          { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
-          { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
-          ...(Object.keys(manualScores).length ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => setUndoAllOpen(true) }] : []),
-          { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: () => onPrototypeAction('Export gradebook') },
-        ]} />}
+        actions={<>
+          <TeacherGradebookVisibilityControl gradesVisible={gradesVisible} onChange={setGradesVisible} />
+          <MoreMenu label="Gradebook" items={[
+            { id: 'edit-gradebook', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => setGradebookEditorOpen(true) },
+            { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
+            { id: 'name-order', dividerBefore: true, label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
+            { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
+            { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
+            ...(Object.keys(manualScores).length ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => setUndoAllOpen(true) }] : []),
+            { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: () => onPrototypeAction('Export gradebook') },
+          ]} />
+        </>}
       />
       <TeacherWorkSurfaceTableFrame
         data-testid="gradebook-scroll-frame"
-        className={cn('relative hidden lg:block', empty || fewAssessments ? 'max-h-80 border border-border' : 'h-80 border border-border')}
+        className={cn('relative hidden lg:block', empty || fewAssessments ? 'max-h-80' : 'h-80')}
       >
         <div
           className={cn((empty || fewAssessments) && 'w-full')}
@@ -816,14 +821,14 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
               {fewAssessments ? <col /> : null}
               <col style={{ width: GRADEBOOK_FINAL_COLUMN_WIDTH }} />
             </colgroup>
-            <DataTableHead><DataTableRow>
-              <TableSelectionHeaderCell className={cn('sticky top-0 bg-surface-2', keepKeyColumnsVisible && 'left-0 z-sticky-table')} checked={selected.length === rows.length} indeterminate={selected.length > 0 && selected.length < rows.length} onChange={(checked) => setSelected(checked ? rows.map((row) => row.id) : [])} ariaLabel="Select all gradebook students" />
+            <DataTableHead dividers={false}><DataTableRow>
+              <TableSelectionHeaderCell className={cn('sticky top-0 bg-surface-3', keepKeyColumnsVisible && 'left-0 z-sticky-table')} checked={selected.length === rows.length} indeterminate={selected.length > 0 && selected.length < rows.length} onChange={(checked) => setSelected(checked ? rows.map((row) => row.id) : [])} ariaLabel="Select all gradebook students" />
               {nameColumns.map((column, index) => (
                 <SortableHeaderCell
                   key={column.key}
                   className={cn(
-                    'sticky top-0 bg-surface-2',
-                    keepKeyColumnsVisible && index === 0 && 'left-10 z-sticky-table border-r border-border-strong',
+                    'sticky top-0 bg-surface-3',
+                    keepKeyColumnsVisible && index === 0 && 'left-10 z-sticky-table',
                   )}
                   label={column.label}
                   isActive={sort.key === column.key}
@@ -832,24 +837,24 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   resize={{ value: column.width, min: 72, max: 220, onChange: column.onWidthChange }}
                 />
               ))}
-              {showStudentIds ? <DataTableHeaderCell className="sticky top-0 bg-surface-2">ID</DataTableHeaderCell> : null}
-              {empty ? <DataTableHeaderCell align="center" className="sticky top-0 bg-surface-2">Assessments</DataTableHeaderCell> : assessments.map((assessment) => <DataTableHeaderCell key={assessment} align="center" className="sticky top-0 overflow-hidden bg-surface-2 !px-1"><Tooltip content={assessment} side="bottom"><Button type="button" variant="ghost" size="xs" className="w-full overflow-hidden px-1 text-center font-normal text-text-default" onClick={() => setSelectedAssessmentTitle(assessment)}><span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{assessment}</span></Button></Tooltip></DataTableHeaderCell>)}
-              {fewAssessments ? <DataTableHeaderCell className="sticky top-0 bg-surface-2"><span className="sr-only">Unused assessment space</span></DataTableHeaderCell> : null}
-              <DataTableHeaderCell align="right" className={cn('sticky top-0 whitespace-nowrap bg-surface-2', keepKeyColumnsVisible && 'right-0 z-sticky-table border-l border-border-strong')}>Final</DataTableHeaderCell>
+              {showStudentIds ? <DataTableHeaderCell className="sticky top-0 bg-surface-3">ID</DataTableHeaderCell> : null}
+              {empty ? <DataTableHeaderCell align="center" className="sticky top-0 bg-surface-3">Assessments</DataTableHeaderCell> : assessments.map((assessment) => <DataTableHeaderCell key={assessment} align="center" className="sticky top-0 overflow-hidden bg-surface-3 !px-1"><Tooltip content={assessment} side="bottom"><Button type="button" variant="ghost" size="xs" className="w-full overflow-hidden px-1 text-center font-normal text-text-default" onClick={() => setSelectedAssessmentTitle(assessment)}><span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{assessment}</span></Button></Tooltip></DataTableHeaderCell>)}
+              {fewAssessments ? <DataTableHeaderCell className="sticky top-0 bg-surface-3"><span className="sr-only">Unused assessment space</span></DataTableHeaderCell> : null}
+              <DataTableHeaderCell align="right" className={cn('sticky top-0 whitespace-nowrap bg-gradebook-final', keepKeyColumnsVisible && 'right-0 z-sticky-table')}>Final</DataTableHeaderCell>
             </DataTableRow>
             </DataTableHead>
             {showWeights && assessments.length > 0 ? (
               <tbody aria-label="Assessment weights" className="bg-surface-2">
-                <DataTableRow aria-label="Category" className="border-b border-border">
+                <DataTableRow aria-label="Category">
                   <DataTableCell aria-hidden="true" className={cn('bg-surface-2', keepKeyColumnsVisible && 'sticky left-0')}>{null}</DataTableCell>
-                  <DataTableHeaderCell scope="row" align="right" className={cn('!px-2 whitespace-normal bg-surface-2 text-xs font-medium leading-tight text-text-muted', keepKeyColumnsVisible && 'sticky left-10 border-r border-border-strong after:pointer-events-none after:absolute after:-right-2 after:inset-y-0 after:w-2 after:bg-surface-2 after:content-[""]')}>Category</DataTableHeaderCell>
+                  <DataTableHeaderCell scope="row" align="right" className={cn('!px-2 whitespace-normal bg-surface-2 text-xs font-medium leading-tight text-text-muted', keepKeyColumnsVisible && 'sticky left-10 after:pointer-events-none after:absolute after:-right-2 after:inset-y-0 after:w-2 after:bg-surface-2 after:content-[""]')}>Category</DataTableHeaderCell>
                   {nameColumns.slice(1).map((column) => <DataTableCell key={`category-label-spacer:${column.key}`} aria-hidden="true" className="bg-surface-2">{null}</DataTableCell>)}
                   {showStudentIds ? <DataTableCell aria-hidden="true" className="bg-surface-2">{null}</DataTableCell> : null}
                   {assessmentColumns.map((assessment) => <DataTableCell key={`category:${assessment.assessment_id}`} align="center" className="truncate bg-surface-2 !px-1 text-xs text-text-muted"><Button type="button" variant="ghost" size="xs" aria-label={`Edit category for ${assessment.code}: ${assessment.title}`} className="w-full min-w-0 truncate px-1 font-normal text-text-muted" onClick={() => setSelectedAssessmentTitle(assessment.title)}>{assessment.category_name || 'None'}</Button></DataTableCell>)}
                   {fewAssessments ? <DataTableCell aria-hidden="true" className="bg-surface-2">{null}</DataTableCell> : null}
-                  <DataTableCell aria-hidden="true" className={cn('bg-surface-2', keepKeyColumnsVisible && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+                  <DataTableCell aria-hidden="true" className={cn('bg-gradebook-final', keepKeyColumnsVisible && 'sticky right-0')}>{null}</DataTableCell>
                 </DataTableRow>
-                <DataTableRow aria-label="Weight" className="border-b border-border">
+                <DataTableRow aria-label="Weight">
                   <DataTableCell
                     aria-hidden="true"
                     className={cn('bg-surface-2', keepKeyColumnsVisible && 'sticky left-0')}
@@ -861,7 +866,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                     align="right"
                     className={cn(
                       '!px-2 whitespace-normal bg-surface-2 text-xs font-medium leading-tight text-text-muted',
-                      keepKeyColumnsVisible && 'sticky left-10 border-r border-border-strong after:pointer-events-none after:absolute after:-right-2 after:inset-y-0 after:w-2 after:bg-surface-2 after:content-[""]',
+                      keepKeyColumnsVisible && 'sticky left-10 after:pointer-events-none after:absolute after:-right-2 after:inset-y-0 after:w-2 after:bg-surface-2 after:content-[""]',
                     )}
                   >
                     Weight
@@ -896,12 +901,12 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   {fewAssessments ? <DataTableCell aria-hidden="true" className="bg-surface-2">{null}</DataTableCell> : null}
                   <DataTableCell
                     aria-hidden="true"
-                    className={cn('bg-surface-2', keepKeyColumnsVisible && 'sticky right-0 border-l border-border-strong')}
+                    className={cn('bg-gradebook-final', keepKeyColumnsVisible && 'sticky right-0')}
                   >
                     {null}
                   </DataTableCell>
                 </DataTableRow>
-                <DataTableRow aria-label="Course %" className="border-b border-border-strong">
+                <DataTableRow aria-label="Course %">
                   <DataTableCell
                     aria-hidden="true"
                     className={cn('bg-surface-2', keepKeyColumnsVisible && 'sticky left-0')}
@@ -913,7 +918,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                     align="right"
                     className={cn(
                       '!px-2 whitespace-normal bg-surface-2 text-xs font-medium leading-tight text-text-muted',
-                      keepKeyColumnsVisible && 'sticky left-10 border-r border-border-strong after:pointer-events-none after:absolute after:-right-2 after:inset-y-0 after:w-2 after:bg-surface-2 after:content-[""]',
+                      keepKeyColumnsVisible && 'sticky left-10 after:pointer-events-none after:absolute after:-right-2 after:inset-y-0 after:w-2 after:bg-surface-2 after:content-[""]',
                     )}
                   >
                     Course %
@@ -941,14 +946,14 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   {fewAssessments ? <DataTableCell aria-hidden="true" className="bg-surface-2">{null}</DataTableCell> : null}
                   <DataTableCell
                     aria-hidden="true"
-                    className={cn('bg-surface-2', keepKeyColumnsVisible && 'sticky right-0 border-l border-border-strong')}
+                    className={cn('bg-gradebook-final', keepKeyColumnsVisible && 'sticky right-0')}
                   >
                     {null}
                   </DataTableCell>
                 </DataTableRow>
               </tbody>
             ) : null}
-            <DataTableBody>{rows.map((student) => {
+            <DataTableBody dividers={false}>{rows.map((student) => {
               const isSelected = selected.includes(student.id)
               const stickyCellSurface = keepKeyColumnsVisible
                 ? isSelected
@@ -962,7 +967,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                     key={column.key}
                     className={cn(
                       'truncate whitespace-nowrap',
-                      keepKeyColumnsVisible && index === 0 && 'sticky left-10 border-r border-border-strong',
+                      keepKeyColumnsVisible && index === 0 && 'sticky left-10',
                       keepKeyColumnsVisible && index === 0 && stickyCellSurface,
                     )}
                     title={student[column.key]}
@@ -988,7 +993,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   </DataTableCell>
                 })}
                 {fewAssessments ? <DataTableCell aria-hidden="true">{null}</DataTableCell> : null}
-                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold', keepKeyColumnsVisible && 'sticky right-0 border-l border-border-strong', stickyCellSurface)}>
+                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold', keepKeyColumnsVisible && 'sticky right-0', isSelected ? 'bg-surface-3' : 'bg-gradebook-final group-hover:bg-surface-hover')}>
                   {empty ? '—' : (
                     <Button
                       type="button"
@@ -1007,13 +1012,13 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
             })}</DataTableBody>
             {!empty ? (
               <tfoot data-testid="gradebook-summary-footer" className="sticky bottom-0 z-sticky-table bg-surface-2">
-                <DataTableRow aria-label="Class average" className="border-t border-border-strong bg-surface-2">
+                <DataTableRow aria-label="Class average" className="bg-surface-2">
                   <DataTableCell className={cn('!px-1 text-center text-xs font-semibold uppercase tracking-wide text-text-muted', keepKeyColumnsVisible && 'sticky left-0 z-sticky-table bg-surface-2')}>Avg</DataTableCell>
                   {nameColumns.map((column, index) => <DataTableCell key={column.key} className={cn(keepKeyColumnsVisible && index === 0 && 'sticky left-10 z-sticky-table bg-surface-2')}>{null}</DataTableCell>)}
                   {showStudentIds ? <DataTableCell>{null}</DataTableCell> : null}
                   {assessments.map((assessment, index) => <DataTableCell key={`average:${assessment}`} align="center" className="whitespace-nowrap text-xs tabular-nums">{formatGradebookAssessmentSummary(rows, index, scoreMode)}</DataTableCell>)}
                   {fewAssessments ? <DataTableCell aria-hidden="true">{null}</DataTableCell> : null}
-                  <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums', getGradePercentTextClass(summarizeGradebookValues(rows.map((student) => Number.parseFloat(student.final)).filter(Number.isFinite), 'average')), keepKeyColumnsVisible && 'sticky right-0 z-sticky-table bg-surface-2')}>{formatGradebookFinalSummary(rows, 'average')}</DataTableCell>
+                  <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums bg-gradebook-final', getGradePercentTextClass(summarizeGradebookValues(rows.map((student) => Number.parseFloat(student.final)).filter(Number.isFinite), 'average')), keepKeyColumnsVisible && 'sticky right-0 z-sticky-table')}>{formatGradebookFinalSummary(rows, 'average')}</DataTableCell>
                 </DataTableRow>
               </tfoot>
             ) : null}

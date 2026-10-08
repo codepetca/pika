@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import { authorizeTeacherDailyReadActor } from '@/lib/server/contextual-teacher-daily-read'
+import { readContextualTeacherLogs } from '@/lib/server/contextual-teacher-daily-logs'
+import { contextualTeacherLogsQuerySchema } from '@/lib/validations/teacher-logs'
 import { loadClassroomRoster } from '@/lib/server/classroom-roster'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
@@ -35,10 +37,22 @@ type SupabaseClient = ReturnType<typeof getServiceRoleClient>
  * Returns roster students with an optional entry for the selected date.
  */
 export const GET = withErrorHandler('GetTeacherLogs', async (request: NextRequest) => {
-  const user = await requireRole('teacher')
+  const { mode, user } = await authorizeTeacherDailyReadActor()
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')
   const date = searchParams.get('date')
+
+  if (mode === 'contextual') {
+    const query = contextualTeacherLogsQuerySchema.parse({
+      classroom_id: classroomId ?? undefined,
+      date: date ?? undefined,
+    })
+    const payload = await readContextualTeacherLogs({
+      supabase: getServiceRoleClient(), actorId: user.id,
+      classroomId: query.classroom_id, date: query.date,
+    })
+    return NextResponse.json(payload)
+  }
 
   if (!classroomId) {
     return NextResponse.json(

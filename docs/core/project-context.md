@@ -2,7 +2,7 @@
 
 Overview of **Pika**: daily journals, attendance, classrooms, and assignments for online high school courses. Students submit work; teachers track attendance and assignments. America/Toronto timezone is authoritative.
 
-**Status**: Classrooms, assignments, password-based auth, and dashboards are implemented. Working toward full test coverage and polish.
+**Status**: Implemented capabilities include classrooms, assignments and editor history, Tests, Gradebook/Student Grades, announcements, attendance, and course authoring. Use [.ai/features.json](../../.ai/features.json) for epic status and [.ai/CURRENT.md](../../.ai/CURRENT.md) for dated rollout evidence.
 
 ---
 
@@ -15,9 +15,9 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 4) Teacher dashboards: attendance matrix, roster management, CSV export
 
 **Non-Goals**
-- Full LMS (gradebook, forums, announcements)
+- General-purpose discussion forums
 - Native mobile apps (web-first responsive)
-- Real-time collaboration/editor history (future)
+- Real-time collaborative editing (assignment history is implemented)
 
 ---
 
@@ -30,13 +30,17 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 
 ## Tech Stack
 
-- **Next.js 14** (App Router, TypeScript)
+- **Next.js App Router + TypeScript**; exact dependency versions come from `package.json` and `pnpm-lock.yaml` (currently locked Next 15.5.25).
 - **Supabase** (PostgreSQL + RLS)
 - **iron-session** for HTTP-only cookies
 - **Tailwind CSS**
 - **Vitest + React Testing Library**
 
 ---
+
+## Environment flow
+
+Pika uses local development with local Supabase, local smoke/database checks, a reviewed PR to `main`, then promotion to `production`. The hosted staging database was removed; do not propose recreating it or require a staging/Preview deployment as a gate. See [Workflow](../dev-workflow.md#environments-and-release-flow).
 
 ## Getting Started
 
@@ -126,8 +130,11 @@ cleanup-disabled procedure in `docs/guidance/classroom-lifecycle-archives.md`.
 - `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
 - `NEXT_PUBLIC_APP_URL`
 - `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in `vercel.json` or the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
-- `OPENAI_API_KEY` (optional; required for AI grading, nightly log summaries, and developer feedback extraction)
+- `DEEPSEEK_API_KEY` (optional; required for assignment, test, and repository-review AI grading)
+- `DEEPSEEK_GRADING_MODEL` (optional grading model override; defaults to `deepseek-flash`)
+- `OPENAI_API_KEY` (optional; required for nightly log summaries, developer feedback extraction, curriculum import, and Blueprint test/assignment drafting)
 - `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
+- `OPENAI_BLUEPRINT_DRAFT_MODEL` (optional Blueprint drafting model override; defaults to `gpt-5-mini`)
 - `SUPABASE_ACCESS_TOKEN` (operator-only; required by the named production archive canary for
   read-only pre/post database-size evidence)
 
@@ -162,7 +169,11 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 4) **Classrooms & Roster**: Create classes, share join code/link, upload roster CSV, manage enrollments.
 
-5) **Assignments**: Create assignments per classroom; students edit with autosave and submit/unsubmit; teachers view stats and read-only docs.
+5) **Assignments**: Create assignments per classroom; students edit with autosave and submit/unsubmit; teachers view stats and read-only docs. Assignment editor history is served by `src/app/api/assignment-docs/[id]/history/route.ts`.
+
+6) **Tests and Grades**: Tests support student attempts and teacher grading. Teacher Gradebook and Student Grades are implemented; see [Student Grades](../guidance/student-grades.md) for visibility and calculation rules. The broader Gradebook breakdown epic has separate exit gates.
+
+7) **Announcements and course authoring**: Classrooms have teacher-authored announcements. Course blueprints support versioned authoring and classroom instantiation; see [Blueprint packages](../guidance/course-blueprint-packages.md).
 
 ---
 
@@ -171,6 +182,8 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 - Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
 - Supabase Cloud for DB; enable connection pooling; treat migrations as a separately authorized deploy step.
 - If using cron, configure schedules in `vercel.json` or the Vercel dashboard for production. On the Hobby plan, Vercel cron jobs must run at most once per day, so do not add sub-daily schedules. Current repo-managed schedules: nightly log summaries at `0 6 * * *` (06:00 UTC) and history cleanup at `0 7 * * *` (07:00 UTC).
+
+- Nightly summary HTTP503 recovery and same-date/classroom retries: [recovery procedure](../guidance/nightly-summary-recovery.md).
 
 ---
 

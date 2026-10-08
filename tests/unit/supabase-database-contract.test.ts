@@ -2,13 +2,33 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import type { TiptapContent } from '@/types'
-import type { TableInsert, TableRow } from '@/types/database'
+import type { Database, TableInsert, TableRow } from '@/types/database'
+import type { Database as GeneratedDatabase } from '@/types/database.generated'
 
 function readRepoFile(path: string): string {
   return readFileSync(resolve(process.cwd(), path), 'utf8')
 }
 
 describe('generated Supabase database contract', () => {
+  it('refines only the generated draft-save expected version nullability', () => {
+    type RawArgs = GeneratedDatabase['public']['Functions']['finish_test_draft_save_for_owner_v1']['Args']
+    type Args = Database['public']['Functions']['finish_test_draft_save_for_owner_v1']['Args']
+    expectTypeOf<Args['p_expected_version']>().toEqualTypeOf<number | null>()
+    expectTypeOf<Omit<Args, 'p_expected_version'>>().toEqualTypeOf<Omit<RawArgs, 'p_expected_version'>>()
+    expect(readRepoFile('src/types/database.ts')).toContain(
+      "Replace<GeneratedFunctions['finish_test_draft_save_for_owner_v1']['Args']"
+    )
+  })
+
+  it('refines only the installed counselor RPC nullable input without inventing its signature', () => {
+    type RawArgs = GeneratedDatabase['public']['Functions']['update_classroom_roster_counselor_for_owner_v1']['Args']
+    type Args = Database['public']['Functions']['update_classroom_roster_counselor_for_owner_v1']['Args']
+    expectTypeOf<Args['p_counselor_email']>().toEqualTypeOf<string | null>()
+    expectTypeOf<Omit<Args, 'p_counselor_email'>>().toEqualTypeOf<Omit<RawArgs, 'p_counselor_email'>>()
+    const source = readRepoFile('src/types/database.ts')
+    expect(source).toContain("Replace<GeneratedFunctions['update_classroom_roster_counselor_for_owner_v1']['Args']")
+  })
+
   it('types both central Supabase client factories', () => {
     const source = readRepoFile('src/lib/supabase.ts')
 

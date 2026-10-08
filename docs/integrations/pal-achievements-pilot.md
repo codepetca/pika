@@ -1,5 +1,12 @@
 # Pal achievements pilot
 
+> **Current status (2026-09-27):** The owner has paused Pal until further
+> notice. Keep `PAL_ENABLED=false`. Required CI omits the two dedicated Pal
+> learner-component suites and the Pal classroom browser scenario while the
+> pilot is paused; Pal API, data, feature-gate, and theme-contract checks remain.
+> The omitted tests remain in the repository and `pnpm test:coverage` still runs
+> them. Restore the UI suites to CI and verify them before reactivating Pal.
+
 This document is the Pika-side implementation and operations guide for the
 achievement pilot designed in [Pal PR #32](https://github.com/codepetca/pal/pull/32)
 and made executable by the shared event contract in
@@ -36,8 +43,14 @@ use independently generated high-entropy values rather than human phrases.
 `PAL_API_URL` must be an HTTPS origin with no credentials, path, query, or
 fragment. Loopback HTTP is allowed only outside production. When
 `PAL_ENABLED=true`, incomplete or unsafe configuration fails at the feature
-gate instead of silently running authoritative learner actions without their
-achievement fact. The optional browser widget is contained separately: invalid
+gate for Pal operations. Daily-log saves contain that failure: an invalid
+configuration or event preparation error logs a content-free diagnostic and uses
+the ordinary academic save path without a Pal fact. No fact is promised or
+automatically backfilled for that save. With valid configuration, logs retain
+the atomic academic-write/outbox transaction; database errors and version
+conflicts remain save failures rather than triggering an unsafe second write.
+After a successful atomic save, delivery failures return the committed entry
+with `pal_delivery: "pending"`, preserving the queued event for retry. The optional browser widget is contained separately: invalid
 widget configuration removes its navigation and shell surfaces instead of
 blocking academic pages. Authenticated-session telemetry remains best-effort so
 an adapter outage cannot invalidate a genuine login.
@@ -66,7 +79,7 @@ Do not enable the switch until all prerequisites are true:
    when an outage delays delivery until after that boundary; one first created
    after the boundary remains ineligible.
 5. Confirm Pal implements `POST /api/v1/integration/read-token`.
-6. Confirm the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` package exposes
+6. Confirm the pinned public `@codepet/pal-widget@0.1.0-alpha.6` package exposes
    `@codepet/pal-widget/theme-contract`.
 7. Mount the native widget surfaces, import
    `@codepet/pal-widget/styles.css` once, wrap each surface in
@@ -77,7 +90,7 @@ Do not enable the switch until all prerequisites are true:
    learners act on the first day of a pilot week.
 
 Pal must support a contract version before Pika emits it. Pika pins the reviewed
-public `@codepet/pal-widget@0.1.0-alpha.4` release exactly. Keep the switch off
+public `@codepet/pal-widget@0.1.0-alpha.6` release exactly. Keep the switch off
 until steps 3–8 are complete in the target environment.
 
 [Pal PR #73](https://github.com/codepetca/pal/pull/73) landed the source-timestamp

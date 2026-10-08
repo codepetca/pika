@@ -13,15 +13,18 @@ vi.mock('@/components/editor', () => ({
     content,
     historyPreviewMode,
     historyPreviewChange,
+    showPlainText,
   }: {
     content: TiptapContent
     historyPreviewMode: string
     historyPreviewChange?: { changedBlocks: unknown[] } | null
+    showPlainText?: boolean
   }) => (
     <div
       data-testid="rich-text-viewer"
       data-mode={historyPreviewMode}
       data-changed-blocks={historyPreviewChange?.changedBlocks.length ?? 0}
+      data-plain-text={showPlainText ? 'yes' : 'no'}
     >
       {JSON.stringify(content)}
     </div>
@@ -66,6 +69,16 @@ const revisedContent: TiptapContent = {
   content: [
     { type: 'paragraph', content: [{ type: 'text', text: 'First paragraph' }] },
     { type: 'paragraph', content: [{ type: 'text', text: 'Revised second paragraph' }] },
+  ],
+}
+
+const unfinishedUploadContent: TiptapContent = {
+  type: 'doc',
+  content: [
+    {
+      type: 'imageUpload',
+      attrs: { accept: 'image/*', limit: 1, maxSize: 10_000_000 },
+    },
   ],
 }
 
@@ -144,5 +157,80 @@ describe('TeacherStudentWorkModal history preview', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     await waitFor(() => expect(viewer).toHaveAttribute('data-mode', 'current'))
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('renders an upload-only current document instead of the empty state', async () => {
+    vi.mocked(fetchCachedJSON).mockImplementation(async (key) => {
+      if (String(key).includes('history')) return { history: [] } as never
+      return {
+        assignment: { id: 'assignment-1', title: 'Field Study' },
+        classroom: { id: 'classroom-1', title: 'Science' },
+        student: { id: 'student-1', email: 'student@example.com', name: 'Student One' },
+        doc: { id: 'doc-1', content: unfinishedUploadContent },
+        status: 'assigned',
+      } as never
+    })
+
+    render(
+      <TeacherStudentWorkModal
+        isOpen
+        onClose={vi.fn()}
+        assignmentId="assignment-1"
+        studentId="student-1"
+      />,
+    )
+
+    expect(await screen.findByTestId('rich-text-viewer')).toHaveTextContent('imageUpload')
+    expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show plain text' }))
+    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-plain-text', 'yes')
+  })
+
+  it('renders an upload-only selected history save when the current document is empty', async () => {
+    const uploadHistory: AssignmentDocHistoryEntry[] = [
+      {
+        id: 'upload-only',
+        assignment_doc_id: 'doc-1',
+        patch: null,
+        snapshot: unfinishedUploadContent,
+        word_count: 0,
+        char_count: 0,
+        paste_word_count: 0,
+        keystroke_count: 0,
+        trigger: 'autosave',
+        created_at: '2025-03-11T20:10:00Z',
+      },
+    ]
+    vi.mocked(fetchCachedJSON).mockImplementation(async (key) => {
+      if (String(key).includes('history')) return { history: uploadHistory } as never
+      return {
+        assignment: { id: 'assignment-1', title: 'Field Study' },
+        classroom: { id: 'classroom-1', title: 'Science' },
+        student: { id: 'student-1', email: 'student@example.com', name: 'Student One' },
+        doc: { id: 'doc-1', content: { type: 'doc', content: [] } },
+        status: 'assigned',
+      } as never
+    })
+
+    render(
+      <TeacherStudentWorkModal
+        isOpen
+        onClose={vi.fn()}
+        assignmentId="assignment-1"
+        studentId="student-1"
+      />,
+    )
+
+    expect(await screen.findByText('No work submitted yet')).toBeInTheDocument()
+    const historyButtons = await screen.findAllByRole('button', {
+      name: 'History save upload-only',
+    })
+    fireEvent.mouseEnter(historyButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('imageUpload')
+    })
+    expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
   })
 })

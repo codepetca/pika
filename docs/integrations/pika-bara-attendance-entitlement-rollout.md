@@ -163,10 +163,10 @@ schedule cleanup. Revoke affected entitlements and allow their deactivation to
 finish before narrowing the mode unless the global emergency kill switch is
 required first.
 
-## Preview rule
+## Production-only deployed validation
 
-There is no staging database. Preview must not use, probe, migrate, or compare
+Rehearsals use local Supabase and Bara. Preview must not use, probe, migrate, or compare
 against production Supabase. Preview build/type/test evidence may record
-`production_only_no_staging_database`, but that skip never satisfies a
+`production_only`, but that skip never satisfies a
 production rollout gate. Migration, entitlement, deployment, smoke, and mode
 changes require separate production-specific authorization.

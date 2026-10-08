@@ -21,7 +21,9 @@ export const POST = withErrorHandler('PostStudentPalReadToken', async (request) 
     )
   }
 
-  if (!isClassroomPalRequested() && request.body !== null) {
+  // Server adapters can supply an empty stream for a bodyless POST.
+  // Only actual content signals a classroom request when that rollout is off.
+  if (!isClassroomPalRequested() && (await request.text()).length > 0) {
     return NextResponse.json({ error: 'Classroom achievements are unavailable' }, { status: 404, headers: noStoreHeaders })
   }
   const membershipRequest = isClassroomPalRequested()

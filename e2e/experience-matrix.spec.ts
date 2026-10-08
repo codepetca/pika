@@ -1,10 +1,29 @@
+import { verifySignupOwnerContinuity } from './helpers/signup-owner-continuity'
+import { verifyLoginRecoveryContinuity } from './helpers/login-recovery-continuity'
+import { verifyJoinRetryContinuity } from './helpers/join-retry-continuity'
+import { verifyPasswordResetContinuity, verifyLoginSignupTarget } from './helpers/password-reset-continuity'
+import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
+import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
+import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
+import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
+import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
   expect,
   test,
+  type Locator,
   type Page,
   type TestInfo,
 } from '@playwright/test'
 import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
+import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
+import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableShellReads } from './helpers/teacher-student-tables'
+import { verifyWorkspaceMotion } from './helpers/workspace-motion'
+import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
+import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
+import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
+import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
+import { verifyGradebookRetryFocus } from './helpers/gradebook-retry-focus'
+import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -13,6 +32,10 @@ const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const TEST_GRADING_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000011'
 const TEST_GRADING_FIXTURE_TEST_ID = '30000000-0000-4000-8000-000000000013'
 const PUBLIC_ACTUAL_COURSE_SLUG = 'e2e-test-course-guide'
+const IMAGE_REFERENCE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000031'
+const IMAGE_REFERENCE_TEST_ID = '30000000-0000-4000-8000-000000000032'
+const IMAGE_REFERENCE_PNG_ID = '30000000-0000-4000-8000-000000000033'
+const IMAGE_REFERENCE_PNG_PATH = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/images/karel-grid.png`
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -41,6 +64,151 @@ const rolloverBlueprint = {
 }
 
 test.setTimeout(90_000)
+test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Signup owner continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves full client signup owner recovery ${motion}`, async ({ page }, info) => {
+      await verifySignupOwnerContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Login recovery continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves classic Login ownership and Signup footer target ${motion}`, async ({ page }, info) => {
+      await verifyLoginRecoveryContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Join retry continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains native retry focus and truthful busy states ${motion}`, async ({ page }, testInfo) => {
+      await applyProjectTheme(page, testInfo)
+      await verifyJoinRetryContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Password reset continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves reset request ownership and recovery ${motion}`, async ({ page }, testInfo) => {
+      await verifyPasswordResetContinuity(page, testInfo, motion)
+    })
+    test(`keeps Sign up navigation comfortably focusable ${motion}`, async ({ page }, testInfo) => {
+      await verifyLoginSignupTarget(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Public course section targets', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves native section navigation with comfortable targets ${motion}`, async ({ page }, testInfo) => {
+      await verifyPublicCourseSectionTargets(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Calendar day interaction', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const role of ['teacher', 'student'] as const) {
+    for (const motion of ['no-preference', 'reduce'] as const) {
+      test.describe(`${role} ${motion}`, () => {
+        test.use({ contextOptions: { reducedMotion: motion } })
+        test('reads and dismisses the real Calendar day dialog', async ({ page }, testInfo) => {
+          await verifyCalendarDayInteraction(page, testInfo, role, motion)
+        })
+      })
+    }
+  }
+})
+
+test.describe('Assignment editor retirement', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retires active and pending native drags without breaking reordering', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorDragShutdown(page, testInfo)
+      })
+      test('retires nested controls and closes after the parent publishes Post', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorControls(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('Gradebook retry focus', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('keeps explicit retry focus in the visible Gradebook workspace', async ({ page }, testInfo) => {
+        await verifyGradebookRetryFocus(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('student Grades continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('preserves native reactivation and recovery', async ({ page }, testInfo) => {
+        test.setTimeout(150_000)
+        await applyProjectTheme(page, testInfo)
+        await verifyStudentGradesContinuity(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('Assignment Instructions preview continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('dismisses the real preview while preserving its editor', async ({ page }, testInfo) => {
+        await verifyAssignmentPreviewMotion(page, testInfo, motion)
+      })
+    })
+  }
+  test.describe('preference change with controlled exit timer', () => {
+    test.use({ contextOptions: { reducedMotion: 'no-preference' } })
+    test('removes the retained preview before its exit deadline', async ({ page }, testInfo) => {
+      await verifyAssignmentPreviewPreferenceChange(page, testInfo)
+    })
+  })
+})
+
+test.describe('Blueprint required-read recovery', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const failure of ['list', 'detail'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${failure} retry preserves focus with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyBlueprintRecovery(page, testInfo, failure, reducedMotion)
+      })
+    }
+  }
+})
+
+test.describe('approved classroom workspace motion', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const surface of ['assignment', 'test', 'student'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${surface} preserves workspace identity with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyWorkspaceMotion(page, testInfo, surface, reducedMotion)
+      })
+    }
+  }
+})
 
 type ExperienceMetadata = {
   theme: 'light' | 'dark'
@@ -62,6 +230,115 @@ async function applyProjectTheme(page: Page, testInfo: TestInfo) {
   await page.addInitScript((projectTheme) => {
     localStorage.setItem('theme', projectTheme)
   }, theme)
+}
+
+async function createKarelGridRaster(page: Page, mimeType: 'image/png' | 'image/jpeg') {
+  // Generate a deterministic raster in the browser so image behavior is tested
+  // with real PNG/JPEG bytes without storing binary test files in the repo.
+  const encoded = await page.evaluate((type) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 480
+    canvas.height = 360
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas 2D context is unavailable')
+
+    context.fillStyle = '#f8fafc'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.fillStyle = '#0f172a'
+    context.font = '600 24px system-ui'
+    context.fillText('Karel world', 28, 38)
+    context.strokeStyle = '#94a3b8'
+    context.lineWidth = 2
+    for (let column = 0; column <= 8; column += 1) {
+      const x = 28 + column * 50
+      context.beginPath()
+      context.moveTo(x, 64)
+      context.lineTo(x, 314)
+      context.stroke()
+    }
+    for (let row = 0; row <= 5; row += 1) {
+      const y = 64 + row * 50
+      context.beginPath()
+      context.moveTo(28, y)
+      context.lineTo(428, y)
+      context.stroke()
+    }
+    context.fillStyle = '#2563eb'
+    context.fillRect(242, 228, 36, 36)
+    context.fillStyle = '#f59e0b'
+    context.beginPath()
+    context.arc(353, 139, 13, 0, Math.PI * 2)
+    context.fill()
+    return canvas.toDataURL(type, 0.92).split(',')[1]
+  }, mimeType)
+  return Buffer.from(encoded, 'base64')
+}
+
+async function waitForKarelRasterPaint(image: Locator) {
+  const decoded = await image.evaluate(async (element) => {
+    const raster = element as HTMLImageElement
+    await raster.decode()
+
+    const canvas = document.createElement('canvas')
+    canvas.width = raster.naturalWidth
+    canvas.height = raster.naturalHeight
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas 2D context is unavailable')
+    context.drawImage(raster, 0, 0)
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+    let hasKarelBlue = false
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index] < 80 && pixels[index + 1] > 70 && pixels[index + 1] < 140 && pixels[index + 2] > 180) {
+        hasKarelBlue = true
+        break
+      }
+    }
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    )
+    return { width: raster.naturalWidth, height: raster.naturalHeight, hasKarelBlue }
+  })
+
+  expect(decoded.width).toBeGreaterThan(1)
+  expect(decoded.height).toBeGreaterThan(1)
+  expect(decoded.hasKarelBlue).toBe(true)
+}
+
+async function verifyStableImageGeometry(image: Locator) {
+  await waitForKarelRasterPaint(image)
+  const samples = await image.evaluate(async (element) => {
+    const viewport = element.parentElement!.parentElement!
+    const before = element.getBoundingClientRect()
+    const originalGutter = viewport.style.scrollbarGutter
+    const samples = [{ width: before.width, height: before.height }]
+    // Exercise reserved scrollbar space even on systems with overlay scrollbars.
+    viewport.style.scrollbarGutter = 'stable both-edges'
+    try {
+      for (let frame = 0; frame < 40; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const rect = element.getBoundingClientRect()
+        samples.push({ width: rect.width, height: rect.height })
+      }
+    } finally {
+      viewport.style.scrollbarGutter = originalGutter
+    }
+    return samples
+  })
+  for (const sample of samples) {
+    expect(sample.width).toBeCloseTo(samples[0].width, 2)
+    expect(sample.height).toBeCloseTo(samples[0].height, 2)
+  }
+}
+
+function installExamWindowFixture(page: Page) {
+  return page.addInitScript(() => {
+    Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => window.innerWidth })
+    Object.defineProperty(window.screen, 'availHeight', { configurable: true, get: () => window.innerHeight })
+    Object.defineProperty(Element.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: () => Promise.resolve(),
+    })
+  })
 }
 
 async function detachSharedAuthFixture(page: Page) {
@@ -206,12 +483,13 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   })
 
   await page.route('**/api/teacher/attendance/session?**', async (route) => {
+    const classDate = new URL(route.request().url()).searchParams.get('date')
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
-        classDate: '2026-08-17',
+        classDate,
         integration: 'ready',
         session: {
           state: hasAttendanceWindow ? attendanceSessionState : 'not_scheduled',
@@ -493,7 +771,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   let classroomQrToken = 'a'.repeat(43)
   let loseNextRotationResponse = false
 
-  const students = Array.from({ length: 18 }, (_, index) => {
+  // Keep the table scrollable even with the compact summary freeing more height.
+  const students = Array.from({ length: 32 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
     const studentId = `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
     const status = (['present', 'late', 'absent'] as const)[index % 3]
@@ -566,7 +845,9 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
           overview: 'Students reflected on their progress and next steps.',
           action_items: [{
             studentName: 'Student 02 Alpha02',
-            text: 'Student 02 Alpha02 needs a follow-up conversation.',
+            text: 'Student 02 Alpha02 asks whether the lab report needs a graph.',
+            detail: 'asks whether the lab report needs a graph.',
+            category: 'student_question',
           }],
           generated_at: '2026-08-29T14:10:00.000Z',
         },
@@ -841,10 +1122,26 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('button', { name: 'Refresh attendance' })).toHaveCount(0)
   const summary = page.getByRole('region', { name: 'Class Log Summary' })
   await expect(summary).toBeVisible()
-  await expect(summary.getByText('Students reflected on their progress and next steps.')).toBeVisible()
-  await expect(summary.getByText(/10:10 AM$/)).toBeVisible()
+  await expect(summary.getByText('Summary', { exact: true })).toBeVisible()
+  await expect(summary).toContainText('Student 02 asks whether the lab report needs a graph.')
+  await expect(summary.getByText('Students reflected on their progress and next steps.')).toHaveCount(0)
+  await expect(summary.getByText(/10:10 AM$/)).toHaveCount(0)
   await expect(summary.getByText(/student02/i)).toHaveCount(0)
-  await expect(summary.getByText('Student 02 Alpha02')).toBeVisible()
+  const summaryStudent = summary.getByRole('button', { name: 'Go to Student 02 Alpha02 in student table' })
+  await expect(summaryStudent).toHaveText('Student 02')
+  const scrollPane = page.getByTestId('daily-student-scroll-pane')
+  await scrollPane.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await summaryStudent.click()
+  const summaryStudentRow = scrollPane.getByRole('row').filter({
+    has: page.getByRole('cell', { name: 'Student 02', exact: true }),
+  })
+  await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'true')
+  await expect(summaryStudentRow).toBeFocused()
+  await expect(summary).toBeVisible()
+  await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'false')
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
@@ -877,7 +1174,6 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
   await page.keyboard.press('Escape')
 
-  const scrollPane = page.getByTestId('daily-student-scroll-pane')
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   await scrollPane.evaluate((element) => {
     element.scrollTop = element.scrollHeight
@@ -977,6 +1273,349 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await verifyProjectContract(page, testInfo)
 })
 
+test.describe('Daily scroll containment', () => {
+  test.use({ storageState: TEACHER_STORAGE })
+  for (const surface of ['fixture', 'classroom'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`contains Daily table scrolling with ${reducedMotion} motion in ${surface}`, async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await page.emulateMedia({ reducedMotion })
+        await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+
+        await mockTableShellReads(page)
+        const classroomId = surface === 'classroom' ? TABLE_CLASSROOM_ID : ATTENDANCE_FIXTURE_CLASSROOM_ID
+        const logs = Array.from({ length: 45 }, (_, index) => ({
+          student_id: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          student_email: `student${index + 1}@example.com`,
+          student_first_name: `Student ${String(index + 1).padStart(2, '0')}`,
+          student_last_name: `Alpha${String(index + 1).padStart(2, '0')}`,
+          entry: null,
+          history_preview: [],
+        }))
+        await page.route(`**/api/classrooms/${classroomId}/class-days`, (route) =>
+          route.fulfill({ json: { class_days: [{
+            id: '50000000-0000-4000-8000-000000000001',
+            classroom_id: classroomId,
+            date: '2026-08-29',
+            prompt_text: null,
+            is_class_day: true,
+          }] } }),
+        )
+        await page.route('**/api/teacher/logs?**', (route) => route.fulfill({ json: { logs } }))
+        await page.route('**/api/teacher/student-history?**', (route) =>
+          route.fulfill({ json: { entries: [] } }),
+        )
+        await page.route('**/api/teacher/log-summary?**', (route) =>
+          route.fulfill({ json: { summary_status: 'no_logs', summary: null } }),
+        )
+        await page.route('**/api/teacher/attendance/policy?**', (route) =>
+          route.fulfill({ json: { policy: null } }),
+        )
+        await page.route('**/api/teacher/attendance/session?**', (route) => route.fulfill({ json: {
+          classroomId,
+          classDate: '2026-08-29',
+          integration: 'not_configured',
+          session: {
+            state: 'not_scheduled', opensAt: null, closesAt: null,
+            sessionStartsAt: null, sessionEndsAt: null, presentThroughAt: null, absentAt: null,
+            revision: null, pendingCommand: false, commandFailed: false,
+          },
+          sync: { state: 'unavailable', confirmedAt: null },
+          students: [],
+        } }))
+        await page.goto(surface === 'classroom'
+          ? '/e2e-fixtures/teacher-student-tables?tab=daily'
+          : '/e2e-fixtures/teacher-daily-attendance')
+        const scrollPane = page.getByTestId('daily-student-scroll-pane')
+        await expect(scrollPane.getByRole('row')).toHaveCount(logs.length + 1)
+        if (surface === 'fixture') {
+          await expect(scrollPane.getByText('No QR check-in', { exact: true })).toHaveCount(logs.length)
+        }
+
+        async function verifyScrollContainment(state: 'table' | 'selected') {
+          await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          // Selection restores remembered scroll in a layout effect; scroll after it settles.
+          await expect.poll(() => scrollPane.evaluate((element) => {
+            element.scrollTop = element.scrollHeight
+            return element.scrollTop
+          })).toBeGreaterThan(0)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          await expect.poll(() => scrollPane.evaluate((element) => {
+            const head = element.querySelector('thead')!
+            return Math.abs(head.getBoundingClientRect().y - element.getBoundingClientRect().y)
+          })).toBeLessThanOrEqual(1)
+          const paneBox = await scrollPane.boundingBox()
+          // Scrolling beyond the table must not reveal blank document space.
+          await page.mouse.move(paneBox!.x + paneBox!.width / 2, paneBox!.y + paneBox!.height / 2)
+          await page.mouse.wheel(0, 1000)
+          await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+          const { theme, viewport } = getExperienceMetadata(testInfo)
+          await page.screenshot({
+            path: testInfo.outputPath(`daily-scroll-${surface}-${viewport}-${theme}-${reducedMotion}-${state}.png`),
+            animations: 'disabled',
+          })
+        }
+
+        await verifyScrollContainment('table')
+        const originalScroller = await scrollPane.elementHandle()
+        await scrollPane.evaluate((element) => { element.scrollTop = 0 })
+        const firstCell = page.getByRole('cell', { name: 'Student 01', exact: true })
+        const originalRow = await firstCell.locator('..').elementHandle()
+        const measurements = await firstCell.evaluate(async (cell) => {
+          const samples: Array<{ elapsedMs: number; width: number; opacity: number }> = []
+          const started = performance.now()
+          ;(cell as HTMLElement).click()
+          await new Promise<void>((resolve) => {
+            function measure() {
+              const inspector = document.querySelector<HTMLElement>('[data-workspace-inspector]')!
+              samples.push({
+                elapsedMs: performance.now() - started,
+                width: inspector.getBoundingClientRect().width,
+                opacity: Number(getComputedStyle(inspector).opacity),
+              })
+              if (performance.now() - started < 350) requestAnimationFrame(measure)
+              else resolve()
+            }
+            requestAnimationFrame(measure)
+          })
+          const inspector = document.querySelector<HTMLElement>('[data-workspace-inspector]')!
+          return { samples, transitionDuration: getComputedStyle(inspector).transitionDuration }
+        })
+        await testInfo.attach('Daily inspector motion measurements', {
+          body: JSON.stringify(measurements, null, 2),
+          contentType: 'application/json',
+        })
+        expect(measurements.transitionDuration).toBe(reducedMotion === 'reduce' ? '0s' : '0.2s')
+        if (reducedMotion === 'no-preference') {
+          expect(measurements.samples.some((sample) => sample.opacity > 0 && sample.opacity < 1)).toBe(true)
+        }
+        await expect(page.getByTestId('daily-selected-student-workspace')).toBeVisible()
+        expect(await scrollPane.evaluate((element, original) => element === original, originalScroller)).toBe(true)
+        expect(await firstCell.locator('..').evaluate((element, original) => element === original, originalRow)).toBe(true)
+        await verifyScrollContainment('selected')
+        await page.keyboard.press('Escape')
+        await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+        expect(await scrollPane.evaluate((element, original) => element === original, originalScroller)).toBe(true)
+        await expect(page.locator('[data-workspace-inspector]')).toHaveAttribute('inert', '')
+      })
+    }
+  }
+})
+
+test.describe('Teacher student-table scroll containment', () => {
+  test.use({ storageState: TEACHER_STORAGE })
+  for (const surface of ['roster', 'gradebook', 'assignment', 'test', 'attendance'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`contains long ${surface} student tables with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await page.emulateMedia({ reducedMotion })
+        const classroomId = TABLE_CLASSROOM_ID
+        await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+        await mockTableShellReads(page)
+        const { route, pane } = await mockLongTeacherTable(page, surface, classroomId)
+        await page.goto(surface === 'attendance' ? route : `/e2e-fixtures/teacher-student-tables?${route.split('?')[1]}`)
+        const { viewport } = getExperienceMetadata(testInfo)
+        // Narrow Gradebook replaces the roster with a student selector and assessment panel.
+        if (surface === 'gradebook' && viewport === 'mobile') {
+          const selector = page.getByRole('combobox', { name: 'Student' })
+          await expect(selector.locator('option')).toHaveCount(LONG_ROSTER_SIZE + 1)
+          await selector.selectOption({ label: 'Student 45 Alpha45' })
+          await expect(page.getByRole('region', { name: 'Student 45 Alpha45 assessment details' })).toBeVisible()
+          await page.screenshot({ path: testInfo.outputPath(`long-${surface}-${reducedMotion}-selector.png`), animations: 'disabled' })
+          return
+        }
+        const scrollPane = page.getByTestId(pane)
+        await expect.poll(() => scrollPane.getByRole('row').count()).toBeGreaterThanOrEqual(LONG_ROSTER_SIZE + 1)
+        async function verifyContainment(state: string) {
+          await expect.poll(() => scrollPane.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          await expect.poll(() => scrollPane.evaluate(async element => {
+            element.scrollTop = element.scrollHeight
+            await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+            return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop)
+          })).toBeLessThanOrEqual(1)
+          // Roster and assignments have regular headers; preserve the other sticky headers.
+          if (surface === 'gradebook' || surface === 'test' || surface === 'attendance') {
+            await expect.poll(() => scrollPane.evaluate(element => {
+              return Math.abs(element.querySelector('thead')!.getBoundingClientRect().y - element.getBoundingClientRect().y)
+            })).toBeLessThanOrEqual(surface === 'gradebook' ? 2 : 1)
+          }
+          const box = await scrollPane.boundingBox()
+          await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+          await page.mouse.wheel(0, 1000)
+          await scrollPane.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+          await page.mouse.move(1, 1)
+          await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+          await expect(scrollPane.getByText('Alpha45', { exact: true }).first()).toBeInViewport()
+          await page.screenshot({ path: testInfo.outputPath(`long-${surface}-${reducedMotion}-${state}.png`), animations: 'disabled' })
+        }
+        await verifyContainment('table')
+        await scrollPane.evaluate(element => { element.scrollTop = 0 })
+        if (surface === 'roster' || surface === 'attendance') {
+          await scrollPane.getByRole('checkbox').nth(1).check()
+        } else {
+          await scrollPane.getByText('Student 01', { exact: true }).first().click()
+        }
+        await verifyContainment('selected')
+        if (surface === 'assignment' || surface === 'test') {
+          // A selected inspector must leave enough table space to browse several students.
+          await expect.poll(() => scrollPane.evaluate(element => element.clientHeight)).toBeGreaterThanOrEqual(120)
+        }
+        if (surface === 'assignment') {
+          const sendComment = page.getByTestId('grading-inspector-pane').getByRole('button', { name: 'Send comment', exact: true })
+          await sendComment.scrollIntoViewIfNeeded()
+          await expect(sendComment).toBeInViewport()
+          await expect(scrollPane.getByText('Alpha45', { exact: true }).first()).toBeInViewport()
+          await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+          await page.screenshot({ path: testInfo.outputPath(`long-assignment-${reducedMotion}-inspector-scrolled.png`), animations: 'disabled' })
+        }
+      })
+    }
+  }
+})
+
+test('preserves student Daily layout with long past logs', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+  await mockTableShellReads(page, 'student')
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=today')
+  await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
+  await expect(page.getByText('Past daily log 1', { exact: true })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('student-daily-long-history.png'), animations: 'disabled' })
+})
+
+async function mockStudentClassworkContinuity(page: Page) {
+  await mockTableShellReads(page, 'student')
+  const assignmentId = '30000000-0000-4000-8000-000000000014'
+  const studentId = '30000000-0000-4000-8000-000000000015'
+  let failing = false
+  let reads = 0
+  let docReads = 0
+  let doc = {
+    id: '30000000-0000-4000-8000-000000000016', assignment_id: assignmentId,
+    student_id: studentId, content: { type: 'doc', content: [{ type: 'paragraph' }] },
+    is_submitted: false, submitted_at: null, viewed_at: '2026-08-17T12:00:00Z',
+    created_at: '2026-08-17T12:00:00Z', updated_at: '2026-08-17T12:00:00Z',
+    returned_at: null, graded_at: null, feedback: null, feedback_returned_at: null,
+    score_completion: null, score_thinking: null, score_workflow: null,
+  }
+  const assignment = {
+    id: assignmentId, classroom_id: TABLE_CLASSROOM_ID, title: 'Refresh continuity assignment',
+    description: '', instructions_markdown: 'Explain your approach.', rich_instructions: null,
+    due_at: '2026-08-18T23:00:00Z', position: 0, is_draft: false,
+    released_at: '2026-08-17T12:00:00Z', track_authenticity: false,
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-08-17T12:00:00Z', updated_at: '2026-08-17T12:00:00Z',
+  }
+  await page.route('**/api/student/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === `/api/student/classrooms/${TABLE_CLASSROOM_ID}/gradebook-items`) {
+      await route.fulfill({ json: { items: [] } })
+      return
+    }
+    if (path === '/api/student/assignments') reads += 1
+    const classworkRead = path === '/api/student/assignments'
+      || path === `/api/student/classrooms/${TABLE_CLASSROOM_ID}/materials`
+      || path === '/api/student/surveys'
+    if (!classworkRead) return route.fallback()
+    await route.fulfill(failing
+      ? { status: 503, json: { error: 'Synthetic classwork refresh failure' } }
+      : { json: path.endsWith('/assignments')
+        ? { assignments: [{ ...assignment, status: 'in_progress', doc }] }
+        : path.endsWith('/materials') ? { materials: [] } : { surveys: [] } })
+  })
+  await page.route(`**/api/assignment-docs/${assignmentId}`, async route => {
+    if (route.request().method() === 'PATCH') {
+      const body = route.request().postDataJSON()
+      doc = { ...doc, content: body.content, updated_at: new Date().toISOString() }
+      await route.fulfill({ json: { doc } })
+      return
+    }
+    docReads += 1
+    await route.fulfill({ json: { assignment, doc, student_id: studentId,
+      feedback_entries: [], submission_requirements: [], submission_artifacts: [] } })
+  })
+  return { fail: () => { failing = true }, recover: () => { failing = false },
+    reads: () => reads, docReads: () => docReads }
+}
+
+async function navigateStudentClassworkTab(page: Page, testInfo: TestInfo, name: 'Daily' | 'Classwork') {
+  if (getExperienceMetadata(testInfo).viewport === 'mobile') {
+    await page.getByRole('button', { name: 'Open classroom navigation' }).click()
+  }
+  await page.getByRole('link', { name }).click()
+}
+
+test('retains student Classwork and editor draft across failed refresh and recovery', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+  const fixture = await mockStudentClassworkContinuity(page)
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=assignments')
+  const card = page.getByTestId('assignment-card')
+  await expect(card).toContainText('Refresh continuity assignment')
+  const originalCard = await card.elementHandle()
+  fixture.fail()
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:30Z'))
+  await navigateStudentClassworkTab(page, testInfo, 'Daily')
+  await navigateStudentClassworkTab(page, testInfo, 'Classwork')
+  const region = page.getByRole('region', { name: 'Classwork', exact: true })
+  const staleAlert = region.getByRole('alert')
+  await expect(staleAlert).toContainText('Classwork could not be refreshed. Showing the last loaded classwork.')
+  await expect(card).toBeVisible()
+  expect(await card.evaluate((element, original) => element === original, originalCard)).toBe(true)
+  await expect(region.getByText('No classwork yet')).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.mouse.move(0, 0)
+  await page.keyboard.press('Escape')
+  await page.screenshot({ path: testInfo.outputPath('classwork-stale-list.png'), animations: 'disabled' })
+  await card.click()
+  const editor = page.getByRole('textbox', { name: 'Rich text editor' })
+  await expect(editor).toBeVisible()
+  await editor.fill('My draft survives a classwork refresh.')
+  const originalEditor = await editor.elementHandle()
+  const readsBeforeRetry = fixture.reads()
+  await staleAlert.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect.poll(fixture.reads).toBeGreaterThan(readsBeforeRetry)
+  await expect(staleAlert).toBeVisible()
+  await expect(region).toBeFocused()
+  await expect(editor).toContainText('My draft survives a classwork refresh.')
+  expect(await editor.evaluate((element, original) => element === original, originalEditor)).toBe(true)
+  expect(fixture.docReads()).toBe(1)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('classwork-stale-editor.png'), animations: 'disabled' })
+  fixture.recover()
+  await staleAlert.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(staleAlert).toHaveCount(0)
+  await expect(region).toBeFocused()
+  await expect(editor).toContainText('My draft survives a classwork refresh.')
+  expect(await editor.evaluate((element, original) => element === original, originalEditor)).toBe(true)
+  expect(fixture.docReads()).toBe(1)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('classwork-recovered-editor.png'), animations: 'disabled' })
+})
+
+test('keeps initial student Classwork failures blocking until retry succeeds', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+  const fixture = await mockStudentClassworkContinuity(page)
+  fixture.fail()
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=assignments')
+  const region = page.getByRole('region', { name: 'Classwork', exact: true })
+  await expect(region.getByText("Classwork couldn't load", { exact: true })).toBeVisible()
+  await expect(page.getByTestId('assignment-card')).toHaveCount(0)
+  await expect(region.getByText('No classwork yet')).toHaveCount(0)
+  await expect(region.getByText('Classwork could not be refreshed. Showing the last loaded classwork.')).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('classwork-initial-error.png'), animations: 'disabled' })
+  fixture.recover()
+  await region.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByTestId('assignment-card')).toBeVisible()
+  await expect(region).toBeFocused()
+  await verifyProjectContract(page, testInfo)
+})
+
 test('shows manual attendance marks optimistically', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
@@ -1048,7 +1687,7 @@ test('shows manual attendance marks optimistically', async ({ page }, testInfo) 
   await expect(absent).toHaveAttribute('aria-pressed', 'false')
   await absent.click()
   await expect(absent).toHaveAttribute('aria-pressed', 'true')
-  await expect(absent).toBeDisabled()
+  await expect(absent).toBeEnabled()
   await verifyProjectContract(page, testInfo)
   const { theme, viewport } = getExperienceMetadata(testInfo)
   await page.screenshot({
@@ -1057,7 +1696,158 @@ test('shows manual attendance marks optimistically', async ({ page }, testInfo) 
   })
 
   finishSave()
-  await expect(page.getByText('Attendance updated')).toBeVisible()
+  await expect(page.getByText('Updating attendance', { exact: true })).toHaveCount(0)
+})
+
+test('shows integrated attendance marks and restores optimistically', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+  const studentIds = [
+    '40000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000002',
+  ]
+  let finishMark!: () => void
+  let finishRestore!: () => void
+  const markGate = new Promise<void>((resolve) => { finishMark = resolve })
+  const restoreGate = new Promise<void>((resolve) => { finishRestore = resolve })
+  let postCount = 0
+  let students: TeacherAttendanceView['students'] = studentIds.map((studentId, index) => ({
+    studentId,
+    firstName: `Student 0${index + 1}`,
+    lastName: `Alpha0${index + 1}`,
+    status: index === 0 ? 'late' as const : 'absent' as const,
+    source: index === 0 ? 'student_qr' as const : 'staff' as const,
+    checkedInAt: '2026-08-29T13:15:00.000Z',
+    revision: index + 1,
+    hasQrCheckIn: true,
+    hasManualOverride: index === 1,
+    pendingCommand: false,
+    commandFailed: false,
+  }))
+
+  await page.route(`**/api/classrooms/${ATTENDANCE_FIXTURE_CLASSROOM_ID}/class-days`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        class_days: [{
+          id: '50000000-0000-4000-8000-000000000001',
+          classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+          date: '2026-08-29',
+          prompt_text: null,
+          is_class_day: true,
+        }],
+      }),
+    })
+  })
+  await page.route('**/api/teacher/logs?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        logs: students.map((student) => ({
+          student_id: student.studentId,
+          student_email: `${student.studentId}@example.com`,
+          student_first_name: student.firstName,
+          student_last_name: student.lastName,
+          entry: null,
+          history_preview: [],
+        })),
+      }),
+    })
+  })
+  await page.route('**/api/teacher/log-summary?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ summary_status: 'no_logs', summary: null }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/session?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classDate: '2026-08-29',
+        integration: 'ready',
+        session: {
+          state: 'open',
+          opensAt: '2026-08-29T12:45:00.000Z',
+          closesAt: '2026-08-29T14:00:00.000Z',
+          sessionStartsAt: '2026-08-29T13:00:00.000Z',
+          sessionEndsAt: '2026-08-29T14:00:00.000Z',
+          presentThroughAt: '2026-08-29T13:10:00.000Z',
+          absentAt: '2026-08-29T14:00:00.000Z',
+          revision: 1,
+          pendingCommand: false,
+          commandFailed: false,
+        },
+        sync: { state: 'current', confirmedAt: '2026-08-29T15:00:00.000Z' },
+        students,
+      }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/marks', async (route) => {
+    const body = route.request().postDataJSON() as {
+      marks: Array<{ student_id: string; status: 'automatic' | 'present' | 'late' | 'absent' }>
+    }
+    postCount += 1
+    await (postCount === 1 ? markGate : restoreGate)
+    students = students.map((student) => {
+      const mark = body.marks.find((candidate) => candidate.student_id === student.studentId)
+      if (!mark) return student
+      return mark.status === 'automatic'
+        ? {
+            ...student,
+            status: 'late' as const,
+            source: 'student_qr' as const,
+            revision: (student.revision ?? 0) + 1,
+            hasManualOverride: false,
+          }
+        : {
+            ...student,
+            status: mark.status,
+            source: 'staff' as const,
+            revision: (student.revision ?? 0) + 1,
+            hasManualOverride: true,
+          }
+    })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ outcome: 'applied', appliedCount: body.marks.length }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
+  const absent = page.getByRole('button', { name: 'Mark Student 01 Alpha01 absent' })
+  await absent.click()
+  await expect(absent).toHaveAttribute('aria-pressed', 'true')
+  await expect(absent).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Undo override for Student 01 Alpha01' })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  const { theme, viewport } = getExperienceMetadata(testInfo)
+  await page.screenshot({
+    path: `/tmp/pika-integrated-attendance-${viewport}-${theme}-optimistic-mark.png`,
+    animations: 'disabled',
+  })
+
+  finishMark()
+  await expect(absent).toBeEnabled()
+  const undo = page.getByRole('button', { name: 'Undo override for Student 02 Alpha02' })
+  await undo.click()
+  await expect(undo).toHaveCount(0)
+  const restoredLate = page.getByRole('button', { name: 'Mark Student 02 Alpha02 late' })
+  await expect(restoredLate).toHaveAttribute('aria-pressed', 'true')
+  await expect(restoredLate).toBeEnabled()
+  await page.screenshot({
+    path: `/tmp/pika-integrated-attendance-${viewport}-${theme}-optimistic-restore.png`,
+    animations: 'disabled',
+  })
+
+  finishRestore()
+  await expect(restoredLate).toBeEnabled()
 })
 
 test('shows saved classroom hours across dates and delivery failures', async ({ page }, testInfo) => {
@@ -1350,7 +2140,7 @@ test('shows the History join retry delay in empty and enrolled states', async ({
 
 test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
-  let state: 'open' | 'closed' | 'revoked' | 'not_joined' | 'not_on_roster' | 'ambiguous' | 'error' = 'open'
+  let state: 'open' | 'duplicate' | 'closed' | 'revoked' | 'not_joined' | 'not_on_roster' | 'ambiguous' | 'error' = 'open'
   await page.route('**/api/student/attendance/classroom-check-in', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const bodies = {
@@ -1358,8 +2148,16 @@ test('resolves permanent classroom attendance QR states after student authentica
         state: 'checked_in', title: 'You are checked in', description: 'Your attendance was recorded.',
         attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classroomName: 'PPZ3C — Health for Life',
         studentId: '40000000-0000-4000-8000-000000000001',
         occurrenceBinding: 'a'.repeat(32),
+      },
+      duplicate: {
+        state: 'already_checked_in', title: 'You are already checked in',
+        description: 'No additional attendance record was created.',
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classroomName: 'PPZ3C — Health for Life',
+        recordedAt: '2026-08-29T13:05:00.000Z',
       },
       closed: {
         state: 'closed', title: 'Attendance is not open',
@@ -1393,6 +2191,28 @@ test('resolves permanent classroom attendance QR states after student authentica
   await expect(page.getByRole('heading', { name: 'Checking you in…' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'You are checked in' })).toBeVisible()
 
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('Your attendance was recorded.', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
+  await expect(page.locator('time')).toHaveAttribute('datetime', '2026-08-29T13:05:00.000Z')
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-success.png`),
+    animations: 'disabled',
+  })
+
+  state = 'duplicate'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'You are already checked in' })).toBeVisible()
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('No additional attendance record was created.', { exact: true })).toHaveCount(0)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-duplicate.png`),
+    animations: 'disabled',
+  })
+
   state = 'closed'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
@@ -1420,7 +2240,15 @@ test('resolves permanent classroom attendance QR states after student authentica
 
   state = 'error'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: 'We could not confirm check-in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Not checked-in' })).toBeVisible()
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/It is safe to retry/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-failure.png`),
+    animations: 'disabled',
+  })
   await verifyProjectContract(page, testInfo)
 })
 
@@ -1542,7 +2370,11 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   await expect(trailingActions).toBeVisible()
   const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
   await expect(moreActionsButton).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
+  const statusHeader = scrollPane.getByRole('columnheader', { name: 'Status' })
+  const statusSortButton = statusHeader.getByRole('button')
+  await expect(statusHeader.getByRole('button')).toHaveCount(1)
+  await expect(statusSortButton).toHaveAccessibleName('Status: Submitted, 9 students. Sort Returned first')
+  await expect(statusSortButton).toContainText('9')
   await expect(page.getByRole('toolbar', { name: 'Test grading actions' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
@@ -1595,6 +2427,7 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     animations: 'disabled',
   })
   await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.mouse.move(0, 0)
 
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-default.png`),
@@ -1605,8 +2438,37 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     element.scrollTop = element.scrollHeight
   })
   await expect(scrollPane.locator('thead')).toBeVisible()
-  await page.getByRole('button', { name: 'Sort Submitted first, 9 students' }).click()
-  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
+  if (viewport === 'mobile') {
+    await scrollPane.evaluate((element) => { element.scrollLeft = element.scrollWidth })
+    await expect(statusSortButton).toBeInViewport()
+  }
+  await statusSortButton.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Submitted: 9 students')
+  await page.mouse.move(0, 0)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-first.png`),
+    animations: 'disabled',
+  })
+  await statusSortButton.click()
+  await expect(statusSortButton).toHaveAccessibleName('Status: Returned, 9 students. Sort Submitted first')
+  await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-reply/)
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[4].student_id)
+  await page.mouse.move(0, 0)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-returned-first.png`),
+    animations: 'disabled',
+  })
+  await statusSortButton.click()
+  await expect(statusSortButton).toHaveAccessibleName('Status: Submitted, 9 students. Sort Returned first')
+  await expect(statusSortButton).toContainText('9')
+  await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-circle/)
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
+  await page.mouse.move(0, 0)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-again.png`),
+    animations: 'disabled',
+  })
 
   await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
@@ -1625,7 +2487,7 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   expect(selectionBarBox!.y + selectionBarBox!.height).toBeLessThan(selectedScrollPaneBox!.y)
   await studentActionsButton.click()
   const studentActionsMenu = page.getByRole('menu', { name: 'Selected student actions' })
-  for (const action of ['AI Grade', 'Unsubmit', 'Return', 'Delete Work']) {
+  for (const action of ['AI Grade 1 student', 'Unsubmit', 'Return', 'Delete Work']) {
     await expect(studentActionsMenu.getByRole('menuitem', { name: action })).toBeVisible()
   }
   await expect(studentActionsMenu.getByRole('menuitem', { name: /Open selected/i })).toHaveCount(0)
@@ -1647,21 +2509,114 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     path: testInfo.outputPath(`test-grading-${viewport}-menu.png`),
     animations: 'disabled',
   })
-  await studentActionsMenu.getByRole('menuitem', { name: 'AI Grade' }).click()
-  await expect(page.getByRole('dialog')).toContainText('AI Grade selected students')
-  await expect(page.getByRole('button', { name: 'Only ungraded' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Regrade all' })).toBeVisible()
+  await studentActionsMenu.getByRole('menuitem', { name: 'AI Grade 1 student' }).click()
+  await expect(page.getByRole('dialog', { name: 'AI grade 1 student' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+  await expect(page.getByRole('dialog')).toContainText('This will overwrite existing grade, comments and teacher edits.')
+  await expect(page.getByRole('button', { name: 'AI grade', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Only ungraded' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Regrade all' })).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-ai-grade-scope.png`),
     animations: 'disabled',
   })
   await page.getByRole('button', { name: 'Cancel' }).click()
 
+  await page.getByRole('checkbox', { name: 'Select Student 02 Alpha02' }).click()
+  await gradingToolbar.getByRole('button', { name: 'Student actions for 2 selected' }).click()
+  await page.getByRole('menu', { name: 'Selected student actions' }).getByRole('menuitem', { name: 'AI Grade 2 students' }).click()
+  await expect(page.getByRole('dialog', { name: 'AI grade 2 students' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-ai-grade-two-students.png`),
+    animations: 'disabled',
+  })
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('checkbox', { name: 'Select Student 02 Alpha02' }).click()
+
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-selected.png`),
     animations: 'disabled',
   })
+})
+
+test('confirms assignment AI grading before sending selected students', async ({ page }, testInfo) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await applyProjectTheme(page, testInfo)
+  const classroomId = TEST_GRADING_FIXTURE_CLASSROOM_ID
+  const assignmentId = '30000000-0000-4000-8000-000000000014'
+  const assignment = {
+    id: assignmentId, classroom_id: classroomId, title: 'Assignment confirmation',
+    description: '', instructions_markdown: 'Explain your approach.', rich_instructions: null,
+    due_at: null, position: 0, is_draft: false, released_at: '2026-01-01T12:00:00Z',
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-01-01T12:00:00Z', updated_at: '2026-01-01T12:00:00Z',
+    stats: { total_students: 2, submitted_count: 2, graded_count: 0, returned_count: 0 },
+  }
+  const students = [1, 2].map((index) => ({
+    student_id: `30000000-0000-4000-8000-00000000002${index}`,
+    student_email: `student${index}@example.invalid`, student_first_name: `Student ${index}`, student_last_name: 'Example',
+    status: 'submitted_on_time', student_updated_at: '2026-01-02T12:00:00Z', artifacts: [],
+    doc: { submitted_at: '2026-01-02T12:00:00Z', updated_at: '2026-01-02T12:00:00Z',
+      score_completion: null, score_thinking: null, score_workflow: null,
+      graded_at: null, returned_at: null, feedback_returned_at: null },
+  }))
+  const gradingBodies: Array<{ student_ids: string[] }> = []
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = {}
+    if (url.pathname === `/api/teacher/assignments/${assignmentId}/auto-grade`) {
+      gradingBodies.push(route.request().postDataJSON())
+      body = { graded_count: 2, skipped_count: 0 }
+    } else if (url.pathname === '/api/teacher/assignments') body = { assignments: [assignment] }
+    else if (url.pathname === `/api/teacher/assignments/${assignmentId}`) body = { assignment, students, active_ai_grading_run: null }
+    else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) {
+      const student = students.find((item) => url.pathname.endsWith(item.student_id))!
+      body = { assignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} ${student.student_last_name}` }, doc: null, feedback_entries: [] }
+    } else if (url.pathname.endsWith('/history')) body = { history: [] }
+    else if (url.pathname.endsWith('/class-days')) body = { class_days: [] }
+    else if (url.pathname === '/api/teacher/materials') body = { materials: [] }
+    else if (url.pathname === '/api/teacher/surveys') body = { surveys: [] }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/teacher-assignment-grading', { waitUntil: 'domcontentloaded' })
+  const toolbar = page.getByRole('toolbar', { name: 'Assignment grading actions' })
+  const selections = page.getByRole('checkbox', { name: /^Select Student/ })
+  await expect(selections).toHaveCount(2)
+  await selections.first().click()
+  const openConfirmation = async (count: number) => {
+    await toolbar.getByRole('button', { name: `Student actions for ${count} selected` }).click()
+    await page.getByRole('menuitem', { name: `AI Grade ${count} student${count === 1 ? '' : 's'}`, exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: `AI grade ${count} student${count === 1 ? '' : 's'}`, exact: true })
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('This will overwrite existing grade, comments and teacher edits.')
+    await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+    await expect(dialog.getByRole('button', { name: 'AI grade', exact: true })).toHaveClass(/bg-danger/)
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath(`assignment-ai-grade-${count}.png`), animations: 'disabled' })
+    return dialog
+  }
+  const oneStudent = await openConfirmation(1)
+  expect(gradingBodies).toEqual([])
+  await oneStudent.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(oneStudent).toHaveCount(0)
+  expect(gradingBodies).toEqual([])
+  await selections.nth(1).click()
+  const twoStudents = await openConfirmation(2)
+  await page.keyboard.press('Tab')
+  await expect(twoStudents.getByRole('button', { name: 'AI grade', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(twoStudents.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(twoStudents).toHaveCount(0)
+  expect(gradingBodies).toEqual([])
+  await expect(toolbar.getByRole('button', { name: 'Student actions for 2 selected' })).toBeFocused()
+  const confirmed = await openConfirmation(2)
+  await confirmed.getByRole('button', { name: 'AI grade', exact: true }).click()
+  await expect.poll(() => gradingBodies).toEqual([{ student_ids: students.map((student) => student.student_id) }])
+  await expect(confirmed).toHaveCount(0)
+  expect(pageErrors).toEqual([])
 })
 
 test('shows publication language only at the publish transition', async ({ page }, testInfo) => {
@@ -1818,6 +2773,64 @@ test('shows publication language only at the publish transition', async ({ page 
   })
 })
 
+test('shows teacher test list status from effective student access', async ({ page }, testInfo) => {
+  const { viewport, theme } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/teacher/tests?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tests: [
+          {
+            id: '30000000-0000-4000-8000-000000000013',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Reopened for one student',
+            status: 'closed',
+            position: 1,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 1,
+              closed_access: 1,
+              questions_count: 1,
+            },
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000014',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Closed for everyone',
+            status: 'active',
+            position: 0,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 0,
+              closed_access: 2,
+              questions_count: 1,
+            },
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-test-grading?view=list', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('Reopened for one student')).toBeVisible()
+  await expect(page.getByText('Closed for everyone')).toBeVisible()
+  await expect(page.getByText('Open', { exact: true })).toBeVisible()
+  await expect(page.getByText('Closed', { exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`teacher-test-list-access-${viewport}-${theme}.png`),
+    animations: 'disabled',
+  })
+})
+
 test('shows published closed Tests to students without opening them', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)
@@ -1967,6 +2980,254 @@ test('shows published closed Tests to students without opening them', async ({ p
 
 })
 
+test('keeps a student answer while viewing and zooming a PNG reference image', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  const png = await createKarelGridRaster(page, 'image/png')
+  const jpeg = await createKarelGridRaster(page, 'image/jpeg')
+  let focusEventRequests = 0
+  let pngFileRequests = 0
+  await applyProjectTheme(page, testInfo)
+  await installExamWindowFixture(page)
+
+  const documents = [
+    { id: IMAGE_REFERENCE_PNG_ID, title: 'Karel grid PNG', source: 'upload', storage_bucket: 'test-documents', storage_path: IMAGE_REFERENCE_PNG_PATH },
+    { id: '30000000-0000-4000-8000-000000000034', title: 'Karel grid JPEG', source: 'upload', storage_bucket: 'test-documents', storage_path: `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/images/karel-grid.jpeg` },
+  ]
+  const assessment = {
+    id: IMAGE_REFERENCE_TEST_ID, classroom_id: IMAGE_REFERENCE_CLASSROOM_ID, title: 'Karel image references',
+    assessment_type: 'test', status: 'active', student_status: 'not_started', effective_access: 'open',
+    show_results: false, position: 0, documents,
+  }
+  const questions = [{
+    id: '30000000-0000-4000-8000-000000000035', test_id: IMAGE_REFERENCE_TEST_ID,
+    question_type: 'open_response', question_text: 'Write Karel\'s route to the beeper.',
+    options: [], correct_option: null, answer_key: null, sample_solution: null, points: 1,
+    response_max_chars: 500, response_monospace: true, position: 0,
+    created_at: '2026-09-24T12:00:00.000Z', updated_at: '2026-09-24T12:00:00.000Z',
+  }]
+  const focusSummary = { away_count: 0, away_total_seconds: 0, route_exit_attempts: 0, window_unmaximize_attempts: 0, last_away_started_at: null, last_away_ended_at: null }
+
+  await page.route('**/api/student/notifications**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hasTodayEntry: true, unviewedAssignmentsCount: 0, activeTestsCount: 1, unreadAnnouncementsCount: 0 }) })
+  })
+  await page.route('**/api/student/tests?**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tests: [assessment] }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ test: assessment, questions, student_status: 'not_started', student_responses: {}, focus_summary: focusSummary }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/start`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ questions }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/attempt`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ responses: {} }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/session-status`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ can_continue: true }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/focus-events`, async (route) => {
+    focusEventRequests += 1
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ focus_summary: focusSummary }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/file`, async (route) => {
+    pngFileRequests += 1
+    await route.fulfill({ status: 200, contentType: 'image/png', body: png })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/file`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg })
+  })
+
+  await page.goto('/e2e-fixtures/student-test-list', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Karel image references' }).click()
+  await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
+  await page.getByRole('button', { name: 'Start test', exact: true }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
+
+  const answer = page.getByLabel('Response for question 1', { exact: true })
+  const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
+  await answer.fill('move()\nmove()\npick_beeper()')
+  const documentsPane = page.getByTestId('student-test-documents-pane')
+  const questionsPane = page.getByTestId('student-test-detail-pane')
+  const separator = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+  if (viewport === 'desktop') {
+    await separator.focus()
+    await separator.press('ArrowRight')
+    await separator.press('ArrowRight')
+    await expect(separator).toHaveAttribute('aria-valuenow', '40')
+  }
+  const bounds = async () => {
+    const panes = [await documentsPane.boundingBox(), await questionsPane.boundingBox()]
+    // Mobile stacks panes; image references already reserve additional reading height.
+    return viewport === 'desktop' ? panes : panes.map((pane) => pane?.width)
+  }
+  await page.waitForTimeout(350)
+  const before = await bounds()
+  const listDocumentWidth = (await documentsPane.boundingBox())!.width
+  await page.screenshot({ path: testInfo.outputPath(`student-test-list-${viewport}.png`), animations: 'disabled' })
+  await page.getByRole('button', { name: 'Karel grid PNG', exact: true }).click()
+  expect(pngFileRequests).toBe(1)
+  const image = page.getByRole('img', { name: 'Karel grid PNG' })
+  await expect(image).toBeVisible()
+  await page.waitForTimeout(350)
+  if (viewport === 'desktop') {
+    await expect(separator).toHaveAttribute('aria-valuenow', '50')
+    expect((await documentsPane.boundingBox())!.width).toBeGreaterThan(listDocumentWidth)
+  } else {
+    expect(await bounds()).toEqual(before)
+  }
+  await expect(page.getByRole('region', { name: 'Karel grid PNG image' })).toHaveCount(1)
+  await expect(imageZoomStatus).toHaveText('Fit')
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
+  await page.getByRole('button', { name: 'Fit image' }).click()
+  await expect(imageZoomStatus).toHaveText('Fit')
+  await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
+  expect(focusEventRequests).toBe(0)
+  await verifyProjectContract(page, testInfo)
+  await waitForKarelRasterPaint(image)
+  await page.screenshot({ path: testInfo.outputPath(`student-test-image-${viewport}.png`), animations: 'disabled' })
+  if (viewport === 'desktop') {
+    const divider = await separator.boundingBox()
+    expect(divider).not.toBeNull()
+    const dragX = divider!.x + divider!.width / 2
+    const dragY = divider!.y + divider!.height / 2
+    await page.mouse.move(dragX, dragY)
+    await page.mouse.down()
+    await page.mouse.move(dragX - 100, dragY, { steps: 5 })
+    await page.mouse.up()
+    expect(Number(await separator.getAttribute('aria-valuenow'))).toBeLessThan(50)
+    expect(focusEventRequests).toBe(0)
+    // Browser chrome can briefly take focus at pointer release; the drag marks
+    // this as a document interaction, so it must not become a delayed exit.
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    await page.waitForTimeout(700)
+    expect(focusEventRequests).toBe(0)
+  }
+  await page.getByRole('button', { name: 'Back to documents list' }).click()
+  await page.waitForTimeout(350)
+  expect(await bounds()).toEqual(before)
+  await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
+  await page.screenshot({ path: testInfo.outputPath(`student-test-back-${viewport}.png`), animations: 'disabled' })
+
+})
+
+test('uploads PNG and JPEG references, projects them into teacher preview, and retries a failed image', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  const png = await createKarelGridRaster(page, 'image/png')
+  const jpeg = await createKarelGridRaster(page, 'image/jpeg')
+  let pngFileRequests = 0
+  await applyProjectTheme(page, testInfo)
+
+  let nextDocumentNumber = 34
+  let remainingJpegFailures = 1
+  const reservationPaths = new Map<string, string>()
+  let documents = [{ id: IMAGE_REFERENCE_PNG_ID, title: 'Karel grid PNG', source: 'upload', storage_bucket: 'test-documents', storage_path: IMAGE_REFERENCE_PNG_PATH }]
+  const previewPayload = () => ({
+    test: { id: IMAGE_REFERENCE_TEST_ID, classroom_id: IMAGE_REFERENCE_CLASSROOM_ID, title: 'Karel image references', status: 'draft', show_results: false, documents },
+    questions: [{
+      id: '30000000-0000-4000-8000-000000000035', test_id: IMAGE_REFERENCE_TEST_ID,
+      question_type: 'open_response', question_text: 'Use the Karel world to answer this question.',
+      options: [], correct_option: null, answer_key: null, sample_solution: null, points: 1,
+      response_max_chars: 500, response_monospace: true, position: 0,
+      created_at: '2026-09-24T12:00:00.000Z', updated_at: '2026-09-24T12:00:00.000Z',
+    }],
+  })
+
+  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}`, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(previewPayload()) })
+      return
+    }
+    if (route.request().method() === 'PATCH') {
+      const payload = route.request().postDataJSON() as { documents: typeof documents }
+      documents = payload.documents
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(previewPayload()) })
+      return
+    }
+    await route.fallback()
+  })
+  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/upload`, async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      const payload = request.postDataJSON() as { document_id: string; content_type: string }
+      const extension = payload.content_type === 'image/png' ? 'png' : 'jpeg'
+      const path = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${payload.document_id}/images/image-${nextDocumentNumber}.${extension}`
+      nextDocumentNumber += 1
+      reservationPaths.set(payload.document_id, path)
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ bucket: 'test-documents', storage_path: path, upload_url: `/mock-storage/${payload.document_id}`, managed_object_id: payload.document_id }) })
+      return
+    }
+    if (request.method() === 'PATCH') {
+      const payload = request.postDataJSON() as { document_id: string; managed_object_id: string }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ document_id: payload.document_id, storage_bucket: 'test-documents', storage_path: reservationPaths.get(payload.document_id), managed_object_id: payload.managed_object_id }) })
+      return
+    }
+    await route.fallback()
+  })
+  await page.route('**/mock-storage/**', async (route) => { await route.fulfill({ status: 200 }) })
+  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/*/file*`, async (route) => {
+    if (route.request().url().includes(`/${IMAGE_REFERENCE_PNG_ID}/file`)) {
+      pngFileRequests += 1
+      await route.fulfill({ status: 200, contentType: 'image/png', body: png })
+      return
+    }
+    if (remainingJpegFailures > 0) {
+      remainingJpegFailures -= 1
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'temporary image delivery failure' }) })
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg })
+  })
+
+  await page.goto('/e2e-fixtures/test-reference-images', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByTestId('test-reference-images-ready')).toBeVisible()
+  const authoring = page.getByRole('region', { name: 'Test document authoring' })
+  await page.getByRole('button', { name: 'Add Document' }).click()
+  const addDialog = page.getByRole('dialog', { name: 'Add Document' })
+  await expect(addDialog.getByRole('tab', { name: 'Upload' })).toBeVisible()
+  await addDialog.getByRole('tab', { name: 'Upload' }).click()
+  await addDialog.locator('input[type="file"]').setInputFiles({ name: 'karel-grid.png', mimeType: 'image/png', buffer: png })
+  await expect(addDialog.getByText('Selected: karel-grid.png')).toBeVisible()
+  await addDialog.getByRole('button', { name: 'Upload document' }).click()
+  await expect(authoring.getByText('karel-grid.png', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add Document' }).click()
+  await page.getByRole('dialog', { name: 'Add Document' }).getByRole('tab', { name: 'Upload' }).click()
+  await page.locator('input[type="file"]').setInputFiles({ name: 'karel-grid.jpeg', mimeType: 'image/jpeg', buffer: jpeg })
+  await page.getByRole('button', { name: 'Upload document' }).click()
+  await expect(authoring.getByText('karel-grid.jpeg', { exact: true })).toBeVisible()
+
+  await page.goto('/e2e-fixtures/test-reference-images', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByTestId('test-reference-images-ready')).toBeVisible()
+  await page.getByRole('button', { name: 'Open teacher preview' }).click()
+  await expect(page.getByRole('button', { name: 'Maximize Window' })).toBeVisible()
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => document.documentElement })
+  })
+  await page.getByRole('button', { name: 'Maximize Window' }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
+  await page.getByRole('button', { name: 'karel-grid.jpeg', exact: true }).click()
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('separator', { name: 'Resize documents and questions panes' })).toHaveAttribute('aria-valuenow', '50')
+  }
+  await expect(page.getByText('Image unavailable', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Try again' }).click()
+  const image = page.getByRole('img', { name: 'karel-grid.jpeg' })
+  await expect(image).toBeVisible()
+  const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
+  await page.getByRole('button', { name: 'Fit image' }).click()
+  await expect(imageZoomStatus).toHaveText('Fit')
+  await verifyProjectContract(page, testInfo)
+  await waitForKarelRasterPaint(image)
+  await page.screenshot({ path: testInfo.outputPath(`teacher-test-image-${viewport}.png`), animations: 'disabled' })
+})
+
 test.describe('teacher experience matrix', () => {
   test.use({ storageState: TEACHER_STORAGE })
 
@@ -2046,7 +3307,7 @@ test.describe('teacher experience matrix', () => {
 
     await expect(page).toHaveURL((url) => (
       url.pathname === '/login' &&
-      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('next') === '/teacher/blueprints?section=overview' &&
       url.searchParams.get('reason') === 'session-expired'
     ))
     await expect(page.getByRole('status')).toContainText('Your session expired')
@@ -2058,7 +3319,7 @@ test.describe('teacher experience matrix', () => {
     await page.getByLabel('Password').fill('test1234')
     await page.getByRole('button', { name: 'Login' }).click()
 
-    await expect(page).toHaveURL(/\/teacher\/blueprints$/)
+    await expect(page).toHaveURL(/\/teacher\/blueprints\?section=overview$/)
     await expect(page.getByRole('navigation', { name: 'Teacher tools' })).toBeVisible()
     await verifyProjectContract(page, testInfo)
   })
@@ -2079,7 +3340,7 @@ test.describe('teacher experience matrix', () => {
 
     await expect(page).toHaveURL((url) => (
       url.pathname === '/login' &&
-      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('next') === '/teacher/blueprints?section=overview' &&
       url.searchParams.get('reason') === 'session-changed'
     ))
     await expect(page.getByRole('status')).toContainText('signed-in account changed')
@@ -2198,7 +3459,8 @@ test.describe('teacher experience matrix', () => {
 
     await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
     await page.locator('aside').getByRole('button', { name: /Publication Lifecycle Fixture/ }).click()
-    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await page.getByRole('tab', { name: 'Settings' }).click()
+    await page.getByRole('tab', { name: 'Publish' }).click()
 
     const publishCheckbox = page.getByRole('checkbox', {
       name: 'Publish this planned course site',
@@ -2256,6 +3518,7 @@ test.describe('student experience matrix', () => {
     await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
     await verifyActiveClassroomTab(page, testInfo, 'Daily')
     await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath('student-today.png'), animations: 'disabled' })
   })
 
   test('reads the Course Guide as a clean in-Pika document', async ({ page }, testInfo) => {
@@ -2525,4 +3788,400 @@ test.describe('public Course Guide experience matrix', () => {
     await verifyProjectContract(page, testInfo)
     await captureCourseGuideState(page, testInfo, 'public-not-found')
   })
+})
+
+
+test('student long test scroll reaches final questions and submit', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  // Simulate a maximized window for this local, fully mocked exam fixture.
+  await page.addInitScript(() => {
+    Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => window.innerWidth })
+    Object.defineProperty(window.screen, 'availHeight', { configurable: true, get: () => window.innerHeight })
+    Object.defineProperty(Element.prototype, 'requestFullscreen', { configurable: true, value: () => Promise.resolve() })
+  })
+  const testId = '30000000-0000-4000-8000-000000000023'
+  const assessment = {
+    id: testId, classroom_id: '30000000-0000-4000-8000-000000000021',
+    title: 'Long Karel test', status: 'active', student_status: 'not_started',
+    show_results: false, effective_access: 'open',
+    documents: [{ id: 'reference', title: 'Karel reference', source: 'text', content: 'move()\nturn_left()' }],
+  }
+  const questions = Array.from({ length: 5 }, (_, index) => ({
+    id: `scroll-question-${index + 1}`, test_id: testId, position: index,
+    question_text: index < 2
+      ? `Coding question ${index + 1}\n\n${'Karel must complete the task for every valid world. Explain and implement your reusable helper. '.repeat(15)}`
+      : `Multiple choice question ${index + 1}`,
+    question_type: index < 2 ? 'open_response' : 'multiple_choice',
+    options: index < 2 ? [] : [`First answer for Q${index + 1}`, 'Second answer', 'Third answer'],
+    points: 1, response_max_chars: 5000, response_monospace: index < 2,
+  }))
+  const focusSummary = {
+    away_count: 0, away_total_seconds: 0, route_exit_attempts: 0,
+    window_unmaximize_attempts: 0, last_away_started_at: null, last_away_ended_at: null,
+  }
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    let body: unknown
+    if (path === '/api/student/tests') body = { tests: [assessment] }
+    else if (path === `/api/student/tests/${testId}`) {
+      body = { test: assessment, questions, student_responses: {}, focus_summary: focusSummary }
+    } else if (path.endsWith('/start')) body = { started: true }
+    else if (path.endsWith('/session-status')) body = { can_continue: true, student_status: 'not_started' }
+    else if (path.endsWith('/focus-events')) body = { success: true, focus_summary: focusSummary }
+    else if (path.includes('/draft')) body = { draft: null }
+    else if (path.includes('notifications')) {
+      body = { hasTodayEntry: true, unviewedAssignmentsCount: 0, activeTestsCount: 1, unreadAnnouncementsCount: 0 }
+    } else {
+      await route.abort()
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/student-test-list')
+  await page.getByRole('button', { name: /Long Karel test/ }).click()
+  await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
+  await page.getByRole('button', { name: 'Start test', exact: true }).click()
+
+  const pane = page.getByTestId('student-test-detail-pane')
+  const firstAnswer = page.getByLabel('Response for question 1', { exact: true })
+  const answer = 'def solve():\n    move()'
+  await firstAnswer.fill(answer)
+  const { viewport } = getExperienceMetadata(testInfo)
+  if (viewport === 'desktop') {
+    await expect.poll(() => pane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  }
+  const bounds = await pane.boundingBox()
+  expect(bounds).not.toBeNull()
+  // Wheel scrolling must reach the bottom without locator auto-scrolling hiding a layout bug.
+  await page.mouse.move(bounds!.x + bounds!.width - 30, Math.min(bounds!.y + 100, 600))
+  await page.mouse.wheel(0, 10_000)
+  const submit = page.getByRole('button', { name: 'Submit', exact: true })
+  await expect(submit).toBeInViewport()
+  await expect(page.getByText('Multiple choice question 5', { exact: true })).toBeInViewport()
+  await page.getByRole('radio', { name: 'First answer for Q5', exact: true }).check()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('student-test-scroll-bottom.png'), animations: 'disabled' })
+
+  await page.mouse.wheel(0, -10_000)
+  if (viewport === 'desktop') await expect(firstAnswer).toBeInViewport()
+  await expect(firstAnswer).toHaveValue(answer)
+  await page.getByRole('button', { name: 'Karel reference', exact: true }).click()
+  await expect(firstAnswer).toHaveValue(answer)
+  if (viewport === 'desktop') {
+    const divider = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+    await expect(divider).toHaveAttribute('aria-valuenow', '30')
+    await divider.focus()
+    await divider.press('ArrowRight')
+    await expect(divider).toHaveAttribute('aria-valuenow', '35')
+  }
+  await page.screenshot({ path: testInfo.outputPath('student-test-scroll-reference.png'), animations: 'disabled' })
+})
+
+for (const surface of ['manual', 'integrated', 'live'] as const) {
+  test(`keeps rapid attendance marking responsive on ${surface}`, async ({ page }, testInfo) => {
+    await applyProjectTheme(page, testInfo)
+    await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+    const ids = ['40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000002']
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>(resolve => { releaseFirst = resolve })
+    const writes: Array<{ id: string; status: string }> = []
+    const saved = new Map(ids.map(id => [id, 'present']))
+    let failNext = false
+    const json = async (route: import('@playwright/test').Route, body: unknown, status = 200) => {
+      await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+    }
+    await page.route(`**/api/classrooms/${ATTENDANCE_FIXTURE_CLASSROOM_ID}/class-days`, route => json(route, {
+      class_days: [{ id: 'day-1', classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        date: '2026-08-29', prompt_text: null, is_class_day: true }],
+    }))
+    await page.route('**/api/teacher/logs?**', route => json(route, {
+      logs: ids.map((id, index) => ({ student_id: id, student_email: `s${index}@example.com`,
+        student_first_name: `Student 0${index + 1}`, student_last_name: `Alpha0${index + 1}`,
+        entry: null, history_preview: [] })),
+    }))
+    await page.route('**/api/teacher/log-summary?**', route => json(route, { summary_status: 'no_logs', summary: null }))
+    await page.route('**/api/teacher/attendance/session?**', route => json(route, {
+      classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, classDate: '2026-08-29', integration: 'ready',
+      session: { state: 'open', opensAt: '2026-08-29T12:45:00Z', closesAt: '2026-08-29T14:00:00Z',
+        sessionStartsAt: '2026-08-29T13:00:00Z', sessionEndsAt: '2026-08-29T14:00:00Z',
+        presentThroughAt: '2026-08-29T13:10:00Z', absentAt: '2026-08-29T14:00:00Z',
+        revision: 1, pendingCommand: false, commandFailed: false },
+      sync: { state: 'current', confirmedAt: '2026-08-29T15:00:00Z' },
+      students: ids.map((id, index) => ({ studentId: id, firstName: `Student 0${index + 1}`,
+        lastName: `Alpha0${index + 1}`, status: saved.get(id), source: 'staff', checkedInAt: null,
+        revision: writes.length + 1, hasQrCheckIn: false, hasManualOverride: true,
+        pendingCommand: false, commandFailed: false })),
+    }))
+    const handleWrite = async (route: import('@playwright/test').Route) => {
+      const body = route.request().postDataJSON()
+      const id = surface === 'manual' ? body.student_ids[0] : body.marks[0].student_id
+      const status = surface === 'manual' ? body.status : body.marks[0].status
+      writes.push({ id, status })
+      if (writes.length === 1) await firstGate
+      if (failNext) { failNext = false; await json(route, { error: 'Save failed' }, 503); return }
+      saved.set(id, status)
+      await json(route, surface === 'manual' ? { ok: true } : { outcome: 'applied', appliedCount: 1, unchangedCount: 0 })
+    }
+    await page.route('**/api/teacher/attendance/marks', handleWrite)
+    await page.route('**/api/teacher/manual-attendance**', async route => {
+      if (route.request().method() === 'POST') { await handleWrite(route); return }
+      await json(route, { classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, classDate: '2026-08-29',
+        settings: { sourceMode: 'manual', sessionStartsLocal: '09:00', sessionEndsLocal: '10:00', revision: 1 },
+        overrides: [...saved].map(([studentId, status]) => ({ studentId, status })) })
+    })
+    await page.goto(surface === 'live' ? '/e2e-fixtures/teacher-live-attendance'
+      : `/e2e-fixtures/teacher-daily-attendance${surface === 'manual' ? '?attendance=manual' : ''}`)
+    const mark = (index: number, status: string) => surface === 'live'
+      ? page.getByRole('group', { name: `Attendance status for Student 0${index + 1} Alpha0${index + 1}` })
+        .getByRole('button', { name: status, exact: true })
+      : page.getByRole('button', { name: `Mark Student 0${index + 1} Alpha0${index + 1} ${status.toLowerCase()}` })
+    await mark(0, 'Absent').click()
+    await expect.poll(() => writes.length).toBe(1)
+    await mark(0, 'Late').focus()
+    await mark(0, 'Late').press('Space')
+    await mark(1, 'Absent').click()
+    await expect(mark(0, 'Late')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mark(1, 'Absent')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mark(0, 'Present')).toBeEnabled()
+    await expect.poll(() => writes.some(write => write.id === ids[1])).toBe(true)
+    expect(writes.filter(write => write.id === ids[0])).toEqual([{ id: ids[0], status: 'absent' }])
+    if (surface === 'manual') {
+      await expect(page.getByRole('button', { name: /Edit attendance time/ })).toBeDisabled()
+      await page.getByRole('button', { name: 'More actions' }).click()
+      await expect(page.getByRole('menuitemcheckbox', { name: /Attendance from log/ })).toBeDisabled()
+      await expect(page.getByRole('menuitem', { name: 'Edit time', exact: true })).toBeDisabled()
+      await page.screenshot({ path: testInfo.outputPath('attendance-manual-pending-settings.png'), animations: 'disabled' })
+      await page.keyboard.press('Escape')
+    }
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-rapid-pending.png`), animations: 'disabled' })
+    // Accepted corrections must survive leaving and re-entering the date before commit.
+    await page.getByRole('button', { name: 'Previous day', exact: true }).click()
+    await page.getByRole('button', { name: 'Next day', exact: true }).click()
+    await expect(mark(0, 'Late')).toHaveAttribute('aria-pressed', 'true')
+    await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-returned-pending.png`), animations: 'disabled' })
+    releaseFirst()
+    await expect.poll(() => saved.get(ids[0])).toBe('late')
+    expect(writes.filter(write => write.id === ids[0]).map(write => write.status)).toEqual(['absent', 'late'])
+    if (surface === 'manual') await expect(page.getByRole('button', { name: /Edit attendance time/ })).toBeEnabled()
+    // One failed row must not undo the correction already saved on another row.
+    failNext = true
+    await mark(1, 'Present').click()
+    await expect(mark(1, 'Absent')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mark(0, 'Late')).toHaveAttribute('aria-pressed', 'true')
+    await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-failed-save.png`), animations: 'disabled' })
+  })
+}
+
+test('retains teacher Classwork student editor and table through background refresh and Retry', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  const classroomId = TEST_GRADING_FIXTURE_CLASSROOM_ID
+  const assignmentId = '30000000-0000-4000-8000-000000000014'
+  const assignment = {
+    id: assignmentId, classroom_id: classroomId, title: 'Classwork continuity',
+    description: '', instructions_markdown: 'Explain your approach.', rich_instructions: null,
+    due_at: null, position: 0, is_draft: false, released_at: '2026-01-01T12:00:00Z',
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-01-01T12:00:00Z', updated_at: '2026-01-01T12:00:00Z',
+    stats: { total_students: 35, submitted: 35, late: 0 },
+  }
+  const nextAssignmentId = '30000000-0000-4000-8000-000000000015'
+  const nextAssignment = { ...assignment, id: nextAssignmentId, title: 'Next classwork item' }
+  const students = Array.from({ length: 35 }, (_, index) => ({
+    student_id: `continuity-student-${index}`, student_email: `student${index}@example.invalid`,
+    student_first_name: `Student ${String(index).padStart(2, '0')}`, student_last_name: 'Example',
+    status: 'submitted_on_time', student_updated_at: '2026-01-02T12:00:00Z', artifacts: [],
+    doc: { id: `continuity-doc-${index}`, assignment_id: assignmentId, student_id: `continuity-student-${index}`,
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Student response.' }] }] },
+      is_submitted: true, submitted_at: '2026-01-02T12:00:00Z', updated_at: '2026-01-02T12:00:00Z',
+      score_completion: null, score_thinking: null, score_workflow: null,
+      graded_at: null, returned_at: null, feedback_returned_at: null, teacher_feedback_draft: '' },
+  }))
+  let listReads = 0
+  let detailReads = 0
+  let studentReads = 0
+  let releaseRefresh: ((success: boolean) => void) | undefined
+  let releaseDetailRefresh: ((success: boolean) => void) | undefined
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = {}
+    if (url.pathname === '/api/teacher/assignments') {
+      listReads += 1
+      if (listReads > 1) {
+        const success = await new Promise<boolean>((resolve) => { releaseRefresh = resolve })
+        if (!success) {
+          await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Refresh unavailable' }) })
+          return
+        }
+      }
+      body = { assignments: [{ ...assignment, updated_at: `2026-01-0${Math.min(listReads, 9)}T12:00:00Z` }, nextAssignment] }
+    } else if (url.pathname === `/api/teacher/assignments/${assignmentId}` || url.pathname === `/api/teacher/assignments/${nextAssignmentId}`) {
+      detailReads += 1
+      if (detailReads > 1 && url.pathname.endsWith(assignmentId)) {
+        const success = await new Promise<boolean>((resolve) => { releaseDetailRefresh = resolve })
+        if (!success) {
+          await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Assignment refresh unavailable' }) })
+          return
+        }
+      }
+      body = { assignment: url.pathname.endsWith(nextAssignmentId) ? nextAssignment : assignment, students: detailReads > 1
+        ? students.map((student, index) => index === 20 ? { ...student, status: 'returned', doc: { ...student.doc, returned_at: '2026-01-03T12:00:00Z' } } : student)
+        : students, active_ai_grading_run: null }
+    } else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`) || url.pathname.startsWith(`/api/teacher/assignments/${nextAssignmentId}/students/`)) {
+      studentReads += 1
+      const student = students.find((item) => url.pathname.endsWith(item.student_id))!
+      const selectedAssignment = url.pathname.includes(nextAssignmentId) ? nextAssignment : assignment
+      body = { assignment: selectedAssignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} Example` }, doc: { ...student.doc, assignment_id: selectedAssignment.id }, feedback_entries: [] }
+    } else if (url.pathname === `/api/teacher/assignments/${assignmentId}/grade`) {
+      const patch = route.request().postDataJSON()
+      body = { doc: { ...students[0].doc, ...patch, teacher_feedback_draft: patch.feedback } }
+    } else if (url.pathname.endsWith('/history')) body = { history: [] }
+    else if (url.pathname.endsWith('/class-days')) body = { class_days: [] }
+    else if (url.pathname.endsWith('/materials')) body = { materials: [] }
+    else if (url.pathname === '/api/teacher/surveys') body = { surveys: [] }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/teacher-assignment-grading', { waitUntil: 'domcontentloaded' })
+  const scroller = page.getByTestId('assignment-student-scroll-pane')
+  await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
+  const editor = page.getByPlaceholder('Teacher comment draft')
+  // Student work loads separately after the table selects its first student.
+  await expect(editor).toBeVisible()
+  await editor.fill('Keep this teacher comment draft during refresh.')
+  await scroller.evaluate((element) => { element.scrollTop = 160 })
+  const scrollTop = await scroller.evaluate((element) => element.scrollTop)
+  expect(scrollTop).toBeGreaterThan(0)
+  await editor.focus()
+  const originalEditor = await editor.elementHandle()
+  const originalScroller = await scroller.elementHandle()
+  const originalDetailReads = detailReads
+  const originalStudentReads = studentReads
+  let expectedDetailReads = originalDetailReads
+  const assertRetained = async () => {
+    expect(await originalEditor!.evaluate((element) => element.isConnected)).toBe(true)
+    expect(await originalScroller!.evaluate((element) => element.isConnected)).toBe(true)
+    await expect(editor).toHaveValue('Keep this teacher comment draft during refresh.')
+    await expect(editor).toBeFocused()
+    expect(await scroller.evaluate((element) => element.scrollTop)).toBe(scrollTop)
+    expect(detailReads).toBe(expectedDetailReads)
+    expect(studentReads).toBe(originalStudentReads)
+  }
+  const capture = async (state: string) => {
+    const { viewport, theme } = getExperienceMetadata(testInfo)
+    await page.screenshot({ path: testInfo.outputPath(`teacher-classwork-${viewport}-${theme}-${state}.png`), animations: 'disabled' })
+  }
+  await capture('loaded')
+  await page.evaluate(() => window.dispatchEvent(new Event('pika-fixture-reactivate-classwork')))
+  await expect.poll(() => listReads).toBe(2)
+  await expect.poll(() => detailReads).toBe(originalDetailReads + 1)
+  expectedDetailReads = originalDetailReads + 1
+  await assertRetained()
+  await capture('pending')
+  releaseRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toContainText('Classwork could not be refreshed')
+  await assertRetained()
+  await capture('error')
+  releaseDetailRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert').filter({ hasText: 'Assignment could not be refreshed' })).toBeVisible()
+  await assertRetained()
+  await capture('detail-error')
+  await page.getByRole('button', { name: 'Retry assignment', exact: true }).evaluate((button: HTMLButtonElement) => button.click())
+  await expect.poll(() => detailReads).toBe(originalDetailReads + 2)
+  expectedDetailReads = originalDetailReads + 2
+  await assertRetained()
+  await capture('detail-retry-pending')
+  releaseDetailRefresh!(true)
+  await expect(scroller.getByRole('img', { name: 'Returned', exact: true })).toHaveCount(1)
+  await assertRetained()
+  await capture('fresh-rows')
+  await page.getByRole('button', { name: 'Retry' }).evaluate((button: HTMLButtonElement) => button.click())
+  await expect.poll(() => listReads).toBe(3)
+  await assertRetained()
+  releaseRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toContainText('Classwork could not be refreshed')
+  await assertRetained()
+  await page.getByRole('button', { name: 'Retry', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true })).toBeFocused()
+  await capture('retry-region-focus')
+  await editor.focus()
+  await expect.poll(() => listReads).toBe(4)
+  releaseRefresh!(true)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toHaveCount(0)
+  await assertRetained()
+  await capture('recovered')
+  // Controlled navigation must not wait for a warm list or an obsolete detail read.
+  await page.evaluate(() => window.dispatchEvent(new Event('pika-fixture-reactivate-classwork')))
+  await expect.poll(() => listReads).toBe(5)
+  await expect.poll(() => detailReads).toBe(originalDetailReads + 3)
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('pika-fixture-select-classwork', { detail: { assignmentId: null } })))
+  await expect(page.getByRole('button', { name: 'Classwork continuity', exact: true })).toBeVisible()
+  expect(await originalEditor!.evaluate((element) => element.isConnected)).toBe(false)
+  await capture('navigation-summary-pending')
+  releaseDetailRefresh!(true)
+  releaseRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toContainText('Classwork could not be refreshed')
+  await expect(page.getByRole('button', { name: 'Classwork continuity', exact: true })).toBeVisible()
+  await capture('navigation-summary-error')
+  await page.getByRole('button', { name: 'Retry', exact: true }).evaluate((button: HTMLButtonElement) => button.click())
+  await expect.poll(() => listReads).toBe(6)
+  await page.evaluate((id) => window.dispatchEvent(new CustomEvent('pika-fixture-select-classwork', { detail: { assignmentId: id } })), nextAssignmentId)
+  await expect(page.getByRole('button', { name: 'Edit Next classwork item', exact: true })).toBeVisible()
+  await expect(editor).toBeVisible()
+  await expect(editor).toHaveValue('')
+  await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
+  expect(await originalEditor!.evaluate((element) => element.isConnected)).toBe(false)
+  const newDetailReads = detailReads
+  await capture('navigation-assignment-pending')
+  releaseRefresh!(true)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Edit Next classwork item', exact: true })).toBeVisible()
+  expect(detailReads).toBe(newDetailReads)
+  await capture('navigation-assignment-recovered')
+  await verifyProjectContract(page, testInfo)
+})
+
+
+test.describe('Announcement mutation feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retains drafts and requires explicit mutation recovery', async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await verifyAnnouncementMutationFeedback(page, testInfo)
+      })
+    })
+  }
+})
+
+
+test.describe('Course Guide refresh continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  test.beforeEach(async ({ page }, testInfo) => { await applyProjectTheme(page, testInfo) })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains current guide work with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyCourseGuideContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Teacher settings clipboard feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`clipboard feedback ${motion} preserves the committed settings owner`, async ({ page }, testInfo) => {
+      await verifySettingsCopyFeedback(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Student attendance return navigation', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains canonical return targets with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyAttendanceReturnLink(page, testInfo, motion)
+    })
+  }
 })

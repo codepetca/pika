@@ -18,7 +18,7 @@ Physical downstream deletion is not newly certified by that UI observation.
 
 | Destination | Data leaving Pika | Implemented safeguards / remaining evidence |
 | --- | --- | --- |
-| OpenAI grading and repository review | Sanitized assignment/question/answer/repository text and provider-safe refs | Roster-aware sanitizer, strict output schemas, `store: false`; redaction and error-path defects below. |
+| DeepSeek grading and repository review | Sanitized assignment/question/answer/repository text and provider-safe refs | Roster-aware sanitizer, engine-side schema validation of every returned field; redaction and error-path defects below. DeepSeek has no `store: false` equivalent, so retention is account-level only. |
 | OpenAI nightly log triage | Sanitized daily-log text, date and per-request source refs | Roster/profile query failures stop the call; output is constrained to source/category, not free-form quotations. Sensitive subject matter remains in sanitized text. |
 | OpenAI product-feedback extraction | The same complete sanitized daily-log collection, with initials/date | Second purpose-specific call occurs after successful summary persistence; no product-only selection before transmission. |
 | OpenAI curriculum import | Teacher-supplied PDF bytes and filename, or downloaded public PDF | Teacher workflow, bounded safe fetch and `store: false`; intentionally not a student-work redaction path. Avoid treating arbitrary uploaded PDFs as deidentified. |
@@ -54,7 +54,9 @@ guaranteed anonymization of arbitrary free text.
 
 ### 2. Provider failure bodies bypass the normal privacy boundary
 
-`src/lib/grading/providers/openai-responses.ts` includes complete non-2xx response
+`src/lib/grading/providers/openai-responses.ts` (since replaced by
+`deepseek-chat.ts`, which carries the same content-free contract) includes
+complete non-2xx response
 bodies in `GradingProviderError.message`; invalid JSON includes a body excerpt.
 The assignment adapter propagates that message and
 `src/lib/server/assignment-ai-grading-runs.ts` stores it as `last_error_message`.
@@ -103,7 +105,11 @@ and safe error categories.
    code alone does not certify provider account retention, backups, data region,
    contractual controls or log-drain retention. Check those settings read-only
    with the owner; do not imply that Pika classroom deletion erases every vendor
-   copy immediately.
+   copy immediately. Grading moved to DeepSeek, whose chat-completions API has no
+   per-request retention control at all, so grading retention is governed solely
+   by the DeepSeek account settings and its data region. Confirm both with the
+   owner before grading real classroom work; this is an open item, not a
+   safeguard already in place.
 3. **Pal/Gradex deletion:** no Pal remote erasure call was found in the scoped
    Pika cleanup search. Verify the intended lifetime of pseudonymous activity
    and downstream extracts before expanding deletion. Do not delete shared user

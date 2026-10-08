@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/cron/nightly-log-summaries/route'
 import { callOpenAIForSummary } from '@/lib/log-summary'
@@ -60,6 +60,7 @@ function mockPagedTable(
             error: null,
           })
         }),
+        maybeSingle: vi.fn(() => Promise.resolve({ data: filteredRows()[0] || null, error: options.error || null })),
         single: vi.fn(() => {
           if (options.error) {
             return Promise.resolve({ data: null, error: options.error })
@@ -91,7 +92,7 @@ vi.mock('@/lib/log-summary', async () => {
     ...actual,
     callOpenAIForSummary: vi.fn(async () => ({
       overview: 'Students engaged well.',
-      action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.' }],
+      action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.', detail: 'Asks how to submit the project.' }],
     })),
     getSummaryModel: vi.fn(() => 'gpt-test'),
   }
@@ -609,6 +610,7 @@ describe('cron nightly-log-summaries route', () => {
 
       if (table === 'log_summaries') {
         return {
+          ...mockPagedTable([]),
           upsert: summaryUpsert,
         }
       }
@@ -630,12 +632,14 @@ describe('cron nightly-log-summaries route', () => {
     expect(callOpenAIForSummary).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
-      { log_1: 'A.B.' }
+      { log_1: 'A.B.' },
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 20_000 })
     )
     expect(summaryUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         summary_items: expect.objectContaining({
-          policy_version: 'high-priority-v1',
+          policy_version: 'follow-ups-v3',
+          action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.', detail: 'Asks how to submit the project.' }],
         }),
       }),
       { onConflict: 'classroom_id,date' }
@@ -647,7 +651,8 @@ describe('cron nightly-log-summaries route', () => {
         model: 'gpt-dev-feedback-test',
         sanitizedLogs: [{ initials: 'A.B.', text: 'Reflected on progress' }],
         sourceEntryCount: 1,
-      })
+      }),
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 5_000 })
     )
   })
 
@@ -706,7 +711,7 @@ describe('cron nightly-log-summaries route', () => {
       if (table === 'classroom_enrollments') return mockPagedTable(enrollments, { table, log })
       if (table === 'classroom_roster') return mockPagedTable([], { table, log })
       if (table === 'student_profiles') return mockPagedTable(profiles, { table, log })
-      if (table === 'log_summaries') return { upsert: vi.fn().mockResolvedValue({ error: null }) }
+      if (table === 'log_summaries') return { ...mockPagedTable([]), upsert: vi.fn().mockResolvedValue({ error: null }) }
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -723,7 +728,8 @@ describe('cron nightly-log-summaries route', () => {
       expect.objectContaining({
         classroomId: 'classroom-1',
         sourceEntryCount: 1071,
-      })
+      }),
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 5_000 })
     )
     const entryStudentChunks = log.inCalls
       .filter((call) => call.table === 'entries' && call.column === 'student_id')
@@ -740,7 +746,7 @@ describe('cron nightly-log-summaries route', () => {
     expect(log.rangeCalls).toContainEqual({ table: 'entries', from: 1000, to: 1999 })
   })
 
-  it('skips a classroom when student profile hydration fails', async () => {
+  it('reports retryable failure when student profile hydration fails', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const activeEntries = [{ id: 'active-entry', classroom_id: 'classroom-1' }]
@@ -782,8 +788,8 @@ describe('cron nightly-log-summaries route', () => {
       })
     )
 
-    expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 0, skipped: 1 })
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({ status: 'partial', generated: 0, skipped: 0, failed: 1, remaining: 1 }))
     expect(callOpenAIForSummary).not.toHaveBeenCalled()
     expect(errorSpy).toHaveBeenCalledWith('[pika-diagnostic]', expect.objectContaining({ event: 'journal.query', category: 'database' }))
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('PRIVATE-')
@@ -915,6 +921,7 @@ describe('cron nightly-log-summaries route', () => {
 
       if (table === 'log_summaries') {
         return {
+          ...mockPagedTable([]),
           upsert: vi.fn().mockResolvedValue({ error: null }),
         }
       }
@@ -961,7 +968,222 @@ describe('cron nightly-log-summaries route', () => {
             text: expect.not.stringContaining('Alice Brown'),
           },
         ],
-      })
+      }),
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 5_000 })
     )
+  })
+})
+
+
+// Stateful persistence models the existing unique classroom/date checkpoint.
+describe('nightly summary runtime and continuation', () => {
+  const summary = { overview: 'Students engaged well.', action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.', detail: 'Asks how to submit the project.' }] }
+  const request = () => new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries?date=2026-10-02', {
+    headers: { authorization: 'Bearer secret' },
+  })
+
+  function fixture(count: number, classroomIds?: string[]) {
+    const ids = classroomIds ?? Array.from({ length: count }, (_, i) => `classroom-${i + 1}`)
+    const saved = new Map<string, any>()
+    const entries = ids.map((classroom_id, i) => ({
+      id: `entry-${i}`, classroom_id, student_id: 'student-1', text: classroomIds ? `classroom-${i + 1}` : classroom_id,
+      date: '2026-10-02', rich_content: null, updated_at: '2026-10-02T12:00:00.000Z',
+    }))
+    const upsert = vi.fn(async (row: any) => {
+      saved.set(row.classroom_id, row)
+      return { error: null }
+    })
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      if (table === 'entries') return mockPagedTable(entries)
+      if (table === 'class_days') return mockPagedTable(ids.map((classroom_id) => ({ classroom_id, date: '2026-10-02', is_class_day: true })))
+      if (table === 'classrooms') return mockPagedTable(ids.map((id) => ({ id })))
+      if (table === 'classroom_enrollments') return mockPagedTable(ids.map((classroom_id) => ({ classroom_id, student_id: 'student-1' })))
+      if (table === 'student_profiles') return mockPagedTable([{ user_id: 'student-1', first_name: 'Alice', last_name: 'Brown' }])
+      if (table === 'classroom_roster') return mockPagedTable([])
+      if (table === 'log_summaries') return { ...mockPagedTable([...saved.values()]), upsert }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    return { saved, upsert, entries }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-03T12:00:00Z'))
+    vi.stubEnv('CRON_SECRET', 'secret')
+    vi.mocked(callOpenAIForSummary).mockReset().mockResolvedValue(summary)
+    vi.mocked(extractAndStoreDeveloperFeedbackCandidates).mockReset().mockResolvedValue({ inserted: 0, updated: 0, skipped: 0, tableMissing: false })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  it('bounds a hung provider, preserves other results, and retries only unfinished work', async () => {
+    const { saved, upsert } = fixture(6)
+    let hungSignal: AbortSignal | undefined
+    let resolveLate!: (result: typeof summary) => void
+    vi.mocked(callOpenAIForSummary).mockImplementation(async (_system, user, _sources, options) => {
+      if (JSON.parse(user).student_logs[0].text === 'classroom-1') {
+        hungSignal = options?.signal
+        return new Promise((resolve) => { resolveLate = resolve })
+      }
+      return summary
+    })
+    const pending = GET(request())
+    await vi.advanceTimersByTimeAsync(20_000)
+    const response = await pending
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ status: 'partial', generated: 5, skipped: 0, failed: 1, remaining: 1, date: '2026-10-02', pendingClassroomIds: ['classroom-1'] })
+    expect(hungSignal?.aborted).toBe(true)
+    expect(saved.size).toBe(5)
+    resolveLate(summary)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(saved.size).toBe(5)
+    expect(extractAndStoreDeveloperFeedbackCandidates).not.toHaveBeenCalled()
+    const persisted = saved.get('classroom-2')
+    vi.mocked(callOpenAIForSummary).mockResolvedValue(summary)
+    const retry = await GET(request())
+    expect(await retry.json()).toEqual({ status: 'ok', generated: 1, skipped: 5 })
+    expect(saved.get('classroom-2')).toBe(persisted)
+    expect(upsert).toHaveBeenCalledTimes(6)
+  })
+
+  it('regenerates a matching checkpoint when its policy or required detail is obsolete', async () => {
+    const { saved } = fixture(1)
+    await GET(request())
+    for (const policy of ['follow-ups-v1', 'follow-ups-v2', 'follow-ups-v3']) {
+      const row = saved.get('classroom-1')
+      row.summary_items.policy_version = policy
+      delete row.summary_items.action_items[0].detail
+      const response = await GET(request())
+      expect(await response.json()).toEqual({ status: 'ok', generated: 1, skipped: 0 })
+      expect(saved.get('classroom-1').summary_items.action_items[0].detail).toBe('Asks how to submit the project.')
+    }
+  })
+
+  it('stops before a later batch exceeds the job budget and resumes across multiple batches', async () => {
+    const { saved } = fixture(11)
+    vi.mocked(callOpenAIForSummary).mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(summary), 18_000)))
+    const pending = GET(request())
+    await vi.advanceTimersByTimeAsync(36_000)
+    const response = await pending
+    expect(await response.json()).toEqual({ status: 'partial', generated: 10, skipped: 0, failed: 0, remaining: 1, date: '2026-10-02', pendingClassroomIds: ['classroom-11'] })
+    expect(saved.size).toBe(10)
+    const retryPending = GET(request())
+    await vi.advanceTimersByTimeAsync(18_000)
+    const retry = await retryPending
+    expect(await retry.json()).toEqual({ status: 'ok', generated: 1, skipped: 10 })
+    expect(saved.size).toBe(11)
+  })
+
+  it('does not let hanging optional feedback block later summary batches', async () => {
+    const { saved } = fixture(6)
+    vi.mocked(extractAndStoreDeveloperFeedbackCandidates).mockImplementation(() => new Promise(() => {}))
+    const pending = GET(request())
+    await vi.advanceTimersByTimeAsync(10_000)
+    const response = await pending
+    expect(await response.json()).toEqual({ status: 'ok', generated: 6, skipped: 0 })
+    expect(saved.size).toBe(6)
+    expect(extractAndStoreDeveloperFeedbackCandidates).toHaveBeenCalledTimes(6)
+  })
+
+  it('bounds a stalled discovery query with the whole-job deadline', async () => {
+    const entries = mockPagedTable([])
+    entries.select = vi.fn(() => {
+      const query: any = { eq: () => query, is: () => query, lte: () => query, gte: () => query, order: () => query, range: () => new Promise(() => {}) }
+      return query
+    })
+    mockSupabaseClient.from = vi.fn(() => entries)
+    const pending = GET(request())
+    await vi.advanceTimersByTimeAsync(50_000)
+    const response = await pending
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ status: 'partial', generated: 0, skipped: 0, failed: 0, remaining: null, date: '2026-10-02', pendingClassroomIds: null })
+  })
+
+  it('allows targeted continuation past persistent failures in earlier batches', async () => {
+    const ids = Array.from({ length: 11 }, (_, i) => `a0000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`)
+    const { saved } = fixture(11, ids)
+    vi.mocked(callOpenAIForSummary).mockImplementation(async (_system, user) => {
+      if (['classroom-1', 'classroom-6'].includes(JSON.parse(user).student_logs[0].text)) return new Promise(() => {})
+      return summary
+    })
+    const pending = GET(request())
+    await vi.advanceTimersByTimeAsync(40_000)
+    const response = await pending
+    expect(response.status).toBe(503)
+    const body = await response.json()
+    expect(body.pendingClassroomIds).toEqual([ids[0], ids[5], ids[10]])
+    expect(saved.has(ids[10])).toBe(false)
+    const targeted = await GET(new NextRequest(`http://localhost:3000/api/cron/nightly-log-summaries?date=2026-10-02&classroomId=${ids[10].toUpperCase()}`, {
+      headers: { authorization: 'Bearer secret' },
+    }))
+    expect(await targeted.json()).toEqual({ status: 'ok', generated: 1, skipped: 0 })
+    expect(saved.has(ids[10])).toBe(true)
+    expect(saved.has(ids[0])).toBe(false)
+    expect(saved.has(ids[5])).toBe(false)
+  })
+
+  it('rejects an invalid classroom retry selector before discovery', async () => {
+    const response = await GET(new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries?date=2026-10-02&classroomId=not-a-uuid', {
+      headers: { authorization: 'Bearer secret' },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('skips optional work when discovery and summaries consume the available budget', async () => {
+    const { entries, saved } = fixture(5)
+    const originalFrom = mockSupabaseClient.from.getMockImplementation()!
+    let discovery = true
+    mockSupabaseClient.from.mockImplementation((table: string) => {
+      if (table !== 'entries' || !discovery) return originalFrom(table)
+      discovery = false
+      const result = mockPagedTable(entries)
+      const originalSelect = result.select.getMockImplementation()!
+      result.select.mockImplementation(() => {
+        const query = originalSelect()
+        query.range = vi.fn(() => new Promise((resolve) => setTimeout(() => resolve({ data: entries, error: null }), 28_000)))
+        return query
+      })
+      return result
+    })
+    vi.mocked(callOpenAIForSummary).mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(summary), 19_000)))
+    const pending = GET(request())
+    await vi.advanceTimersByTimeAsync(47_000)
+    const response = await pending
+    expect(await response.json()).toEqual({ status: 'ok', generated: 5, skipped: 0 })
+    expect(saved.size).toBe(5)
+    expect(extractAndStoreDeveloperFeedbackCandidates).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed persistence attempt as retryable rather than completed', async () => {
+    const { saved, upsert } = fixture(1)
+    upsert.mockResolvedValueOnce({ error: { code: '42501' } } as any)
+    const response = await GET(request())
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ status: 'partial', generated: 0, skipped: 0, failed: 1, remaining: 1, date: '2026-10-02', pendingClassroomIds: ['classroom-1'] })
+    expect(saved.size).toBe(0)
+    expect(extractAndStoreDeveloperFeedbackCandidates).not.toHaveBeenCalled()
+    expect(await (await GET(request())).json()).toEqual({ status: 'ok', generated: 1, skipped: 0 })
+  })
+
+  it('regenerates a changed input while retaining unchanged checkpoints', async () => {
+    const { saved, entries } = fixture(2)
+    await GET(request())
+    const previous = saved.get('classroom-2')
+    entries[0].text = 'Changed reflection'
+    const retry = await GET(request())
+    expect(await retry.json()).toEqual({ status: 'ok', generated: 1, skipped: 1 })
+    expect(saved.get('classroom-2')).toBe(previous)
+  })
+
+  it.each(['2026-02-30', '2026-10-03', 'invalid'])('rejects invalid or future retry date %s', async (date) => {
+    const response = await GET(new NextRequest(`http://localhost:3000/api/cron/nightly-log-summaries?date=${date}`, {
+      headers: { authorization: 'Bearer secret' },
+    }))
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 })

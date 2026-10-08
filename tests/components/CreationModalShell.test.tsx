@@ -44,6 +44,29 @@ describe('CreationModalShell', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('supports a headerless dialog with a close control inside its content', () => {
+    const onClose = vi.fn()
+
+    render(
+      <CreationModalShell
+        isOpen
+        title="Edit assignment"
+        titleId="edit-assignment-title"
+        closeLabel="Close assignment"
+        showCloseButton={false}
+        onClose={onClose}
+      >
+        <button onClick={onClose}>Close assignment</button>
+      </CreationModalShell>,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit assignment' })
+    expect(within(dialog).getByRole('heading', { name: 'Edit assignment' })).toHaveClass('sr-only')
+    expect(within(dialog).getAllByRole('button', { name: 'Close assignment' })).toHaveLength(1)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close assignment' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('keeps the tall layout footer outside scrolling content and restores keyboard focus', async () => {
     const user = userEvent.setup()
     function Example() {
@@ -87,6 +110,7 @@ describe('CreationModalShell', () => {
     await user.keyboard('{Escape}')
     await waitFor(() => expect(opener).toHaveFocus())
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(dialog).not.toBeInTheDocument() // Other creation callers retain immediate physical removal.
   })
 
   it('blocks close requests while closing is disabled', () => {

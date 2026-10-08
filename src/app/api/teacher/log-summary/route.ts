@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import {
   LOG_SUMMARY_POLICY_VERSION,
   restoreNames,
@@ -9,6 +8,9 @@ import {
 } from '@/lib/log-summary'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { authorizeTeacherDailyReadActor } from '@/lib/server/contextual-teacher-daily-read'
+import { readContextualTeacherLogSummary } from '@/lib/server/contextual-teacher-daily-summary'
+import { teacherLogSummaryCurrentItemsSchema, teacherLogSummaryQuerySchema } from '@/lib/validations/teacher-log-summary'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -18,8 +20,19 @@ export const revalidate = 0
  * Returns a cached nightly summary of all student logs for the given date.
  */
 export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest) => {
-  const user = await requireRole('teacher')
+  const { mode, user } = await authorizeTeacherDailyReadActor()
   const { searchParams } = new URL(request.url)
+  if (mode === 'contextual') {
+    const query = teacherLogSummaryQuerySchema.parse({
+      classroomId: searchParams.get('classroom_id'),
+      date: searchParams.get('date'),
+    })
+    const summary = await readContextualTeacherLogSummary({
+      supabase: getServiceRoleClient(), actorId: user.id,
+      classroomId: query.classroomId, date: query.date,
+    })
+    return NextResponse.json(summary)
+  }
   const classroomId = searchParams.get('classroom_id')
   const date = searchParams.get('date')
 
@@ -107,7 +120,11 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     return NextResponse.json({ summary: null, summary_status: 'unavailable' })
   }
 
-  const isNewFormat = hasCurrentPolicy && 'overview' in rawItems
+  const currentItems = teacherLogSummaryCurrentItemsSchema.safeParse(rawItems)
+  if (hasCurrentPolicy && !currentItems.success && 'overview' in rawItems) {
+    return NextResponse.json({ summary: null, summary_status: 'unavailable' })
+  }
+  const isNewFormat = hasCurrentPolicy && currentItems.success
   const isCacheContentFresh =
     cached &&
     isNewFormat &&
@@ -115,16 +132,8 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     (!maxUpdatedAt || !cached.entries_updated_at || cached.entries_updated_at >= maxUpdatedAt)
   const isCacheFresh = isCacheContentFresh
 
-  if (isCacheFresh) {
-    const rawSummary: RawSummaryResponse = {
-      overview: String(rawItems.overview || ''),
-      action_items: Array.isArray(rawItems.action_items)
-        ? rawItems.action_items.map((item: any) => ({
-            text: String(item.text || ''),
-            initials: String(item.initials || ''),
-          }))
-        : [],
-    }
+  if (isCacheFresh && currentItems.success) {
+    const rawSummary: RawSummaryResponse = currentItems.data
     const restored = restoreNames(
       rawSummary,
       cached.initials_map as Record<string, string>

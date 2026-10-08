@@ -66,12 +66,16 @@ function isStartOfBlock(line: string): boolean {
   if (!trimmed) return false
 
   return (
-    trimmed.startsWith('```') ||
+    Boolean(fenceMatch(line)) ||
     /^#{1,3}\s+/.test(trimmed) ||
     /^[-*]\s+/.test(trimmed) ||
     /^\d+\.\s+/.test(trimmed) ||
     /^>\s?/.test(trimmed)
   )
+}
+
+function fenceMatch(line: string): RegExpMatchArray | null {
+  return line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/)
 }
 
 export function parseLimitedMarkdownBlocks(rawContent: string): MarkdownBlock[] {
@@ -96,16 +100,19 @@ export function parseLimitedMarkdownBlocks(rawContent: string): MarkdownBlock[] 
       continue
     }
 
-    if (trimmed.startsWith('```')) {
+    const openingFence = fenceMatch(line)
+    if (openingFence) {
       index += 1
       const codeLines: string[] = []
-      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+      while (index < lines.length) {
+        const closingFence = fenceMatch(lines[index])
+        if (closingFence?.[1]?.[0] === openingFence[1][0]
+          && closingFence[1].length >= openingFence[1].length
+          && !closingFence[2].trim()) break
         codeLines.push(lines[index])
         index += 1
       }
-      if (index < lines.length && lines[index].trim().startsWith('```')) {
-        index += 1
-      }
+      if (index < lines.length) index += 1
       blocks.push({ type: 'code', code: codeLines.join('\n') })
       continue
     }

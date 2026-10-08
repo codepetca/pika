@@ -150,9 +150,9 @@ describe('classroom data inventory', () => {
     expect(GRADEX_RESOURCE_TABLES).not.toContain('classroom_creation_operations')
   })
 
-  it('is a valid, complete 44-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(44)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(44)
+  it('is a valid, complete 45-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(45)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(45)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'assignments')?.restore_after)
       .toContain('gradebook_categories')
@@ -371,8 +371,8 @@ describe('classroom data inventory', () => {
 
 describe('classroom artifact contracts', () => {
   it('keeps reusable blueprints explicitly non-recoverable and student-free', () => {
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('5')
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3', '4', '5'])
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('6')
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3', '4', '5', '6'])
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.recoverable_classroom_backup).toBe(false)
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('student_work')
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('grades_and_feedback')
@@ -397,7 +397,7 @@ describe('classroom artifact contracts', () => {
     expect(classroomArchiveManifestSchema.safeParse(validArchiveManifest()).success).toBe(true)
 
     const missingResource = validArchiveManifest()
-    missingResource.resources.pop()
+    missingResource.resources.shift()
     expect(classroomArchiveManifestSchema.safeParse(missingResource).success).toBe(false)
 
     const duplicateResource = validArchiveManifest()

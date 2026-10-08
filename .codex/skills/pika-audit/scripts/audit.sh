@@ -162,7 +162,8 @@ has_relevant_test_for_composite_file() {
 
     if [[ -f "$test_full" ]]; then
       test_match_source="$(strip_block_comments < "$test_full")"
-      if printf '%s\n' "$test_match_source" | grep -Eq "^[[:space:]]*(import|export)[^'\"]*from[[:space:]]*['\"]${source_alias_regex}['\"]|^[[:space:]]*import[[:space:]]*['\"]${source_alias_regex}['\"]|^[[:space:]]*((const|let|var)[[:space:]]+[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*=[[:space:]]*)?(await[[:space:]]+)?import[[:space:]]*\\([[:space:]]*['\"]${source_alias_regex}['\"]"; then
+      # Consume the whole suite: an early grep exit can SIGPIPE printf under pipefail.
+      if printf '%s\n' "$test_match_source" | grep -E "^[[:space:]]*(import|export)[^'\"]*from[[:space:]]*['\"]${source_alias_regex}['\"]|^[[:space:]]*import[[:space:]]*['\"]${source_alias_regex}['\"]|^[[:space:]]*((const|let|var)[[:space:]]+[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*=[[:space:]]*)?(await[[:space:]]+)?import[[:space:]]*\\([[:space:]]*['\"]${source_alias_regex}['\"]" > /dev/null; then
         return 0
       fi
     fi

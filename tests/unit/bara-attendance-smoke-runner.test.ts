@@ -148,7 +148,7 @@ describe('deployed Bara attendance smoke runner', () => {
     expect(result.stderr).toBe('')
     expect(JSON.parse(result.stdout)).toEqual({
       status: 'skipped',
-      reason: 'production_only_no_staging_database',
+      reason: 'production_only',
       rolloutGateSatisfied: false,
     })
   })

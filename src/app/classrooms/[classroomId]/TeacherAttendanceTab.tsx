@@ -9,13 +9,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
 } from 'react'
 import {
   ClipboardCopy,
   Clock3,
-  GripHorizontal,
   MoreVertical,
   QrCode as QrCodeIcon,
   RotateCcw,
@@ -102,11 +99,6 @@ const COLUMN_LIMITS: Record<ResizableColumn, { defaultWidth: number; min: number
   checkIn: { defaultWidth: 92, min: 76, max: 140 },
 }
 
-const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
-const SUMMARY_PANEL_COLLAPSED_HEIGHT = 40
-const SUMMARY_PANEL_MIN_HEIGHT = 140
-const SUMMARY_PANEL_MAX_HEIGHT = 420
-const SUMMARY_PANEL_KEYBOARD_STEP = 32
 const getAttendanceStudentRowId = (studentId: string) => `attendance-student-row-${studentId}`
 
 function manualAttendanceTimeDate(time: string) {
@@ -120,18 +112,6 @@ function formatManualAttendanceRange(startsAt: string, endsAt: string) {
   return format(start, 'a') === format(end, 'a')
     ? `${format(start, 'h:mm')} - ${format(end, 'h:mm a')}`
     : `${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`
-}
-
-function getSummaryPanelMaxHeight() {
-  if (typeof window === 'undefined') return SUMMARY_PANEL_MAX_HEIGHT
-  return Math.max(
-    SUMMARY_PANEL_MIN_HEIGHT,
-    Math.min(SUMMARY_PANEL_MAX_HEIGHT, Math.floor(window.innerHeight * 0.48))
-  )
-}
-
-function clampSummaryPanelHeight(height: number) {
-  return Math.min(getSummaryPanelMaxHeight(), Math.max(SUMMARY_PANEL_MIN_HEIGHT, Math.round(height)))
 }
 
 interface LogRow {
@@ -181,6 +161,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [logsRequestVersion, setLogsRequestVersion] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [summaryHighlightedStudentId, setSummaryHighlightedStudentId] = useState<string | null>(null)
   const [showIdColumn, setShowIdColumn] = useState(true)
   const [showRelativeDate, setShowRelativeDate] = useState(true)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -194,8 +175,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const currentClassroomIdRef = useRef(classroom.id)
   const currentSelectedDateRef = useRef('')
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
-  const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
-  const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
+  const selectedStudentIdRef = useRef<string | null>(null)
+  selectedStudentIdRef.current = selectedStudentId
   const [summaryReadyScopeKey, setSummaryReadyScopeKey] = useState<string | null>(null)
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false)
   const [isManualTimeDialogOpen, setIsManualTimeDialogOpen] = useState(false)
@@ -346,6 +327,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     }
   }, [selectedDate, onDateChange])
 
+  // Selection belongs to a classroom/date, not to a refresh of that snapshot.
+  useLayoutEffect(() => {
+    setSelectedStudentId(null)
+    setSummaryHighlightedStudentId(null)
+    selectedStudentIdRef.current = null
+    onSelectEntryRef.current?.(null, '', null)
+  }, [classroom.id, selectedDate])
+
   // Fetch logs when date changes
   useEffect(() => {
     async function loadLogs() {
@@ -389,9 +378,18 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         setLogs(mappedLogs)
         setLogsError(null)
 
-        // Clear selection when date changes so summary is visible
-        setSelectedStudentId(null)
-        onSelectEntryRef.current?.(null, '', null)
+        const selectedId = selectedStudentIdRef.current
+        if (selectedId) {
+          const selectedLog = mappedLogs.find((log: LogRow) => log.student_id === selectedId)
+          if (selectedLog) {
+            const name = [selectedLog.student_first_name, selectedLog.student_last_name]
+              .filter(Boolean).join(' ') || selectedLog.email_username
+            onSelectEntryRef.current?.(selectedLog.entry, name, selectedId)
+          } else {
+            setSelectedStudentId(null)
+            onSelectEntryRef.current?.(null, '', null)
+          }
+        }
         hasLoadedOnceRef.current = true
       } catch (err) {
         if (!isCurrentLogsRequest(requestId, classroomId, date)) return
@@ -440,14 +438,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       }),
       hasManualOverride: Boolean(override),
       checkedInAt: null,
-      pending: manualAttendance.activeCommand === 'marks',
+      pending: manualAttendance.pendingStudentIds.has(row.student_id),
     }] as const
   })), [
     attendance.pendingStudentIds,
     attendance.studentsById,
     attendanceEnabled,
     logs,
-    manualAttendance.activeCommand,
+    manualAttendance.pendingStudentIds,
     manualAttendanceEnabled,
     manualAttendance.overridesByStudentId,
     manualAttendance.settings.sourceMode,
@@ -460,6 +458,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const attendanceCommandActive = attendanceEnabled
     ? Boolean(attendance.activeCommand)
     : Boolean(manualAttendance.activeCommand)
+
+  const manualSettingsPending = Boolean(manualAttendance.activeCommand)
+    || manualAttendance.pendingStudentIds.size > 0
+  const attendanceSettingsPending = attendanceEnabled ? attendanceCommandActive : manualSettingsPending
 
   const submitAttendanceMarks = useCallback((
     studentIds: string[],
@@ -550,6 +552,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   function handleRowClick(row: LogRow) {
+    setSummaryHighlightedStudentId(null)
     preserveStudentTableScrollPosition()
     const newSelectedId = selectedStudentId === row.student_id ? null : row.student_id
     setSelectedStudentId(newSelectedId)
@@ -565,8 +568,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const handleDeselect = useCallback(() => {
     pendingKeyboardFocusStudentIdRef.current = null
     preserveStudentTableScrollPosition()
+    setSummaryHighlightedStudentId(null)
     setSelectedStudentId(null)
-    onSelectEntry?.(null, '', null)
+    if (selectedStudentIdRef.current) onSelectEntry?.(null, '', null)
   }, [onSelectEntry, preserveStudentTableScrollPosition])
 
   const handleKeyboardDeselect = useCallback(() => {
@@ -575,21 +579,23 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }, [handleDeselect])
 
   useEffect(() => {
-    if (!selectedStudentId || !isActive) return
+    if ((!selectedStudentId && !summaryHighlightedStudentId) || !isActive) return
 
     function handleEscapeKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (document.querySelector('[role="menu"]')) return
+      const hasOpenMenu = Array.from(document.querySelectorAll('[role="menu"]'))
+        .some((menu) => !menu.closest('[hidden], [inert], [aria-hidden="true"]'))
+      if (hasOpenMenu) return
       event.preventDefault()
       handleKeyboardDeselect()
     }
 
     window.addEventListener('keydown', handleEscapeKey)
     return () => window.removeEventListener('keydown', handleEscapeKey)
-  }, [handleKeyboardDeselect, isActive, selectedStudentId])
+  }, [handleKeyboardDeselect, isActive, selectedStudentId, summaryHighlightedStudentId])
 
   useEffect(() => {
-    if (!selectedStudentId || !isActive) return
+    if ((!selectedStudentId && !summaryHighlightedStudentId) || !isActive) return
 
     function handlePointerDown(event: PointerEvent) {
       const selectedWorkspace = selectedWorkspaceRef.current
@@ -600,10 +606,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     window.addEventListener('pointerdown', handlePointerDown)
     return () => window.removeEventListener('pointerdown', handlePointerDown)
-  }, [handleDeselect, isActive, selectedStudentId])
+  }, [handleDeselect, isActive, selectedStudentId, summaryHighlightedStudentId])
 
   const selectStudentByRow = useCallback(
     (row: LogRow) => {
+      setSummaryHighlightedStudentId(null)
       preserveStudentTableScrollPosition()
       setSelectedStudentId(row.student_id)
       const studentName =
@@ -628,6 +635,28 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     },
     [logs, selectStudentByRow]
   )
+
+  const jumpToSummaryStudent = useCallback((name: string) => {
+    const row = logs.find((logRow) =>
+      [logRow.student_first_name, logRow.student_last_name].filter(Boolean).join(' ') === name
+    )
+    if (!row) return
+    const rowElement = Array.from(
+      studentTableNavigationRef.current?.querySelectorAll<HTMLTableRowElement>('tr[id]') ?? []
+    ).find((element) => element.id === getAttendanceStudentRowId(row.student_id))
+    if (!rowElement) return
+
+    setSummaryHighlightedStudentId(row.student_id)
+    rowElement.focus({ preventScroll: true })
+    rowElement.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
+    preserveStudentTableScrollPosition()
+  }, [logs, preserveStudentTableScrollPosition])
+
+  useEffect(() => {
+    if (summaryHighlightedStudentId && !rows.some((row) => row.student_id === summaryHighlightedStudentId)) {
+      setSummaryHighlightedStudentId(null)
+    }
+  }, [rows, summaryHighlightedStudentId])
 
   // Keyboard navigation handler
   const handleKeyboardSelect = useCallback(
@@ -665,13 +694,17 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       studentTableNavigationRef.current?.focus()
       pendingKeyboardTableFocusRef.current = false
     }
-  }, [selectedStudentId])
+  }, [selectedStudentId, summaryHighlightedStudentId])
   const selectedStudentName = selectedRow
     ? [selectedRow.student_first_name, selectedRow.student_last_name].filter(Boolean).join(' ') ||
       selectedRow.email_username
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
   const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
+  const summaryFirstNames = useMemo(() => Object.fromEntries(logs.map((row) => [
+    [row.student_first_name, row.student_last_name].filter(Boolean).join(' '),
+    row.student_first_name ?? '',
+  ])), [logs])
   const summaryScopeKey = `${classroom.id}:${selectedDate}`
   const summaryPanelVisible = Boolean(selectedDate && summaryReadyScopeKey === summaryScopeKey)
 
@@ -685,82 +718,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       return currentScopeKey === summaryScopeKey ? null : currentScopeKey
     })
   }, [summaryScopeKey])
-
-  const handleSummaryPanelDoubleClick = useCallback(() => {
-    setSummaryPanelCollapsed((collapsed) => {
-      if (collapsed) {
-        setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT)
-      }
-      return !collapsed
-    })
-  }, [])
-
-  const handleSummaryResizeStart = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      event.preventDefault()
-
-      const startY = event.clientY
-      const collapsedAtStart = summaryPanelCollapsed
-      const startHeight = collapsedAtStart ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight
-      const previousCursor = document.body.style.cursor
-      const previousUserSelect = document.body.style.userSelect
-      document.body.style.cursor = 'ns-resize'
-      document.body.style.userSelect = 'none'
-
-      const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-        if (collapsedAtStart && moveEvent.clientY >= startY) return
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(clampSummaryPanelHeight(startHeight + startY - moveEvent.clientY))
-      }
-
-      const handleResizeEnd = () => {
-        document.body.style.cursor = previousCursor
-        document.body.style.userSelect = previousUserSelect
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handleResizeEnd)
-        window.removeEventListener('pointercancel', handleResizeEnd)
-        window.removeEventListener('blur', handleResizeEnd)
-      }
-
-      window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', handleResizeEnd)
-      window.addEventListener('pointercancel', handleResizeEnd)
-      window.addEventListener('blur', handleResizeEnd)
-    },
-    [summaryPanelCollapsed, summaryPanelHeight],
-  )
-
-  const handleSummaryResizeKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight((height) =>
-          clampSummaryPanelHeight(
-            (summaryPanelCollapsed ? SUMMARY_PANEL_MIN_HEIGHT : height) + SUMMARY_PANEL_KEYBOARD_STEP
-          )
-        )
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        if (!summaryPanelCollapsed) {
-          setSummaryPanelHeight((height) => clampSummaryPanelHeight(height - SUMMARY_PANEL_KEYBOARD_STEP))
-        }
-      } else if (event.key === 'Home') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(SUMMARY_PANEL_MIN_HEIGHT)
-      } else if (event.key === 'End') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(getSummaryPanelMaxHeight())
-      } else if (event.key === 'Enter') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT)
-      }
-    },
-    [summaryPanelCollapsed],
-  )
 
   const openTimeEditor = () => {
     if (attendanceEnabled) {
@@ -788,7 +745,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       id: 'edit-attendance-time',
       label: 'Edit time',
       icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
-      disabled: attendanceCommandActive || Boolean(classroom.archived_at),
+      disabled: attendanceSettingsPending || Boolean(classroom.archived_at),
       onSelect: openTimeEditor,
     }] : []),
     ...(manualAttendanceEnabled ? [
@@ -799,7 +756,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         checked: manualAttendance.settings.sourceMode === 'log',
         checkedRole: 'menuitemcheckbox' as const,
         dividerBefore: true,
-        disabled: attendanceCommandActive || Boolean(classroom.archived_at),
+        disabled: attendanceSettingsPending || Boolean(classroom.archived_at),
         onSelect: () => void manualAttendance.saveSettings({
           sourceMode: manualAttendance.settings.sourceMode === 'log' ? 'manual' : 'log',
         }),
@@ -891,7 +848,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   ? `Attendance hours, ${qrTimeLabel.replace(' - ', ' to ')}`
                   : hoursActionLabel
                 : `${manualTimeLabel ? 'Edit' : 'Set'} attendance time, manual attendance${manualTimeLabel ? `, ${manualTimeLabel}` : ''}`}
-              disabled={attendanceCommandActive || Boolean(classroom.archived_at)}
+              disabled={attendanceSettingsPending || Boolean(classroom.archived_at)}
               onClick={openTimeEditor}
               className={cn(
                 'min-h-control rounded-none border-0 px-2 text-xs font-medium sm:px-3 sm:text-sm',
@@ -933,7 +890,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         ref={studentTableNavigationRef}
         ariaLabel="Attendance students"
         rowKeys={rowKeys}
-        selectedKey={selectedStudentId}
+        selectedKey={selectedStudentId ?? summaryHighlightedStudentId}
         onSelectKey={handleKeyboardSelect}
         onDeselect={handleKeyboardDeselect}
         getRowId={getAttendanceStudentRowId}
@@ -1053,7 +1010,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       count={attendanceStatusCounts[status]}
                       active={sortColumn === 'attendance_status' && sortStatus === status}
                       tooltipContent={`${attendanceStatusCounts[status]} ${status === 'absent' ? 'Absent' : status[0].toUpperCase() + status.slice(1)}`}
-                      showSortIndicator
                       onClick={() => handleAttendanceStatusSort(status)}
                     />
                   </DataTableHeaderCell>
@@ -1069,11 +1025,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </DataTableHead>
             <DataTableBody>
               {rows.map((row) => {
-                const isSelected = selectedStudentId === row.student_id
+                const isSelected = (selectedStudentId ?? summaryHighlightedStudentId) === row.student_id
                 const attendanceStudent = attendanceRowsById.get(row.student_id)
                 const attendancePending = attendanceStudent?.pending ?? false
                 const attendanceEditable = Boolean(
-                  attendanceStudent && canMarkAttendance && !attendancePending && !attendanceCommandActive
+                  attendanceStudent && canMarkAttendance && !attendanceCommandActive
+                  && (!attendanceEnabled || !attendance.blockedStudentIds.has(row.student_id))
                 )
                 const hasLog = Boolean(row.entry && entryHasContent(row.entry))
                 const logText = hasLog ? row.entry?.text || '' : ''
@@ -1254,121 +1211,84 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       )}
     />
   ) : (
-    selectedRow ? (
-      <div
-        ref={selectedWorkspaceRef}
-        className="daily-workspace-enter flex min-h-0 flex-1"
-        data-testid="daily-selected-student-workspace"
-      >
-        <TeacherWorkspaceSplit
-          className="flex-1"
-          splitVariant="gapped"
-          primaryClassName="min-h-[200px] rounded-lg bg-surface"
-          inspectorClassName="daily-inspector-enter flex flex-col rounded-lg bg-surface"
-          inspectorCollapsed={false}
-          inspectorWidth={detailPaneWidth}
-          minInspectorPx={280}
-          minPrimaryPx={320}
-          minInspectorPercent={28}
-          maxInspectorPercent={72}
-          defaultInspectorWidth={50}
-          onInspectorWidthChange={setDetailPaneWidth}
-          dividerLabel="Resize Daily panes"
-          primary={
-            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      ref={selectedWorkspaceRef}
+      className="flex min-h-0 flex-1"
+      data-testid={selectedRow ? 'daily-selected-student-workspace' : undefined}
+    >
+      <TeacherWorkspaceSplit
+        className="min-w-0 flex-1"
+        splitVariant="gapped"
+        animateInspector
+        primaryClassName="min-h-0"
+        inspectorClassName="flex flex-col rounded-lg bg-surface"
+        inspectorCollapsed={!selectedRow}
+        inspectorWidth={detailPaneWidth}
+        minInspectorPx={280}
+        minPrimaryPx={320}
+        minInspectorPercent={28}
+        maxInspectorPercent={72}
+        defaultInspectorWidth={50}
+        onInspectorWidthChange={setDetailPaneWidth}
+        dividerLabel="Resize Daily panes"
+        primary={(
+          <div className={cn(
+            'flex h-full min-h-0 flex-col overflow-hidden transition-[gap] duration-standard ease-standard motion-reduce:transition-none',
+            selectedRow ? 'gap-0' : 'gap-3',
+          )}>
+            {/* The table remains the same scroll/focus owner in both layouts. */}
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
             <div
               ref={studentTableScrollRef}
-              className="h-full min-h-0 overflow-auto"
+              className="relative min-h-[180px] flex-1 overflow-auto overscroll-y-contain rounded-lg bg-surface"
               data-testid="daily-student-scroll-pane"
               onScroll={preserveStudentTableScrollPosition}
-              onClick={(e) => {
-                // Deselect when clicking outside the table
-                if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
+              onClick={(event) => {
+                if ((selectedStudentId || summaryHighlightedStudentId) && (event.target as HTMLElement).closest('table') === null) {
                   handleDeselect()
                 }
               }}
             >
-              {renderStudentTable(false)}
+              {renderStudentTable(!selectedRow)}
             </div>
-          }
-          inspector={
-            <>
-              <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
-                <span className="truncate text-sm font-semibold text-text-default">
-                  {selectedStudentName}
-                </span>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {detailPane}
-              </div>
-            </>
-          }
-        />
-      </div>
-    ) : (
-      <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div
-          ref={studentTableScrollRef}
-          className="min-h-[180px] flex-1 overflow-auto rounded-lg bg-surface"
-          data-testid="daily-student-scroll-pane"
-          onScroll={preserveStudentTableScrollPosition}
-        >
-          {renderStudentTable(true)}
-        </div>
-        {selectedDate && (
-          <section
-            role="region"
-            aria-label="Class Log Summary"
-            data-state={summaryPanelCollapsed ? 'collapsed' : 'expanded'}
-            hidden={!summaryPanelVisible}
-            className={cn(
-              summaryPanelCollapsed
-                ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-surface'
-                : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface',
-              !summaryPanelVisible && '!hidden',
+            {selectedDate && (
+              <section
+                role="region"
+                aria-label="Class Log Summary"
+                hidden={!summaryPanelVisible || !!selectedRow}
+                aria-hidden={!!selectedRow || undefined}
+                ref={(element) => { element?.toggleAttribute('inert', Boolean(selectedRow)) }}
+                className={cn(
+                  'min-h-0 shrink-0 overflow-hidden rounded-lg bg-surface',
+                  (!summaryPanelVisible || !!selectedRow) && '!hidden',
+                )}
+              >
+                <LogSummary
+                  key={summaryScopeKey}
+                  classroomId={classroom.id}
+                  date={selectedDate}
+                  firstNames={summaryFirstNames}
+                  onStudentClick={jumpToSummaryStudent}
+                  onAvailabilityChange={handleSummaryAvailabilityChange}
+                />
+              </section>
             )}
-            style={{ height: `${summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}px` }}
-            onDoubleClick={handleSummaryPanelDoubleClick}
-          >
-            <div
-              role="separator"
-              aria-label="Resize class log summary"
-              aria-orientation="horizontal"
-              aria-valuemin={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : SUMMARY_PANEL_MIN_HEIGHT}
-              aria-valuemax={SUMMARY_PANEL_MAX_HEIGHT}
-              aria-valuenow={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}
-              tabIndex={0}
-              className={
-                summaryPanelCollapsed
-                  ? 'flex h-10 shrink-0 cursor-ns-resize items-center justify-center gap-2 px-3 text-sm font-semibold text-text-default outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg'
-                  : 'flex h-5 shrink-0 cursor-ns-resize items-center justify-center text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default'
-              }
-              onPointerDown={handleSummaryResizeStart}
-              onKeyDown={handleSummaryResizeKeyDown}
-            >
-              <GripHorizontal className="h-4 w-4" aria-hidden="true" />
-              {summaryPanelCollapsed ? <span>Log Summary</span> : null}
-            </div>
-            {!summaryPanelCollapsed && (
-              <div className="flex items-center px-3 pt-3">
-                <h3 className="truncate text-sm font-semibold text-text-default">
-                  Class Log Summary
-                </h3>
-              </div>
-            )}
-            <div hidden={summaryPanelCollapsed} className="min-h-0 flex-1 overflow-y-auto">
-              <LogSummary
-                key={summaryScopeKey}
-                classroomId={classroom.id}
-                date={selectedDate}
-                onStudentClick={selectStudentByName}
-                onAvailabilityChange={handleSummaryAvailabilityChange}
-              />
-            </div>
-          </section>
+          </div>
         )}
-      </div>
-    )
+        inspector={(
+          <>
+            <div className="flex min-h-10 items-center px-3 py-2">
+              <span className="truncate text-sm font-semibold text-text-default">
+                {selectedStudentName}
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {selectedRow ? detailPane : null}
+            </div>
+          </>
+        )}
+      />
+    </div>
   )
 
   const attendanceWarning = (manualAttendanceEnabled && manualAttendance.error) ? (
@@ -1574,7 +1494,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault()
-            if (manualTimeValidationError) return
+            if (manualSettingsPending || manualTimeValidationError) return
             void manualAttendance.saveSettings({
               sessionStartsLocal: manualDraftStartsAt,
               sessionEndsLocal: manualDraftEndsAt,
@@ -1586,7 +1506,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <Input
                 type="time"
                 value={manualDraftStartsAt}
-                disabled={manualAttendance.activeCommand === 'settings'}
+                disabled={manualSettingsPending}
                 onChange={(event) => setManualDraftStartsAt(event.target.value)}
               />
             </FormField>
@@ -1594,7 +1514,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <Input
                 type="time"
                 value={manualDraftEndsAt}
-                disabled={manualAttendance.activeCommand === 'settings'}
+                disabled={manualSettingsPending}
                 onChange={(event) => setManualDraftEndsAt(event.target.value)}
               />
             </FormField>
@@ -1605,7 +1525,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               variant="ghost"
               size="sm"
               className="w-full sm:w-auto"
-              disabled={manualAttendance.activeCommand === 'settings'}
+              disabled={manualSettingsPending}
               onClick={() => {
                 void manualAttendance.saveSettings({
                   sessionStartsLocal: null,
@@ -1630,7 +1550,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               size="sm"
               className="w-full sm:w-auto"
               loading={manualAttendance.activeCommand === 'settings'}
-              disabled={Boolean(manualTimeValidationError)}
+              disabled={manualSettingsPending || Boolean(manualTimeValidationError)}
             >
               Save time
             </Button>

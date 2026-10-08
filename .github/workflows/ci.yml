@@ -5,6 +5,15 @@ on:
     branches: [main, production]
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   workflow_dispatch:
+    inputs:
+      runner:
+        description: Compute location for a full diagnostic run
+        type: choice
+        options: [auto, hosted, self-hosted]
+        default: auto
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -18,6 +27,7 @@ jobs:
       (github.event.pull_request.draft == false && github.event.action == 'ready_for_review')
     runs-on: ubuntu-latest
     outputs:
+      heavy_runner: ${{ steps.runner.outputs.heavy_runner }}
       mode: ${{ steps.classify.outputs.mode }}
       docs_only: ${{ steps.classify.outputs.docs_only }}
       run_test_build: ${{ steps.classify.outputs.run_test_build }}
@@ -34,6 +44,16 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
+
+      - name: Select heavy CI runner
+        id: runner
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_REPOSITORY: ${{ github.repository }}
+          CI_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          CI_SELF_HOSTED_ENABLED: ${{ vars.PIKA_SELF_HOSTED_CI }}
+          CI_REQUESTED_RUNNER: ${{ inputs.runner }}
+        run: node scripts/ci-runner-policy.mjs
 
       - name: Select risk-matched checks
         id: classify
@@ -67,7 +87,8 @@ jobs:
     name: Architecture Database Contracts
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
@@ -121,7 +142,12 @@ jobs:
       - name: Verify managed-storage migration lineage
         run: pnpm run check:managed-storage-lineage
 
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane database
+
       - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
       - name: Rehearse the production-shaped Test identity migration
@@ -133,8 +159,23 @@ jobs:
       - name: Verify classroom creation entitlements and active-limit concurrency
         run: bash scripts/check-classroom-creation-entitlements-database.sh
 
+      - name: Verify account plans and isolated Stripe billing contracts
+        run: |
+          bash scripts/check-account-plan-foundation-database.sh
+          bash scripts/check-stripe-billing-foundation-database.sh
+          bash scripts/check-stripe-checkout-database.sh
+          bash scripts/check-subscription-lifecycle-database.sh
+          bash scripts/check-subscription-renewal-closeout-database.sh
+          bash scripts/check-subscription-prorated-upgrades-database.sh
+
+      - name: Verify dormant classroom Test quotas and retained-work protection
+        run: bash scripts/check-classroom-test-tier-caps-database.sh
+
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
+
+      - name: Verify Gradebook maximum override calculations and ownership
+        run: bash scripts/check-gradebook-maximum-overrides-database.sh
 
       - name: Standalone Gradebook item database contracts
         run: bash scripts/check-standalone-gradebook-items-database.sh
@@ -154,6 +195,43 @@ jobs:
       - name: Explicit live membership purge and fresh rejoin contracts
         run: bash scripts/check-live-student-cleanup-database.sh
 
+      - name: Automatic removed-student cleanup queue contracts
+        run: bash scripts/check-automatic-removed-student-cleanup-database.sh
+
+      - name: Automatic cleanup gate serialization contracts
+        run: bash scripts/check-automatic-removed-student-cleanup-concurrency.sh
+
+      - name: Verify retained roster group consumer rollback contracts
+        run: |
+          bash scripts/check-retained-roster-group-cleanup-database.sh
+          set +e
+          group_cleanup_output=$(bash scripts/check-retained-roster-group-cleanup-database.sh --force-failure 2>&1)
+          group_cleanup_status=$?
+          set -e
+          if ! [[ "$group_cleanup_status" -eq 1 ]] \
+            || ! grep -Fxq 'FAIL forced retained roster group cleanup wrapper failure.' <<< "$group_cleanup_output" \
+            || ! grep -Fxq 'PASS retained roster group cleanup exact teardown.' <<< "$group_cleanup_output"; then
+            echo 'FAIL unexpected retained group forced teardown proof.'
+            exit 1
+          fi
+          echo 'PASS exact retained group intentional post-teardown failure.'
+
+      - name: Verify retained cleanup two-session locks and installed SDK ACL
+        run: |
+          pnpm exec tsx scripts/check-retained-roster-group-locks-database.ts
+          pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts
+          set +e
+          group_sdk_output=$(pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts --force-failure 2>&1)
+          group_sdk_status=$?
+          set -e
+          if ! [[ "$group_sdk_status" -eq 1 ]] \
+            || ! grep -Fxq 'FAIL forced retained cleanup SDK proof.' <<< "$group_sdk_output" \
+            || ! grep -Fxq 'PASS retained cleanup SDK unchanged local baseline.' <<< "$group_sdk_output"; then
+            echo 'FAIL unexpected retained SDK forced baseline proof.'
+            exit 1
+          fi
+          echo 'PASS exact retained SDK intentional failure and unchanged baseline.'
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 
@@ -172,6 +250,12 @@ jobs:
       - name: Verify Course Guide import shared lease and rate window
         run: bash scripts/check-course-guide-import-rate-limit-database.sh
 
+      - name: Verify Blueprint draft admission and rolling quota
+        run: bash scripts/check-course-blueprint-draft-admission-database.sh
+
+      - name: Verify classroom guided draft provenance and atomic creation
+        run: bash scripts/check-classroom-guided-draft-provenance-database.sh
+
       - name: Verify Bara attendance tenancy, ordering, and deletion guards
         run: pnpm run check:bara-attendance-db
 
@@ -184,6 +268,12 @@ jobs:
       - name: Verify atomic assignment feedback returns
         run: bash scripts/check-atomic-assignment-feedback-returns.sh
 
+      - name: Verify Assignment AI grading lease fencing
+        run: bash scripts/check-assignment-ai-grading-lease-fencing.sh
+
+      - name: Verify metered Assignment AI grading
+        run: bash scripts/check-metered-assignment-ai-grading.sh
+
       - name: Verify Gradebook category contracts
         run: bash scripts/check-gradebook-categories-database.sh
 
@@ -191,7 +281,32 @@ jobs:
         run: bash scripts/check-contextual-calendar-database.sh
 
       - name: Verify contextual calendar concurrent writers
-        run: node scripts/check-contextual-calendar-concurrency.mjs
+        shell: bash
+        run: |
+          node scripts/check-contextual-calendar-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-calendar-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'FAIL Forced calendar concurrency post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic calendar concurrency cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
+      - name: Verify contextual calendar owner SDK and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-class-day-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-class-day-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'FAIL Forced calendar post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic calendar owner-write cleanup, zero residual rows and global baseline counts' "$cleanup_log"
 
       - name: Verify contextual enrollment atomicity and privileges
         run: bash scripts/check-contextual-enrollment-database.sh
@@ -199,11 +314,686 @@ jobs:
       - name: Verify contextual enrollment concurrent writers and guess limits
         run: node scripts/check-contextual-enrollment-concurrency.mjs
 
+      - name: Verify isolated contextual Assignment list pagination and revocations
+        shell: bash
+        run: |
+          assignment_list_head=$(git rev-parse HEAD)
+          assignment_list_log=$(mktemp)
+          trap 'rm -f -- "$assignment_list_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-assignment-list-lifecycle.ts --reviewed-head "$assignment_list_head" --mode normal
+          for assignment_list_mode in after-fixture before-capture; do
+            assignment_list_status=0
+            pnpm exec tsx scripts/check-contextual-assignment-list-lifecycle.ts --reviewed-head "$assignment_list_head" --mode "$assignment_list_mode" > "$assignment_list_log" 2>&1 || assignment_list_status=$?
+            [[ "$assignment_list_status" -eq 1 ]] || exit 1
+            grep -Fx "FAIL forced isolated assignment-list lifecycle: ${assignment_list_mode}." "$assignment_list_log"
+            grep -Fx 'PASS isolated assignment-list exact teardown and unchanged canonical baseline.' "$assignment_list_log"
+          done
+
+      - name: Verify isolated contextual Assignment overview reads
+        shell: bash
+        run: |
+          assignment_overview_head=$(git rev-parse HEAD)
+          pnpm exec tsx scripts/check-contextual-assignment-overview-lifecycle.ts --reviewed-head "$assignment_overview_head" --mode normal
+
+      - name: Verify isolated contextual Assignment student-detail reads
+        shell: bash
+        run: |
+          assignment_student_detail_head=$(git rev-parse HEAD)
+          pnpm exec tsx scripts/check-contextual-assignment-student-detail-lifecycle.ts --reviewed-head "$assignment_student_detail_head" --mode normal
+
+      - name: Verify isolated contextual learner Assignment open projections
+        shell: bash
+        run: |
+          assignment_learner_open_head=$(git rev-parse HEAD)
+          pnpm exec tsx scripts/check-contextual-assignment-learner-open-lifecycle.ts --reviewed-head "$assignment_learner_open_head" --mode normal
+
+      - name: Verify contextual learner assignment-open atomicity and privileges
+        run: bash scripts/check-contextual-assignment-doc-open-database.sh
+
+      - name: Verify contextual assignment-open locked Classwork concealment
+        run: bash scripts/check-contextual-assignment-open-classwork-database.sh
+
+      - name: Verify contextual learner assignment-open concurrent authorization
+        run: node scripts/check-contextual-assignment-doc-open-concurrency.mjs
+
+      - name: Verify contextual learner assignment-save atomicity and privileges
+        run: bash scripts/check-contextual-assignment-doc-save-database.sh
+
+      - name: Verify contextual assignment-member locked Classwork concealment
+        run: bash scripts/check-contextual-assignment-member-classwork-database.sh
+
+      - name: Verify contextual assignment-member supplemental visibility
+        run: bash scripts/check-contextual-assignment-member-supplement-visibility-database.sh
+
+      - name: Verify contextual Assignment inline-image locked Classwork reads
+        run: bash scripts/check-contextual-assignment-inline-read-classwork-database.sh
+
+      - name: Verify isolated contextual Assignment integrated SDK effects and private delivery
+        shell: bash
+        run: |
+          assignment_integrated_head=$(git rev-parse HEAD)
+          assignment_integrated_log=$(mktemp)
+          chmod 600 "$assignment_integrated_log"
+          trap 'rm -f -- "$assignment_integrated_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-assignment-learner-integrated-lifecycle.ts --reviewed-head "$assignment_integrated_head" --mode normal
+          for assignment_integrated_mode in after-fixture before-capture; do
+            assignment_integrated_status=0
+            pnpm exec tsx scripts/check-contextual-assignment-learner-integrated-lifecycle.ts --reviewed-head "$assignment_integrated_head" --mode "$assignment_integrated_mode" > "$assignment_integrated_log" 2>&1 || assignment_integrated_status=$?
+            [[ "$assignment_integrated_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$assignment_integrated_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated assignment-learner-integrated lifecycle: ${assignment_integrated_mode}." "$assignment_integrated_log"
+            grep -Fx 'PASS isolated assignment-learner-integrated exact teardown and unchanged canonical baseline.' "$assignment_integrated_log"
+          done
+
+      - name: Verify isolated contextual Test owner-detail SDK reads
+        shell: bash
+        run: |
+          proof_timings_dir="$(cd "$RUNNER_TEMP" && pwd -P)/pika-proof-timings"
+          mkdir -m 700 "$proof_timings_dir"
+          test_owner_detail_head=$(git rev-parse HEAD)
+          test_owner_detail_log=$(mktemp)
+          chmod 600 "$test_owner_detail_log"
+          trap 'rm -f -- "$test_owner_detail_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head "$test_owner_detail_head" --mode normal --timings-path "$proof_timings_dir/test-owner-detail-normal.json"
+          for test_owner_detail_mode in after-fixture before-capture; do
+            test_owner_detail_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head "$test_owner_detail_head" --mode "$test_owner_detail_mode" --timings-path "$proof_timings_dir/test-owner-detail-$test_owner_detail_mode.json" > "$test_owner_detail_log" 2>&1 || test_owner_detail_status=$?
+            [[ "$test_owner_detail_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_detail_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-detail lifecycle: ${test_owner_detail_mode}." "$test_owner_detail_log"
+            grep -Fx 'PASS isolated test-owner-detail exact teardown and unchanged canonical baseline.' "$test_owner_detail_log"
+          done
+
+      - name: Verify isolated contextual Test owner-list SDK reads
+        shell: bash
+        run: |
+          proof_timings_dir="$(cd "$RUNNER_TEMP" && pwd -P)/pika-proof-timings"
+          test_owner_list_head=$(git rev-parse HEAD)
+          test_owner_list_log=$(mktemp)
+          chmod 600 "$test_owner_list_log"
+          trap 'rm -f -- "$test_owner_list_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-list-lifecycle.ts --reviewed-head "$test_owner_list_head" --mode normal --timings-path "$proof_timings_dir/test-owner-list-normal.json"
+          for test_owner_list_mode in after-fixture before-capture; do
+            test_owner_list_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-list-lifecycle.ts --reviewed-head "$test_owner_list_head" --mode "$test_owner_list_mode" --timings-path "$proof_timings_dir/test-owner-list-$test_owner_list_mode.json" > "$test_owner_list_log" 2>&1 || test_owner_list_status=$?
+            [[ "$test_owner_list_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_list_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-list lifecycle: ${test_owner_list_mode}." "$test_owner_list_log"
+            grep -Fx 'PASS isolated test-owner-list exact teardown and unchanged canonical baseline.' "$test_owner_list_log"
+          done
+
+      - name: Verify isolated contextual Test member-list SDK reads
+        shell: bash
+        run: |
+          test_member_list_head=$(git rev-parse HEAD)
+          test_member_list_log=$(mktemp)
+          chmod 600 "$test_member_list_log"
+          trap 'rm -f -- "$test_member_list_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-member-list-lifecycle.ts --reviewed-head "$test_member_list_head" --mode normal
+          for test_member_list_mode in after-fixture before-capture; do
+            test_member_list_status=0
+            pnpm exec tsx scripts/check-contextual-test-member-list-lifecycle.ts --reviewed-head "$test_member_list_head" --mode "$test_member_list_mode" > "$test_member_list_log" 2>&1 || test_member_list_status=$?
+            [[ "$test_member_list_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_member_list_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-member-list lifecycle: ${test_member_list_mode}." "$test_member_list_log"
+            grep -Fx 'PASS isolated test-member-list exact teardown and unchanged canonical baseline.' "$test_member_list_log"
+          done
+
+      - name: Verify isolated contextual Test owner-draft GET transactions
+        shell: bash
+        run: |
+          test_owner_draft_get_head=$(git rev-parse HEAD)
+          test_owner_draft_get_log=$(mktemp)
+          chmod 600 "$test_owner_draft_get_log"
+          trap 'rm -f -- "$test_owner_draft_get_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode normal
+          for test_owner_draft_get_mode in after-fixture before-capture; do
+            test_owner_draft_get_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode "$test_owner_draft_get_mode" > "$test_owner_draft_get_log" 2>&1 || test_owner_draft_get_status=$?
+            [[ "$test_owner_draft_get_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_draft_get_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-draft-get lifecycle: ${test_owner_draft_get_mode}." "$test_owner_draft_get_log"
+            grep -Fx 'PASS isolated test-owner-draft-get exact teardown and unchanged canonical baseline.' "$test_owner_draft_get_log"
+          done
+
+      - name: Verify isolated contextual Test owner-draft save transactions
+        shell: bash
+        run: |
+          test_owner_draft_save_head=$(git rev-parse HEAD)
+          test_owner_draft_save_log=$(mktemp)
+          chmod 600 "$test_owner_draft_save_log"
+          trap 'rm -f -- "$test_owner_draft_save_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-draft-save-lifecycle.ts --reviewed-head "$test_owner_draft_save_head" --mode normal
+          for test_owner_draft_save_mode in after-fixture before-capture; do
+            test_owner_draft_save_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-draft-save-lifecycle.ts --reviewed-head "$test_owner_draft_save_head" --mode "$test_owner_draft_save_mode" > "$test_owner_draft_save_log" 2>&1 || test_owner_draft_save_status=$?
+            [[ "$test_owner_draft_save_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_draft_save_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-draft-save lifecycle: ${test_owner_draft_save_mode}." "$test_owner_draft_save_log"
+            grep -Fx 'PASS isolated test-owner-draft-save exact teardown and unchanged canonical baseline.' "$test_owner_draft_save_log"
+          done
+
+      - name: Verify isolated contextual Test owner creation transactions
+        shell: bash
+        run: |
+          test_owner_create_head=$(git rev-parse HEAD)
+          test_owner_create_log=$(mktemp)
+          chmod 600 "$test_owner_create_log"
+          trap 'rm -f -- "$test_owner_create_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-create-lifecycle.ts --reviewed-head "$test_owner_create_head" --mode normal
+          for test_owner_create_mode in after-fixture before-capture; do
+            test_owner_create_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-create-lifecycle.ts --reviewed-head "$test_owner_create_head" --mode "$test_owner_create_mode" > "$test_owner_create_log" 2>&1 || test_owner_create_status=$?
+            [[ "$test_owner_create_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_create_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-create lifecycle: ${test_owner_create_mode}." "$test_owner_create_log"
+            grep -Fx 'PASS isolated test-owner-create exact teardown and unchanged canonical baseline.' "$test_owner_create_log"
+          done
+
+      - name: Verify isolated contextual pristine Test draft discard transactions
+        shell: bash
+        run: |
+          test_owner_pristine_discard_head=$(git rev-parse HEAD)
+          test_owner_pristine_discard_log=$(mktemp)
+          chmod 600 "$test_owner_pristine_discard_log"
+          trap 'rm -f -- "$test_owner_pristine_discard_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-pristine-discard-lifecycle.ts --reviewed-head "$test_owner_pristine_discard_head" --mode normal
+          for test_owner_pristine_discard_mode in after-fixture before-capture; do
+            test_owner_pristine_discard_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-pristine-discard-lifecycle.ts --reviewed-head "$test_owner_pristine_discard_head" --mode "$test_owner_pristine_discard_mode" > "$test_owner_pristine_discard_log" 2>&1 || test_owner_pristine_discard_status=$?
+            [[ "$test_owner_pristine_discard_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_pristine_discard_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-pristine-discard lifecycle: ${test_owner_pristine_discard_mode}." "$test_owner_pristine_discard_log"
+            grep -Fx 'PASS isolated test-owner-pristine-discard exact teardown and unchanged canonical baseline.' "$test_owner_pristine_discard_log"
+          done
+
+      - name: Verify isolated contextual Test owner publication transactions
+        shell: bash
+        run: |
+          test_owner_publication_head=$(git rev-parse HEAD)
+          test_owner_publication_log=$(mktemp)
+          chmod 600 "$test_owner_publication_log"
+          trap 'rm -f -- "$test_owner_publication_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-publication-lifecycle.ts --reviewed-head "$test_owner_publication_head" --mode normal
+          for test_owner_publication_mode in after-fixture before-capture; do
+            test_owner_publication_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-publication-lifecycle.ts --reviewed-head "$test_owner_publication_head" --mode "$test_owner_publication_mode" > "$test_owner_publication_log" 2>&1 || test_owner_publication_status=$?
+            [[ "$test_owner_publication_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_publication_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-publication lifecycle: ${test_owner_publication_mode}." "$test_owner_publication_log"
+            grep -Fx 'PASS isolated test-owner-publication exact teardown and unchanged canonical baseline.' "$test_owner_publication_log"
+          done
+
+      - name: Verify contextual Daily Log save atomicity and privileges
+        run: bash scripts/check-contextual-daily-log-save-database.sh
+
+      - name: Verify contextual Daily Log concurrent access and revisions
+        run: node scripts/check-contextual-daily-log-save-concurrency.mjs
+
+      - name: Verify contextual Daily Log joined reads and revocation
+        run: pnpm exec tsx scripts/check-contextual-daily-log-read.ts
+
+      - name: Verify contextual lesson-plan reads and current relationship visibility
+        run: pnpm exec tsx scripts/check-contextual-lesson-plan-read.ts
+
+      - name: Verify contextual announcement reads and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-announcement-read.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-announcement-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic fixture cleanup with zero residual rows' "$cleanup_log"
+
+      - name: Verify contextual lesson-plan date writes and owner concurrency
+        run: node scripts/check-contextual-lesson-plan-date-write-concurrency.mjs
+
+      - name: Verify contextual material reads and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-material-read.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-material-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic material fixture cleanup with zero residual rows' "$cleanup_log"
+
+      - name: Verify contextual material owner writes and failed-fixture cleanup
+        shell: bash
+        run: |
+          bash scripts/check-contextual-material-owner-writes-database.sh
+          pnpm exec tsx scripts/check-contextual-material-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-material-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic material owner-write fixture cleanup with zero residual rows' "$cleanup_log"
+
+      - name: Verify contextual linked Blueprint material reads and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-classroom-blueprint-material-read.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-classroom-blueprint-material-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic linked Blueprint material fixture cleanup with zero residual rows and global baseline equality' "$cleanup_log"
+
+      - name: Verify contextual roster management reads and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-classroom-roster-read.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-classroom-roster-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster fixture cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
+      - name: Verify shared class-day reads and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-class-day-read.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-class-day-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic class-day cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
+      - name: Verify contextual roster owner writes and failed-fixture cleanup
+        shell: bash
+        run: |
+          bash scripts/check-contextual-roster-owner-writes-database.sh
+          pnpm exec tsx scripts/check-contextual-roster-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-roster-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Forced roster post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster owner-write cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
+      - name: Verify contextual preserving roster removal and failed-fixture cleanup
+        shell: bash
+        run: |
+          bash scripts/check-contextual-classroom-metadata-database.sh
+          bash scripts/check-contextual-roster-removal-owner-writes-database.sh
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced roster removal post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts --verify-cleanup-after-commit-before-capture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced roster removal post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts --verify-cleanup-suppressed-delete-rollback > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced roster removal suppressed-cleanup rollback proof (expected for --verify-cleanup-suppressed-delete-rollback)' "$cleanup_log"
+          grep -F 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
+      - name: Verify contextual classroom detail reads and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts
+          cleanup_log="$(mktemp)"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced classroom detail post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic classroom detail cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts --verify-cleanup-after-commit-before-capture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced classroom detail post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic classroom detail cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
+      - name: Verify contextual Course Guide SDK reads and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          course_guide_log="$(mktemp)"
+          trap 'rm -f -- "$course_guide_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-course-guide-read.ts > "$course_guide_log" 2>&1 || { cat "$course_guide_log"; exit 1; }
+          cat "$course_guide_log"
+          grep -Fx 'PASS course guide actual SDK mixed-role authority, genuine resource FK, both collections beyond 1000, terminal pages and millisecond release precision' "$course_guide_log"
+          grep -Fx 'PASS course guide real SDK wire tampering, cardinality, cursor, resource/config bounds and transport failures deny without retries or partial DTO' "$course_guide_log"
+          grep -Fx 'PASS course guide actual-site JSONB null/scalar/default/semantic equality, legal member feature controls and constraint denial, hidden projections, resource compatibility and current member syllabus' "$course_guide_log"
+          grep -Fx 'PASS course guide committed owner/archive/enrollment/config/visibility/syllabus revocations before header, first/later/terminal pages and final control deny all partial output' "$course_guide_log"
+          grep -Fx 'PASS exact synthetic course guide cleanup, zero residual rows and global whole-row baseline counts' "$course_guide_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-course-guide-read.ts --verify-cleanup-after-fixture > "$course_guide_log" 2>&1 || cleanup_status=$?
+          cat "$course_guide_log"
+          [[ "$cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced course guide post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$course_guide_log"
+          grep -Fx 'PASS exact synthetic course guide cleanup, zero residual rows and global whole-row baseline counts' "$course_guide_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-course-guide-read.ts --verify-cleanup-after-commit-before-capture > "$course_guide_log" 2>&1 || cleanup_status=$?
+          cat "$course_guide_log"
+          [[ "$cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced course guide post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$course_guide_log"
+          grep -Fx 'PASS exact synthetic course guide cleanup, zero residual rows and global whole-row baseline counts' "$course_guide_log"
+
+      - name: Verify contextual classroom metadata and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata_sql_log="$(mktemp)"
+          metadata_sdk_log="$(mktemp)"
+          metadata_cleanup_log="$(mktemp)"
+          trap 'rm -f -- "$metadata_sql_log" "$metadata_sdk_log" "$metadata_cleanup_log"' EXIT
+          if ! bash scripts/check-contextual-classroom-metadata-database.sh > "$metadata_sql_log" 2>&1; then
+            cat "$metadata_sql_log"
+            exit 1
+          fi
+          cat "$metadata_sql_log"
+          grep -Fx 'PASS metadata rollback-only direct contracts, full owner output, genuine slug collision and suppression/substitution/late trigger faults restore metadata and both revision effects' "$metadata_sql_log"
+          if ! pnpm exec tsx scripts/check-contextual-classroom-metadata.ts > "$metadata_sdk_log" 2>&1; then
+            cat "$metadata_sdk_log"
+            exit 1
+          fi
+          cat "$metadata_sdk_log"
+          grep -Fx 'PASS metadata actual SDK both owner roles, exact normalized body/full owner hydration and strict wire failures without replay' "$metadata_sdk_log"
+          grep -Fx 'PASS metadata deterministic observed-blocking transfer/archive/slug/publication races preserve current authority and publishing invariants' "$metadata_sdk_log"
+          grep -Fx 'PASS metadata committed-write lost-response uncertainty is reported without replay and no creation entitlement is required' "$metadata_sdk_log"
+          grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts' "$metadata_sdk_log"
+          metadata_cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-metadata.ts --verify-cleanup-after-fixture > "$metadata_cleanup_log" 2>&1 || metadata_cleanup_status=$?
+          cat "$metadata_cleanup_log"
+          [[ "$metadata_cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced metadata post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$metadata_cleanup_log"
+          grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts' "$metadata_cleanup_log"
+          metadata_cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-metadata.ts --verify-cleanup-after-commit-before-capture > "$metadata_cleanup_log" 2>&1 || metadata_cleanup_status=$?
+          cat "$metadata_cleanup_log"
+          [[ "$metadata_cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced metadata post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$metadata_cleanup_log"
+          grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts' "$metadata_cleanup_log"
+
+      - name: Verify contextual announcement owner contracts and concurrency
+        shell: bash
+        run: |
+          node scripts/check-contextual-announcement-owner-rollback.mjs
+          node scripts/check-contextual-announcement-owner-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-announcement-owner-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic announcement fixture cleanup with zero residual rows' "$cleanup_log"
+
+      - name: Verify contextual announcement member receipts and failed-fixture cleanup
+        shell: bash
+        run: |
+          node scripts/check-contextual-announcement-receipt-rollback.mjs
+          node scripts/check-contextual-announcement-receipt-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-announcement-receipt-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic receipt fixture cleanup with zero residual rows' "$cleanup_log"
+
+      - name: Verify contextual lesson-plan bulk atomicity and failed-fixture cleanup
+        shell: bash
+        run: |
+          node scripts/check-contextual-lesson-plan-bulk-write-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-lesson-plan-bulk-write-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic fixture cleanup with zero residual rows' "$cleanup_log"
+
+      - name: Verify contextual lesson-plan copy atomicity and failed-fixture cleanup
+        shell: bash
+        run: |
+          node scripts/check-contextual-lesson-plan-copy-write-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-lesson-plan-copy-write-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic fixture cleanup with zero residual rows' "$cleanup_log"
+
+      - name: Verify contextual teacher Daily Log reads and current ownership
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-read.ts
+
+      - name: Verify contextual teacher Daily roster logs and previews
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-logs.ts
+
+      - name: Verify contextual teacher cached Daily summaries and current ownership
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-summary.ts
+
+      - name: Verify contextual learner assignment submit and unsubmit atomicity
+        run: bash scripts/check-contextual-assignment-doc-submission-database.sh
+
+      - name: Verify contextual learner assignment history and restore atomicity
+        run: bash scripts/check-contextual-assignment-doc-history-database.sh
+
+      - name: Verify contextual learner assignment artifact atomicity
+        run: bash scripts/check-contextual-assignment-artifacts-database.sh
+
+      - name: Verify contextual Assignment inline-image authorization contracts
+        run: bash scripts/check-contextual-assignment-inline-images-database.sh
+
+      - name: Verify contextual Assignment owner precedence
+        run: bash scripts/check-contextual-assignment-owner-precedence-database.sh
+
+      - name: Rehearse contextual Assignment routes against local Supabase
+        run: bash scripts/rehearse-local-contextual-assignment-lifecycle.sh
+
+      - name: Rehearse shared Assignment writes and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          shared_assignment_log="$(mktemp)"
+          trap 'rm -f -- "$shared_assignment_log"' EXIT
+          if ! bash scripts/rehearse-local-shared-assignment-writes.sh '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES' normal > "$shared_assignment_log" 2>&1; then
+            cat "$shared_assignment_log"
+            exit 1
+          fi
+          cat "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment actual routes and real RPCs; shared cohort only; old pair gates OFF' "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O' "$shared_assignment_log"
+          shared_assignment_status=0
+          bash scripts/rehearse-local-shared-assignment-writes.sh '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES' after-fixture > "$shared_assignment_log" 2>&1 || shared_assignment_status=$?
+          cat "$shared_assignment_log"
+          [[ "$shared_assignment_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL shared-assignment FORCED_AFTER_FIXTURE' "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O' "$shared_assignment_log"
+          shared_assignment_status=0
+          bash scripts/rehearse-local-shared-assignment-writes.sh '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES' before-capture > "$shared_assignment_log" 2>&1 || shared_assignment_status=$?
+          cat "$shared_assignment_log"
+          [[ "$shared_assignment_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL shared-assignment FORCED_COMMIT_BEFORE_CAPTURE' "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O' "$shared_assignment_log"
+
+      - name: Verify contextual Assignment owner mutation atomicity
+        run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
+
+      - name: Verify contextual Assignment owner mutation concurrency
+        run: node scripts/check-contextual-assignment-owner-mutations-concurrency.mjs
+
+      - name: Verify contextual Assignment creation atomicity
+        run: bash scripts/check-contextual-assignment-creation-database.sh
+
+      - name: Verify contextual Assignment creation concurrency
+        run: node scripts/check-contextual-assignment-creation-concurrency.mjs
+
+      - name: Verify shared contextual classwork creation atomicity
+        run: bash scripts/check-contextual-classwork-creation-database.sh
+
+      - name: Verify shared contextual classwork creation concurrency
+        run: node scripts/check-contextual-classwork-creation-concurrency.mjs
+
+      - name: Verify contextual classwork reorder atomicity
+        run: bash scripts/check-contextual-classwork-reorder-database.sh
+
+      - name: Verify contextual classwork reorder concurrency
+        run: node scripts/check-contextual-classwork-reorder-concurrency.mjs
+
+      - name: Verify contextual Assignment bulk database contracts
+        run: bash scripts/check-contextual-assignment-bulk-database.sh
+
+      - name: Verify contextual Assignment bulk concurrency
+        run: node scripts/check-contextual-assignment-bulk-concurrency.mjs
+
+      - name: Verify contextual Assignment repo target atomicity
+        run: bash scripts/check-contextual-assignment-repo-target-database.sh
+
+      - name: Verify contextual Assignment repo target concurrency
+        run: node scripts/check-contextual-assignment-repo-target-concurrency.mjs
+
+      - name: Verify metered feature usage reservations
+        run: bash scripts/check-metered-feature-usage-reservations.sh
+
+      - name: Verify metered feature usage reservation concurrency
+        run: node scripts/check-metered-feature-usage-reservations-concurrency.mjs
+
+      - name: Verify contextual Assignment manual grading atomicity
+        run: bash scripts/check-contextual-assignment-grading-database.sh
+
+      - name: Verify contextual Assignment manual grading concurrency
+        run: node scripts/check-contextual-assignment-grading-concurrency.mjs
+
+      - name: Verify contextual Assignment feedback-return atomicity
+        run: bash scripts/check-contextual-assignment-feedback-return-database.sh
+
+      - name: Verify contextual Assignment feedback-return concurrency
+        run: node scripts/check-contextual-assignment-feedback-return-concurrency.mjs
+
+      - name: Verify contextual learner assignment-save concurrent authorization
+        run: node scripts/check-contextual-assignment-doc-save-concurrency.mjs
+
       - name: Verify atomic assignment draft and submission integrity
         run: bash scripts/check-atomic-assignment-submissions.sh
 
       - name: Verify assignment submission concurrency
         run: bash scripts/check-assignment-submission-concurrency.sh
+
+      - name: Verify authentication generation fencing
+        run: bash scripts/check-auth-verification-generation-database.sh --execute-local-contract --container supabase_db_pika
+
+      - name: Verify managed-storage write lock ordering
+        env:
+          MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika
+        run: bash scripts/check-managed-storage-write-lock-order.sh --allow-fixture-writes
+
+      - name: Verify managed-storage setup acknowledgement failure exact cleanup
+        env:
+          MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika
+        shell: bash
+        run: |
+          storage_ack_log="$(mktemp)"
+          trap 'rm -f -- "$storage_ack_log"' EXIT
+          storage_ack_status=0
+          MANAGED_STORAGE_FORCE_SETUP_ACK_FAILURE=1 bash scripts/check-managed-storage-write-lock-order.sh --allow-fixture-writes > "$storage_ack_log" 2>&1 || storage_ack_status=$?
+          cat "$storage_ack_log"
+          [[ "$storage_ack_status" -ne 0 ]] || exit 1
+          grep -F 'Forced failure after fixture setup COMMIT before acknowledgement (teardown control)' "$storage_ack_log"
+          grep -Fx 'Exact managed-storage fixture teardown: PASS' "$storage_ack_log"
+
+      - name: Verify revision-aware Test lifecycle contracts
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/check-test-attempt-lifecycle.sql
+
+      - name: Verify Test Return lifecycle concurrency and exact cleanup
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+          CORE244_ALLOW_LOCAL_VERIFICATION: "1"
+        shell: bash
+        run: |
+          command -v psql >/dev/null
+          lifecycle_normal_log="$(mktemp)"
+          lifecycle_failure_log="$(mktemp)"
+          trap 'rm -f -- "$lifecycle_normal_log" "$lifecycle_failure_log"' EXIT
+          node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_normal_log" 2>&1 || { cat "$lifecycle_normal_log"; exit 1; }
+          cat "$lifecycle_normal_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_normal_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_normal_log"
+          lifecycle_status=0
+          CORE244_FORCE_FAILURE=1 node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_failure_log" 2>&1 || lifecycle_status=$?
+          cat "$lifecycle_failure_log"
+          [[ "$lifecycle_status" -ne 0 ]] || exit 1
+          grep -F 'Forced failure after fixture setup (teardown control)' "$lifecycle_failure_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_failure_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_failure_log"
+
+      - name: Verify Test lifecycle setup acknowledgement failure exact cleanup
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+          CORE244_ALLOW_LOCAL_VERIFICATION: "1"
+        shell: bash
+        run: |
+          lifecycle_ack_log="$(mktemp)"
+          trap 'rm -f -- "$lifecycle_ack_log"' EXIT
+          lifecycle_ack_status=0
+          CORE244_FORCE_SETUP_ACK_FAILURE=1 node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_ack_log" 2>&1 || lifecycle_ack_status=$?
+          cat "$lifecycle_ack_log"
+          [[ "$lifecycle_ack_status" -ne 0 ]] || exit 1
+          grep -F 'Forced setup COMMIT acknowledgement failure (ownership recovery control)' "$lifecycle_ack_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_ack_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_ack_log"
 
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
@@ -283,15 +1073,27 @@ jobs:
       - name: Rehearse full classroom archive recovery on local Supabase
         run: pnpm verify:classroom-archive-recovery
 
+      - name: Verify concurrent Stripe subscription binding and webhook intake
+        run: bash scripts/check-stripe-billing-binding-race.sh
+
       - name: Stop ephemeral database
-        if: always()
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
+
+      - name: Upload sanitized Test proof timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-proof-timings
+          path: ${{ runner.temp }}/pika-proof-timings/*.json
+          retention-days: 7
 
   test-and-build:
     name: Test & Build
     needs: classify-changes
     if: needs.classify-changes.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
@@ -322,6 +1124,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane test-build
 
       - name: Check workflow and documentation contracts
         run: pnpm run check:workflow
@@ -368,7 +1174,8 @@ jobs:
 
       - name: Run tests with coverage
         if: needs.classify-changes.outputs.run_test_build == 'true'
-        run: pnpm run test:coverage
+        # Pal's learner UI is paused; keep its API and data safety suites in CI.
+        run: pnpm run test:coverage:ci
 
       - name: Check TypeScript
         if: needs.classify-changes.outputs.run_test_build == 'true'
@@ -401,12 +1208,14 @@ jobs:
     name: Browser Experience Matrix
     needs: classify-changes
     if: needs.classify-changes.outputs.run_browser == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
+    timeout-minutes: 90
     env:
       E2E_BASE_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SESSION_SECRET: ci-browser-session-secret-with-at-least-32-characters
       ENABLE_MOCK_EMAIL: "true"
+      PIKA_E2E_LIFECYCLE_FIXTURES: "true"
 
     steps:
       - name: Checkout code
@@ -446,7 +1255,12 @@ jobs:
         shell: bash
         run: pnpm install --frozen-lockfile
 
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane browser
+
       - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
       - name: Export local Supabase environment
@@ -503,7 +1317,7 @@ jobs:
           retention-days: 7
 
       - name: Stop ephemeral database
-        if: always()
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
   pr-gate:

@@ -9,6 +9,7 @@ import {
   completeAuthResponseFloor,
   schedulePasswordResetCode,
 } from '@/lib/server/auth-response'
+import { issueAuthVerificationCode } from '@/lib/server/auth-verification-generation'
 
 const MAX_CODES_PER_HOUR = 3
 const CODE_EXPIRY_MINUTES = 10
@@ -64,19 +65,19 @@ export const POST = withErrorHandler('ForgotPassword', async (request: NextReque
     return NextResponse.json(SUCCESS_RESPONSE)
   }
 
-  // Store hashed code
-  const { error: insertError } = await supabase
-    .from('verification_codes')
-    .insert({
-      user_id: user.id,
-      code_hash: codeHash,
-      purpose: 'reset_password',
-      expires_at: expiresAt.toISOString(),
-      attempts: 0,
-    })
+  const { result: issuance, error: insertError } = await issueAuthVerificationCode(supabase, {
+    userId: user.id,
+    purpose: 'reset_password',
+    codeHash,
+    expiresAt: expiresAt.toISOString(),
+  })
 
   if (insertError) {
     logServerError('auth.reset', insertError)
+    await completeAuthResponseFloor(startedAtMs)
+    return NextResponse.json(SUCCESS_RESPONSE)
+  }
+  if (!issuance?.ok) {
     await completeAuthResponseFloor(startedAtMs)
     return NextResponse.json(SUCCESS_RESPONSE)
   }

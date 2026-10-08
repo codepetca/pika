@@ -2,22 +2,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const {
+  mockAuthorizeContextualAssignmentRepoTargetRequest,
   mockAssertTeacherCanMutateAssignment,
   mockExtractRepoArtifactsFromContent,
   mockLoadAssignmentRepoTarget,
   mockLoadAssignmentSubmissionArtifactsForDoc,
   mockResolveAssignmentRepoTarget,
   mockSaveAssignmentRepoTarget,
+  mockSaveAssignmentRepoTargetForOwner,
   mockSubmissionArtifactsToAssignmentArtifacts,
   mockSupabaseClient,
   mockValidatePublicGitHubRepo,
 } = vi.hoisted(() => ({
+  mockAuthorizeContextualAssignmentRepoTargetRequest: vi.fn(),
   mockAssertTeacherCanMutateAssignment: vi.fn(),
   mockExtractRepoArtifactsFromContent: vi.fn(),
   mockLoadAssignmentRepoTarget: vi.fn(),
   mockLoadAssignmentSubmissionArtifactsForDoc: vi.fn(),
   mockResolveAssignmentRepoTarget: vi.fn(),
   mockSaveAssignmentRepoTarget: vi.fn(),
+  mockSaveAssignmentRepoTargetForOwner: vi.fn(),
   mockSubmissionArtifactsToAssignmentArtifacts: vi.fn(),
   mockSupabaseClient: { from: vi.fn() },
   mockValidatePublicGitHubRepo: vi.fn(),
@@ -49,6 +53,14 @@ vi.mock('@/lib/server/assignment-repo-targets', () => ({
   resolveAssignmentRepoTarget: mockResolveAssignmentRepoTarget,
   saveAssignmentRepoTarget: mockSaveAssignmentRepoTarget,
   validatePublicGitHubRepo: mockValidatePublicGitHubRepo,
+}))
+
+vi.mock('@/lib/server/contextual-assignment-repo-target', () => ({
+  saveAssignmentRepoTargetForOwner: mockSaveAssignmentRepoTargetForOwner,
+}))
+
+vi.mock('@/lib/server/contextual-assignment-repo-target-access', () => ({
+  authorizeContextualAssignmentRepoTargetRequest: mockAuthorizeContextualAssignmentRepoTargetRequest,
 }))
 
 import { PUT } from '@/app/api/teacher/assignments/[id]/repo-targets/[studentId]/route'
@@ -137,6 +149,11 @@ describe('PUT /api/teacher/assignments/[id]/repo-targets/[studentId]', () => {
       id: 'assignment-1',
       classroom_id: 'classroom-1',
     })
+    mockAuthorizeContextualAssignmentRepoTargetRequest.mockResolvedValue({
+      mode: 'legacy',
+      user: { id: 'teacher-1', role: 'teacher', email: 'teacher@example.com' },
+      assignmentId: 'assignment-1',
+    })
     mockExtractRepoArtifactsFromContent.mockReturnValue([])
     mockLoadAssignmentRepoTarget.mockResolvedValue(null)
     mockLoadAssignmentSubmissionArtifactsForDoc.mockResolvedValue([])
@@ -145,6 +162,16 @@ describe('PUT /api/teacher/assignments/[id]/repo-targets/[studentId]', () => {
       submittedGitHubUsername: 'student-login',
     })
     mockSaveAssignmentRepoTarget.mockResolvedValue({
+      id: 'target-1',
+      assignment_id: 'assignment-1',
+      student_id: 'student-1',
+      selected_repo_url: 'https://github.com/codepetca/pika',
+      override_github_username: 'student-login',
+      selection_mode: 'teacher_override',
+      validation_status: 'valid',
+      validation_message: null,
+    })
+    mockSaveAssignmentRepoTargetForOwner.mockResolvedValue({
       id: 'target-1',
       assignment_id: 'assignment-1',
       student_id: 'student-1',
@@ -246,6 +273,60 @@ describe('PUT /api/teacher/assignments/[id]/repo-targets/[studentId]', () => {
     expect(data.repo_target).toBeNull()
     expect(deleteTarget).toHaveBeenCalled()
     expect(deleteEq).toHaveBeenCalledWith('id', 'target-1')
+    expect(mockSaveAssignmentRepoTarget).not.toHaveBeenCalled()
+  })
+
+  it('routes an exact student-valued owner through the fenced save boundary', async () => {
+    installRepoTargetTables({})
+    mockAuthorizeContextualAssignmentRepoTargetRequest.mockResolvedValue({
+      mode: 'contextual',
+      user: { id: 'owner-1', role: 'student', email: 'owner@example.com' },
+      assignmentId: 'assignment-1',
+    })
+
+    const response = await PUT(createRequest({
+      selection_mode: 'teacher_override',
+      selected_repo_url: 'https://github.com/codepetca/pika',
+      override_github_username: 'student-login',
+    }), createContext())
+
+    expect(response.status).toBe(200)
+    expect(mockAssertTeacherCanMutateAssignment).toHaveBeenCalledWith('owner-1', 'assignment-1')
+    expect(mockSaveAssignmentRepoTargetForOwner).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: 'owner-1',
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      target: expect.objectContaining({
+        selectionMode: 'teacher_override',
+        repoOwner: 'codepetca',
+      }),
+    }))
+    expect(mockSaveAssignmentRepoTarget).not.toHaveBeenCalled()
+  })
+
+  it('routes an exact owner reset through the fenced delete boundary', async () => {
+    const { deleteTarget } = installRepoTargetTables({})
+    mockAuthorizeContextualAssignmentRepoTargetRequest.mockResolvedValue({
+      mode: 'contextual',
+      user: { id: 'owner-1', role: 'student', email: 'owner@example.com' },
+      assignmentId: 'assignment-1',
+    })
+    mockLoadAssignmentRepoTarget.mockResolvedValue({
+      id: 'target-1',
+      assignment_id: 'assignment-1',
+      student_id: 'student-1',
+      selection_mode: 'teacher_override',
+    })
+    mockSaveAssignmentRepoTargetForOwner.mockResolvedValue(null)
+
+    const response = await PUT(createRequest({ selection_mode: 'auto' }), createContext())
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(expect.objectContaining({ repo_target: null }))
+    expect(mockSaveAssignmentRepoTargetForOwner).toHaveBeenCalledWith(expect.objectContaining({
+      target: null,
+    }))
+    expect(deleteTarget).not.toHaveBeenCalled()
     expect(mockSaveAssignmentRepoTarget).not.toHaveBeenCalled()
   })
 })

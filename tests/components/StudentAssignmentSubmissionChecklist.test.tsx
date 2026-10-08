@@ -52,6 +52,25 @@ function artifact(
 }
 
 describe('StudentAssignmentSubmissionChecklist', () => {
+  it('keeps a saved attachment available while validation is pending', () => {
+    render(
+      <StudentAssignmentSubmissionChecklist
+        assignmentId="assignment-1"
+        requirements={[requirement({})]}
+        artifacts={[artifact({ validation_status: 'pending' })]}
+        githubIdentity={null}
+        onArtifactsChange={vi.fn()}
+        onError={vi.fn()}
+      />
+    )
+
+    const status = screen.getByText('Checking')
+    expect(status).toBeInTheDocument()
+    expect(status.parentElement?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByDisplayValue('https://codehs.com/sandbox/example')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
   it('uses the teacher label and generic URL copy for link requirements', () => {
     render(
       <StudentAssignmentSubmissionChecklist
@@ -180,6 +199,36 @@ describe('StudentAssignmentSubmissionChecklist', () => {
     )
     expect(savedArtifacts).toContainEqual(nextArtifact)
     await waitFor(() => expect(onArtifactsChange).toHaveBeenCalledWith(expect.arrayContaining([nextArtifact])))
+  })
+
+  it('does not send GitHub fields when saving a standard link', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ artifact: artifact({ url: 'https://example.com/final' }) }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <StudentAssignmentSubmissionChecklist
+        assignmentId="assignment-1"
+        requirements={[requirement({})]}
+        artifacts={[]}
+        githubIdentity={null}
+        onArtifactsChange={vi.fn()}
+        onError={vi.fn()}
+      />
+    )
+
+    fireEvent.change(screen.getByLabelText('URL'), {
+      target: { value: 'https://example.com/final' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    const request = fetchMock.mock.calls[0]?.[1]
+    expect(JSON.parse(String(request?.body))).toEqual({
+      url: 'https://example.com/final',
+    })
   })
 
   it('blocks a failed image upload until the student explicitly continues without it', async () => {

@@ -7,21 +7,45 @@ import {
 } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { parseAnnouncementTitleInput } from '@/lib/announcements'
+import {
+  assertContextualAnnouncementRows,
+  authorizeClassroomAnnouncementRequest,
+} from '@/lib/server/classroom-announcement-access'
+import { authorizeSharedAnnouncementReadActor, readContextualAnnouncements } from '@/lib/server/contextual-announcement-read'
+import { createContextualAnnouncement } from '@/lib/server/contextual-announcement-mutation'
+import { parseAnnouncementCreateParams, parseAnnouncementCreateBody } from '@/lib/validations/announcement-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/teacher/classrooms/[id]/announcements - List announcements (newest first)
 export const GET = withErrorHandler('GetAnnouncements', async (_request, context) => {
-  const user = await requireRole('teacher')
-  const { id: classroomId } = await context.params
+  const params = context.params
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = await params
+    return NextResponse.json(await readContextualAnnouncements({
+      supabase: getServiceRoleClient(), actorId: sharedAccess.user.id,
+      classroomId, permission: 'owner',
+    }))
+  }
+  const announcementAccess = await authorizeClassroomAnnouncementRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'teacher',
+    permission: 'owner',
+  })
+  const { id: classroomId } = await params
+  const { user } = announcementAccess
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
-  if (!ownership.ok) {
-    return NextResponse.json(
-      { error: ownership.error },
-      { status: ownership.status }
-    )
+  if (announcementAccess.mode === 'legacy') {
+    const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+    if (!ownership.ok) {
+      return NextResponse.json(
+        { error: ownership.error },
+        { status: ownership.status }
+      )
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -40,11 +64,21 @@ export const GET = withErrorHandler('GetAnnouncements', async (_request, context
     )
   }
 
+  if (announcementAccess.mode === 'contextual') {
+    assertContextualAnnouncementRows(classroomId, announcements)
+  }
+
   return NextResponse.json({ announcements: announcements || [] })
 })
 
 // POST /api/teacher/classrooms/[id]/announcements - Create announcement
 export const POST = withErrorHandler('PostCreateAnnouncement', async (request, context) => {
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = parseAnnouncementCreateParams(await context.params)
+    const body = parseAnnouncementCreateBody(await request.json())
+    return NextResponse.json(await createContextualAnnouncement({ actorId: sharedAccess.user.id, classroomId, body }), { status: 201 })
+  }
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()

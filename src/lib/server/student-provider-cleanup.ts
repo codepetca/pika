@@ -28,7 +28,8 @@ const bindingSchema = z.object({
 export type StudentProviderBinding = z.infer<typeof bindingSchema>
 
 export class StudentProviderCleanupError extends Error {
-  constructor(readonly code: 'disabled' | 'binding_invalid' | 'provider_unavailable' | 'persistence_unavailable',
+  constructor(readonly code: 'disabled' | 'binding_invalid' | 'provider_unavailable'
+    | 'persistence_unavailable' | 'terminal_failure',
     readonly retryable = false) {
     super('Student provider cleanup remains pending')
     this.name = 'StudentProviderCleanupError'

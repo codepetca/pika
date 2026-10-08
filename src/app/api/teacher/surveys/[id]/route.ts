@@ -4,6 +4,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { canActivateSurvey, hasSurveyOpened } from '@/lib/surveys'
 import { assertTeacherOwnsSurvey } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { surveyPatchSchema } from '@/lib/validations/surveys'
 import type { SurveyStatus } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -40,19 +41,11 @@ export const GET = withErrorHandler('GetTeacherSurvey', async (_request, context
 export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const body = await request.json()
-  const { title, status, show_results, dynamic_responses, opens_at } = body as {
-    title?: string
-    status?: SurveyStatus
-    show_results?: boolean
-    dynamic_responses?: boolean
-    opens_at?: string | null
-  }
-
   const access = await assertTeacherOwnsSurvey(user.id, id, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  const { title, status, show_results, dynamic_responses, opens_at } = surveyPatchSchema.parse(await request.json())
   const existing = access.survey
   const supabase = getServiceRoleClient()
 
@@ -62,19 +55,11 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
       parsedOpensAt = null
     } else {
       const parsed = new Date(opens_at)
-      if (Number.isNaN(parsed.getTime())) {
-        return NextResponse.json({ error: 'Invalid open date' }, { status: 400 })
-      }
       parsedOpensAt = parsed.toISOString()
     }
   }
 
   if (status !== undefined) {
-    const validStatuses: SurveyStatus[] = ['draft', 'active', 'closed']
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
-
     if (existing.status === 'active' && status === 'draft' && hasSurveyOpened(existing)) {
       return NextResponse.json(
         { error: 'Cannot revert a survey that has already opened to draft' },
@@ -105,16 +90,6 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
     if (!activation.valid) {
       return NextResponse.json({ error: activation.error }, { status: 400 })
     }
-  }
-
-  if (title !== undefined && !title.trim()) {
-    return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 })
-  }
-  if (show_results !== undefined && typeof show_results !== 'boolean') {
-    return NextResponse.json({ error: 'show_results must be a boolean' }, { status: 400 })
-  }
-  if (dynamic_responses !== undefined && typeof dynamic_responses !== 'boolean') {
-    return NextResponse.json({ error: 'dynamic_responses must be a boolean' }, { status: 400 })
   }
 
   const updates: Record<string, unknown> = {}

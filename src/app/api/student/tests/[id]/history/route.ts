@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireAuth } from '@/lib/auth'
 import {
   assertStudentCanAccessTest,
@@ -111,7 +112,7 @@ export const GET = withErrorHandler('GetStudentTestHistory', async (request, con
   }
 
   if (attemptError) {
-    console.error('Error fetching test attempt for history:', attemptError)
+    logServerError('test.history_attempt', attemptError)
     return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 })
   }
 
@@ -123,7 +124,7 @@ export const GET = withErrorHandler('GetStudentTestHistory', async (request, con
       .eq('student_id', user.id)
 
     if (responsesError) {
-      console.error('Error checking student test history responses:', responsesError)
+      logServerError('test.history_responses', responsesError)
       return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 })
     }
 
@@ -132,7 +133,7 @@ export const GET = withErrorHandler('GetStudentTestHistory', async (request, con
       Boolean(attempt?.is_submitted) || (!isLockedForGrading && hasAnyMeaningfulTestResponse(responses))
     const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
     if (availabilityResult.error && !availabilityResult.missingTable) {
-      console.error('Error checking student test history availability:', availabilityResult.error)
+      logServerError('test.history_availability', availabilityResult.error)
       return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 })
     }
 
@@ -163,7 +164,7 @@ export const GET = withErrorHandler('GetStudentTestHistory', async (request, con
     .order('created_at', { ascending: false })
 
   if (historyError) {
-    console.error('Error fetching test attempt history:', historyError)
+    logServerError('test.history_read', historyError)
     return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 })
   }
 

@@ -50,7 +50,7 @@ export const TeacherWorkItemCardFrame = forwardRef(function TeacherWorkItemCardF
             : interactive && tone === 'muted'
               ? 'transition hover:border-border-strong hover:bg-surface-3'
               : interactive && tone === 'default'
-                ? 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel'
+                ? 'transition hover:-translate-y-px hover:border-border-strong hover:bg-info-bg hover:shadow-panel'
                 : '',
         className,
       )}

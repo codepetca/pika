@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import {
   getFutureScheduledReleaseDueDateError,
 } from '@/lib/assignment-schedule-validation'
+import { authorizeContextualAssignmentOwnerMutationRequest } from '@/lib/server/contextual-assignment-owner-mutation-access'
+import { releaseAssignmentForOwner } from '@/lib/server/contextual-assignment-owner-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const assignmentReleaseRequestSchema = z.object({
+  release_at: z.unknown().optional(),
+}).passthrough()
+
 // POST /api/teacher/assignments/[id]/release - Release a draft assignment to students
 export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id } = await context.params
-  const body = await request.json().catch(() => ({}))
+  const resolveAssignmentId = async () => (await context.params).id
+  const assignmentAccess = await authorizeContextualAssignmentOwnerMutationRequest(resolveAssignmentId)
+  const id = assignmentAccess.assignmentId
+  const user = assignmentAccess.user
+  const body = assignmentReleaseRequestSchema.parse(await request.json().catch(() => ({})))
   const releaseAt = body?.release_at as string | undefined
   const supabase = getServiceRoleClient()
 
@@ -87,23 +95,39 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
     releasedAtIso = parsed.toISOString()
   }
 
-  // Release the assignment
-  const { data: assignment, error } = await supabase
-    .from('assignments')
-    .update({
-      is_draft: false,
-      released_at: releasedAtIso
+  let assignment
+  if (assignmentAccess.mode === 'contextual') {
+    const result = await releaseAssignmentForOwner({
+      supabase,
+      actorId: user.id,
+      assignmentId: id,
+      releasedAt: releasedAtIso,
+      scheduled: releaseAt !== undefined,
     })
-    .eq('id', id)
-    .select()
-    .single()
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
+    }
+    assignment = result.assignment
+  } else {
+    // Release the assignment
+    const { data: updatedAssignment, error } = await supabase
+      .from('assignments')
+      .update({
+        is_draft: false,
+        released_at: releasedAtIso
+      })
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error) {
-    console.error('Error releasing assignment:', error)
-    return NextResponse.json(
-      { error: 'Failed to release assignment' },
-      { status: 500 }
-    )
+    if (error) {
+      console.error('Error releasing assignment:', error)
+      return NextResponse.json(
+        { error: 'Failed to release assignment' },
+        { status: 500 }
+      )
+    }
+    assignment = updatedAssignment
   }
 
   return NextResponse.json({ assignment })

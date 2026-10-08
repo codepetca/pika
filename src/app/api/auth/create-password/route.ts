@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePasswordSessionRequest } from '@/lib/server/password-session-boundary'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
@@ -6,8 +7,13 @@ import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createPasswordSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
+import {
+  consumeSignupPasswordHandoff,
+  inspectLatestAuthHandoff,
+} from '@/lib/server/auth-verification-generation'
 
 export const POST = withErrorHandler('CreatePassword', async (request: NextRequest) => {
+  requirePasswordSessionRequest(request)
   const { email: normalizedEmail, password, handoffToken } = createPasswordSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
@@ -22,65 +28,49 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
     supabase,
   })
 
-  // Find user by email
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .select('id, email, role, email_verified_at, password_hash, auth_credential_version')
-    .eq('email', normalizedEmail)
-    .single()
-
-  if (userError || !user) {
-    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
-  }
-
-  // Check if user already has a password
-  if (user.password_hash) {
-    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
-  }
-
-  // Check if email is verified
-  if (!user.email_verified_at) {
-    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
-  }
-
-  const now = new Date().toISOString()
-  const { data: consumedHandoff, error: handoffError } = await supabase
-    .from('verification_codes')
-    .update({ handoff_consumed_at: now })
-    .eq('user_id', user.id)
-    .eq('purpose', 'signup')
-    .eq('handoff_token_hash', hashHandoffToken(handoffToken))
-    .is('handoff_consumed_at', null)
-    .gt('handoff_expires_at', now)
-    .select('id')
-    .maybeSingle()
+  const handoffTokenHash = hashHandoffToken(handoffToken)
+  const { handoff, error: handoffError } = await inspectLatestAuthHandoff(supabase, {
+    purpose: 'signup',
+    handoffTokenHash,
+  })
 
   if (handoffError) {
     logServerError('auth.verify', handoffError)
     throw new ApiError(500, 'Failed to create password')
   }
 
-  if (!consumedHandoff) {
+  if (
+    !handoff
+    || handoff.email.trim().toLowerCase() !== normalizedEmail
+    || !handoff.email_verified
+    || handoff.password_set
+  ) {
     throw new ApiError(401, 'Verification session expired. Please verify your email again.')
   }
 
   // Hash password
   const passwordHash = await hashPassword(password)
 
-  // Save password to user record
-  const { error: updateError } = await supabase
-    .from('users')
-    .update({ password_hash: passwordHash })
-    .eq('id', user.id)
+  const { credentialVersion, error: updateError } = await consumeSignupPasswordHandoff(supabase, {
+    userId: handoff.user_id,
+    generation: handoff.generation,
+    handoffTokenHash,
+    passwordHash,
+    expectedCredentialVersion: handoff.credential_version,
+  })
 
   if (updateError) {
     logServerError('auth.verify', updateError)
     throw new ApiError(500, 'Failed to create password')
   }
 
-  // Create session
-  await createSession(user.id, user.email, user.role, {
-    expectedCredentialVersion: user.auth_credential_version,
+  if (!credentialVersion) {
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
+  }
+
+  // Session issuance rejects a credential epoch changed after the winning write.
+  await createSession(handoff.user_id, handoff.email, handoff.role, {
+    expectedCredentialVersion: credentialVersion,
   })
 
   const redirectUrl = '/classrooms'
@@ -90,9 +80,9 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
     message: 'Password created successfully',
     redirectUrl,
     user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
+      id: handoff.user_id,
+      email: handoff.email,
+      role: handoff.role,
     },
   })
 })

@@ -15,6 +15,7 @@ import { POST } from '@/app/api/student/pal/read-token/route'
 describe('POST /api/student/pal/read-token', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('PAL_CLASSROOM_ENABLED', 'false')
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
@@ -36,6 +37,32 @@ describe('POST /api/student/pal/read-token', () => {
     expect(mockGetPalReadTokenForStudent).toHaveBeenCalledWith({
       studentId: 'student-1',
     })
+  })
+
+  it('accepts an empty streamed POST body from the server adapter', async () => {
+    const request = new Request('http://localhost/api/student/pal/read-token', {
+      method: 'POST',
+      body: new ReadableStream({ start(controller) { controller.close() } }),
+      duplex: 'half',
+    } as RequestInit)
+    expect(request.body).not.toBeNull()
+
+    const response = await POST(request as any, { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(mockGetPalReadTokenForStudent).toHaveBeenCalledWith({ studentId: 'student-1' })
+  })
+
+  it.each(['{}', 'not-json', ' '])('rejects nonempty legacy requests without issuing an account token: %s', async (body) => {
+    const response = await POST(new Request('http://localhost/api/student/pal/read-token', {
+      method: 'POST',
+      body,
+    }) as any, { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(404)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(mockGetPalReadTokenForStudent).not.toHaveBeenCalled()
   })
 
   it('does not expose the endpoint while the pilot is disabled', async () => {

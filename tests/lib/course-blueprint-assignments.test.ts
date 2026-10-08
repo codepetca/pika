@@ -105,11 +105,20 @@ describe('course blueprint assignment markdown', () => {
 
   it('rejects invalid gradebook weights', () => {
     const parsed = markdownToCourseBlueprintAssignments(
-      '## Assignment\nDue Days: 1\nDue Time: 23:59\nGradebook Weight: 0\nInclude In Final: true',
+      '## Assignment\nDue Days: 1\nDue Time: 23:59\nGradebook Weight: -1\nInclude In Final: true',
       []
     )
 
     expect(parsed.errors).toContain('Assignment "Assignment" has invalid Gradebook Weight')
+  })
+
+  it('accepts zero gradebook weight', () => {
+    const parsed = markdownToCourseBlueprintAssignments(
+      '## Assignment\nDue Days: 1\nDue Time: 23:59\nGradebook Weight: 0\nInclude In Final: true',
+      []
+    )
+    expect(parsed.errors).toEqual([])
+    expect(parsed.assignments[0]?.gradebook_weight).toBe(0)
   })
 
   it('round-trips fractional points and due dates before the classroom start', () => {

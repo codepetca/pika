@@ -14,12 +14,70 @@ guides before changing schema or deploying a grading contract.
   an enforced architecture rule.
 - Pika-specific adapters sanitize classroom data, build core inputs, map results
   back to Pika fields, and coordinate durable work.
-- OpenAI Responses is the only implemented runtime provider. The default model
-  is `gpt-5-nano`, configurable through `OPENAI_GRADING_MODEL`.
+- DeepSeek chat completions is the only implemented runtime provider. The
+  default model is `deepseek-flash` (DeepSeek-V4.1-Flash), configurable through
+  `DEEPSEEK_GRADING_MODEL`, and authenticated with `DEEPSEEK_API_KEY`.
 - Assignment and test suggestions persist with bounded versioned provenance.
 - Teacher actions create identity-free review snapshots for offline metrics.
 - Normal grading does not call remote Gradex. The remote Gradex worker remains
   disabled during the internal grading pilot.
+
+### Assignment usage admission (default off)
+
+`ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED` is a server-only, exact-`true`
+master switch requiring the Assignment usage RPCs from migrations 203–204.
+Admission also requires the authenticated teacher's exact account ID in the
+comma-separated `ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS` cohort. A
+missing or malformed cohort fails closed to legacy unmetered behavior, so the
+master switch alone cannot expose every teacher. Every Assignment AI request
+uses the durable coordinator: with either gate unmatched, newly created runs
+remain unmetered version 0; with both gates matched, that teacher's runs use
+metered version-1 admission, including single-student and Gradex requests.
+Missing accounting contracts fail closed with a generic unavailable response;
+quota exhaustion returns `429` and `AI grading limit reached`.
+
+The application first validates migration 204's exact service-only capability
+sentinel. Version-1 items persist a SHA-256 fingerprint over every durable Pika
+grading source: Assignment instructions/settings, the submitted document,
+structured submission artifacts, and workflow history. The same fingerprint is
+checked under the Assignment/Classroom/document locks at provider admission and
+again during atomic finalization, so changed or deleted source input cannot be
+graded or settled as the original work.
+
+The persisted worker contract version owns the rest of a run's lifecycle even
+if the flag is disabled later. Version-1 workers revalidate per-item reservations
+before provider work, settle successful grades atomically, release skipped or
+terminally failed work, and retain reservations for retryable errors. Matching
+active version-1 selections resume even after the teacher leaves the cohort or
+the master switch is disabled; conflicting selections remain blocked. Enabling
+the flag does not convert active version-0 runs. Joining and student work remain
+unmetered. This integration adds
+no plan, entitlement, pricing, or quota-detail UI and does not enable rollout.
+
+When the Gradex assignment smoke runs with the metering master switch enabled,
+its stable seeded teacher ID must also be present in
+`ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS`. The smoke reports that ID
+when configuration is incomplete, requires a version-1 run, and verifies that
+the successful item settles exactly one `grading.ai` reservation.
+
+Migration 204 renews a still-live reservation to a bounded 24-hour window at
+lease-fenced provider admission. Expired reservations never resume or settle;
+Assignment terminal cleanup treats an already-expired release as an idempotent
+duplicate and preserves its original reason and timestamps. Other differing
+release reasons still conflict. Cleanup records `stale` for source/resource
+changes, `provider_failed` for terminal provider/result failures, and
+`internal_failure` for schema, persistence, or contract failures. No whole-run
+retry substitutes `expired` as a cleanup reason.
+
+For the dormant Gradex path, Pika persists the run idempotency key and each
+item's external submission reference before provider egress, then records the
+remote run under the same worker lease. Restarts therefore reuse the original
+correlation even if pseudonym configuration changes. Polling renews admission
+only for still-live local items, fetches only their remote results, and lets
+admitted siblings finish persistence before propagating a terminal worker
+failure. `internal_failure` is valid only for Assignment AI reservations; the
+shared usage ledger continues to reject it for test grading and repository
+review operations.
 
 ## Goals
 
@@ -94,11 +152,21 @@ The core is organized around five contracts:
 5. `evals.ts` validates teacher-review snapshots and calculates offline quality
    metrics without model or API calls.
 
-The OpenAI adapter uses the Responses API with `store: false` and strict JSON
-Schema output. It retries once with a larger output-token limit only when the
-first response is incomplete because of `max_output_tokens`. Network, timeout,
-rate-limit, server, configuration, and invalid-response failures remain distinct
-so Pika coordinators can make bounded retry decisions.
+The DeepSeek adapter uses the OpenAI-compatible chat-completions API at
+`https://api.deepseek.com/chat/completions` with `response_format:
+{"type":"json_object"}`. DeepSeek JSON output only guarantees syntactic validity,
+so the adapter appends the profile's JSON Schema to the system prompt and the
+engine still validates every field, criterion, and score range before a result is
+accepted. The provider-neutral `reasoningEffort` levels map onto DeepSeek's
+thinking tiers (`minimal`/`low` to `low`, `medium` to `high`, `high` to `max`).
+The adapter retries once with a larger `max_tokens` budget only when the first
+choice stops with `finish_reason: "length"`. Network, timeout, rate-limit,
+server, configuration, and invalid-response failures remain distinct so Pika
+coordinators can make bounded retry decisions.
+
+DeepSeek exposes no per-request retention switch equivalent to OpenAI's
+`store: false`. Grading retention is therefore an account-level setting, and that
+gap is tracked in the egress audit rather than in code.
 
 ## Versioning Model
 
@@ -107,7 +175,7 @@ These versions have different meanings and should not be collapsed:
 
 | Field | Meaning | Increment when |
 |---|---|---|
-| Provider | Runtime implementation, currently `openai` | The provider implementation changes |
+| Provider | Runtime implementation, currently `deepseek` | The provider implementation changes |
 | Model | Provider model selected at runtime | The configured model changes |
 | Policy version | Execution settings such as reasoning effort, timeout, and retry policy | Execution behavior changes materially |
 | Prompt version | Exact prompt/guideline behavior | Prompt wording or prompt assembly changes grading behavior |
@@ -162,6 +230,38 @@ microbatches, leases, retry backoff, and at most three attempts. Manual AI
 suggestion routes use the same preparation and profile contracts without taking
 ownership of the durable bulk-run lifecycle.
 
+Test marking requests stay at DeepSeek's high reasoning tier on every provider
+attempt. The first background attempt grades up to four responses together; if
+that batch fails, the affected responses retry individually at high reasoning.
+This preserves the faster path for successful batches without making one malformed
+batch response fail all its answers. The policy version records the high-only
+behavior separately from earlier grades that could use a low-effort rescue attempt.
+Individual grades use a 12,000-token first budget and a 16,000-token fallback;
+reference-answer generation retains its 6,000/8,000 budgets. An offline sequential
+48-answer trial completed every grade in 18.0 grading-call minutes at high reasoning,
+but the full background class flow still needs production measurement.
+
+Migration 219 adds durable background wakeups for test runs. An item-insert
+trigger starts the first protected worker call; a lease-release trigger starts
+the next bounded tick; a one-minute Supabase Cron watchdog recovers missed
+callbacks and due retries. The worker acknowledges quickly and runs the tick
+after the response, within its 300-second route limit. Its existing lease and
+item attempt limits remain the source of truth when callbacks overlap. This
+uses Supabase Cron rather than a sub-daily Vercel Hobby cron. The grading page
+can still poll and advance a run, but it no longer has to remain open for the
+run to progress after background dispatch is activated.
+
+Background dispatch activates only when Supabase Vault holds a HTTPS URL ending
+in `/api/cron/test-ai-grading` under `pika_test_ai_grading_worker_url` and the
+same bearer value as the deployed route's `CRON_SECRET` under
+`pika_test_ai_grading_worker_secret`. Apply migration 219 before configuring
+those secrets; deploy the matching worker before activation. With either Vault
+value absent, the existing teacher-driven ticks remain available. Verify a
+small test run continues after leaving the page, persists every suggestion,
+and terminates or reports individual failures before relying on the background
+path for a whole class. Migration application follows the one-time approval
+rule in the schema rollout checklist.
+
 ## Repository-Review Grading
 
 Repository review remains a Pika-owned workflow because Pika fetches repository
@@ -170,10 +270,10 @@ persists results. `src/lib/repo-review-ai.ts` sanitizes evidence and uses
 provider-safe change refs before invoking versioned profile helpers in
 `src/lib/grading/profiles/pika-repo-review.ts`.
 
-If OpenAI is unavailable or unconfigured, repository-review feedback can use the
-documented local heuristic result. That path records `pika-local`, its heuristic
-model/profile versions, zero provider requests, and null token usage. It is not
-reported as an OpenAI result.
+If DeepSeek is unavailable or unconfigured, repository-review feedback can use
+the documented local heuristic result. That path records `pika-local`, its
+heuristic model/profile versions, zero provider requests, and null token usage.
+It is not reported as a DeepSeek result.
 
 Repository-review results use the assignment-document persistence and teacher
 review contract.
@@ -285,6 +385,7 @@ For a new rubric, prompt, assessment type, or provider:
 | Surface | Primary verification |
 |---|---|
 | Core contracts and engine | `tests/lib/grading/engine.test.ts` and profile tests under `tests/lib/grading/` |
+| Provider adapter | `tests/lib/grading/deepseek-chat.test.ts` and `tests/integration/outbound-redirects.test.ts` |
 | Assignment adapter | `tests/unit/ai-grading.test.ts` |
 | Test adapter | `tests/unit/ai-test-grading.test.ts` |
 | Repository review adapter | `tests/unit/repo-review-ai.test.ts` |
@@ -293,6 +394,30 @@ For a new rubric, prompt, assessment type, or provider:
 | Test atomic persistence | `scripts/check-atomic-test-grading.sh` |
 | Teacher review metrics | `tests/lib/grading/teacher-correction-evals.test.ts` and `pnpm eval:grading-reviews ...` |
 | Full integration gate | `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`, and exact-head CI |
+
+## Assignment Grade Composition
+
+Assignment grading splits Workflow between the grader and the application:
+
+- The grader scores **Completion** (0–10), **Thinking** (0–10) and
+  **Presentation** (0–4) using the deduction rules in the
+  `pika-assignment` prompt. Screenshots and links are credited as completion
+  evidence, because the grader is text-only and URLs are redacted before egress.
+- `src/lib/assignment-workflow-process.ts` turns the document's save history
+  into the rest of Workflow: 2 points for being on time, less a lateness
+  deduction (up to 3 days −1, a week −2, two weeks −3, beyond −5); 2 points for
+  working in more than one sitting, which only applies to assignments marked
+  multi-session; and 2 points for authenticity. Missing history gives full
+  marks, and unsubmitted work is never counted late.
+- Feedback lists every requirement the student missed, even when it cost no
+  points, and the application appends reminders when authenticity is below 70%
+  or the work was never submitted.
+- Work with fewer than ten words and no attachments scores 0/0/0 without a
+  provider call.
+
+These rules were calibrated against two courses of real submissions; the
+teacher-approved rule set lives outside the repository with the private
+calibration snapshots.
 
 ## Related Guides
 

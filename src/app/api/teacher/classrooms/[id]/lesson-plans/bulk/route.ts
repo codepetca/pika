@@ -1,8 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { authorizeContextualLessonPlanMutationActor } from '@/lib/server/contextual-lesson-plan-mutation'
+import {
+  preflightContextualLessonPlanBulkMutation,
+  saveContextualLessonPlanBulk,
+} from '@/lib/server/contextual-lesson-plan-bulk-mutation'
 import type { TableRow } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 import { buildLessonPlanContentFields, getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
@@ -13,7 +17,30 @@ export const revalidate = 0
 
 // PUT /api/teacher/classrooms/[id]/lesson-plans/bulk - Bulk upsert lesson plans
 export const PUT = withErrorHandler('PutBulkUpsertLessonPlans', async (request, context) => {
-  const user = await requireRole('teacher')
+  const actor = await authorizeContextualLessonPlanMutationActor()
+  if (actor.mode === 'contextual') {
+    const scope = await preflightContextualLessonPlanBulkMutation({
+      actorId: actor.user.id,
+      params: await context.params,
+    })
+    const { plans, cleared_dates, mutation } = bulkLessonPlanMutationBodySchema.parse(await request.json())
+    const normalizedPlans = plans.map((plan) => {
+      const markdown = typeof plan.content_markdown === 'string'
+        ? plan.content_markdown
+        : getLessonPlanMarkdown({ content_markdown: null, content: plan.content ?? null }).markdown
+      const fields = buildLessonPlanContentFields(markdown)
+      return { date: plan.date, ...fields }
+    })
+    return NextResponse.json(await saveContextualLessonPlanBulk({
+      actorId: scope.actorId,
+      classroomId: scope.classroomId,
+      plans: normalizedPlans,
+      clearedDates: cleared_dates,
+      mutation,
+    }))
+  }
+
+  const user = actor.user
   const { id: classroomId } = await context.params
   const {
     plans,

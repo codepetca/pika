@@ -19,6 +19,7 @@ export interface GradingPolicy {
   model: string
   requestTimeoutMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
+  allowEffortDowngrade?: boolean
 }
 
 export interface StructuredOutputSpec {
@@ -34,6 +35,8 @@ export interface GradingExecutionMetadata {
   policyVersion: string
   providerRequestCount: number
   tokenUsage: GradingTokenUsage
+  /** The effort the successful attempt ran at; below the policy's when it was downgraded. */
+  reasoningEffortUsed: GradingPolicy['reasoningEffort']
 }
 
 export async function executeStructuredOutput<TOutput>(opts: {
@@ -56,6 +59,7 @@ export async function executeStructuredOutput<TOutput>(opts: {
     fallbackMaxOutputTokens: opts.output.fallbackMaxOutputTokens,
     requestTimeoutMs: opts.policy.requestTimeoutMs,
     reasoningEffort: opts.policy.reasoningEffort,
+    allowEffortDowngrade: opts.policy.allowEffortDowngrade,
   })
 
   let output: TOutput
@@ -74,6 +78,7 @@ export async function executeStructuredOutput<TOutput>(opts: {
       policyVersion: opts.policy.version,
       providerRequestCount: providerResponse.requestCount,
       tokenUsage: providerResponse.tokenUsage,
+      reasoningEffortUsed: providerResponse.reasoningEffortUsed,
     },
   }
 }
@@ -160,6 +165,7 @@ export async function executeGrading<TInput, TOutput>(opts: {
     rubricVersion: rubric.version,
     tokenUsage: structured.execution.tokenUsage,
     providerRequestCount: structured.execution.providerRequestCount,
+    reasoningEffortUsed: structured.execution.reasoningEffortUsed,
   })
   if (!result.success) {
     throw new GradingOutputError('Grading provider returned invalid result')

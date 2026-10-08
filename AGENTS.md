@@ -7,6 +7,10 @@
 - **`docs/dev-workflow.md` is the authoritative source** for worktree usage and shared `.env.local` setup.
 - Follow the startup contract in `.ai/START-HERE.md` before modifying code.
 
+## Environment flow
+
+Local app + local Supabase → local smoke/database checks → reviewed `main` PR → `production`. No hosted staging database or staging/Preview prerequisite. See `docs/dev-workflow.md`.
+
 ## UI/UX Changes: MUST Verify Visually (MANDATORY)
 
 Before any user-visible UI/UX implementation, use `.codex/skills/pika-ui-change` to name the
@@ -68,6 +72,9 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 - Do not commit secrets (`.env.local`, Supabase keys, session secrets).
 - Migration application is human-controlled by default. AI may apply only with one-time permission
   naming the target and exact migration; follow `docs/guidance/schema-rollout-checklist.md`.
+- For production migration operations, use `.codex/skills/pika-prod-migrations/SKILL.md`;
+  the manual GitHub workflow is the default path. Local migrations and application promotion
+  retain their separate procedures and authorization.
 
 ## When Docs Conflict
 1. `.ai/features.json` (status authority)

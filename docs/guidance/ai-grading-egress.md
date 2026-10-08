@@ -28,7 +28,9 @@ that sanitized copy to the provider.
   Pika user IDs, response IDs, assignment doc IDs, names, or emails.
 - Validate adapter payloads against an allow-list of expected fields before
   sending. Unexpected fields should fail closed.
-- Set provider retention controls such as `store: false` where supported.
+- Set provider retention controls such as `store: false` where supported. The
+  DeepSeek chat-completions API exposes no per-request retention control, so
+  retention for grading is governed by the DeepSeek account settings instead.
 - Sanitize provider output before saving feedback locally.
 - Keep grading-provider and output-validation failures content-free: bounded
   category, status and retryability may reach logs or saved run errors, but not

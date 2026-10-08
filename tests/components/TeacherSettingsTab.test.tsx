@@ -4,7 +4,7 @@ import { TeacherSettingsTab } from '@/app/classrooms/[classroomId]/TeacherSettin
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom } from '@/types'
-import type { ReactNode } from 'react'
+import { Suspense, startTransition, useState, type ReactNode } from 'react'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 // Mock next/navigation
@@ -919,5 +919,146 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
 
     // Success message should be gone
     expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
+  })
+})
+
+
+describe('TeacherSettingsTab - clipboard feedback ownership', () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+  it.each(['code', 'link', 'qr'] as const)('warns on rejected %s copy and succeeds on explicit retry', async (control) => {
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('denied')).mockResolvedValueOnce(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
+    if (control === 'qr') fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    const scope = control === 'qr' ? within(screen.getByRole('dialog')) : screen
+    const button = scope.getByRole('button', { name: control === 'code' ? 'Copy join code ABC123' : 'Copy link', exact: true })
+    const label = control === 'code' ? 'Join code' : 'Join link'
+    button.focus()
+    fireEvent.click(button)
+    expect(await screen.findByRole('status')).toHaveTextContent(`${label} not copied`)
+    expect(control === 'qr' ? screen.getByRole('status') : screen.getByTestId('app-message-pill')).toHaveClass('text-warning')
+    expect(button).toHaveFocus()
+    expect(writeText).toHaveBeenLastCalledWith(control === 'code' ? 'ABC123' : `${window.location.origin}/join/ABC123`)
+    fireEvent.click(button)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(`${label} copied`))
+    expect(writeText).toHaveBeenCalledTimes(2)
+  })
+
+  it('warns when the clipboard API is unavailable', async () => {
+    vi.stubGlobal('navigator', {})
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy join code ABC123' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Join code not copied')
+  })
+
+  it.each(['resolve', 'reject'] as const)('suppresses delayed %s after classroom replacement', async outcome => {
+    let resolve!: () => void
+    let reject!: () => void
+    const pending = new Promise<void>((yes, no) => { resolve = yes; reject = () => no(new Error('denied')) })
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(() => pending) } })
+    const view = render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy join code ABC123' }))
+    view.rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="access" />)
+    await act(async () => { if (outcome === 'resolve') resolve(); else reject() })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy join code CHEM12' })).toBeVisible()
+  })
+
+  it('retires its displayed feedback when classroom changes', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    const view = render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy join code ABC123' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Join code copied')
+    view.rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="access" />)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it.each(['resolve', 'reject'] as const)('retains only the latest copy completion after stale %s', async outcome => {
+    let resolve!: () => void
+    let reject!: () => void
+    const pending = new Promise<void>((yes, no) => { resolve = yes; reject = () => no(new Error('denied')) })
+    const writeText = vi.fn().mockReturnValueOnce(pending).mockRejectedValueOnce(new Error('denied'))
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy join code ABC123' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy link', exact: true }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Join link not copied')
+    await act(async () => { if (outcome === 'resolve') resolve(); else reject() })
+    expect(screen.getByRole('status')).toHaveTextContent('Join link not copied')
+  })
+
+  it.each(['resolve', 'reject'] as const)('suppresses %s after settings unmount with the message provider retained', async outcome => {
+    let resolve!: () => void
+    let reject!: () => void
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(() => new Promise<void>((yes, no) => { resolve = yes; reject = () => no(new Error('denied')) })) } })
+    const view = render(<Wrapper><TeacherSettingsTab classroom={mockClassroom} sectionParam="access" /></Wrapper>)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy join code ABC123' }))
+    view.rerender(<Wrapper><p>Settings closed</p></Wrapper>)
+    await act(async () => { if (outcome === 'resolve') resolve(); else reject() })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})
+
+
+describe('TeacherSettingsTab - committed copy ownership', () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+  it('keeps the visible classroom copy owner during a suspended replacement render', async () => {
+    let resolve!: () => void
+    const never = new Promise<void>(() => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(() => new Promise<void>(yes => { resolve = yes })) } })
+    function SuspendReplacement({ classroom }: { classroom: Classroom }) {
+      if (classroom.id === secondClassroom.id) throw never
+      return null
+    }
+    function Harness() {
+      const [classroom, setClassroom] = useState(mockClassroom)
+      return <>
+        <button onClick={() => startTransition(() => setClassroom(secondClassroom))}>Suspend replacement</button>
+        <Suspense fallback={<p>Replacement loading</p>}>
+          <TeacherSettingsTab classroom={classroom} sectionParam="access" />
+          <SuspendReplacement classroom={classroom} />
+        </Suspense>
+      </>
+    }
+    render(<Harness />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy join code ABC123' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend replacement' }))
+    expect(screen.getByRole('button', { name: 'Copy join code ABC123' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Copy join code CHEM12' })).not.toBeInTheDocument()
+    await act(async () => resolve())
+    expect(screen.getByRole('status')).toHaveTextContent('Join code copied')
+  })
+
+  it('keeps a pending copy and unsaved title on a same-classroom refresh', async () => {
+    let resolve!: () => void
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(() => new Promise<void>(yes => { resolve = yes })) } })
+    const view = render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="general" />, { wrapper: Wrapper })
+    fireEvent.change(screen.getByLabelText('Classroom name'), { target: { value: 'Unsaved local title' } })
+    view.rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy join code ABC123' }))
+    view.rerender(<TeacherSettingsTab classroom={{ ...mockClassroom, title: 'Refreshed title' }} sectionParam="access" />)
+    await act(async () => resolve())
+    expect(screen.getByRole('status')).toHaveTextContent('Join code copied')
+    view.rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="general" />)
+    expect(screen.getByLabelText('Classroom name')).toHaveValue('Unsaved local title')
+  })
+})
+
+
+describe('TeacherSettingsTab / TeacherClassroomJoinQrDialog - QR copy session', () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+  it.each(['resolve', 'reject'] as const)('retires delayed QR %s after close and reopen', async outcome => {
+    let resolve!: () => void
+    let reject!: () => void
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(() => new Promise<void>((yes, no) => { resolve = yes; reject = () => no(new Error('denied')) })) } })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Copy link' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    await act(async () => { if (outcome === 'resolve') resolve(); else reject() })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

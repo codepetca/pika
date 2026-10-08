@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/assignments/[id]/feedback-return/route'
 
@@ -16,6 +16,11 @@ const {
 }))
 
 vi.mock('@/lib/auth', () => ({
+  requireAuth: vi.fn(async () => ({
+    id: teacherRowId,
+    email: 'owner@example.com',
+    role: 'student',
+  })),
   requireRole: vi.fn(async () => ({
     id: 'teacher-1',
     email: 'teacher@example.com',
@@ -91,6 +96,11 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
       id: 'a0000000-0000-4000-8000-000000000001',
       classroom_id: 'classroom-1',
     })
+  })
+
+  afterEach(() => {
+    delete process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_ENABLED
+    delete process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_PAIRS
   })
 
   it('authenticates before parsing or authorizing the request', async () => {
@@ -253,6 +263,46 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
       expect.objectContaining({
         p_feedback: 'Explicit feedback',
         p_expected_doc_updated_at: null,
+      }),
+    )
+  })
+
+  it('uses the owner-fenced RPC for an exact contextual student-owner pair', async () => {
+    const casedStudentId = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
+    process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_ENABLED = 'true'
+    process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_PAIRS = JSON.stringify([{
+      userId: teacherRowId,
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
+    }])
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: {
+        ...successfulAtomicResult('Contextual feedback'),
+        doc: {
+          ...successfulAtomicResult('Contextual feedback').doc,
+          assignment_id: 'a0000000-0000-4000-8000-000000000001',
+          student_id: casedStudentId,
+        },
+        entry: {
+          ...successfulAtomicResult('Contextual feedback').entry,
+          assignment_id: 'a0000000-0000-4000-8000-000000000001',
+          student_id: casedStudentId,
+        },
+      },
+      error: null,
+    })
+
+    const response = await POST(makeRequest({ student_id: casedStudentId.toUpperCase(), feedback: 'Contextual feedback' }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(assertTeacherCanMutateAssignment).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'return_assignment_feedback_for_owner_v1',
+      expect.objectContaining({
+        p_actor_id: teacherRowId,
+        p_assignment_id: 'a0000000-0000-4000-8000-000000000001',
+        p_student_id: casedStudentId,
       }),
     )
   })

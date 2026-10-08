@@ -147,7 +147,12 @@ export async function collectExactReadPages<T>(
   return rows
 }
 
-function expectedArchiveContract(includeOverrides = false, includeItems = false, includeRemovedRosterActor = false) {
+function expectedArchiveContract(
+  includeOverrides = false,
+  includeItems = false,
+  includeRemovedRosterActor = false,
+  includeGuidedDraftProvenance = false,
+) {
   const v1Tables = new Set<string>(
     CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
   )
@@ -159,8 +164,10 @@ function expectedArchiveContract(includeOverrides = false, includeItems = false,
   const resources = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
-  return getClassroomResourceOrder('export')
-    .filter((table) => v1Tables.has(table))
+  const tables = getClassroomResourceOrder('export').filter((table) => v1Tables.has(table))
+  // Migration 221 appends this additive resource without renumbering deployed rows.
+  if (includeGuidedDraftProvenance) tables.push('classroom_guided_draft_provenance')
+  return tables
     .map((table, exportPosition) => {
       const resource = resources.get(table)
       if (!resource) throw new Error('Classroom archive resource order is invalid')
@@ -189,6 +196,7 @@ export function verifyRemoteClassroomContracts(
     actualArchive.some((row) => row.table_name === 'gradebook_score_overrides'),
     actualArchive.some((row) => row.table_name === 'gradebook_items'),
     actualArchive.some((row) => row.table_name === 'classroom_roster' && row.actor_columns.includes('removed_student_id')),
+    actualArchive.some((row) => row.table_name === 'classroom_guided_draft_provenance'),
   ))) {
     throw new Error('Remote archive resource contract does not match the checked-in contract')
   }
@@ -242,7 +250,9 @@ export async function readClassroomArchiveResourceGraph(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
   for (const table of getClassroomResourceOrder('export')) {
-    if (['gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores'].includes(table) && !deployedTables.has(table)) continue
+    // The resolver rejects unexpected omissions; all remaining absences are
+    // additive resources on an older deployed schema.
+    if (!deployedTables.has(table)) continue
     const resource = contractByTable.get(table)
     if (!resource || resource.primary_key.length !== 1) {
       throw new Error(`Inventory adapter is unavailable for classroom resource ${table}`)

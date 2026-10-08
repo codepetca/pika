@@ -9,11 +9,34 @@ import {
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
-export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v1'
+export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v8'
 export const PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION =
-  'pika-test-open-response-manual-prompt-v1'
+  'pika-test-open-response-manual-prompt-v4'
 export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
-  'pika-test-open-response-bulk-prompt-v1'
+  'pika-test-open-response-bulk-prompt-v4'
+
+// Calibrated against 8 adjudicated responses from two archived classrooms. The grader
+// forgave one or two transcription slips but began deducting as they accumulated, costing
+// a submission that matched the sample solution 3 of 10 marks for a stray period and a
+// missing parenthesis. These are handwriting artifacts: students write this code on paper
+// without a compiler. Stated for both profiles because the defect was inconsistency
+// between them, not absence from either.
+const TRANSCRIPTION_TOLERANCE_GUIDANCE = `- Transcription errors never reduce the score. A missing semicolon or parenthesis, a comma typed as a period, an unclosed quote, or a misspelled identifier is a handwriting artifact, not an error in the work. Deduct only for mistakes that change the program's logic, structure, or output.
+- Apply this no matter how many transcription errors appear. Five slips in otherwise correct code is still correct code; never let them accumulate into a deduction.`
+
+// The precedence clause below is not redundant. `GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE`
+// tells the grader to "score in the middle range" for partly-correct logic, which on a
+// ten-criterion question lands near 5 no matter how many criteria were met. The bulk
+// guideline carries no such bands, which is why only the manual profile broke the floor.
+//
+// Second calibration finding, from the same archived responses once the transcription
+// noise above stopped masking it. On a ten-bullet key worth ten marks, submissions that
+// cleanly satisfied six and seven bullets scored four — the teacher adjudicated both at
+// 6-8 and 7-8. Failures were being charged more than once: stacked beyond the bullets
+// that actually failed, or counted again under a second bullet describing the same defect.
+const RUBRIC_BULLET_FLOOR_GUIDANCE = `- When the answer key is a list of criteria, score it as a checklist. Each criterion the response satisfies is worth its share of the marks, and the score never falls below the number of criteria clearly met.
+- Deduct once per criterion that genuinely fails, and no more. Never let one defect reduce the score under two criteria, and never add further penalty for the number of things wrong — a response missing three criteria loses three marks, not more.
+- The checklist overrides any instruction to place a score in an upper, middle or low range. Those bands are for judging work that has no criteria list; where a list exists, count it instead of estimating a band.`
 export const PIKA_TEST_REFERENCE_PROFILE_VERSION = 'pika-test-reference-v1'
 export const PIKA_TEST_REFERENCE_PROMPT_VERSION = 'pika-test-reference-prompt-v1'
 
@@ -83,25 +106,67 @@ const batchGradeJsonSchema = {
   additionalProperties: false,
 } as const
 
+// DeepSeek counts reasoning against max_tokens, so these budgets are sized by
+// thinking cost rather than answer length. Reference generation keeps its existing
+// ceiling; the larger single-grade budget was measured on 48 deidentified answers:
+// all 48 completed in 18.0 sequential grading-call minutes at high reasoning.
+// This is not a production class-completion guarantee.
+const TEST_REFERENCE_INITIAL_MAX_OUTPUT_TOKENS = 6000
+const TEST_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS = 8000
+const TEST_SINGLE_GRADE_INITIAL_MAX_OUTPUT_TOKENS = 12_000
+const TEST_SINGLE_GRADE_FALLBACK_MAX_OUTPUT_TOKENS = 16_000
+
 export const PIKA_TEST_REFERENCE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_reference_answers',
   jsonSchema: referenceJsonSchema,
-  initialMaxOutputTokens: 220,
-  fallbackMaxOutputTokens: 420,
+  initialMaxOutputTokens: TEST_REFERENCE_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export const PIKA_TEST_SINGLE_GRADE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_single_grade',
   jsonSchema: singleGradeJsonSchema,
-  initialMaxOutputTokens: 220,
-  fallbackMaxOutputTokens: 420,
+  initialMaxOutputTokens: TEST_SINGLE_GRADE_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_SINGLE_GRADE_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
-export const PIKA_TEST_BATCH_GRADE_OUTPUT: StructuredOutputSpec = {
-  schemaName: 'test_batch_grade',
-  jsonSchema: batchGradeJsonSchema,
-  initialMaxOutputTokens: 600,
-  fallbackMaxOutputTokens: 900,
+// A batch call returns a score and feedback for every response in it and reasons about
+// each one, so a fixed ceiling cannot serve a variable-size payload. Measured on ten-point
+// questions: a batch of three spent 5,835 output tokens and a batch of one spent 487.
+// Production grades four at a time (`TEST_AI_GRADING_MICROBATCH_SIZE`), which lands near
+// the old flat 8,000 and is why batch grading was failing outright.
+//
+// The provider accepts a max_tokens well above 8,000 — 30,000 was verified — so the
+// ceiling here is a safety clamp, not a model limit.
+const TEST_BATCH_BASE_OUTPUT_TOKENS = 1_000
+const TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS = 4_000
+const TEST_BATCH_MAX_OUTPUT_TOKENS = 24_000
+
+/**
+ * Largest batch whose first attempt still gets its full per-response estimate while leaving
+ * the retry room to be strictly larger. Beyond this the budget clamp trims every response.
+ */
+export const PIKA_TEST_MAX_BATCH_RESPONSES = Math.floor(
+  (TEST_BATCH_MAX_OUTPUT_TOKENS - TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS - TEST_BATCH_BASE_OUTPUT_TOKENS) /
+    TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS,
+)
+
+export function pikaTestBatchGradeOutput(responseCount: number): StructuredOutputSpec {
+  const wanted =
+    TEST_BATCH_BASE_OUTPUT_TOKENS + TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS * Math.max(responseCount, 1)
+  // The fallback must stay strictly above the initial budget. Clamping both to the ceiling
+  // would make the provider re-send the identical max_tokens after a truncation and fail
+  // again at full cost — re-arming the exact bug this sizing exists to prevent.
+  const fallback = Math.min(wanted * 2, TEST_BATCH_MAX_OUTPUT_TOKENS)
+  // The first attempt gets its full estimate; it is trimmed only when the estimate is close
+  // enough to the ceiling that the retry would have no room left to be larger.
+  const initial = Math.min(wanted, fallback - TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS)
+  return {
+    schemaName: 'test_batch_grade',
+    jsonSchema: batchGradeJsonSchema,
+    initialMaxOutputTokens: initial,
+    fallbackMaxOutputTokens: fallback,
+  }
 }
 
 export function getPikaTestPromptVersion(profile: 'manual' | 'bulk'): string {
@@ -304,6 +369,8 @@ function buildCodingRubric(
     return `
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - Award strong partial credit when the core approach is correct, even if the implementation is rough.
+${TRANSCRIPTION_TOLERANCE_GUIDANCE}
+${RUBRIC_BULLET_FLOOR_GUIDANCE}
 - Treat CodeHS Java helpers (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid.
 - Accept alternate valid solutions unless the prompt explicitly requires a specific structure.
 ${readabilityGuidance}`
@@ -312,6 +379,8 @@ ${readabilityGuidance}`
   return `
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
+${TRANSCRIPTION_TOLERANCE_GUIDANCE}
+${RUBRIC_BULLET_FLOOR_GUIDANCE}
 - Formatting/readability can affect the score only through the capped readability deduction below.
 - For Java/CodeHS classroom contexts, treat platform helper APIs (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid and do not penalize solely for using them.
 - If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.

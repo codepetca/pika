@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
 import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
-import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
+import { classroomStudentRecord, hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 import { getPalApiUrl, isClassroomPalRequested } from '@/lib/server/pal-config'
@@ -15,6 +15,11 @@ import {
   normalizeClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
 import { getBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
+import { ApiError } from '@/lib/api-error'
+import {
+  resolveClassroomPagePilotAccess,
+  type ClassroomPagePilotAccess,
+} from '@/lib/server/classroom-page-access'
 
 // Force dynamic rendering (no caching) since data is user-specific
 export const dynamic = 'force-dynamic'
@@ -44,8 +49,26 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
 
   const supabase = getServiceRoleClient()
 
-  // 2. Fetch data based on role - runs on server
-  if (user.role === 'teacher') {
+  let pageAccess: ClassroomPagePilotAccess
+  try {
+    pageAccess = await resolveClassroomPagePilotAccess(user, classroomId, { supabase })
+  } catch (error) {
+    if (
+      error instanceof ApiError
+      && (error.statusCode === 400 || error.statusCode === 403 || error.statusCode === 404)
+    ) {
+      notFound()
+    }
+    throw error
+  }
+
+  const classroomRole = pageAccess.mode === 'contextual'
+    ? pageAccess.context.relationship === 'owner' ? 'teacher' : 'student'
+    : user.role
+
+  // 2. Fetch data based on the admitted classroom relationship. The actual session
+  // role remains unchanged and is still passed to AppShell/AuthSessionWatcher.
+  if (classroomRole === 'teacher') {
     // Parallel fetch: current classroom + all teacher's classrooms + display info
     const [classroomResult, classroomsResult, displayInfo] = await Promise.all([
       supabase
@@ -54,7 +77,9 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         .eq('id', classroomId)
         .eq('teacher_id', user.id)
         .single(),
-      listActiveTeacherClassrooms(supabase, user.id),
+      pageAccess.mode === 'contextual'
+        ? Promise.resolve({ data: [], error: null })
+        : listActiveTeacherClassrooms(supabase, user.id),
       getUserDisplayInfo(user, supabase),
     ])
 
@@ -91,11 +116,11 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     // If viewing archived classroom, only show that one in sidebar
     const teacherClassrooms = classroom.archived_at
       ? [classroom]
-      : allClassrooms
+      : pageAccess.mode === 'contextual' ? [classroom] : allClassrooms
 
     // 3. Render with data already loaded - no spinner needed!
     return (
-      <ClassroomPageClient
+      <ClassroomPageClient initialNow={Date.now()}
         classroom={classroom}
         user={{
           id: user.id,
@@ -103,6 +128,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
           role: user.role,
           ...displayInfo,
         }}
+        classroomRole={classroomRole}
         teacherClassrooms={teacherClassrooms}
         initialTab={tab}
         initialSearchParams={initialSearchParams}
@@ -146,7 +172,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     ? await resolvePalClassroomContext({ studentId: user.id, classroomId }).catch(() => null)
     : null
   const palEnabled = palApiUrl !== null && (!isClassroomPalRequested() || membershipContext !== null)
-  const hydratedClassroom = hydrateClassroomRecord(classroom as Record<string, any>)
+  const hydratedClassroom = hydrateClassroomRecord(classroomStudentRecord(classroom))
   if (
     tab &&
     !isClassroomTabAvailable(
@@ -160,7 +186,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   }
 
   const studentPage = (
-    <ClassroomPageClient
+    <ClassroomPageClient initialNow={Date.now()}
       classroom={hydratedClassroom}
       user={{
         id: user.id,
@@ -168,6 +194,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         role: user.role,
         ...displayInfo,
       }}
+      classroomRole={classroomRole}
       teacherClassrooms={[]} // Students don't need this
       initialTab={tab}
       initialSearchParams={initialSearchParams}

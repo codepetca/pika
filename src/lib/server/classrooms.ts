@@ -24,6 +24,14 @@ export type ClassroomAccessRecord = {
   actual_site_published: boolean
 }
 
+/** Guidance provenance is teacher-only, including its immutable Version identity. */
+export function classroomStudentRecord<T extends Record<string, unknown>>(
+  row: T,
+): Omit<T, 'authoring_guidance_version_id'> {
+  const { authoring_guidance_version_id: _privateGuidanceVersion, ...studentRecord } = row
+  return studentRecord
+}
+
 export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
   return {
     ...(row as Classroom),

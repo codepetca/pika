@@ -6,6 +6,268 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('keeps all fresh Test pilot modes and failure receipts while collecting only sanitized timings', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    for (const profile of ['detail', 'list']) {
+      const step = workflow.split(`      - name: Verify isolated contextual Test owner-${profile} SDK reads`)[1]?.split('      - name:')[0]
+      expect(step).toContain(`--mode normal --timings-path "$proof_timings_dir/test-owner-${profile}-normal.json"`)
+      expect(step).toContain(`for test_owner_${profile}_mode in after-fixture before-capture; do`)
+      expect(step).toContain(`--mode "$test_owner_${profile}_mode" --timings-path`)
+      expect(step).toContain(`[[ "$test_owner_${profile}_status" -eq 1 ]] || exit 1`)
+      expect(step).toContain(`wc -l < "$test_owner_${profile}_log"`)
+      expect(step).toContain('" -eq 2 ]] || exit 1')
+      expect(step).toContain(`PASS isolated test-owner-${profile} exact teardown and unchanged canonical baseline.`)
+      expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    }
+    const upload = workflow.split('      - name: Upload sanitized Test proof timings')[1]?.split('\n  test-and-build:')[0]
+    expect(upload).toContain('if: always()')
+    expect(upload).toContain('path: ${{ runner.temp }}/pika-proof-timings/*.json')
+    expect(upload).not.toMatch(/startup|\.log|workdir/)
+  })
+  it('requires a separate serial integrated SDK rehearsal and exact forced-cleanup receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment integrated SDK effects and private delivery'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_integrated_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-learner-integrated-lifecycle.ts --reviewed-head "$assignment_integrated_head" --mode normal')
+    expect(step).toContain('for assignment_integrated_mode in after-fixture before-capture; do')
+    expect(step).toContain('--mode "$assignment_integrated_mode" > "$assignment_integrated_log" 2>&1 || assignment_integrated_status=$?')
+    expect(step).toContain('[[ "$assignment_integrated_status" -eq 1 ]] || exit 1')
+    expect(step).toContain('[[ "$(wc -l < "$assignment_integrated_log" | tr -d \' \')" -eq 2 ]] || exit 1')
+    expect(step).toContain('chmod 600 "$assignment_integrated_log"')
+    expect(step).toContain("trap 'rm -f -- \"$assignment_integrated_log\"' EXIT")
+    expect(step).toContain('grep -Fx "FAIL forced isolated assignment-learner-integrated lifecycle: ${assignment_integrated_mode}."')
+    expect(step).toContain("grep -Fx 'PASS isolated assignment-learner-integrated exact teardown and unchanged canonical baseline.'")
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual Assignment inline-image locked Classwork reads')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
+  })
+  it('requires locked inline-image reads after supplemental visibility contracts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual Assignment inline-image locked Classwork reads'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('run: bash scripts/check-contextual-assignment-inline-read-classwork-database.sh')
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual assignment-member supplemental visibility')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
+  })
+  it('requires supplemental learner visibility checks after member Classwork contracts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual assignment-member supplemental visibility'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('run: bash scripts/check-contextual-assignment-member-supplement-visibility-database.sh')
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual assignment-member locked Classwork concealment')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
+  })
+  it('requires locked member Classwork rollback checks after the existing save proof', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual assignment-member locked Classwork concealment'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('run: bash scripts/check-contextual-assignment-member-classwork-database.sh')
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual learner assignment-save atomicity and privileges')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
+  })
+  it('requires locked Classwork open rollback checks after the existing atomicity proof', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual assignment-open locked Classwork concealment'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('run: bash scripts/check-contextual-assignment-open-classwork-database.sh')
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual learner assignment-open atomicity and privileges')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual learner assignment-open concurrent authorization'))
+  })
+  it('requires serial learner open read/projection evidence without claiming actual RPC effects', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual learner Assignment open projections'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_learner_open_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-learner-open-lifecycle.ts --reviewed-head "$assignment_learner_open_head" --mode normal')
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+    expect(workflow.indexOf('      - name: Verify isolated contextual Assignment student-detail reads')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual learner assignment-open atomicity and privileges'))
+  })
+  it('requires a serial student-detail SDK and revocation observer with no extra fixture authority', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment student-detail reads'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_student_detail_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-student-detail-lifecycle.ts --reviewed-head "$assignment_student_detail_head" --mode normal')
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+    expect(workflow.indexOf('      - name: Verify isolated contextual Assignment overview reads')).toBeLessThan(workflow.indexOf(name))
+  })
+  it('requires an additional serial overview SDK proof using the reviewed existing disposable fixture', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment overview reads'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_overview_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-overview-lifecycle.ts --reviewed-head "$assignment_overview_head" --mode normal')
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+    expect(workflow.indexOf('      - name: Verify isolated contextual Assignment list pagination and revocations')).toBeLessThan(workflow.indexOf(name))
+  })
+  it('requires isolated Assignment list runtime and both exact failed-start cleanup receipts serially', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment list pagination and revocations'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_list_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-list-lifecycle.ts --reviewed-head "$assignment_list_head" --mode normal')
+    expect(step).toContain('for assignment_list_mode in after-fixture before-capture; do')
+    expect(step).toContain('--mode "$assignment_list_mode" > "$assignment_list_log" 2>&1 || assignment_list_status=$?')
+    expect(step).toContain('[[ "$assignment_list_status" -eq 1 ]] || exit 1')
+    expect(step).toContain('grep -Fx "FAIL forced isolated assignment-list lifecycle: ${assignment_list_mode}."')
+    expect(step).toContain("grep -Fx 'PASS isolated assignment-list exact teardown and unchanged canonical baseline.'")
+    expect(step).toContain("trap 'rm -f -- \"$assignment_list_log\"' EXIT")
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+  })
+  it('requires retained consumer two-session locks and installed-SDK ACL with exact forced baseline receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify retained cleanup two-session locks and installed SDK ACL')[1]?.split('      - name:')[0]
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-locks-database.ts\n')
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts\n')
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts --force-failure')
+    expect(step).toContain('[[ "$group_sdk_status" -eq 1 ]]')
+    expect(step).toContain("grep -Fxq 'FAIL forced retained cleanup SDK proof.'")
+    expect(step).toContain("grep -Fxq 'PASS retained cleanup SDK unchanged local baseline.'")
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+  })
+  it('requires serial shared Assignment real-route proof and exact forced cleanup receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Rehearse shared Assignment writes and exact failed-fixture cleanup'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    const run = 'bash scripts/rehearse-local-shared-assignment-writes.sh'
+    const ack = '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES'
+    expect(step).toContain(`${run} '${ack}' normal > "$shared_assignment_log" 2>&1`)
+    expect(step).toContain("grep -Fx 'PASS shared-assignment actual routes and real RPCs; shared cohort only; old pair gates OFF'")
+    for (const [mode, failure] of [
+      ['after-fixture', 'FORCED_AFTER_FIXTURE'],
+      ['before-capture', 'FORCED_COMMIT_BEFORE_CAPTURE'],
+    ]) {
+      expect(step).toContain(`${run} '${ack}' ${mode} > "$shared_assignment_log" 2>&1 || shared_assignment_status=$?`)
+      expect(step).toContain(`grep -Fx 'FAIL shared-assignment ${failure}'`)
+    }
+    expect(step?.match(/shared_assignment_status=0/g)).toHaveLength(2)
+    expect(step?.match(/\[\[ "\$shared_assignment_status" -eq 1 \]\] \|\| exit 1/g)).toHaveLength(2)
+    expect(step?.split("grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O'")).toHaveLength(4)
+    expect(step).toContain("trap 'rm -f -- \"$shared_assignment_log\"' EXIT")
+    expect(step).not.toMatch(/wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Rehearse contextual Assignment routes against local Supabase')).toBeLessThan(workflow.indexOf(name))
+  })
+
+  it('requires group consumer rollback and exact intentional post-teardown failure', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify retained roster group consumer rollback contracts')[1]?.split('      - name:')[0]
+    expect(step).toContain('bash scripts/check-retained-roster-group-cleanup-database.sh\n')
+    expect(step).toContain('bash scripts/check-retained-roster-group-cleanup-database.sh --force-failure')
+    expect(step).toContain('[[ "$group_cleanup_status" -eq 1 ]]')
+    expect(step).toContain("grep -Fxq 'FAIL forced retained roster group cleanup wrapper failure.'")
+    expect(step).toContain("grep -Fxq 'PASS retained roster group cleanup exact teardown.'")
+    expect(step).toContain("echo 'FAIL unexpected retained group forced teardown proof.'")
+    expect(step).not.toContain('post-commit')
+  })
+
+  it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify contextual roster owner writes and failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(step).toContain('bash scripts/check-contextual-roster-owner-writes-database.sh')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-roster-owner-writes.ts\n')
+    expect(step).toContain('--verify-cleanup-after-fixture')
+    expect(step).toContain("grep -F 'Forced roster post-fixture cleanup proof'")
+    expect(step).toContain("grep -F 'PASS exact synthetic roster owner-write cleanup, zero residual rows and global baseline counts'")
+    expect(step).toContain("echo 'Expected the forced post-fixture failure'")
+    expect(step).toContain('exit 1')
+  })
+
+  it('requires actual calendar owner SDK and exact failed-fixture cleanup for both proof lanes', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const sdk = workflow.split('      - name: Verify contextual calendar owner SDK and failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(sdk).toContain('pnpm exec tsx scripts/check-contextual-class-day-owner-writes.ts\n')
+    expect(sdk).toContain('--verify-cleanup-after-fixture')
+    expect(sdk).toContain("grep -F 'FAIL Forced calendar post-fixture cleanup proof'")
+    expect(sdk).toContain("grep -F 'PASS exact synthetic calendar owner-write cleanup, zero residual rows and global baseline counts'")
+    const concurrency = workflow.split('      - name: Verify contextual calendar concurrent writers')[1]?.split('      - name:')[0]
+    expect(concurrency).toContain('node scripts/check-contextual-calendar-concurrency.mjs\n')
+    expect(concurrency).toContain('--verify-cleanup-after-fixture')
+    expect(concurrency).toContain("grep -F 'FAIL Forced calendar concurrency post-fixture cleanup proof'")
+    expect(concurrency).toContain("grep -F 'PASS exact synthetic calendar concurrency cleanup, zero residual rows and global baseline counts'")
+    for (const step of [sdk, concurrency]) {
+      expect(step).toContain("echo 'Expected the forced post-fixture failure'")
+      expect(step).toContain('exit 1')
+    }
+  })
+
+  it('requires preserving removal SQL/SDK evidence and the exact failed-fixture cleanup', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify contextual preserving roster removal and failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(step).toContain('bash scripts/check-contextual-roster-removal-owner-writes-database.sh')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts\n')
+    expect(step).toContain('--verify-cleanup-after-fixture')
+    expect(step).toContain('cleanup_status=$?')
+    expect(step).toContain('[[ "$cleanup_status" -eq 1 ]]')
+    expect(step).toContain("grep -F 'FAIL Forced roster removal post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)'")
+    expect(step).toContain("grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts'")
+    expect(step).toContain('--verify-cleanup-after-commit-before-capture')
+    expect(step).toContain("grep -F 'FAIL Forced roster removal post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)'")
+    expect(step).toContain('--verify-cleanup-suppressed-delete-rollback')
+    expect(step).toContain("grep -F 'FAIL Forced roster removal suppressed-cleanup rollback proof (expected for --verify-cleanup-suppressed-delete-rollback)'")
+    expect(step).toContain("grep -F 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored'")
+  })
+
+  it('requires detail SDK proofs and exact fixture/precapture cleanup failures', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify contextual classroom detail reads and exact failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts\n')
+    expect(step).toContain('--verify-cleanup-after-fixture')
+    expect(step).toContain('--verify-cleanup-after-commit-before-capture')
+    expect(step).toContain('[[ "$cleanup_status" -eq 1 ]]')
+    expect(step).toContain("grep -F 'FAIL Forced classroom detail post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)'")
+    expect(step).toContain("grep -F 'FAIL Forced classroom detail post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)'")
+    expect(step).toContain("grep -F 'PASS exact synthetic classroom detail cleanup, zero residual rows and global baseline counts'")
+  })
+
+  it('registers serial metadata SQL/SDK proofs with complete normal and exact forced cleanup receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual classroom metadata and exact failed-fixture cleanup'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toBeDefined()
+    const sql = 'bash scripts/check-contextual-classroom-metadata-database.sh'
+    const sdk = 'pnpm exec tsx scripts/check-contextual-classroom-metadata.ts'
+    expect(step).toContain(sql)
+    expect(step).toContain(`${sdk} > "$metadata_sdk_log"`)
+    expect(step?.indexOf(sql)).toBeLessThan(step?.indexOf(sdk) ?? -1)
+    for (const marker of [
+      'PASS metadata rollback-only direct contracts, full owner output, genuine slug collision and suppression/substitution/late trigger faults restore metadata and both revision effects',
+      'PASS metadata actual SDK both owner roles, exact normalized body/full owner hydration and strict wire failures without replay',
+      'PASS metadata deterministic observed-blocking transfer/archive/slug/publication races preserve current authority and publishing invariants',
+      'PASS metadata committed-write lost-response uncertainty is reported without replay and no creation entitlement is required',
+    ]) expect(step).toContain(`grep -Fx '${marker}'`)
+    const cleanup = "grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts'"
+    expect(step?.split(cleanup)).toHaveLength(4)
+    expect(step?.match(/\[\[ "\$metadata_cleanup_status" -eq 1 \]\] \|\| exit 1/g)).toHaveLength(2)
+    for (const [flag, failure] of [
+      ['--verify-cleanup-after-fixture', 'post-fixture'],
+      ['--verify-cleanup-after-commit-before-capture', 'post-commit pre-capture'],
+    ]) {
+      expect(step).toContain(`${sdk} ${flag} > "$metadata_cleanup_log" 2>&1 || metadata_cleanup_status=$?`)
+      expect(step).toContain(`grep -Fx 'FAIL Forced metadata ${failure} cleanup proof (expected for ${flag})'`)
+    }
+    expect(step?.match(/metadata_cleanup_status=0/g)).toHaveLength(2)
+    expect(step?.match(/="\$\(mktemp\)"/g)).toHaveLength(3)
+    expect(step).toContain("trap 'rm -f -- \"$metadata_sql_log\" \"$metadata_sdk_log\" \"$metadata_cleanup_log\"' EXIT")
+    expect(step).not.toMatch(/wait |tee |\s&\s/)
+  })
+
   it('defers heavy draft checks and runs comprehensive validation on a stable ready SHA', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 

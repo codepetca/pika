@@ -15,23 +15,25 @@ import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-
 import { safeLocalGetJson, safeLocalSetJson } from '@/lib/client-storage'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { average, formatCompactPercent, getAssessmentCell, getStudentDisplayId, getStudentName, getValidEmailList, getAssessmentColumnKey, median, type GradebookIdentityColumn } from '@/lib/gradebook-display'
-import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv } from '@/lib/gradebook-editor'
+import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv, visibleGradebookAssessments } from '@/lib/gradebook-editor'
+import type { MaximumChangeMode } from '@/lib/gradebook-maximum'
 import { saveGradebookAssessment } from '@/lib/gradebook-save'
 import { getGradebookEmail2Addresses } from '@/lib/gradebook-email'
 import { useGradebookEmail2 } from '@/hooks/useGradebookEmail2'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 
 type GradebookSection = 'grades' | 'settings'
 type GradebookSortColumn = GradebookIdentityColumn
-interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void }
-interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; students: GradebookStudentSummary[] }
+interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void; onClassroomUpdated?: (classroom: Classroom) => void }
+interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; maximum_overrides_available?: boolean; maximum_edits_enabled?: boolean; students: GradebookStudentSummary[] }
 type GradebookScoreEditTarget =
   | { kind: 'assessment'; student: GradebookStudentSummary; column: GradebookAssessmentColumn }
   | { kind: 'final'; student: GradebookStudentSummary }
 const PREFERENCES_KEY = 'teacher-gradebook:display:v1'
-const ASSESSMENT_WEIGHT_MIN = 1
+const ASSESSMENT_WEIGHT_MIN = 0
 const ASSESSMENT_WEIGHT_DEFAULT = 10
 const ASSESSMENT_WEIGHT_MAX = 999
 const GRADEBOOK_COLUMN_LIMITS = {
@@ -46,6 +48,7 @@ export function TeacherGradebookTab({
   isActive = true,
   sectionParam,
   onSectionChange = () => {},
+  onClassroomUpdated = () => {},
 }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { showMessage } = useAppMessage()
@@ -54,12 +57,23 @@ export function TeacherGradebookTab({
   const [isRetrying, setIsRetrying] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [actionError, setActionError] = useState('')
+  const [studentGradesVisible, setStudentGradesVisible] = useState(
+    normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades,
+  )
+  const [savingStudentGradesVisibility, setSavingStudentGradesVisibility] = useState(false)
+  const [studentGradesVisibilityError, setStudentGradesVisibilityError] = useState('')
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES)
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   const { scoreDisplayMode } = preferences
   const [categorySchemaAvailable, setCategorySchemaAvailable] = useState(true)
   const [scoreOverridesAvailable, setScoreOverridesAvailable] = useState(true)
+  const [maximumAvailable, setMaximumAvailable] = useState(false)
+  const [maximumEditsEnabled, setMaximumEditsEnabled] = useState(false)
+  const [maximumTarget, setMaximumTarget] = useState<GradebookAssessmentColumn | null>(null)
+  const [maximumError, setMaximumError] = useState('')
+  const [savingMaxMarkKeys, setSavingMaxMarkKeys] = useState<Set<string>>(new Set())
+  const maximumSequenceRef = useRef(0)
   const [itemsAvailable, setItemsAvailable] = useState(false)
   const [newItemId, setNewItemId] = useState<string | null>(null)
   useEffect(() => {
@@ -80,6 +94,7 @@ export function TeacherGradebookTab({
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
   const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
+  const visibleAssessmentColumns = visibleGradebookAssessments(assessmentColumns, preferences.hideUnreleasedAssessments)
   const [categories, setCategories] = useState<GradebookCategory[]>([])
   const [gradebookEditorOpen, setGradebookEditorOpen] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<GradebookAssessmentColumn | null>(null)
@@ -102,6 +117,7 @@ export function TeacherGradebookTab({
   const scoreMutationSequenceRef = useRef(0)
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
+  const mobileGradebookWorkspaceRef = useRef<HTMLDivElement>(null)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: GradebookSortColumn
     direction: 'asc' | 'desc'
@@ -116,6 +132,43 @@ export function TeacherGradebookTab({
       }
     }
   }, [classroom.id])
+
+  useEffect(() => {
+    setStudentGradesVisible(normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades)
+    setStudentGradesVisibilityError('')
+    setSavingStudentGradesVisibility(false)
+  }, [classroom.feature_visibility])
+
+  async function updateStudentGradesVisibility(visible: boolean) {
+    if (savingStudentGradesVisibility || isReadOnly) return
+    const previous = studentGradesVisible
+    setStudentGradesVisible(visible)
+    setSavingStudentGradesVisibility(true)
+    setStudentGradesVisibilityError('')
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          featureVisibility: {
+            ...normalizeClassroomFeatureVisibility(classroom.feature_visibility),
+            student_grades: visible,
+          },
+        }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || 'Could not update grade visibility')
+      const updatedClassroom = json.classroom as Classroom
+      setStudentGradesVisible(normalizeClassroomFeatureVisibility(updatedClassroom.feature_visibility).student_grades)
+      invalidateCachedJSONMatching(`student-grades:${classroom.id}`)
+      onClassroomUpdated(updatedClassroom)
+    } catch (caught) {
+      setStudentGradesVisible(previous)
+      setStudentGradesVisibilityError(caught instanceof Error ? caught.message : 'Could not update grade visibility')
+    } finally {
+      setSavingStudentGradesVisibility(false)
+    }
+  }
 
   const hasCurrentSnapshot = loadedClassroomId === classroom.id
 
@@ -216,13 +269,15 @@ export function TeacherGradebookTab({
 
       const columnsWithWeights = (data.assessment_columns || []).map((column) => ({
         ...column,
-        weight: Number(column.weight || ASSESSMENT_WEIGHT_DEFAULT),
+        weight: Number(column.weight ?? ASSESSMENT_WEIGHT_DEFAULT),
       }))
       setAssessmentColumns(columnsWithWeights)
       setCategories(data.categories || [])
       setCategorySchemaAvailable(data.category_schema_available !== false)
       setScoreOverridesAvailable(data.score_overrides_available !== false)
       setItemsAvailable(data.items_available === true)
+      setMaximumAvailable(data.maximum_overrides_available === true)
+      setMaximumEditsEnabled(data.maximum_overrides_available === true && (data.maximum_edits_enabled ?? data.maximum_overrides_available) === true)
       setAssessmentWeightDrafts(() => {
         const next: Record<string, string> = {}
         for (const column of columnsWithWeights) {
@@ -278,6 +333,11 @@ export function TeacherGradebookTab({
     setSelectedAssessment(null)
     setNewItemId(null)
     setItemsAvailable(false)
+    setMaximumAvailable(false)
+    setMaximumTarget(null)
+    setMaximumError('')
+    setSavingMaxMarkKeys(new Set())
+    maximumSequenceRef.current += 1
     setScoreEditTarget(null)
     setSavingScoreKeys(new Set())
     setScoreDialogError('')
@@ -308,11 +368,21 @@ export function TeacherGradebookTab({
   }
 
   useEffect(() => {
-    if (!loading && !loadError && hasCurrentSnapshot && retryFocusIntentRef.current) {
+    if (!isActive) {
       retryFocusIntentRef.current = false
-      gradebookTableScrollRef.current?.focus()
+      return
     }
-  }, [gradebookTableScrollRef, hasCurrentSnapshot, loadError, loading])
+    if (!loading && !loadError && hasCurrentSnapshot && retryFocusIntentRef.current
+      && currentClassroomIdRef.current === classroom.id) {
+      retryFocusIntentRef.current = false
+      const table = gradebookTableScrollRef.current
+      table?.focus({ preventScroll: true })
+      // CSS owns the responsive presentation: hidden tables cannot receive focus.
+      if (!table || document.activeElement !== table) {
+        mobileGradebookWorkspaceRef.current?.focus({ preventScroll: true })
+      }
+    }
+  }, [classroom.id, gradebookTableScrollRef, hasCurrentSnapshot, isActive, loadError, loading])
 
   useEffect(() => {
     if (sectionParam !== 'settings') settingsLinkHandledRef.current = false
@@ -378,6 +448,7 @@ export function TeacherGradebookTab({
     const nextWeight = Number(rawValue)
 
     if (
+      rawValue.trim() === '' ||
       !Number.isInteger(nextWeight) ||
       nextWeight < ASSESSMENT_WEIGHT_MIN ||
       nextWeight > ASSESSMENT_WEIGHT_MAX
@@ -541,7 +612,7 @@ export function TeacherGradebookTab({
     }
   }
 
-  async function mutateItem(action: 'create' | 'update' | 'delete' | 'return_marks', details?: GradebookItemDetails) {
+  async function mutateItem(action: 'create' | 'update' | 'delete', details?: GradebookItemDetails) {
     if (isReadOnly || !itemsAvailable || dialogSaving) return
     const itemId = action === 'create' ? newItemId : selectedAssessment?.assessment_id
     if (!itemId) return
@@ -562,12 +633,47 @@ export function TeacherGradebookTab({
       invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
       await loadGradebook({ preserveSnapshot: true })
       if (dialogSaveSequenceRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
-      showMessage({ text: action === 'return_marks' ? 'Marks returned' : action === 'delete' ? 'Item deleted' : action === 'create' ? 'Item added' : 'Item saved', tone: 'success' })
+      showMessage({ text: action === 'delete' ? 'Item deleted' : action === 'create' ? 'Item added' : 'Item saved', tone: 'success' })
     } catch (error: unknown) {
       if (dialogSaveSequenceRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setDialogError(error instanceof Error ? error.message : 'Could not save Gradebook item')
     } finally {
       if (dialogSaveSequenceRef.current === requestId && currentClassroomIdRef.current === classroomId) setDialogSaving(false)
+    }
+  }
+
+  async function saveMaximum(maximum: number | null, mode: MaximumChangeMode | 'reset' = 'keep_marks') {
+    if (!maximumTarget || isReadOnly || !maximumAvailable || (mode !== 'reset' && !maximumEditsEnabled)) return false
+    const target = maximumTarget
+    const classroomId = classroom.id
+    const key = getAssessmentColumnKey(target)
+    const requestId = ++maximumSequenceRef.current
+    setSavingMaxMarkKeys((keys) => new Set(keys).add(key))
+    setMaximumError('')
+    try {
+      const response = await fetch('/api/teacher/gradebook/maximums', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_id: classroomId, assessment_type: target.assessment_type,
+          assessment_id: target.assessment_id, maximum, mode,
+          expected_maximum: target.possible, expected_scale: target.maximum_scale ?? 1 }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not save maximum')
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      invalidateCachedJSONMatching(`student-grades:${classroomId}`)
+      invalidateCachedJSONMatching(`student-returned-marks:${classroomId}`)
+      if (requestId !== maximumSequenceRef.current || currentClassroomIdRef.current !== classroomId) return false
+      await loadGradebook({ preserveSnapshot: true })
+      if (requestId !== maximumSequenceRef.current || currentClassroomIdRef.current !== classroomId) return false
+      if (mode === 'reset') setMaximumTarget({ ...target, possible: target.source_possible ?? target.possible, maximum_scale: 1, is_maximum_override: false })
+      else setMaximumTarget(null)
+      return true
+    } catch (error) {
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      if (requestId === maximumSequenceRef.current && currentClassroomIdRef.current === classroomId) setMaximumError(error instanceof Error ? error.message : 'Could not save maximum')
+      return false
+    } finally {
+      if (requestId === maximumSequenceRef.current && currentClassroomIdRef.current === classroomId) setSavingMaxMarkKeys((keys) => { const next = new Set(keys); next.delete(key); return next })
     }
   }
 
@@ -734,13 +840,17 @@ export function TeacherGradebookTab({
       onCopySecondaryEmails={email2.loading || email2.error ? undefined : () => {
         void copySelectedEmailsToClipboard(getGradebookEmail2Addresses(email2.rows, selectedIds), 'Email 2 addresses')
       }}
-      onExport={() => downloadGradebookCsv(students, assessmentColumns, scoreDisplayMode)}
+      onExport={() => downloadGradebookCsv(students, visibleAssessmentColumns, scoreDisplayMode)}
+      studentGradesVisible={studentGradesVisible}
+      onStudentGradesVisibilityChange={(visible) => { void updateStudentGradesVisibility(visible) }}
+      savingStudentGradesVisibility={savingStudentGradesVisibility}
     />
   )
 
   const gradebookTable = (
     <GradebookTable
-      students={sortedStudents} columns={assessmentColumns} displayMode={scoreDisplayMode}
+      students={sortedStudents} columns={visibleAssessmentColumns} displayMode={scoreDisplayMode}
+      ultraCompact={preferences.ultraCompact}
       lastNameFirst={preferences.lastNameFirst}
       showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
       keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
@@ -751,6 +861,9 @@ export function TeacherGradebookTab({
       onWeightDraftChange={handleAssessmentWeightDraftChange} onWeightCommit={handleAssessmentWeightCommit}
       itemScoreEditingDisabled={isReadOnly || !itemsAvailable}
       onAssessmentOpen={openAssessment}
+      maximumEditsEnabled={maximumEditsEnabled}
+      onMaxMarkOpen={maximumAvailable ? (column) => { if (!isReadOnly) { setMaximumError(''); setMaximumTarget(column) } } : undefined}
+      savingMaxMarkKeys={savingMaxMarkKeys}
       onScoreOpen={openScore}
       onFinalScoreOpen={(student) => {
         if (!scoreOverridesAvailable) {
@@ -773,7 +886,7 @@ export function TeacherGradebookTab({
   const studentAssessmentPanel = selectedStudent ? (
     <GradebookStudentPanel
       student={selectedStudent}
-      columns={assessmentColumns}
+      columns={visibleAssessmentColumns}
       displayMode={scoreDisplayMode}
       onClose={() => setSelectedStudentId(null)}
       onItemOpen={openAssessment}
@@ -825,7 +938,7 @@ export function TeacherGradebookTab({
           inspectorWidth={detailPaneWidth}
           onInspectorWidthChange={setDetailPaneWidth}
           inspectorCollapsed={false}
-          inspectorClassName="min-h-72 rounded-lg border border-border bg-surface"
+          inspectorClassName="min-h-72 rounded-lg bg-surface"
           dividerLabel="Resize gradebook details"
           defaultInspectorWidth={32}
           minInspectorPx={300}
@@ -834,11 +947,12 @@ export function TeacherGradebookTab({
           maxInspectorPercent={45}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
+      <div ref={mobileGradebookWorkspaceRef} role="region" aria-label="Gradebook workspace" tabIndex={-1}
+        className="relative isolate min-h-0 flex-1 overflow-hidden rounded-lg bg-surface outline-none after:pointer-events-none after:absolute after:inset-0 after:z-local-menu after:rounded-lg after:content-[''] focus-visible:after:ring-inset focus-visible:after:ring-foundation focus-visible:after:ring-focus lg:hidden">
         {mobileStudent ? (
           <GradebookStudentPanel
             student={mobileStudent}
-            columns={assessmentColumns}
+            columns={visibleAssessmentColumns}
             displayMode={scoreDisplayMode}
             onItemOpen={openAssessment}
             onItemScoreOpen={openScore}
@@ -861,8 +975,9 @@ export function TeacherGradebookTab({
         workspaceFrame="standalone"
         primary={actionBar}
         feedback={
-          actionError || email2.error ? <div className="space-y-2">
+          actionError || email2.error || studentGradesVisibilityError ? <div className="space-y-2">
             {actionError ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{actionError}</div> : null}
+            {studentGradesVisibilityError ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{studentGradesVisibilityError}</div> : null}
             {email2.error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
               <span>Email 2 addresses could not be loaded. Grades are still available.</span>
               <Button variant="secondary" onClick={() => { void email2.reload() }}>Retry Email 2</Button>
@@ -870,7 +985,9 @@ export function TeacherGradebookTab({
           </div> : null
         }
         summary={null}
-        workspace={gradesWorkspace}
+        workspace={(
+          <div className="flex h-full min-h-0 flex-col">{gradesWorkspace}</div>
+        )}
         workspaceFrameClassName="min-h-80 border-0 bg-page"
       />
       <GradebookEditorDialog
@@ -908,8 +1025,15 @@ export function TeacherGradebookTab({
         onClose={() => { if (!dialogSaving) { setNewItemId(null); setSelectedAssessment(null); setDialogError('') } }}
         onSave={(details) => mutateItem(newItemId ? 'create' : 'update', details)}
         onDelete={() => mutateItem('delete')}
-        onReturnMarks={() => mutateItem('return_marks')}
       />
+      <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null} maximumChangesDisabled={!maximumEditsEnabled}
+        target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title,
+          value: maximumTarget.possible, isOverride: maximumTarget.is_maximum_override,
+          undoValue: maximumTarget.source_possible } : null}
+        isSaving={maximumTarget ? savingMaxMarkKeys.has(getAssessmentColumnKey(maximumTarget)) : false}
+        error={maximumError} onClose={() => { setMaximumTarget(null); setMaximumError('') }}
+        onSave={async (maximum, mode) => { await saveMaximum(maximum, mode) }}
+        onUndo={() => saveMaximum(null, 'reset')} />
       <GradebookScoreDialog
         isOpen={Boolean(scoreEditTarget)}
         student={scoreEditTarget?.student ?? null}

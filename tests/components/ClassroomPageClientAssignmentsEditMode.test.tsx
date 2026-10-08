@@ -9,6 +9,7 @@ import {
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
 
+const realGradesOwner = vi.hoisted(() => ({ enabled: false }))
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
@@ -20,6 +21,7 @@ const mockTeacherAttendanceTabProps = vi.hoisted(() => vi.fn())
 const mockUseStudentAttendanceStatusView = vi.hoisted(() => vi.fn())
 const mockLeftSidebarProps = vi.hoisted(() => vi.fn())
 const mockAppShellProps = vi.hoisted(() => vi.fn())
+const mockNavItemsProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -116,8 +118,9 @@ vi.mock('@/components/layout', async () => {
       return <div data-testid="left-sidebar">{children}</div>
     },
     MainContent: ({ children, className }: any) => <main data-testid="main-content" className={className}>{children}</main>,
-    NavItems: ({ onTabChange, onTabIntent, palEnabled, featureVisibility }: any) => (
-      <nav>
+    NavItems: ({ onTabChange, onTabIntent, palEnabled, featureVisibility, ...props }: any) => {
+      mockNavItemsProps({ onTabChange, onTabIntent, palEnabled, featureVisibility, ...props })
+      return <nav>
         <button type="button" onMouseEnter={() => onTabIntent?.('assignments')}>
           Emit Classwork Intent
         </button>
@@ -143,6 +146,16 @@ vi.mock('@/components/layout', async () => {
             Go Classwork
           </button>
         ) : null}
+        {featureVisibility?.student_grades ? (
+          <button
+            type="button"
+            onFocus={() => onTabIntent?.('grades')}
+            onMouseEnter={() => onTabIntent?.('grades')}
+            onClick={() => onTabChange('grades')}
+          >
+            Go Grades
+          </button>
+        ) : null}
         {featureVisibility?.tests !== false ? (
           <button type="button" onClick={() => onTabChange('tests')}>
             Go Tests
@@ -152,7 +165,7 @@ vi.mock('@/components/layout', async () => {
           Go Course Guide
         </button>
       </nav>
-    ),
+    },
     RightSidebar: ({ children, headerActions, title }: any) => {
       const { isRightOpen, setRightOpen } = useLayoutContext()
       if (!isRightOpen) return null
@@ -227,15 +240,23 @@ vi.mock('@/ui', async (importOriginal) => {
         </div>
       ) : null
     ),
-    TabContentTransition: ({ children, isActive }: any) => (isActive ? <>{children}</> : null),
+    TabContentTransition: ({ children, isActive }: any) => realGradesOwner.enabled
+      ? <actual.TabContentTransition isActive={isActive}>{children}</actual.TabContentTransition>
+      : (isActive ? <>{children}</> : null),
   }
 })
 
-vi.mock('@/lib/request-cache', () => ({
-  fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
-  invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
-  prefetchJSON: (...args: any[]) => mockPrefetchJSON(...args),
-}))
+vi.mock('@/lib/request-cache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/request-cache')>()
+  return {
+    fetchJSONWithCache: (...args: Parameters<typeof actual.fetchJSONWithCache>) => realGradesOwner.enabled && args[0].startsWith('student-grades:')
+      ? actual.fetchJSONWithCache(...args) : mockFetchJSONWithCache(...args),
+    invalidateCachedJSON: (key: string) => realGradesOwner.enabled && key.startsWith('student-grades:')
+      ? actual.invalidateCachedJSON(key) : mockInvalidateCachedJSON(key),
+    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => realGradesOwner.enabled && args[0].startsWith('student-grades:')
+      ? actual.prefetchJSON(...args) : mockPrefetchJSON(...args),
+  }
+})
 
 vi.mock('@/lib/assignment-markdown', () => ({
   assignmentsToMarkdown: (...args: any[]) => mockAssignmentsToMarkdown(...args),
@@ -443,7 +464,7 @@ function renderClient(options?: {
 
   return render(
     <MarkdownPreferenceProvider>
-      <ClassroomPageClient
+      <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classroom={targetClassroom}
         user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
         teacherClassrooms={[targetClassroom]}
@@ -460,6 +481,8 @@ function renderStudentClient(options?: {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
+  sessionRole?: 'student' | 'teacher'
+  classroomRole?: 'student' | 'teacher'
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'today'
@@ -467,9 +490,10 @@ function renderStudentClient(options?: {
 
   return render(
     <MarkdownPreferenceProvider>
-      <ClassroomPageClient
+      <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classroom={targetClassroom}
-        user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
+        user={{ id: 'student-1', email: 'student1@example.com', role: options?.sessionRole ?? 'student' }}
+        classroomRole={options?.classroomRole}
         teacherClassrooms={[]}
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
@@ -481,6 +505,7 @@ function renderStudentClient(options?: {
 
 describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   beforeEach(() => {
+    realGradesOwner.enabled = false
     window.localStorage.clear()
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=assignments')
     Object.defineProperty(window, 'scrollTo', {
@@ -505,6 +530,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     })
     mockLeftSidebarProps.mockReset()
     mockAppShellProps.mockReset()
+    mockNavItemsProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -826,7 +852,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={secondClassroom}
           user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
           teacherClassrooms={[]}
@@ -862,6 +888,21 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
         isActive: true,
       })
     })
+  })
+
+  it('keeps the real session role while a classroom relationship selects the member experience', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    renderStudentClient({
+      sessionRole: 'teacher',
+      classroomRole: 'student',
+      initialTab: 'today',
+      initialSearchParams: { tab: 'today' },
+    })
+
+    expect(mockAppShellProps.mock.lastCall?.[0].user).toMatchObject({ role: 'teacher' })
+    expect(mockNavItemsProps.mock.lastCall?.[0]).toMatchObject({ role: 'student' })
+    expect(screen.getByTestId('student-today-primary')).toBeInTheDocument()
+    expect(screen.queryByTestId('teacher-daily')).not.toBeInTheDocument()
   })
 
   it('removes mobile classroom navigation and blocks home exits during active student exam mode', async () => {
@@ -938,7 +979,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('pal-ambient-surfaces')).toBeInTheDocument()
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={{ ...classroom, id: 'classroom-2', feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, achievements: false } }}
           user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
           teacherClassrooms={[]}
@@ -1125,7 +1166,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={secondClassroom}
           user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
           teacherClassrooms={[]}
@@ -1178,6 +1219,96 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(params.has('testId')).toBe(false)
     })
     expect(mockTeacherTestsTabProps).not.toHaveBeenCalled()
+  })
+
+  it.each([401, 403, 404])('retires settled inactive Grades intent denial %s before activation with the real cache', async (status) => {
+    const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
+    cache.invalidateCachedJSON('student-grades:classroom-1')
+    realGradesOwner.enabled = true
+    let now = Date.now()
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    let resolveActivation!: (value: Response) => void
+    const activation = new Promise<Response>((resolve) => { resolveActivation = resolve })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      if (!String(url).endsWith('/grades')) return Promise.resolve(new Response('{}'))
+      return Promise.reject(new Error('Unexpected Grades read'))
+    })
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+      currentPercent: 84,
+      items: [{ id: 'a', kind: 'Classwork', title: 'Essay', earned: 8, possible: 10, percent: 80, included: true, href: '/essay' }],
+    })))
+    const view = renderStudentClient({
+      initialTab: 'grades',
+      classroom: { ...classroom, feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true } },
+    })
+    try {
+      await screen.findByText('84%')
+      fireEvent.click(screen.getByRole('button', { name: 'Go Course Guide' }))
+      const locationBeforeIntent = window.location.href
+      now += 30_001
+      fetchSpy.mockResolvedValueOnce(new Response('Unavailable', { status }))
+      const gradesButton = screen.getByRole('button', { name: 'Go Grades' })
+      await act(async () => {
+        if (status === 403) fireEvent.mouseEnter(gradesButton)
+        gradesButton.focus()
+      })
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).endsWith('/grades'))).toHaveLength(2)
+      expect(window.location.href).toBe(locationBeforeIntent)
+      expect(gradesButton).toHaveFocus()
+      const region = screen.getByRole('region', { name: 'Grades', hidden: true })
+      expect(region.parentElement).toHaveAttribute('aria-hidden', 'true')
+      expect(region.parentElement).toHaveAttribute('inert')
+      expect(screen.queryByText('84%')).not.toBeInTheDocument()
+      expect(screen.queryByText('Essay')).not.toBeInTheDocument()
+      fetchSpy.mockReturnValueOnce(activation)
+      fireEvent.click(gradesButton)
+      expect(new URLSearchParams(window.location.search).get('tab')).toBe('grades')
+      expect(region).toHaveAttribute('aria-busy', 'true')
+      expect(screen.queryByText('84%')).not.toBeInTheDocument()
+      await act(async () => { resolveActivation(new Response('Temporary outage', { status: 503 })) })
+      expect(screen.getByText('Grades unavailable')).toBeVisible()
+      expect(screen.queryByText('Essay')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Showing the last returned grades/)).not.toBeInTheDocument()
+      expect(gradesButton).toHaveFocus()
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).endsWith('/grades'))).toHaveLength(3)
+    } finally {
+      view.unmount()
+      fetchSpy.mockRestore()
+      clock.mockRestore()
+      realGradesOwner.enabled = false
+      cache.invalidateCachedJSON('student-grades:classroom-1')
+    }
+  })
+
+  it.each([
+    [401, false], [403, false], [404, false], [403, true],
+  ])('preserves Grades intent denial status %s (JSON=%s) without navigating', async (status, jsonBody) => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    renderStudentClient({
+      initialTab: 'today',
+      classroom: { ...classroom, feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true } },
+    })
+    const locationBeforeIntent = window.location.href
+    fireEvent.focus(screen.getByRole('button', { name: 'Go Grades' }))
+    const prefetch = mockPrefetchJSON.mock.calls.find(([key]) => key === 'student-grades:classroom-1')
+    expect(prefetch).toBeDefined()
+    expect(prefetch![2]).toBe(30_000)
+    expect(window.location.href).toBe(locationBeforeIntent)
+    expect(screen.getByTestId('student-today-primary')).toBeInTheDocument()
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      jsonBody ? JSON.stringify({ error: 'Grades are unavailable' }) : 'Unavailable',
+      { status, headers: { 'Content-Type': jsonBody ? 'application/json' : 'text/plain' } },
+    ))
+    try {
+      await expect(prefetch![1]()).rejects.toMatchObject({
+        name: 'ApiError', statusCode: status,
+        message: jsonBody ? 'Grades are unavailable' : 'Failed to load grades',
+      })
+      expect(fetchSpy).toHaveBeenCalledWith('/api/student/classrooms/classroom-1/grades')
+      expect(window.location.href).toBe(locationBeforeIntent)
+    } finally {
+      fetchSpy.mockRestore()
+    }
   })
 
   it('does not prefetch a hidden feature even when stale intent is emitted', async () => {
@@ -1298,7 +1429,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={secondClassroom}
           user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
           teacherClassrooms={[secondClassroom]}

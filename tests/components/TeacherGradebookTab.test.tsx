@@ -133,6 +133,7 @@ function gradebookResponse() {
   }
 }
 
+// GradebookTable long-roster scrolling is covered in the experience matrix browser suite.
 describe('TeacherGradebookTab', () => {
   const classroom = createMockClassroom()
   let fetchMock: ReturnType<typeof vi.fn>
@@ -179,6 +180,80 @@ describe('TeacherGradebookTab', () => {
     return screen.getByRole('menu')
   }
 
+  it('keeps student Grades off by default and persists the teacher visibility switch', async () => {
+    const onClassroomUpdated = vi.fn()
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        return {
+          ok: true,
+          json: async () => ({ classroom: { ...classroom, feature_visibility: body.featureVisibility } }),
+        }
+      }
+      return { ok: true, json: async () => gradebookResponse() }
+    })
+
+    render(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={classroom} onClassroomUpdated={onClassroomUpdated} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+
+    const toggle = screen.getByRole('switch', { name: 'Student grades visibility' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.focus(toggle)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/teacher/classrooms/${classroom.id}`,
+      expect.objectContaining({ method: 'PATCH' }),
+    ))
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toMatchObject({
+      featureVisibility: { student_grades: true },
+    })
+    await waitFor(() => expect(onClassroomUpdated).toHaveBeenCalled())
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('shows the requested visibility immediately and rolls back a failed save', async () => {
+    let resolvePatch: ((response: { ok: boolean; json: () => Promise<{ error: string }> }) => void) | undefined
+    fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        return await new Promise((resolve) => { resolvePatch = resolve })
+      }
+      return { ok: true, json: async () => gradebookResponse() }
+    })
+
+    render(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={classroom} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+
+    const toggle = screen.getByRole('switch', { name: 'Student grades visibility' })
+    await waitFor(() => expect(toggle).not.toBeDisabled())
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+    expect(resolvePatch).toBeTypeOf('function')
+    expect(toggle).toBeDisabled()
+    expect(toggle.firstElementChild).toHaveClass('bg-success-solid')
+
+    await act(async () => {
+      resolvePatch?.({ ok: false, json: async () => ({ error: 'Visibility save failed' }) })
+    })
+
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'))
+    expect(toggle).not.toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Visibility save failed')
+  })
+
   async function renderWeightEditor() {
     const view = renderGradebook('grades')
     await screen.findByText('Ada')
@@ -212,7 +287,7 @@ describe('TeacherGradebookTab', () => {
     expect(screen.queryByRole('group', { name: 'Class summary' })).not.toBeInTheDocument()
     expect(screen.getByRole('row', { name: 'Class average' })).toHaveTextContent('70%85%77.5%')
     fireEvent.click(screen.getByRole('button', { name: 'Show %' }))
-    expect(screen.getByRole('row', { name: /Ada Lovelace.*8[/]10 9[/]10 85[.]0%/ })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /Ada Lovelace.*8 9 85[.]0%/ })).toBeInTheDocument()
     fireEvent.click(within(openGradebookActions()).getByRole('menuitem', { name: 'Show last name in column 1' }))
     fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Show student IDs' }))
     expect(screen.getByText('1001')).toBeInTheDocument()
@@ -229,6 +304,96 @@ describe('TeacherGradebookTab', () => {
     expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({
       scoreDisplayMode: 'raw', summaryKind: 'average', lastNameFirst: true, showStudentIds: true, showWeights: true,
     })
+  })
+
+  it('remembers the compact setting after remount and restores the detailed view when toggled off', async () => {
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Ultra-compact gradebook' }))
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^A1$/)
+    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ ultraCompact: true })
+    view.unmount()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^A1$/)
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Ultra-compact gradebook' }))
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^Essay$/)
+  })
+
+  it('hides draft assignments and tests by default and restores them when the saved toggle is off', async () => {
+    const response = gradebookResponse()
+    response.assessment_columns.push(
+      { ...response.assessment_columns[0], assessment_id: 'assignment-draft', code: 'A2', title: 'Draft Essay', is_draft: true },
+      { ...response.assessment_columns[1], assessment_id: 'test-draft', code: 'T2', title: 'Draft Test', status: 'draft' },
+    )
+    fetchMock.mockResolvedValue({ ok: true, json: async () => response })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit T1: Test 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit A2: Draft Essay' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit T2: Draft Test' })).not.toBeInTheDocument()
+
+    const hideItem = within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide unreleased assessments' })
+    expect(hideItem).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(hideItem)
+    expect(screen.getByRole('button', { name: 'Edit A2: Draft Essay' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit T2: Draft Test' })).toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ hideUnreleasedAssessments: false })
+
+    view.unmount()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(screen.getByRole('button', { name: 'Edit A2: Draft Essay' })).toBeInTheDocument()
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide unreleased assessments' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('restores an existing maximum while production changes are paused and blocks other columns', async () => {
+    const data = gradebookResponse()
+    let restored = false
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') { restored = true; return { ok: true, json: async () => ({}) } }
+      return { ok: true, json: async () => ({ ...data, maximum_overrides_available: true, maximum_edits_enabled: false,
+        assessment_columns: data.assessment_columns.map((column, index) => ({ ...column, source_possible: 10,
+          possible: index === 0 && !restored ? 5 : 10, maximum_scale: index === 0 && !restored ? 0.5 : 1,
+          is_maximum_override: index === 0 && !restored })) }) }
+    })
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: 'Show %' }))
+    expect(screen.getByRole('button', { name: 'Maximum mark for Test 1' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Maximum mark for Essay, overridden' }))
+    expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Existing marks' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save max mark' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo override' }))
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toHaveValue(10))
+    expect(screen.queryByRole('button', { name: 'Undo override' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Maximum mark for Essay' })).toBeDisabled()
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT')
+    expect(writes).toHaveLength(1)
+    expect(JSON.parse(writes[0][1].body)).toMatchObject({ maximum: null, mode: 'reset', expected_maximum: 5, expected_scale: 0.5 })
+  })
+
+  it('saves a maximum with the chosen behavior and retains the dialog on failure', async () => {
+    const data = gradebookResponse()
+    const maximumData = { ...data, maximum_overrides_available: true, assessment_columns: data.assessment_columns.map((column) => ({ ...column, source_possible: 10, maximum_scale: 1 })) }
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => init?.method === 'PUT'
+      ? { ok: false, json: async () => ({ error: 'This maximum changed. Refresh and try again' }) }
+      : { ok: true, json: async () => maximumData })
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: 'Show %' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Maximum mark for Essay' }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Max mark' }), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Existing marks' }), { target: { value: 'preserve_percentages' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save max mark' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('This maximum changed')
+    const write = fetchMock.mock.calls.find(([_url, init]) => init?.method === 'PUT')
+    expect(JSON.parse(write![1].body)).toMatchObject({ maximum: 5, mode: 'preserve_percentages', expected_maximum: 10, expected_scale: 1 })
+    expect(screen.getByRole('dialog', { name: 'Edit max mark' })).toBeInTheDocument()
   })
 
   it('supports shared keyboard row navigation and dismissal', async () => {
@@ -288,6 +453,68 @@ describe('TeacherGradebookTab', () => {
 
     expect(await screen.findByText('Ada')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Gradebook students' })).toHaveFocus()
+  })
+
+  it.each([false, true])('uses the visible mobile workspace when table focus fails (empty: %s)', async (empty) => {
+    const originalFocus = HTMLElement.prototype.focus
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options) {
+      if (this.getAttribute('aria-label') !== 'Gradebook students') originalFocus.call(this, options)
+    })
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Unavailable' }) })
+    const response = gradebookResponse()
+    if (empty) response.students = []
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => response })
+    renderGradebook('grades')
+    const retry = await screen.findByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Gradebook workspace' })).toHaveFocus())
+    expect(screen.queryByText('Gradebook unavailable')).not.toBeInTheDocument()
+  })
+
+  it('does not autofocus a successful initial read', async () => {
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+
+  it('does not steal focus when an explicit retry completes after deactivation', async () => {
+    let finish: ((value: unknown) => void) | undefined
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Unavailable' }) })
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const view = render(<AppMessageProvider><TooltipProvider><TeacherGradebookTab classroom={classroom} isActive /></TooltipProvider></AppMessageProvider>)
+    const retry = await screen.findByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+    view.rerender(<AppMessageProvider><TooltipProvider><TeacherGradebookTab classroom={classroom} isActive={false} /></TooltipProvider></AppMessageProvider>)
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    await act(async () => { finish?.({ ok: true, json: async () => gradebookResponse() }) })
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+
+  it('does not carry retry focus into a different classroom', async () => {
+    let finish: ((value: unknown) => void) | undefined
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Unavailable' }) })
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const view = renderGradebook('grades')
+    const retry = await screen.findByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+    view.rerender(<AppMessageProvider><TooltipProvider><TeacherGradebookTab classroom={createMockClassroom({ id: 'other-classroom' })} /></TooltipProvider></AppMessageProvider>)
+    await screen.findByText('Ada')
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    await act(async () => { finish?.({ ok: true, json: async () => gradebookResponse() }) })
+    expect(outside).toHaveFocus()
+    outside.remove()
   })
 
   it('renders a successful empty gradebook without an error', async () => {
@@ -354,6 +581,34 @@ describe('TeacherGradebookTab', () => {
       expect(screen.getByRole('region', { name: 'Gradebook students' })).toHaveFocus()
     })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('saves and reloads a zero assessment weight', async () => {
+    let persistedWeight = 10
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { gradebook_weight: number }
+        persistedWeight = body.gradebook_weight
+        return Promise.resolve({ ok: true, json: async () => ({ assessment: { gradebook_weight: persistedWeight } }) })
+      }
+      if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
+        const response = gradebookResponse()
+        response.assessment_columns = response.assessment_columns.map((column) => (
+          column.assessment_id === 'assignment-1' ? { ...column, weight: persistedWeight } : column
+        ))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    await renderWeightEditor()
+    const input = await screen.findByRole('spinbutton', { name: 'Category weight for Essay' })
+    fireEvent.change(input, { target: { value: '0' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(persistedWeight).toBe(0))
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Category weight for Essay' })).toHaveValue(0))
+    expect(screen.queryByText('Assessment weight must be an integer 0-999')).not.toBeInTheDocument()
   })
 
   it('refreshes the matrix after each concurrently saved assessment weight', async () => {
@@ -817,8 +1072,8 @@ describe('TeacherGradebookTab', () => {
     await screen.findByText('Ada')
     expect(screen.getByRole('region', { name: 'Gradebook controls' })).toHaveClass('grid', 'relative', 'z-floating')
     expect(screen.getByRole('button', { name: 'Gradebook more actions' }).closest('.fixed')).toBeNull()
-    expect(screen.getByRole('columnheader', { name: 'First' })).toHaveClass('sticky', 'bg-surface-2', 'z-sticky-table')
-    expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('sticky', 'bg-surface-2')
+    expect(screen.getByRole('columnheader', { name: 'First' })).toHaveClass('sticky', 'bg-surface-3', 'z-sticky-table')
+    expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('sticky', 'bg-surface-3')
     expect(screen.getByRole('table')).toHaveClass('border-separate', 'border-spacing-0')
     expect(screen.getByTestId('gradebook-display-controls')).not.toContainElement(screen.getByRole('button', { name: 'Student Actions' }))
   })

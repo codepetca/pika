@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
@@ -69,7 +70,7 @@ export function AssignmentCreationPattern() {
       <Card tone="panel" padding="md">
         <h3 className="font-semibold">Assignment creation</h3>
         <p className="mt-2 text-sm text-text-muted">
-          The production Assignment form in the same shell as Material, with its due date, attachments and centered save status.
+          The production New Assignment form uses the same split-pane editor as Edit Assignment on desktop, then stacks on mobile.
         </p>
         <Button className="mt-3" variant="surface" onClick={openExample}>Open assignment example</Button>
         <p role="status" className="mt-2 text-xs text-text-muted">{result}</p>
@@ -80,16 +81,34 @@ export function AssignmentCreationPattern() {
         title="New Assignment"
         titleId="pattern-assignment-title"
         closeLabel="Close assignment example"
+        showCloseButton={false}
+        maxWidth="!max-w-6xl"
+        panelClassName="!p-0"
         tall
-        showTitle
-        contentClassName="!pt-1"
-        headerCenter={<SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />}
+        contentClassName="!overflow-hidden !p-0"
       >
         <AssignmentForm
           fillHeight
+          desktopSplit
           title={title}
           instructionsMarkdown={instructions}
           dueAt={dueAt}
+          titleAccessory={(
+            <div className="flex items-center gap-1">
+              <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Close assignment example"
+                title="Close"
+                onClick={() => setOpen(false)}
+                className="h-11 w-11 p-0"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          )}
           onTitleChange={(value) => { setTitle(value); setChanged(true); setError('') }}
           onInstructionsMarkdownChange={(value) => { setInstructions(value); setChanged(true) }}
           onDueAtChange={(value) => { setDueAt(value); setChanged(true) }}
@@ -106,10 +125,10 @@ export function AssignmentCreationPattern() {
               label={action}
               variant={action === 'Post' ? 'success' : 'primary'}
               size="md"
-              className="shadow-sm"
+              className="w-full shadow-sm"
               toggleAriaLabel="Choose assignment action"
               menuPlacement="down"
-              primaryButtonProps={{ className: 'w-14 justify-center font-semibold sm:w-24' }}
+              primaryButtonProps={{ className: 'flex-1 justify-center font-semibold' }}
               options={ACTIONS.map((label) => ({ id: label, label, onSelect: () => setAction(label) }))}
               onPrimaryClick={() => {
                 if (action !== 'Draft' && !title.trim()) {

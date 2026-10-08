@@ -36,6 +36,12 @@ vi.mock('@/lib/assignments', async () => {
       if (doc) return 'in-progress'
       return 'not-started'
     }),
+    calculateStudentAssignmentStatus: vi.fn((assignment, doc) => {
+      if (doc?.returned_at) return 'returned'
+      if (doc?.is_submitted) return 'submitted_on_time'
+      if (doc) return 'in_progress'
+      return 'not_started'
+    }),
     isAssignmentVisibleToStudents: vi.fn((assignment) => (
       !assignment.is_draft &&
       (!assignment.released_at || new Date(assignment.released_at).getTime() <= Date.now())
@@ -276,8 +282,8 @@ describe('GET /api/student/assignments', () => {
       expect(data.assignments[0]).toHaveProperty('doc')
     })
 
-    it('should calculate status using calculateAssignmentStatus', async () => {
-      const { calculateAssignmentStatus } = await import('@/lib/assignments')
+    it('should calculate status using calculateStudentAssignmentStatus', async () => {
+      const { calculateStudentAssignmentStatus } = await import('@/lib/assignments')
 
       const mockFrom = vi.fn((table: string) => {
         if (table === 'classroom_enrollments') {
@@ -322,7 +328,7 @@ describe('GET /api/student/assignments', () => {
 
       await GET(request)
 
-      expect(calculateAssignmentStatus).toHaveBeenCalled()
+      expect(calculateStudentAssignmentStatus).toHaveBeenCalled()
     })
 
     it('should order assignments by due_at ascending', async () => {

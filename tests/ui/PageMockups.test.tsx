@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { DailyMockup } from '@/app/__ui/DailyMockup'
 import { PageMockups } from '@/app/__ui/PageMockups'
+import { STUDENT_PAGE_ITEMS } from '@/app/__ui/StudentPageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
@@ -15,7 +16,49 @@ function renderMockups() {
   return render(<ThemeProvider><TooltipProvider><PageMockups /></TooltipProvider></ThemeProvider>)
 }
 
+function renderStudentMockups() {
+  return render(<ThemeProvider><TooltipProvider><PageMockups role="student" /></TooltipProvider></ThemeProvider>)
+}
+
 describe('PageMockups', () => {
+  it('places the default-off student visibility control in teacher Gradebook', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups.getByRole('tabpanel', { name: 'Gradebook' }))
+    const visibility = gradebook.getByRole('switch', { name: 'Student grades visibility' })
+    const visibilityControl = gradebook.getByTestId('teacher-gradebook-visibility-control')
+
+    expect(visibility).toHaveAttribute('aria-checked', 'false')
+    expect(visibilityControl.closest('[aria-label="Gradebook mockup controls"]')).not.toBeNull()
+    await user.hover(visibility)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
+    await user.click(visibility)
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('shows the enabled student Grades view as a Classroom page tab', async () => {
+    const user = userEvent.setup()
+    renderStudentMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    expect(STUDENT_PAGE_ITEMS.map((item) => item.label)).toContain('Grades')
+
+    await user.click(mockups.getByRole('tab', { name: 'Grades' }))
+    const grades = within(mockups.getByRole('tabpanel', { name: 'Grades' }))
+    expect(grades.getByTestId('student-grades-mockup')).toBeVisible()
+    expect(grades.getByText('Current grade')).toBeVisible()
+    expect(grades.getByText('84%')).toBeVisible()
+    expect(grades.getByRole('list', { name: 'Grades' })).toBeVisible()
+    expect(grades.getByText('Not counted')).toBeVisible()
+
+    const returnedGradeLink = grades.getByRole('link', { name: /Functions and Graphs/ })
+    returnedGradeLink.focus()
+    expect(returnedGradeLink).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(mockups.getByRole('status')).toHaveTextContent('Open returned feedback for Functions and Graphs selected. Example only')
+  })
+
   it('opens the standalone item editor with deterministic defaults and restores focus on Escape', async () => {
     const user = userEvent.setup()
     renderMockups()
@@ -94,12 +137,17 @@ describe('PageMockups', () => {
     await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
     await user.click(mockups.getByRole('button', { name: 'Show weights' }))
     const weight = mockups.getByRole('spinbutton', { name: 'Category weight for Ecosystems' })
-    for (const invalid of ['0', '-3', '1000', '2.5', '']) {
+    fireEvent.change(weight, { target: { value: '0' } })
+    expect(weight).toHaveAttribute('aria-invalid', 'false')
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('0%')
+    fireEvent.blur(weight)
+    expect(weight).toHaveValue(0)
+    for (const invalid of ['-3', '1000', '2.5', '']) {
       fireEvent.change(weight, { target: { value: invalid } })
       expect(weight).toHaveAttribute('aria-invalid', 'true')
-      expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('5.42%')
+      expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('0%')
       fireEvent.blur(weight)
-      expect(weight).toHaveValue(10)
+      expect(weight).toHaveValue(0)
     }
   })
 
@@ -107,7 +155,7 @@ describe('PageMockups', () => {
     render(
       <ThemeProvider>
         <TooltipProvider>
-          <DailyMockup attendanceMode="manual" />
+          <DailyMockup attendanceMode="manual" onPrototypeAction={vi.fn()} />
         </TooltipProvider>
       </ThemeProvider>,
     )
@@ -115,6 +163,19 @@ describe('PageMockups', () => {
     const daily = screen.getByTestId('daily-mockup')
     expect(within(daily).getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeVisible()
     expect(within(daily).getByRole('button', { name: 'More actions' })).toBeVisible()
+    const summaryName = within(daily).getByRole('button', { name: 'Go to Maya Chen in student table' })
+    const summaryText = summaryName.closest('[data-summary-text]')
+    expect(summaryText).toHaveTextContent('Maya asks whether the lab report needs a graph.')
+    expect(summaryText).toHaveClass('line-clamp-2')
+    expect(within(daily).getByText('Summary')).toHaveClass('text-primary')
+    expect(within(daily).getByText('Summary')).not.toHaveClass('bg-info-bg')
+    const target = within(daily).getByRole('row', { name: /Maya Chen/ })
+    const scrollIntoView = vi.fn()
+    target.scrollIntoView = scrollIntoView
+    fireEvent.click(summaryName)
+    expect(target).toHaveAttribute('aria-selected', 'true')
+    expect(target).toHaveFocus()
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', inline: 'nearest', behavior: 'auto' })
     expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' }))
       .toHaveClass('h-8', 'min-h-8', 'w-8', 'min-w-8')
     expect(within(daily).getByRole('button', { name: 'Undo override for Noah Williams' }))
@@ -260,10 +321,10 @@ describe('PageMockups', () => {
     await user.hover(presentSort)
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/^2 Present$/)
     await user.unhover(presentSort)
-    expect(presentSort.querySelector('svg')).toHaveClass('opacity-0')
+    expect(presentSort.querySelector('svg')).not.toBeInTheDocument()
     await user.click(presentSort)
     expect(presentSort).toHaveAttribute('aria-pressed', 'true')
-    expect(presentSort.querySelector('svg')).not.toHaveClass('opacity-0')
+    expect(presentSort.querySelector('svg')).not.toBeInTheDocument()
     await user.click(within(daily).getByRole('button', { name: 'Mark Maya Chen late' }))
     expect(within(daily).getByRole('button', { name: 'Mark Maya Chen late' })).toHaveAttribute('aria-pressed', 'true')
     await user.click(within(daily).getByRole('button', { name: 'Undo override for Maya Chen' }))
@@ -848,6 +909,7 @@ describe('PageMockups', () => {
   })
 
   it('exercises WorkSurfaceMockup from a full-width list through its active inspector', async () => {
+    // Selected pane geometry and scroll reachability are covered in e2e/ui-pattern-lab.spec.ts.
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')

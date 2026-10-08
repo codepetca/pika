@@ -47,9 +47,13 @@ writer is not historical merely because it is called a backup.
   `39660c0e207f087cf96923a975ea0f55e6472943`,234 tests passed. The verified
   `cautious-tortoise-152` backend was an expiring Convex preview (September18),
   not a stable production release. A stable Bara release remains a rollout gate.
-- Reported Pika ledgers: local001–174, production001–168. All earlier exact
-  application approvals are consumed. Applied migrations remain immutable.
-  Migration175 below is forward source, not an application receipt.
+- At the Phase3 source checkpoint, the reported Pika ledgers were local001–174
+  and production001–168. That rollout packet is historical and superseded. The
+  current recorded local ledger is001–179 and production is001–178. Migration179
+  is applied locally. Migration180 remains source-only; migrations179–180 are
+  pending production in order. Migration180 changes only the conditional
+  recovery watchdog to hourly. All earlier exact application approvals are
+  consumed, and applied migrations remain immutable.
 
 ## Immutable provider contracts
 
@@ -95,13 +99,18 @@ and `.live_enabled`, exact tenant configuration/eligibility,
 `managed_storage_settings.mode='enforced'`. The existing generation/signal
 capture gates must already have established eligible exact Pal/Bara membership
 mappings. Pal's exact authenticated integration allowlist and Bara's participant
-erasure activation require separate provider authority. None is enabled here. Ordinary roster removal and the legacy purge endpoints retain
-their current behavior while these gates are off. No scheduled worker or
-removal hook calls this flow.
+erasure activation require separate provider authority. At the superseded Phase3
+source checkpoint, none was enabled and migration176 plus the automatic worker
+were still a later default-off layer. Phase4 has since deployed that worker and
+queue; their current state is documented below. They do not alter historical
+removals. Ordinary roster removal and the legacy purge endpoints retain their
+current behavior while the applicable gates are off.
 
-Use the existing authenticated teacher session and the exact target URL:
+The Phase3 explicit contract used an authenticated teacher session and the exact target URL:
 `/api/teacher/classrooms/{classroomId}/students/{studentId}/purge/live`.
-The caller cannot supply a teacher identity or provider tenant.
+The caller cannot supply a teacher identity or provider tenant. Phase4 retires
+teacher POST access with a404 response; GET remains a read-only recovery/status
+boundary. The automatic worker invokes the same server coordinator directly.
 
 1. GET without a query returns the retained `generation_id`, existing live
    `operation` (or null), and application `enabled` state after teacher ownership
@@ -174,13 +183,20 @@ current mapping. Deleted resource IDs cannot be reinserted and old Pal reference
 cannot create outbox work. Permanent fences survive disabled activation gates.
 
 Genuine unsupported current-data boundaries still fail closed: remote grading
-provenance/current external grading copies, mixed summaries/feedback candidates,
-shared grading-run payloads, shared attendance override-request results, retired
-assessment ownership, unknown/shared object ownership, and legacy invalidations
-without an exact participant or unknown stored provider-response shapes.
+provenance/current external grading copies, shared grading-run payloads, retired
+assessment ownership, unknown/shared object ownership, legacy invalidations
+without an exact participant, unknown stored provider-response shapes, and
+unknown or malformed legacy attendance override-request receipts. Migration179
+invalidates target-derived summary/feedback caches while preserving their source
+entries. It preserves only canonical aggregate attendance receipts, which contain
+no student identity and therefore do not block exact membership cleanup.
 These cases are reported as blockers; the flow does not claim completion or
-silently delete classmates. No worker, queue, dashboard, broad cron scheduling,
-legacy sitewide Pal retirement, historical backfill or two-day guarantee is added.
+silently delete classmates. The superseded Phase3 explicit flow added no worker,
+queue, dashboard or broad cron schedule. Phase4 subsequently added the deployed
+automatic queue, worker and five-minute conditional watchdog documented below;
+pending migration180 changes that watchdog to hourly, while migration179 adds no
+second scheduler. No legacy sitewide Pal retirement, historical backfill or
+two-day guarantee is added.
 
 ## Verification and rollout approval packet
 
@@ -196,15 +212,15 @@ PR1260 records the exact reviewed migration hash, fixed review SHA, PR Gate and
 CI result as they become available. Until those checks finish this is an
 implementation candidate, not a ready or applied release.
 
-The rollout approval packet must name each separate action:
+The former Phase3 migration175 packet is consumed and superseded. The current
+rollout approval packet must name each separate action:
 
-- Local schema: existing Pika local target `supabase_db_pika`, database `postgres`,
-  only `175_explicit_live_student_cleanup.sql` after rechecking ledger001–174.
-  This migration defines destructive runtime functions but performs no student
-  data purge and enables no gate. It adds only private metadata and changes
-  existing public RPC bodies; generated public signatures are unchanged.
-- Production schema: reverify the recorded001–168 ledger and prepare exact
-  immutable169–175 filenames/hashes and prerequisites as a separate batch.
+- Local schema: applied migrations178 and179 in one authorized push after a dry
+  run showed both as the only pending local files. The local ledger is001–179;
+  both migrations performed no student data purge and enabled no gate. Generated
+  public signatures are unchanged.
+- Production schema: separately reverify the recorded001–178 ledger and prepare
+  the exact immutable migration179 filename/hash and prerequisites.
   A local approval never authorizes production or schema-history repair.
 - Application release: reviewed Pika commit and normal deployment approval;
   stable Bara participant runtime; Pal released60e9bef with verified live
@@ -221,7 +237,7 @@ or misread v2 as strict proof. Migration application follows the
 [schema authorization checklist](schema-rollout-checklist.md); no prior approval
 can be reused for175 or another target.
 
-## Teacher dialog integration — 2026-09-13
+## Teacher dialog integration — 2026-09-13 (superseded in Phase4)
 
 Owner: `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch
 `codex/teacher-live-purge-dialog`; based on merged backend PR1260 / `80505399`.
@@ -251,6 +267,56 @@ HTTP success alone and local completion do not release re-add. Retry preserves
 the original operation, including uncertain reservation responses. Response epochs
 and a per-membership request lock suppress stale updates and overlapping requests.
 Provider or ownership blockers remain pending and require status refresh.
+
+The 2026-09-15 product decision removed this teacher-directed cleanup entry.
+Teachers keep the existing Remove from class confirmation; the system queues and
+advances cleanup. The dialog behavior above remains historical Phase3 evidence,
+not an available product command.
+
+## Automatic worker — 2026-09-15 source checkpoint
+
+Migration176 creates the future-only queue and independent `automatic_enabled`
+gate. Migrations176–178 are deployed in production. Migration179 is applied
+locally and pending production: for a removal whose retained enrollment timestamp
+is post-cutoff and whose exact Pal generation and active classroom/student
+participant mapping agree, the trigger reconstructs a missing attendance
+generation before queue admission. The trigger takes the settings update lock
+to serialize this decision with operator gate/cutoff changes without a later
+lock upgrade. It never scans or backfills retained rows, and pre-cutoff or
+nonexact Pal generations remain outside automation.
+
+An eligible post-cutoff removal that still lacks an exact participant, roster,
+teacher-principal or attendance binding is inserted into the private queue as
+`quarantined` with `last_error_code='cleanup_eligibility_missing'` and a
+`quarantined_at` timestamp. This admission quarantine is the operator-visible
+evidence; it is not claimable and does not send an immediate worker callback.
+The private queue assigns the stable operation UUID in the removal transaction,
+uses two-minute leases and redacts teacher, classroom, student and generation
+identifiers at verified completion.
+
+Migration177 hardens activation before any provider request: academic cleanup
+must be enabled and managed storage must be enforced in the same database claim.
+Those prerequisites are rechecked under shared locks at every live provider
+authorization boundary, so pausing either after a claim prevents transport.
+Terminal policy/binding failures and jobs that exhaust the bounded attempt limit
+enter a private quarantine, emit an unhealthy worker result for operators and no
+longer consume claims ahead of later valid removals.
+
+The removal trigger asks `pg_net` for one asynchronous callback after commit;
+batch rows are coalesced. A `pg_cron` job runs `0 * * * *`, first checks for due
+queue work in SQL, and makes no HTTP request while idle. Its HTTPS worker URL and
+shared secret are read from Supabase Vault names
+`pika_removed_student_cleanup_worker_url` and
+`pika_removed_student_cleanup_worker_secret`; neither value is stored in source.
+The protected Vercel route is `/api/cron/removed-student-cleanup`, authenticated
+with the existing `CRON_SECRET` value and independently gated by
+`PIKA_AUTOMATIC_REMOVED_STUDENT_CLEANUP_ENABLED` plus every live-cleanup gate.
+
+One invocation claims at most three jobs, gives each operation at most ten bounded
+advances, stops starting work after a45-second budget, and records completion or
+a sanitized retry. Pending work becomes eligible after240seconds; the hourly
+watchdog recovers it at the next boundary. Provider and finalization receipts remain
+the only cleanup proof; queue or HTTP success never releases re-add.
 
 Every live reservation/advance requires all five documented application gates;
 pausing any one leaves exact status readable. Incompatible operation/policy reads

@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { getTestDocumentImageType } from '@/lib/test-documents'
+import type { TestDocument } from '@/types'
 import {
   copyManagedTestDocumentsForBlueprintOperation,
   queueBlueprintManagedStorageCopiesBestEffort,
@@ -23,6 +25,55 @@ function makeOperationLookup(status: string | null = null) {
 }
 
 describe('course Blueprint managed storage copies', () => {
+  it.each([
+    { contentType: 'image/png', suffix: 'png', expected: 'image/png' },
+    { contentType: 'image/jpeg', suffix: 'jpg', expected: 'image/jpeg' },
+    { contentType: 'application/pdf', suffix: 'png', expected: null },
+  ])('preserves the image discriminator across a blueprint round trip for $contentType', async ({ contentType, suffix, expected }) => {
+    let source = {
+      id: SOURCE_ID, storage_bucket: 'test-documents',
+      storage_path: `classrooms/${CLASSROOM_ID}/tests/test/documents/document/${expected ? 'images/' : ''}source.${suffix}`,
+      status: 'ready', content_type: contentType,
+      classroom_id: CLASSROOM_ID as string | null,
+      course_blueprint_id: null as string | null, provisional_owner_id: null,
+    }
+    const objects = new Map<string, any>()
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'resolve_managed_storage_blueprint_copy_source') return { data: source, error: null }
+      if (name === 'begin_managed_storage_upload') {
+        const object = { id: args.p_object_id, storage_bucket: 'test-documents', storage_path: args.p_storage_path, status: 'reserved', content_type: args.p_content_type }
+        objects.set(String(args.p_object_id), object)
+        return { data: object, error: null }
+      }
+      if (name === 'verify_managed_storage_upload') return { data: { ...objects.get(String(args.p_object_id)), status: 'verified' }, error: null }
+      return { data: true, error: null }
+    })
+    const upload = vi.fn(async (path: string) => ({ data: { path }, error: null }))
+    const supabase = {
+      rpc, from: makeOperationLookup(),
+      storage: { from: vi.fn(() => ({
+        download: vi.fn(async () => ({ data: new Blob([new Uint8Array([1, 2, 3])], { type: contentType }), error: null })),
+        upload,
+      })) },
+    }
+    let documents: TestDocument[] = [{ id: 'document', title: 'World', source: 'upload', storage_bucket: 'test-documents', storage_path: source.storage_path, managed_object_id: source.id }]
+    for (const direction of ['to_blueprint', 'to_classroom'] as const) {
+      const result = await copyManagedTestDocumentsForBlueprintOperation({
+        supabase, teacherId: USER_ID, operationId: OPERATION_ID, direction,
+        ...(direction === 'to_blueprint' ? { sourceClassroomId: CLASSROOM_ID } : { sourceCourseBlueprintId: BLUEPRINT_ID }),
+        assessments: [{ id: 'assessment', documents }],
+      })
+      documents = result.assessments[0].documents
+      expect(getTestDocumentImageType(documents[0])).toBe(expected)
+      expect(documents[0].storage_path).toContain(expected ? '/images/' : `managed-copies/${OPERATION_ID}/`)
+      expect(upload).toHaveBeenLastCalledWith(documents[0].storage_path, expect.any(Uint8Array), { contentType, upsert: false })
+      source = {
+        ...source, id: documents[0].managed_object_id!, storage_path: documents[0].storage_path!,
+        classroom_id: null, course_blueprint_id: BLUEPRINT_ID,
+      }
+    }
+  })
+
   it('copies through a provisional owner and returns a distinct managed identity', async () => {
     const uploaded = new Map<string, Uint8Array>()
     const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {

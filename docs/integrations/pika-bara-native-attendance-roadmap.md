@@ -107,9 +107,9 @@ that principal through the installation-scoped adapter.
    classroom for the isolation check. No production mutation was performed.
    The hardened readiness operator can run only after proposed migration 133 is
    reviewed and applied under exact authorization.
-3. There is no staging database. Preview records a production-only smoke skip
-   and must never target production. Hosted load testing remains blocked until
-   an isolated non-production database is explicitly provisioned.
+3. Rehearse load locally with local Supabase and Bara; the HTTP load harness
+   accepts loopback targets only. No hosted test database is required. The
+   deployed smoke remains production-only, with separate exact-target approval.
 4. Visually and functionally verify teacher and student flows on desktop/mobile
    and light/dark, including loading, success, duplicate, unmatched, invalid,
    closed, and unavailable states.

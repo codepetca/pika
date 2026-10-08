@@ -78,11 +78,11 @@ The three artifacts solve different problems and must not be substituted for eac
 | Classroom archive | Recover the complete classroom | Yes | Yes | Private `classroom-archives` bucket |
 | Gradex extract | Improve and evaluate grading behavior | Deidentified subset | No | Private `gradex-analytics-extracts` bucket |
 
-The canonical `.course-package.tar` export manifest is version 5. Import accepts versions 2, 3, 4, and
-5; version 2 discards `quizzes.md`, and version 3 manifests are normalized to the current planned-site
+The canonical `.course-package.tar` export manifest is version 6. Import accepts versions 2, 3, 4, 5, and
+6; version 2 discards `quizzes.md`, and version 3 manifests are normalized to the current planned-site
 configuration. The package includes teacher-authored course content, assignment and Test templates,
 lesson templates, grading configuration, submission requirement templates, and planned-site
-configuration.
+configuration. Version 6 also includes teacher-only authoring guidance; older imports start with empty guidance.
 It excludes rosters, students, submissions, grades, attendance, journals, telemetry, join credentials,
 runtime publication state, and storage objects. A course package is never evidence that classroom data
 is recoverable.
@@ -501,6 +501,42 @@ restore rollback, and archives without a successful read-back check.
    success, documented recovery drills, retention approval, and a teacher-visible restore workflow.
 7. **Legacy retirement:** remove old archive representations only after production counts show no
    remaining readers/writers and every retained archive has a tested adapter.
+
+### Future archived-classroom retention proposal (not enabled)
+
+Archived data retention is a separate lifecycle policy, not a Free/Basic/Plus/Pro entitlement.
+Changing or cancelling a subscription must not archive, cold-store, or delete a classroom. The
+candidate clock starts when the owner archives a classroom, not when the owner downgrades or last
+opens the archived page. A successful restore to active must stop any pending retention operation;
+the clock for a later re-archive still needs an explicit product decision. These timings are a
+planning proposal, **not** an approved retention promise or a currently running timer:
+
+| Candidate period | Classroom state | Advance notice |
+|---|---|---|
+| First 12 months after archive | `archived_hot`, read-only and restorable | Approximately 3 months and 3 weeks before proposed cold storage |
+| Next 12 months | `archived_cold`, with a verified recovery archive and owner-visible restore/export path | Approximately 3 months, 3 weeks, 3 days, and 1 day before proposed permanent deletion |
+| After both periods | Permanent deletion only through a separately authorized, audited purge | No deletion until every prerequisite below passes |
+
+The cold transition must wait for a complete, read-back-verified archive, a demonstrated restore,
+reconciled managed objects, and a visible recovery path. A failed verification keeps the classroom
+hot and raises an operator alert; cold storage is never treated as deletion. The permanent deletion
+worker must be a new, independently gated lifecycle step. Today's cold purge requires the owning
+teacher's impact review and typed confirmation; its cron only resumes operations already started
+and must not be repurposed to select expired classrooms automatically.
+
+Before any timed rollout, build reliable owner email delivery, a durable per-classroom notice ledger
+and delivery evidence, exact scheduled dates and cancellation on restore, an owner-facing retention
+status with export/restore options, legal/records holds, and idempotent monitoring/retry and audit
+paths. A required notice that was not delivered, an unresolved hold, an unsettled archive or purge,
+or failed verification must pause irreversible deletion and trigger review. Notices should explain
+what data is affected and the exact date without exposing student content in email. Decide final
+durations, notice-delivery standard, closed/unreachable account handling, re-archive behavior, and
+school-records/privacy obligations before approving the policy. Canary the notice and cold phases
+separately before considering automatic purge; measure actual storage savings, since today's source
+object cleanup is limited to a narrow canary.
+
+Adding this roadmap entry does not enable email, automatic compaction, a deletion schedule, or any
+rollout gate. A production rollout requires a separate design, authorization, and recovery drill.
 
 Production database access for inventory and verification is read-only unless a human explicitly
 approves a named canary operation. Migration application follows the schema rollout authorization

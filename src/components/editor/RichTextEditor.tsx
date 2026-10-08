@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
-import type { Editor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
-import { IMAGE_ACCEPT, IMAGE_MAX_SIZE } from '@/lib/image-upload'
+import { getImageValidationError, IMAGE_ACCEPT } from '@/lib/image-upload'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -28,9 +27,9 @@ import {
 
 // --- Tiptap Node ---
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
-import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node'
 import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
-import { uploadFileDirectly } from '@/lib/direct-storage-upload'
+import { ReadOnlyImageUpload } from '@/components/tiptap-node/read-only-image-upload-node'
+import { discardDirectUpload, uploadFileDirectly } from '@/lib/direct-storage-upload'
 import type { ImageUploadResult } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
 import '@/components/tiptap-node/code-block-node/code-block-node.scss'
@@ -39,7 +38,6 @@ import '@/components/tiptap-node/list-node/list-node.scss'
 import '@/components/tiptap-node/heading-node/heading-node.scss'
 import '@/components/tiptap-node/paragraph-node/paragraph-node.scss'
 import '@/components/tiptap-node/image-node/image-node.scss'
-import '@/components/tiptap-node/image-upload-node/image-upload-node.scss'
 
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu'
@@ -73,6 +71,7 @@ import '@/components/tiptap-templates/simple/simple-editor.scss'
 
 // --- UI Primitives ---
 import { Button } from '@/components/tiptap-ui-primitive/button'
+import { Button as AppButton, Input as AppInput } from '@/ui'
 
 // --- Image Upload ---
 
@@ -80,6 +79,11 @@ import { Button } from '@/components/tiptap-ui-primitive/button'
 const COMPRESS_THRESHOLD = 500 * 1024 // Compress images over 500KB
 const MAX_DIMENSION = 1920 // Max width/height after compression
 const JPEG_QUALITY = 0.8 // Quality for JPEG compression
+
+type TransientImageUploadState =
+  | { status: 'idle' }
+  | { status: 'uploading'; file: File; progress: number }
+  | { status: 'error'; file: File; message: string }
 
 /**
  * Compress an image file using Canvas API
@@ -94,7 +98,9 @@ async function compressImage(file: File): Promise<File> {
 
   return new Promise((resolve, reject) => {
     const img = new window.Image()
+    const objectUrl = URL.createObjectURL(file)
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
       try {
         // Calculate new dimensions
         let { width, height } = img
@@ -142,8 +148,11 @@ async function compressImage(file: File): Promise<File> {
         resolve(file) // Fall back to original on error
       }
     }
-    img.onerror = () => resolve(file) // Fall back to original on error
-    img.src = URL.createObjectURL(file)
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(file)
+    }
+    img.src = objectUrl
   })
 }
 
@@ -178,35 +187,6 @@ async function uploadImage(
   }
 }
 
-// Helper to handle pasted/dropped images
-async function handleImageFile(
-  editor: Editor,
-  file: File,
-  assignmentDocId?: string,
-  onError?: (message: string) => void
-): Promise<boolean> {
-  try {
-    const result = await uploadImage(file, undefined, assignmentDocId)
-    editor
-      .chain()
-      .focus()
-      .setImage({
-        src: result.url,
-        alt: file.name.replace(/\.[^/.]+$/, ''),
-        managed_object_id: result.managedObjectId ?? null,
-        storage_bucket: result.storageBucket ?? null,
-        storage_path: result.storagePath ?? null,
-      } as any)
-      .run()
-    return true
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to upload image'
-    console.error('Failed to upload image:', error)
-    onError?.(message)
-    return false
-  }
-}
-
 export interface RichTextEditorProps {
   id?: string
   content: TiptapContent
@@ -218,6 +198,8 @@ export interface RichTextEditorProps {
   placeholder?: string
   disabled?: boolean
   editable?: boolean
+  /** Retain content and toolbar footprint while retiring editing controls. */
+  interactionActive?: boolean
   autoFocus?: boolean
   /**
    * Governs the amount of formatting UI shown for this authoring task.
@@ -233,6 +215,8 @@ export interface RichTextEditorProps {
   assignmentDocId?: string
   /** Callback when image upload fails */
   onImageUploadError?: (message: string) => void
+  /** Reports whether an upload still needs to finish, retry, or be removed. */
+  onImageUploadPendingChange?: (pending: boolean) => void
   required?: boolean
   'aria-required'?: boolean | 'true' | 'false'
   'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling'
@@ -257,11 +241,15 @@ const MainToolbarContent = ({
   onLinkClick,
   isMobile,
   enableImageUpload,
+  onImageUploadRequest,
+  canStartImageUpload,
   preset,
 }: {
   onLinkClick: () => void
   isMobile: boolean
   enableImageUpload: boolean
+  onImageUploadRequest: () => void
+  canStartImageUpload: boolean
   preset: Exclude<RichTextToolbarPreset, 'none' | 'brief'>
 }) => {
   const isDocument = preset === 'document'
@@ -281,7 +269,12 @@ const MainToolbarContent = ({
         <MarkButton type="italic" />
         {isDocument && <MarkButton type="underline" />}
         {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
-        {isDocument && enableImageUpload && <ImageUploadButton />}
+        {isDocument && enableImageUpload && (
+          <ImageUploadButton
+            onUploadRequest={onImageUploadRequest}
+            canUpload={canStartImageUpload}
+          />
+        )}
       </ToolbarGroup>
 
       <ToolbarSeparator />
@@ -348,6 +341,7 @@ export function RichTextEditor({
   placeholder = 'Write your response here...',
   disabled = false,
   editable = true,
+  interactionActive = true,
   autoFocus = false,
   toolbarPreset = 'document',
   showToolbar = true,
@@ -355,6 +349,7 @@ export function RichTextEditor({
   enableImageUpload = false,
   assignmentDocId,
   onImageUploadError,
+  onImageUploadPendingChange,
   required,
   'aria-required': ariaRequired,
   'aria-invalid': ariaInvalid,
@@ -366,6 +361,11 @@ export function RichTextEditor({
   historyPreviewChange = null,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
+  const interactionRef = useRef(interactionActive)
+  useInsertionEffect(() => {
+    interactionRef.current = interactionActive
+    return () => { interactionRef.current = false }
+  }, [interactionActive])
   const resolvedToolbarPreset: RichTextToolbarPreset =
     showToolbar === false ? 'none' : toolbarPreset
   const visibleToolbarPreset =
@@ -376,6 +376,14 @@ export function RichTextEditor({
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const imageUploadGenerationRef = useRef(0)
+  const imageUploadDocIdRef = useRef(assignmentDocId)
+  const imageUploadContextRef = useRef({ assignmentDocId, canEdit, mounted: true })
+  imageUploadContextRef.current.assignmentDocId = assignmentDocId
+  imageUploadContextRef.current.canEdit = canEdit
+  const imageUploadStateRef = useRef<TransientImageUploadState>({ status: 'idle' })
+  const [imageUploadState, setImageUploadState] = useState<TransientImageUploadState>({ status: 'idle' })
   const { viewportRef, minimapState } = useHistoryPreviewViewport(
     historyPreviewMode,
     content,
@@ -468,26 +476,17 @@ export function RichTextEditor({
         class: 'max-w-full h-auto rounded',
       },
     }),
-    ...(enableImageUpload
-      ? [
-          ImageUploadNode.configure({
-            type: 'image',
-            accept: IMAGE_ACCEPT,
-            maxSize: IMAGE_MAX_SIZE,
-            limit: 1,
-            upload: (file, onProgress) => uploadImage(file, onProgress, assignmentDocId),
-          }),
-        ]
-      : []),
-  ], [assignmentDocId, enableImageUpload, placeholder])
+    ReadOnlyImageUpload,
+  ], [placeholder])
 
   const editor = useEditor({
     immediatelyRender: false,
-    editable: canEdit,
+    editable: canEdit && interactionActive,
     editorProps: {
       attributes: editorAttributes,
       handleDOMEvents: {
         paste: (_view, event) => {
+          if (!interactionRef.current) return true
           // Track text paste for authenticity
           if (onPaste) {
             const text = event.clipboardData?.getData('text/plain') ?? ''
@@ -497,6 +496,7 @@ export function RichTextEditor({
           return false
         },
         keydown: (_view, event) => {
+          if (!interactionRef.current) return true
           if (event.key === 'Escape' && onEscape) {
             event.preventDefault()
             onEscape()
@@ -509,6 +509,7 @@ export function RichTextEditor({
           return false
         },
         click: (view, event) => {
+          if (!interactionRef.current) return true
           const target = event.target as HTMLElement
           const link = target.closest('a[href]')
           if (!link) return false
@@ -536,9 +537,128 @@ export function RichTextEditor({
     extensions,
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getJSON() as TiptapContent)
+      if (interactionRef.current) onChange(editor.getJSON() as TiptapContent)
     },
-  })
+  }, [extensions])
+
+  const updateImageUploadState = useCallback((next: TransientImageUploadState) => {
+    imageUploadStateRef.current = next
+    setImageUploadState(next)
+  }, [])
+
+  const startImageUpload = useCallback(async (file: File, options?: { retry?: boolean }) => {
+    const currentStatus = imageUploadStateRef.current.status
+    const canRetry = options?.retry === true && currentStatus === 'error'
+    if (!editor || !editor.isEditable || (currentStatus !== 'idle' && !canRetry)) return
+
+    const validationError = getImageValidationError(file)
+    if (validationError) {
+      updateImageUploadState({ status: 'error', file, message: validationError })
+      onImageUploadError?.(validationError)
+      return
+    }
+
+    const generation = imageUploadGenerationRef.current + 1
+    const uploadAssignmentDocId = assignmentDocId
+    imageUploadGenerationRef.current = generation
+    updateImageUploadState({ status: 'uploading', file, progress: 0 })
+
+    let managedObjectId: string | undefined
+    let imageInserted = false
+    try {
+      const result = await uploadImage(
+        file,
+        ({ progress }) => {
+          if (imageUploadGenerationRef.current !== generation) return
+          updateImageUploadState({ status: 'uploading', file, progress })
+        },
+        assignmentDocId,
+      )
+      managedObjectId = result.managedObjectId
+      const currentContext = imageUploadContextRef.current
+      if (imageUploadGenerationRef.current !== generation
+        || !currentContext.mounted
+        || !currentContext.canEdit
+        || !interactionRef.current
+        || currentContext.assignmentDocId !== uploadAssignmentDocId
+        || !editor.isEditable) {
+        if (managedObjectId) {
+          void discardDirectUpload({
+            endpoint: '/api/upload-image',
+            managedObjectId,
+          }).catch(() => {})
+        }
+        return
+      }
+
+      imageInserted = editor
+        .chain()
+        .focus()
+        .setImage({
+          src: result.url,
+          alt: file.name.replace(/\.[^/.]+$/, ''),
+          managed_object_id: result.managedObjectId ?? null,
+          storage_bucket: result.storageBucket ?? null,
+          storage_path: result.storagePath ?? null,
+        } as any)
+        .run()
+      if (!imageInserted) throw new Error('The image uploaded but could not be added to your work')
+
+      updateImageUploadState({ status: 'idle' })
+    } catch (error) {
+      if (managedObjectId && !imageInserted) {
+        void discardDirectUpload({
+          endpoint: '/api/upload-image',
+          managedObjectId,
+        }).catch(() => {})
+      }
+      if (imageUploadGenerationRef.current !== generation) return
+      const message = error instanceof Error ? error.message : 'Failed to upload image'
+      console.error('Failed to upload image:', error)
+      updateImageUploadState({ status: 'error', file, message })
+      onImageUploadError?.(message)
+    }
+  }, [assignmentDocId, editor, onImageUploadError, updateImageUploadState])
+
+  const requestImageUpload = useCallback(() => {
+    if (!editor?.isEditable || imageUploadStateRef.current.status !== 'idle') return
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+      imageInputRef.current.click()
+    }
+  }, [editor])
+
+  const dismissImageUpload = useCallback(() => {
+    imageUploadGenerationRef.current += 1
+    updateImageUploadState({ status: 'idle' })
+  }, [updateImageUploadState])
+
+  useEffect(() => {
+    onImageUploadPendingChange?.(imageUploadState.status !== 'idle')
+  }, [imageUploadState.status, onImageUploadPendingChange])
+
+  useEffect(() => {
+    if (canEdit || imageUploadStateRef.current.status === 'idle') return
+    imageUploadGenerationRef.current += 1
+    updateImageUploadState({ status: 'idle' })
+  }, [canEdit, updateImageUploadState])
+
+  useEffect(() => {
+    if (imageUploadDocIdRef.current === assignmentDocId) return
+    imageUploadDocIdRef.current = assignmentDocId
+    imageUploadGenerationRef.current += 1
+    if (imageUploadStateRef.current.status !== 'idle') {
+      updateImageUploadState({ status: 'idle' })
+    }
+  }, [assignmentDocId, updateImageUploadState])
+
+  useLayoutEffect(() => {
+    imageUploadContextRef.current.mounted = true
+    return () => {
+      imageUploadContextRef.current.mounted = false
+      imageUploadGenerationRef.current += 1
+    }
+  }, [])
 
   // Sync content changes from parent
   useEffect(() => {
@@ -551,21 +671,21 @@ export function RichTextEditor({
     }
   }, [content, editor])
 
-  // Sync editable state
-  useEffect(() => {
+  // Retire editing before layout-driven focus return can fire editor callbacks.
+  useLayoutEffect(() => {
     if (editor) {
       // Enabling/disabling the surface is parent-controlled state, not a content
       // edit. Suppress TipTap's update event so autosave consumers do not treat
       // a loading or saving transition as user-authored content.
-      editor.setEditable(canEdit, false)
+      editor.setEditable(canEdit && interactionActive, false)
     }
-  }, [canEdit, editor])
+  }, [canEdit, editor, interactionActive])
 
   useEffect(() => {
-    if (editor && canEdit && autoFocus) {
+    if (editor && canEdit && interactionActive && autoFocus) {
       editor.commands.focus('end')
     }
-  }, [autoFocus, canEdit, editor])
+  }, [autoFocus, canEdit, editor, interactionActive])
 
   useEffect(() => {
     if (!editor) return
@@ -586,7 +706,7 @@ export function RichTextEditor({
 
   // Handle image paste and drag-drop when enabled
   useEffect(() => {
-    if (!editor || !enableImageUpload) return
+    if (!editor || !canEdit || !interactionActive || !enableImageUpload) return
 
     const handlePaste = (event: ClipboardEvent) => {
       const files = event.clipboardData?.files
@@ -596,7 +716,7 @@ export function RichTextEditor({
       if (!imageFile) return
 
       event.preventDefault()
-      handleImageFile(editor, imageFile, assignmentDocId, onImageUploadError)
+      void startImageUpload(imageFile)
     }
 
     const handleDrop = (event: DragEvent) => {
@@ -608,7 +728,7 @@ export function RichTextEditor({
 
       event.preventDefault()
       event.stopPropagation()
-      handleImageFile(editor, imageFile, assignmentDocId, onImageUploadError)
+      void startImageUpload(imageFile)
     }
 
     const handleDragOver = (event: DragEvent) => {
@@ -629,7 +749,7 @@ export function RichTextEditor({
       editorElement.removeEventListener('drop', handleDrop)
       editorElement.removeEventListener('dragover', handleDragOver)
     }
-  }, [assignmentDocId, editor, enableImageUpload, onImageUploadError])
+  }, [canEdit, editor, enableImageUpload, interactionActive, startImageUpload])
 
   if (!editor) {
     return null
@@ -640,14 +760,14 @@ export function RichTextEditor({
       ref={containerRef}
       className={`simple-editor-wrapper ${className}`}
       onBlurCapture={(event) => {
-        if (!onBlur) return
+        if (!interactionRef.current || !onBlur) return
         const relatedTarget = event.relatedTarget as Node | null
         if (relatedTarget && containerRef.current?.contains(relatedTarget)) return
         onBlur()
       }}
     >
       <EditorContext.Provider value={{ editor }}>
-        {canEdit && visibleToolbarPreset && (
+        {canEdit && visibleToolbarPreset && (interactionActive ? (
           <Toolbar
             ref={toolbarRef}
             aria-label="Formatting options"
@@ -658,13 +778,69 @@ export function RichTextEditor({
                 onLinkClick={() => setMobileView('link')}
                 isMobile={isMobile}
                 enableImageUpload={enableImageUpload}
+                onImageUploadRequest={requestImageUpload}
+                canStartImageUpload={imageUploadState.status === 'idle'}
                 preset={visibleToolbarPreset}
               />
             ) : (
               <MobileToolbarContent onBack={() => setMobileView('main')} />
             )}
           </Toolbar>
-        )}
+        ) : (
+          <div className="tiptap-toolbar" data-variant="fixed" aria-hidden="true" />
+        ))}
+
+        {canEdit && enableImageUpload ? (
+          <AppInput
+            ref={imageInputRef}
+            className="hidden"
+            type="file"
+            accept={IMAGE_ACCEPT}
+            aria-label="Choose image"
+            data-testid="editor-image-input"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) void startImageUpload(file)
+            }}
+          />
+        ) : null}
+        {imageUploadState.status !== 'idle' ? (
+          <div
+            className={`mx-3 mt-3 flex min-h-11 items-center justify-between gap-3 rounded-control border px-3 py-2 text-sm ${
+              imageUploadState.status === 'error'
+                ? 'border-danger bg-danger-bg text-danger'
+                : 'border-border bg-surface-muted text-text-default'
+            }`}
+            role={imageUploadState.status === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+            aria-busy={imageUploadState.status === 'uploading'}
+            data-testid="editor-image-upload-status"
+          >
+            <div className="min-w-0">
+              <div className="truncate font-medium">{imageUploadState.file.name}</div>
+              <div className="text-xs text-current opacity-80">
+                {imageUploadState.status === 'uploading'
+                  ? `Uploading image… ${Math.round(imageUploadState.progress)}%`
+                  : imageUploadState.message}
+              </div>
+            </div>
+            {imageUploadState.status === 'error' ? (
+              <div className="flex shrink-0 gap-2">
+                <AppButton
+                  type="button"
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => void startImageUpload(imageUploadState.file, { retry: true })}
+                >
+                  Retry
+                </AppButton>
+                <AppButton type="button" size="xs" variant="ghost" onClick={dismissImageUpload}>
+                  Remove
+                </AppButton>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {showHistoryMinimap ? (
           <HistoryPreviewChangeSummary change={historyPreviewChange} />

@@ -1,0 +1,136 @@
+name: Manual migration rollout
+
+# Human dispatch is the only trigger. Preview is the default; no automatic push.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preview or apply (apply requires a fresh exact approval)
+        type: choice
+        options: [preview, apply]
+        default: preview
+        required: true
+      target:
+        description: Environment whose project binding and credentials will be used
+        type: choice
+        options: [production]
+        default: production
+        required: true
+      source_sha:
+        description: Exact full 40-character merged commit SHA containing the SQL
+        type: string
+        required: true
+      ci_run_id:
+        description: Successful CI run with actual database replay, tests, and PR Gate
+        type: string
+        required: true
+      approved_digest:
+        description: Apply only - copy the exact digest from the reviewed preview
+        type: string
+      approved_migrations:
+        description: Apply only - exact pending versions or filenames, comma-separated in order
+        type: string
+      confirmation:
+        description: 'Apply only - APPLY <target> <full source SHA>'
+        type: string
+      impact_ack:
+        description: 'Apply only - I reviewed the SQL and acknowledge all destructive or irreversible effects.'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: manual-migrations-production
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    # Never execute branch-provided tooling with migration credentials.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.target == 'production' &&
+      github.ref == 'refs/heads/main' &&
+      github.workflow_ref == format('{0}/.github/workflows/migrations.yml@refs/heads/main', github.repository) &&
+      (inputs.mode == 'preview' || github.run_attempt == 1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: migrations-production
+    steps:
+      - name: Checkout trusted workflow tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: tooling
+          persist-credentials: false
+
+      - name: Validate dispatch before fetching candidate data
+        env:
+          ROLLOUT_MODE: ${{ inputs.mode }}
+          ROLLOUT_TARGET: ${{ inputs.target }}
+          ROLLOUT_BOUND_TARGET: ${{ vars.ROLLOUT_TARGET }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          ROLLOUT_SOURCE_SHA: ${{ inputs.source_sha }}
+          ROLLOUT_CI_RUN_ID: ${{ inputs.ci_run_id }}
+          ROLLOUT_APPROVED_DIGEST: ${{ inputs.approved_digest }}
+          ROLLOUT_APPROVED_MIGRATIONS: ${{ inputs.approved_migrations }}
+          ROLLOUT_CONFIRMATION: ${{ inputs.confirmation }}
+          ROLLOUT_IMPACT_ACK: ${{ inputs.impact_ack }}
+        run: |
+          node --input-type=module <<'JS'
+          import { validateInputs } from './tooling/scripts/migration-rollout-policy.mjs';
+          import { environmentInputs } from './tooling/scripts/migration-rollout.mjs';
+          try { validateInputs(environmentInputs(process.env)); }
+          catch (error) { console.error(error.message); process.exit(1); }
+          JS
+
+      - name: Checkout exact candidate as data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+
+      - name: Install verified Supabase CLI archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "x86_64" ]] || {
+            echo "The reviewed CLI archive requires Linux x86_64."
+            exit 1
+          }
+          CLI_DIR="$(mktemp -d "${RUNNER_TEMP}/pika-supabase.XXXXXX")"
+          CLI_ARCHIVE="$CLI_DIR/supabase.tar.gz"
+          curl --fail --silent --show-error --location \
+            https://github.com/supabase/cli/releases/download/v2.103.0/supabase_linux_amd64.tar.gz \
+            --output "$CLI_ARCHIVE"
+          printf '%s  %s\n' '1eaeee74576b2b296c9731ed729c38ec91f48096be7c10290e324888a310ded7' "$CLI_ARCHIVE" | sha256sum --check --status
+          tar -xzf "$CLI_ARCHIVE" -C "$CLI_DIR" supabase supabase-go
+          chmod 700 "$CLI_DIR/supabase" "$CLI_DIR/supabase-go"
+          [[ "$("$CLI_DIR/supabase-go" --version)" == "2.103.0" ]]
+          rm "$CLI_ARCHIVE"
+          printf '%s\n' "$CLI_DIR" >> "$GITHUB_PATH"
+
+      - name: Preview or apply with bound one-time approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          ROLLOUT_BOUND_TARGET: ${{ vars.ROLLOUT_TARGET }}
+          ROLLOUT_SOURCE_DIR: ${{ github.workspace }}/candidate
+          ROLLOUT_MODE: ${{ inputs.mode }}
+          ROLLOUT_TARGET: ${{ inputs.target }}
+          ROLLOUT_SOURCE_SHA: ${{ inputs.source_sha }}
+          ROLLOUT_CI_RUN_ID: ${{ inputs.ci_run_id }}
+          ROLLOUT_APPROVED_DIGEST: ${{ inputs.approved_digest }}
+          ROLLOUT_APPROVED_MIGRATIONS: ${{ inputs.approved_migrations }}
+          ROLLOUT_CONFIRMATION: ${{ inputs.confirmation }}
+          ROLLOUT_IMPACT_ACK: ${{ inputs.impact_ack }}
+        run: node tooling/scripts/migration-rollout.mjs

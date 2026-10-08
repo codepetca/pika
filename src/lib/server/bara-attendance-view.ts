@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { loadAttendanceRoster } from '@/lib/server/attendance-report'
+import { deriveAutomaticTeacherAttendance } from '@/lib/teacher-attendance'
 import type {
   TeacherAttendanceSessionState,
   TeacherAttendanceStatus,
@@ -311,8 +312,6 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
       ? 'pending'
       : (input.occurrence && !projection) || input.projectionKnownStale ? 'stale' : 'current'
   const now = Date.parse(input.now ?? new Date().toISOString())
-  const presentThrough = Date.parse(input.occurrence?.presentThroughAt ?? input.occurrence?.opensAt ?? '')
-  const absentAt = Date.parse(input.occurrence?.absentAt ?? input.occurrence?.closesAt ?? '')
 
   return {
     classroomId: input.classroomId, classDate: input.classDate, integration: input.integration,
@@ -338,14 +337,19 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
     students: input.students.map((student) => {
       const fact = factsByStudent.get(student.studentId)
       const override = overrides.get(student.studentId)
-      const automaticStatus: TeacherAttendanceStatus = fact
-        ? Date.parse(fact.acceptedAt) <= presentThrough ? 'present' : 'late'
-        : Number.isFinite(absentAt) && now >= absentAt ? 'absent' : 'unmarked'
+      const automatic = deriveAutomaticTeacherAttendance({
+        checkedInAt: fact?.acceptedAt ?? null,
+        presentThroughAt: input.occurrence?.presentThroughAt ?? null,
+        opensAt: input.occurrence?.opensAt ?? null,
+        absentAt: input.occurrence?.absentAt ?? null,
+        closesAt: input.occurrence?.closesAt ?? null,
+        nowMs: now,
+      })
       const hasOverride = Boolean(override?.active && override.status)
       return {
         studentId: student.studentId, firstName: student.firstName, lastName: student.lastName,
-        status: hasOverride ? override!.status! : automaticStatus,
-        source: hasOverride ? 'staff' : fact ? 'student_qr' : automaticStatus === 'absent' ? 'system' : null,
+        status: hasOverride ? override!.status! : automatic.status,
+        source: hasOverride ? 'staff' : automatic.source,
         revision: hasOverride ? override!.revision : fact?.revision ?? null,
         checkedInAt: fact?.acceptedAt ?? null,
         hasQrCheckIn: Boolean(fact),

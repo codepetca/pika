@@ -71,5 +71,5 @@ the machinery, not grading quality.
 
 Apply migration 104 before deploying this application version. Require a fresh migration replay,
 generated database type check, `scripts/check-atomic-assignment-feedback-returns.sh`, and
-`scripts/check-atomic-test-grading.sh`. Do not infer permission to apply the migration to local,
-staging, or production databases.
+`scripts/check-atomic-test-grading.sh`. Do not infer permission to apply the migration to local or
+production databases.

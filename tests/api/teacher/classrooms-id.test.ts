@@ -113,6 +113,27 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
     expect(data.classroom.archived_at).toBeTruthy()
   })
 
+  it.each(['40001', '40P01', '55000', '55P03'])('maps classroom update contention %s to a safe conflict', async (code) => {
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: { code } }),
+        }),
+      }),
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ update: mockUpdate }))
+
+    const response = await PATCH(new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1',
+      { method: 'PATCH', body: JSON.stringify({ archived: true }) },
+    ), { params: { id: 'c-1' } })
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Classroom changed during this update. Refresh and try again.',
+    })
+  })
+
   it('should unarchive classroom when archived: false and assign a fresh top position', async () => {
     const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
     ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({

@@ -41,6 +41,23 @@ describe('explicit live membership purge', () => {
     expect(f.academic.advance).not.toHaveBeenCalled()
     expect(f.providers.finish).not.toHaveBeenCalled()
   })
+  it('surfaces a non-retryable provider failure as terminal', async () => {
+    const f = fixture()
+    f.providers.advance.mockImplementation(async (_scope, provider) => {
+      if (provider === 'pal') throw new StudentProviderCleanupError('provider_unavailable', false)
+      return f.pending
+    })
+    await expect(f.coordinator.advance(scope)).rejects.toMatchObject({ code: 'terminal_failure' })
+    expect(f.academic.advance).not.toHaveBeenCalled()
+  })
+  it('surfaces unsupported academic ownership as terminal but leaves pending work retryable', async () => {
+    const permanent = fixture()
+    permanent.academic.inventory.mockResolvedValue({ blockers: ['shared_resource_policy_required'] })
+    await expect(permanent.coordinator.advance(scope)).rejects.toMatchObject({ code: 'terminal_failure' })
+    const pending = fixture()
+    pending.academic.inventory.mockResolvedValue({ blockers: ['live_copy_work_pending'] })
+    await expect(pending.coordinator.advance(scope)).resolves.toMatchObject({ cleanup_completed: false })
+  })
   it('runs both verified providers, bounded academic/file work, then the database finalizer', async () => {
     const f = fixture()
     expect(await f.coordinator.advance(scope)).toMatchObject({ status: 'completed', cleanup_completed: true })
@@ -51,7 +68,7 @@ describe('explicit live membership purge', () => {
   it.each(['provider', 'inventory', 'file'])('retains re-add restriction while %s remains pending', async stage => {
     const f = fixture()
     if (stage === 'provider') f.providers.read.mockResolvedValue(f.pending)
-    if (stage === 'inventory') f.academic.inventory.mockResolvedValue({ blockers: ['remote_grading_policy_required'] })
+    if (stage === 'inventory') f.academic.inventory.mockResolvedValue({ blockers: ['live_copy_work_pending'] })
     if (stage === 'file') f.academic.advance.mockResolvedValue({ blockers: [], local_status: 'deleting' })
     expect(await f.coordinator.advance(scope)).toMatchObject({ cleanup_completed: false })
     expect(f.providers.finish).not.toHaveBeenCalled()

@@ -42,6 +42,11 @@ export async function fetchJSONWithCache<T>(
   ttlMs = 15_000,
 ): Promise<T> {
   const now = Date.now()
+  // Opportunistic expiry keeps historical unique keys from surviving active use.
+  // Pending requests remain available for deduplication until they settle.
+  for (const [cachedKey, entry] of cache) {
+    if (!entry.pending && entry.expiresAt <= now) cache.delete(cachedKey)
+  }
   const current = cache.get(key)
 
   if (current?.value !== undefined && current.expiresAt > now) {
@@ -56,10 +61,14 @@ export async function fetchJSONWithCache<T>(
   pending = fetcher()
     .then((value) => {
       if (cache.get(key)?.pending === pending) {
-        cache.set(key, {
-          value,
-          expiresAt: Date.now() + ttlMs,
-        })
+        if (ttlMs <= 0) {
+          cache.delete(key)
+        } else {
+          cache.set(key, {
+            value,
+            expiresAt: Date.now() + ttlMs,
+          })
+        }
       }
       return value
     })

@@ -8,13 +8,16 @@ export interface GradebookDisplayPreferences {
   summaryKind: GradebookSummaryKind
   lastNameFirst: boolean
   showStudentIds: boolean
+  ultraCompact: boolean
   showWeights: boolean
   keepKeyColumnsVisible: boolean
+  hideUnreleasedAssessments: boolean
 }
 
 export const DEFAULT_GRADEBOOK_PREFERENCES: GradebookDisplayPreferences = {
   scoreDisplayMode: 'percent', summaryKind: 'average', lastNameFirst: false,
-  showStudentIds: false, showWeights: false, keepKeyColumnsVisible: true,
+  showStudentIds: false, ultraCompact: false, showWeights: false, keepKeyColumnsVisible: true,
+  hideUnreleasedAssessments: true,
 }
 
 export function normalizeGradebookPreferences(value: unknown): GradebookDisplayPreferences {
@@ -22,14 +25,22 @@ export function normalizeGradebookPreferences(value: unknown): GradebookDisplayP
   const result = { ...DEFAULT_GRADEBOOK_PREFERENCES }
   if (saved.scoreDisplayMode === 'raw') result.scoreDisplayMode = 'raw'
   if (saved.summaryKind === 'median') result.summaryKind = 'median'
-  for (const key of ['lastNameFirst', 'showStudentIds', 'showWeights', 'keepKeyColumnsVisible'] as const) {
+  for (const key of ['lastNameFirst', 'showStudentIds', 'ultraCompact', 'showWeights', 'keepKeyColumnsVisible', 'hideUnreleasedAssessments'] as const) {
     if (typeof saved[key] === 'boolean') result[key] = saved[key]
   }
   return result
 }
 
+export function visibleGradebookAssessments(columns: GradebookAssessmentColumn[], hideUnreleased: boolean): GradebookAssessmentColumn[] {
+  if (!hideUnreleased) return columns
+  return columns.filter((column) => !(
+    (column.assessment_type === 'assignment' && column.is_draft)
+    || (column.assessment_type === 'test' && column.status === 'draft')
+  ))
+}
+
 export function isValidGradebookWeight(value: number): boolean {
-  return Number.isInteger(value) && value >= 1 && value <= 999
+  return Number.isInteger(value) && value >= 0 && value <= 999
 }
 
 export function editedAssessmentCourseWeight(

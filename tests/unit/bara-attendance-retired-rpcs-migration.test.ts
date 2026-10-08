@@ -95,7 +95,7 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(roadmap).toContain('production migrations through 132 are\nrecorded as applied')
     expect(completionAudit).toContain('enabled `teacher_entitlements` gate passed 4/4 in production')
     expect(roadmap).toContain('deployed bidirectional smoke passed 4/4 in that mode')
-    expect(scanRunbook).toContain('full Pika migration history through migration\n   132')
+    expect(scanRunbook).toContain('local schema matches the worktree migrations')
     expect(scanRunbook).not.toContain('Supabase migration 127 is applied only')
     expect(v1Guide).toContain('Status: pre-release contract authority.')
     expect(v1Guide).toContain('`attendance.marks` is intentionally absent')
@@ -105,11 +105,13 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
     // Keep the verified rollout floor without freezing CURRENT to an old date
     // or forbidding later, independently verified production migrations.
-    const productionHistory = currentContext.match(/^Prod(?:\/local)? DB 001[–-](\d+)\b/)
+    const productionHistory = currentContext.match(/^(?:Hosted: Prod DB 001|DB001)[–-](\d+)\b/m)
     expect(productionHistory).not.toBeNull()
     expect(Number(productionHistory?.[1])).toBeGreaterThanOrEqual(160)
-    expect(currentContext).toContain('Attendance timing released')
-    expect(currentContext).toContain('teacher_entitlements smoke 4/4 passed 2026-08-28')
+    expect(currentContext).toContain('Recorded releases: attendance')
+    // Current receipts may advance from historical controls to fresh post-apply verification.
+    expect(currentContext).toMatch(/Fresh post-apply controls match pre-apply|Settings last verified in prior receipts; no fresh hosted query here for controls|Controls unchanged:/)
+    expect(currentContext).toContain('`teacher_entitlements` smoke 4/4 on 2026-08-28')
     expect(operationalRecovery).toContain('records Pika migrations through 132')
     expect(operationalRecovery).toContain(
       'enabled `teacher_entitlements` 4/4 deployed smoke on 2026-08-24',

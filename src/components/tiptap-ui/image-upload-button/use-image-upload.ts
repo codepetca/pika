@@ -29,10 +29,10 @@ export interface UseImageUploadConfig {
    * @default false
    */
   hideWhenUnavailable?: boolean
-  /**
-   * Callback function called after a successful image insertion.
-   */
-  onInserted?: () => void
+  /** Open the transient file picker instead of inserting a serializable upload node. */
+  onUploadRequest?: () => void
+  /** Whether a new upload may start. */
+  canUpload?: boolean
 }
 
 /**
@@ -40,9 +40,7 @@ export interface UseImageUploadConfig {
  */
 export function canInsertImage(editor: Editor | null): boolean {
   if (!editor || !editor.isEditable) return false
-  if (!isExtensionAvailable(editor, "imageUpload")) return false
-
-  return editor.can().insertContent({ type: "imageUpload" })
+  return isExtensionAvailable(editor, "image")
 }
 
 /**
@@ -50,27 +48,7 @@ export function canInsertImage(editor: Editor | null): boolean {
  */
 export function isImageActive(editor: Editor | null): boolean {
   if (!editor || !editor.isEditable) return false
-  return editor.isActive("imageUpload")
-}
-
-/**
- * Inserts an image in the editor
- */
-export function insertImage(editor: Editor | null): boolean {
-  if (!editor || !editor.isEditable) return false
-  if (!canInsertImage(editor)) return false
-
-  try {
-    return editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: "imageUpload",
-      })
-      .run()
-  } catch {
-    return false
-  }
+  return editor.isActive("image")
 }
 
 /**
@@ -83,7 +61,7 @@ export function shouldShowButton(props: {
   const { editor, hideWhenUnavailable } = props
 
   if (!editor || !editor.isEditable) return false
-  if (!isExtensionAvailable(editor, "imageUpload")) return false
+  if (!isExtensionAvailable(editor, "image")) return false
 
   if (hideWhenUnavailable && !editor.isActive("code")) {
     return canInsertImage(editor)
@@ -93,13 +71,15 @@ export function shouldShowButton(props: {
 }
 
 /**
- * Custom hook that provides image functionality for Tiptap editor
+ * Custom hook that opens a transient image picker for a Tiptap editor.
  *
  * @example
  * ```tsx
- * // Simple usage - no params needed
+ * // The picker remains owned by the editor surface.
  * function MySimpleImageButton() {
- *   const { isVisible, handleImage } = useImage()
+ *   const { isVisible, handleImage } = useImageUpload({
+ *     onUploadRequest: () => inputRef.current?.click(),
+ *   })
  *
  *   if (!isVisible) return null
  *
@@ -111,7 +91,7 @@ export function shouldShowButton(props: {
  *   const { isVisible, handleImage, label, isActive } = useImage({
  *     editor: myEditor,
  *     hideWhenUnavailable: true,
- *     onInserted: () => console.log('Image inserted!')
+ *     onUploadRequest: () => inputRef.current?.click()
  *   })
  *
  *   if (!isVisible) return null
@@ -132,13 +112,14 @@ export function useImageUpload(config?: UseImageUploadConfig) {
   const {
     editor: providedEditor,
     hideWhenUnavailable = false,
-    onInserted,
+    onUploadRequest,
+    canUpload = true,
   } = config || {}
 
   const { editor } = useTiptapEditor(providedEditor)
   const isMobile = useIsBreakpoint()
   const [isVisible, setIsVisible] = useState<boolean>(true)
-  const canInsert = canInsertImage(editor)
+  const canInsert = canUpload && canInsertImage(editor)
   const isActive = isImageActive(editor)
 
   useEffect(() => {
@@ -158,14 +139,12 @@ export function useImageUpload(config?: UseImageUploadConfig) {
   }, [editor, hideWhenUnavailable])
 
   const handleImage = useCallback(() => {
-    if (!editor) return false
+    if (!editor || !canUpload) return false
 
-    const success = insertImage(editor)
-    if (success) {
-      onInserted?.()
-    }
-    return success
-  }, [editor, onInserted])
+    if (!onUploadRequest) return false
+    onUploadRequest()
+    return true
+  }, [canUpload, editor, onUploadRequest])
 
   useHotkeys(
     IMAGE_UPLOAD_SHORTCUT_KEY,

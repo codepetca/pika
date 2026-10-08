@@ -70,6 +70,8 @@ describe('TeacherSelectionBar', () => {
 })
 
 describe('TeacherWorkSurfaceTableFrame', () => {
+  // Long-table hidden-label containment and reduced-motion scrolling are covered
+  // by Teacher student-table scroll containment in e2e/experience-matrix.spec.ts.
   it('reserves bottom scroll clearance only while selection actions are active', () => {
     const { container, rerender } = render(
       <TeacherWorkSurfaceTableFrame>

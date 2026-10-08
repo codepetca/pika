@@ -4,6 +4,8 @@ import { AuthSessionWatcher } from './AuthSessionWatcher'
 import type { ClassroomThemeColor } from '@/lib/classroom-theme'
 
 interface AppShellProps {
+  /** Initial header clock snapshot from the server render owner. */
+  initialNow: number
   children: ReactNode
   navigation?: ReactNode
   showHeader?: boolean
@@ -22,9 +24,12 @@ interface AppShellProps {
   }>
   currentClassroomId?: string
   onOpenSidebar?: () => void
+  sidebarTriggerLabel?: string
   onNavigateHome?: (href: string) => boolean
   mainClassName?: string
   constrainToViewport?: boolean
+  /** Also bound narrow-screen workspaces that own their internal scrolling. */
+  constrainToViewportOnMobile?: boolean
   examModeHeader?: {
     testTitle: string
     exitsCount: number
@@ -38,6 +43,7 @@ interface AppShellProps {
  * Provides compact header (48px) and consistent page container.
  */
 export function AppShell({
+  initialNow,
   children,
   navigation,
   showHeader = true,
@@ -45,23 +51,30 @@ export function AppShell({
   classrooms,
   currentClassroomId,
   onOpenSidebar,
+  sidebarTriggerLabel,
   onNavigateHome,
   mainClassName,
   constrainToViewport = false,
+  constrainToViewportOnMobile = false,
   examModeHeader,
   pageTitle,
 }: AppShellProps) {
   const shouldConstrainViewport = constrainToViewport || !!examModeHeader
+  const viewportClassName = shouldConstrainViewport
+    ? constrainToViewportOnMobile ? 'h-dvh overflow-hidden' : 'lg:h-dvh lg:overflow-hidden'
+    : ''
 
   return (
-    <div className={`flex min-h-dvh flex-col bg-page${shouldConstrainViewport ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
+    <div className={['flex min-h-dvh flex-col bg-page', viewportClassName].filter(Boolean).join(' ')}>
       {user && <AuthSessionWatcher expectedUserId={user.id} expectedRole={user.role} />}
       {showHeader && (
         <AppHeader
+          initialNow={initialNow}
           user={user}
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}
           onOpenSidebar={onOpenSidebar}
+          sidebarTriggerLabel={sidebarTriggerLabel}
           onNavigateHome={onNavigateHome}
           examModeHeader={examModeHeader}
           pageTitle={pageTitle}
@@ -71,7 +84,7 @@ export function AppShell({
       <main
         className={[
           'flex-1 min-h-0 w-full',
-          shouldConstrainViewport ? 'lg:overflow-hidden' : '',
+          shouldConstrainViewport ? constrainToViewportOnMobile ? 'overflow-hidden' : 'lg:overflow-hidden' : '',
           mainClassName || 'max-w-7xl mx-auto px-4 py-3',
         ].filter(Boolean).join(' ')}
       >

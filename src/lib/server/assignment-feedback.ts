@@ -5,8 +5,12 @@ import type { AssignmentFeedbackEntry, AssignmentFeedbackEntryKind } from '@/typ
 export async function loadAssignmentFeedbackEntries(
   assignmentId: string,
   studentId: string,
+  options: {
+    supabase?: ReturnType<typeof getServiceRoleClient>
+    requireDataArray?: boolean
+  } = {},
 ): Promise<AssignmentFeedbackEntry[]> {
-  const supabase = getServiceRoleClient()
+  const supabase = options.supabase ?? getServiceRoleClient()
   const { data, error } = await supabase
     .from('assignment_feedback_entries')
     .select('*')
@@ -17,6 +21,9 @@ export async function loadAssignmentFeedbackEntries(
 
   if (error) {
     throw new ApiError(500, 'Failed to load assignment feedback history')
+  }
+  if (options.requireDataArray && !Array.isArray(data)) {
+    throw new ApiError(500, 'Failed to verify assignment feedback history')
   }
 
   return (data || []) as AssignmentFeedbackEntry[]
@@ -57,4 +64,3 @@ export function getLatestReturnedFeedbackBody(entries: AssignmentFeedbackEntry[]
   if (!entries.length) return null
   return entries[entries.length - 1]?.body ?? null
 }
-

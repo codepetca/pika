@@ -55,10 +55,7 @@ function toPercent(rows: GradebookCategoryInput[]): number | null {
     return round2(weighted / weightTotal)
   }
 
-  const earned = valid.reduce((sum, row) => sum + row.earned, 0)
-  const possible = valid.reduce((sum, row) => sum + row.possible, 0)
-  if (possible <= 0) return null
-  return round2((earned / possible) * 100)
+  return null
 }
 
 export function calculateCategorizedFinalPercent(input: {
@@ -104,7 +101,7 @@ export function calculateAssessmentCourseWeight(input: {
     (sum, weight) => sum + (Number.isFinite(weight) && weight > 0 ? weight : 0),
     0,
   )
-  if (total <= 0 || !Number.isFinite(input.assessmentWeight) || input.assessmentWeight <= 0) {
+  if (total <= 0 || !Number.isFinite(input.assessmentWeight) || input.assessmentWeight < 0) {
     return null
   }
   return round2(input.categoryPercentage * input.assessmentWeight / total)

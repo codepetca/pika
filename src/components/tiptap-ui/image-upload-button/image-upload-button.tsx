@@ -50,9 +50,9 @@ export function ImageShortcutBadge({
 }
 
 /**
- * Button component for uploading/inserting images in a Tiptap editor.
+ * Button component for opening the editor-owned image picker.
  *
- * For custom button implementations, use the `useImage` hook instead.
+ * For custom button implementations, use the `useImageUpload` hook instead.
  */
 export const ImageUploadButton = forwardRef<
   HTMLButtonElement,
@@ -63,7 +63,8 @@ export const ImageUploadButton = forwardRef<
       editor: providedEditor,
       text,
       hideWhenUnavailable = false,
-      onInserted,
+      onUploadRequest,
+      canUpload = true,
       showShortcut = false,
       onClick,
       icon: CustomIcon,
@@ -84,7 +85,8 @@ export const ImageUploadButton = forwardRef<
     } = useImageUpload({
       editor,
       hideWhenUnavailable,
-      onInserted,
+      onUploadRequest,
+      canUpload,
     })
 
     const handleClick = useCallback(

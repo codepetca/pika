@@ -76,8 +76,8 @@ function client(rpc: ReturnType<typeof vi.fn>, rows: unknown[] = []) {
 describe('Pika attendance source snapshot sync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    process.env.BARA_ATTENDANCE_INSTALLATION_REF = 'pika_staging'
-    process.env.BARA_ATTENDANCE_TENANT_REF = 'tenant_staging'
+    process.env.BARA_ATTENDANCE_INSTALLATION_REF = 'pika_local'
+    process.env.BARA_ATTENDANCE_TENANT_REF = 'tenant_local'
   })
 
   it('prepares, stages, and delivers roster before the DST-safe schedule', async () => {

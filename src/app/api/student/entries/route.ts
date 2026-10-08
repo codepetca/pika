@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { isOnTime, getTodayInToronto } from '@/lib/timezone'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import {
@@ -11,14 +10,19 @@ import {
 } from '@/lib/tiptap-content'
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { withErrorHandler } from '@/lib/api-handler'
-import { hasQualifyingDailyLogContent } from '@/lib/attendance'
-import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
-import { buildDailyLogCompletedEvent } from '@/lib/server/pal-events'
+import { isClassroomPalRequested } from '@/lib/server/pal-config'
+import { prepareDailyLogPal, deliverDailyLogPal } from '@/lib/server/daily-log-pal'
 import {
-  attemptImmediatePalEventDelivery,
   type PalImmediateDeliveryStatus,
 } from '@/lib/server/pal-outbox'
 import { upsertStudentEntryWithPalEvent } from '@/lib/server/pal-source-writes'
+import { authorizeContextualDailyLogRequest } from '@/lib/server/contextual-daily-log-access'
+import { authorizeDailyLogReadActor, readContextualDailyLogs } from '@/lib/server/contextual-daily-log-read'
+import {
+  saveContextualDailyLog,
+  verifyContextualDailyLogPatchPreimage,
+  verifyContextualDailyLogPostPreimage,
+} from '@/lib/server/contextual-daily-log-save'
 import type { JsonPatchOperation, MoodEmoji, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -105,7 +109,8 @@ function validateContentPayload(content: TiptapContent) {
  * Fetches entries for the current student (most recent first).
  */
 export const GET = withErrorHandler('GetStudentEntries', async (request, context) => {
-  const user = await requireRole('student')
+  const readAccess = await authorizeDailyLogReadActor()
+  const user = readAccess.user
   const supabase = getServiceRoleClient()
 
   const { searchParams } = new URL(request.url)
@@ -118,6 +123,11 @@ export const GET = withErrorHandler('GetStudentEntries', async (request, context
     if (Number.isFinite(parsed) && parsed > 0) {
       limit = Math.min(parsed, MAX_ENTRIES_LIMIT)
     }
+  }
+
+  if (readAccess.mode === 'contextual') {
+    const entries = await readContextualDailyLogs({ supabase, actorId: user.id, classroomId, limit })
+    return NextResponse.json({ entries })
   }
 
   let query = supabase
@@ -179,8 +189,12 @@ export const GET = withErrorHandler('GetStudentEntries', async (request, context
  * Creates or updates an entry for the current student
  */
 export const POST = withErrorHandler('PostStudentEntry', async (request, context) => {
-  const user = await requireRole('student')
-  const body = (await request.json()) as EntryContentPayload
+  let cachedBody: EntryContentPayload | undefined
+  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => {
+    cachedBody = (await request.json()) as EntryContentPayload
+    return cachedBody.classroom_id
+  })
+  const body = cachedBody ?? (await request.json()) as EntryContentPayload
 
   const { classroom_id, date, text, rich_content, minutes_reported, mood } = body
 
@@ -214,14 +228,17 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
 
   const entryText = extractPlainText(content)
 
+  const user = dailyLogAccess.user
   const supabase = getServiceRoleClient()
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (dailyLogAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const todayToronto = getTodayInToronto()
@@ -239,6 +256,44 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
 
   const now = new Date()
   const onTime = isOnTime(now, date)
+
+  if (dailyLogAccess.mode === 'contextual') {
+    const { data: preimage, error: preimageError } = await supabase
+      .from('entries')
+      .select('id, student_id, classroom_id, date, version, minutes_reported, mood')
+      .eq('student_id', user.id)
+      .eq('classroom_id', classroom_id)
+      .eq('date', date)
+      .single()
+    if (preimageError && preimageError.code !== 'PGRST116') {
+      return NextResponse.json({ error: 'Failed to fetch entry' }, { status: 500 })
+    }
+    const contextualExisting = verifyContextualDailyLogPostPreimage({
+      actorId: user.id, classroomId: classroom_id, date, entry: preimage,
+    })
+    const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+    const result = await saveContextualDailyLog({
+      supabase,
+      actorId: user.id,
+      classroomId: classroom_id,
+      date,
+      text: entryText,
+      richContent: content,
+      minutesReported: minutes_reported === undefined ? contextualExisting?.minutes_reported : minutes_reported,
+      mood: mood === undefined ? contextualExisting?.mood : mood,
+      onTime,
+      palEvent: pal.event,
+      expectedVersion: contextualExisting?.version ?? null,
+      expectedEntryId: contextualExisting?.id ?? null,
+    })
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, entry: result.entry }, { status: result.status })
+    }
+    const palDelivery = pal.event || isClassroomPalRequested()
+      ? await deliverDailyLogPal({ event: pal.event, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+      : undefined
+    return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
+  }
 
   const { data: existing, error: existingError } = await supabase
     .from('entries')
@@ -259,18 +314,13 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
   let entry
   let palDelivery: PalImmediateDeliveryStatus | undefined
 
-  if (isPalEnabled()) {
+  const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+  const palEvent = pal.event
+  if (pal.enabled) {
     const preservedMinutes = minutes_reported === undefined
       ? existing?.minutes_reported
       : minutes_reported
     const preservedMood = mood === undefined ? existing?.mood : mood
-    const palEvent = !isClassroomPalRequested() && hasQualifyingDailyLogContent(entryText)
-      ? buildDailyLogCompletedEvent({
-        learnerId: user.id,
-        activityDay: date,
-        occurredAt: now,
-      })
-      : null
 
     try {
       const result = await upsertStudentEntryWithPalEvent({
@@ -294,7 +344,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       }
       entry = result.entry
       if (palEvent || isClassroomPalRequested()) {
-        palDelivery = await attemptImmediatePalEventDelivery({
+        palDelivery = await deliverDailyLogPal({
           membership: { studentId: user.id, classroomId: classroom_id },
           event: palEvent,
           supabase,
@@ -367,8 +417,12 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
  * Applies JSON Patch or full-content updates with optimistic concurrency.
  */
 export const PATCH = withErrorHandler('PatchStudentEntry', async (request, context) => {
-  const user = await requireRole('student')
-  const body = (await request.json()) as EntryPatchPayload
+  let cachedBody: EntryPatchPayload | undefined
+  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => {
+    cachedBody = (await request.json()) as EntryPatchPayload
+    return cachedBody.classroom_id
+  })
+  const body = cachedBody ?? (await request.json()) as EntryPatchPayload
 
   const { classroom_id, date, entry_id, version, rich_content, patch } = body
 
@@ -414,14 +468,17 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     )
   }
 
+  const user = dailyLogAccess.user
   const supabase = getServiceRoleClient()
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (dailyLogAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const todayToronto = getTodayInToronto()
@@ -437,16 +494,12 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     return classDayCheck.response
   }
 
-  let entryQuery = supabase
+  const entryQuery = supabase
     .from('entries')
-    .select('id, version, text, rich_content, minutes_reported, mood')
+    .select('*')
     .eq('student_id', user.id)
     .eq('classroom_id', classroom_id)
     .eq('date', date)
-
-  if (entry_id) {
-    entryQuery = entryQuery.eq('id', entry_id)
-  }
 
   const { data: existing, error: existingError } = await entryQuery.single()
 
@@ -456,6 +509,110 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
       { error: 'Failed to fetch entry' },
       { status: 500 }
     )
+  }
+
+  const contextualExisting = dailyLogAccess.mode === 'contextual'
+    ? verifyContextualDailyLogPatchPreimage({
+      actorId: user.id,
+      classroomId: classroom_id,
+      date,
+      entry: existing,
+    })
+    : null
+
+  if (dailyLogAccess.mode === 'contextual') {
+    if (!contextualExisting) {
+      if (patch) {
+        return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
+      }
+      if (entry_id) {
+        return NextResponse.json(
+          { error: 'Entry has been updated elsewhere', entry: null },
+          { status: 409 },
+        )
+      }
+
+      const content = normalizeContent(rich_content, null)
+      const contentValidation = validateContentPayload(content)
+      if (!contentValidation.ok) {
+        return NextResponse.json({ error: contentValidation.error }, { status: 400 })
+      }
+      const entryText = extractPlainText(content)
+      const now = new Date()
+      const onTime = isOnTime(now, date)
+      const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+      const result = await saveContextualDailyLog({
+        supabase,
+        actorId: user.id,
+        classroomId: classroom_id,
+        date,
+        text: entryText,
+        richContent: content,
+        onTime,
+        palEvent: pal.event,
+        expectedVersion: null,
+        expectedEntryId: null,
+      })
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error, entry: result.entry }, { status: result.status })
+      }
+      const palDelivery = pal.event || isClassroomPalRequested()
+        ? await deliverDailyLogPal({ event: pal.event, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+        : undefined
+      return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
+    }
+
+    const currentVersion = contextualExisting.version
+    if (!entry_id || entry_id !== contextualExisting.id || version !== currentVersion) {
+      const normalizedEntry = {
+        ...contextualExisting,
+        rich_content: normalizeContent(contextualExisting.rich_content, contextualExisting.text),
+      }
+      return NextResponse.json(
+        { error: 'Entry has been updated elsewhere', entry: normalizedEntry },
+        { status: 409 },
+      )
+    }
+    let nextContent: TiptapContent
+    if (patch && patch.length > 0) {
+      const patched = tryApplyJsonPatch(normalizeContent(contextualExisting.rich_content, contextualExisting.text), patch)
+      if (!patched.success) return NextResponse.json({ error: 'Invalid patch' }, { status: 400 })
+      nextContent = patched.content
+    } else if (patch && patch.length === 0) {
+      nextContent = normalizeContent(contextualExisting.rich_content, contextualExisting.text)
+    } else {
+      nextContent = normalizeContent(rich_content, null)
+    }
+
+    const contentValidation = validateContentPayload(nextContent)
+    if (!contentValidation.ok) {
+      return NextResponse.json({ error: contentValidation.error }, { status: 400 })
+    }
+    const entryText = extractPlainText(nextContent)
+    const now = new Date()
+    const onTime = isOnTime(now, date)
+    const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+    const result = await saveContextualDailyLog({
+      supabase,
+      actorId: user.id,
+      classroomId: classroom_id,
+      date,
+      text: entryText,
+      richContent: nextContent,
+      minutesReported: contextualExisting.minutes_reported,
+      mood: contextualExisting.mood,
+      onTime,
+      palEvent: pal.event,
+      expectedVersion: currentVersion,
+      expectedEntryId: contextualExisting.id,
+    })
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, entry: result.entry }, { status: result.status })
+    }
+    const palDelivery = pal.event || isClassroomPalRequested()
+      ? await deliverDailyLogPal({ event: pal.event, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+      : undefined
+    return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
   }
 
   if (!existing) {
@@ -476,15 +633,9 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     const now = new Date()
     const onTime = isOnTime(now, date)
 
-    if (isPalEnabled()) {
-      const palEvent = !isClassroomPalRequested() && hasQualifyingDailyLogContent(entryText)
-        ? buildDailyLogCompletedEvent({
-          learnerId: user.id,
-          activityDay: date,
-          occurredAt: now,
-        })
-        : null
-
+    const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+    const palEvent = pal.event
+    if (pal.enabled) {
       try {
         const result = await upsertStudentEntryWithPalEvent({
           supabase,
@@ -504,7 +655,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
           )
         }
         const palDelivery = palEvent || isClassroomPalRequested()
-          ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+          ? await deliverDailyLogPal({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
           : undefined
         return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
       } catch (error) {
@@ -541,6 +692,15 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
   }
 
   const currentVersion = existing.version ?? 1
+  if (rich_content && JSON.stringify(normalizeContent(rich_content, null)) === JSON.stringify(normalizeContent(existing.rich_content, existing.text))) {
+    return NextResponse.json({ entry: existing })
+  }
+  if (!entry_id || entry_id !== existing.id) {
+    return NextResponse.json(
+      { error: 'Entry has been updated elsewhere', entry: existing },
+      { status: 409 },
+    )
+  }
   if (version !== currentVersion) {
     const normalizedEntry = {
       ...existing,
@@ -580,15 +740,9 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
   const onTime = isOnTime(now, date)
   const nextVersion = currentVersion + 1
 
-  if (isPalEnabled()) {
-    const palEvent = !isClassroomPalRequested() && hasQualifyingDailyLogContent(entryText)
-      ? buildDailyLogCompletedEvent({
-        learnerId: user.id,
-        activityDay: date,
-        occurredAt: now,
-      })
-      : null
-
+  const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+  const palEvent = pal.event
+  if (pal.enabled) {
     try {
       const result = await upsertStudentEntryWithPalEvent({
         supabase,
@@ -610,7 +764,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
         )
       }
       const palDelivery = palEvent || isClassroomPalRequested()
-        ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+        ? await deliverDailyLogPal({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
         : undefined
       return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
     } catch (error) {
@@ -631,14 +785,27 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
       version: nextVersion,
     })
     .eq('id', existing.id)
+    .eq('version', currentVersion)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error updating entry:', error)
     return NextResponse.json(
       { error: 'Failed to update entry' },
       { status: 500 }
+    )
+  }
+
+  if (!data) {
+    const { data: latest } = await supabase
+      .from('entries')
+      .select('id, version, text, rich_content, minutes_reported, mood')
+      .eq('id', existing.id)
+      .maybeSingle()
+    return NextResponse.json(
+      { error: 'Entry has been updated elsewhere', entry: latest },
+      { status: 409 },
     )
   }
 

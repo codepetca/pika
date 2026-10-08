@@ -246,6 +246,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   // Save state
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [submitting, setSubmitting] = useState(false)
+  const [hasPendingImageUpload, setHasPendingImageUpload] = useState(false)
+  const hasPendingImageUploadRef = useRef(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedContentRef = useRef<TiptapContent | null>(null)
   const lastSavedRevisionRef = useRef<string | null>(null)
@@ -1104,7 +1106,16 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     }
   }
 
+  const handleImageUploadPendingChange = useCallback((pending: boolean) => {
+    hasPendingImageUploadRef.current = pending
+    setHasPendingImageUpload(pending)
+  }, [])
+
   const submitAssignment = useCallback(async (acknowledgedMissingAttachmentIds: string[]) => {
+    if (hasPendingImageUploadRef.current) {
+      setError('Finish the image upload, retry it, or remove it before submitting.')
+      return
+    }
     setSubmitting(true)
     setError('')
     const submissionContent = pendingContentRef.current ?? content
@@ -1416,7 +1427,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     hasAssignmentSubmissionContent({ content })
     || hasStructuredSubmissionArtifact
     || submissionRequirements.length > 0
-  ) && submissionCompletion.canSubmit && !previewEntry
+  ) && submissionCompletion.canSubmit && !previewEntry && !hasPendingImageUpload
 
   // Expose imperative handle for parent components
   useImperativeHandle(ref, () => ({
@@ -1590,7 +1601,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 toolbarPreset="document"
                 enableImageUpload
                 assignmentDocId={doc?.id}
-                onImageUploadError={(message) => setError(message)}
+                onImageUploadPendingChange={handleImageUploadPendingChange}
               />
             </div>
 

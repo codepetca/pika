@@ -14,6 +14,20 @@ async function readError(response: Response, fallback: string): Promise<Error> {
   }
 }
 
+export async function discardDirectUpload(input: {
+  endpoint: string
+  managedObjectId: string
+}): Promise<void> {
+  const response = await fetch(input.endpoint, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ managed_object_id: input.managedObjectId }),
+  })
+  if (!response.ok) {
+    throw await readError(response, 'Failed to discard file upload')
+  }
+}
+
 export async function uploadFileDirectly<T>(input: {
   endpoint: string
   file: File
@@ -48,10 +62,9 @@ export async function uploadFileDirectly<T>(input: {
   })
 
   if (!uploadResponse.ok) {
-    void fetch(input.endpoint, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ managed_object_id: reservation.managed_object_id }),
+    void discardDirectUpload({
+      endpoint: input.endpoint,
+      managedObjectId: reservation.managed_object_id,
     }).catch(() => {})
     throw new Error('Failed to upload file')
   }

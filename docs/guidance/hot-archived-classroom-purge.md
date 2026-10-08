@@ -103,7 +103,7 @@ fence by hand.
 
 Every migration application or rollout-gate change requires fresh authorization
 naming the exact target and migration or SQL change. Nothing in this branch
-authorizes staging or production changes.
+authorizes production changes.
 
 The verified production database already contains the final schemas from both
 versions under its separately authorized reconciliation history. Do not reapply

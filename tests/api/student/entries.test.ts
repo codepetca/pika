@@ -20,6 +20,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/lib/auth', () => ({
+  requireAuth: vi.fn(async () => ({ id: 'student-1', email: 'test@student.com', role: 'student' })),
   requireRole: vi.fn(async (role: string) => {
     if (role === 'student') {
       return { id: 'student-1', email: 'test@student.com', role: 'student' }
@@ -71,6 +72,7 @@ describe('GET /api/student/entries', () => {
       expect(response.status).toBe(401)
       expect(data.error).toBe('Unauthorized')
     })
+
   })
 
   describe('fetching entries', () => {
@@ -297,6 +299,37 @@ describe('POST /api/student/entries', () => {
 
       expect(response.status).toBe(401)
       expect(data.error).toBe('Unauthorized')
+    })
+
+    it('returns 401 for an unauthenticated malformed body without parsing it', async () => {
+      const { requireRole } = await import('@/lib/auth')
+      ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError())
+      const request = new NextRequest('http://localhost:3000/api/student/entries', { method: 'POST', body: '{' })
+      const json = vi.spyOn(request, 'json')
+
+      expect((await POST(request)).status).toBe(401)
+      expect(json).not.toHaveBeenCalled()
+    })
+
+    it('returns 403 for a wrong-role malformed body without parsing it', async () => {
+      const { requireRole } = await import('@/lib/auth')
+      ;(requireRole as any).mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+      const request = new NextRequest('http://localhost:3000/api/student/entries', { method: 'POST', body: '{' })
+      const json = vi.spyOn(request, 'json')
+
+      expect((await POST(request)).status).toBe(403)
+      expect(json).not.toHaveBeenCalled()
+    })
+
+    it('returns terminal shared-admission configuration failure before parsing a body', async () => {
+      const { requireAuth } = await import('@/lib/auth')
+      ;(requireAuth as any).mockResolvedValueOnce({ id: 'student-1', email: 'test@student.com', role: 'student' })
+      vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'not-json')
+      const request = new NextRequest('http://localhost:3000/api/student/entries', { method: 'POST', body: '{' })
+      const json = vi.spyOn(request, 'json')
+
+      expect((await POST(request)).status).toBe(503)
+      expect(json).not.toHaveBeenCalled()
     })
   })
 
@@ -1251,6 +1284,7 @@ describe('PATCH /api/student/entries', () => {
         body: JSON.stringify({
           classroom_id: 'classroom-1',
           date: '2024-10-15',
+          entry_id: 'entry-1',
           version: 1,
           rich_content: nextContent,
         }),
@@ -1283,9 +1317,9 @@ describe('PATCH /api/student/entries', () => {
     const patch = createJsonPatch(baseContent, nextContent)
 
     const mockUpdate = vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({
             data: {
               id: 'entry-1',
               version: 3,
@@ -1296,7 +1330,6 @@ describe('PATCH /api/student/entries', () => {
             error: null,
           }),
         })),
-      })),
     }))
 
     const mockFrom = vi.fn((table: string) => {
@@ -1345,6 +1378,7 @@ describe('PATCH /api/student/entries', () => {
       body: JSON.stringify({
         classroom_id: 'classroom-1',
         date: '2024-10-15',
+        entry_id: 'entry-1',
         version: 2,
         patch,
       }),
@@ -1425,5 +1459,47 @@ describe('PATCH /api/student/entries', () => {
 
     expect(response.status).toBe(409)
     expect(data.error).toBe('Entry has been updated elsewhere')
+  })
+
+  it('rejects an update when its version changes after the initial read', async () => {
+    const baseContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Original' }] }] }
+    const nextContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New text' }] }] }
+    const versionFilter = vi.fn().mockReturnThis()
+    const updateQuery = {
+      eq: versionFilter,
+      select: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })),
+    }
+    let reads = 0
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'class_days') return {
+        select: vi.fn(() => ({ eq: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: { is_class_day: true }, error: null }) })),
+      }
+      if (table === 'entries') return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockImplementation(async () => ({
+            data: { id: 'entry-1', version: 2, text: 'Original', rich_content: baseContent }, error: null,
+          })),
+          maybeSingle: vi.fn().mockImplementation(async () => {
+            reads += 1
+            return { data: { id: 'entry-1', version: 3, text: 'Other tab', rich_content: baseContent }, error: null }
+          }),
+        })),
+        update: vi.fn(() => updateQuery),
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await PATCH(new NextRequest('http://localhost:3000/api/student/entries', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        classroom_id: 'classroom-1', date: '2024-10-15', entry_id: 'entry-1',
+        version: 2, rich_content: nextContent,
+      }),
+    }))
+
+    expect(response.status).toBe(409)
+    expect(versionFilter).toHaveBeenCalledWith('version', 2)
+    expect(reads).toBe(1)
   })
 })

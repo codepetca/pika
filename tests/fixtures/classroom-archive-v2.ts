@@ -29,6 +29,7 @@ export function buildClassroomArchiveV2Fixture(options: {
   actors?: JsonObject[]
   omitGradebookCategories?: boolean
   omitGradebookScoreOverrides?: boolean
+  omitGuidedDraftProvenance?: boolean
 } = {}) {
   const resources = Object.fromEntries(
     CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [resource.table, [] as JsonObject[]]),
@@ -58,6 +59,7 @@ export function buildClassroomArchiveV2Fixture(options: {
     .filter((resource) => (
       (!options.omitGradebookCategories || resource.table !== 'gradebook_categories')
       && (!options.omitGradebookScoreOverrides || resource.table !== 'gradebook_score_overrides')
+      && (!options.omitGuidedDraftProvenance || resource.table !== 'classroom_guided_draft_provenance')
     ))
     .map((resource) => {
     const path = `data/${resource.table}.ndjson`

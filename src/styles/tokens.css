@@ -29,6 +29,9 @@
   --color-surface-accent: #f3f4f6;
   --color-surface-selected: #dbeafe;
   --color-surface-hover: #f3f4f6;
+  --color-gradebook-final: #eff6ff;
+  /* Preserve transparent reference diagrams' paper canvas in either app theme. */
+  --color-reference-image-canvas: #ffffff;
 
   /* Border colors */
   --color-border: #e5e7eb;
@@ -156,6 +159,7 @@
   --color-surface-accent: #1f2937;
   --color-surface-selected: rgba(37, 99, 235, 0.15);
   --color-surface-hover: #1f2937;
+  --color-gradebook-final: #172235;
 
   /* Border colors - dark mode */
   --color-border: #374151;

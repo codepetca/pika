@@ -244,8 +244,12 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     const objectId = deterministicBlueprintCopyUuid(
       `object:${input.operationId}:${input.direction}:${sourceId}`,
     )
-    const extension = /\.[a-z0-9]{1,12}$/i.exec(source.storage_path)?.[0] || ''
-    const targetPath = `managed-copies/${input.operationId}/${objectId}${extension}`
+    const imageExtension = source.content_type === 'image/png' ? '.png'
+      : source.content_type === 'image/jpeg' ? '.jpeg' : null
+    const extension = imageExtension || /\.[a-z0-9]{1,12}$/i.exec(source.storage_path)?.[0] || ''
+    // Preserve the image discriminator across classroom/blueprint copies using
+    // resolved storage metadata, never a user-controlled filename extension.
+    const targetPath = `managed-copies/${input.operationId}/${imageExtension ? 'images/' : ''}${objectId}${extension}`
     targetBySourceId.set(sourceId, {
       objectId,
       targetPath,

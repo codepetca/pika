@@ -64,28 +64,28 @@ describe('normalizeTestOpenResponseReferenceAnswers', () => {
 })
 
 describe('getTestOpenResponseGradingModel', () => {
-  const originalEnv = process.env.OPENAI_GRADING_MODEL
+  const originalEnv = process.env.DEEPSEEK_GRADING_MODEL
 
   afterEach(() => {
     if (originalEnv === undefined) {
-      delete process.env.OPENAI_GRADING_MODEL
+      delete process.env.DEEPSEEK_GRADING_MODEL
     } else {
-      process.env.OPENAI_GRADING_MODEL = originalEnv
+      process.env.DEEPSEEK_GRADING_MODEL = originalEnv
     }
   })
 
   it('returns the default model when env var is not set', () => {
-    delete process.env.OPENAI_GRADING_MODEL
-    expect(getTestOpenResponseGradingModel()).toBe('gpt-5-nano')
+    delete process.env.DEEPSEEK_GRADING_MODEL
+    expect(getTestOpenResponseGradingModel()).toBe('deepseek-flash')
   })
 
   it('returns the configured model when env var is set', () => {
-    process.env.OPENAI_GRADING_MODEL = 'gpt-4o'
+    process.env.DEEPSEEK_GRADING_MODEL = 'gpt-4o'
     expect(getTestOpenResponseGradingModel()).toBe('gpt-4o')
   })
 
   it('trims whitespace from the configured model', () => {
-    process.env.OPENAI_GRADING_MODEL = '  gpt-4o  '
+    process.env.DEEPSEEK_GRADING_MODEL = '  gpt-4o  '
     expect(getTestOpenResponseGradingModel()).toBe('gpt-4o')
   })
 })

@@ -43,6 +43,7 @@ import {
 } from '@/lib/server/course-blueprint-operations'
 import { saveCourseBlueprintVersion } from '@/lib/server/course-blueprint-versions'
 import { createCourseBlueprintArtifactId } from '@/lib/course-blueprint-artifact-identity'
+import { normalizeCourseBlueprintAuthoringGuidance } from '@/lib/course-blueprint-authoring-guidance'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   copyManagedTestDocumentsForBlueprintOperation,
@@ -128,6 +129,7 @@ export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprin
     planned_site_config: normalizePlannedCourseSiteConfig(
       row.planned_site_config ?? DEFAULT_PLANNED_COURSE_SITE_CONFIG
     ),
+    authoring_guidance: normalizeCourseBlueprintAuthoringGuidance(row.authoring_guidance),
   }
 }
 
@@ -335,11 +337,23 @@ export async function createCourseBlueprint(
 export async function updateCourseBlueprint(
   teacherId: string,
   blueprintId: string,
-  updates: Partial<CourseBlueprint>
+  updates: Partial<CourseBlueprint> & { expected_content_revision?: number }
 ) {
   const ownership = await assertTeacherOwnsCourseBlueprint(teacherId, blueprintId)
   if (!ownership.ok) return ownership
-  const updateKeys = Object.keys(updates)
+  const { expected_content_revision, ...persistedUpdates } = updates
+  const isGuidanceUpdate = persistedUpdates.authoring_guidance !== undefined
+  if (isGuidanceUpdate && (
+    !Number.isSafeInteger(expected_content_revision)
+    || expected_content_revision !== ownership.blueprint.content_revision
+  )) {
+    return {
+      ok: false as const,
+      status: 409,
+      error: 'Course blueprint changed while editing guidance; review and retry',
+    }
+  }
+  const updateKeys = Object.keys(persistedUpdates)
   const isAuthorityOnlyUpdate =
     updateKeys.length === 1 && updateKeys[0] === 'authority_mode'
   if (
@@ -407,18 +421,36 @@ export async function updateCourseBlueprint(
     }
   }
 
-  const { data, error } = await supabase
+  let updateQuery = supabase
     .from('course_blueprints')
     .update({
-      ...updates,
+      ...persistedUpdates,
+      ...(isGuidanceUpdate ? {
+        authoring_guidance: normalizeCourseBlueprintAuthoringGuidance(persistedUpdates.authoring_guidance),
+      } : {}),
       planned_site_config: updates.planned_site_config
         ? normalizePlannedCourseSiteConfig(updates.planned_site_config)
         : updates.planned_site_config,
     })
     .eq('id', blueprintId)
-    .select()
-    .single()
 
+  if (isGuidanceUpdate) {
+    updateQuery = updateQuery
+      .eq('teacher_id', teacherId)
+      .eq('authority_mode', 'pika')
+      .eq('content_revision', expected_content_revision!)
+  }
+  const { data, error } = isGuidanceUpdate
+    ? await updateQuery.select().maybeSingle()
+    : await updateQuery.select().single()
+
+  if (isGuidanceUpdate && !error && !data) {
+    return {
+      ok: false as const,
+      status: 409,
+      error: 'Course blueprint changed while editing guidance; review and retry',
+    }
+  }
   if (error) return { ok: false as const, status: 500, error: 'Failed to update course blueprint' }
   return { ok: true as const, blueprint: hydrateCourseBlueprint(data as Record<string, any>) }
 }

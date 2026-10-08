@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { DateNavigator } from '@/components/DateNavigator'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { addDaysToDateString, getPastRelativeDateLabel } from '@/lib/date-string'
-import { Button, Card, TabPanel } from '@/ui'
+import { Button, Card, TableSelectionCheckbox, TabPanel } from '@/ui'
 
 // Fixed calendar context keeps examples reproducible without browser preferences or APIs.
 const REFERENCE_TODAY = '2026-08-30'
@@ -17,6 +18,9 @@ export function TeacherPatterns() {
   const [date, setDate] = useState('2026-08-28')
   const [showRelativeDate, setShowRelativeDate] = useState(true)
   const [mode, setMode] = useState<PreviewMode>('overview')
+  const [inspectedStudent, setInspectedStudent] = useState<string | null>(null)
+  const [inspectorWidth, setInspectorWidth] = useState(50)
+  const selectedStudentButtonRef = useRef<HTMLButtonElement | null>(null)
 
   return (
     <div className="space-y-5" data-testid="teacher-pattern-examples">
@@ -37,7 +41,7 @@ export function TeacherPatterns() {
             Relative date
           </Button>
         </div>
-        <div className="mt-4 rounded-card border border-border bg-page pb-3" data-testid="standalone-shell-example">
+        <div className="mt-4 rounded-card bg-page pb-3" data-testid="standalone-shell-example">
           <TeacherWorkSurfaceShell
             className="mx-0"
             state="workspace"
@@ -84,7 +88,7 @@ export function TeacherPatterns() {
         <p className="mt-1 text-sm text-text-muted">
           Selected-workspace reference · tabs connect directly to their panel, without standalone top spacing.
         </p>
-        <div className="mt-4 rounded-card border border-border bg-page" data-testid="attached-shell-example">
+        <div className="mt-4 rounded-card bg-page" data-testid="attached-shell-example">
           <TeacherWorkSurfaceShell
             className="mx-0"
             state="workspace"
@@ -120,6 +124,69 @@ export function TeacherPatterns() {
           Only use modes after an item is selected and when they represent different work. Keep both
           panel targets mounted; the shared mode bar owns arrow-key navigation and selection.
         </p>
+      </Card>
+
+      <Card tone="panel" padding="md">
+        <h3 className="font-semibold">Continuous inspector</h3>
+        <p className="mt-1 text-sm text-text-muted">
+          Approved Daily reference: preserve the primary pane while details open and close. Switching students
+          updates content without replaying the opening. Resizing is immediate; reduced motion is respected.
+        </p>
+        <div className="mt-4 h-80" data-testid="continuous-inspector-example">
+          <TeacherWorkspaceSplit
+            className="h-full"
+            splitVariant="gapped"
+            animateInspector
+            inspectorCollapsed={!inspectedStudent}
+            inspectorWidth={inspectorWidth}
+            onInspectorWidthChange={setInspectorWidth}
+            minInspectorPercent={28}
+            maxInspectorPercent={72}
+            primaryClassName="rounded-lg bg-page p-3"
+            inspectorClassName="rounded-lg bg-page"
+            primary={(
+              <div className="flex flex-col gap-2">
+                {['Alex Chen', 'Sam Patel'].map((name) => (
+                  <Button
+                    key={name}
+                    variant={inspectedStudent === name ? 'secondary' : 'ghost'}
+                    aria-pressed={inspectedStudent === name}
+                    onClick={(event) => {
+                      selectedStudentButtonRef.current = event.currentTarget
+                      setInspectedStudent((current) => current === name ? null : name)
+                    }}
+                  >
+                    {name}
+                  </Button>
+                ))}
+              </div>
+            )}
+            inspector={(
+              <div className="space-y-3 p-3">
+                <p className="font-semibold">{inspectedStudent}</p>
+                <p className="text-sm text-text-muted">Completed the practice activity and recorded a reflection.</p>
+                <Button variant="ghost" onClick={() => {
+                  selectedStudentButtonRef.current?.focus({ preventScroll: true })
+                  setInspectedStudent(null)
+                }}>Close details</Button>
+              </div>
+            )}
+          />
+        </div>
+      </Card>
+
+      <Card tone="muted" padding="sm">
+        <h3 className="text-sm font-semibold">Disabled selection guidance</h3>
+        <div className="mt-2 flex items-center gap-2 text-sm text-text-muted">
+          <TableSelectionCheckbox
+            checked={false}
+            onChange={() => {}}
+            ariaLabel="Select example student"
+            disabled
+            disabledTooltip="Publish the test first to select students."
+          />
+          <span>Draft test selection</span>
+        </div>
       </Card>
 
       <Card tone="muted" padding="sm">

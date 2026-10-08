@@ -10,6 +10,19 @@ This is **developer infrastructure**, not a product feature.
 
 ---
 
+## Environments and release flow
+
+Pika uses local development with local Supabase, local smoke/database checks, a reviewed PR to `main`, then promotion to `production`. The hosted staging database was removed; do not propose recreating it or require a staging/Preview deployment as a gate.
+
+1. Develop in a feature worktree against the local Supabase stack.
+2. Run risk-matched local tests, rollback-only database contracts, smoke tests, and required visual verification. CI uses ephemeral databases.
+3. Complete the draft-first reviewed PR lifecycle below and merge to `main`.
+4. Promote the reviewed `main` SHA to `production` through the protected promotion PR below; Vercel deploys `production`. Production migrations and canaries retain their exact-target authorization requirements.
+
+`vercel.json` enables automatic Git deployment only for `production`; `main` and feature branches run checks without a hosted deployment. Preview is not a substitute staging environment. Production-only smoke commands reject Preview before accessing credentials or services.
+
+WorkOS calls its provider test environment “Staging”; local authentication may use it without a hosted Pika database or deployment. Archive/attendance “staging” rows are temporary operation buffers, not environments. Historical records describe retired workflows and must not be used as current prerequisites.
+
 ## Why this exists
 
 Pika is developed using:
@@ -195,8 +208,18 @@ each remediation batch, ready-for-CI, CI result, and merge. Provide active time
 and token components only when directly attributable; leave them unknown rather
 than estimating from PR wall time. Record CI queue/run duration separately and
 record correction/sync pushes without asserting they were avoidable. The tool
-records only PR number, timestamps, numeric metrics, stages, and quality outcome
-— never prompts, source content, secrets, identities, or environment values.
+also accepts review metadata: a unique `--review-id` (reviewer/turn identifier),
+`--head-sha`, `--model`, `--effort`, and `--coverage complete|partial`. Record one
+`independent-review` event per actual turn or failed launch, including partial
+coverage, rather than treating every stage receipt as a reviewer launch.
+Optional `--review-seconds`, `--accepted-findings`, `--rejected-findings` and
+`--cached-input-tokens` support efficiency checks. Use per-turn token deltas;
+cached input is part of input tokens and reasoning is part of output tokens.
+Omit unknown measurements. Summaries keep review elapsed time separate from CI
+waiting; partial measurements do not establish total PR effort or cost. A prior
+`merge-recording-correction` invalidates its referenced merge timestamp without
+rewriting the append-only log. Never record prompts, source, secrets, personal
+identifiers, or environment values.
 
 1. Run risk-matched local checks before publishing:
    ```bash
@@ -274,6 +297,12 @@ CI classifies changes conservatively:
   exact `main` SHA.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
+Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
+while classification and `PR Gate` stay hosted. Setup, isolation, local full-CI commands and the hosted
+fallback are defined in [self-hosted CI](./guidance/self-hosted-ci.md). A manual
+dispatch is diagnostic evidence, not a substitute for PR-required ruleset checks;
+use the documented draft-to-ready fallback for an unavailable runner.
+
 `Test & Build` remains compatible with the existing branch rules during rollout.
 After an owner verifies `PR Gate`, repository rules should require `PR Gate` on
 both `main` and `production`. Never weaken or bypass a required check during the
@@ -285,30 +314,18 @@ transition.
 
 `main` is configured to reject merge commits. Use linear history only.
 
-Preferred:
-- Open a PR and use **Squash and merge**.
+Land changes through a PR after the automatic draft-first lifecycle above:
 
-If landing from local CLI:
-```bash
-cd "$HOME/Repos/pika"
-git fetch origin
-git checkout main
-git pull --ff-only origin main
+1. Confirm the final reviewed SHA is stable and `PR Gate` passes on that SHA.
+2. Confirm the normal merge authority gate is satisfied.
+3. Use **Squash and merge**, or from the feature worktree:
+   ```bash
+   gh pr merge <PR> --squash
+   ```
 
-# Option A: squash feature branch into one commit
-git merge --squash origin/<feature-branch>
-git commit -m "<summary>"
-git push origin main
-
-# Option B: cherry-pick specific commits (also linear)
-git cherry-pick <sha> [<sha>...]
-git push origin main
-```
-
-Avoid:
-```bash
-git merge --no-ff <branch>   # creates merge commit (rejected on main)
-```
+Do not create local landing commits or push directly to `main`. The hub is for
+worktree administration; keep implementation and PR operations in the owning
+feature worktree. Production promotion has its separate protected PR procedure.
 
 ## Post-merge cleanup
 
@@ -418,3 +435,10 @@ rmdir "$PROMO_TMP"
   - Expected; open/merge PR instead of direct push.
 - `gh pr create` body errors due to backticks:
   - Use single-quoted body text (or escape backticks).
+
+## Manual hosted migration rollout
+
+The owner can preview and apply reviewed, merged SQL from a browser using the manually dispatched
+[hosted migration workflow](./guidance/hosted-migrations.md). It reuses successful replay/test CI
+evidence and requires exact one-time source, target and complete-set approval. It does not run on
+push, promote the app, or replace the schema rollout authorization contract.

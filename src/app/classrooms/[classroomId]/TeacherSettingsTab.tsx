@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useId,
@@ -11,6 +12,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardCopy, Info, QrCode as QrCodeIcon, RefreshCw } from 'lucide-react'
 import {
+  CircularProgress,
   Button,
   Card,
   ConfirmDialog,
@@ -78,7 +80,7 @@ interface Props {
 
 function SettingsPanel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <Card padding="md" className={cn('space-y-3 shadow-none', className)}>
+    <Card padding="md" className={cn('space-y-3 border-0 shadow-none', className)}>
       {children}
     </Card>
   )
@@ -128,6 +130,8 @@ export function TeacherSettingsTab({
   const [joinCodeError, setJoinCodeError] = useState<string>('')
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [showJoinQr, setShowJoinQr] = useState(false)
+  const [qrCopyNotice, setQrCopyNotice] = useState<{ text: string; tone: 'success' | 'warning' } | null>(null)
+  const qrCopySessionRef = useRef<object | null>(null)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [lessonPlanVisibility, setLessonPlanVisibility] = useState<LessonPlanVisibility>(
     classroom.lesson_plan_visibility || 'current_week'
@@ -149,7 +153,24 @@ export function TeacherSettingsTab({
   const [blueprintError, setBlueprintError] = useState('')
 
   const [origin, setOrigin] = useState('')
-  const { showMessage } = useAppMessage()
+  const { showMessage, clearMessage } = useAppMessage()
+  const copyOwnerRef = useRef<{ classroomId: string } | null>(null)
+  const copyRequestRef = useRef(0)
+  const copyMessageIdRef = useRef<string | null>(null)
+
+  // Install the owner only after commit; an abandoned render cannot retire
+  // feedback for the classroom that is still on screen.
+  useLayoutEffect(() => {
+    const owner = { classroomId: classroom.id }
+    copyOwnerRef.current = owner
+    return () => {
+      copyOwnerRef.current = null
+      if (copyMessageIdRef.current) {
+        clearMessage(copyMessageIdRef.current)
+        copyMessageIdRef.current = null
+      }
+    }
+  }, [classroom.id, clearMessage])
   const formStateReady = formClassroomIdRef.current === classroom.id
   const displayedTitle = formStateReady ? title : classroom.title
   const displayedTitleSaving = formStateReady && titleSaving
@@ -180,6 +201,13 @@ export function TeacherSettingsTab({
   const displayedBlueprintBusy = formStateReady && blueprintBusy
   const displayedBlueprintError = formStateReady ? blueprintError : ''
   const joinLink = `${origin}/join/${encodeURIComponent(displayedJoinCode)}`
+  const joinQrOpen = showJoinQr && formStateReady && displayedAllowEnrollment && !isReadOnly
+
+  useLayoutEffect(() => {
+    qrCopySessionRef.current = joinQrOpen ? {} : null
+    setQrCopyNotice(null)
+    return () => { qrCopySessionRef.current = null }
+  }, [joinQrOpen, classroom.id])
 
   useEffect(() => {
     setOrigin(window.location.origin)
@@ -234,17 +262,32 @@ export function TeacherSettingsTab({
     return isActiveClassroom(classroomId) && formGenerationRef.current === generation
   }
 
-  async function copy(text: string) {
+  async function copyWithNotice(label: string, text: string, target: 'global' | 'qr' = 'global') {
+    const owner = copyOwnerRef.current
+    if (!owner || owner.classroomId !== classroom.id) return
+    const qrSession = qrCopySessionRef.current
+    if (target === 'qr' && !qrSession) return
+    const request = ++copyRequestRef.current
+    setQrCopyNotice(null)
+    if (copyMessageIdRef.current) {
+      clearMessage(copyMessageIdRef.current)
+      copyMessageIdRef.current = null
+    }
+    let copied = false
     try {
       await navigator.clipboard.writeText(text)
+      copied = true
     } catch {
-      // ignore clipboard failures
+      // The current control remains available for an explicit retry.
     }
-  }
-
-  async function copyWithNotice(label: string, text: string) {
-    await copy(text)
-    showMessage({ text: `${label} copied`, tone: 'success' })
+    if (copyOwnerRef.current !== owner || copyRequestRef.current !== request) return
+    if (target === 'qr' && qrCopySessionRef.current !== qrSession) return
+    const notice = {
+      text: copied ? `${label} copied` : `${label} not copied`,
+      tone: copied ? 'success' as const : 'warning' as const,
+    }
+    if (target === 'qr') setQrCopyNotice(notice)
+    else copyMessageIdRef.current = showMessage(notice)
   }
 
   async function saveTitle() {
@@ -627,7 +670,7 @@ export function TeacherSettingsTab({
                 type="button"
                 variant="secondary"
                 size="md"
-                onClick={() => setShowJoinQr(true)}
+                onClick={() => { setQrCopyNotice(null); setShowJoinQr(true) }}
                 disabled={!formStateReady || isReadOnly || !displayedAllowEnrollment}
               >
                 <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
@@ -656,11 +699,11 @@ export function TeacherSettingsTab({
                 title="Generate new join code and link"
                 className="h-11 w-11 shrink-0 border-warning bg-warning-bg px-0 text-warning hover:bg-warning-bg focus:ring-warning"
               >
-                <RefreshCw className={cn('h-4 w-4', isRegenerating ? 'animate-spin' : '')} aria-hidden="true" />
+                {isRegenerating ? <CircularProgress /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-border pt-3">
+            <div className="flex flex-col gap-2 pt-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <SettingsSwitchRow
                   checked={displayedAllowEnrollment}
@@ -674,7 +717,7 @@ export function TeacherSettingsTab({
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-border pt-3">
+            <div className="space-y-2 pt-3">
               <SettingsSwitchRow
                 checked={displayedJoinPolicy === 'roster'}
                 onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
@@ -716,7 +759,7 @@ export function TeacherSettingsTab({
                 Daily, Roster, and Settings are always available. Hiding a feature does not delete its content.
               </div>
 
-              <div className="divide-y divide-border">
+              <div className="space-y-1">
                 {(
                   [
                     ['attendance', 'QR Attendance', 'Turn off to use manual or log-based attendance'],
@@ -881,9 +924,10 @@ export function TeacherSettingsTab({
               classroomTitle={displayedTitle}
               joinCode={displayedJoinCode}
               joinUrl={joinLink}
-              isOpen={showJoinQr && formStateReady && displayedAllowEnrollment && !isReadOnly}
-              onClose={() => setShowJoinQr(false)}
-              onCopyLink={() => void copyWithNotice('Join link', joinLink)}
+              isOpen={joinQrOpen}
+              onClose={() => { setQrCopyNotice(null); setShowJoinQr(false) }}
+              copyNotice={joinQrOpen ? qrCopyNotice : null}
+              onCopyLink={() => void copyWithNotice('Join link', joinLink, 'qr')}
             />
 
             <DialogPanel

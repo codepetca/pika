@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
 import {
   ChevronDown,
@@ -24,17 +24,15 @@ import {
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
-import { useTableSelection } from '@/hooks/useTableSelection'
-import { fetchJSON } from '@/lib/request-cache'
+import { useTeacherAttendanceController } from '@/hooks/useTeacherAttendanceController'
 import { applyDirection, compareByNameFields, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import { getTodayInToronto } from '@/lib/timezone'
 import type {
   TeacherAttendanceStatus,
-  TeacherAttendanceQrPresentation,
-  TeacherAttendanceView,
 } from '@/lib/teacher-attendance'
 import type { Classroom } from '@/types'
 import {
+  CircularProgress,
   Button,
   ContentDialog,
   DataTable,
@@ -56,7 +54,6 @@ import {
   TableSelectionHeaderCell,
   Tooltip,
   cn,
-  useAppMessage,
 } from '@/ui'
 import { AttendanceWindowDialog } from './AttendanceWindowDialog'
 
@@ -65,7 +62,6 @@ interface TeacherLiveAttendanceTabProps {
   isActive: boolean
 }
 
-type SessionCommand = 'open' | 'close'
 type SortColumn = 'first_name' | 'last_name' | 'check_in' | 'status'
 type StatusSort = Exclude<TeacherAttendanceStatus, 'unmarked'>
 type ResizableColumn = 'first' | 'last' | 'checkIn'
@@ -172,24 +168,6 @@ function AttendanceStatusControl({
   )
 }
 
-const SESSION_LABELS: Record<TeacherAttendanceView['session']['state'], string> = {
-  not_scheduled: 'Not scheduled',
-  scheduled: 'Scheduled',
-  open: 'Open',
-  closed: 'Closed',
-  cancelled: 'Cancelled',
-}
-
-function attendanceUrl(classroomId: string, classDate: string) {
-  const params = new URLSearchParams({ classroom_id: classroomId, date: classDate })
-  return `/api/teacher/attendance/session?${params.toString()}`
-}
-
-function attendanceQrUrl(classroomId: string, classDate: string) {
-  const params = new URLSearchParams({ classroom_id: classroomId, date: classDate })
-  return `/api/teacher/attendance/qr?${params.toString()}`
-}
-
 function nextDate(date: string, amount: number) {
   return format(addDays(parseISO(date), amount), 'yyyy-MM-dd')
 }
@@ -212,39 +190,22 @@ function formatTime(instant: string | null) {
   }).format(new Date(instant))
 }
 
-function sessionWindow(view: TeacherAttendanceView) {
-  const opensAt = formatTime(view.session.opensAt)
-  const closesAt = formatTime(view.session.closesAt)
-  if (!opensAt || !closesAt) return null
-  return `${opensAt} - ${closesAt}`
-}
-
-function requestId() {
-  return crypto.randomUUID()
-}
-
-function wait(milliseconds: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
-}
-
 export function TeacherLiveAttendanceTab({
   classroom,
   isActive,
 }: TeacherLiveAttendanceTabProps) {
-  const { showMessage } = useAppMessage()
   const [selectedDate, setSelectedDate] = useState(getTodayInToronto)
-  const [view, setView] = useState<TeacherAttendanceView | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
-  const [activeCommand, setActiveCommand] = useState<string | null>(null)
-  const [localPendingStudentIds, setLocalPendingStudentIds] = useState<Set<string>>(new Set())
-  const [localSessionPending, setLocalSessionPending] = useState(false)
-  const [qrOpen, setQrOpen] = useState(false)
-  const [qrLoading, setQrLoading] = useState(false)
-  const [qrError, setQrError] = useState('')
-  const [qrPresentation, setQrPresentation] = useState<TeacherAttendanceQrPresentation | null>(null)
-  const [attendanceHoursOpen, setAttendanceHoursOpen] = useState(false)
+  const attendance = useTeacherAttendanceController({ classroom, selectedDate, enabled: true, isActive })
+  const {
+    view, loading, refreshing, error, activeCommand, localSessionPending,
+    qrOpen, setQrOpen, qrLoading, qrError, qrPresentation,
+    attendanceHoursOpen, setAttendanceHoursOpen,
+    students, selectedIds, toggleSelect, toggleSelectAll, allSelected, someSelected,
+    clearSelection, selectedCount, pendingStudentIds, selectedHasPendingStudent,
+    failedStudentCount, sessionState, sessionAction, windowLabel, hasUnconfirmedView,
+    sessionContextLabel, loadView, submitSessionCommand, submitMarks, resetCheckIns,
+    loadQrPresentation, openQrPresentation, copyQrLink,
+  } = attendance
   const [{ column: sortColumn, direction: sortDirection, status: sortStatus }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -254,81 +215,6 @@ export function TeacherLiveAttendanceTab({
     storageKey: 'teacher-live-attendance:v1',
     columns: COLUMN_LIMITS,
   })
-  const requestSequenceRef = useRef(0)
-  const mountedRef = useRef(true)
-  const currentViewKeyRef = useRef(`${classroom.id}:${selectedDate}`)
-  currentViewKeyRef.current = `${classroom.id}:${selectedDate}`
-
-  const readView = useCallback(async () => {
-    return await fetchJSON<TeacherAttendanceView>(attendanceUrl(classroom.id, selectedDate), {
-      errorMessage: 'Attendance is temporarily unavailable',
-    })
-  }, [classroom.id, selectedDate])
-
-  const loadView = useCallback(async (background = false) => {
-    const sequence = ++requestSequenceRef.current
-    if (background) setRefreshing(true)
-    else setLoading(true)
-    setError('')
-    try {
-      const next = await readView()
-      if (!mountedRef.current || sequence !== requestSequenceRef.current) return null
-      setView(next)
-      return next
-    } catch (loadError) {
-      if (!mountedRef.current || sequence !== requestSequenceRef.current) return null
-      setError(loadError instanceof Error ? loadError.message : 'Attendance is temporarily unavailable')
-      return null
-    } finally {
-      if (mountedRef.current && sequence === requestSequenceRef.current) {
-        setLoading(false)
-        setRefreshing(false)
-      }
-    }
-  }, [readView])
-
-  useEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    setView(null)
-    setError('')
-    setLocalPendingStudentIds(new Set())
-    setLocalSessionPending(false)
-    setQrOpen(false)
-    setQrLoading(false)
-    setQrError('')
-    setQrPresentation(null)
-    setAttendanceHoursOpen(false)
-    if (isActive) void loadView()
-  }, [classroom.id, isActive, loadView, selectedDate])
-
-  useEffect(() => {
-    if (!qrPresentation) return
-    const expiresAt = Date.parse(qrPresentation.expiresAt)
-    let timer: number | undefined
-
-    const expireWhenDue = () => {
-      const remaining = expiresAt - Date.now()
-      if (remaining > 0) {
-        timer = window.setTimeout(expireWhenDue, Math.min(remaining, 2_147_483_647))
-        return
-      }
-      setQrPresentation(null)
-      setQrError('This QR code has expired')
-    }
-
-    expireWhenDue()
-    return () => {
-      if (timer !== undefined) window.clearTimeout(timer)
-    }
-  }, [qrPresentation])
-
-  const students = useMemo(() => view?.students ?? [], [view?.students])
   const rows = useMemo(() => [...students].sort((a, b) => {
     const compareNames = (
       column: 'first_name' | 'last_name' = 'last_name',
@@ -358,41 +244,9 @@ export function TeacherLiveAttendanceTab({
     }
     return counts
   }, [students])
-  const selectableStudentIds = useMemo(
-    () => students.filter((student) => !student.pendingCommand).map((student) => student.studentId),
-    [students],
-  )
-  const {
-    selectedIds,
-    toggleSelect,
-    toggleSelectAll,
-    allSelected,
-    someSelected,
-    clearSelection,
-    selectedCount,
-  } = useTableSelection(selectableStudentIds)
   const isArchived = Boolean(classroom.archived_at)
-  const sessionState = view?.session.state ?? 'not_scheduled'
-  const canMark = Boolean(
-    view?.integration === 'ready' &&
-    (sessionState === 'open' || sessionState === 'closed') &&
-    !isArchived,
-  )
-  const pendingStudentIds = useMemo(() => {
-    const ids = new Set(localPendingStudentIds)
-    for (const student of students) {
-      if (student.pendingCommand) ids.add(student.studentId)
-    }
-    return ids
-  }, [localPendingStudentIds, students])
-  const selectedHasPendingStudent = useMemo(
-    () => [...selectedIds].some((studentId) => pendingStudentIds.has(studentId)),
-    [pendingStudentIds, selectedIds],
-  )
-  const failedStudentCount = useMemo(
-    () => students.filter((student) => student.commandFailed).length,
-    [students],
-  )
+  const selectableStudentIds = students.filter(student => !student.pendingCommand).map(student => student.studentId)
+  const canMark = attendance.canMark && (sessionState === 'open' || sessionState === 'closed')
 
   function handleSort(column: Exclude<SortColumn, 'status'>) {
     setSortState((current) => ({ ...toggleSort(current, column), status: null }))
@@ -402,275 +256,6 @@ export function TeacherLiveAttendanceTab({
     setSortState({ column: 'status', direction: 'asc', status })
   }
 
-  async function pollForConfirmation(
-    viewKey: string,
-    isConfirmed: (next: TeacherAttendanceView) => boolean,
-  ) {
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      if (attempt > 0) await wait(750)
-      if (!mountedRef.current || currentViewKeyRef.current !== viewKey) return false
-      try {
-        const next = await readView()
-        if (!mountedRef.current || currentViewKeyRef.current !== viewKey) return false
-        setView(next)
-        if (isConfirmed(next)) return true
-      } catch {
-        // Keep the last confirmed projection visible and retry within this bounded window.
-      }
-    }
-    return false
-  }
-
-  async function submitSessionCommand(command: SessionCommand) {
-    if (!view || activeCommand) return
-    const commandViewKey = currentViewKeyRef.current
-    const expectedState = command === 'open' ? 'open' : 'closed'
-    const previousRevision = view.session.revision
-    setActiveCommand(`session:${command}`)
-    setLocalSessionPending(true)
-    try {
-      await fetchJSON('/api/teacher/attendance/session', {
-        init: {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            classroom_id: classroom.id,
-            date: selectedDate,
-            request_id: requestId(),
-            command,
-          }),
-        },
-        errorMessage: 'Attendance is temporarily unavailable',
-      })
-      const confirmed = await pollForConfirmation(commandViewKey, (next) => (
-        next.session.state === expectedState &&
-        next.session.revision !== previousRevision
-      ))
-      if (confirmed) {
-        setLocalSessionPending(false)
-        showMessage({ text: command === 'open' ? 'Attendance opened' : 'Attendance closed', tone: 'info' })
-      } else {
-        showMessage({ text: 'Update sent; waiting for attendance confirmation', tone: 'info' })
-      }
-    } catch (commandError) {
-      setLocalSessionPending(false)
-      showMessage({
-        text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
-        tone: 'warning',
-      })
-    } finally {
-      setActiveCommand(null)
-    }
-  }
-
-  async function submitMarks(
-    ids: string[],
-    status: 'automatic' | Exclude<TeacherAttendanceStatus, 'unmarked'>,
-    options?: {
-      successText?: string
-      clearSelectionAfter?: boolean
-    },
-  ) {
-    if (!view || activeCommand || ids.length === 0) return
-    const commandViewKey = currentViewKeyRef.current
-    const idSet = new Set(ids)
-    const previousRecords = new Map(
-      view.students
-        .filter((student) => idSet.has(student.studentId))
-        .map((student) => [student.studentId, {
-          status: student.status,
-          revision: student.revision,
-        }]),
-    )
-    setActiveCommand(`marks:${status}`)
-    setLocalPendingStudentIds((current) => new Set([...current, ...ids]))
-    try {
-      await fetchJSON('/api/teacher/attendance/marks', {
-        init: {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            classroom_id: classroom.id,
-            date: selectedDate,
-            request_id: requestId(),
-            marks: ids.map((studentId) => ({
-              student_id: studentId,
-              status,
-              reason_code: 'staff_correction',
-            })),
-          }),
-        },
-        errorMessage: 'Attendance is temporarily unavailable',
-      })
-      const confirmed = await pollForConfirmation(commandViewKey, (next) => ids.every((studentId) => {
-        const student = next.students.find((candidate) => candidate.studentId === studentId)
-        const previous = previousRecords.get(studentId)
-        return Boolean(
-          student &&
-          (status === 'automatic' ? !student.hasManualOverride : student.status === status) &&
-          (status === 'automatic' || previous?.status === status || student.revision !== previous?.revision) &&
-          !student.pendingCommand,
-        )
-      }))
-      if (confirmed) {
-        setLocalPendingStudentIds((current) => {
-          const next = new Set(current)
-          ids.forEach((studentId) => next.delete(studentId))
-          return next
-        })
-        if (options?.clearSelectionAfter) clearSelection()
-        showMessage({
-          text: options?.successText ?? (status === 'automatic'
-            ? `Automatic status restored for ${ids.length} ${ids.length === 1 ? 'student' : 'students'}`
-            : `${ids.length} ${ids.length === 1 ? 'student' : 'students'} marked ${STATUS_LABELS[status].toLowerCase()}`),
-          tone: 'info',
-        })
-      } else {
-        showMessage({ text: 'Update sent; waiting for attendance confirmation', tone: 'info' })
-      }
-    } catch (commandError) {
-      setLocalPendingStudentIds((current) => {
-        const next = new Set(current)
-        ids.forEach((studentId) => next.delete(studentId))
-        return next
-      })
-      showMessage({
-        text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
-        tone: 'warning',
-      })
-    } finally {
-      setActiveCommand(null)
-    }
-  }
-
-  async function resetCheckIns(studentIds: string[]) {
-    if (!view || activeCommand || studentIds.length === 0) return
-    const ids = studentIds.filter((studentId) =>
-      view.students.some((student) => student.studentId === studentId && student.hasQrCheckIn),
-    )
-    if (ids.length === 0) {
-      showMessage({ text: 'No selected students have a QR check-in', tone: 'info' })
-      return
-    }
-    if (!window.confirm(
-      `Remove ${ids.length} ${ids.length === 1 ? 'QR check-in' : 'QR check-ins'}? The audit history will be kept, and students may scan again while QR check-in is open.`,
-    )) return
-    const commandViewKey = currentViewKeyRef.current
-    setActiveCommand('check-ins:reset')
-    setLocalPendingStudentIds((current) => new Set([...current, ...ids]))
-    try {
-      await fetchJSON('/api/teacher/attendance/check-ins', {
-        init: {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            classroom_id: classroom.id, date: selectedDate,
-            request_id: requestId(), student_ids: ids,
-          }),
-        },
-        errorMessage: 'QR check-ins could not be removed',
-      })
-      const confirmed = await pollForConfirmation(commandViewKey, (next) => ids.every((studentId) =>
-        next.students.find((student) => student.studentId === studentId)?.hasQrCheckIn === false,
-      ))
-      if (confirmed) {
-        setLocalPendingStudentIds((current) => {
-          const next = new Set(current)
-          ids.forEach((studentId) => next.delete(studentId))
-          return next
-        })
-        clearSelection()
-        showMessage({ text: `${ids.length} ${ids.length === 1 ? 'QR check-in' : 'QR check-ins'} removed`, tone: 'info' })
-      } else {
-        showMessage({ text: 'Removal sent; waiting for confirmation', tone: 'info' })
-      }
-    } catch (commandError) {
-      setLocalPendingStudentIds((current) => {
-        const next = new Set(current)
-        ids.forEach((studentId) => next.delete(studentId))
-        return next
-      })
-      showMessage({
-        text: commandError instanceof Error ? commandError.message : 'QR check-ins could not be removed',
-        tone: 'warning',
-      })
-    } finally {
-      setActiveCommand(null)
-    }
-  }
-
-  async function loadQrPresentation() {
-    if (qrLoading || sessionState !== 'open') return
-    const requestViewKey = currentViewKeyRef.current
-    setQrLoading(true)
-    setQrError('')
-    setQrPresentation(null)
-    try {
-      const presentation = await fetchJSON<TeacherAttendanceQrPresentation>(
-        attendanceQrUrl(classroom.id, selectedDate),
-        { errorMessage: 'Attendance QR is temporarily unavailable' },
-      )
-      const entryUrl = new URL(presentation.entryPath, window.location.origin)
-      const expiresAt = Date.parse(presentation.expiresAt)
-      if (
-        currentViewKeyRef.current !== requestViewKey ||
-        entryUrl.origin !== window.location.origin ||
-        !/^\/attendance\/check-in\/[A-Za-z0-9_-]{80,768}$/.test(entryUrl.pathname) ||
-        entryUrl.search ||
-        entryUrl.hash ||
-        !Number.isInteger(presentation.revision) ||
-        presentation.revision < 1 ||
-        !Number.isFinite(expiresAt)
-      ) {
-        throw new Error('Attendance QR is temporarily unavailable')
-      }
-      if (expiresAt <= Date.now()) throw new Error('This QR code has expired')
-      setQrPresentation(presentation)
-    } catch (loadError) {
-      if (currentViewKeyRef.current === requestViewKey) {
-        setQrError(
-          loadError instanceof Error
-            ? loadError.message
-            : 'Attendance QR is temporarily unavailable',
-        )
-      }
-    } finally {
-      if (currentViewKeyRef.current === requestViewKey) setQrLoading(false)
-    }
-  }
-
-  function openQrPresentation() {
-    setQrOpen(true)
-    void loadQrPresentation()
-  }
-
-  async function copyQrLink() {
-    if (!qrPresentation) return
-    try {
-      const entryUrl = new URL(qrPresentation.entryPath, window.location.origin).toString()
-      await navigator.clipboard.writeText(entryUrl)
-      showMessage({ text: 'Attendance link copied', tone: 'success' })
-    } catch {
-      showMessage({ text: 'Could not copy attendance link', tone: 'warning' })
-    }
-  }
-
-  const sessionAction = view?.integration === 'ready' && !isArchived
-    ? sessionState === 'scheduled'
-      ? { command: 'open' as const, label: 'Open QR check-in' }
-      : sessionState === 'open'
-        ? { command: 'close' as const, label: 'Stop QR check-in' }
-        : null
-    : null
-
-  const windowLabel = view?.integration === 'ready' ? sessionWindow(view) : null
-  const hasUnconfirmedView = view?.integration === 'ready' && (
-    view.sync.state === 'stale' || view.sync.state === 'unavailable'
-  )
-  const sessionContextLabel = hasUnconfirmedView
-    ? 'Last confirmed'
-    : localSessionPending || view?.sync.state === 'pending'
-      ? 'Updating…'
-      : SESSION_LABELS[sessionState]
   const mobileUtilityActions: TeacherWorkSurfaceActionItem[] = [
     ...(!isArchived ? [{
       id: 'attendance-hours',
@@ -895,7 +480,7 @@ export function TeacherLiveAttendanceTab({
                 disabled={loading || refreshing || Boolean(activeCommand)}
                 onClick={() => void loadView(true)}
               >
-                <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden="true" />
+                {refreshing ? <CircularProgress /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </Tooltip>
           </div>
@@ -1050,7 +635,7 @@ export function TeacherLiveAttendanceTab({
             <DataTableBody>
               {rows.map((student) => {
                 const pending = pendingStudentIds.has(student.studentId)
-                const editable = canMark && !pending && !activeCommand
+                const editable = canMark && !attendance.blockedStudentIds.has(student.studentId) && !activeCommand
                 const selected = selectedIds.has(student.studentId)
                 const studentName = `${student.firstName} ${student.lastName}`.trim()
                 const checkInTime = formatTime(student.checkedInAt)

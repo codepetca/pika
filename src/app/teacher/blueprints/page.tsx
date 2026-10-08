@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, RotateCw } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, ConfirmDialog, FormField, Input, SaveStatus } from '@/ui'
+import { Button, ConfirmDialog, FormField, IconButton, Input, PageHeading, PageState, SaveStatus, Select, TabPanel, Tabs } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Spinner } from '@/components/Spinner'
 import { CourseBlueprintPurgeDialog } from '@/components/CourseBlueprintPurgeDialog'
+import { BlueprintAuthoringGuidanceEditor } from '@/components/BlueprintAuthoringGuidanceEditor'
 import { CreateBlueprintModal } from '@/components/CreateBlueprintModal'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
@@ -54,6 +55,11 @@ import type {
   CourseBlueprintDetail,
   PlannedCourseSiteConfig,
 } from '@/types'
+import {
+  EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
+  type CourseBlueprintAuthoringGuidance,
+} from '@/lib/course-blueprint-authoring-guidance'
+import type { CourseBlueprintGuidanceRevision } from '@/lib/course-blueprint-guidance-history'
 
 type EditorTab =
   | 'overview'
@@ -69,6 +75,12 @@ type EditorTab =
   | 'publish'
   | 'sync'
   | 'proposals'
+  | 'guidance'
+  | 'details'
+
+function isEditorTab(value: string | null): value is EditorTab {
+  return value !== null && Object.prototype.hasOwnProperty.call(TAB_LABELS, value)
+}
 
 type CopilotTarget = Exclude<EditorTab, 'copilot' | 'publish' | 'sync' | 'proposals'>
 
@@ -86,9 +98,34 @@ const TAB_LABELS: Record<EditorTab, string> = {
   publish: 'Publish',
   sync: 'Classroom Updates',
   proposals: 'Proposals',
+  guidance: 'Authoring Guidance',
+  details: 'Course Details',
 }
 
-const VISIBLE_EDITOR_TABS = Object.keys(TAB_LABELS) as EditorTab[]
+type WorkspaceTab = 'overview' | 'content' | 'guidance' | 'updates' | 'settings'
+
+const WORKSPACE_TABS: Array<{ value: WorkspaceTab; label: string }> = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'content', label: 'Content' },
+  { value: 'guidance', label: 'Authoring Guidance' },
+  { value: 'updates', label: 'Updates' },
+  { value: 'settings', label: 'Settings' },
+]
+
+const WORKSPACE_SECTIONS: Record<WorkspaceTab, EditorTab[]> = {
+  overview: ['overview'],
+  content: ['outline', 'resources', 'assignments', 'tests', 'lesson-plans', 'materials', 'surveys', 'copilot'],
+  guidance: ['guidance'],
+  updates: ['sync', 'proposals'],
+  settings: ['details', 'grading', 'publish'],
+}
+
+function workspaceForTab(tab: EditorTab): WorkspaceTab {
+  if (tab === 'overview' || tab === 'guidance') return tab
+  if (WORKSPACE_SECTIONS.content.includes(tab)) return 'content'
+  if (WORKSPACE_SECTIONS.updates.includes(tab)) return 'updates'
+  return 'settings'
+}
 
 const PLANNED_SITE_CONFIG_OPTIONS: Array<[keyof PlannedCourseSiteConfig, string]> = [
   ['overview', 'overview'],
@@ -118,6 +155,7 @@ const DIRTY_SECTION_LABELS: Record<CourseBlueprintEditorSection, string> = {
   metadata: 'course details',
   'planned-site': 'planned site',
   grading: 'grading',
+  guidance: 'authoring guidance',
   overview: 'overview',
   outline: 'outline',
   resources: 'resources',
@@ -156,6 +194,11 @@ type BlueprintProposal = {
       archive?: number
       singleton?: number
     }
+    guidance_provenance?: {
+      blueprint_revision: number
+      unit_label: string | null
+      rules_markdown: string
+    }
   }
   created_at: string
 }
@@ -175,7 +218,10 @@ export default function TeacherBlueprintsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [showCreateClassroom, setShowCreateClassroom] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<BlueprintDeleteTarget | null>(null)
-  const [activeTab, setActiveTab] = useState<EditorTab>('overview')
+  const [activeTab, setActiveTab] = useState<EditorTab>(() => {
+    const section = searchParams.get('section')
+    return isEditorTab(section) ? section : 'overview'
+  })
   const [drafts, setDrafts] = useState(emptyCourseBlueprintDraftState)
   const [meta, setMeta] = useState({
     title: '',
@@ -185,6 +231,12 @@ export default function TeacherBlueprintsPage() {
     term_template: '',
   })
   const [error, setError] = useState('')
+  const [listReadError, setListReadError] = useState('')
+  const [detailReadError, setDetailReadError] = useState('')
+  const listRegionRef = useRef<HTMLElement | null>(null)
+  const detailRegionRef = useRef<HTMLElement | null>(null)
+  const listRetryRequestRef = useRef<number | null>(null)
+  const detailRetryRequestRef = useRef<number | null>(null)
   const [importingPackage, setImportingPackage] = useState(false)
   const [saving, setSaving] = useState(false)
   const [plannedSite, setPlannedSite] = useState<{
@@ -201,11 +253,30 @@ export default function TeacherBlueprintsPage() {
     assignments_weight: 70,
     tests_weight: 30,
   })
+  const [guidance, setGuidance] = useState<CourseBlueprintAuthoringGuidance>(
+    EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
+  )
+  const [guidanceHistory, setGuidanceHistory] = useState<CourseBlueprintGuidanceRevision[]>([])
+  const [guidanceHistoryLoading, setGuidanceHistoryLoading] = useState(false)
+  const [guidanceHistoryError, setGuidanceHistoryError] = useState('')
   const [savedEditorState, setSavedEditorState] = useState<CourseBlueprintEditorState | null>(null)
   const [pendingUnsavedAction, setPendingUnsavedAction] = useState<PendingUnsavedAction | null>(null)
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiTarget, setAiTarget] = useState<CopilotTarget>('overview')
-  const [aiPreview, setAiPreview] = useState<{ target: CopilotTarget; content: string } | null>(null)
+  const [aiUnitExceptionId, setAiUnitExceptionId] = useState('')
+  const [aiPreview, setAiPreview] = useState<{
+    target: CopilotTarget
+    content: string
+    originalContentSha256?: string
+    draftProvenanceToken?: string
+    guidance?: {
+      blueprint_revision: number
+      unit_exception_id: string | null
+      unit_label: string | null
+      rules_markdown: string
+      trial: boolean
+    }
+  } | null>(null)
   const [aiAnalysis, setAiAnalysis] = useState<any>(null)
   const [aiBusy, setAiBusy] = useState(false)
   const [mergeClassroomId, setMergeClassroomId] = useState('')
@@ -221,6 +292,7 @@ export default function TeacherBlueprintsPage() {
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
   const proposalsRequestIdRef = useRef(0)
+  const guidanceHistoryRequestIdRef = useRef(0)
   const mergeSuggestionsRequestIdRef = useRef(0)
   const selectedBlueprintIdRef = useRef<string | null>(null)
   selectedBlueprintIdRef.current = selectedBlueprintId
@@ -229,12 +301,30 @@ export default function TeacherBlueprintsPage() {
   const reviewClassroomId = searchParams.get('reviewClassroom')
   const openedReviewClassroomRef = useRef<string | null>(null)
 
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('section') !== activeTab) {
+      url.searchParams.set('section', activeTab)
+      window.history.replaceState(null, '', url)
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    const onPopState = () => {
+      const section = new URL(window.location.href).searchParams.get('section')
+      setActiveTab(isEditorTab(section) ? section : 'overview')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const currentEditorState = useMemo<CourseBlueprintEditorState>(() => ({
     metadata: meta,
     plannedSite,
     grading,
+    guidance,
     drafts,
-  }), [drafts, grading, meta, plannedSite])
+  }), [drafts, grading, guidance, meta, plannedSite])
   const dirtySections = useMemo(
     () => savedEditorState
       ? getCourseBlueprintDirtySections(currentEditorState, savedEditorState)
@@ -250,6 +340,7 @@ export default function TeacherBlueprintsPage() {
   const dirtySectionSummary = dirtySections
     .map((section) => DIRTY_SECTION_LABELS[section])
     .join(', ')
+  const activeWorkspace = workspaceForTab(activeTab)
 
   const counts = useMemo(() => {
     if (!detail) return null
@@ -298,6 +389,7 @@ export default function TeacherBlueprintsPage() {
     setMeta(nextEditorState.metadata)
     setPlannedSite(nextEditorState.plannedSite)
     setGrading(nextEditorState.grading)
+    setGuidance(nextEditorState.guidance)
     setDrafts(nextEditorState.drafts)
   }, [])
 
@@ -311,6 +403,8 @@ export default function TeacherBlueprintsPage() {
       setPlannedSite(nextEditorState.plannedSite)
     } else if (section === 'grading') {
       setGrading(nextEditorState.grading)
+    } else if (section === 'guidance') {
+      setGuidance(nextEditorState.guidance)
     } else {
       setDrafts((current) => ({
         ...current,
@@ -349,8 +443,12 @@ export default function TeacherBlueprintsPage() {
   }
 
   const beginBlueprintSelection = useCallback((blueprintId: string | null) => {
+    if (selectedBlueprintIdRef.current !== blueprintId) setError('')
     detailRequestIdRef.current += 1
+    detailRetryRequestRef.current = null
+    setDetailReadError('')
     proposalsRequestIdRef.current += 1
+    guidanceHistoryRequestIdRef.current += 1
     mergeSuggestionsRequestIdRef.current += 1
     selectedBlueprintIdRef.current = blueprintId
     setDeleteTarget(null)
@@ -359,6 +457,9 @@ export default function TeacherBlueprintsPage() {
     setProposals([])
     setProposalsError('')
     setProposalsLoading(false)
+    setGuidanceHistory([])
+    setGuidanceHistoryError('')
+    setGuidanceHistoryLoading(false)
     setMergeSuggestions(null)
     setMergeSelection({})
     setMergeLoading(false)
@@ -369,11 +470,12 @@ export default function TeacherBlueprintsPage() {
   const loadBlueprints = useCallback(async (preferredId?: string) => {
     const requestId = listRequestIdRef.current + 1
     listRequestIdRef.current = requestId
+    listRetryRequestRef.current = null
     if (preferredId && preferredId !== selectedBlueprintIdRef.current) {
       beginBlueprintSelection(preferredId)
     }
     setLoadingList(true)
-    setError('')
+    setListReadError('')
     try {
       const nextBlueprints = await fetchTeacherBlueprints()
       if (listRequestIdRef.current !== requestId) return
@@ -385,9 +487,9 @@ export default function TeacherBlueprintsPage() {
       if (nextSelectedId !== selectedBlueprintIdRef.current) {
         beginBlueprintSelection(nextSelectedId)
       }
-    } catch (err: any) {
+    } catch {
       if (listRequestIdRef.current !== requestId) return
-      setError(err.message || 'Failed to load course blueprints')
+      setListReadError('The course blueprint list could not be retrieved. Your saved blueprints and local edits have not been changed.')
     } finally {
       if (listRequestIdRef.current !== requestId) return
       setLoadingList(false)
@@ -397,8 +499,9 @@ export default function TeacherBlueprintsPage() {
   const loadDetail = useCallback(async (id: string) => {
     const requestId = detailRequestIdRef.current + 1
     detailRequestIdRef.current = requestId
+    detailRetryRequestRef.current = null
     setLoadingDetail(true)
-    setError('')
+    setDetailReadError('')
     try {
       const blueprint = await fetchTeacherBlueprintDetail(id)
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
@@ -408,14 +511,39 @@ export default function TeacherBlueprintsPage() {
       setMergeSelection({})
       setAiPreview(null)
       setAiAnalysis(null)
-    } catch (err: any) {
+    } catch {
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
-      setError(err.message || 'Failed to load course blueprint')
+      setDetailReadError('The selected course blueprint could not be retrieved. Your saved blueprint and local edits have not been changed.')
     } finally {
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
       setLoadingDetail(false)
     }
   }, [replaceEditorWithDetail])
+
+  function retryBlueprintList() {
+    if (loadingList || listRetryRequestRef.current !== null) return
+    listRegionRef.current?.focus()
+    invalidateTeacherBlueprints()
+    const pending = loadBlueprints()
+    const requestId = listRequestIdRef.current
+    listRetryRequestRef.current = requestId
+    void pending.finally(() => {
+      if (listRetryRequestRef.current === requestId) listRetryRequestRef.current = null
+    })
+  }
+
+  function retrySelectedBlueprint() {
+    const id = selectedBlueprintIdRef.current
+    if (!id || loadingDetail || detail?.id === id || detailRetryRequestRef.current !== null) return
+    detailRegionRef.current?.focus()
+    invalidateTeacherBlueprints()
+    const pending = loadDetail(id)
+    const requestId = detailRequestIdRef.current
+    detailRetryRequestRef.current = requestId
+    void pending.finally(() => {
+      if (detailRetryRequestRef.current === requestId) detailRetryRequestRef.current = null
+    })
+  }
 
   async function loadProposals(id: string) {
     const requestId = proposalsRequestIdRef.current + 1
@@ -446,6 +574,28 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
+  const loadGuidanceHistory = useCallback(async (id: string) => {
+    const requestId = guidanceHistoryRequestIdRef.current + 1
+    guidanceHistoryRequestIdRef.current = requestId
+    setGuidanceHistoryLoading(true)
+    setGuidanceHistoryError('')
+    try {
+      const response = await fetch(`/api/teacher/course-blueprints/${id}/guidance/history`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to load guidance history')
+      if (guidanceHistoryRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
+      setGuidanceHistory(data.revisions || [])
+    } catch (err: any) {
+      if (guidanceHistoryRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
+      setGuidanceHistory([])
+      setGuidanceHistoryError(err.message || 'Failed to load guidance history')
+    } finally {
+      if (guidanceHistoryRequestIdRef.current === requestId && selectedBlueprintIdRef.current === id) {
+        setGuidanceHistoryLoading(false)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     loadBlueprints(preferredBlueprintId || undefined)
   }, [loadBlueprints, preferredBlueprintId])
@@ -462,6 +612,12 @@ export default function TeacherBlueprintsPage() {
     loadDetail(selectedBlueprintId)
     loadProposals(selectedBlueprintId)
   }, [loadDetail, selectedBlueprintId])
+
+  useEffect(() => {
+    if (selectedBlueprintId && activeTab === 'guidance') {
+      void loadGuidanceHistory(selectedBlueprintId)
+    }
+  }, [activeTab, loadGuidanceHistory, selectedBlueprintId])
 
   async function applyProposal(proposalId: string) {
     if (!selectedBlueprintId) return
@@ -610,6 +766,8 @@ export default function TeacherBlueprintsPage() {
       || activeTab === 'publish'
       || activeTab === 'sync'
       || activeTab === 'proposals'
+      || activeTab === 'guidance'
+      || activeTab === 'details'
     ) return
     setSaving(true)
     setError('')
@@ -758,6 +916,32 @@ export default function TeacherBlueprintsPage() {
       await refreshDetailAfterSave(selectedBlueprintId, 'planned-site')
     } catch (err: any) {
       setError(err.message || 'Failed to save planned site settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveGuidance() {
+    if (!selectedBlueprintId || !detail || repositoryManaged) return
+    setSaving(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authoring_guidance: guidance,
+          expected_content_revision: detail.content_revision,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to save authoring guidance')
+      invalidateTeacherBlueprints()
+      await loadBlueprints()
+      await refreshDetailAfterSave(selectedBlueprintId, 'guidance')
+      await loadGuidanceHistory(selectedBlueprintId)
+    } catch (err: any) {
+      setError(err.message || 'Failed to save authoring guidance')
     } finally {
       setSaving(false)
     }
@@ -927,15 +1111,27 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
-  async function runCopilot(target: CopilotTarget | 'analyze') {
+  async function runCopilot(
+    target: CopilotTarget | 'analyze',
+    trialGuidance?: CourseBlueprintAuthoringGuidance,
+    unitExceptionId = aiUnitExceptionId,
+  ) {
     if (!selectedBlueprintId) return
     setAiBusy(true)
     setError('')
+    setAiPreview(null)
     try {
       const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/ai/suggest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target, prompt: aiPrompt }),
+        body: JSON.stringify({
+          target,
+          prompt: aiPrompt,
+          unit_exception_id: target === 'assignments' || target === 'tests'
+            ? unitExceptionId || null
+            : null,
+          trial_guidance: trialGuidance,
+        }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -943,7 +1139,13 @@ export default function TeacherBlueprintsPage() {
       }
       setAiAnalysis(data.suggestion.analysis || null)
       if (target !== 'analyze') {
-        setAiPreview({ target, content: data.suggestion.content || '' })
+        setAiPreview({
+          target,
+          content: data.suggestion.content || '',
+          originalContentSha256: data.suggestion.original_content_sha256,
+          draftProvenanceToken: data.suggestion.draft_provenance_token,
+          guidance: data.suggestion.guidance,
+        })
       }
     } catch (err: any) {
       setError(err.message || 'Failed to generate copilot suggestion')
@@ -963,6 +1165,10 @@ export default function TeacherBlueprintsPage() {
         body: JSON.stringify({
           target: aiPreview.target,
           content: aiPreview.content,
+          original_content_sha256: aiPreview.originalContentSha256,
+          draft_provenance_token: aiPreview.draftProvenanceToken,
+          expected_blueprint_revision: aiPreview.guidance?.blueprint_revision,
+          unit_exception_id: aiPreview.guidance?.unit_exception_id,
         }),
       })
       const data = await response.json().catch(() => ({}))
@@ -1029,7 +1235,7 @@ export default function TeacherBlueprintsPage() {
             id: 'new-blueprint',
             label: 'Create course blueprint',
             icon: Plus,
-            primary: true,
+            primary: !selectedBlueprintId,
             disabled: editorWriteLocked,
             onSelect: () => requestDiscardingAction(
               () => setShowCreate(true),
@@ -1112,18 +1318,29 @@ export default function TeacherBlueprintsPage() {
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
-          <aside className="self-start rounded-card border border-border bg-surface p-4">
-            {loadingList ? (
-              <div className="flex justify-center py-8">
-                <Spinner />
+          <aside
+            ref={listRegionRef}
+            role="region"
+            aria-label="Course blueprint list"
+            tabIndex={-1}
+            className={`self-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${blueprints.length > 0 ? 'rounded-card border border-border bg-surface p-4' : ''}`}
+          >
+            {blueprints.length > 0 && (loadingList || listReadError) ? (
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p role={listReadError ? 'alert' : 'status'} aria-busy={loadingList || undefined} className="text-sm text-text-muted">
+                  {listReadError || 'Refreshing course blueprints'}
+                </p>
+                {listReadError ? <IconButton icon={RotateCw} label="Retry course blueprint list" onClick={retryBlueprintList} /> : null}
               </div>
+            ) : null}
+            {blueprints.length === 0 && loadingList ? (
+              <PageState compact kind="loading" title="Loading course blueprints" className="motion-reduce:[&_svg]:animate-none" />
+            ) : blueprints.length === 0 && listReadError ? (
+              <PageState compact kind="error" title="Could not load course blueprints" description={listReadError}
+                action={<IconButton icon={RotateCw} label="Retry course blueprint list" onClick={retryBlueprintList} />} />
             ) : blueprints.length === 0 ? (
-              <div className="space-y-3 text-center">
-                <p className="text-sm text-text-muted">No course blueprints yet.</p>
-                <Button type="button" onClick={() => setShowCreate(true)}>
-                  Create Course Blueprint
-                </Button>
-              </div>
+              <PageState compact kind="empty" title="No course blueprints yet."
+                action={<Button type="button" onClick={() => setShowCreate(true)}>Create Course Blueprint</Button>} />
             ) : (
               <div className="space-y-2">
                 {blueprints.map((blueprint) => (
@@ -1151,113 +1368,173 @@ export default function TeacherBlueprintsPage() {
             )}
           </aside>
 
-          <section className="min-w-0 rounded-card border border-border bg-surface p-4">
+          <section
+            ref={detailRegionRef}
+            role="region"
+            aria-label="Selected course blueprint"
+            tabIndex={-1}
+            className={`min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${detail?.id === selectedBlueprintId && detail ? 'rounded-card border border-border bg-surface p-4' : ''}`}
+          >
+            {detail?.id === selectedBlueprintId && detail && detailReadError ? (
+              <p role="alert" className="mb-4 text-sm text-danger">{detailReadError}</p>
+            ) : null}
             {!selectedBlueprintId || !detail || detail.id !== selectedBlueprintId ? (
               loadingDetail ? (
-                <div className="flex justify-center py-12">
-                  <Spinner size="lg" />
-                </div>
-              ) : (
+                <PageState compact kind="loading" title="Loading course blueprint" className="motion-reduce:[&_svg]:animate-none" />
+              ) : selectedBlueprintId && detailReadError ? (
+                <PageState compact kind="error" title="Could not load course blueprint" description={detailReadError}
+                  action={<IconButton icon={RotateCw} label="Retry selected course blueprint" onClick={retrySelectedBlueprint} />} />
+              ) : loadingList || listReadError ? null : (
                 <div className="py-12 text-center text-sm text-text-muted">
                   Select a course blueprint to edit its course package.
                 </div>
               )
             ) : (
               <div className="space-y-5">
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <FormField label="Title">
-                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.title} onChange={(e) => setMeta((current) => ({ ...current, title: e.target.value }))} />
-                  </FormField>
-                  <FormField label="Subject">
-                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.subject} onChange={(e) => setMeta((current) => ({ ...current, subject: e.target.value }))} />
-                  </FormField>
-                  <FormField label="Grade Level">
-                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.grade_level} onChange={(e) => setMeta((current) => ({ ...current, grade_level: e.target.value }))} />
-                  </FormField>
-                  <FormField label="Course Code">
-                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.course_code} onChange={(e) => setMeta((current) => ({ ...current, course_code: e.target.value }))} />
-                  </FormField>
-                  <FormField label="Term Template">
-                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.term_template} onChange={(e) => setMeta((current) => ({ ...current, term_template: e.target.value }))} />
-                  </FormField>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <PageHeading
+                    title={meta.title || 'Untitled Course Blueprint'}
+                    description={`${[meta.subject, meta.grade_level, meta.course_code].filter(Boolean).join(' • ') || 'Course Blueprint'} • ${repositoryManaged ? 'Repository-managed' : 'Pika-managed'}`}
+                  />
+                  <div className="flex items-center gap-1 text-xs text-text-muted">
+                    <span>Blueprint</span>
+                    <SaveStatus
+                      status={saving ? 'saving' : hasUnsavedChanges ? 'unsaved' : 'saved'}
+                      title={hasUnsavedChanges ? `Unsaved sections: ${dirtySectionSummary}` : undefined}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="secondary" onClick={saveMetadata} disabled={editorWriteLocked || repositoryManaged}>
-                    Save Details
-                  </Button>
-                  <SaveStatus
-                    status={saving ? 'saving' : hasUnsavedChanges ? 'unsaved' : 'saved'}
-                    title={hasUnsavedChanges ? `Unsaved sections: ${dirtySectionSummary}` : undefined}
-                  />
-                  {counts ? (
-                    <div className="text-xs text-text-muted">
+                <Tabs
+                  ariaLabel="Blueprint workspace"
+                  items={WORKSPACE_TABS}
+                  value={activeWorkspace}
+                  onValueChange={(workspace) => setActiveTab(WORKSPACE_SECTIONS[workspace][0])}
+                  getTabId={(workspace) => `blueprint-${workspace}-tab`}
+                  getPanelId={(workspace) => `blueprint-${workspace}-panel`}
+                />
+                <TabPanel
+                  id={`blueprint-${activeWorkspace}-panel`}
+                  labelledBy={`blueprint-${activeWorkspace}-tab`}
+                  className="space-y-5"
+                >
+                  {activeWorkspace === 'overview' && counts ? (
+                    <div className="rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
                       {counts.assignments} assignments • {counts.tests} tests • {counts.materials} materials • {counts.surveys} surveys • {counts.lesson_templates} lesson templates
                     </div>
                   ) : null}
-                </div>
-
-                <div className="rounded-card border border-border bg-surface-2 p-4">
-                  <div className="text-sm font-semibold text-text-default">Course Blueprint</div>
-                  <div className="mt-1 text-sm text-text-muted">
-                    {repositoryManaged
-                      ? 'This Draft is read-only in Pika. Pull it to the repository, then review proposed changes here.'
-                      : 'Edit the plan here, use it to create a classroom, or export a portable course package.'}
+                  {WORKSPACE_SECTIONS[activeWorkspace].length > 1 ? (
+                    <Tabs
+                      ariaLabel={`${WORKSPACE_TABS.find((item) => item.value === activeWorkspace)?.label} sections`}
+                      items={WORKSPACE_SECTIONS[activeWorkspace].map((tab) => ({
+                        value: tab,
+                        label: tab === 'proposals' && actionableProposalCount > 0
+                          ? `Proposals (${actionableProposalCount})`
+                          : TAB_LABELS[tab],
+                      }))}
+                      value={activeTab}
+                      onValueChange={setActiveTab}
+                      getTabId={(tab) => `blueprint-${tab}-section-tab`}
+                      getPanelId={(tab) => `blueprint-${tab}-section-panel`}
+                    />
+                  ) : null}
+                  <div
+                    id={`blueprint-${activeTab}-section-panel`}
+                    role={WORKSPACE_SECTIONS[activeWorkspace].length > 1 ? 'tabpanel' : undefined}
+                    aria-labelledby={WORKSPACE_SECTIONS[activeWorkspace].length > 1
+                      ? `blueprint-${activeTab}-section-tab`
+                      : undefined}
+                  >
+                {activeTab === 'details' ? (
+                  <div className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <FormField label="Title">
+                      <Input disabled={editorWriteLocked || repositoryManaged} value={meta.title} onChange={(e) => setMeta((current) => ({ ...current, title: e.target.value }))} />
+                    </FormField>
+                    <FormField label="Subject">
+                      <Input disabled={editorWriteLocked || repositoryManaged} value={meta.subject} onChange={(e) => setMeta((current) => ({ ...current, subject: e.target.value }))} />
+                    </FormField>
+                    <FormField label="Grade Level">
+                      <Input disabled={editorWriteLocked || repositoryManaged} value={meta.grade_level} onChange={(e) => setMeta((current) => ({ ...current, grade_level: e.target.value }))} />
+                    </FormField>
+                    <FormField label="Course Code">
+                      <Input disabled={editorWriteLocked || repositoryManaged} value={meta.course_code} onChange={(e) => setMeta((current) => ({ ...current, course_code: e.target.value }))} />
+                    </FormField>
+                    <FormField label="Term Template">
+                      <Input disabled={editorWriteLocked || repositoryManaged} value={meta.term_template} onChange={(e) => setMeta((current) => ({ ...current, term_template: e.target.value }))} />
+                    </FormField>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2">
-                    <div>
-                      <div className="text-sm font-medium text-text-default">
-                        {repositoryManaged ? 'Repository-managed' : 'Pika-managed'}
-                      </div>
-                      <div className="mt-0.5 text-xs text-text-muted">
-                        Only the selected authority may originate changes. Draft revision {detail.content_revision}
-                        {' • '}
-                        {detail.latest_version_number
-                          ? `latest saved Version ${detail.latest_version_number}`
-                          : 'no saved Version yet'}.
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => requestDiscardingAction(
-                        changeAuthorityMode,
-                        repositoryManaged ? 'Use Pika as the editor?' : 'Use the repository as the editor?',
-                        'Discard and change editor',
-                      )}
-                      disabled={editorWriteLocked}
-                    >
-                      {repositoryManaged ? 'Use Pika as Editor' : 'Use Repository as Editor'}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" variant="secondary" onClick={saveMetadata} disabled={editorWriteLocked || repositoryManaged}>
+                      Save Details
                     </Button>
                   </div>
-                  <div className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                    <div className="font-medium text-text-default">Portable Course Package</div>
-                    <div className="mt-1 text-text-muted">
-                      Exports a .course-package.tar file with manifest.json and editable Markdown files.
+
+                  <div className="rounded-card border border-border bg-surface-2 p-4">
+                    <div className="text-sm font-semibold text-text-default">Course Blueprint</div>
+                    <div className="mt-1 text-sm text-text-muted">
+                      {repositoryManaged
+                        ? 'This Draft is read-only in Pika. Pull it to the repository, then review proposed changes here.'
+                        : 'Edit the plan here, use it to create a classroom, or export a portable course package.'}
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2">
+                      <div>
+                        <div className="text-sm font-medium text-text-default">
+                          {repositoryManaged ? 'Repository-managed' : 'Pika-managed'}
+                        </div>
+                        <div className="mt-0.5 text-xs text-text-muted">
+                          Only the selected authority may originate changes. Draft revision {detail.content_revision}
+                          {' • '}
+                          {detail.latest_version_number
+                            ? `latest saved Version ${detail.latest_version_number}`
+                            : 'no saved Version yet'}.
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => requestDiscardingAction(
+                          changeAuthorityMode,
+                          repositoryManaged ? 'Use Pika as the editor?' : 'Use the repository as the editor?',
+                          'Discard and change editor',
+                        )}
+                        disabled={editorWriteLocked}
+                      >
+                        {repositoryManaged ? 'Use Pika as Editor' : 'Use Repository as Editor'}
+                      </Button>
+                    </div>
+                    <div className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-sm">
+                      <div className="font-medium text-text-default">Portable Course Package</div>
+                      <div className="mt-1 text-text-muted">
+                        Exports a .course-package.tar file with manifest.json and editable Markdown files.
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {VISIBLE_EDITOR_TABS.map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setActiveTab(tab)}
-                      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                        activeTab === tab
-                          ? 'bg-primary-solid text-text-inverse'
-                          : 'bg-surface-2 text-text-default hover:bg-surface-hover'
-                      }`}
-                    >
-                        {tab === 'proposals' && actionableProposalCount > 0
-                          ? `Proposals (${actionableProposalCount})`
-                          : TAB_LABELS[tab]}
-                    </button>
-                  ))}
-                </div>
+                  </div>
+                ) : activeTab === 'guidance' ? (
+                  <BlueprintAuthoringGuidanceEditor
+                    guidance={guidance}
+                    savedGuidance={savedEditorState?.guidance ?? EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE}
+                    onChange={setGuidance}
+                    onSave={saveGuidance}
+                    onTryDraft={(target, unitExceptionId) => {
+                      setAiTarget(target)
+                      setAiUnitExceptionId(unitExceptionId || '')
+                      setActiveTab('copilot')
+                      void runCopilot(target, guidance, unitExceptionId || '')
+                    }}
+                    revision={detail.content_revision}
+                    readOnly={repositoryManaged}
+                    busy={editorWriteLocked}
+                    dirty={dirtySections.includes('guidance')}
+                    history={guidanceHistory}
+                    historyLoading={guidanceHistoryLoading}
+                    historyError={guidanceHistoryError}
+                  />
+                ) : activeTab === 'proposals' ? (
 
-                {activeTab === 'proposals' ? (
                   <div className="space-y-4">
                     <div className="rounded-card border border-border bg-surface-2 p-4">
                       <div className="text-sm font-semibold text-text-default">
@@ -1327,6 +1604,19 @@ export default function TeacherBlueprintsPage() {
                                       ? ` and classroom revision ${proposal.base_classroom_revision}`
                                       : ''}
                                   </div>
+                                  {proposal.diff_json.guidance_provenance ? (
+                                    <details className="mt-3 rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-text-muted">
+                                      <summary className="cursor-pointer font-medium text-text-default">
+                                        Draft guidance · revision {proposal.diff_json.guidance_provenance.blueprint_revision}
+                                        {proposal.diff_json.guidance_provenance.unit_label
+                                          ? ` · ${proposal.diff_json.guidance_provenance.unit_label}`
+                                          : ' · course rules'}
+                                      </summary>
+                                      <pre className="mt-2 whitespace-pre-wrap font-sans text-xs">
+                                        {proposal.diff_json.guidance_provenance.rules_markdown || 'No guidance saved at drafting time.'}
+                                      </pre>
+                                    </details>
+                                  ) : null}
                                   {proposal.status === 'stale' ? (
                                     <div className="mt-2 text-sm text-warning">
                                       {proposal.target_kind === 'classroom'
@@ -1586,7 +1876,10 @@ export default function TeacherBlueprintsPage() {
                       <FormField label="Draft Section">
                         <select
                           value={aiTarget}
-                          onChange={(e) => setAiTarget(e.target.value as CopilotTarget)}
+                          onChange={(e) => {
+                            setAiTarget(e.target.value as CopilotTarget)
+                            setAiPreview(null)
+                          }}
                           className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                           <option value="overview">Overview</option>
@@ -1605,15 +1898,40 @@ export default function TeacherBlueprintsPage() {
                       </FormField>
                     </div>
 
+                    {aiTarget === 'assignments' || aiTarget === 'tests' ? (
+                      <div className="rounded-card border border-border bg-surface-2 p-4 space-y-3">
+                        <p className="text-sm text-text-muted">
+                          Draft previews use the selected Authoring Guidance. Review and edit the result before proposing it.
+                        </p>
+                        <FormField label="Unit guidance">
+                          <Select
+                            value={aiUnitExceptionId}
+                            onChange={(event) => {
+                              setAiUnitExceptionId(event.target.value)
+                              setAiPreview(null)
+                            }}
+                            className="max-w-sm"
+                            options={[
+                              { value: '', label: 'Course rules only' },
+                              ...(detail?.authoring_guidance?.unit_exceptions.map((unit) => ({
+                                value: unit.id,
+                                label: unit.unit_label,
+                              })) ?? []),
+                            ]}
+                          />
+                        </FormField>
+                      </div>
+                    ) : null}
+
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" onClick={() => runCopilot('analyze')} disabled={aiBusy}>
                         {aiBusy ? 'Working...' : 'Review Course Blueprint'}
                       </Button>
-                      <Button type="button" variant="secondary" onClick={() => runCopilot(aiTarget)} disabled={aiBusy}>
-                        Draft Preview
-                      </Button>
+                        <Button type="button" variant="secondary" onClick={() => runCopilot(aiTarget)} disabled={aiBusy}>
+                          Draft Preview
+                        </Button>
                       {aiPreview ? (
-                        <Button type="button" variant="secondary" onClick={applyCopilotPreview} disabled={aiBusy || repositoryManaged}>
+                        <Button type="button" variant="secondary" onClick={applyCopilotPreview} disabled={aiBusy || repositoryManaged || aiPreview.guidance?.trial}>
                           Propose Change
                         </Button>
                       ) : null}
@@ -1636,7 +1954,20 @@ export default function TeacherBlueprintsPage() {
                     {aiPreview && showMarkdown ? (
                       <div className="space-y-2">
                         <div className="text-sm font-semibold text-text-default">Preview: {TAB_LABELS[aiPreview.target]}</div>
+                        {aiPreview.guidance?.trial ? (
+                          <p className="text-sm text-text-muted">Trial preview using unsaved guidance. Apply the guidance, then generate a new preview before proposing the content.</p>
+                        ) : null}
+                        {aiPreview.guidance ? (
+                          <details className="rounded-card border border-border bg-surface-2 p-3 text-sm text-text-muted">
+                            <summary className="cursor-pointer text-text-default">
+                              {aiPreview.guidance.trial ? 'Trial guidance' : 'Guidance used'}: Blueprint revision {aiPreview.guidance.blueprint_revision}
+                              {aiPreview.guidance.unit_label ? ` · ${aiPreview.guidance.unit_label}` : ' · course rules'}
+                            </summary>
+                            <pre className="mt-3 whitespace-pre-wrap font-sans text-sm">{aiPreview.guidance.rules_markdown || 'No guidance saved yet.'}</pre>
+                          </details>
+                        ) : null}
                         <textarea
+                          aria-label="Draft preview Markdown"
                           value={aiPreview.content}
                           onChange={(e) => setAiPreview((current) => (current ? { ...current, content: e.target.value } : current))}
                           className="min-h-[420px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -1751,6 +2082,8 @@ export default function TeacherBlueprintsPage() {
                     </div>
                   )
                 )}
+                  </div>
+                </TabPanel>
               </div>
             )}
           </section>

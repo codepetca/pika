@@ -4,8 +4,8 @@ import { buildBaraRosterSnapshot } from '@/lib/server/bara-attendance-roster'
 
 function input() {
   return {
-    installationRef: 'pika_staging',
-    tenantRef: 'tenant_staging',
+    installationRef: 'pika_local',
+    tenantRef: 'tenant_local',
     rosterRef: 'roster_11111111111111111111111111111111',
     revision: 3,
     idempotencyKey: 'roster:roster_11111111111111111111111111111111:3',
@@ -38,9 +38,9 @@ describe('Bara attendance roster materialization', () => {
       message_type: 'roster.snapshot',
       idempotency_key: 'roster:roster_11111111111111111111111111111111:3',
       correlation_ref: 'correlation_roster_3',
-      installation_ref: 'pika_staging',
+      installation_ref: 'pika_local',
       roster_ref: 'roster_11111111111111111111111111111111',
-      tenant_ref: 'tenant_staging',
+      tenant_ref: 'tenant_local',
       revision: 3,
       owner_principal_ref: 'principal_teacher',
       owner_display_name: 'Teacher One',

@@ -17,12 +17,16 @@ describe('GradebookWeightInputMockup', () => {
     expect(input).toHaveClass('[appearance:textfield]')
     fireEvent.change(input, { target: { value: '20' } })
     expect(screen.getByLabelText('Saved weight')).toHaveTextContent('20')
-    for (const value of ['', '0', '-1', '2.5', '1000']) {
+    fireEvent.change(input, { target: { value: '0' } })
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getByLabelText('Saved weight')).toHaveTextContent('0')
+    fireEvent.blur(input)
+    for (const value of ['', '-1', '2.5', '1000']) {
       fireEvent.change(input, { target: { value } })
       expect(input).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByLabelText('Saved weight')).toHaveTextContent('20')
+      expect(screen.getByLabelText('Saved weight')).toHaveTextContent('0')
       fireEvent.blur(input)
-      expect(input).toHaveValue(20)
+      expect(input).toHaveValue(0)
       expect(input).toHaveAttribute('aria-invalid', 'false')
     }
   })

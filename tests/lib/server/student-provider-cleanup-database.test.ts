@@ -39,7 +39,11 @@ describe('generated RPC provider cleanup bridge', () => {
   })
   it.each([
     ['42501', 'forbidden detail', 'binding_invalid', false],
-    ['55000', 'student_provider_cleanup_disabled', 'disabled', false],
+    ['55000', 'student_provider_cleanup_disabled', 'disabled', true],
+    ['55000', 'student_live_cleanup_prerequisite_paused', 'disabled', true],
+    ['55000', 'student_provider_operation_conflict', 'persistence_unavailable', true],
+    ['55000', 'student_provider_copy_policy_required', 'persistence_unavailable', true],
+    ['55000', 'student_provider_removed_generation_required', 'binding_invalid', false],
     ['40001', 'classroom_operation_busy', 'persistence_unavailable', true],
   ])('does not send on rejected authorization %s', async (code, message, expected, retryable) => {
     rpc.mockResolvedValue({ data: null, error: { code, message } })

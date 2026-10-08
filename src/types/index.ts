@@ -91,6 +91,7 @@ export interface Classroom {
   blueprint_source_revision: number
   source_blueprint_id: string | null
   source_blueprint_version_id?: string | null
+  authoring_guidance_version_id?: string | null
   source_blueprint_origin: ClassroomBlueprintOrigin | null
   actual_site_slug: string | null
   actual_site_published: boolean
@@ -405,6 +406,7 @@ export interface AssignmentAiGradingRun {
   triggered_by: string
   model: string | null
   gradex_run_id?: string | null
+  gradex_idempotency_key?: string | null
   gradex_status?: string | null
   gradex_submitted_at?: string | null
   gradex_last_polled_at?: string | null
@@ -418,6 +420,7 @@ export interface AssignmentAiGradingRun {
   skipped_empty_count: number
   failed_count: number
   error_samples_json: AssignmentAiGradingRunErrorSample[]
+  worker_contract_version: number
   lease_token: string | null
   lease_expires_at: string | null
   started_at: string | null
@@ -433,6 +436,8 @@ export interface AssignmentAiGradingRunItem {
   student_id: string
   assignment_doc_id: string | null
   assignment_doc_updated_at: string | null
+  assignment_source_fingerprint: string | null
+  gradex_submission_id: string | null
   queue_position: number
   status: AssignmentAiGradingItemStatus
   skip_reason: AssignmentAiGradingSkipReason | null
@@ -714,6 +719,7 @@ export interface CourseBlueprint {
   overview_markdown: string
   outline_markdown: string
   resources_markdown: string
+  authoring_guidance: import('@/lib/course-blueprint-authoring-guidance').CourseBlueprintAuthoringGuidance
   gradebook_use_weights: boolean
   gradebook_assignments_weight: number
   gradebook_tests_weight: number
@@ -893,6 +899,7 @@ export interface TestDocument {
   storage_bucket?: 'test-documents'
   storage_path?: string
   managed_object_id?: string
+  upload_content_type?: string
   content?: string
   snapshot_path?: string
   snapshot_managed_object_id?: string
@@ -1172,6 +1179,7 @@ export interface TestResultsAggregate {
 
 // Log summary types
 export interface LogSummaryActionItem {
+  detail?: string
   text: string
   studentName: string
 }
@@ -1183,7 +1191,7 @@ export interface LogSummary {
   summary_items: {
     policy_version: string
     overview: string
-    action_items: { text: string; initials: string }[]
+    action_items: { text: string; initials: string; detail: string }[]
   }
   initials_map: Record<string, string>
   entry_count: number
@@ -1304,6 +1312,9 @@ export type GradebookAssessmentStatus =
   | 'resubmitted'
 
 export interface GradebookAssessmentColumn {
+  is_maximum_override?: boolean
+  source_possible?: number
+  maximum_scale?: number
   assessment_id: string
   assessment_type: GradebookAssessmentType
   code: string

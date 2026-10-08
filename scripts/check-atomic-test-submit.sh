@@ -13,6 +13,8 @@ TMP_TWO="$(mktemp)"
 cleanup() {
   rm -f "$TMP_ONE" "$TMP_TWO"
   docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+drop function if exists private.atomic_test_contract_save(uuid,uuid,jsonb);
+drop function if exists private.atomic_test_contract_submit(uuid,uuid,jsonb,timestamptz);
 alter table public.test_attempts
   drop constraint if exists atomic_test_submit_forced_failure;
 delete from public.classrooms
@@ -25,6 +27,64 @@ trap cleanup EXIT
 cleanup
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+-- Fixture-only invoker adapters. Every write exercises the public revision RPC.
+-- Old cases model Start plus a fresh read in the same transaction, preserving
+-- their atomic rollback and parent-order assertions. The dedicated244 harness
+-- separately proves stale client snapshots fail; these helpers never retry CAS.
+create function private.atomic_test_contract_save(p_test_id uuid,p_student_id uuid,p_responses jsonb)
+returns jsonb language plpgsql set search_path='' as $$
+declare v_revision bigint; v_start jsonb; v_result jsonb; v_created boolean := false;
+begin
+  if current_user <> 'postgres' or p_test_id::text not like 'e0000000-%' then
+    raise exception 'Atomic Test contract fixture authority required' using errcode='42501';
+  end if;
+  select draft_revision into v_revision from public.test_attempts where test_id=p_test_id and student_id=p_student_id;
+  if v_revision is null then
+    v_start := public.start_test_attempt_revision_atomic(p_test_id,p_student_id);
+    v_revision := (v_start->'attempt'->>'draft_revision')::bigint;
+    v_created := (v_start->>'created')::boolean;
+  end if;
+  v_result := public.save_test_attempt_revision_atomic(p_test_id,p_student_id,p_responses,v_revision);
+  if coalesce((v_result->>'conflict')::boolean,false) then
+    raise exception 'Atomic Test save snapshot changed' using errcode='40001';
+  end if;
+  return v_result || jsonb_build_object('created',v_created);
+end; $$;
+create function private.atomic_test_contract_submit(p_test_id uuid,p_student_id uuid,p_responses jsonb,p_submitted_at timestamptz)
+returns jsonb language plpgsql set search_path='' as $$
+declare v_revision bigint; v_start jsonb; v_result jsonb;
+begin
+  if current_user <> 'postgres' or p_test_id::text not like 'e0000000-%' then
+    raise exception 'Atomic Test contract fixture authority required' using errcode='42501';
+  end if;
+  select draft_revision into v_revision from public.test_attempts where test_id=p_test_id and student_id=p_student_id;
+  if v_revision is null then
+    begin
+      v_start := public.start_test_attempt_revision_atomic(p_test_id,p_student_id);
+    exception when insufficient_privilege then
+      -- Preserve submit's existing public domain errors when Start loses a
+      -- race or encounters closed access. Enrollment failures remain42501.
+      if SQLERRM like 'Cannot edit a submitted test%' then
+        raise exception 'You have already responded to this test' using errcode='22023';
+      elsif SQLERRM like 'This test is closed%' then
+        raise exception 'Test is not active' using errcode='22023';
+      end if;
+      raise;
+    end;
+    v_revision := (v_start->'attempt'->>'draft_revision')::bigint;
+  end if;
+  v_result := public.submit_test_attempt_revision_atomic(p_test_id,p_student_id,p_responses,v_revision,p_submitted_at);
+  if coalesce((v_result->>'conflict')::boolean,false) then
+    if coalesce((v_result->'attempt'->>'is_submitted')::boolean,false) then
+      raise exception 'You have already responded to this test' using errcode='22023';
+    end if;
+    raise exception 'Atomic Test submit snapshot changed' using errcode='40001';
+  end if;
+  return v_result;
+end; $$;
+revoke all on function private.atomic_test_contract_save(uuid,uuid,jsonb) from public,anon,authenticated,service_role;
+revoke all on function private.atomic_test_contract_submit(uuid,uuid,jsonb,timestamptz) from public,anon,authenticated,service_role;
+
 begin;
 
 insert into public.users (id, email, role) values
@@ -137,8 +197,8 @@ SQL
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 do $contract$
 declare
-  v_signature constant text := 'public.submit_test_attempt_atomic(uuid,uuid,jsonb,timestamp with time zone)';
-  v_save_signature constant text := 'public.save_test_attempt_atomic(uuid,uuid,jsonb)';
+  v_signature constant text := 'public.submit_test_attempt_revision_atomic(uuid,uuid,jsonb,bigint,timestamp with time zone)';
+  v_save_signature constant text := 'public.save_test_attempt_revision_atomic(uuid,uuid,jsonb,bigint)';
   v_result jsonb;
   v_attempt public.test_attempts%rowtype;
   v_mc public.test_responses%rowtype;
@@ -158,7 +218,7 @@ begin
     raise exception 'Unexpected atomic test-attempt save RPC privileges';
   end if;
 
-  v_result := public.submit_test_attempt_atomic(
+  v_result := private.atomic_test_contract_submit(
     'e0000000-0000-4000-8000-000000000011',
     'e0000000-0000-4000-8000-000000000002',
     jsonb_build_object(
@@ -175,7 +235,7 @@ begin
     raise exception 'Unexpected successful submission result: %', v_result;
   end if;
 
-  v_result := public.save_test_attempt_atomic(
+  v_result := private.atomic_test_contract_save(
     'e0000000-0000-4000-8000-000000000017',
     'e0000000-0000-4000-8000-00000000000d',
     jsonb_build_object(
@@ -225,7 +285,7 @@ begin
     raise exception 'Mixed submission did not persist the expected atomic state';
   end if;
 
-  v_result := public.submit_test_attempt_atomic(
+  v_result := private.atomic_test_contract_submit(
     'e0000000-0000-4000-8000-000000000011',
     'e0000000-0000-4000-8000-000000000003',
     jsonb_build_object(
@@ -271,7 +331,7 @@ declare
 begin
   v_rejected := false;
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000011',
       'e0000000-0000-4000-8000-000000000004',
       jsonb_build_object(
@@ -288,7 +348,7 @@ begin
 
   v_rejected := false;
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000011',
       'e0000000-0000-4000-8000-00000000000b',
       jsonb_build_object(
@@ -306,7 +366,7 @@ begin
 
   v_rejected := false;
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000011',
       'e0000000-0000-4000-8000-00000000000b',
       jsonb_build_object(
@@ -324,7 +384,7 @@ begin
 
   v_rejected := false;
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000011',
       'e0000000-0000-4000-8000-000000000005',
       jsonb_build_object(
@@ -342,7 +402,7 @@ begin
 
   v_rejected := false;
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000011',
       'e0000000-0000-4000-8000-000000000006',
       jsonb_build_object(
@@ -360,7 +420,7 @@ begin
 
   v_rejected := false;
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000014',
       'e0000000-0000-4000-8000-00000000000a',
       jsonb_build_object(
@@ -378,7 +438,7 @@ begin
 
   v_rejected := false;
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000011',
       'e0000000-0000-4000-8000-000000000009',
       jsonb_build_object(
@@ -447,7 +507,7 @@ declare
   v_rejected boolean := false;
 begin
   begin
-    perform public.submit_test_attempt_atomic(
+    perform private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000011',
       'e0000000-0000-4000-8000-000000000004',
       jsonb_build_object(
@@ -526,7 +586,7 @@ run_concurrent_submit() {
   local application_name="$1"
   docker exec -e PGAPPNAME="$application_name" -i "$DB_CONTAINER" \
     psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
-    "select public.submit_test_attempt_atomic(
+    "select private.atomic_test_contract_submit(
       'e0000000-0000-4000-8000-000000000012',
       'e0000000-0000-4000-8000-000000000007',
       jsonb_build_object(
@@ -609,7 +669,7 @@ wait_for_lock_waiters atomic-test-access-close 1
 
 docker exec -e PGAPPNAME=atomic-test-access-submit -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
-  "select public.submit_test_attempt_atomic(
+  "select private.atomic_test_contract_submit(
     'e0000000-0000-4000-8000-000000000016',
     'e0000000-0000-4000-8000-00000000000c',
     jsonb_build_object(
@@ -698,7 +758,7 @@ SQL
   if [[ "$operation" == "save" ]]; then
     docker exec -e PGAPPNAME="$student_name" -i "$DB_CONTAINER" \
       psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
-      "select public.save_test_attempt_atomic(
+      "select private.atomic_test_contract_save(
         'e0000000-0000-4000-8000-000000000017',
         'e0000000-0000-4000-8000-00000000000d',
         jsonb_build_object(
@@ -709,7 +769,7 @@ SQL
   else
     docker exec -e PGAPPNAME="$student_name" -i "$DB_CONTAINER" \
       psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
-      "select public.submit_test_attempt_atomic(
+      "select private.atomic_test_contract_submit(
         'e0000000-0000-4000-8000-000000000017',
         'e0000000-0000-4000-8000-00000000000d',
         jsonb_build_object(
@@ -795,7 +855,7 @@ wait_for_lock_waiters atomic-test-draft-question 1
 
 docker exec -e PGAPPNAME=atomic-test-draft-save -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
-  "select public.save_test_attempt_atomic(
+  "select private.atomic_test_contract_save(
     'e0000000-0000-4000-8000-000000000018',
     'e0000000-0000-4000-8000-00000000000d',
     jsonb_build_object(
@@ -855,7 +915,7 @@ wait_for_application_event atomic-test-delete-holder PgSleep
 
 docker exec -e PGAPPNAME=atomic-test-delete-submit -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
-  "select public.submit_test_attempt_atomic(
+  "select private.atomic_test_contract_submit(
     'e0000000-0000-4000-8000-000000000017',
     'e0000000-0000-4000-8000-00000000000d',
     jsonb_build_object(
@@ -918,7 +978,7 @@ wait_for_lock_waiters atomic-test-close-worker 1
 
 docker exec -e PGAPPNAME=atomic-test-close-submit -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
-  "select public.submit_test_attempt_atomic(
+  "select private.atomic_test_contract_submit(
     'e0000000-0000-4000-8000-000000000013',
     'e0000000-0000-4000-8000-000000000008',
     jsonb_build_object(

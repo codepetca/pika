@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { authorizeClassroomCoreRequest, classroomCoreMemberRecord } from '@/lib/server/classroom-core-access'
-import { assertStudentCanAccessClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
+import { assertStudentCanAccessClassroom, classroomStudentRecord, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { authorizeSharedClassroomDetailReadActor, readContextualClassroomDetail } from '@/lib/server/contextual-classroom-detail'
+import { contextualClassroomDetailParamsSchema } from '@/lib/validations/contextual-classroom-detail'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/student/classrooms/[id] - Get classroom details
 export const GET = withErrorHandler('GetStudentClassroom', async (request, context) => {
+  const actor = await authorizeSharedClassroomDetailReadActor()
+  if (actor.mode === 'shared') {
+    const { id: classroomId } = contextualClassroomDetailParamsSchema.parse(await context.params)
+    const classroom = await readContextualClassroomDetail({
+      supabase: getServiceRoleClient(), actorId: actor.user.id, classroomId, permission: 'member',
+    })
+    return NextResponse.json({ classroom })
+  }
   const { id: classroomId } = await context.params
   const coreAccess = await authorizeClassroomCoreRequest(classroomId, { legacyRole: 'student', permission: 'member' })
   const { user } = coreAccess
@@ -40,5 +50,5 @@ export const GET = withErrorHandler('GetStudentClassroom', async (request, conte
     )
   }
 
-  return NextResponse.json({ classroom: hydrateClassroomRecord(classroom as Record<string, any>) })
+  return NextResponse.json({ classroom: hydrateClassroomRecord(classroomStudentRecord(classroom)) })
 })

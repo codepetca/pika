@@ -1,8 +1,298 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility'
 
 test.setTimeout(90_000)
+test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('selected tab visibility', () => {
+  for (const role of ['teacher', 'student'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${role} keeps selection visible with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyTabSelectionVisibility(page, testInfo, role, reducedMotion)
+      })
+    }
+  }
+})
+
+test('prototypes survey editing with accessible split panes and local authoring actions', async ({ page }, testInfo) => {
+  const writes: string[] = []
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) writes.push(request.url())
+  })
+  await openPatternLab(page, testInfo, 'teacher')
+  await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('survey-edit-split')
+  await page.getByRole('button', { name: 'Open survey edit prototype' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Edit Survey', exact: true })
+  const details = dialog.getByTestId('survey-editor-details-pane')
+  const content = dialog.getByTestId('survey-editor-content-pane')
+  const number = content.getByRole('spinbutton', { name: 'Question number' })
+  const actions = content.getByRole('button', { name: 'Question actions', exact: true })
+  const settings = details.getByRole('button', { name: 'Settings', exact: true })
+  const capture = async (name: string, wholePage = false) => {
+    await testInfo.attach(name, {
+      body: wholePage
+        ? await page.screenshot({ path: testInfo.outputPath(`${name}.png`), animations: 'disabled' })
+        : await page.getByRole('dialog').screenshot({ path: testInfo.outputPath(`${name}.png`), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+  }
+  const expectNoOverflow = async () => {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    expect(await page.getByRole('dialog').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+  }
+
+  await expect(content.getByRole('textbox', { name: 'Question 1 prompt' })).toContainText('wetland ecosystem')
+  await expect(details.getByText('3 total', { exact: true })).toBeVisible()
+  const detailsBounds = (await details.boundingBox())!
+  const contentBounds = (await content.boundingBox())!
+  if (testInfo.project.metadata.viewport === 'desktop') {
+    expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
+    expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThanOrEqual(1)
+  } else {
+    expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
+    expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThanOrEqual(1)
+  }
+  await content.getByRole('button', { name: /Reorder option A;/ }).focus()
+  await page.keyboard.press('ArrowDown')
+  await expect(content.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('The group discussion')
+  await expect(content.getByRole('button', { name: /Reorder option B;/ })).toBeFocused()
+  await page.keyboard.press('ArrowUp')
+  await expect(content.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('The field observations')
+  await content.getByRole('textbox', { name: 'Question 1 option A' }).fill('Updated field observations')
+  await content.getByRole('textbox', { name: 'Question 1 option E' }).fill('The reflection journal')
+  await expect(content.getByRole('textbox', { name: 'Question 1 option F' })).toHaveValue('')
+  await content.getByRole('button', { name: 'Delete option E', exact: true }).click()
+  await expect(content.getByRole('textbox', { name: 'Question 1 option E' })).toHaveValue('')
+  await expectNoOverflow()
+  await capture('survey-edit-multiple-choice')
+
+  await content.getByRole('button', { name: 'Next question' }).click()
+  await expect(number).toHaveValue('2')
+  await content.getByRole('textbox', { name: 'Question 2 prompt' }).fill('What would you investigate next?')
+  await content.getByRole('spinbutton', { name: 'Response character limit' }).fill('1200')
+  await expect(content.getByText('Students answer in their own words.')).toBeVisible()
+  await expect(content.getByRole('textbox', { name: /option A/ })).toHaveCount(0)
+  await capture('survey-edit-open-response')
+
+  await settings.focus()
+  await settings.press('Enter')
+  const resultsSetting = page.getByRole('menuitemcheckbox', { name: 'Show class results to students' })
+  await expect(resultsSetting).toHaveAttribute('aria-checked', 'false')
+  await expect(resultsSetting).toBeFocused()
+  await page.keyboard.press('Space')
+  await settings.click()
+  await expect(resultsSetting).toHaveAttribute('aria-checked', 'true')
+  await page.keyboard.press('ArrowDown')
+  const responsesSetting = page.getByRole('menuitemcheckbox', { name: 'Allow students to update responses' })
+  await expect(responsesSetting).toBeFocused()
+  await page.keyboard.press('Enter')
+  await settings.click()
+  await expect(responsesSetting).toHaveAttribute('aria-checked', 'true')
+  await capture('survey-edit-settings', true)
+  await page.keyboard.press('Escape')
+  await expect(settings).toBeFocused()
+
+  await actions.click()
+  await page.getByRole('menuitem', { name: 'Add multiple-choice question' }).click()
+  await expect(number).toHaveValue('4')
+  await content.getByRole('textbox', { name: 'Question 4 prompt' }).fill('Would you repeat the activity?')
+  await content.getByRole('textbox', { name: 'Question 4 option A' }).fill('Yes')
+  await content.getByRole('textbox', { name: 'Question 4 option B' }).fill('No')
+  await actions.click()
+  await page.getByRole('menuitem', { name: 'Add open-response question' }).click()
+  await expect(number).toHaveValue('5')
+  await content.getByRole('textbox', { name: 'Question 5 prompt' }).fill('Share a suggestion.')
+  await actions.click()
+  await page.getByRole('menuitem', { name: 'Duplicate question' }).click()
+  await expect(number).toHaveValue('6')
+  await expect(content.getByRole('textbox', { name: 'Question 6 prompt' })).toContainText('Share a suggestion.')
+  await expect(details.getByText('6 total', { exact: true })).toBeVisible()
+  for (let remaining = 5; remaining >= 1; remaining -= 1) {
+    await actions.click()
+    await page.getByRole('menuitem', { name: 'Delete question' }).click()
+    await expect(details.getByText(`${remaining} total`, { exact: true })).toBeVisible()
+  }
+  await actions.click()
+  await expect(page.getByRole('menuitem', { name: 'Delete question' })).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await expect(actions).toBeFocused()
+
+  await details.getByRole('button', { name: 'Markdown', exact: true }).click()
+  await expect(details.getByRole('textbox', { name: 'Title' })).toBeDisabled()
+  await expect(settings).toBeDisabled()
+  const markdown = content.getByRole('textbox', { name: 'Survey markdown editor' })
+  const originalMarkdown = await markdown.inputValue()
+  expect(originalMarkdown).toContain('Show Results: true')
+  expect(originalMarkdown).toContain('Dynamic Responses: true')
+  await markdown.fill(originalMarkdown.replace('Type: multiple_choice', 'Type: unsupported'))
+  await content.getByRole('button', { name: 'Apply Markdown' }).click()
+  await expect(content.getByRole('alert')).toBeVisible()
+  await expect(markdown).toBeVisible()
+  await markdown.fill(originalMarkdown.replace('Title: Wetland field study feedback', 'Title: Updated field study feedback').replace('Which activity helped you understand the wetland ecosystem best?', 'Which activity would you recommend?'))
+  await capture('survey-edit-markdown')
+  await content.getByRole('button', { name: 'Apply Markdown' }).click()
+  await expect(details.getByRole('textbox', { name: 'Title' })).toHaveValue('Updated field study feedback')
+  await expect(content.getByRole('textbox', { name: 'Question 1 prompt' })).toContainText('Which activity would you recommend?')
+  await expect(content.getByRole('alert')).toHaveCount(0)
+
+  await details.getByRole('button', { name: 'Preview', exact: true }).click()
+  const preview = page.getByRole('dialog', { name: 'Survey preview', exact: true })
+  await expect(preview.getByRole('heading', { name: 'Updated field study feedback' })).toBeVisible()
+  await expect(preview.getByText('Which activity would you recommend?')).toBeVisible()
+  await preview.getByRole('radio', { name: 'Updated field observations' }).check()
+  await expect(preview.getByRole('radio', { name: 'Updated field observations' })).toBeChecked()
+  await expectNoOverflow()
+  await capture('survey-edit-preview')
+  await preview.getByRole('button', { name: 'Back to editor', exact: true }).click()
+  await expect(details.getByRole('button', { name: 'Preview', exact: true })).toBeFocused()
+  await expect(content.getByRole('textbox', { name: 'Question 1 prompt' })).toContainText('Which activity would you recommend?')
+  await details.getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(details.getByRole('status').filter({ hasText: 'Published in this prototype only.' })).toBeVisible()
+  await expectNoOverflow()
+  await dialog.getByRole('button', { name: 'Close survey edit prototype' }).click()
+  await expect(dialog).toHaveCount(0)
+  expect(writes).toEqual([])
+  expect(pageErrors).toEqual([])
+})
+for (const role of ['teacher', 'student'] as const) {
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`${role} shared interaction continuity with ${motion} motion`, async ({ page }, testInfo) => {
+      await page.emulateMedia({ reducedMotion: motion })
+      await openPatternLab(page, testInfo, role)
+      const saving = page.getByRole('button', { name: 'Saving', exact: true })
+      await expect(saving).toHaveAttribute('aria-busy', 'true')
+      await expect(saving).toBeDisabled()
+      expect(await saving.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe(
+        motion === 'reduce' ? '0s' : '0.15s',
+      )
+      expect(await saving.locator('svg').evaluate((element) => getComputedStyle(element).animationName)).toBe(
+        motion === 'reduce' ? 'none' : 'spin',
+      )
+      const draft = page.getByTestId('tab-entry-extension').getByRole('textbox', { name: 'Example draft', exact: true })
+      await draft.fill('Unsaved example')
+      const node = await draft.elementHandle()
+      await page.getByRole('tab', { name: 'Activity', exact: true }).click()
+      await expect(page.locator('#fluid-draft-panel').locator('..')).toHaveAttribute('inert', '')
+      await expect(draft).toBeHidden()
+      await page.getByRole('tab', { name: 'Draft', exact: true }).click()
+      expect(await draft.evaluate((element, original) => element === original, node)).toBe(true)
+      await expect(draft).toHaveValue('Unsaved example')
+      const animation = await page.locator('#fluid-draft-panel').locator('..').evaluate((element) => ({
+        name: getComputedStyle(element).animationName,
+        duration: getComputedStyle(element).animationDuration,
+      }))
+      expect(animation.name).toBe('workspace-entry')
+      expect(animation.duration).toBe(motion === 'reduce' ? '0s' : '0.2s')
+
+      const trigger = page.getByRole('button', { name: 'User menu', exact: true }).first()
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      const menu = page.getByRole('menu')
+      await expect(menu).toBeVisible()
+      expect(await menu.getByRole('menuitem').evaluateAll((elements) => elements.map((element) => (element as HTMLElement).tabIndex))).toEqual([0, -1, -1])
+      await page.keyboard.press('End')
+      await expect(page.getByRole('menuitem', { name: 'Logout', exact: true })).toBeFocused()
+      await page.getByRole('menuitem', { name: 'Send Feedback', exact: true }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(trigger).toBeFocused()
+      await expect(page.locator(`[id="${await trigger.getAttribute('aria-controls')}"]`)).toHaveAttribute('inert', '')
+      await expect(page.getByRole('menu')).toHaveCount(0)
+    })
+  }
+}
+
+test('teacher continuous inspector keeps controls and details usable in the bounded reference', async ({ page }, testInfo) => {
+  await openPatternLab(page, testInfo, 'teacher')
+  const example = page.getByTestId('continuous-inspector-example')
+  await example.scrollIntoViewIfNeeded()
+  const alex = example.getByRole('button', { name: 'Alex Chen', exact: true })
+  const sam = example.getByRole('button', { name: 'Sam Patel', exact: true })
+  const inspector = example.locator('[data-workspace-inspector]')
+  await expect(inspector).toHaveAttribute('inert', '')
+  await alex.focus()
+  await page.keyboard.press('Enter')
+  await expect(alex).toHaveAttribute('aria-pressed', 'true')
+  await expect(inspector.getByText('Alex Chen', { exact: true })).toBeVisible()
+  await sam.click()
+  await expect(inspector.getByText('Sam Patel', { exact: true })).toBeVisible()
+  const bounds = (await example.boundingBox())!
+  const details = (await inspector.boundingBox())!
+  expect(details.height).toBeGreaterThan(100)
+  expect(details.y).toBeGreaterThanOrEqual(bounds.y)
+  expect(details.y + details.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1)
+  await testInfo.attach('continuous-inspector', {
+    body: await example.screenshot({ path: testInfo.outputPath('continuous-inspector.png'), animations: 'disabled' }),
+    contentType: 'image/png',
+  })
+  await inspector.getByRole('button', { name: 'Close details' }).click()
+  await expect(inspector).toHaveAttribute('inert', '')
+  await expect(sam).toBeFocused()
+  await expect(sam).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('teacher WorkSurfaceMockup keeps the selected table and inspector usable', async ({ page }, testInfo) => {
+  await openPatternLab(page, testInfo, 'teacher')
+  await page.getByRole('tab', { name: 'Workspaces', exact: true }).click()
+  const example = page.getByTestId('work-surface-shell-example')
+  await example.getByRole('button', { name: /^Field observations/ }).click()
+  await expect(example.locator('#work-pattern-students-panel')).toBeHidden()
+  await example.getByRole('tab', { name: 'Students', exact: true }).click()
+  await example.getByRole('button', { name: 'Maya Chen', exact: true }).click()
+  await example.scrollIntoViewIfNeeded()
+
+  const table = example.locator('table')
+  const tableFrame = table.locator('..')
+  const inspector = example.getByText('Student work', { exact: true }).locator('..')
+  const canvasBounds = (await example.boundingBox())!
+  for (const pane of [tableFrame, inspector]) {
+    const bounds = (await pane.boundingBox())!
+    // The compact reference canvas must leave room for two student rows or inspector text.
+    expect(bounds.height).toBeGreaterThanOrEqual(100)
+    expect(bounds.y).toBeGreaterThanOrEqual(canvasBounds.y)
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(canvasBounds.y + canvasBounds.height)
+  }
+  await testInfo.attach('selected-workspace-panes-top', {
+    body: await example.screenshot({ path: testInfo.outputPath('selected-workspace-panes-top.png'), animations: 'disabled' }),
+    contentType: 'image/png',
+  })
+  await tableFrame.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect(table.getByRole('button', { name: 'Sana Patel' })).toBeInViewport()
+  const response = inspector.getByText('Selected response or document appears here only after the teacher chooses a student.')
+  await response.scrollIntoViewIfNeeded()
+  await expect(response).toBeInViewport()
+  await expect(table.getByRole('button', { name: 'Sana Patel' })).toBeInViewport()
+  await testInfo.attach('selected-workspace-panes', {
+    body: await example.screenshot({ path: testInfo.outputPath('selected-workspace-panes.png'), animations: 'disabled' }),
+    contentType: 'image/png',
+  })
+})
 
 for (const role of ['teacher', 'student'] as const) {
+  test(`${role} renders guided assignment Markdown code references`, async ({ page }, testInfo) => {
+    await openPatternLab(page, testInfo, role)
+    const reference = page.getByTestId('guided-assignment-markdown-reference')
+    await reference.scrollIntoViewIfNeeded()
+    await expect(reference.getByRole('heading', { level: 3, name: 'Task' })).toBeVisible()
+    await expect(reference.getByRole('heading', { level: 3, name: 'Instructions' })).toBeVisible()
+    const code = reference.locator('pre code')
+    await expect(code).toHaveCount(2)
+    expect(await code.nth(0).textContent()).toBe('## code heading\n```\n---')
+    expect(await code.nth(1).textContent()).toBe('## tilde example\n---')
+    expect(await code.first().evaluate((element) => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)')
+    await expect(reference.getByText('After the backtick example.')).toBeVisible()
+    await expect(reference.getByText('After the tilde example.')).toBeVisible()
+    await testInfo.attach(`${role}-guided-assignment-markdown`, {
+      body: await reference.screenshot({
+        path: testInfo.outputPath(`${role}-guided-assignment-markdown.png`),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+  })
+
   test(`${role} previews the Owned Joined home without live writes`, async ({ page }, testInfo) => {
     const pageErrors: string[] = []
     page.on('pageerror', (error) => pageErrors.push(error.message))
@@ -198,21 +488,63 @@ for (const role of ['teacher', 'student'] as const) {
     const example = page.getByTestId('student-grades-pattern')
     await example.scrollIntoViewIfNeeded()
 
-    const visibility = example.getByRole('switch', { name: 'Show grades to students' })
+    const visibility = example.getByRole('switch', { name: 'Student grades visibility' })
     const target = (await visibility.boundingBox())!
     expect(target.width).toBeGreaterThanOrEqual(44)
     expect(target.height).toBeGreaterThanOrEqual(44)
-    await expect(visibility).toHaveAttribute('aria-checked', 'true')
-    await expect(
-      example.getByTestId('student-grades-visible-preview').getByText('Current grade', { exact: true })
-    ).toBeVisible()
-    await expect(example.getByText('84%')).toBeVisible()
-    await expect(
-      example.getByTestId('student-grades-visible-preview').getByText('Not counted')
-    ).toBeVisible()
+    await expect(visibility).toHaveAttribute('aria-checked', 'false')
+    await expect(example.getByTestId('student-grades-view')).toHaveCount(0)
+    await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
+    await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
     const standalone = example.getByTestId('standalone-returned-marks-preview')
     await expect(standalone.getByText('Not counted')).toBeVisible()
     await expect(standalone.getByRole('link')).toHaveCount(0)
+    await testInfo.attach('student-grades-hidden', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-hidden.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+
+    await visibility.focus()
+    await expect(visibility).toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(visibility).toHaveAttribute('aria-checked', 'true')
+    await expect(
+      example.getByTestId('student-grades-view').getByText('Current grade', { exact: true })
+    ).toBeVisible()
+    await expect(example.getByText('84%')).toBeVisible()
+    await expect(
+      example.getByTestId('student-grades-view').getByText('Not counted')
+    ).toBeVisible()
+    await expect(example.getByRole('heading', { name: 'Gradebook marks', exact: true })).toBeVisible()
+    await expect(example.getByTestId('student-grades-view').getByText('Based on returned work and Gradebook marks')).toBeVisible()
+    const itemTrigger = example.getByRole('button', { name: 'Edit standalone item', exact: true })
+    await itemTrigger.click()
+    const itemDialog = page.getByRole('dialog', { name: 'Edit item', exact: true })
+    await expect(itemDialog.getByText('Marks are visible to students as soon as you save them.')).toBeVisible()
+    await expect(itemDialog.getByRole('button', { name: 'Return marks', exact: true })).toHaveCount(0)
+    await itemDialog.getByRole('textbox', { name: 'Assessment title' }).fill('External exam')
+    await testInfo.attach('standalone-item-editor', {
+      body: await itemDialog.screenshot({ path: testInfo.outputPath('standalone-item-editor.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await itemDialog.getByRole('button', { name: 'Save item', exact: true }).click()
+    await expect(itemDialog).toBeHidden()
+    await expect(itemTrigger).toBeFocused()
+    const markTrigger = example.getByRole('button', { name: 'Enter standalone mark', exact: true })
+    await markTrigger.click()
+    const markDialog = page.getByRole('dialog', { name: 'Edit mark', exact: true })
+    await expect(markDialog.getByText('Marks are visible to students as soon as you save them.')).toBeVisible()
+    await markDialog.getByRole('spinbutton', { name: 'Mark earned', exact: true }).fill('0')
+    await testInfo.attach('standalone-mark-editor', {
+      body: await markDialog.screenshot({ path: testInfo.outputPath('standalone-mark-editor.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await markDialog.getByRole('button', { name: 'Save mark', exact: true }).click()
+    await expect(markDialog).toBeHidden()
+    await expect(markTrigger).toBeFocused()
     const feedbackLinks = example.getByRole('link')
     await expect(feedbackLinks).toHaveCount(3)
     await testInfo.attach('student-grades-visible', {
@@ -233,19 +565,6 @@ for (const role of ['teacher', 'student'] as const) {
       contentType: 'image/png',
     })
 
-    await visibility.focus()
-    await expect(visibility).toBeFocused()
-    await page.keyboard.press('Space')
-    await expect(visibility).toHaveAttribute('aria-checked', 'false')
-    await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
-    await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
-    await testInfo.attach('student-grades-hidden', {
-      body: await example.screenshot({
-        path: testInfo.outputPath('student-grades-hidden.png'),
-        animations: 'disabled',
-      }),
-      contentType: 'image/png',
-    })
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
   })
 
@@ -262,7 +581,11 @@ for (const role of ['teacher', 'student'] as const) {
     const bounds = (await absent.boundingBox())!
     expect(bounds.width).toBeGreaterThanOrEqual(44)
     expect(bounds.height).toBeGreaterThanOrEqual(44)
+    await absent.scrollIntoViewIfNeeded()
     await absent.focus()
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    await expect(absent).toBeFocused()
     await expect(page.getByRole('tooltip')).toContainText('1 student absent')
     await page.keyboard.press('Enter')
     await expect(absent).toHaveAttribute('aria-pressed', 'true')
@@ -312,7 +635,7 @@ for (const role of ['teacher', 'student'] as const) {
 }
 
 test.describe('teacher Pattern Lab', () => {
-  test('centers save status beside the visible modal heading while content scrolls', async ({ page }, testInfo) => {
+  test('uses split creation panes while keeping assignment actions in the details pane', async ({ page }, testInfo) => {
     await page.clock.setFixedTime(new Date('2026-08-31T16:00:00Z'))
     const writes: string[] = []
     page.on('request', (request) => {
@@ -326,11 +649,14 @@ test.describe('teacher Pattern Lab', () => {
     const heading = dialog.getByRole('heading', { name: 'New Assignment' })
     const status = dialog.locator('[role="status"][aria-live="polite"]')
     const close = dialog.getByRole('button', { name: 'Close assignment example' })
-    await expect(heading).toBeVisible()
-    const titleField = dialog.getByRole('textbox', { name: 'Title' })
+    const detailsPane = dialog.getByTestId('assignment-editor-details-pane')
+    const contentPane = dialog.getByTestId('assignment-editor-content-pane')
+    const primaryActions = detailsPane.getByTestId('assignment-editor-primary-actions')
+    await expect(heading).toHaveClass(/sr-only/)
+    const titleField = detailsPane.getByRole('textbox', { name: 'Title' })
     await expect(titleField).toHaveValue('Field observations')
     await expect(titleField).toHaveAttribute('placeholder', 'Title')
-    await expect(dialog.locator('label').filter({ hasText: /^Title/ })).toHaveClass(/sr-only/)
+    await expect(detailsPane.locator('label').filter({ hasText: /^Title/ })).not.toHaveClass(/sr-only/)
     const attachments = dialog.getByRole('group', { name: 'Submission Requirement' })
     await expect(attachments.getByText('Submission Requirement', { exact: true })).toBeVisible()
     const addRequirement = attachments.getByRole('button', { name: 'Add submission requirement' })
@@ -366,7 +692,7 @@ test.describe('teacher Pattern Lab', () => {
     expect(Math.max(...rowCenters) - Math.min(...rowCenters)).toBeLessThan(1)
     await expect(dialog.getByText('Required', { exact: true })).toHaveCount(0)
     await expect(dialog.getByLabel('Check', { exact: true })).toHaveCount(0)
-    const editor = dialog.getByRole('textbox', { name: 'Instructions' })
+    const editor = contentPane.getByRole('textbox', { name: 'Instructions' })
     await expect(dialog.locator('label').filter({ hasText: /^Instructions$/ })).toHaveClass(/sr-only/)
     await expect(editor).toContainText('Read the field guide before our next class.')
     const dueDate = dialog.getByRole('button', { name: 'Tue Sep 1' })
@@ -375,24 +701,33 @@ test.describe('teacher Pattern Lab', () => {
     await expect(dueDate.getByText('Tomorrow')).toBeVisible()
     await expect(dialog.getByText('Due tomorrow')).toHaveCount(0)
     const preview = dialog.getByRole('button', { name: 'Preview', exact: true })
-    await expect(preview).toHaveText('')
+    await expect(preview).toHaveText('Preview')
     const previewBounds = (await preview.boundingBox())!
     expect(previewBounds.width).toBeGreaterThanOrEqual(44)
     expect(previewBounds.height).toBeGreaterThanOrEqual(44)
     await expect(status).toHaveText('Saved')
     const frame = (await dialog.boundingBox())!
-    const title = (await heading.boundingBox())!
-    const titleFieldBounds = (await titleField.boundingBox())!
+    const detailsBounds = (await detailsPane.boundingBox())!
+    const contentBounds = (await contentPane.boundingBox())!
     const save = (await status.boundingBox())!
     const dismiss = (await close.boundingBox())!
-    expect(Math.abs(save.x + save.width / 2 - frame.x - frame.width / 2)).toBeLessThan(1)
-    expect(Math.abs(save.y + save.height / 2 - title.y - title.height / 2)).toBeLessThan(1)
-    expect(Math.abs(save.y + save.height / 2 - dismiss.y - dismiss.height / 2)).toBeLessThan(1)
+    expect(Math.abs(detailsBounds.y - frame.y)).toBeLessThanOrEqual(2)
+    expect(dismiss.x).toBeGreaterThanOrEqual(save.x + save.width)
     expect(dismiss.width).toBeGreaterThanOrEqual(44)
     expect(dismiss.height).toBeGreaterThanOrEqual(44)
-    expect(title.x + title.width).toBeLessThan(save.x)
-    expect(save.x + save.width).toBeLessThan(dismiss.x)
-    expect(titleFieldBounds.y - title.y - title.height).toBeLessThanOrEqual(24)
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
+      expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThan(1)
+      expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
+      const actionsBounds = (await primaryActions.boundingBox())!
+      const detailsPaddingBottom = await detailsPane.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))
+      expect(Math.abs(actionsBounds.y + actionsBounds.height - (detailsBounds.y + detailsBounds.height - detailsPaddingBottom))).toBeLessThanOrEqual(2)
+      const dueBounds = (await primaryActions.getByRole('button', { name: 'Tue Sep 1' }).boundingBox())!
+      const postBounds = (await primaryActions.getByRole('button', { name: 'Post', exact: true }).locator('..').boundingBox())!
+      expect(Math.abs(dueBounds.width - postBounds.width)).toBeLessThanOrEqual(2)
+    } else {
+      expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
+    }
     await expect(dialog.getByText('Students see this before they begin.')).toHaveCount(0)
     await titleField.focus()
     await testInfo.attach('creation-modal-heading', {
@@ -401,13 +736,13 @@ test.describe('teacher Pattern Lab', () => {
     const post = (await dialog.getByRole('button', { name: 'Post', exact: true }).boundingBox())!
     await editor.fill(Array.from({ length: 40 }, (_, i) => `Observation ${i + 1}: bring a question for our discussion.`).join('\n'))
     await expect(status).toHaveText('Unsaved')
-    expect((await status.boundingBox())!.y).toBe(save.y)
-    expect((await dialog.getByRole('button', { name: 'Post', exact: true }).boundingBox())!.y).toBe(post.y)
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      expect((await status.boundingBox())!.y).toBe(save.y)
+      expect((await dialog.getByRole('button', { name: 'Post', exact: true }).boundingBox())!.y).toBe(post.y)
+    }
     await expect(close).toBeVisible()
 
-    await preview.focus()
-    await expect(page.getByRole('tooltip')).toHaveText('Preview')
-    await page.keyboard.press('Enter')
+    await preview.click()
     const reading = page.getByRole('dialog', { name: 'Instructions', exact: true })
     await expect(reading).toContainText('Observation 40: bring a question for our discussion.')
     await testInfo.attach('assignment-preview', {
@@ -468,8 +803,12 @@ test.describe('teacher Pattern Lab', () => {
     const primaryActions = detailsPane.getByTestId('assignment-editor-primary-actions')
     const toolbar = contentPane.getByRole('toolbar', { name: 'Formatting options' })
     const editor = contentPane.getByRole('textbox', { name: 'Instructions' })
+    const close = detailsPane.getByRole('button', { name: 'Close assignment edit prototype' })
 
     await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Field observations')
+    await expect(detailsPane.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
+    await expect(close).toBeVisible()
+    expect(Math.abs((await detailsPane.boundingBox())!.y - (await dialog.boundingBox())!.y)).toBeLessThanOrEqual(2)
     await expect(detailsPane.getByRole('button', { name: 'Preview', exact: true })).toBeVisible()
     await expect(detailsPane.getByRole('button', { name: 'Tue Sep 1' })).toBeVisible()
     await expect(detailsPane.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
@@ -481,6 +820,7 @@ test.describe('teacher Pattern Lab', () => {
     const contentBounds = (await contentPane.boundingBox())!
     const toolbarBounds = (await toolbar.boundingBox())!
     if (testInfo.project.metadata.viewport === 'desktop') {
+      expect((await close.boundingBox())!.x + (await close.boundingBox())!.width).toBeLessThanOrEqual(contentBounds.x)
       expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
       expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThan(1)
       expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
@@ -499,6 +839,11 @@ test.describe('teacher Pattern Lab', () => {
 
     await editor.fill('Updated assignment instructions.')
     await expect(dialog.locator('[role="status"][aria-live="polite"]')).toHaveText('Unsaved')
+    if (testInfo.project.metadata.viewport === 'mobile') {
+      const mobileClose = (await close.boundingBox())!
+      const post = (await detailsPane.getByRole('button', { name: 'Post', exact: true }).boundingBox())!
+      expect(mobileClose.y + mobileClose.height <= post.y || mobileClose.y >= post.y + post.height).toBe(true)
+    }
     await detailsPane.getByRole('button', { name: 'Post', exact: true }).click()
     await expect(dialog.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
 
@@ -520,6 +865,390 @@ test.describe('teacher Pattern Lab', () => {
     await page.keyboard.press('Escape')
     await expect(preview).toBeFocused()
     expect(writes).toEqual([])
+  })
+
+  test('prototypes test editing as split desktop panes and a stacked mobile flow', async ({ page }, testInfo) => {
+    const writes: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) writes.push(request.url())
+    })
+
+    await openPatternLab(page, testInfo, 'teacher')
+    await page.getByRole('button', { name: 'Open test edit prototype' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit Test', exact: true })
+    const detailsPane = dialog.getByTestId('test-editor-details-pane')
+    const contentPane = dialog.getByTestId('test-editor-content-pane')
+    const actionbar = contentPane.getByTestId('test-question-actionbar')
+    const questionNavigation = contentPane.getByRole('group', { name: 'Question navigation' })
+    const toolbar = contentPane.getByRole('toolbar', { name: 'Formatting options' })
+    const editor = contentPane.getByRole('textbox', { name: 'Question 1 prompt' })
+    const close = dialog.getByRole('button', { name: 'Close test edit prototype' })
+    const status = detailsPane.getByRole('status')
+
+    await expect(close).toBeVisible()
+    await expect(status).toHaveText('Saved')
+    const dialogTop = (await dialog.boundingBox())!.y
+    const detailsTop = (await detailsPane.boundingBox())!.y
+    expect(Math.abs(detailsTop - dialogTop)).toBeLessThanOrEqual(2)
+    const closeBounds = (await close.boundingBox())!
+    const settingsBounds = (await detailsPane.getByRole('button', { name: 'Settings', exact: true }).boundingBox())!
+    expect(closeBounds.x >= settingsBounds.x + settingsBounds.width || settingsBounds.x >= closeBounds.x + closeBounds.width).toBe(true)
+
+    await testInfo.attach('test-edit-details-prototype', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('test-edit-details-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+
+    await expect(detailsPane.getByRole('textbox', { name: 'Title' })).toHaveValue('Wetland field study')
+    await expect(detailsPane.getByRole('button', { name: 'Preview', exact: true })).toBeVisible()
+    const settings = detailsPane.getByRole('button', { name: 'Settings', exact: true })
+    await settings.click()
+    await expect(page.getByRole('menuitemradio', { name: 'Show results after return' })).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('menuitemradio', { name: 'Keep results hidden' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(settings).toBeFocused()
+    const references = detailsPane.getByRole('group', { name: 'Reference Docs' })
+    await expect(references.getByRole('button', { name: 'Edit Wetland field notes' })).toBeVisible()
+    const addReference = references.getByRole('button', { name: 'Add reference' })
+    await addReference.click()
+    await expect(page.getByRole('menuitem', { name: 'Link' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'PDF' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Text' })).toBeVisible()
+    await page.getByRole('menuitem', { name: 'Link' }).click()
+    await expect(references.getByRole('textbox', { name: 'link reference label' })).toHaveValue('Link reference 2')
+    await expect(references.getByRole('button', { name: 'Remove Link reference 2' })).toBeVisible()
+    const referenceHandle = references.getByRole('button', { name: /Reorder Wetland field notes/ })
+    await referenceHandle.focus()
+    await referenceHandle.press('ArrowDown')
+    await expect(references.locator('[draggable]').first().getByRole('textbox', { name: 'link reference label' })).toBeVisible()
+    await expect(referenceHandle).toBeFocused()
+    await referenceHandle.press('ArrowUp')
+    await expect(references.locator('[draggable]').first().getByRole('button', { name: 'Edit Wetland field notes' })).toBeVisible()
+    await addReference.click()
+    await page.getByRole('menuitem', { name: 'PDF' }).click()
+    await expect(references.getByText('Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.')).toBeVisible()
+    await expect(detailsPane.getByText('8 total · 22 points')).toBeVisible()
+    const questionActions = actionbar.getByRole('button', { name: 'Question actions' })
+    await questionActions.click()
+    await expect(page.getByRole('menuitem', { name: 'Add multiple-choice question' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Add open-response question' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Duplicate question' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Delete question' })).toBeVisible()
+    await expect(actionbar.getByRole('button', { name: 'Add question' })).toHaveCount(0)
+    await expect(actionbar.getByRole('button', { name: 'Question options' })).toHaveCount(0)
+    await testInfo.attach('test-edit-question-menu-prototype', {
+      body: await page.screenshot({ path: testInfo.outputPath('test-edit-question-menu-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await page.keyboard.press('Escape')
+    await expect(questionActions).toBeFocused()
+    await expect(detailsPane.getByRole('button', { name: 'Publish', exact: true })).toBeVisible()
+    await expect(toolbar).toBeVisible()
+    await expect(editor).toContainText('Which observation best supports')
+    await expect(contentPane.getByRole('spinbutton', { name: 'Points' })).toHaveValue('1')
+    const questionNumber = contentPane.getByRole('spinbutton', { name: 'Question number' })
+    await expect(questionNumber).toHaveValue('1')
+    await expect(contentPane.getByRole('button', { name: 'Previous question' })).toBeDisabled()
+    await expect(contentPane.getByRole('button', { name: 'Next question' })).toBeEnabled()
+    await expect(questionActions).toBeVisible()
+    await questionActions.click()
+    await expect(page.getByRole('menuitem', { name: 'Duplicate question' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Delete question' })).toBeVisible()
+    await expect(page.getByRole('menuitemcheckbox', { name: 'Code response' })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(questionActions).toBeFocused()
+    await expect(contentPane.getByRole('button', { name: /Move question \d+ (earlier|later)/ })).toHaveCount(0)
+    await expect(contentPane.getByText('Questions', { exact: true })).toHaveCount(0)
+    await expect(actionbar.getByRole('spinbutton', { name: 'Points' })).toBeVisible()
+    await expect(actionbar.getByRole('button', { name: 'Question actions' })).toHaveCount(1)
+    const navigationBounds = (await questionNavigation.boundingBox())!
+    const initialContentBounds = (await contentPane.boundingBox())!
+    expect(Math.abs(navigationBounds.x + navigationBounds.width / 2 - (initialContentBounds.x + initialContentBounds.width / 2))).toBeLessThanOrEqual(2)
+    const actionbarBounds = (await actionbar.boundingBox())!
+    expect(navigationBounds.y).toBeGreaterThanOrEqual(actionbarBounds.y)
+    expect(navigationBounds.y + navigationBounds.height).toBeLessThanOrEqual(actionbarBounds.y + actionbarBounds.height + 1)
+    await expect(contentPane.getByRole('button', { name: 'Delete option D' })).toBeVisible()
+    const optionHandle = contentPane.getByRole('button', { name: /Reorder option A/ })
+    await optionHandle.focus()
+    await optionHandle.press('ArrowDown')
+    await expect(contentPane.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('The water is deeper near the boardwalk.')
+    await expect(contentPane.getByRole('button', { name: /Reorder option B/ })).toBeFocused()
+    await contentPane.getByRole('button', { name: /Reorder option B/ }).press('ArrowUp')
+    await expect(contentPane.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Several native species use the same habitat.')
+    const emptyOption = contentPane.getByRole('textbox', { name: 'Question 1 option E' })
+    await expect(emptyOption).toHaveValue('')
+    await expect(contentPane.getByRole('button', { name: 'Delete option E' })).toHaveCount(0)
+
+    await questionNumber.fill('2')
+    await questionNumber.press('Enter')
+    await expect(contentPane.getByRole('textbox', { name: 'Question 2 prompt' })).toContainText('Explain how two organisms')
+    await questionNumber.fill('1')
+    await questionNumber.press('Enter')
+
+    await emptyOption.fill('Seasonal water levels remain stable.')
+    await expect(contentPane.getByRole('button', { name: 'Delete option E' })).toBeVisible()
+    await expect(contentPane.getByRole('textbox', { name: 'Question 1 option F' })).toHaveValue('')
+    await contentPane.getByRole('button', { name: 'Delete option E' }).click()
+    await expect(contentPane.getByRole('textbox', { name: 'Question 1 option E' })).toHaveValue('')
+    await expect(contentPane.getByRole('textbox', { name: 'Question 1 option F' })).toHaveCount(0)
+    await contentPane.getByRole('textbox', { name: 'Question 1 option A' }).fill('Updated multiple-choice option.')
+    await questionNumber.fill('4')
+    await questionNumber.press('Enter')
+    await expect(contentPane.getByRole('textbox', { name: 'Question 4 option A' })).toHaveValue('Several native species use the same habitat.')
+    await questionNumber.fill('1')
+    await questionNumber.press('Enter')
+
+    const detailsBounds = (await detailsPane.boundingBox())!
+    const contentBounds = (await contentPane.boundingBox())!
+    const toolbarBounds = (await toolbar.boundingBox())!
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
+      expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThan(1)
+      expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
+      expect(toolbarBounds.x).toBeGreaterThanOrEqual(contentBounds.x)
+      expect(await detailsPane.evaluate((element) => getComputedStyle(element).borderRightWidth)).toBe('0px')
+      const publishBounds = (await detailsPane.getByRole('button', { name: 'Publish', exact: true }).boundingBox())!
+      const previewBounds = (await detailsPane.getByRole('button', { name: 'Preview', exact: true }).boundingBox())!
+      const detailsPaddingBottom = await detailsPane.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))
+      expect(Math.abs(publishBounds.y + publishBounds.height - (detailsBounds.y + detailsBounds.height - detailsPaddingBottom))).toBeLessThanOrEqual(2)
+      expect(Math.abs(previewBounds.y - publishBounds.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(previewBounds.width - publishBounds.width)).toBeLessThanOrEqual(2)
+    } else {
+      expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
+      expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThan(1)
+    }
+
+    await testInfo.attach('test-edit-split-prototype', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('test-edit-split-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+
+    await contentPane.getByRole('button', { name: 'Next question' }).click()
+    await expect(contentPane.getByRole('textbox', { name: 'Question 2 prompt' })).toContainText('Explain how two organisms')
+    await expect(contentPane.getByRole('spinbutton', { name: 'Points' })).toHaveValue('5')
+    await questionActions.click()
+    const codeResponse = page.getByRole('menuitemcheckbox', { name: 'Code response' })
+    await expect(codeResponse).toHaveAttribute('aria-checked', 'false')
+    await testInfo.attach('test-edit-open-question-menu-prototype', {
+      body: await page.screenshot({ path: testInfo.outputPath('test-edit-open-question-menu-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await codeResponse.click()
+    await questionActions.click()
+    await expect(page.getByRole('menuitemcheckbox', { name: 'Code response' })).toHaveAttribute('aria-checked', 'true')
+    await page.keyboard.press('Escape')
+    await expect(contentPane.getByRole('textbox', { name: 'Answer key' })).toBeVisible()
+    await expect(contentPane.getByRole('textbox', { name: 'Sample solution' })).toBeVisible()
+    if (testInfo.project.metadata.viewport === 'mobile') {
+      const scrolledClose = (await close.boundingBox())!
+      const publish = (await detailsPane.getByRole('button', { name: 'Publish', exact: true }).boundingBox())!
+      expect(scrolledClose.y + scrolledClose.height <= publish.y || scrolledClose.y >= publish.y + publish.height).toBe(true)
+    }
+    await testInfo.attach('test-edit-open-response-prototype', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('test-edit-open-response-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await questionNumber.fill('1')
+    await questionNumber.press('Enter')
+
+    await questionActions.click()
+    await page.getByRole('menuitem', { name: 'Duplicate question' }).click()
+    await expect(detailsPane.getByText('9 total · 23 points')).toBeVisible()
+    await expect(questionNumber).toHaveValue('2')
+    await expect(contentPane.getByText('Multiple choice', { exact: true })).toBeVisible()
+    await expect(contentPane.getByRole('textbox', { name: 'Question 2 prompt' })).toContainText('(copy)')
+    await questionActions.click()
+    await page.getByRole('menuitem', { name: 'Delete question' }).click()
+    await expect(detailsPane.getByText('8 total · 22 points')).toBeVisible()
+    await questionNumber.fill('1')
+    await questionNumber.press('Enter')
+
+    const codeMode = detailsPane.getByRole('button', { name: 'Markdown', exact: true })
+    await codeMode.click()
+    const markdownEditor = contentPane.getByRole('textbox', { name: 'Test markdown editor' })
+    await expect(markdownEditor).toContainText('## Questions')
+    await expect(contentPane.getByRole('button', { name: 'Apply Markdown' })).toBeDisabled()
+    await testInfo.attach('test-edit-code-prototype', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('test-edit-code-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await markdownEditor.press('End')
+    await markdownEditor.pressSequentially('\n# Teacher note')
+    await expect(contentPane.getByRole('button', { name: 'Apply Markdown' })).toBeEnabled()
+    await contentPane.getByRole('button', { name: 'Undo' }).click()
+    await expect(contentPane.getByRole('button', { name: 'Apply Markdown' })).toBeDisabled()
+    const originalMarkdown = await markdownEditor.inputValue()
+    await markdownEditor.fill(originalMarkdown.replace('Title: Wetland field study', 'Title: Wetland field study revised'))
+    await contentPane.getByRole('button', { name: 'Apply Markdown' }).click()
+    await expect(detailsPane.getByRole('textbox', { name: 'Title' })).toHaveValue('Wetland field study revised')
+    await markdownEditor.fill(originalMarkdown)
+    await contentPane.getByRole('button', { name: 'Apply Markdown' }).click()
+    await expect(detailsPane.getByRole('textbox', { name: 'Title' })).toHaveValue('Wetland field study')
+    await codeMode.click()
+
+    await editor.fill('Updated wetland question.')
+    await expect(dialog.locator('[role="status"][aria-live="polite"]')).toHaveText('Unsaved')
+    await detailsPane.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(dialog.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
+
+    const preview = detailsPane.getByRole('button', { name: 'Preview', exact: true })
+    await preview.click()
+    const studentPreview = page.getByRole('region', { name: 'Teacher test preview' })
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true)
+    await expect(studentPreview.getByText('Preview Mode')).toBeVisible()
+    await expect(studentPreview.getByRole('heading', { name: 'Wetland field study' })).toBeVisible()
+    await expect(studentPreview).toContainText('Updated wetland question.')
+    await expect(studentPreview).toContainText('Describe one follow-up observation that would strengthen the study.')
+    await expect(studentPreview.locator('[data-question-id="00000000-0000-4000-8000-000000000001"]')).toContainText('Updated multiple-choice option.')
+    await expect(studentPreview.locator('[data-question-id="00000000-0000-4000-8000-000000000004"]')).toContainText('Several native species use the same habitat.')
+    await expect(studentPreview.getByRole('textbox', { name: 'Response for question 3' })).toHaveClass(/font-mono/)
+    await studentPreview.getByRole('button', { name: 'Wetland field notes' }).click()
+    await expect(studentPreview.getByRole('heading', { name: 'Field notes', exact: true })).toBeVisible()
+    await expect(studentPreview.getByText('Count native species')).toBeVisible()
+    await expect(studentPreview.getByRole('button', { name: 'Link reference 2' })).toHaveCount(0)
+    await expect(studentPreview.getByRole('button', { name: 'PDF reference 3' })).toHaveCount(0)
+    await testInfo.attach('test-edit-full-preview-prototype', {
+      body: await page.screenshot({ path: testInfo.outputPath('test-edit-full-preview-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await studentPreview.getByRole('button', { name: 'Close Preview' }).click()
+    await expect(preview).toBeFocused()
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false)
+
+    await editor.fill('')
+    await questionNumber.fill('2')
+    await questionNumber.press('Enter')
+    await expect(detailsPane.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
+    await expect(detailsPane.getByText('Check question 1.')).toBeVisible()
+    await questionNumber.fill('1')
+    await questionNumber.press('Enter')
+    await editor.fill('Updated wetland question.')
+    await expect(detailsPane.getByRole('button', { name: 'Publish', exact: true })).toBeEnabled()
+
+    await questionActions.click()
+    await page.getByRole('menuitem', { name: 'Add open-response question' }).click()
+    await expect(detailsPane.getByText('9 total · 27 points')).toBeVisible()
+    await expect(questionNumber).toHaveValue('9')
+    await expect(contentPane.getByText('Open response', { exact: true })).toBeVisible()
+    await questionActions.click()
+    await page.getByRole('menuitem', { name: 'Delete question' }).click()
+    await expect(detailsPane.getByText('8 total · 22 points')).toBeVisible()
+
+    const titleInput = detailsPane.getByRole('textbox', { name: 'Title' })
+    await titleInput.fill('')
+    await expect(detailsPane.getByText('Add a title before publishing.')).toBeVisible()
+    await expect(detailsPane.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
+    expect(writes).toEqual([])
+  })
+
+  test('authors a Markdown text reference and carries it into the full Test preview', async ({ page }, testInfo) => {
+    const writes: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) writes.push(request.url())
+    })
+    await openPatternLab(page, testInfo, 'teacher')
+    await page.getByRole('button', { name: 'Open test edit prototype' }).click()
+    const testDialog = page.getByRole('dialog', { name: 'Edit Test', exact: true })
+    const details = testDialog.getByTestId('test-editor-details-pane')
+    const references = details.getByRole('group', { name: 'Reference Docs' })
+    await references.getByRole('button', { name: 'Add reference' }).click()
+    await page.getByRole('menuitem', { name: 'Text' }).click()
+    const documentDialog = page.getByRole('dialog', { name: 'Add Document' })
+    await expect(documentDialog.getByRole('textbox', { name: 'Document title' })).toBeFocused()
+    await documentDialog.getByRole('button', { name: 'Add text' }).click()
+    await expect(documentDialog.getByRole('alert')).toHaveText('Document title is required')
+    await documentDialog.getByRole('textbox', { name: 'Document title' }).fill('Wetland notes')
+    await documentDialog.getByRole('button', { name: 'Add text' }).click()
+    await expect(documentDialog.getByRole('alert')).toHaveText('Document text is required')
+    await documentDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n- Count native species\n- Record water depth')
+    await expect(documentDialog).toContainText(/\d+\/20000 characters/)
+    await testInfo.attach('test-text-reference-editor', {
+      body: await documentDialog.screenshot({ path: testInfo.outputPath('test-text-reference-editor.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await documentDialog.getByRole('button', { name: 'Add text' }).click()
+    await expect(documentDialog).toBeHidden()
+    const editReference = references.getByRole('button', { name: 'Edit Wetland notes' })
+    await expect(editReference).toContainText('Count native species')
+    await editReference.click()
+    const editDialog = page.getByRole('dialog', { name: 'Edit document' })
+    await expect(editDialog.getByRole('textbox', { name: 'Document title' })).toHaveValue('Wetland notes')
+    await expect(editDialog.getByRole('textbox', { name: 'Document text' })).toContainText('Count native species')
+    await editDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n### Document 2\n- Count native species\n- Record water temperature')
+    await editDialog.getByRole('button', { name: 'Cancel' }).click()
+    await editReference.click()
+    await expect(editDialog.getByRole('textbox', { name: 'Document text' })).toContainText('Record water depth')
+    await editDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n### Document 2\n- Count native species\n- Record water temperature')
+    await editDialog.getByRole('button', { name: 'Save' }).click()
+    await expect(editReference).toContainText('Record water temperature')
+    await testInfo.attach('test-text-reference-list', {
+      body: await testDialog.screenshot({ path: testInfo.outputPath('test-text-reference-list.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await details.getByRole('button', { name: 'Markdown', exact: true }).click()
+    const markdown = testDialog.getByRole('textbox', { name: 'Test markdown editor' })
+    await expect(markdown).toContainText('Record water temperature')
+    await markdown.fill((await markdown.inputValue()).replace('Title: Wetland field study', 'Title: Wetland field study revised'))
+    await testDialog.getByRole('button', { name: 'Apply Markdown' }).click()
+    await expect(details.getByRole('textbox', { name: 'Title' })).toHaveValue('Wetland field study revised')
+    await details.getByRole('button', { name: 'Markdown', exact: true }).click()
+    await details.getByRole('button', { name: 'Preview', exact: true }).click()
+    const preview = page.getByRole('region', { name: 'Teacher test preview' })
+    const documentsPane = preview.getByRole('region', { name: 'Test documents' })
+    const questionsPane = preview.getByRole('region', { name: 'Test questions' })
+    const separator = preview.getByRole('separator', { name: 'Resize documents and questions panes' })
+    if (testInfo.project.name.includes('desktop')) {
+      await separator.focus()
+      await separator.press('ArrowRight')
+      await separator.press('ArrowRight')
+      await expect(separator).toHaveAttribute('aria-valuenow', '40')
+    }
+    const bounds = async () => [await documentsPane.boundingBox(), await questionsPane.boundingBox()]
+    // Finish any resize animation before comparing actual pane geometry.
+    await page.waitForTimeout(350)
+    const before = await bounds()
+    await testInfo.attach('reference-list', { body: await preview.screenshot(), contentType: 'image/png' })
+    await preview.getByRole('button', { name: 'Wetland notes' }).click()
+    await page.waitForTimeout(350)
+    expect(await bounds()).toEqual(before)
+
+    await expect(preview.getByRole('heading', { name: 'Field notes' })).toBeVisible()
+    await expect(preview.getByRole('heading', { name: 'Document 2' })).toBeVisible()
+    await expect(preview.getByText('Record water temperature')).toBeVisible()
+    await testInfo.attach('test-text-reference-preview', {
+      body: await page.screenshot({ path: testInfo.outputPath('test-text-reference-preview.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await preview.getByRole('button', { name: 'Back to documents list' }).click()
+    await page.waitForTimeout(350)
+    expect(await bounds()).toEqual(before)
+    await testInfo.attach('reference-back', { body: await preview.screenshot(), contentType: 'image/png' })
+    expect(writes).toEqual([])
+  })
+
+  test('releases fullscreen after the Test preview maximize retry', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'pattern-lab-desktop-light', 'One fullscreen retry check is sufficient')
+    await page.addInitScript(() => {
+      const requestFullscreen = Element.prototype.requestFullscreen
+      let requests = 0
+      Element.prototype.requestFullscreen = function (options?: FullscreenOptions) {
+        requests += 1
+        if (requests === 1) return Promise.reject(new Error('First request blocked for the prototype test'))
+        return requestFullscreen.call(this, options)
+      }
+    })
+
+    await openPatternLab(page, testInfo, 'teacher')
+    await page.getByRole('button', { name: 'Open test edit prototype' }).click()
+    const previewButton = page.getByRole('dialog', { name: 'Edit Test' }).getByRole('button', { name: 'Preview', exact: true })
+    await previewButton.click()
+    const preview = page.getByRole('region', { name: 'Teacher test preview' })
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false)
+    await page.getByRole('button', { name: 'Maximize Window' }).click()
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true)
+    await preview.getByRole('button', { name: 'Close Preview' }).click()
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false)
+    await expect(previewButton).toBeFocused()
   })
 
   test('previews material with a pinned creation bar and explicit draft action', async ({ page }, testInfo) => {
@@ -602,10 +1331,11 @@ test.describe('teacher Pattern Lab', () => {
     await expect(date).not.toHaveAttribute('aria-describedby')
     expect((await date.boundingBox())!.height).toBe(dateHeightWithSubtitle)
 
-    await page.getByRole('tab', { name: 'Overview', exact: true }).focus()
+    const workspace = examples.getByTestId('attached-shell-example')
+    await workspace.getByRole('tab', { name: 'Overview', exact: true }).focus()
     await page.keyboard.press('ArrowRight')
-    await expect(page.getByRole('tab', { name: 'Work details' })).toBeFocused()
-    await expect(page.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
+    await expect(workspace.getByRole('tab', { name: 'Work details' })).toBeFocused()
+    await expect(workspace.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
     await testInfo.attach('teacher-family-future-and-selected', {
       body: await examples.screenshot({ path: testInfo.outputPath('teacher-family-future-and-selected.png'), animations: 'disabled' }), contentType: 'image/png',
     })

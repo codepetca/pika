@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import type { TiptapContent } from '@/types'
 import type { TableInsert } from '@/types/database'
+import {
+  assertContextualMaterialRows,
+  authorizeClassroomMaterialRequest,
+} from '@/lib/server/classroom-material-access'
+import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contextual-classwork-creation-access'
+import { createClassworkMaterialForOwner } from '@/lib/server/contextual-classwork-creation'
+import { contextualMaterialCreateSchema } from '@/lib/validations/classwork-authoring'
+import type { Json } from '@/types/database.generated'
+import { authorizeSharedMaterialReadActor, readContextualMaterials } from '@/lib/server/contextual-material-read'
+import { authorizeSharedMaterialMutationActor, createContextualMaterial } from '@/lib/server/contextual-material-mutation'
+import { parseMaterialCreateParams } from '@/lib/validations/material-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,12 +34,28 @@ function isMissingMaterialsPositionError(error: any) {
 }
 
 export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_request, context) => {
-  const user = await requireRole('teacher')
-  const { id: classroomId } = await context.params
+  const sharedAccess = await authorizeSharedMaterialReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = await context.params
+    return NextResponse.json(await readContextualMaterials({
+      supabase: getServiceRoleClient(), actorId: sharedAccess.user.id,
+      classroomId, permission: 'owner',
+    }))
+  }
+  const params = context.params
+  const materialAccess = await authorizeClassroomMaterialRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'teacher',
+    permission: 'owner',
+  })
+  const { id: classroomId } = await params
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
-  if (!ownership.ok) {
-    return NextResponse.json({ error: ownership.error }, { status: ownership.status })
+  if (materialAccess.mode === 'legacy') {
+    const ownership = await assertTeacherOwnsClassroom(materialAccess.user.id, classroomId)
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error }, { status: ownership.status })
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -61,13 +87,30 @@ export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_requ
     return NextResponse.json({ error: 'Failed to fetch materials' }, { status: 500 })
   }
 
+  if (materialAccess.mode === 'contextual') {
+    assertContextualMaterialRows(classroomId, materials)
+  }
+
   return NextResponse.json({ materials: materials || [] })
 })
 
 export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id: classroomId } = await context.params
-  const body = await request.json()
+  const sharedAccess = await authorizeSharedMaterialMutationActor()
+  if (sharedAccess.mode === 'shared') {
+    const params = parseMaterialCreateParams(await context.params)
+    const body = contextualMaterialCreateSchema.parse(await request.json())
+    return NextResponse.json(await createContextualMaterial({
+      actorId: sharedAccess.user.id, classroomId: params.id, body,
+    }), { status: 201 })
+  }
+  const materialAccess = await authorizeContextualClassworkCreationRequest(async () => (
+    await context.params
+  ).id)
+  const classroomId = materialAccess.classroomId
+  const rawBody = await request.json()
+  const body = materialAccess.mode === 'contextual'
+    ? contextualMaterialCreateSchema.parse(rawBody)
+    : rawBody
   const { title, content, is_draft: isDraft = true } = body as {
     title?: string
     content?: unknown
@@ -83,12 +126,24 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
     return NextResponse.json({ error: 'Invalid content format' }, { status: 400 })
   }
 
-  const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
+  const supabase = getServiceRoleClient()
+  if (materialAccess.mode === 'contextual') {
+    const material = await createClassworkMaterialForOwner({
+      supabase,
+      actorId: materialAccess.user.id,
+      classroomId,
+      title: cleanTitle,
+      content: content as unknown as Json,
+      isDraft: !!isDraft,
+    })
+    return NextResponse.json({ material }, { status: 201 })
+  }
+
+  const ownership = await assertTeacherCanMutateClassroom(materialAccess.user.id, classroomId)
   if (!ownership.ok) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
 
-  const supabase = getServiceRoleClient()
   const [lastAssignmentResult, lastMaterialResult, lastSurveyResult] = await Promise.all([
     supabase
       .from('assignments')
@@ -144,7 +199,7 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
     content,
     is_draft: !!isDraft,
     released_at: isDraft ? null : new Date().toISOString(),
-    created_by: user.id,
+    created_by: materialAccess.user.id,
   }
 
   if (!isMissingMaterialsPositionError(lastMaterialResult.error)) {

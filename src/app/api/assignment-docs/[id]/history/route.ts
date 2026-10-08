@@ -1,19 +1,35 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireAuth } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import { authorizeContextualAssignmentDocHistoryRequest } from '@/lib/server/contextual-assignment-doc-access'
+import { getContextualAssignmentDocHistory } from '@/lib/server/contextual-assignment-doc-history'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetAssignmentDocHistory', async (request, context) => {
-  const user = await requireAuth()
-  const { id: assignmentId } = await context.params
+  const access = await authorizeContextualAssignmentDocHistoryRequest(async () => (
+    await context.params
+  ).id)
+  const { user, assignmentId } = access
   const supabase = getServiceRoleClient()
   const { searchParams } = new URL(request.url)
   const requestedStudentId = searchParams.get('student_id')
+
+  if (access.mode === 'contextual') {
+    const result = await getContextualAssignmentDocHistory({
+      supabase,
+      actorId: user.id,
+      assignmentId,
+      requestedStudentId,
+    })
+    return NextResponse.json({
+      history: [...result.history].reverse(),
+      docId: result.doc?.id ?? null,
+    })
+  }
 
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')

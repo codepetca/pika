@@ -1,9 +1,96 @@
 import { describe, expect, it, vi } from 'vitest'
-import { useState } from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { startTransition, Suspense, useState } from 'react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { DialogPanel, SplitButton } from '@/ui'
 
 describe('SplitButton', () => {
+  it('keeps the committed primary action live while retirement is suspended', () => {
+    const pending = new Promise<void>(() => {})
+    const onPrimaryClick = vi.fn()
+    let retire!: (value: boolean) => void
+    let suspendedAttempts = 0
+    function Suspender({ inactive }: { inactive: boolean }) {
+      if (inactive) { suspendedAttempts += 1; throw pending }
+      return null
+    }
+    function Parent() {
+      const [inactive, setInactive] = useState(false)
+      retire = setInactive
+      return <Suspense fallback={<p>Pending</p>}>
+        <SplitButton label="Post" interactionActive={!inactive} onPrimaryClick={onPrimaryClick} options={[]} />
+        <Suspender inactive={inactive} />
+      </Suspense>
+    }
+    render(<Parent />)
+    act(() => { startTransition(() => retire(true)) })
+    expect(suspendedAttempts).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    expect(onPrimaryClick).toHaveBeenCalledOnce()
+    act(() => { retire(false) })
+  })
+
+  it('cancels and fences deferred focus across retirement and rapid reactivation without changing button styling', () => {
+    let oldFrame!: FrameRequestCallback
+    const frameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { oldFrame = callback; return 41 })
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    const onPrimaryClick = vi.fn()
+    const options = [{ id: 'draft', label: 'Draft', onSelect: vi.fn() }]
+    const props = { label: 'Post', onPrimaryClick, options, toggleAriaLabel: 'Choose action' }
+    const view = render(<SplitButton {...props} />)
+    try {
+      const primary = screen.getByRole('button', { name: 'Post' })
+      const originalClass = primary.className
+      fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      expect(frameSpy).toHaveBeenCalledOnce()
+      view.rerender(<SplitButton {...props} interactionActive={false} />)
+      expect(cancelSpy).toHaveBeenCalledWith(41)
+      expect(primary).toBeEnabled()
+      expect(primary.className).toBe(originalClass)
+      fireEvent.click(primary)
+      expect(onPrimaryClick).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      view.rerender(<SplitButton {...props} />)
+      // Even a cancelled callback delivered late cannot focus the new lifetime.
+      act(() => { (document.activeElement as HTMLElement).blur(); oldFrame(0) })
+      expect(primary).not.toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Choose action' })).not.toHaveFocus()
+    } finally {
+      view.unmount()
+      frameSpy.mockRestore()
+      cancelSpy.mockRestore()
+    }
+  })
+
+  it('retires its document listeners and cancels a queued Tab close before a new menu opens', () => {
+    vi.useFakeTimers()
+    const addSpy = vi.spyOn(document, 'addEventListener')
+    const removeSpy = vi.spyOn(document, 'removeEventListener')
+    const props = { label: 'Actions', singleMenuTrigger: true, options: [{ id: 'one', label: 'First action', onSelect: vi.fn() }] }
+    const view = render(<SplitButton {...props} />)
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+      const mouseListener = addSpy.mock.calls.findLast(([name]) => name === 'mousedown')![1]
+      const focusListener = addSpy.mock.calls.findLast(([name]) => name === 'focusin')![1]
+      fireEvent.keyDown(screen.getByRole('menuitem', { name: 'First action' }), { key: 'Tab' })
+      view.rerender(<SplitButton {...props} interactionActive={false} />)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(removeSpy).toHaveBeenCalledWith('mousedown', mouseListener)
+      expect(removeSpy).toHaveBeenCalledWith('focusin', focusListener)
+      view.rerender(<SplitButton {...props} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+      act(() => { vi.runOnlyPendingTimers() })
+      expect(screen.getByRole('menuitem', { name: 'First action' })).toHaveFocus()
+    } finally {
+      view.unmount()
+      addSpy.mockRestore()
+      removeSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('runs primary action when main button is clicked', () => {
     const onPrimaryClick = vi.fn()
     const onSelectDraft = vi.fn()
@@ -149,6 +236,58 @@ describe('SplitButton', () => {
     expect(onHoverChange).toHaveBeenLastCalledWith(false)
   })
 
+  it('closes on Tab without trapping or returning focus, leaving external caret keys native', async () => {
+    const user = userEvent.setup()
+    render(<><SplitButton label="Actions" singleMenuTrigger options={[
+      { id: 'one', label: 'First action', onSelect: vi.fn() },
+      { id: 'two', label: 'Second action', onSelect: vi.fn() },
+    ]} /><input aria-label="External text" /></>)
+    await user.click(screen.getByRole('button', { name: 'Actions' }))
+    expect(screen.getByRole('menuitem', { name: 'First action' })).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('menuitem', { name: 'Second action' })).toHaveAttribute('tabindex', '-1')
+    await user.tab()
+    const input = screen.getByRole('textbox', { name: 'External text' })
+    expect(input).toHaveFocus()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    const event = new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true })
+    input.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(input).toHaveFocus()
+  })
+
+  it('allows Shift-Tab to return to its trigger and closes without a focus trap', async () => {
+    const user = userEvent.setup()
+    render(<SplitButton label="Actions" singleMenuTrigger options={[
+      { id: 'one', label: 'First action', onSelect: vi.fn() },
+    ]} />)
+    const trigger = screen.getByRole('button', { name: 'Actions' })
+    await user.click(trigger)
+    await user.tab({ shift: true })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(trigger).toHaveFocus()
+  })
+
+  it('keeps one enabled roving target when the active option becomes unavailable', () => {
+    const options = [{ id: 'one', label: 'First action', onSelect: vi.fn() }, { id: 'two', label: 'Second action', onSelect: vi.fn() }]
+    const { rerender } = render(<SplitButton label="Actions" singleMenuTrigger options={options} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+    rerender(<SplitButton label="Actions" singleMenuTrigger options={[{ ...options[0], disabled: true }, options[1]]} />)
+    expect(screen.getByRole('menuitem', { name: 'First action' })).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByRole('menuitem', { name: 'Second action' })).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('menuitem', { name: 'Second action' })).toHaveFocus()
+  })
+
+  it('closes when focus moves outside without stealing focus back', async () => {
+    render(<><SplitButton label="Actions" singleMenuTrigger options={[
+      { id: 'one', label: 'First action', onSelect: vi.fn() },
+    ]} /><input aria-label="External text" /></>)
+    fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+    const input = screen.getByRole('textbox', { name: 'External text' })
+    input.focus()
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(input).toHaveFocus()
+  })
+
   it('moves focus to the first enabled menu option when opened', () => {
     render(
       <SplitButton
@@ -191,19 +330,19 @@ describe('SplitButton', () => {
 
     expect(draft).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
     expect(publish).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'End' })
+    fireEvent.keyDown(document.activeElement!, { key: 'End' })
     expect(deleteOption).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
     expect(draft).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'ArrowUp' })
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' })
     expect(deleteOption).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'Home' })
+    fireEvent.keyDown(document.activeElement!, { key: 'Home' })
     expect(draft).toHaveFocus()
   })
 
@@ -236,7 +375,7 @@ describe('SplitButton', () => {
     render(<RerenderingMenu />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply actions' }))
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
 
     await waitFor(() => {
       expect(screen.getByRole('menuitem', { name: 'Apply Comments' })).toHaveFocus()
@@ -259,7 +398,7 @@ describe('SplitButton', () => {
     fireEvent.click(primary)
     expect(screen.getByRole('menuitem', { name: 'Link' })).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(primary).toHaveFocus()

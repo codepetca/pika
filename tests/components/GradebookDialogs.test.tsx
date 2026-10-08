@@ -82,6 +82,17 @@ describe('GradebookEditorDialog', () => {
 describe('GradebookAssessmentEditor', () => {
   const assessment = { assessment_id: 'a1', assessment_type: 'assignment' as const, title: 'Essay', code: 'A1', possible: 30, weight: 20, include_in_final: true, category_id: categories[1].id }
 
+  it('accepts zero and shows a zero course contribution', () => {
+    const onSave = vi.fn()
+    render(<GradebookAssessmentEditor isOpen assessment={assessment} assessments={[assessment, { ...assessment, assessment_id: 'a2' }]} categories={categories} onClose={vi.fn()} onSave={onSave} />)
+    const weight = screen.getByRole('spinbutton', { name: 'Category weight' })
+    fireEvent.change(weight, { target: { value: '0' } })
+    expect(weight).toHaveAttribute('min', '0')
+    expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('0%')
+    fireEvent.click(screen.getByRole('button', { name: 'Save assessment' }))
+    expect(onSave).toHaveBeenCalledWith('Essay', categories[1].id, 0)
+  })
+
   it.each(['assignment', 'test'] as const)('allows renaming a live %s to another assessment title', (assessmentType) => {
     const onSave = vi.fn()
     const edited = { ...assessment, assessment_type: assessmentType }

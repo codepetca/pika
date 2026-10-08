@@ -68,16 +68,19 @@ export function DataTable({
 export function DataTableHead({
   children,
   sticky = false,
+  dividers = true,
   className = '',
 }: {
   children: ReactNode
   sticky?: boolean
+  dividers?: boolean
   className?: string
 }) {
   return (
     <thead
       className={[
-        'border-b border-border bg-surface-2',
+        'bg-surface-3',
+        dividers ? 'border-b border-border' : '',
         sticky ? 'sticky top-0 z-sticky-table' : '',
         className,
       ].filter(Boolean).join(' ')}
@@ -87,8 +90,8 @@ export function DataTableHead({
   )
 }
 
-export function DataTableBody({ children }: { children: ReactNode }) {
-  return <tbody className="divide-y divide-border">{children}</tbody>
+export function DataTableBody({ children, dividers = true }: { children: ReactNode; dividers?: boolean }) {
+  return <tbody className={dividers ? 'divide-y divide-border' : undefined}>{children}</tbody>
 }
 
 export function DataTableRow({
@@ -177,7 +180,7 @@ export function SortableHeaderCell({
         densityPadding(density),
         'flex min-h-control w-full items-center gap-1 focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
         alignClass,
-        'hover:bg-surface-hover transition-colors',
+        'hover:bg-surface-hover transition-colors duration-fast ease-standard motion-reduce:transition-none',
         resize ? 'relative' : '',
         buttonClassName,
       ].join(' ')}
@@ -396,6 +399,7 @@ export interface TableSelectionCheckboxProps extends Omit<
   indeterminate?: boolean
   onChange: (checked: boolean) => void
   ariaLabel: string
+  disabledTooltip?: string
 }
 
 export function TableSelectionCheckbox({
@@ -403,6 +407,7 @@ export function TableSelectionCheckbox({
   indeterminate = false,
   onChange,
   ariaLabel,
+  disabledTooltip,
   className = '',
   onClick,
   ...props
@@ -413,7 +418,7 @@ export function TableSelectionCheckbox({
     if (inputRef.current) inputRef.current.indeterminate = indeterminate
   }, [indeterminate])
 
-  return (
+  const checkbox = (
     <input
       {...props}
       ref={inputRef}
@@ -432,6 +437,23 @@ export function TableSelectionCheckbox({
       ].filter(Boolean).join(' ')}
     />
   )
+
+  if (props.disabled && disabledTooltip) {
+    return (
+      <Tooltip content={disabledTooltip}>
+        <span
+          role="note"
+          aria-label={disabledTooltip}
+          tabIndex={0}
+          className="inline-flex rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+        >
+          {checkbox}
+        </span>
+      </Tooltip>
+    )
+  }
+
+  return checkbox
 }
 
 export function TableSelectionHeaderCell({
@@ -439,6 +461,7 @@ export function TableSelectionHeaderCell({
   indeterminate,
   onChange,
   ariaLabel,
+  disabledTooltip,
   disabled,
   density,
   className = '',
@@ -453,6 +476,7 @@ export function TableSelectionHeaderCell({
         indeterminate={indeterminate}
         onChange={onChange}
         ariaLabel={ariaLabel}
+        disabledTooltip={disabledTooltip}
         disabled={disabled}
       />
     </DataTableHeaderCell>
@@ -463,6 +487,7 @@ export function TableSelectionCell({
   checked,
   onChange,
   ariaLabel,
+  disabledTooltip,
   disabled,
   density,
   className = '',
@@ -476,6 +501,7 @@ export function TableSelectionCell({
         checked={checked}
         onChange={onChange}
         ariaLabel={ariaLabel}
+        disabledTooltip={disabledTooltip}
         disabled={disabled}
       />
     </DataTableCell>

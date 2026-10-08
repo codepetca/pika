@@ -29,13 +29,14 @@ A course package is a tar archive with these root files:
 - `lesson-plans.md`
 - `classwork-materials.md`
 - `surveys.md`
+- `authoring-guidance.md`
 
 `manifest.json` stores package metadata, gradebook category defaults, and
 planned-site publishing settings. The Markdown files store the editable
 teacher-authored course content.
 
-The canonical export manifest version is `5`. Pika imports versions `2`, `3`,
-`4`, and `5`, and rejects other versions. Version `2` is an import-only compatibility
+The canonical export manifest version is `6`. Pika imports versions `2`, `3`,
+`4`, `5`, and `6`, and rejects other versions. Version `2` is an import-only compatibility
 boundary: Pika imports its reusable course, assignment, Test, and lesson-plan
 content while discarding `quizzes.md`. Version `3` package manifests accept the
 two historical planned-site forms: the six current keys, with or without the
@@ -43,7 +44,10 @@ retired `quizzes` key, which the adapter discards. Versions `4` and `5` reject
 unknown manifest fields and undeclared files. Version `5` adds the Blueprint ID,
 source Draft revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
 Missing, malformed, or duplicate Artifact IDs fail version `5` validation;
-legacy versions receive IDs once during import. The package format version is
+legacy versions receive IDs once during import. Version `6` adds required
+`authoring-guidance.md` for teacher-only authoring guidance. Versions `2`–`5`
+import with empty guidance; they never infer teacher guidance from other files.
+The package format version is
 independent of both the database migration number and the Blueprint's own
 Version number.
 
@@ -60,6 +64,31 @@ is parsed into one canonical portable course model.
 | `3` | The same six reusable files | None | Strict manifest with six current planned-site keys and only the historical `quizzes` key optionally allowed; the adapter discards it |
 | `4` | The same six reusable files | None | Strict manifest and current planned-site keys |
 | `5` | The six reusable files plus `classwork-materials.md` and `surveys.md` | None | Strict identity-aware manifest, grading, and provenance |
+| `6` | The version `5` files plus `authoring-guidance.md` | None | The version `5` manifest shape with version `6` |
+
+### Authoring Guidance Markdown
+
+`authoring-guidance.md` contains teacher-only instructions used while drafting
+the Blueprint's assignments and Tests. It is never a student-facing course-site
+page. Its top sections are **Course expectations**, **Assignment guidance**, and
+**Test guidance**. Any number of **Unit** sections can override assignment and
+Test guidance for a named unit; each carries a stable UUIDv4 ID. All three
+top-level sections are required, even when their content is empty.
+
+The file starts with `# Authoring guidance` and a `pika-guidance:v1` marker.
+Each editable Markdown section is enclosed by matching begin/end HTML comment
+markers. The export chooses a `pika-N` token absent from all guidance text, so
+headings, comment-like text, and Markdown fences inside guidance cannot end a
+section accidentally. Unit metadata stores its ID and full label in a URL-encoded
+JSON comment; the visible `## Unit: …` heading stays readable. To add or rename a
+unit, update both the heading and its metadata. To edit ordinary guidance, change
+the text between its markers and leave the markers intact. Import rejects missing,
+duplicate, reordered, or malformed markers and unknown trailing content. It also
+rejects invalid or repeated unit IDs and guidance outside the strict schema,
+instead of discarding it.
+
+The JSON and TAR fixtures for version `6` in `tests/fixtures` show the full file
+structure. The version `2`–`5` fixture bytes and hashes remain unchanged.
 
 Raw schemas never create missing files or supply defaults. Direct JSON and TAR
 packages feed the same verifier. Raw JSON is decoded as fatal UTF-8, rejects a
@@ -120,6 +149,7 @@ pnpm test tests/lib/course-blueprint-package-contract.test.ts
 - Ungraded classwork materials
 - Survey definitions and questions
 - Gradebook mode and assignment/test category weights
+- Teacher-only course, assignment, Test, and unit authoring guidance
 
 ## Excluded
 
@@ -163,8 +193,14 @@ Successful and failed API responses include `operation_id` when a ledger-backed 
 
 Apply `081_atomic_blueprint_round_trips.sql` and
 `112_versioned_course_blueprint_identity.sql` before deploying the
-identity-aware application code. The application deliberately fails closed
-with HTTP `503` when a required migration is absent.
+identity-aware application code. Apply
+`218_course_blueprint_authoring_guidance.sql` before deploying package version
+`6` and guidance-aware Blueprint code. Migration `218` adds the private guidance
+column and revision history, updates the content revision trigger, and adds
+atomic import and proposal wrappers that preserve guidance. Import and proposal
+application fail closed with HTTP `503` when their required RPC is absent;
+missing guidance schema must be treated as a rollout failure, never as empty
+teacher guidance.
 
 The migration is additive, so the previous application version can run while it is being applied. If the application deployment must be rolled back, leave the migration and ledger in place. Do not drop the functions, triggers, revision columns, or ledger until all deployed application versions no longer reference them.
 

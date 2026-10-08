@@ -138,9 +138,10 @@ export function canUnsubmitAssignmentDoc(
  * - is_submitted = true && submitted_at <= due_at: "submitted_on_time"
  * - is_submitted = true && submitted_at > due_at: "submitted_late"
  */
-export function calculateAssignmentStatus(
+function calculateAssignmentStatusForAudience(
   assignment: Assignment,
-  doc: AssignmentDoc | null | undefined
+  doc: AssignmentDoc | null | undefined,
+  includeUnreturnedGradeState: boolean,
 ): AssignmentStatus {
   const now = new Date()
   const dueAt = new Date(assignment.due_at)
@@ -167,7 +168,7 @@ export function calculateAssignmentStatus(
   }
 
   // Graded but not yet returned
-  if (doc.graded_at) {
+  if (includeUnreturnedGradeState && doc.graded_at) {
     return 'graded'
   }
 
@@ -184,6 +185,24 @@ export function calculateAssignmentStatus(
 
   // Fallback (shouldn't happen - submitted but no submitted_at)
   return 'submitted_on_time'
+}
+
+export function calculateAssignmentStatus(
+  assignment: Assignment,
+  doc: AssignmentDoc | null | undefined
+): AssignmentStatus {
+  return calculateAssignmentStatusForAudience(assignment, doc, true)
+}
+
+/**
+ * Calculate the status that a student is allowed to see.
+ * Internal grading progress stays private until the teacher returns the work.
+ */
+export function calculateStudentAssignmentStatus(
+  assignment: Assignment,
+  doc: AssignmentDoc | null | undefined
+): AssignmentStatus {
+  return calculateAssignmentStatusForAudience(assignment, doc, false)
 }
 
 export function isAssignmentAwaitingReturn(doc: AssignmentStatDoc): boolean {

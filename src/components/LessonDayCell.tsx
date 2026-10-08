@@ -237,7 +237,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
                 } ${assignment.is_draft ? 'opacity-50' : ''}`}
               >
-                {compact ? assignment.title : `Due: ${assignment.title}`}
+                Due: {assignment.title}
               </button>
             </Tooltip>
           ))}

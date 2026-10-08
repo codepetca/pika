@@ -30,10 +30,11 @@ export const POST = withErrorHandler('PostStudentTestRespond', async (request, c
     studentId: user.id,
     testId,
     responses: parsed.data.responses,
+    expectedRevision: parsed.data.expectedRevision,
   })
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: result.status })
+    return NextResponse.json({ error: result.error, error_code: result.error_code, attempt: result.attempt }, { status: result.status })
   }
 
-  return NextResponse.json({ success: true }, { status: 201 })
+  return NextResponse.json({ success: true, draft_revision: result.draftRevision }, { status: 201 })
 })

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
+import { authorizeContextualAssignmentBulkRequest } from '@/lib/server/contextual-assignment-bulk-access'
+import { saveAssignmentsBulkForOwner } from '@/lib/server/contextual-assignment-bulk'
+import type { Json } from '@/types/database.generated'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -80,8 +82,22 @@ function buildAssignmentPositions(
  * - Updates positions based on order in array
  */
 export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (request, context) => {
-  const user = await requireRole('teacher')
-  const body = await request.json()
+  let bodyPromise: Promise<unknown> | null = null
+  const readBody = () => {
+    bodyPromise ??= request.json()
+    return bodyPromise
+  }
+  const access = await authorizeContextualAssignmentBulkRequest(async () => {
+    const candidate = await readBody()
+    return typeof candidate === 'object' && candidate !== null
+      && typeof (candidate as { classroom_id?: unknown }).classroom_id === 'string'
+      ? (candidate as { classroom_id: string }).classroom_id
+      : ''
+  })
+  const body = await readBody() as {
+    classroom_id?: string
+    assignments?: BulkAssignmentInput[]
+  }
   const { classroom_id, assignments } = body
 
   // Validate required fields
@@ -107,8 +123,10 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
   }
 
   // Validate teacher owns classroom and can mutate
-  const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
-  if (!ownership.ok) {
+  const ownership = access.mode === 'legacy'
+    ? await assertTeacherCanMutateClassroom(access.user.id, classroom_id)
+    : null
+  if (ownership && !ownership.ok) {
     return NextResponse.json(
       { error: ownership.error },
       { status: ownership.status }
@@ -133,6 +151,34 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
 
   if (errors.length > 0) {
     return NextResponse.json({ errors }, { status: 400 })
+  }
+
+  if (access.mode === 'contextual') {
+    const result = await saveAssignmentsBulkForOwner({
+      supabase,
+      actorId: access.user.id,
+      classroomId: access.classroomId,
+      assignments: inputAssignments.map((assignment) => {
+        const instructionFields = buildAssignmentInstructionFields(assignment.instructions)
+        return {
+          ...(assignment.id ? { id: assignment.id } : {}),
+          title: assignment.title.trim(),
+          dueAt: assignment.due_at,
+          instructionsMarkdown: instructionFields.instructions_markdown,
+          description: instructionFields.description,
+          richInstructions: instructionFields.rich_instructions as unknown as Json,
+          isDraft: assignment.is_draft,
+        }
+      }),
+    })
+    if (!result.ok) {
+      return NextResponse.json({ errors: result.errors }, { status: 400 })
+    }
+    return NextResponse.json({
+      created: result.created,
+      updated: result.updated,
+      assignments: result.assignments,
+    })
   }
 
   // Get IDs of assignments to update
@@ -262,7 +308,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
         due_at: a.due_at,
         position: assignmentPositions.get(a) ?? a.position,
         is_draft: true, // New assignments are always drafts
-        created_by: user.id,
+        created_by: access.user.id,
       }
     })
 

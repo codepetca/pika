@@ -116,6 +116,76 @@ describe('course-blueprints server helpers', () => {
     }))
   })
 
+  it('saves guidance only at the expected content revision and pika authority', async () => {
+    const guidance = {
+      course_expectations_markdown: 'Use course vocabulary.',
+      assignment_guidance_markdown: '',
+      test_guidance_markdown: '',
+      unit_exceptions: [],
+    }
+    const updateBuilder = makeQueryBuilder({
+      data: {
+        id: 'b-1', teacher_id: 'teacher-1', content_revision: 4,
+        authoring_guidance: guidance,
+      },
+    })
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: {
+          id: 'b-1', teacher_id: 'teacher-1', authority_mode: 'pika', content_revision: 3,
+        } }),
+        updateBuilder,
+      ],
+    })
+
+    await expect(updateCourseBlueprint('teacher-1', 'b-1', {
+      authoring_guidance: guidance,
+      expected_content_revision: 3,
+    })).resolves.toEqual(expect.objectContaining({
+      ok: true,
+      blueprint: expect.objectContaining({ authoring_guidance: guidance, content_revision: 4 }),
+    }))
+    expect(updateBuilder.update).toHaveBeenCalledWith(expect.objectContaining({
+      authoring_guidance: guidance,
+    }))
+    expect(updateBuilder.update.mock.calls[0][0]).not.toHaveProperty('expected_content_revision')
+    expect(updateBuilder.eq).toHaveBeenCalledWith('content_revision', 3)
+    expect(updateBuilder.eq).toHaveBeenCalledWith('authority_mode', 'pika')
+    expect(updateBuilder.eq).toHaveBeenCalledWith('teacher_id', 'teacher-1')
+  })
+
+  it('reports a conflict for a stale guidance revision or a lost conditional update', async () => {
+    const guidance = {
+      course_expectations_markdown: '',
+      assignment_guidance_markdown: '',
+      test_guidance_markdown: '',
+      unit_exceptions: [],
+    }
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [makeQueryBuilder({ data: {
+        id: 'b-1', teacher_id: 'teacher-1', authority_mode: 'pika', content_revision: 4,
+      } })],
+    })
+    await expect(updateCourseBlueprint('teacher-1', 'b-1', {
+      authoring_guidance: guidance,
+      expected_content_revision: 3,
+    })).resolves.toEqual(expect.objectContaining({ ok: false, status: 409 }))
+    expect(mockSupabase.from).toHaveBeenCalledTimes(1)
+
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: {
+          id: 'b-1', teacher_id: 'teacher-1', authority_mode: 'pika', content_revision: 4,
+        } }),
+        makeQueryBuilder({ data: null }),
+      ],
+    })
+    await expect(updateCourseBlueprint('teacher-1', 'b-1', {
+      authoring_guidance: guidance,
+      expected_content_revision: 4,
+    })).resolves.toEqual(expect.objectContaining({ ok: false, status: 409 }))
+  })
+
   it('checks blueprint ownership and reports not found / forbidden states', async () => {
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
@@ -561,7 +631,7 @@ describe('course-blueprints server helpers', () => {
 
     expect(result).toEqual(expect.objectContaining({ ok: false, status: 500 }))
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
-      'create_course_blueprint_atomic_v2',
+      'create_course_blueprint_atomic_v3',
       expect.objectContaining({
         p_operation_id: operationId,
         p_operation_type: 'import',
@@ -956,7 +1026,7 @@ describe('course-blueprints server helpers', () => {
       })
     )
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
-      'create_course_blueprint_atomic_v2',
+      'create_course_blueprint_atomic_v3',
       expect.objectContaining({
         p_operation_id: operationId,
         p_operation_type: 'capture',

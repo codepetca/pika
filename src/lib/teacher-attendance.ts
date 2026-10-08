@@ -1,6 +1,28 @@
 export type TeacherAttendanceStatus = 'unmarked' | 'present' | 'late' | 'absent'
 export type TeacherAttendanceSource = 'student_qr' | 'staff' | 'system'
 
+export function deriveAutomaticTeacherAttendance(input: {
+  checkedInAt: string | null
+  presentThroughAt: string | null
+  opensAt: string | null
+  absentAt: string | null
+  closesAt: string | null
+  nowMs?: number
+}): { status: TeacherAttendanceStatus; source: TeacherAttendanceSource | null } {
+  const presentThrough = Date.parse(input.presentThroughAt ?? input.opensAt ?? '')
+  if (input.checkedInAt) {
+    return {
+      status: Date.parse(input.checkedInAt) <= presentThrough ? 'present' : 'late',
+      source: 'student_qr',
+    }
+  }
+  const absentAt = Date.parse(input.absentAt ?? input.closesAt ?? '')
+  if (Number.isFinite(absentAt) && (input.nowMs ?? Date.now()) >= absentAt) {
+    return { status: 'absent', source: 'system' }
+  }
+  return { status: 'unmarked', source: null }
+}
+
 export interface TeacherAttendanceQrPresentation {
   entryPath: string
   expiresAt: string

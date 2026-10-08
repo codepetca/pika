@@ -108,13 +108,35 @@ function isKnownFieldLine(line: string): boolean {
   return parsed ? FIELD_KEYS.has(parsed.key) : false
 }
 
-function splitSectionBlocks(lines: string[]): { heading: string; lines: string[] }[] {
+// The whole-Test format uses these headings as delimiters. Escape matching
+// body lines so a Markdown reference or prompt can contain them literally.
+const BODY_DELIMITER_LINE = /^(\s*)(\\*)(## (?:Questions|Documents)|### (?:Question|Document) \d+)(\s*)$/i
+const ESCAPED_BODY_DELIMITER_LINE = /^(\s*)(\\+)(## (?:Questions|Documents)|### (?:Question|Document) \d+)(\s*)$/i
+
+export function escapeTestMarkdownBody(value: string): string {
+  return value.split('\n').map((line) => {
+    const match = line.match(BODY_DELIMITER_LINE)
+    return match ? `${match[1]}\\${match[2]}${match[3]}${match[4]}` : line
+  }).join('\n')
+}
+
+function unescapeTestMarkdownBody(value: string): string {
+  return value.split('\n').map((line) => {
+    const match = line.match(ESCAPED_BODY_DELIMITER_LINE)
+    return match ? `${match[1]}${match[2].slice(1)}${match[3]}${match[4]}` : line
+  }).join('\n')
+}
+
+function splitSectionBlocks(
+  lines: string[],
+  kind: 'Question' | 'Document'
+): { heading: string; lines: string[] }[] {
   const blocks: { heading: string; lines: string[] }[] = []
   let current: { heading: string; lines: string[] } | null = null
 
   for (const rawLine of lines) {
     const line = rawLine.trimEnd()
-    if (isHeading(line, 3)) {
+    if (new RegExp(`^### ${kind} \\d+$`, 'i').test(line.trim())) {
       if (current) blocks.push(current)
       current = {
         heading: line.replace(/^###\s+/, '').trim(),
@@ -144,7 +166,8 @@ function splitSectionBlocks(lines: string[]): { heading: string; lines: string[]
 function parseMultilineField(
   lines: string[],
   startIndex: number,
-  initialValue: string
+  initialValue: string,
+  throughEnd = false
 ): { value: string; nextIndex: number } {
   const collected: string[] = []
   if (initialValue.trim().length > 0) {
@@ -154,7 +177,7 @@ function parseMultilineField(
   let index = startIndex + 1
   while (index < lines.length) {
     const nextLine = lines[index]
-    if (isHeading(nextLine, 2) || isHeading(nextLine, 3) || isKnownFieldLine(nextLine)) {
+    if (!throughEnd && isKnownFieldLine(nextLine)) {
       break
     }
     collected.push(nextLine)
@@ -162,7 +185,7 @@ function parseMultilineField(
   }
 
   return {
-    value: collected.join('\n').trim(),
+    value: unescapeTestMarkdownBody(collected.join('\n').trim()),
     nextIndex: index,
   }
 }
@@ -448,7 +471,9 @@ function parseDocumentBlock(
         break
       }
       case 'content': {
-        const block = parseMultilineField(blockLines, lineIndex, field.value)
+        // Content is the last document field. Preserve its Markdown headings and
+        // field-like lines rather than interpreting them as Test structure.
+        const block = parseMultilineField(blockLines, lineIndex, field.value, true)
         parsed.content = block.value
         lineIndex = block.nextIndex
         break
@@ -536,7 +561,7 @@ export function testToMarkdown(input: TestMarkdownSerializeInput): string {
       lines.push(`Max Chars: ${question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS}`)
     }
     lines.push('Prompt:')
-    const promptLines = (question.question_text || '').split('\n')
+    const promptLines = escapeTestMarkdownBody(question.question_text || '').split('\n')
     for (const promptLine of promptLines) {
       lines.push(promptLine)
     }
@@ -554,11 +579,11 @@ export function testToMarkdown(input: TestMarkdownSerializeInput): string {
     } else {
       lines.push('Answer Key:')
       if (question.answer_key) {
-        lines.push(...question.answer_key.split('\n'))
+        lines.push(...escapeTestMarkdownBody(question.answer_key).split('\n'))
       }
       if (question.sample_solution) {
         lines.push('Sample Solution:')
-        lines.push(...question.sample_solution.split('\n'))
+        lines.push(...escapeTestMarkdownBody(question.sample_solution).split('\n'))
       }
     }
 
@@ -578,7 +603,7 @@ export function testToMarkdown(input: TestMarkdownSerializeInput): string {
       lines.push(`Title: ${document.title}`)
       if (document.source === 'text') {
         lines.push('Content:')
-        lines.push(...(document.content || '').split('\n'))
+        lines.push(...escapeTestMarkdownBody(document.content || '').split('\n'))
       } else if (document.source === 'upload') {
         lines.push('Managed Upload: private')
       } else {
@@ -646,7 +671,7 @@ export function markdownToTest(
     questionsHeaderIndex + 1,
     documentsHeaderIndex === -1 ? lines.length : documentsHeaderIndex
   )
-  const questionBlocks = splitSectionBlocks(questionLines).filter(
+  const questionBlocks = splitSectionBlocks(questionLines, 'Question').filter(
     (block) => block.heading.trim().length > 0 || block.lines.some((line) => line.trim().length > 0)
   )
 
@@ -674,7 +699,7 @@ export function markdownToTest(
     ) {
       documents = []
     } else {
-      const documentBlocks = splitSectionBlocks(documentLines).filter(
+      const documentBlocks = splitSectionBlocks(documentLines, 'Document').filter(
         (block) => block.heading.trim().length > 0 || block.lines.some((line) => line.trim().length > 0)
       )
       documents = []

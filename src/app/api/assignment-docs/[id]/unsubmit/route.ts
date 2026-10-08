@@ -1,21 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { canUnsubmitAssignmentDoc, isAssignmentVisibleToStudents, sanitizeDocForStudent } from '@/lib/assignments'
 import { parseContentField } from '@/lib/tiptap-content'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TiptapContent } from '@/types'
 import { unsubmitAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
+import { authorizeContextualAssignmentDocSubmissionRequest } from '@/lib/server/contextual-assignment-doc-access'
+import {
+  unsubmitContextualAssignmentDoc,
+  type ContextualAssignmentSubmissionClient,
+} from '@/lib/server/contextual-assignment-doc-submission'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // POST /api/assignment-docs/[id]/unsubmit - Unsubmit assignment
 export const POST = withErrorHandler('PostAssignmentDocUnsubmit', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId } = await context.params
+  const assignmentAccess = await authorizeContextualAssignmentDocSubmissionRequest(async () => (
+    await context.params
+  ).id)
+  const user = assignmentAccess.user
+  const assignmentId = assignmentAccess.assignmentId
   const supabase = getServiceRoleClient()
+
+  if (assignmentAccess.mode === 'contextual') {
+    const unsubmitResult = await unsubmitContextualAssignmentDoc({
+      supabase: supabase as unknown as ContextualAssignmentSubmissionClient,
+      actorId: user.id,
+      assignmentId,
+    })
+    if (!unsubmitResult.ok) {
+      return NextResponse.json(
+        { error: unsubmitResult.error, error_code: unsubmitResult.errorCode },
+        { status: unsubmitResult.status },
+      )
+    }
+    unsubmitResult.doc.content = parseContentField(unsubmitResult.doc.content)
+    return NextResponse.json({ doc: sanitizeDocForStudent(unsubmitResult.doc) })
+  }
 
   // Get assignment and verify enrollment
   const { data: assignment, error: assignmentError } = await supabase

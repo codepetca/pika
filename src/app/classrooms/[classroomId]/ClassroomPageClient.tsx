@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { CalendarDays } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
@@ -19,7 +19,9 @@ import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
+import { TeacherBlueprintTab } from './TeacherBlueprintTab'
 import { StudentTestsTab } from './StudentTestsTab'
+import { StudentGradesTab, type StudentGradesReadHandle } from './StudentGradesTab'
 import { StudentPalAmbientSurfaces } from '@/integrations/pal'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentCalendarDateContent } from '@/components/StudentCalendarDateContent'
@@ -58,6 +60,7 @@ import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/Teacher
 import { Button, ConfirmDialog, DialogPanel, TabContentTransition } from '@/ui'
 import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
+import { ApiError } from '@/lib/api-error'
 import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
@@ -96,8 +99,10 @@ interface SelectedAssignmentInstructions {
 }
 
 interface ClassroomPageClientProps {
+  initialNow: number
   classroom: Classroom
   user: UserInfo
+  classroomRole?: UserInfo['role']
   teacherClassrooms: Classroom[]
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
@@ -168,8 +173,10 @@ function buildInitialQueryString(
 }
 
 export function ClassroomPageClient({
+  initialNow,
   classroom,
   user,
+  classroomRole,
   teacherClassrooms,
   initialTab,
   initialSearchParams,
@@ -181,7 +188,8 @@ export function ClassroomPageClient({
   const [clientClassroom, setClientClassroom] = useState(classroom)
   const [clientTeacherClassrooms, setClientTeacherClassrooms] = useState(teacherClassrooms)
 
-  const isTeacher = user.role === 'teacher'
+  const experienceRole = classroomRole ?? user.role
+  const isTeacher = experienceRole === 'teacher'
   const palAvailable = palEnabled
   const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
   const featureVisibility = useMemo(
@@ -200,8 +208,8 @@ export function ClassroomPageClient({
   const basePath = `/classrooms/${effectiveClassroom.id}`
   const defaultTab = isTeacher ? 'daily' : 'today'
   const validTabs = useMemo(
-    () => getAvailableClassroomTabs(user.role, featureVisibility, palAvailable),
-    [featureVisibility, palAvailable, user.role],
+    () => getAvailableClassroomTabs(experienceRole, featureVisibility, palAvailable),
+    [experienceRole, featureVisibility, palAvailable],
   )
 
   const initialQueryString = buildInitialQueryString(initialSearchParams, initialTab)
@@ -297,7 +305,7 @@ export function ClassroomPageClient({
   }, [defaultTab, tab, updateSearchParams, validTabs])
 
   // Determine route key for layout config
-  const routeKey = getRouteKeyFromTab(activeTab, user.role)
+  const routeKey = getRouteKeyFromTab(activeTab, experienceRole)
 
   const classroomPage = (
     <ThreePanelProvider
@@ -306,8 +314,10 @@ export function ClassroomPageClient({
     >
       <ClassDaysProvider classroomId={effectiveClassroom.id}>
         <ClassroomPageContent
+          initialNow={initialNow}
           classroom={effectiveClassroom}
           user={user}
+          classroomRole={experienceRole}
           teacherClassrooms={clientTeacherClassrooms}
           activeTab={activeTab}
           isArchived={isArchived}
@@ -387,7 +397,7 @@ function StudentTodayPlanSidebar({
     <div
       data-student-today-plan-region
       tabIndex={-1}
-      className="flex h-full min-h-0 flex-col divide-y divide-border"
+      className="flex h-full min-h-0 flex-col"
     >
       {calendarRefreshing ? (
         <div role="status" className="flex items-center gap-2 px-4 pt-4 text-sm text-text-muted">
@@ -451,6 +461,7 @@ function StudentTodayPlanSidebar({
 function StudentTodayWorkspace({
   classroom,
   studentId,
+  isActive,
   todayDate,
   todayLessonPlan,
   lastClassLessonPlan,
@@ -470,6 +481,7 @@ function StudentTodayWorkspace({
 }: {
   classroom: Classroom
   studentId: string
+  isActive: boolean
   todayDate: string
   todayLessonPlan: LessonPlan | null
   lastClassLessonPlan: LessonPlan | null
@@ -489,7 +501,7 @@ function StudentTodayWorkspace({
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
   const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
-    useStudentAttendanceStatusView(studentId)
+    useStudentAttendanceStatusView(studentId, isActive)
   const attendanceState = attendanceView?.classrooms.find(
     (item) => item.classroomId === classroom.id,
   )
@@ -532,7 +544,7 @@ function StudentTodayWorkspace({
       className="flex-1 pt-2"
       splitVariant="gapped"
       primaryClassName="min-h-0"
-      inspectorClassName="hidden min-h-0 rounded-lg border border-border bg-surface lg:block"
+      inspectorClassName="hidden min-h-0 rounded-lg bg-surface lg:block"
       inspectorCollapsed={false}
       inspectorWidth={planPaneWidth}
       minInspectorPx={300}
@@ -544,6 +556,7 @@ function StudentTodayWorkspace({
       primary={
         <StudentTodayTab
           classroom={classroom}
+          studentId={studentId}
           layout="pane"
           mobilePlan={planSidebar}
           onLessonPlanLoad={onLessonPlanLoad}
@@ -559,8 +572,10 @@ function StudentTodayWorkspace({
 
 // Separate component to access ThreePanelProvider context
 function ClassroomPageContent({
+  initialNow,
   classroom,
   user,
+  classroomRole,
   teacherClassrooms,
   activeTab,
   isArchived,
@@ -572,8 +587,10 @@ function ClassroomPageContent({
   featureVisibility,
   classroomQrAvailable,
 }: {
+  initialNow: number
   classroom: Classroom
   user: UserInfo
+  classroomRole: UserInfo['role']
   teacherClassrooms: Classroom[]
   activeTab: string
   isArchived: boolean
@@ -594,7 +611,7 @@ function ClassroomPageContent({
     hasLoadedSnapshot: hasLoadedClassDays,
   } = useClassDaysContext()
   const { showMarkdown } = useMarkdownPreference()
-  const isTeacher = user.role === 'teacher'
+  const isTeacher = classroomRole === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
   const materialIdParam = activeTab === 'assignments' ? searchParams.get('materialId') : null
   const surveyIdParam = activeTab === 'assignments' ? searchParams.get('surveyId') : null
@@ -613,6 +630,7 @@ function ClassroomPageContent({
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
+  const studentGradesReadRef = useRef<StudentGradesReadHandle>(null)
   const lastTabIntentRef = useRef<Record<string, number>>({})
   const scrollPositionsRef = useRef<Record<string, number>>({})
   const prevActiveTabRef = useRef(activeTab)
@@ -790,13 +808,24 @@ function ClassroomPageContent({
     })
   }, [activeTab, availableTabs])
 
+  useLayoutEffect(() => {
+    if (isTeacher || activeTab !== 'grades') return
+    const rememberGradesScroll = () => {
+      scrollPositionsRef.current.grades = window.scrollY
+    }
+    window.addEventListener('scroll', rememberGradesScroll, { passive: true })
+    return () => window.removeEventListener('scroll', rememberGradesScroll)
+  }, [activeTab, isTeacher])
+
   useEffect(() => {
     const previousTab = prevActiveTabRef.current
-    scrollPositionsRef.current[previousTab] = window.scrollY
+    if (isTeacher || previousTab !== 'grades') {
+      scrollPositionsRef.current[previousTab] = window.scrollY
+    }
     prevActiveTabRef.current = activeTab
     const nextScrollTop = scrollPositionsRef.current[activeTab] ?? 0
     window.scrollTo({ top: nextScrollTop, left: 0, behavior: 'auto' })
-  }, [activeTab])
+  }, [activeTab, isTeacher])
 
   // State for selected assignment instructions (assignments tab)
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
@@ -1525,6 +1554,26 @@ function ClassroomPageContent({
           )
         }
       }
+
+      if (tab === 'grades' && !isTeacher) {
+        const gradesOwner = studentGradesReadRef.current
+        if (gradesOwner?.classroomId === classroom.id) {
+          gradesOwner.prefetch()
+          return
+        }
+        prefetchJSON(
+          `student-grades:${classroom.id}`,
+          async () => {
+            const response = await fetch(`/api/student/classrooms/${classroom.id}/grades`)
+            if (!response.ok) {
+              const json = await response.json().catch(() => null)
+              throw new ApiError(response.status, typeof json?.error === 'string' && json.error.trim() ? json.error : 'Failed to load grades')
+            }
+            return response.json()
+          },
+          30_000,
+        )
+      }
     }
 
     runPrefetch()
@@ -1679,18 +1728,18 @@ function ClassroomPageContent({
       : activeTab === 'tests'
         ? 'pb-0'
         : ''
-  const hasActiveTeacherSplitPanes =
+  const hasTeacherStudentTableWorkspace =
     isTeacher &&
     (
       activeTab === 'daily' ||
       activeTab === 'roster' ||
       (activeTab === 'gradebook' && gradebookSectionParam !== 'settings') ||
-      (activeTab === 'assignments' && !!assignmentIdParam && !!assignmentStudentIdParam) ||
-      (activeTab === 'tests' && !!testIdParam && testModeParam === 'grading' && !!testStudentIdParam)
+      (activeTab === 'assignments' && !!assignmentIdParam) ||
+      (activeTab === 'tests' && !!testIdParam && testModeParam === 'grading')
     )
   const hasTeacherViewportGrid = isTeacher && activeTab === 'gradebook'
   const hasConstrainedWorkspace =
-    hasActiveTeacherSplitPanes ||
+    hasTeacherStudentTableWorkspace ||
     hasTeacherViewportGrid ||
     activeTab === 'resources' ||
     (!isTeacher && activeTab === 'today')
@@ -1754,6 +1803,7 @@ function ClassroomPageContent({
 
   const content = (
     <AppShell
+      initialNow={initialNow}
       user={user}
       classrooms={
         isTeacher
@@ -1777,6 +1827,7 @@ function ClassroomPageContent({
       onNavigateHome={handleHomeNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       constrainToViewport={hasConstrainedWorkspace}
+      constrainToViewportOnMobile={hasTeacherStudentTableWorkspace && activeTab !== 'gradebook'}
       examModeHeader={examHeaderData}
       pageTitle={undefined}
     >
@@ -1790,7 +1841,7 @@ function ClassroomPageContent({
           >
             <NavItems
               classroomId={classroom.id}
-              role={user.role}
+              role={classroomRole}
               activeTab={activeTab}
               onTabChange={handleTabChange}
               onTabIntent={prefetchTabData}
@@ -1879,6 +1930,7 @@ function ClassroomPageContent({
                       <TeacherGradebookTab
                         classroom={classroom}
                         isActive={activeTab === 'gradebook'}
+                        onClassroomUpdated={onClassroomUpdated}
                         sectionParam={gradebookSectionParam}
                         onSectionChange={(section) =>
                           navigateInClassroom((params) => {
@@ -1921,6 +1973,21 @@ function ClassroomPageContent({
                         onRequestDelete={() => {
                           void handleRequestAssessmentDelete()
                         }}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.blueprint && (
+                    <TabContentTransition isActive={activeTab === 'blueprint'}>
+                      <TeacherBlueprintTab
+                        classroom={classroom}
+                        isActive={activeTab === 'blueprint'}
+                        sectionParam={sectionParam}
+                        onSectionChange={(section) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'blueprint')
+                            params.set('section', section)
+                          })
+                        }
                       />
                     </TabContentTransition>
                   )}
@@ -1999,6 +2066,7 @@ function ClassroomPageContent({
                       <StudentTodayWorkspace
                         classroom={classroom}
                         studentId={user.id}
+                        isActive={activeTab === 'today'}
                         todayDate={currentTorontoDate}
                         todayLessonPlan={todayLessonPlan}
                         lastClassLessonPlan={lastClassLessonPlan}
@@ -2041,6 +2109,11 @@ function ClassroomPageContent({
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
                       <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.grades && (
+                    <TabContentTransition isActive={activeTab === 'grades'}>
+                      <StudentGradesTab ref={studentGradesReadRef} classroom={classroom} isActive={activeTab === 'grades'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.calendar && (
@@ -2161,7 +2234,7 @@ function ClassroomPageContent({
         viewportPaddingClassName="p-2 sm:p-4"
         ariaLabelledBy="assignments-markdown-dialog-title"
       >
-        <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <h2 id="assignments-markdown-dialog-title" className="text-base font-semibold text-text-default">
               Edit Markdown

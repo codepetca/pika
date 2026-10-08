@@ -213,4 +213,33 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
       p_updated_by: 'teacher-1',
     })
   })
+  it.each([
+    { code: 'PT409', state: 'open', status: 409, message: 'Selected students changed; reload and retry' },
+    { code: 'PT409', state: 'closed', status: 409, message: 'Selected students changed; reload and retry' },
+    { code: '40001', state: 'open', status: 409, message: 'Selected students changed; reload and retry' },
+    { code: '40001', state: 'closed', status: 409, message: 'Selected students changed; reload and retry' },
+    { code: '42501', state: 'open', status: 403, message: 'Test access update is not allowed' },
+    { code: '42501', state: 'closed', status: 403, message: 'Test access update is not allowed' },
+    { code: '22023', state: 'open', status: 400, message: 'Cannot update access for a draft test' },
+    { code: 'P0002', state: 'closed', status: 404, message: 'Test not found' },
+  ])('maps locked $code refusal to $status for $state before missing-RPC detection', async ({ code, state, status, message }) => {
+    mockSupabaseClient.from.mockReturnValue({
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn(async () => ({ data: [{ student_id: 'student-1' }], error: null })),
+      })),
+    })
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code, message, details: 'PL/pgSQL function update_test_student_access_atomic' },
+    })
+    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/tests/test-1/student-access', {
+      method: 'POST', body: JSON.stringify({ state, student_ids: ['student-1'] }),
+    }), { params: Promise.resolve({ id: 'test-1' }) })
+    expect(response.status).toBe(status)
+    expect(await response.json()).toEqual({ error: message })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+    expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+  })
+
 })

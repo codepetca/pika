@@ -1,3 +1,7 @@
+import { applyMaximumToCell, applyMaximumToColumn } from '@/lib/gradebook-maximum'
+import { getAssessmentColumnKey } from '@/lib/gradebook-display'
+import { isGradebookMaximumEditingEnabled, loadGradebookMaximumState, saveEffectiveGradebookMark } from '@/lib/server/gradebook-maximum'
+import { logServerError } from '@/lib/server/diagnostics'
 import type { Assignment, AssignmentDoc } from '@/types'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 import {
@@ -183,7 +187,7 @@ function blankAssessmentCell(
 
 function normalizeAssessmentWeight(value: unknown): number {
   const weight = Number(value ?? ASSESSMENT_WEIGHT_DEFAULT)
-  return Number.isFinite(weight) && weight > 0 ? Math.round(weight) : ASSESSMENT_WEIGHT_DEFAULT
+  return Number.isFinite(weight) && weight >= 0 ? Math.round(weight) : ASSESSMENT_WEIGHT_DEFAULT
 }
 
 function assessmentTableName(assessmentType: GradebookAssessmentType): 'assignments' | 'tests' {
@@ -297,6 +301,12 @@ export async function loadTeacherGradebook(opts: {
 
   const supabase = getServiceRoleClient()
 
+  const maximumState = await loadGradebookMaximumState(classroomId)
+  const hasAdjustedMaximum = (type: 'assignment' | 'test', id: string) => {
+    const state = maximumState.states.get(`${type}:${id}`)
+    return Boolean(state && (state.maximum != null || state.score_scale !== 1))
+  }
+
   const categoryResult = await supabase
     .from('gradebook_categories')
     .select('id, name, percentage, default_assessment_weight, position, is_default')
@@ -308,7 +318,7 @@ export async function loadTeacherGradebook(opts: {
   if (categoryResult.error && isMissingTableError(categoryResult.error)) {
     categorySchemaAvailable = false
   } else if (categoryResult.error) {
-    console.error('Error loading gradebook categories:', categoryResult.error)
+    logServerError('gradebook.categories', categoryResult.error)
     throw new ApiError(500, 'Failed to load gradebook categories')
   } else {
     categories = (categoryResult.data || []).map((category) => ({
@@ -332,7 +342,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (enrollmentError) {
-    console.error('Error loading enrollments:', enrollmentError)
+    logServerError('gradebook.enrollments', enrollmentError)
     throw new ApiError(500, 'Failed to load roster')
   }
 
@@ -359,7 +369,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (profilesError) {
-    console.error('Error loading student profiles for gradebook:', profilesError)
+    logServerError('gradebook.profiles', profilesError)
     throw new ApiError(500, 'Failed to load student profiles for gradebook')
   }
 
@@ -438,7 +448,7 @@ export async function loadTeacherGradebook(opts: {
     )
 
     if (assignmentsLegacyError) {
-      console.error('Error loading assignments for gradebook:', assignmentsWithMetaError, assignmentsLegacyError)
+      logServerError('gradebook.assignments', assignmentsLegacyError)
       throw new ApiError(500, 'Failed to load assignments for gradebook')
     }
 
@@ -487,7 +497,7 @@ export async function loadTeacherGradebook(opts: {
     }
 
     if (docsResult.error) {
-      console.error('Error loading assignment docs for gradebook:', docsResult.error)
+      logServerError('gradebook.documents', docsResult.error)
       throw new ApiError(500, 'Failed to load assignment docs for gradebook')
     }
   }
@@ -617,11 +627,11 @@ export async function loadTeacherGradebook(opts: {
         gradebook_category_id: test.gradebook_category_id ?? null,
       }))
     } else if (!isMissingTableError(testsLegacyError)) {
-      console.error('Error loading tests for gradebook:', testsWithMetaError, testsLegacyError)
+      logServerError('gradebook.tests', testsLegacyError)
       throw new ApiError(500, 'Failed to load tests for gradebook')
     }
   } else if (!isMissingTableError(testsWithMetaError)) {
-    console.error('Error loading tests for gradebook:', testsWithMetaError)
+    logServerError('gradebook.tests', testsWithMetaError)
     throw new ApiError(500, 'Failed to load tests for gradebook')
   }
   tests.sort(comparePositionThenTitle)
@@ -648,7 +658,7 @@ export async function loadTeacherGradebook(opts: {
   if (scoreOverridesError && isMissingTableError(scoreOverridesError)) {
     scoreOverridesAvailable = false
   } else if (scoreOverridesError) {
-    console.error('Error loading Gradebook score overrides:', scoreOverridesError)
+    logServerError('gradebook.overrides', scoreOverridesError)
     throw new ApiError(500, 'Failed to load Gradebook overrides')
   } else {
     for (const override of scoreOverrides || []) {
@@ -677,7 +687,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (testQuestionsError && !isMissingTableError(testQuestionsError)) {
-    console.error('Error loading test questions for gradebook:', testQuestionsError)
+    logServerError('gradebook.questions', testQuestionsError)
     throw new ApiError(500, 'Failed to load test questions for gradebook')
   }
 
@@ -694,7 +704,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (testResponsesError && !isMissingTableError(testResponsesError)) {
-    console.error('Error loading test responses for gradebook:', testResponsesError)
+    logServerError('gradebook.responses', testResponsesError)
     throw new ApiError(500, 'Failed to load test responses for gradebook')
   }
 
@@ -711,7 +721,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (testAttemptsError && !isMissingTableError(testAttemptsError)) {
-    console.error('Error loading test attempts for gradebook:', testAttemptsError)
+    logServerError('gradebook.attempts', testAttemptsError)
     throw new ApiError(500, 'Failed to load test attempts for gradebook')
   }
 
@@ -768,6 +778,7 @@ export async function loadTeacherGradebook(opts: {
 
       const questionsForTest = testQuestionsByTest.get(testId) || []
       const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      const effectivePossible = maximumState.states.get(`test:${testId}`)?.maximum ?? possible
       let earned: number | null = null
       const responseKey = `${testId}:${studentId}`
       const responsesForStudent = testResponsesByStudentTest.get(responseKey)
@@ -777,7 +788,8 @@ export async function loadTeacherGradebook(opts: {
 
       if (
         test.status !== 'draft' &&
-        possible > 0 &&
+        effectivePossible > 0 &&
+        questionsForTest.length > 0 &&
         (submittedTestAttempts.has(responseKey) || hasResponses)
       ) {
         let scoredEarned = 0
@@ -797,17 +809,17 @@ export async function loadTeacherGradebook(opts: {
         testStatus: test.status,
         hasResponses,
         isSubmitted,
-        isGraded: earned != null && possible > 0,
+        isGraded: earned != null && effectivePossible > 0,
       })
 
-      testCellMap.set(cellKey(studentId, testId), earned == null || possible <= 0
+      testCellMap.set(cellKey(studentId, testId), earned == null || effectivePossible <= 0
         ? blankAssessmentCell('test', testId, possible, undefined, testCellStatus)
         : {
             assessment_id: testId,
             assessment_type: 'test',
-            earned: round2(earned),
-            possible: round2(possible),
-            percent: round2((earned / possible) * 100),
+            earned: hasAdjustedMaximum('test', testId) ? earned : round2(earned),
+            possible: hasAdjustedMaximum('test', testId) ? possible : round2(possible),
+            percent: round2((earned / effectivePossible) * 100),
             is_graded: true,
             ...(testCellStatus ? { status: testCellStatus } : {}),
           }
@@ -815,7 +827,7 @@ export async function loadTeacherGradebook(opts: {
 
       if (test.include_in_final === false) continue
       if (test.status === 'draft') continue
-      if (possible <= 0) continue
+      if (effectivePossible <= 0) continue
       if (earned == null) continue
 
       const rows = testRowsByStudent.get(studentId) || []
@@ -837,54 +849,65 @@ export async function loadTeacherGradebook(opts: {
         title: test.title,
         earned: round2(earned),
         possible: round2(possible),
-        percent: round2((earned / possible) * 100),
+        percent: round2((earned / effectivePossible) * 100),
         status: test.status,
       })
       testDetailsByStudent.set(studentId, details)
     }
   }
 
-  function getAssignmentCell(
+  function getAssignmentScore(
     studentId: string,
     assignment: typeof assignments[number]
-  ): GradebookAssessmentCell {
+  ): { cell: GradebookAssessmentCell; rawEarned: number | null } {
     const score = assignmentDocMap.get(cellKey(studentId, assignment.id))
     const sc = score?.score_completion
     const st = score?.score_thinking
     const sw = score?.score_workflow
     const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
+    const adjustedMaximum = hasAdjustedMaximum('assignment', assignment.id)
+    const effectivePossible = maximumState.states.get(`assignment:${assignment.id}`)?.maximum ?? possible
     const isGraded = sc != null && st != null && sw != null
     const status = getAssignmentGradebookStatus(assignment, score, isGraded)
     const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
     if (manualOverride != null) {
       const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
       return {
-        assessment_id: assignment.id,
-        assessment_type: 'assignment',
-        earned: round2(manualOverride),
-        possible: round2(possible),
-        percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
-        is_graded: possible > 0,
-        is_manual_override: true,
-        calculated_earned: calculatedEarned == null ? null : round2(calculatedEarned),
-        ...(status ? { status } : {}),
+        rawEarned: effectivePossible > 0 ? manualOverride : null,
+        cell: {
+          assessment_id: assignment.id,
+          assessment_type: 'assignment',
+          earned: manualOverride,
+          possible: adjustedMaximum ? possible : round2(possible),
+          percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
+          is_graded: effectivePossible > 0,
+          is_manual_override: true,
+          calculated_earned: calculatedEarned == null ? null : adjustedMaximum ? calculatedEarned : round2(calculatedEarned),
+          ...(status ? { status } : {}),
+        },
       }
     }
     if (sc == null || st == null || sw == null) {
-      return blankAssessmentCell('assignment', assignment.id, possible, undefined, status)
+      return {
+        rawEarned: null,
+        cell: blankAssessmentCell('assignment', assignment.id, possible, undefined, status),
+      }
     }
 
     const raw = Number(sc) + Number(st) + Number(sw)
     const earned = (raw / 30) * possible
 
     return {
-      assessment_id: assignment.id,
-      assessment_type: 'assignment',
-      earned: round2(earned),
-      possible: round2(possible),
-      percent: round2((earned / possible) * 100),
-      is_graded: true,
-      ...(status ? { status } : {}),
+      rawEarned: earned,
+      cell: {
+        assessment_id: assignment.id,
+        assessment_type: 'assignment',
+        earned: adjustedMaximum ? earned : round2(earned),
+        possible: adjustedMaximum ? possible : round2(possible),
+        percent: round2((earned / possible) * 100),
+        is_graded: true,
+        ...(status ? { status } : {}),
+      },
     }
   }
 
@@ -976,11 +999,14 @@ export async function loadTeacherGradebook(opts: {
     })),
   ]
 
+  if (maximumState.available) for (const column of assessmentColumns) applyMaximumToColumn(column, maximumState.states.get(getAssessmentColumnKey(column)))
+
   const students = (enrollments || []).map((enrollment) => {
     const studentId = enrollment.student_id
     const profile = profileMap.get(studentId)
+    const assignmentScores = assignments.map((assignment) => getAssignmentScore(studentId, assignment))
     const assessmentScores = [
-      ...assignments.map((assignment) => getAssignmentCell(studentId, assignment)),
+      ...assignmentScores.map(({ cell }) => cell),
       ...tests.map((test) => {
         const questionsForTest = testQuestionsByTest.get(test.id) || []
         const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
@@ -989,9 +1015,9 @@ export async function loadTeacherGradebook(opts: {
         if (manualOverride == null) return baseCell
         return {
           ...baseCell,
-          earned: round2(manualOverride),
+          earned: manualOverride,
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
-          is_graded: possible > 0,
+          is_graded: (maximumState.states.get(`test:${test.id}`)?.maximum ?? possible) > 0,
           is_manual_override: true,
           calculated_earned: baseCell.earned,
         }
@@ -1006,15 +1032,16 @@ export async function loadTeacherGradebook(opts: {
         percent: round2(earned / possible * 100), is_graded: true, returned_at: score.returned_at }
     })
     assessmentScores.push(...standaloneCells)
+    for (const cell of assessmentScores) applyMaximumToCell(cell, maximumState.states.get(getAssessmentColumnKey(cell)))
     const itemRows = items.flatMap((item, index) => {
       const cell = standaloneCells[index]
       if (!item.include_in_final || cell.earned == null) return []
       return [{ earned: cell.earned, possible: cell.possible, weight: Number(item.gradebook_weight), categoryId: item.gradebook_category_id }]
     })
     const assignmentRows = assignments.flatMap((assignment, index) => {
-      const cell = assessmentScores[index]
-      if (!assignment.include_in_final || assignment.is_draft || cell.earned == null || cell.possible <= 0) return []
-      return [{ earned: cell.earned, possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
+      const { cell, rawEarned } = assignmentScores[index]
+      if (!assignment.include_in_final || assignment.is_draft || rawEarned == null || cell.possible <= 0) return []
+      return [{ earned: rawEarned * (maximumState.states.get(`assignment:${assignment.id}`)?.score_scale ?? 1), possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
     })
     const testOffset = assignments.length
     const testRows = tests.flatMap((test, index) => {
@@ -1137,6 +1164,8 @@ export async function loadTeacherGradebook(opts: {
     categories,
     category_schema_available: categorySchemaAvailable,
     score_overrides_available: scoreOverridesAvailable,
+    maximum_overrides_available: maximumState.available,
+    maximum_edits_enabled: maximumState.available && isGradebookMaximumEditingEnabled(),
     items_available: itemsAvailable,
     assessment_columns: assessmentColumns,
     students,
@@ -1229,7 +1258,7 @@ export async function updateTeacherGradebook(opts: {
       throw new ApiError(409, 'Gradebook categories are not available until the database migration is applied')
     }
     if (categoryError) {
-      console.error('Error checking gradebook category:', categoryError)
+      logServerError('gradebook.category_validation', categoryError)
       throw new ApiError(500, 'Failed to validate gradebook category')
     }
     if (!category) throw new ApiError(400, 'Gradebook category does not belong to this classroom')
@@ -1258,7 +1287,7 @@ export async function updateTeacherGradebook(opts: {
   }
 
   if (error) {
-    console.error('Error saving assessment weight:', error)
+    logServerError('gradebook.weight_save', error)
     throw new ApiError(500, 'Failed to save assessment weight')
   }
 
@@ -1292,7 +1321,7 @@ async function assertGradebookOverrideTarget(input: {
     .maybeSingle()
 
   if (enrollmentError) {
-    console.error('Error checking Gradebook override enrollment:', enrollmentError)
+    logServerError('gradebook.override_enrollment', enrollmentError)
     throw new ApiError(500, 'Failed to validate student')
   }
   if (!enrollment) throw new ApiError(404, 'Student is not enrolled in this classroom')
@@ -1308,7 +1337,7 @@ async function assertGradebookOverrideTarget(input: {
     .eq('classroom_id', input.classroomId)
     .maybeSingle()
   if (assessmentError) {
-    console.error('Error checking Gradebook override assessment:', assessmentError)
+    logServerError('gradebook.override_assessment', assessmentError)
     throw new ApiError(500, 'Failed to validate assessment')
   }
   if (!assessment) throw new ApiError(404, 'Assessment not found')
@@ -1328,6 +1357,9 @@ export async function saveTeacherGradebookScoreOverride(opts: {
   })
 
   const supabase = getServiceRoleClient()
+  if (command.assessment_type !== 'final' && (await loadGradebookMaximumState(command.classroom_id)).available) {
+    return await saveEffectiveGradebookMark(teacherId, command.classroom_id, command.assessment_type, command.assessment_id, command.student_id, command.earned)
+  }
   const { error } = await supabase.from('gradebook_score_overrides').upsert({
     classroom_id: command.classroom_id,
     student_id: command.student_id,
@@ -1341,7 +1373,7 @@ export async function saveTeacherGradebookScoreOverride(opts: {
     throw new ApiError(409, 'Gradebook overrides are not available until the database migration is applied')
   }
   if (error) {
-    console.error('Error saving Gradebook override:', error)
+    logServerError('gradebook.override_save', error)
     throw new ApiError(500, 'Failed to save override')
   }
   return { saved: true }
@@ -1379,7 +1411,7 @@ export async function deleteTeacherGradebookScoreOverride(opts: {
     throw new ApiError(409, 'Gradebook overrides are not available until the database migration is applied')
   }
   if (error) {
-    console.error('Error undoing Gradebook overrides:', error)
+    logServerError('gradebook.override_undo', error)
     throw new ApiError(500, 'Failed to undo overrides')
   }
   return { deleted: true }
@@ -1410,7 +1442,7 @@ export async function replaceTeacherGradebookCategories(opts: {
     throw new ApiError(409, 'Gradebook categories are not available until the database migration is applied')
   }
   if (error) {
-    console.error('Error saving gradebook categories:', error)
+    logServerError('gradebook.categories_save', error)
     throw new ApiError(500, 'Failed to save gradebook categories')
   }
 

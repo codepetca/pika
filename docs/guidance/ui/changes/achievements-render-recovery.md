@@ -1,0 +1,21 @@
+# Achievements local render recovery
+
+Surface: student's existing Achievements primary region. Approved reference: PageState + Button and canonical page-state focus/retry conventions, classroom error route, and executable `/pattern-lab?role=student#page-states`. Coordinator inspected four desktop/mobile light/dark reference captures and four actual gated Pal roadmap baseline captures before implementation. Reference gallery Card wrappers are comparison framing; canonical PageState is not nested in another card. Existing package owns roadmap appearance and HTTP recovery.
+
+Roles: student; teacher recovery n/a (no teacher Achievements owner). Viewports1440×900/390×844, light/dark, normal/reduced motion. States: healthy, first synchronous render failure, focused Try again, local recovery, repeated failure, retained hidden/return and normal owner remount/scope switch/sign-out. Primary signal: existing Achievements error plus one Try again action. Composite checklist applies to feature focus and hidden/inert containment; existing navigation/Pal controls stay unchanged.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Local error presentation | PageState | reuse | Generic safe error composition inside existing primary region. |
+| Explicit recovery action | Button | reuse | Named keyboard control with44px target and shared focus/motion. |
+| Synchronous render containment | PalFailureBoundary resetKey | reuse | Existing boundary resets its own failed descendants only. |
+| Recovery lifetime/focus | StudentAchievementsTab | extend | Stable outside region owns retry generation and focus before button removal. |
+| Deterministic actual-owner proof | Gated pal-classroom fixture | extend | Feature-local recovery composition receives fixture-only throwing leaf; no production fault flags. |
+
+Keep provider/client identity, snapshot/reward state and academic content stable through intentional retry. No provider refresh/rekey, package/API/schema/dependency/gate/model change, reload/navigation/cache invalidation, timer or automatic retry on tab return. A persistent render throw returns the same fallback and permits another explicit attempt. Focus the stable named non-tabbable work region with preventScroll before retry removes its initiating control. Initial/background failures do not steal focus; no deferred focus can fire after hide/unmount. Preserve current flex/min-height geometry. Copy describes the local roadmap retry, not a guarantee about unrelated work.
+
+Feature-local recovery extraction may accept ordinary children so the production facade supplies real PalAchievements and the gated fixture supplies an armed throwing leaf around real PalAchievements. This is feature ownership/test composition, not a new shared component or Pattern Lab promotion. Fixture stays unavailable in production and without PIKA_E2E_FIXTURES. Teacher shared-shell regression remains required if those owners change; no teacher feature capture applies here.
+
+Verification: meaningful missing-retry RED and current GREEN contracts with actual Pika boundary/control, repeated throw convergence, before-removal stable focus, academic/provider containment and unmount/remount/hidden semantics. Native actual-owner fixture matrix uses intercepted synthetic snapshots/token/visit/pinned assets; no provider requests leave the harness or gates are enabled. Verify settled roadmap/page scrolling as well as focus (package remount auto-scroll is a known acceptance concern), preserved draft/region identity, repeated failure and native Tab/Enter/Space. Inspect screenshots against reference. Required focused/static/audit, frozen draft independent review and exact-head CI/PR Gate before authorized main merge. Risk standard behavioral focus/lifetime change; one general Sol/high independent review.
+
+Limits: synchronous render failure only. Package HTTP Retry, revoked membership and async/event failures retain their existing owners. No authenticated active-classroom/provider compatibility or hardware INP claim. Passing this slice does not complete Grades/Achievements family or the17-family product goal. Nearby package scrolling/motion and any wider boundary recovery remain separate unless evidence requires local scoped correction.

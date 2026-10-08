@@ -6,6 +6,7 @@ import {
 } from '@/lib/course-blueprint-change-proposals'
 import {
   canonicalizeCourseBlueprintSnapshot,
+  COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION,
   hashCanonicalJson,
   hashCourseBlueprintSnapshot,
   type CourseBlueprintSnapshot,
@@ -14,6 +15,7 @@ import { parseDatabaseJson } from '@/lib/validations/database-json'
 import type { VerifiedCourseBlueprintPackagePlan } from '@/lib/course-blueprint-package'
 import { buildCourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import { markdownToCourseBlueprintAssignments } from '@/lib/course-blueprint-assignments'
+import type { CourseBlueprintDraftGuidanceProvenance } from '@/lib/course-blueprint-authoring-context'
 import { markdownToCourseBlueprintAssessments } from '@/lib/course-blueprint-assessments-markdown'
 import { markdownToCourseBlueprintLessonTemplates } from '@/lib/course-blueprint-lesson-templates'
 import { markdownToCourseBlueprintMaterials } from '@/lib/course-blueprint-materials'
@@ -21,6 +23,7 @@ import { markdownToCourseBlueprintSurveys } from '@/lib/course-blueprint-surveys
 import { markdownToCourseBlueprintGrading } from '@/lib/course-blueprint-grading'
 import type { CourseBlueprintDetail } from '@/types'
 import type { ClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
+import { EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE } from '@/lib/course-blueprint-authoring-guidance'
 import {
   buildClassroomBlueprintUpdateWritePlan,
   type ClassroomBlueprintUpdateWritePlan,
@@ -108,6 +111,7 @@ export async function submitCourseBlueprintProposal(args: {
   expectedBlueprintRevision?: number
   sourceClassroomId?: string | null
   baseClassroomRevision?: number | null
+  guidanceProvenance?: CourseBlueprintDraftGuidanceProvenance
 }): Promise<
   | { ok: true; proposal: CourseBlueprintProposalRecord }
   | { ok: false; status: number; error: string }
@@ -118,6 +122,7 @@ export async function submitCourseBlueprintProposal(args: {
     summary: proposal.summary,
     candidate_sha256: candidateSha256,
     candidate_snapshot: args.candidate,
+    ...(args.guidanceProvenance ? { guidance_provenance: args.guidanceProvenance } : {}),
   }
   const requestSha256 = hashCanonicalJson({
     blueprint_id: args.base.blueprint_id,
@@ -220,7 +225,7 @@ export function buildClassroomCourseBlueprintSnapshot(args: {
   }
 
   return {
-    schema_version: 2,
+    schema_version: COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION,
     blueprint_id: args.blueprintId,
     draft_revision: args.blueprintRevision,
     metadata,
@@ -231,6 +236,8 @@ export function buildClassroomCourseBlueprintSnapshot(args: {
     },
     grading: args.source.grading,
     planned_site: plannedSite,
+    authoring_guidance: args.candidate?.authoring_guidance
+      ?? EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
     assignments: args.source.assignments.filter(includeArtifact).map((assignment) => ({
       artifact_id: assignment.artifact_id,
       title: assignment.title,
@@ -611,7 +618,7 @@ export async function applyPersistedCourseBlueprintProposal(args: {
 > {
   const candidateSha256 = hashCourseBlueprintSnapshot(args.candidate)
   const { data, error } = await args.supabase.rpc(
-    'apply_course_blueprint_proposal_atomic',
+    'apply_course_blueprint_proposal_with_guidance_atomic',
     {
       p_teacher_id: args.teacherId,
       p_proposal_id: uuidSchema.parse(args.proposalId),
@@ -623,7 +630,7 @@ export async function applyPersistedCourseBlueprintProposal(args: {
   if (error) {
     const missing = error.code === '42883'
       || error.code === 'PGRST202'
-      || (error.message || '').includes('apply_course_blueprint_proposal_atomic')
+      || (error.message || '').includes('apply_course_blueprint_proposal_with_guidance_atomic')
     return {
       ok: false,
       status:
@@ -633,7 +640,7 @@ export async function applyPersistedCourseBlueprintProposal(args: {
             ? 409
             : 500,
       error: missing
-        ? 'Blueprint proposal application requires migration 112 to be applied'
+        ? 'Blueprint proposal application requires the authoring guidance migration to be applied'
         : error.code === '40001'
           ? 'Blueprint proposal is stale; rebuild it against the current Draft'
           : error.code === '55000'
@@ -731,11 +738,11 @@ export function buildCourseBlueprintPackageCandidate(
       editingSessionId: string | null
     }
   | { ok: false; status: number; error: string; errors?: string[] } {
-  if (parsed.manifest.version !== '5') {
+  if (parsed.manifest.version !== '6') {
     return {
       ok: false,
       status: 400,
-      error: 'Change proposals require a version 5 identity-aware course package',
+      error: 'Change proposals require a version 6 guidance-aware course package',
     }
   }
   if (parsed.manifest.blueprint_id !== baseDetail.id) {

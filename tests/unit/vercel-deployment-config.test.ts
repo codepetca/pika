@@ -18,9 +18,8 @@ const nextConfig = require(resolve(process.cwd(), 'next.config.js')) as {
 }
 
 describe('Vercel deployment configuration', () => {
-  it('deploys only main and production, including for slash-containing feature branches', () => {
+  it('deploys only production, including for slash-containing feature branches', () => {
     expect(vercel.git?.deploymentEnabled).toEqual({
-      main: true,
       production: true,
       '**': false,
     })

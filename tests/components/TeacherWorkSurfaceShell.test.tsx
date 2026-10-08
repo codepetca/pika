@@ -47,7 +47,7 @@ describe('TeacherWorkSurfaceShell', () => {
     const content = screen.getByText('Student table').parentElement?.parentElement?.parentElement
     expect(content).toHaveClass('px-0', 'pt-0', 'flex-1')
     const frame = screen.getByText('Student table').parentElement?.parentElement
-    expect(frame).toHaveClass('rounded-b-lg', 'border', 'border-border', 'bg-surface')
+    expect(frame).toHaveClass('rounded-b-lg', 'bg-surface')
   })
 
   it('supports standalone selected-workspace frames with standard page gutters', () => {
@@ -62,8 +62,9 @@ describe('TeacherWorkSurfaceShell', () => {
     )
 
     const frame = screen.getByText('Gradebook table').parentElement?.parentElement
-    expect(frame).toHaveClass('rounded-lg', 'border', 'border-border', 'bg-surface')
+    expect(frame).toHaveClass('rounded-lg', 'bg-surface')
     expect(frame).not.toHaveClass('rounded-b-lg')
+    expect(frame).not.toHaveClass('workspace-entry')
     const content = frame?.parentElement
     expect(content).toHaveClass(
       'px-density-compact-gutter',
@@ -74,6 +75,13 @@ describe('TeacherWorkSurfaceShell', () => {
 
     const actionBar = screen.getByText('Gradebook').parentElement?.parentElement?.parentElement
     expect(actionBar).toHaveClass('pt-density-compact-content-top')
+  })
+
+  it('allows scoped owners to opt into workspace entry through the existing frame class', () => {
+    render(<TeacherWorkSurfaceShell state="workspace" primary={<div>Classwork</div>}
+      summary={<div>Summary</div>} workspace={<div>Selected assignment</div>}
+      workspaceFrameClassName="workspace-entry" />)
+    expect(screen.getByText('Selected assignment').parentElement?.parentElement).toHaveClass('workspace-entry')
   })
 
   it('balances standalone summary action bars with the content gutter rhythm', () => {

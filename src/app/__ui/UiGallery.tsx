@@ -1,12 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import { Spinner } from '@/components/Spinner'
+import { AppHeader } from '@/components/AppHeader'
+import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   Button,
   Card,
+  CircularProgress,
   ContentDialog,
+  ConfirmDialog,
   QrCode,
   FormField,
   Input,
@@ -19,6 +24,7 @@ import {
   SegmentedControl,
   Select,
   TabPanel,
+  TabContentTransition,
   Tabs,
   Tooltip,
   cn,
@@ -60,19 +66,76 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 import { TeacherPatterns } from './TeacherPatterns'
+import { StudentTestAttemptPattern } from './StudentTestAttemptPattern'
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
+import { TestEditSplitPattern } from './TestEditSplitPattern'
+import { SurveyEditSplitPattern } from './SurveyEditSplitPattern'
+import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
+import { GradebookCompactPattern } from './GradebookCompactPattern'
 import { PageMockups } from './PageMockups'
 import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
+import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
+import { UiConsistencyPattern } from './UiConsistencyPattern'
+import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { DialogEntryPattern } from './DialogEntryPattern'
+import { MobileDrawerControlsPattern } from './MobileDrawerControlsPattern'
+
+const HEADER_REFERENCE_INITIAL_NOW = Date.parse('2026-10-05T16:00:00Z')
+
+const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
+  '### Task',
+  'Write a Java SuperKarel method.',
+  '',
+  '### Coding reference',
+  '### **Instructions**',
+  '````java',
+  '## code heading',
+  '```',
+  '---',
+  '````',
+  'After the backtick example.',
+  '',
+  '~~~java',
+  '## tilde example',
+  '---',
+  '~~~',
+  'After the tilde example.',
+].join('\n')
 
 type Role = 'teacher' | 'student'
+
+function TabEntryPreview() {
+  const [active, setActive] = useState<'draft' | 'activity'>('draft')
+  return (
+    <Card tone="panel" padding="md" className="max-w-reading">
+      <div data-testid="tab-entry-extension">
+        <Tabs ariaLabel="Tab continuity preview" value={active} onValueChange={setActive}
+          getTabId={(value) => `fluid-${value}-tab`}
+          getPanelId={(value) => `fluid-${value}-panel`}
+          items={[{ value: 'draft', label: 'Draft' }, { value: 'activity', label: 'Activity' }]} />
+        {(['draft', 'activity'] as const).map((value) => (
+          <TabContentTransition key={value} isActive={active === value}>
+            <TabPanel id={`fluid-${value}-panel`} labelledBy={`fluid-${value}-tab`}
+              className="min-h-20 bg-surface px-4 py-3 text-sm text-text-muted">
+              {value === 'draft'
+                ? <FormField label="Example draft"><Input defaultValue="Keep this draft while switching tabs." /></FormField>
+                : 'Example activity. The draft stays mounted while this panel is active.'}
+            </TabPanel>
+          </TabContentTransition>
+        ))}
+      </div>
+    </Card>
+  )
+}
 
 function QrSizingExample() {
   const [open, setOpen] = useState(false)
@@ -96,6 +159,8 @@ const QUICK_LINK_LABELS: Record<string, string> = {
   'page-actions': 'Page actions',
   'status-colors': 'Status colors',
   'assignment-edit-split': 'Assignment edit',
+  'test-edit-split': 'Test edit',
+  'survey-edit-split': 'Survey edit',
   'assignment-creation': 'Assignment dialog',
   controls: 'Controls',
   'student-tests': 'Student tests',
@@ -111,10 +176,12 @@ export function UiGallery({ role }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [exampleConfirmed, setExampleConfirmed] = useState(false)
   const referenceRoutes = REFERENCE_ROUTES[role]
   const navigationDestinations = getPatternLabDestinations(role)
   const quickLinkIds = role === 'teacher'
-    ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-edit-split', 'assignment-creation']
+    ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-edit-split', 'test-edit-split', 'survey-edit-split', 'assignment-creation']
     : ['page-mockups', 'controls', 'student-tests', 'history-preview']
   const quickLinks = quickLinkIds
     .map((id) => navigationDestinations.find((destination) => destination.value === id))
@@ -146,6 +213,14 @@ export function UiGallery({ role }: Props) {
 
   return (
     <main className="min-h-screen bg-page text-text-default">
+      <section aria-label="Application header references">
+        <AppHeader initialNow={HEADER_REFERENCE_INITIAL_NOW} user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
+        <AppHeader
+          initialNow={HEADER_REFERENCE_INITIAL_NOW}
+          user={{ email: `${role}@example.invalid`, role }}
+          examModeHeader={{ testTitle: 'Exam header reference', exitsCount: 0, awayTotalSeconds: 0 }}
+        />
+      </section>
       <div className="mx-auto max-w-wide space-y-8 px-4 py-8 sm:px-6">
         <header className="space-y-5" data-testid="pattern-lab-header">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -311,6 +386,14 @@ export function UiGallery({ role }: Props) {
                   />
                 </PageLayout>
                 <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.{role === 'student' ? ' Student density adds space above the controls.' : null}</p>
+                <div data-testid="wrapping-course-heading-example" className="mt-4">
+                  <PageHeading
+                    title="Environmental science and community inquiry through evidence, reflection and practical investigation — distinctive course identity"
+                    level="h2"
+                    wrap
+                  />
+                  <p className="mt-1 text-xs text-text-muted">Course Guide opts into wrapping through PageHeading; other page headings retain truncation.</p>
+                </div>
               </Card>
             </div>
             <div className="[&>section]:scroll-mt-28">
@@ -342,6 +425,21 @@ export function UiGallery({ role }: Props) {
               </div>
             </Card>
 
+            <div id="circular-progress" data-testid="circular-progress-example">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Circular progress" owner="src/ui/CircularProgress.tsx" />
+                <p className="mt-2 text-sm text-text-muted">One circular loader with no background or track. Its status or control supplies the accessible label; reduced motion keeps it static.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-6">
+                  <Spinner size="sm" />
+                  <Spinner size="md" />
+                  <Spinner size="lg" />
+                  <Button size="sm" loading>Creating class</Button>
+                  <IconButton icon={Plus} label="Creating classroom" loading />
+                </div>
+                <PageState compact kind="loading" title="Loading classroom" />
+              </Card>
+            </div>
+
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Card tone="panel" padding="md">
                 <PatternHeading title="Form fields" owner="src/ui/FormField.tsx" />
@@ -358,6 +456,12 @@ export function UiGallery({ role }: Props) {
                         { value: 'semester-2', label: 'Semester 2' },
                       ]}
                     />
+                  </FormField>
+                  <FormField label="Reserved error space" reserveErrorSpace>
+                    <Input defaultValue="Ready to retry" />
+                  </FormField>
+                  <FormField label="Reserved error with hint" reserveErrorSpace hint="The hint remains visible during recovery." error="Request failed. Please try again.">
+                    <Input defaultValue="Keep this draft" />
                   </FormField>
                   <FormField label="Archived field">
                     <Input defaultValue="Unavailable in this state" disabled />
@@ -435,7 +539,11 @@ export function UiGallery({ role }: Props) {
                 <Button type="button" variant="surface" size="sm" onClick={() => setDialogOpen(true)}>
                   Open alert dialog
                 </Button>
+                <Button type="button" variant="surface" size="sm" onClick={() => setConfirmationOpen(true)}>
+                  Open confirmation dialog
+                </Button>
                 <span className="text-xs text-text-muted">Dialogs preserve focus, Escape, and overlay ownership.</span>
+                {exampleConfirmed ? <span role="status" className="text-xs text-text-muted">Local example confirmed.</span> : null}
                 <QrSizingExample />
               </div>
             </Card>
@@ -534,6 +642,8 @@ export function UiGallery({ role }: Props) {
           </Card>
           </PatternSection>
 
+          <UiConsistencyPattern role={role} />
+
           <PatternSection
             id="page-states"
             eyebrow="Route responsibility"
@@ -548,6 +658,29 @@ export function UiGallery({ role }: Props) {
           </div>
           </PatternSection>
         </div>
+
+        <ClassroomsReadRecoveryPattern role={role} />
+        <PatternSection
+          id="dialog-entry-preview"
+          eyebrow="Experimental · dialog entry"
+          title="Dialog entry comparison"
+          description="Actual ContentDialog owners with a retained local draft, nested confirmation, and fixture destination callback. This comparison awaits human review."
+        >
+          <DialogEntryPattern role={role} />
+        </PatternSection>
+
+        <PatternSection
+          id="tab-entry-extension"
+          eyebrow="Experimental · shared interaction"
+          title="Quiet tab entry"
+          description="Immediate selection and retained drafts with quiet opacity entry. This extension is awaiting human acceptance."
+        >
+          <TabEntryPreview />
+        </PatternSection>
+
+        <TabSelectionVisibilityPattern />
+
+        <MobileDrawerControlsPattern role={role} />
 
         {role === 'teacher' && (
           <PatternSection
@@ -574,11 +707,16 @@ export function UiGallery({ role }: Props) {
           eyebrow="Experimental · page compositions"
           title="Classroom page patterns"
           description={role === 'teacher'
-            ? 'Interactive teacher fixtures for Daily, Classrooms, Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces.'
-            : 'Interactive student fixtures for Today, Classwork, Tests, Calendar, Announcements, and Resources.'}
+            ? 'Interactive teacher fixtures for Daily, Classrooms, Gradebook visibility, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces.'
+            : 'Interactive student fixtures for Today, Classwork, Tests, Grades, Calendar, Announcements, and Resources.'}
         >
           <PageMockups role={role} />
         </PatternSection>
+
+        {role === 'teacher' && <PatternSection id="gradebook-compact" eyebrow="Feature-owned evidence"
+          title="Gradebook density" description="Production Gradebook controls with compact codes, categories, weights, and marks.">
+          <GradebookCompactPattern />
+        </PatternSection>}
 
         <PatternSection
           id="feature-patterns"
@@ -589,8 +727,28 @@ export function UiGallery({ role }: Props) {
           <div className="space-y-6 [&>section]:scroll-mt-28">
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentEditSplitPattern />}
+            {role === 'teacher' && <TestEditSplitPattern />}
+            {role === 'teacher' && <SurveyEditSplitPattern />}
+            <PatternSection id="survey-results" eyebrow="Feature-owned evidence"
+              title="Survey result bars" description="Labels overlay the shared teacher/student tracks, with selected percentages inside the right end of each backing. Options stay in their original order.">
+              <div className="space-y-1.5">
+                <SurveyOptionResultBar option="Group discussion" count={7} totalResponses={20} />
+                <SurveyOptionResultBar option="Practice problems" count={12} totalResponses={20} />
+                <SurveyOptionResultBar option="Independent reading with a longer option label that wraps on narrow screens" count={1} totalResponses={20} />
+                <SurveyOptionResultBar option="Other" count={0} totalResponses={20} />
+              </div>
+            </PatternSection>
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
+            <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
+              title="Guided assignment Markdown" description="The production assignment renderer with a fixed coding reference for both classroom roles.">
+              <div data-testid="guided-assignment-markdown-reference">
+                <Card tone="panel" padding="md">
+                  <LimitedMarkdown content={GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE} />
+                </Card>
+              </div>
+            </PatternSection>
+            <TestReferenceImagePattern />
             <StudentGradesPattern />
             <PatternSection
               id="student-tests"
@@ -601,6 +759,8 @@ export function UiGallery({ role }: Props) {
               <StudentTestExamples />
             </PatternSection>
 
+            <StudentTestAttemptPattern />
+            {role === 'student' ? <StudentImageUploadGallery /> : null}
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />
           </div>
@@ -614,6 +774,17 @@ export function UiGallery({ role }: Props) {
         description="This dialog is rendered by the canonical shared owner."
         variant="success"
         buttonLabel="Close example"
+      />
+      <ConfirmDialog
+        isOpen={confirmationOpen}
+        onCancel={() => setConfirmationOpen(false)}
+        onConfirm={() => {
+          setExampleConfirmed(true)
+          setConfirmationOpen(false)
+        }}
+        title="Confirm local example"
+        description="Confirm this example to update the local feedback."
+        confirmLabel="Confirm example"
       />
     </main>
   )
@@ -660,6 +831,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'icons', label: 'Icons — Approved symbols' },
     { value: 'statuses', label: 'Statuses — Labels and meanings' },
     { value: 'status-colors', label: 'Statuses — Attendance, classwork, and test colors' },
+    { value: 'ui-consistency', label: 'Controls — Scoped menus and artifact targets' },
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     { value: 'owned-joined-home', label: 'Home prototype — Owned / Joined classrooms' },
     ...(role === 'teacher' ? [
@@ -676,14 +848,18 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
       { value: 'material-creation', label: 'Creation dialogs — Material' },
       { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
       { value: 'assignment-edit-split', label: 'Assignment edit — Split prototype' },
+      { value: 'test-edit-split', label: 'Test edit — Split prototype' },
+      { value: 'survey-edit-split', label: 'Survey edit — Split prototype' },
     ] : [
-      { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, calendar, announcements, and resources' },
+      { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, grades, calendar, announcements, and resources' },
       { value: 'mockup-student-today-panel', label: 'Page mockups — Today' },
       { value: 'mockup-student-classwork-panel', label: 'Page mockups — Classwork' },
       { value: 'mockup-student-tests-panel', label: 'Page mockups — Tests' },
+      { value: 'mockup-student-grades-panel', label: 'Page mockups — Grades' },
       { value: 'mockup-student-calendar-panel', label: 'Page mockups — Calendar' },
       { value: 'mockup-student-announcements-panel', label: 'Page mockups — Announcements' },
       { value: 'mockup-student-resources-panel', label: 'Page mockups — Resources' },
+      { value: 'student-image-upload', label: 'Student editor — Image upload' },
     ]),
     { value: 'student-tests', label: 'Student tests — Progress and access' },
     { value: 'history-preview', label: 'History — Document preview' },
@@ -764,8 +940,8 @@ function StatusExample({ status }: { status: StatusCatalogEntry }) {
   return (
     <Card tone="panel" padding="md">
       <div className="flex items-start gap-3">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-control border', STATUS_TONE_CLASSES[status.tone])}>
-          <Icon className={cn('h-5 w-5', status.icon === 'loader' && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center', status.icon === 'loader' ? 'text-primary' : cn('rounded-control border', STATUS_TONE_CLASSES[status.tone]))}>
+          {status.icon === 'loader' ? <CircularProgress className="h-5 w-5" /> : <Icon className="h-5 w-5" aria-hidden="true" />}
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -805,6 +981,38 @@ function makePreviewContent(paragraphCount: number): TiptapContent {
 }
 
 const PREVIEW_CONTENT = makePreviewContent(40)
+
+function StudentImageUploadGallery() {
+  const [content, setContent] = useState<TiptapContent>({
+    type: 'doc',
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Add a photo of your work below.' }],
+    }],
+  })
+
+  return (
+    <div
+      id="student-image-upload"
+      data-testid="student-image-upload-gallery"
+      className="scroll-mt-28 rounded-lg border border-border bg-surface p-4"
+    >
+      <h2 className="text-lg font-semibold text-text-default">Student image upload</h2>
+      <p className="mt-1 text-sm text-text-muted">
+        The picker and upload status stay outside the saved response. Choose a non-image file to inspect failure recovery without calling an API.
+      </p>
+      <div className="mt-4 overflow-hidden rounded-lg border border-border">
+        <RichTextEditor
+          content={content}
+          onChange={setContent}
+          enableImageUpload
+          assignmentDocId="pattern-lab-assignment-doc"
+          toolbarPreset="document"
+        />
+      </div>
+    </div>
+  )
+}
 
 function HistoryPreviewGallery({ role }: { role: Role }) {
   const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
@@ -868,6 +1076,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
               content={previewContent}
               onChange={() => undefined}
               editable={false}
+              enableImageUpload
               className="h-full"
               historyPreviewMode={previewMode}
               historyPreviewChange={preview?.change}
@@ -948,6 +1157,14 @@ function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
       type: 'text',
       text: 'New evidence. The shaded plot retained more moisture than the exposed plot after the afternoon temperature increased.',
     }],
+  })
+  addition.content!.splice(2, 0, {
+    type: 'imageUpload',
+    attrs: {
+      accept: 'image/*',
+      limit: 1,
+      maxSize: 10_000_000,
+    },
   })
 
   const deletion = clonePreviewContent(addition)

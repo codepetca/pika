@@ -21,11 +21,22 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('AppHeader home navigation', () => {
+  it('names a non-classroom sidebar trigger for its destination', () => {
+    const onOpenSidebar = vi.fn()
+    render(
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} onOpenSidebar={onOpenSidebar} sidebarTriggerLabel="Open admin navigation" />,
+      { wrapper: Wrapper },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open admin navigation' }))
+    expect(onOpenSidebar).toHaveBeenCalledOnce()
+  })
+
   it('announces a primary Pika logo selection to the current classrooms page', () => {
     const handleHomeSelected = vi.fn()
     window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
 
-    render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
+    render(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} pageTitle="Classrooms" />, { wrapper: Wrapper })
     const homeLink = screen.getByRole('link', { name: 'Home' })
     homeLink.addEventListener('click', (event) => event.preventDefault())
     fireEvent.click(homeLink)
@@ -39,7 +50,7 @@ describe('AppHeader home navigation', () => {
     window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
 
     render(
-      <AppHeader pageTitle="Classrooms" onNavigateHome={() => false} />,
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} pageTitle="Classrooms" onNavigateHome={() => false} />,
       { wrapper: Wrapper }
     )
     fireEvent.click(screen.getByRole('link', { name: 'Home' }))
@@ -58,24 +69,24 @@ describe('AppHeader exam mode', () => {
     vi.useFakeTimers()
 
     const { rerender } = render(
-      <AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 1, awayTotalSeconds: 0 }} />,
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} examModeHeader={{ testTitle: 'Unit Test', exitsCount: 1, awayTotalSeconds: 0 }} />,
       { wrapper: Wrapper }
     )
 
     expect(screen.getByLabelText('Exits 1')).toHaveClass('text-text-muted')
     expect(screen.queryByText('Exit detected')).not.toBeInTheDocument()
 
-    rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
+    rerender(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
 
     expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning-bg', 'text-warning')
     expect(screen.getByText('Exit detected')).toHaveClass('sr-only')
 
-    rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 1, awayTotalSeconds: 0 }} />)
+    rerender(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} examModeHeader={{ testTitle: 'Unit Test', exitsCount: 1, awayTotalSeconds: 0 }} />)
 
     expect(screen.getByLabelText('Exits 1')).toHaveClass('text-text-muted')
     expect(screen.queryByText('Exit detected')).not.toBeInTheDocument()
 
-    rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
+    rerender(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
 
     expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning-bg', 'text-warning')
     expect(screen.getByText('Exit detected')).toHaveClass('sr-only')
@@ -92,7 +103,7 @@ describe('AppHeader exam mode', () => {
     const onNavigateHome = vi.fn(() => false)
 
     render(
-      <AppHeader
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')}
         examModeHeader={{ testTitle: 'Unit Test', exitsCount: 0, awayTotalSeconds: 0 }}
         onNavigateHome={onNavigateHome}
       />,
@@ -108,7 +119,7 @@ describe('AppHeader exam mode', () => {
 describe('AppHeader classroom theme', () => {
   it('renders the current classroom title as static text when multiple classrooms are available', () => {
     render(
-      <AppHeader
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classrooms={[
           { id: 'class-1', title: 'Alpha', code: 'AAA111', themeColor: 'teal' },
           { id: 'class-2', title: 'Beta', code: 'BBB222', themeColor: 'rose' },
@@ -130,7 +141,7 @@ describe('AppHeader classroom theme', () => {
 
   it('themes the appbar from the current classroom color', () => {
     render(
-      <AppHeader
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classrooms={[
           { id: 'class-1', title: 'Alpha', code: 'AAA111', themeColor: 'teal' },
           { id: 'class-2', title: 'Beta', code: 'BBB222', themeColor: 'rose' },
@@ -152,7 +163,7 @@ describe('AppHeader classroom theme', () => {
 
   it('gives the classroom name more mobile space and moves home into the drawer', () => {
     render(
-      <AppHeader
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classrooms={[
           { id: 'class-1', title: 'A Longer Classroom Name', code: 'AAA111', themeColor: 'teal' },
         ]}
@@ -169,7 +180,7 @@ describe('AppHeader classroom theme', () => {
   })
 
   it('keeps the brand logo on unthemed appbars', () => {
-    render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
+    render(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} pageTitle="Classrooms" />, { wrapper: Wrapper })
 
     expect(screen.getByRole('img', { name: 'Pika' })).toHaveClass('pika-logo')
     expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('h-11', 'w-11')
@@ -214,4 +225,73 @@ describe('AppHeader classroom theme', () => {
     expect(cardRule).not.toContain('border-color')
     expect(cardRule).not.toContain('border-left-color')
   })
+})
+
+
+describe('AppHeader date and time visibility', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  function setWindowSize(width: number, height: number) {
+    vi.stubGlobal('innerWidth', width)
+    vi.stubGlobal('innerHeight', height)
+    vi.stubGlobal('outerWidth', width)
+    vi.stubGlobal('outerHeight', height)
+    vi.spyOn(window.screen, 'availWidth', 'get').mockReturnValue(1440)
+    vi.spyOn(window.screen, 'availHeight', 'get').mockReturnValue(900)
+  }
+
+  it.each(['teacher', 'student'] as const)('keeps the clock hidden after loading and resizing a screen-sized browser for %s', (role) => {
+    // A normal browser can report screen-sized outer bounds without Pika fullscreen.
+    setWindowSize(1440, 900)
+    render(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} user={{ email: 'user@example.com', role }} />, { wrapper: Wrapper })
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+
+    fireEvent(window, new Event('resize'))
+    fireEvent(window, new Event('focus'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it('shows in fullscreen and hides on exit in a restored window', () => {
+    setWindowSize(1000, 700)
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+    const fullscreen = vi.spyOn(document, 'fullscreenElement', 'get').mockReturnValue(document.documentElement)
+    render(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} />, { wrapper: Wrapper })
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+
+    fullscreen.mockReturnValue(null)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('shows only while Pika fullscreen is active for %s', (role) => {
+    setWindowSize(1440, 900)
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+    const fullscreen = vi.spyOn(document, 'fullscreenElement', 'get').mockReturnValue(null)
+    render(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} user={{ email: 'user@example.com', role }} />, { wrapper: Wrapper })
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+
+    fullscreen.mockReturnValue(document.documentElement)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+
+    fullscreen.mockReturnValue(null)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it('keeps the clock in exam mode while window compliance is restored', () => {
+    setWindowSize(1000, 700)
+    const { rerender } = render(
+      <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} examModeHeader={{ testTitle: 'Unit Test', exitsCount: 0, awayTotalSeconds: 0 }} />,
+      { wrapper: Wrapper },
+    )
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+    rerender(<AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} />)
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+
 })

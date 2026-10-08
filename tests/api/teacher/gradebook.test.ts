@@ -1,11 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { GET, PATCH, PUT } from '@/app/api/teacher/gradebook/route'
+import { buildStudentGradesResponse } from '@/lib/student-grades'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 type SupabaseReadError = { code?: string; message?: string; details?: string; hint?: string }
 
@@ -315,6 +319,8 @@ function buildPagedMockFrom(
   })
 }
 
+beforeEach(() => { mockSupabaseClient.rpc.mockReset(); mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } }) })
+
 describe('GET /api/teacher/gradebook', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -395,6 +401,49 @@ describe('GET /api/teacher/gradebook', () => {
     ])
     expect(body.selected_student).not.toHaveProperty('quizzes')
     expect(body.selected_student.tests).toEqual([])
+  })
+
+  it.each([
+    { scale: 1, earned: 24, percent: 160, production: false },
+    { scale: 0.5, earned: 12, percent: 80, production: false },
+    { scale: 0.5, earned: 12, percent: 80, production: true },
+  ])('applies maximum scale $scale to rows, final, inspector and summary', async ({ scale, earned, percent, production }) => {
+    vi.stubEnv('NODE_ENV', production ? 'production' : 'test')
+    vi.stubEnv('GRADEBOOK_MAXIMUM_EDITS_ENABLED', '')
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'assignment', assessment_id: 'a1', maximum: 15, score_scale: scale }], error: null })
+    mockSupabaseClient.from = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', due_at: null, position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 }],
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.maximum_overrides_available).toBe(true)
+    expect(body.maximum_edits_enabled).toBe(!production)
+    expect(body.assessment_columns[0]).toMatchObject({ possible: 15, source_possible: 30, maximum_scale: scale, is_maximum_override: true })
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned, possible: 15, percent })
+    expect(body.students[0].final_percent).toBe(percent)
+    expect(body.selected_student.assignments[0]).toMatchObject({ earned, possible: 15, percent })
+    expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: percent })
+  })
+
+  it.each([
+    { rubric: 1, manual: null, earned: 100 / 30 },
+    { rubric: 1, manual: 3.333333333333, earned: 3.333333333333 },
+  ])('keeps fractional maximum calculations aligned with final and student projection ($manual)', async ({ rubric, manual, earned }) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'assignment', assessment_id: 'a1', maximum: 0.1, score_scale: 1 }], error: null })
+    mockSupabaseClient.from = buildMockFrom({
+      categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
+      assignments: [{ id: 'a1', title: 'Fractional', due_at: null, position: 0, is_draft: false, points_possible: 100, include_in_final: true, gradebook_weight: 10, gradebook_category_id: 'term' }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: rubric, score_thinking: 0, score_workflow: 0 }],
+      scoreOverrides: manual == null ? [] : [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: manual }],
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    const student = buildStudentGradesResponse({ categories: [{ id: 'term', percentage: 100 }], items: [{ id: 'a1', kind: 'Classwork', title: 'Fractional', earned, possible: 0.1, percent: earned / 0.1 * 100, included: true, href: null, categoryId: 'term', weight: 10, returnedAt: null }] })
+    expect(body.students[0].assessment_scores[0].earned).toBeCloseTo(earned, 10)
+    expect(body.students[0].assessment_scores[0].percent).toBe(3333.33)
+    expect(body.students[0].final_percent).toBe(student.currentPercent)
+    expect(student.currentPercent).toBe(3333.33)
   })
 
   it('uses a manual mark in the student row, final, and class summary', async () => {
@@ -478,6 +527,25 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].assessment_scores[0].percent).toBe(80)
     expect(body.students[0]).toMatchObject({ final_percent: 49.5, is_final_override: true, calculated_final_percent: 80 })
     expect(body.class_summary.average_final_percent).toBe(49.5)
+  })
+
+  it.each([{ testQuestions: [] }, { testQuestions: [{ id: 'tq1', test_id: 't1', points: 0 }] }])('counts a manual mark when an empty/zero-point Test receives a positive maximum (%j)', async ({ testQuestions }) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
+    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Test', status: 'closed', include_in_final: true }], testQuestions, scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 7 }] })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))).json()
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 7, possible: 10, percent: 70, is_graded: true, is_manual_override: true })
+    expect(body.students[0].final_percent).toBe(70)
+    expect(body.selected_student.tests[0]).toMatchObject({ earned: 7, possible: 10, percent: 70 })
+    expect(body.class_summary.tests[0]).toMatchObject({ average_percent: 70 })
+  })
+
+  it.each([{ scored: true }, { scored: false }])('uses effective maximum for calculated zero-point Test, scored=$scored', async ({ scored }) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
+    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Zero point Test', status: 'closed', include_in_final: true }], testQuestions: scored ? [{ id: 'q1', test_id: 't1', points: 0 }] : [], testResponses: scored ? [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 0 }] : [], testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }] })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: scored ? 0 : null, possible: 10, percent: scored ? 0 : null, is_graded: scored })
+    expect(body.students[0].final_percent).toBe(scored ? 0 : null)
+    expect(body.class_summary.tests[0].average_percent).toBe(scored ? 0 : null)
   })
 
   it('includes fully scored tests in grade calculations and class summary', async () => {
@@ -704,6 +772,33 @@ describe('GET /api/teacher/gradebook', () => {
       category_id: termId,
       exact_course_weight: null,
     })
+  })
+
+  it('keeps teacher and student aggregate grades aligned for fractional rubric scores', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
+      assignments: [{
+        id: 'a1', title: 'Fractional rubric', due_at: null, position: 0, is_draft: false,
+        points_possible: 10, include_in_final: true, gradebook_weight: 10, gradebook_category_id: 'term',
+      }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 1, score_thinking: 0, score_workflow: 0 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+    const rawEarned = 10 / 30
+    const studentProjection = buildStudentGradesResponse({
+      categories: [{ id: 'term', percentage: 100 }],
+      items: [{
+        id: 'a1', kind: 'Classwork', title: 'Fractional rubric', earned: rawEarned, possible: 10,
+        percent: (rawEarned / 10) * 100, included: true, href: null, categoryId: 'term', weight: 10,
+        returnedAt: null,
+      }],
+    })
+
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 0.33, percent: 3.33 })
+    expect(body.students[0].final_percent).toBe(3.33)
+    expect(body.students[0].final_percent).toBe(studentProjection.currentPercent)
   })
 
   it('does not fall back to legacy grades when scored assessments have no category', async () => {
@@ -1087,7 +1182,7 @@ describe('GET /api/teacher/gradebook', () => {
       assignments: [
         { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
       ],
-      docsError: { message: 'database unavailable' },
+      docsError: privateDiagnosticError,
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -1096,7 +1191,27 @@ describe('GET /api/teacher/gradebook', () => {
 
     expect(response.status).toBe(500)
     expect(body.error).toBe('Failed to load assignment docs for gradebook')
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'gradebook.documents')
     consoleError.mockRestore()
+  })
+
+  it.each([
+    ['categoriesError', 'gradebook.categories', 'Failed to load gradebook categories'],
+    ['profilesError', 'gradebook.profiles', 'Failed to load student profiles for gradebook'],
+    ['scoreOverridesError', 'gradebook.overrides', 'Failed to load Gradebook overrides'],
+    ['testQuestionsError', 'gradebook.questions', 'Failed to load test questions for gradebook'],
+    ['testResponsesError', 'gradebook.responses', 'Failed to load test responses for gradebook'],
+    ['testAttemptsError', 'gradebook.attempts', 'Failed to load test attempts for gradebook'],
+  ])('keeps %s failures content-free without changing the API response', async (field, event, message) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = buildMockFrom({
+      tests: [{ id: 'test-1', title: 'Synthetic test', position: 1, status: 'closed' }],
+      [field]: privateDiagnosticError,
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: message })
+    expectContentFreeDiagnostic(consoleError.mock.calls, event)
   })
 
   it('falls back when assignment doc teacher_cleared_at is not migrated yet', async () => {
@@ -1348,7 +1463,7 @@ describe('PATCH /api/teacher/gradebook', () => {
       assessment_type: 'test',
       assessment_id: 't1',
       gradebook_weight: 1000,
-    }), 'gradebook_weight must be an integer 1-999'],
+    }), 'gradebook_weight must be an integer 0-999'],
     [JSON.stringify({
       classroom_id: 'c1',
       assessment_type: false,
@@ -1372,19 +1487,19 @@ describe('PATCH /api/teacher/gradebook', () => {
       assessment_type: 'test',
       assessment_id: 't1',
       gradebook_weight: true,
-    }), 'gradebook_weight must be an integer 1-999'],
+    }), 'gradebook_weight must be an integer 0-999'],
     [JSON.stringify({
       classroom_id: 'c1',
       assessment_type: 'test',
       assessment_id: 't1',
-      gradebook_weight: 0,
-    }), 'gradebook_weight must be an integer 1-999'],
+      gradebook_weight: -1,
+    }), 'gradebook_weight must be an integer 0-999'],
     [JSON.stringify({
       classroom_id: 'c1',
       assessment_type: 'test',
       assessment_id: 't1',
       gradebook_weight: { value: 10 },
-    }), 'gradebook_weight must be an integer 1-999'],
+    }), 'gradebook_weight must be an integer 0-999'],
   ])('returns 400 for invalid update input %#', async (body, message) => {
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook', {
       method: 'PATCH',
@@ -1443,7 +1558,7 @@ describe('PATCH /api/teacher/gradebook', () => {
       eq: vi.fn().mockReturnThis(),
       select: vi.fn(() => ({
         maybeSingle: vi.fn().mockResolvedValue({
-          data: { id: 'a1', gradebook_weight: 20 },
+          data: { id: 'a1', gradebook_weight: 0 },
           error: null,
         }),
       })),
@@ -1477,7 +1592,7 @@ describe('PATCH /api/teacher/gradebook', () => {
         classroom_id: 'c1',
         assessment_type: 'assignment',
         assessment_id: 'a1',
-        gradebook_weight: '20',
+        gradebook_weight: '0',
         assignments_weight: 50,
       }),
     })
@@ -1486,11 +1601,11 @@ describe('PATCH /api/teacher/gradebook', () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(update).toHaveBeenCalledWith({ gradebook_weight: 20 })
+    expect(update).toHaveBeenCalledWith({ gradebook_weight: 0 })
     expect(body.assessment).toEqual({
       assessment_id: 'a1',
       assessment_type: 'assignment',
-      weight: 20,
+      weight: 0,
     })
   })
 

@@ -37,12 +37,20 @@ export interface StructuredOutputRequest {
   fallbackMaxOutputTokens: number
   requestTimeoutMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
+  /** Some grading policies require every attempt to stay at the requested effort. */
+  allowEffortDowngrade?: boolean
 }
 
 export interface StructuredOutputResponse {
   outputText: string
   tokenUsage: GradingTokenUsage
   requestCount: number
+  /**
+   * The effort the successful attempt actually ran at. Lower than the requested effort
+   * when a provider had to think less to fit its output budget, so a downgraded grade is
+   * distinguishable from a normal one after the fact.
+   */
+  reasoningEffortUsed: StructuredOutputRequest['reasoningEffort']
 }
 
 export interface StructuredOutputProvider {

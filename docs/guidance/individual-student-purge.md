@@ -112,8 +112,7 @@ cleanup, or enable the UI.
 2. Deploy compatible application code with the rollout disabled. Pre-123 code
    paths treat the missing settings/binding schema as unavailable and retain the
    existing email-based roster display fallback; they do not expose deletion.
-3. Because this project has no staging environment, production migration 123
-   application requires fresh authorization naming production and migration 123.
+3. Production migration 123 application requires fresh authorization naming production and migration 123.
    Apply it disabled and verify schema, privileges, cron health, and normal
    Classroom/archive flows without starting a purge.
 4. A production canary requires separate authorization naming the exact teacher,

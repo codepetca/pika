@@ -1,0 +1,256 @@
+# Living blueprint authoring guidance
+
+Status: released and adopted in production, 2026-09-30; a generated-assignment
+Markdown correction is completing review. The Blueprint workspace merged in
+PR #1386, classroom drafting in #1387 (`50cbbc5a`), and independent guidance
+adoption in #1396 (`b754bd69`). Production promotion #1398 merged as `f4d61257`
+and deployed. Migrations 221/222 were applied by a separately owner-authorized
+task; this implementation task only verified the aligned remote history.
+ICS3U-4 Draft revision 5 includes the agreed rules and the no-hyperlinks test
+reference policy. P3/P5 both use Guidance Version 4 while retaining Content
+Version 3. This plan tracks the complete goal.
+
+## Release correction: complete Content lists
+
+Surface: teacher classroom Blueprint Content tab. Reuse the approved
+`TeacherBlueprintTab` title lists, Settings-style sections and classroom shell;
+Pattern Lab remains the executable shared navigation/Card reference. Display
+all structural Version titles, retaining the separate 40-title model-input cap.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Complete content inventory | `TeacherBlueprintTab` / `TitleList` | reuse | Existing list already supports the full array and normal pane scrolling. |
+
+Verify teacher Content selected, end-of-list visible, desktop/mobile and
+light/dark. Student is n/a: this teacher-only reader is not exposed to students;
+the prior release privacy checks remain applicable. Primary signal is existing
+section headings and title text. No new controls, styling or shared component
+contract; composite-widget review is not required.
+
+## Goal
+
+A teacher can set course-wide and unit-specific expectations for tests and
+assignments in a Blueprint, see the exact guidance used for a draft, and improve
+that guidance as the course evolves. The rules remain private to teachers and
+travel with the Blueprint's reviewed, versioned course content.
+
+## Phases and exit criteria
+
+1. **Workspace.** The Blueprint has a clear, dedicated Authoring Guidance tab
+   and simpler navigation for its existing content. The tab is honest about what
+   is editable at this stage. Existing editing, proposals, and save guards keep
+   working. Verify desktop and mobile, light and dark, keyboard, empty and error
+   states.
+2. **Owned guidance.** A teacher can edit course defaults and optional unit
+   overrides for tests and assignments. Store them as structured guidance with
+   an explicit revision, authorship, and review history. A save is conflict safe;
+   another teacher or stale browser cannot silently overwrite a newer revision.
+   Teacher-only API responses enforce privacy, and student/public course surfaces
+   contain no guidance. Reusable package import/export and immutable Blueprint
+   Versions retain the same rules. Existing packages import with empty guidance.
+3. **Drafting context.** When creating a test or assignment from a Blueprint,
+   select the relevant course and unit rules, show the teacher which revision is
+   in effect, and include that context in the actual drafting input. Generated
+   content stays a teacher-reviewed draft. A repeatable test proves that the
+   authoring path consumes the approved guidance rather than merely displaying
+   it beside a fixed template.
+4. **Refinement.** A teacher can propose a rule change from an authoring review,
+   inspect the old and new wording, and explicitly apply or reject it. Accepted
+   changes become a new guidance revision; old drafts keep their provenance.
+   A teacher can try revised guidance on a draft before applying it globally.
+5. **Release.** Complete focused checks, migration replay and database contract
+   checks, UI verification, and an independent review. Publish a draft PR,
+   resolve findings, mark the stable reviewed commit ready, and wait for PR Gate.
+   Merge only after the repository's normal authority gate. Applying a migration
+   to any named environment requires a separate one-time instruction naming the
+   exact migration, per the schema rollout checklist.
+
+## Product rules to seed and preserve
+
+The general Pika test guide remains the cross-course baseline. Course guidance
+records teacher choices and subject conventions, not one quiz's length, points,
+or topic as a universal default. For coding tests, rules can cover a first
+student-facing `Instructions` reference, concise self-contained prompts,
+language references, question visuals, Markdown-formatted code in multiple
+choice, and prompt/rubric/sample alignment. Unit overrides may specialize the
+course defaults without replacing them wholesale. Assignment rules must be
+equally first-class.
+
+## Open implementation decisions
+
+- Store one strict structured `authoring_guidance` object on the teacher-owned
+  Blueprint Draft. Snapshot it in Version schema 3, include it in Change
+  Proposals, and export it as `authoring-guidance.md` in package v6. Legacy
+  packages import with empty guidance. A classroom-derived proposal preserves
+  the Blueprint's guidance; instantiation does not copy it to classroom rows.
+- Classroom Classwork and Tests keep their existing blank creation actions and
+  add a shared teacher-reviewed guided draft flow at those entry points.
+- The teacher classroom sidebar has a Blueprint tab. Its content pane shows
+  the frozen Version linked to that classroom, including its course outline,
+  assessment titles, and private authoring guidance. The source Blueprint Draft
+  remains the separately edited object; changes to it do not rewrite a saved
+  classroom Version. Classrooms without lineage show an explicit empty state.
+- Classroom drafting reads the frozen source Blueprint Version through a
+  teacher-only endpoint. Its AI draft request must use that Version's rules,
+  not the live Blueprint Draft. A draft records the Version and chosen unit
+  separately from student-facing instructions/questions.
+
+## Implementation notes
+
+- Classroom capture and archived classroom reuse originate from classroom
+  content, which has no authoring guidance. Their creation Version remains
+  schema 2, and guidance reads it as empty. A later teacher edit belongs to the
+  Blueprint Draft and enters a schema 3 Version only when that Version is saved.
+- AI Drafting generates one new test or assignment using the saved Blueprint
+  guidance and optional unit rule. It returns the exact rule text and Draft
+  revision beside an editable preview. A proposal is rejected if that revision
+  changed. AI review proposals retain the exact guidance text, unit choice,
+  and Blueprint revision that supplied the draft. Temporary trial previews
+  can use unsaved guidance but cannot be proposed until the teacher applies
+  the rules and generates a new preview.
+- Guidance edits are staged in the editor, compared with the saved revision,
+  then explicitly applied or rejected. A prior history entry can be restored as
+  a new staged change; history remains immutable.
+
+## Classroom drafting implementation
+
+- The teacher chooses a target, unit, and request, then edits the generated
+  standalone Markdown before creating an unpublished draft. The model receives
+  the classroom's frozen Version rules. A trial of unsaved Blueprint rules
+  cannot create a classroom artifact.
+- A signed preview proof binds the teacher, classroom, Version, unit, rules,
+  and original generated draft. Edited Markdown is parsed and validated before
+  creation. One-use `draft_id` prevents the same preview from creating twice.
+- A private sidecar stores the frozen Version and exact rules used. Existing
+  `source_blueprint_version_id` on Assignment and Test remains direct copied
+  artifact lineage. Atomic database functions create the artifact, initial
+  content, and sidecar in one transaction. The teacher editor shows a compact
+  source note after reload; students only receive the assessment content.
+
+## Remaining release gates
+
+- PR #1387 merged as `50cbbc5a` after the owner-approved canonical screenshot
+  correction and tenth targeted review. Exact-head run36659661703 passed Build,
+  Database contracts, Browser matrix and PR Gate. One unchanged-candidate rerun
+  resolved an existing assignment-editor test load-timing failure; no assertion
+  or application changes were made. The Blueprint patch and canonical PNGs were
+  unchanged by the main sync.
+- Guidance adoption implementation uses migration 222. Replay and type generation
+  run on a separate ephemeral database; shared local and production databases
+  have not been migrated by this implementation task.
+- Adoption security, compatibility, correction and final integration reviews passed
+  at `5b399e3b`; the rebased application/test/migration patch is unchanged. PR #1396
+  merged as `b754bd69` after exact-head CI36702895411 passed all lanes and PR Gate.
+  Production PR #1398 subsequently merged as `f4d61257` after cumulative review
+  and exact-head CI36768427365 passed all lanes and PR Gate. The approved
+  Content-list correction merged separately in #1399. Remote migration history
+  is aligned through 222; no application remains pending for this rollout.
+
+## Independent guidance adoption implementation
+
+- A nullable classroom guidance Version pointer inherits the Content Version
+  until the teacher explicitly adopts guidance from the owned Blueprint Draft.
+  The preview compares current and proposed rules, including unit exceptions;
+  identical guidance is current even when other Draft content changed.
+- Adoption saves/reuses an immutable Version with exact Draft revision checking,
+  then atomically checks teacher ownership, the source Blueprint, both current
+  Version pointers, archived state, and lifecycle fences. It changes only the
+  guidance pointer. Untracked Tests/lessons do not block adoption.
+- Teacher Blueprint shows separate Content Version and Guidance Version. Course
+  titles, outline and copied assessment titles still come from Content Version.
+  Guided drafting uses the selected Guidance Version, and signed previews bind
+  both Version identities. Atomic creation rechecks both; the private sidecar
+  retains the structural context identity and exact adopted rules.
+- Archive roots retain the pointer; old archives default to inherited guidance.
+  Existing private provenance rows default to their original single Version.
+  Full content application clears overrides. Blueprint purge clears the pointer
+  through its structural detachment; inventory digests and lineage fences include
+  the new reference. Immutable Versions retain the normal deletion protections.
+
+## Adoption verification evidence
+
+- Clean isolated Supabase replay through migration 222; database types generated by
+  the CLI and checked against a second machine generation. Shared local remains
+  unchanged. Warning-level database lint reports no schema errors; ownership graph
+  audit passes all 273 relationships.
+- Real database contracts cover null fallback, untracked content preservation,
+  stale actor/Blueprint/pointer/revision failures, archived/purging rejection,
+  both concurrent lifecycle locks, effective rule binding, structural-context
+  changes with unchanged guidance, archive root/default handling, content reset,
+  and purge inventory/finalization. Archive codec/restore-plan tests preserve both
+  identities and private rules. The historical standalone restore script requires
+  retired Quiz tables and is not a current-schema harness; its direct run stops at
+  that fixture precondition.
+- Focused gate passed 3,518 tests plus architecture, UI/design policies, TypeScript
+  and lint. Subsequent narrow context/preview checks passed 41 tests and archive
+  restore-plan checks passed 17 tests. Desktop/mobile light/dark teacher screenshots
+  and student exclusion evidence are recorded in the UI change brief.
+
+## Initial adoption review corrections
+
+The first independent review wave accepted two findings in one correction batch:
+student classroom serialization now removes the private guidance Version pointer
+from both legacy/contextual detail APIs and server-rendered student detail/list
+props. Student list/join APIs and nested assignment/test classroom selections
+already use explicit public fields; enrollment RPC responses also validate a
+strict classroom shape. Teacher guidance reads and access-pilot gates are unchanged.
+
+The guidance comparison now labels its current rules using the Version number
+returned in that preview, even when the open tab still shows an older Version.
+Regressions cover distinct structural/guidance IDs, legacy/contextual API and page
+serialization, teacher preservation, and the old-tab/new-preview combination.
+Migration 222 and generated types are unchanged; frozen isolated database evidence
+remains applicable. Parent PR1387's snapshot gate and review checkpoint remain
+coordinator-owned.
+
+## Existing ICS3U rollout
+
+Historical baseline: read-only production checks on 2026-09-29 confirmed
+database migrations through 220. ICS3U-4 was Pika-managed at Draft revision 3
+with empty authoring guidance. P3 and P5 ICS3U both used saved Version 3, whose legacy snapshot has no
+guidance. P5 has one untracked test; P3 has one untracked test and one untracked
+lesson. The existing full classroom update proposal rejects those classrooms.
+
+- Complete: PRs #1387, #1396, #1399 and #1402 passed their gates and were
+  included in production promotion #1398. Live teacher/student smoke checks
+  passed on the deployed release.
+- Complete: the explicit guidance-only adoption path preserves each classroom's
+  Content Version and copied assessment lineage. Both P3 and P5 adopted Guidance
+  Version 4, saved from the owned ICS3U-4 Draft revision 5, through teacher review.
+- Complete: migrations 221/222 were applied once by the separately authorized
+  migration task. This coordinator verified remote history through 222 and the
+  installed private provenance, adoption, and atomic draft creation contracts.
+- Complete: the agreed Markdown rules were saved through the production teacher
+  editor and read-verified against the prepared rules. Course, assignment, test
+  and Unit 1 Java Karel sections include Instructions first, concise prompts,
+  no navigation/solution hints, Markdown MC code and vertically stacked worlds.
+  Revision 5 adds the no-hyperlinks/no-clickable-exits test reference policy.
+- Complete: fresh before/after adoption digests checked all 320 existing
+  artifacts in each classroom; none changed or disappeared. Structural Blueprint
+  identities and classroom content hashes are unchanged. Private receipts and
+  production screenshots remain outside Git.
+- Complete: a teacher-reviewed P3 test and P5 assignment verification draft were
+  created, each worth 10 points and unpublished. Their private provenance records
+  the exact adopted rules, Content Version 3, Guidance Version 4 and Unit 1.
+  Student previews show Markdown references/code and omit private guidance.
+- Correction in review: generated assignment headings and divider lines could
+  be interpreted as additional assignment boundaries. The P5 verification draft
+  required teacher Markdown normalization. The scoped correction normalizes
+  generated prose and protects fenced code through the classroom creation parser,
+  retaining the legacy Blueprint import contract. Regression checks cover the
+  actual Karel-shaped task/reference and preservation of code, points and draft
+  state. Finish its reviewed release and verify a generated assignment can be
+  saved without this manual formatting correction.
+- Independent review found two remaining boundaries: an edited interior `---`
+  or metadata line could silently discard instructions or change points/due
+  days, and longer backtick or tilde fences were not rendered as one code block.
+  The correction now rejects ambiguous teacher edits before the classroom RPC,
+  while accepting valid submission requirement rows. Generated reserved headings
+  use the existing three-level renderer, and both fence forms preserve code and
+  following prose. Focused tests and production-owner Pattern Lab captures cover
+  teacher/student desktop/mobile in light/dark; the final PR gate and production
+  proof are still pending.
+
+Completion requires the remaining correction's production proof. The course
+adoption and draft receipts above use actual production classrooms, rather than
+fixture data. Verification drafts must remain unpublished to students.

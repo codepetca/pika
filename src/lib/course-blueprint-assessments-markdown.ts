@@ -106,9 +106,9 @@ function extractGradingFields(document: string) {
   }
   if (
     gradebookWeight !== undefined &&
-    (!Number.isInteger(gradebookWeight) || gradebookWeight < 1 || gradebookWeight > 999)
+    (!Number.isInteger(gradebookWeight) || gradebookWeight < 0 || gradebookWeight > 999)
   ) {
-    errors.push('Gradebook Weight must be an integer from 1 to 999')
+    errors.push('Gradebook Weight must be an integer from 0 to 999')
   }
 
   return {

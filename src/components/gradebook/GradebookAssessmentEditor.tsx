@@ -78,10 +78,10 @@ export function GradebookAssessmentEditor({
             />
           </FormField>
 
-          <FormField label="Category weight" error={weightIsValid ? undefined : 'Enter a whole number from 1 to 999.'}>
+          <FormField label="Category weight" error={weightIsValid ? undefined : 'Enter a whole number from 0 to 999.'}>
             <Input
               type="number"
-              min={1}
+              min={0}
               max={999}
               step={1}
               className={cn(GRADEBOOK_NUMBER_INPUT_CLASS)}

@@ -86,7 +86,7 @@ begin
       'default_due_days', 1,
       'default_due_time', '23:59',
       'points_possible', 10,
-      'gradebook_weight', 0,
+      'gradebook_weight', -1,
       'include_in_final', true,
       'is_draft', true,
       'position', 0

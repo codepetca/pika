@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hydrateClassroomRecords } from '@/lib/server/classrooms'
+import { classroomStudentRecord, hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 describe('server classroom hydration', () => {
@@ -38,5 +38,20 @@ describe('server classroom hydration', () => {
       tests: false,
       attendance: false,
     })
+  })
+})
+
+describe('student classroom serialization', () => {
+  it('omits guidance provenance in detail and list hydration while leaving teacher rows intact', () => {
+    const row = { id: 'c-1', title: 'Course', source_blueprint_version_id: 'content-v3',
+      authoring_guidance_version_id: 'private-guidance-v4' }
+    const detail = hydrateClassroomRecord(classroomStudentRecord(row))
+    const list = hydrateClassroomRecords([row].map(classroomStudentRecord))
+    for (const record of [detail, ...list]) {
+      expect(record.source_blueprint_version_id).toBe('content-v3')
+      expect(record).not.toHaveProperty('authoring_guidance_version_id')
+      expect(JSON.stringify(record)).not.toContain('private-guidance-v4')
+    }
+    expect(hydrateClassroomRecord(row).authoring_guidance_version_id).toBe('private-guidance-v4')
   })
 })

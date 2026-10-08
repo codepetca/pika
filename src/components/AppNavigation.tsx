@@ -30,7 +30,7 @@ export function AppNavigation({ label, items, width = 'wide' }: AppNavigationPro
   const pathname = usePathname()
 
   return (
-    <nav aria-label={label} className="border-b border-border bg-surface">
+    <nav aria-label={label} className="bg-surface">
       <div className={`mx-auto px-4 ${widthClasses[width]}`}>
         <div className="flex min-h-11 items-stretch gap-1 overflow-x-auto" data-app-navigation-scroll>
           {items.map((item) => {
@@ -42,7 +42,7 @@ export function AppNavigation({ label, items, width = 'wide' }: AppNavigationPro
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={[
-                  'inline-flex min-h-11 flex-none items-center border-b-2 px-3 text-sm font-medium transition-colors',
+                  'inline-flex min-h-11 flex-none items-center border-b-2 px-3 text-sm font-medium transition-colors duration-fast ease-standard motion-reduce:transition-none',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
                   isActive
                     ? 'border-primary text-primary'

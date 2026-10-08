@@ -127,8 +127,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 9,
-          "fingerprint": "ad3b6fa170b12b46",
+          "count": 7,
+          "fingerprint": "049b6a2890e8b435",
           "reason": "layout-geometry"
         }
       ]
@@ -151,8 +151,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "4085886e79150fbc",
+          "count": 1,
+          "fingerprint": "67d78a17e7f955a5",
           "reason": "layout-geometry"
         },
         {
@@ -656,18 +656,6 @@
       ]
     },
     {
-      "file": "src/components/surveys/TeacherSurveyWorkspace.tsx",
-      "reviewBy": "phase-3-surveys",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "ba36c18da944fc90",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
       "file": "src/components/teacher-work-surface/TeacherWorkItemCardFrame.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
@@ -763,21 +751,9 @@
         },
         {
           "kind": "raw-z-index",
-          "count": 7,
-          "fingerprint": "29ea700c0adba061",
+          "count": 6,
+          "fingerprint": "9e98a891f5a40b7a",
           "reason": "special-layer"
-        }
-      ]
-    },
-    {
-      "file": "src/components/test-workspace/TeacherTestAuthoringDialog.tsx",
-      "reviewBy": "phase-3-tests",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "090f0fcf6022696d",
-          "reason": "layout-geometry"
         }
       ]
     },
@@ -1341,6 +1317,18 @@
           "kind": "arbitrary-spacing",
           "count": 1,
           "fingerprint": "f2a1079bec0fefb9",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/LogSummary.tsx",
+      "reviewBy": "phase-3-daily-attendance",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "4f3f4d1fb522586d",
           "reason": "layout-geometry"
         }
       ]

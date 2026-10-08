@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TooltipProvider } from '@/ui'
 import { createMockTest, createMockTestQuestion } from '../helpers/mocks'
+import { testToMarkdown } from '@/lib/test-markdown'
 import type { TestAssessmentWithStats, TestAssessmentQuestion, TestResultsAggregate } from '@/types'
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -93,6 +94,7 @@ describe('TestDetailPanel', () => {
       title?: string
       show_results?: boolean
       version?: number
+      structureLocked?: boolean
     }
   ) {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
@@ -108,7 +110,7 @@ describe('TestDetailPanel', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        editingPolicy: { structureLocked: false },        draft: {
+        editingPolicy: { structureLocked: draftOverrides?.structureLocked ?? false }, draft: {
           version: draftOverrides?.version ?? 1,
           content: draftContent,
         },
@@ -123,6 +125,300 @@ describe('TestDetailPanel', () => {
     }
     return fetchMock
   }
+
+  it('shows the updated post-start boundary and leaves existing MC choice text editable', async () => {
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByText(/You can correct question wording, instructions, and one existing choice per question at a time/)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Mark option A correct' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Reorder option A/ })).toBeDisabled()
+  })
+
+  it('saves started-Test choice corrections one at a time before another choice can change', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstPatch = createDeferred<Response>()
+    const patchBodies: Array<{ version: number; content: { questions: TestAssessmentQuestion[] } }> = []
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method !== 'PATCH') return jsonResponse({})
+      const body = JSON.parse(String(options.body)) as typeof patchBodies[number]
+      patchBodies.push(body)
+      return patchBodies.length === 1
+        ? firstPatch.promise
+        : Promise.resolve(jsonResponse({
+            editingPolicy: { structureLocked: true },
+            draft: { version: 3, content: body.content },
+          }))
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const firstChoice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(firstChoice, { target: { value: 'Reddish' } })
+    fireEvent.blur(firstChoice)
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+    expect(patchBodies[0].content.questions[0].options).toEqual(['Reddish', 'Blue', 'Green'])
+    expect(screen.getByRole('textbox', { name: 'Question 1 option B' })).toBeDisabled()
+
+    await act(async () => {
+      firstPatch.resolve(jsonResponse({
+        editingPolicy: { structureLocked: true },
+        draft: { version: 2, content: patchBodies[0].content },
+      }))
+      await firstPatch.promise
+    })
+    const secondChoice = await screen.findByRole('textbox', { name: 'Question 1 option B' })
+    await waitFor(() => expect(secondChoice).toBeEnabled())
+    fireEvent.change(secondChoice, { target: { value: 'Bluish' } })
+    fireEvent.blur(secondChoice)
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1].version).toBe(2)
+    expect(patchBodies[1].content.questions[0].options).toEqual(['Reddish', 'Bluish', 'Green'])
+  })
+
+  it('restores the prior choice text when an immediate correction save fails', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => options?.method === 'PATCH'
+      ? Promise.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save unavailable' }) })
+      : jsonResponse({}))
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const choice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(choice, { target: { value: 'Reddish' } })
+    fireEvent.blur(choice)
+    await waitFor(() => expect(screen.getByText('Save unavailable')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+    expect(screen.getByRole('textbox', { name: 'Question 1 option B' })).toBeEnabled()
+  })
+
+  it('keeps a failed choice correction out of a title save queued behind it', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstPatch = createDeferred<Response>()
+    const patchBodies: Array<{ version: number; content: { title: string; questions: TestAssessmentQuestion[] } }> = []
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method !== 'PATCH') return jsonResponse({})
+      const body = JSON.parse(String(options.body)) as typeof patchBodies[number]
+      patchBodies.push(body)
+      return patchBodies.length === 1
+        ? firstPatch.promise
+        : Promise.resolve(jsonResponse({
+            editingPolicy: { structureLocked: true },
+            draft: { version: 2, content: body.content },
+          }))
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const choice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(choice, { target: { value: 'Reddish' } })
+    fireEvent.blur(choice)
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+
+    const title = screen.getByPlaceholderText('Untitled Test')
+    fireEvent.change(title, { target: { value: 'Retitled Test' } })
+    fireEvent.blur(title)
+    expect(patchBodies).toHaveLength(1)
+
+    await act(async () => {
+      firstPatch.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save unavailable' }) } as Response)
+      await firstPatch.promise
+    })
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1].content.title).toBe('Retitled Test')
+    expect(patchBodies[1].content.questions[0].options).toEqual(['Red', 'Blue', 'Green'])
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+  })
+
+  it('preserves a Markdown correction to another choice when the first choice save fails', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstPatch = createDeferred<Response>()
+    const question = createMockTestQuestion({
+      id: markdownQuestionId1,
+      question_text: 'Favorite color?',
+      options: ['Red', 'Blue', 'Green'],
+      correct_option: 0,
+      position: 0,
+    })
+    const patchBodies: Array<{ content: { questions: TestAssessmentQuestion[]; source_markdown: string } }> = []
+    mockFetchForTest([question], undefined, { title: 'Queued Markdown Test', structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method !== 'PATCH') return jsonResponse({ test: { documents: [] } })
+      const body = JSON.parse(String(options.body)) as typeof patchBodies[number]
+      patchBodies.push(body)
+      return patchBodies.length === 1
+        ? firstPatch.promise
+        : Promise.resolve(jsonResponse({
+            editingPolicy: { structureLocked: true },
+            draft: { version: patchBodies.length, content: body.content },
+          }))
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ title: 'Queued Markdown Test', status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="summary-detail"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const firstChoice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(firstChoice, { target: { value: 'Reddish' } })
+    fireEvent.blur(firstChoice)
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+
+    const markdownPane = screen.getByTestId('test-question-markdown-pane')
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+    fireEvent.change(within(markdownPane).getByTestId('test-markdown-editor'), {
+      target: {
+        value: testToMarkdown({
+          title: 'Queued Markdown Test',
+          show_results: false,
+          questions: [{ ...question, options: ['Reddish', 'Bluish', 'Green'] }],
+          documents: [],
+        }),
+      },
+    })
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+    expect(patchBodies).toHaveLength(1)
+
+    await act(async () => {
+      firstPatch.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save unavailable' }) } as Response)
+      await firstPatch.promise
+    })
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1].content.questions[0].options).toEqual(['Red', 'Bluish', 'Green'])
+    expect(patchBodies[1].content.source_markdown).toContain('Bluish')
+    expect(patchBodies[1].content.source_markdown).not.toContain('Reddish')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+
+    await waitFor(() => expect(within(markdownPane).getByRole('button', { name: 'Edit Markdown' })).toBeEnabled())
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+    fireEvent.change(within(markdownPane).getByTestId('test-markdown-editor'), {
+      target: {
+        value: testToMarkdown({
+          title: 'Queued Markdown Test',
+          show_results: false,
+          questions: [{ ...question, options: ['Reddish', 'Bluish', 'Green'] }],
+          documents: [],
+        }),
+      },
+    })
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+    await waitFor(() => expect(patchBodies).toHaveLength(3))
+    expect(patchBodies[2].content.questions[0].options).toEqual(['Reddish', 'Bluish', 'Green'])
+    expect(patchBodies[2].content.source_markdown).toContain('Reddish')
+  })
+
+  it('uses the split authoring layout with one navigable question and real document actions', async () => {
+    mockFetchForTest(sampleQuestions)
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'draft' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        onRequestClose={vi.fn()}
+        onRequestPublish={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByTestId('test-split-layout')).toBeInTheDocument()
+    expect(screen.getByTestId('test-editor-details-pane')).toHaveTextContent('Reference Docs')
+    expect(screen.getByTestId('test-editor-content-pane')).toHaveTextContent('Multiple choice')
+    expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Question 2 prompt' })).not.toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('textbox', { name: 'Question 2 prompt' })).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add reference' }))
+    expect(screen.getByRole('menuitem', { name: 'Link' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Upload PDF or image' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Markdown text' })).toBeInTheDocument()
+  })
+
+  it('flushes option edits before switching questions and blocks invalid choices', async () => {
+    holdAutosaveDebounce()
+    mockFetchForTest(sampleQuestions)
+    render(<TestDetailPanel test={makeTestWithStats({ status: 'draft' })} classroomId="classroom-1" onTestUpdate={vi.fn()} testQuestionLayout="split" />, { wrapper: Wrapper })
+    const option = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(option, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
+    fireEvent.change(option, { target: { value: 'Updated answer' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous question' }))
+    expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Updated answer')
+  })
+
+  it('keeps question actions and Markdown inside the split editor', async () => {
+    holdAutosaveDebounce()
+    mockFetchForTest(summaryDetailQuestions)
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'draft' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Points')).toHaveValue(6)
+    fireEvent.click(screen.getByRole('button', { name: 'Question actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Code response' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+    expect(screen.getByText('3 total · 15 points')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
+    expect(screen.getByTestId('test-markdown-editor')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true')
+  })
 
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
@@ -200,6 +496,127 @@ describe('TestDetailPanel', () => {
 
     expect(screen.getByText('Current draft question')).toBeInTheDocument()
     expect(screen.queryByText('Stale draft question')).not.toBeInTheDocument()
+  })
+
+  it('preserves loaded references across summary refreshes and preview saves', async () => {
+    const documents = [
+      { id: '11111111-1111-4111-8111-111111111111', title: 'Coding instructions', source: 'text', content: '# Instructions\nUse helper methods.' },
+      { id: '22222222-2222-4222-8222-222222222222', title: 'Karel worlds', source: 'upload', storage_bucket: 'test-documents', storage_path: 'classrooms/classroom-1/tests/test-1/documents/worlds.png' },
+    ]
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+      if (url.endsWith('/draft')) {
+        return Promise.resolve(jsonResponse({
+          editingPolicy: { structureLocked: false },
+          draft: { version: options?.method === 'PATCH' ? 2 : 1, content: { title: 'Reference test', show_results: false, questions: sampleQuestions } },
+        }))
+      }
+      return Promise.resolve(jsonResponse({ test: { documents } }))
+    })
+    const onRequestTestPreview = vi.fn()
+    function Parent() {
+      const [test, setTest] = useState(makeTestWithStats({ title: 'Reference test', status: 'draft' }))
+      return <>
+        <button onClick={() => setTest(current => ({ ...current, stats: { ...current.stats, questions_count: 3 } }))}>Refresh summary</button>
+        <TestDetailPanel test={test} classroomId="classroom-1" testQuestionLayout="split"
+          onTestUpdate={() => setTest(current => ({ ...current, updated_at: '2026-09-27T12:00:00Z' }))}
+          onRequestTestPreview={onRequestTestPreview} />
+      </>
+    }
+    render(<Parent />, { wrapper: Wrapper })
+    expect(await screen.findByRole('button', { name: 'Edit Coding instructions' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh summary' }))
+    expect(screen.getByRole('button', { name: 'Edit Coding instructions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Karel worlds' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    await waitFor(() => expect(onRequestTestPreview).toHaveBeenCalled())
+    const patchCall = fetchMock.mock.calls.find(call => call[1]?.method === 'PATCH')
+    const body = JSON.parse(patchCall![1].body)
+    expect(body.documents).toEqual(documents)
+    expect(body.content.source_markdown).toContain('Coding instructions')
+    expect(body.content.source_markdown).toContain('Karel worlds')
+    expect(screen.getByRole('button', { name: 'Edit Coding instructions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Karel worlds' })).toBeInTheDocument()
+  })
+
+  it.each(['classroom', 'api'] as const)('retries stale link sync after a %s owner change', async (owner) => {
+    const documents = [{ id: '11111111-1111-4111-8111-111111111111', title: 'Link reference', source: 'link', url: 'https://example.com/reference' }]
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/sync')) return Promise.resolve(new Response(JSON.stringify({ error: 'Sync unavailable' }), { status: 500, headers: { 'Content-Type': 'application/json' } }))
+      if (url.endsWith('/draft')) return Promise.resolve(jsonResponse({
+        editingPolicy: { structureLocked: false },
+        draft: { version: 1, content: { title: 'Test', show_results: false, questions: sampleQuestions } },
+      }))
+      return Promise.resolve(jsonResponse({ test: { documents } }))
+    })
+    const panel = (changed: boolean) => <TestDetailPanel test={makeTestWithStats({ status: 'draft' })}
+      classroomId={changed && owner === 'classroom' ? 'classroom-2' : 'classroom-1'}
+      apiBasePath={changed && owner === 'api' ? '/api/teacher/assignments' : '/api/teacher/tests'}
+      testQuestionLayout="split" onTestUpdate={vi.fn()} />
+    const { rerender } = render(panel(false), { wrapper: Wrapper })
+    const syncCalls = () => fetchMock.mock.calls.filter(call => call[0].endsWith('/sync'))
+    await waitFor(() => expect(syncCalls()).toHaveLength(1))
+    rerender(panel(true))
+    await waitFor(() => expect(syncCalls()).toHaveLength(2))
+    expect(syncCalls()[1][0]).toContain(owner === 'api' ? '/api/teacher/assignments/' : '/api/teacher/tests/')
+  })
+
+  it('syncs only the new owner links when changing API scope', async () => {
+    const oldDoc = { id: '11111111-1111-4111-8111-111111111111', title: 'Old link', source: 'link', url: 'https://example.com/old' }
+    const newDoc = { id: '22222222-2222-4222-8222-222222222222', title: 'New link', source: 'link', url: 'https://example.com/new' }
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/sync')) return Promise.resolve(new Response('{}', { status: 500 }))
+      if (url.endsWith('/draft')) return Promise.resolve(jsonResponse({
+        editingPolicy: { structureLocked: false },
+        draft: { version: 1, content: { title: 'Test', show_results: false, questions: sampleQuestions } },
+      }))
+      return Promise.resolve(jsonResponse({ test: { documents: [url.startsWith('/api/teacher/tests') ? oldDoc : newDoc] } }))
+    })
+    const panel = (apiBasePath: string) => <TestDetailPanel test={makeTestWithStats({ status: 'draft' })}
+      classroomId="classroom-1" apiBasePath={apiBasePath} testQuestionLayout="split" onTestUpdate={vi.fn()} />
+    const { rerender } = render(panel('/api/teacher/tests'), { wrapper: Wrapper })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests/test-1/documents/${oldDoc.id}/sync`, { method: 'POST' }))
+    rerender(panel('/api/teacher/assignments'))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/assignments/test-1/documents/${newDoc.id}/sync`, { method: 'POST' }))
+    expect(fetchMock).not.toHaveBeenCalledWith(`/api/teacher/assignments/test-1/documents/${oldDoc.id}/sync`, expect.anything())
+  })
+
+  it('ignores a document edit completing after switching tests', async () => {
+    const staleMutation = createDeferred<Response>()
+    const currentDocuments = [{ id: '22222222-2222-4222-8222-222222222222', title: 'Current instructions', source: 'text', content: 'Current content' }]
+    const staleDocuments = [{ id: '11111111-1111-4111-8111-111111111111', title: 'Old instructions', source: 'text', content: 'Old content' }]
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+      if (url.endsWith('/test-old') && options?.method === 'PATCH') return staleMutation.promise
+      if (url.endsWith('/draft')) return Promise.resolve(jsonResponse({
+        editingPolicy: { structureLocked: false },
+        draft: { version: 1, content: { title: 'Test', show_results: false, questions: sampleQuestions } },
+      }))
+      return Promise.resolve(jsonResponse({ test: { documents: url.endsWith('/test-old') ? staleDocuments : currentDocuments } }))
+    })
+    const onRequestTestPreview = vi.fn()
+    const panel = (id: string) => <TestDetailPanel test={makeTestWithStats({ id, status: 'draft' })}
+      classroomId="classroom-1" testQuestionLayout="split" onTestUpdate={vi.fn()}
+      onRequestTestPreview={onRequestTestPreview} />
+    const { rerender } = render(panel('test-old'), { wrapper: Wrapper })
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Old instructions' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Document text' }), { target: { value: 'Edited old content' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(call => call[0].endsWith('/test-old') && call[1]?.method === 'PATCH')).toBe(true))
+    rerender(panel('test-current'))
+    expect(await screen.findByRole('button', { name: 'Edit Current instructions' })).toBeInTheDocument()
+    await act(async () => {
+      staleMutation.resolve(jsonResponse({ test: { documents: staleDocuments } }))
+      await staleMutation.promise
+    })
+    expect(screen.getByRole('button', { name: 'Edit Current instructions' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit Old instructions' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    await waitFor(() => expect(onRequestTestPreview).toHaveBeenCalled())
+    const previewSave = fetchMock.mock.calls.find(call => call[0].endsWith('/test-current/draft') && call[1]?.method === 'PATCH')
+    expect(JSON.parse(previewSave![1].body).documents).toEqual(currentDocuments)
   })
 
   it('ignores stale test detail documents after selected assessment changes', async () => {
@@ -2416,66 +2833,77 @@ Correct Option: 2
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const onTestUpdate = vi.fn()
-      fetchMock
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            editingPolicy: { structureLocked: false },            draft: {
-              version: 1,
-              content: {
-                title: 'Markdown Test',
-                show_results: false,
-                questions: sampleQuestions,
-              },
+      const assessmentId = 'markdown-apply-owner'
+      holdAutosaveDebounce()
+      const initialDraftResponse = {
+        ok: true,
+        json: async () => ({
+          editingPolicy: { structureLocked: false },            draft: {
+            version: 1,
+            content: {
+              title: 'Markdown Test',
+              show_results: false,
+              questions: sampleQuestions,
             },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            test: {
-              documents: [],
+          },
+        }),
+      }
+      const detailsResponse = {
+        ok: true,
+        json: async () => ({
+          test: {
+            documents: [],
+          },
+        }),
+      }
+      const savedDraftResponse = {
+        ok: true,
+        json: async () => ({
+          editingPolicy: { structureLocked: false },            draft: {
+            version: 2,
+            content: {
+              title: 'Markdown Test Updated',
+              show_results: true,
+              questions: [
+                {
+                  id: markdownQuestionId1,
+                  question_type: 'multiple_choice',
+                  question_text: 'Updated prompt?',
+                  options: ['A', 'B'],
+                  correct_option: 1,
+                  answer_key: null,
+                  points: 1,
+                  response_max_chars: 5000,
+                  response_monospace: false,
+                },
+                {
+                  id: markdownQuestionId2,
+                  question_type: 'open_response',
+                  question_text: 'Explain why.',
+                  options: [],
+                  correct_option: null,
+                  answer_key: 'Any valid explanation.',
+                  points: 5,
+                  response_max_chars: 5000,
+                  response_monospace: true,
+                },
+              ],
             },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            editingPolicy: { structureLocked: false },            draft: {
-              version: 2,
-              content: {
-                title: 'Markdown Test Updated',
-                show_results: true,
-                questions: [
-                  {
-                    id: markdownQuestionId1,
-                    question_type: 'multiple_choice',
-                    question_text: 'Updated prompt?',
-                    options: ['A', 'B'],
-                    correct_option: 1,
-                    answer_key: null,
-                    points: 1,
-                    response_max_chars: 5000,
-                    response_monospace: false,
-                  },
-                  {
-                    id: markdownQuestionId2,
-                    question_type: 'open_response',
-                    question_text: 'Explain why.',
-                    options: [],
-                    correct_option: null,
-                    answer_key: 'Any valid explanation.',
-                    points: 5,
-                    response_max_chars: 5000,
-                    response_monospace: true,
-                  },
-                ],
-              },
-            },
-          }),
-        })
+          },
+        }),
+      }
+      // Bind responses to this owner and request instead of a shared positional
+      // queue; the assertions below still reject duplicate owner requests.
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = `${init?.method ?? 'GET'} ${String(input)}`
+        if (request === `GET /api/teacher/tests/${assessmentId}/draft`) return initialDraftResponse
+        if (request === `GET /api/teacher/tests/${assessmentId}`) return detailsResponse
+        if (request === `PATCH /api/teacher/tests/${assessmentId}/draft`) return savedDraftResponse
+        throw new Error(`Unexpected request in Markdown apply fixture: ${request}`)
+      })
 
       const testAssessment = makeTestWithStats({
+        id: assessmentId,
         assessment_type: 'test',
         title: 'Markdown Test',
       })
@@ -2493,7 +2921,8 @@ Correct Option: 2
         expect(screen.getByText('Markdown')).toBeInTheDocument()
       })
 
-      holdAutosaveDebounce()
+      // Verify the expected initial draft before editing.
+      await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
 
       fireEvent.click(screen.getByText('Markdown'))
       fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
@@ -2536,14 +2965,23 @@ _None_
         expect(screen.getByText('Markdown applied')).toBeInTheDocument()
       })
 
-      const patchCall = fetchMock.mock.calls.find(
-        (call: any[]) =>
-          typeof call[0] === 'string' &&
-          call[0].includes('/draft') &&
-          call[1]?.method === 'PATCH'
-      )
+      const ownerCalls = fetchMock.mock.calls.filter(([input]) => (
+        String(input) === `/api/teacher/tests/${assessmentId}`
+        || String(input) === `/api/teacher/tests/${assessmentId}/draft`
+      ))
+      expect(ownerCalls.map(([input, init]) => `${init?.method ?? 'GET'} ${String(input)}`)).toEqual([
+        `GET /api/teacher/tests/${assessmentId}/draft`,
+        `GET /api/teacher/tests/${assessmentId}`,
+        `PATCH /api/teacher/tests/${assessmentId}/draft`,
+      ])
+      expect(onTestUpdate).toHaveBeenCalledTimes(1)
+
+      const patchCall = ownerCalls.find(([, init]) => init?.method === 'PATCH')
       expect(patchCall).toBeTruthy()
       const body = JSON.parse(patchCall?.[1]?.body ?? '{}')
+      expect(body.version).toBe(1)
+      expect(body.content.source_format).toBe('markdown')
+      expect(body.content.source_markdown).toContain('Updated prompt?')
       expect(body.content.title).toBe('Markdown Test Updated')
       expect(body.content.show_results).toBe(true)
       expect(body.content.questions).toHaveLength(2)
@@ -3368,7 +3806,7 @@ Prompt:
       })
     })
 
-    it('opens upload modal from Add Document dropdown PDF option', async () => {
+    it('opens the Upload tab from Add Document', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock
         .mockResolvedValueOnce({
@@ -3411,7 +3849,7 @@ Prompt:
 
       fireEvent.click(screen.getByRole('tab', { name: 'Documents' }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
-      fireEvent.click(screen.getByRole('tab', { name: 'PDF' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Upload' }))
 
       expect(screen.getByRole('heading', { name: 'Add Document' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Choose file' })).toBeInTheDocument()

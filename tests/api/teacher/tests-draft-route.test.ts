@@ -117,6 +117,70 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     } as any)
   })
 
+  it('saves one MC choice correction but rejects a reordered list after Start', async () => {
+    const question = {
+      id: '11111111-1111-4111-8111-111111111111',
+      question_type: 'multiple_choice',
+      question_text: 'Choose one.',
+      options: ['Correct', 'Distractor'],
+      correct_option: 0,
+      answer_key: null,
+      sample_solution: null,
+      points: 1,
+      response_max_chars: 5000,
+      response_monospace: false,
+    }
+    const currentContent = {
+      title: 'Active Test', show_results: false, question_identity_version: 1,
+      questions: [question], source_format: 'markdown', source_markdown: '',
+    }
+    const nextContent = {
+      ...currentContent,
+      questions: [{ ...question, options: ['Correct', 'Distractor corrected'] }],
+    }
+    vi.mocked(getTestEditingPolicy).mockResolvedValue({ structureLocked: true })
+    vi.mocked(ensureAssessmentDraft).mockResolvedValueOnce({
+      ok: true,
+      draft: { id: 'draft-1', version: 3, content: currentContent },
+    } as any)
+    vi.mocked(buildNextDraftContent).mockReturnValueOnce({ ok: true, content: nextContent } as any)
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({ version: 3, content: nextContent }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(saveTestDraftAtomic).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      expect.objectContaining({ content: nextContent }),
+    )
+
+    vi.mocked(saveTestDraftAtomic).mockClear()
+    vi.mocked(ensureAssessmentDraft).mockResolvedValueOnce({
+      ok: true,
+      draft: { id: 'draft-1', version: 3, content: currentContent },
+    } as any)
+    const reorderedContent = {
+      ...currentContent,
+      questions: [{ ...question, options: ['Distractor', 'Correct'] }],
+    }
+    vi.mocked(buildNextDraftContent).mockReturnValueOnce({ ok: true, content: reorderedContent } as any)
+
+    const reordered = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({ version: 3, content: reorderedContent }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    expect(reordered.status).toBe(409)
+    expect(saveTestDraftAtomic).not.toHaveBeenCalled()
+  })
+
   it('loads the draft through the shared assessment draft helper', async () => {
     const response = await GET(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft'),

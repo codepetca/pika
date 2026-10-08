@@ -14,8 +14,12 @@ import type {
 } from '@/types'
 import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
+import {
+  normalizeCourseBlueprintAuthoringGuidance,
+  type CourseBlueprintAuthoringGuidance,
+} from '@/lib/course-blueprint-authoring-guidance'
 
-export const COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION = 2 as const
+export const COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION = 3 as const
 
 export type CourseBlueprintSnapshot = {
   schema_version: typeof COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION
@@ -33,6 +37,7 @@ export type CourseBlueprintSnapshot = {
     outline_markdown: string
     resources_markdown: string
   }
+  authoring_guidance: CourseBlueprintAuthoringGuidance
   grading: {
     use_weights: boolean
     assignments_weight: number
@@ -252,6 +257,7 @@ export function buildCourseBlueprintSnapshot(
       outline_markdown: detail.outline_markdown,
       resources_markdown: detail.resources_markdown,
     },
+    authoring_guidance: normalizeCourseBlueprintAuthoringGuidance(detail.authoring_guidance),
     grading: {
       use_weights: useWeights,
       assignments_weight: assignmentsWeight,

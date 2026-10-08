@@ -24,7 +24,7 @@ import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
-import { normalizeTestDocuments } from '@/lib/test-documents'
+import { getTestDocumentImageType, isPdfTestDocument, normalizeTestDocuments } from '@/lib/test-documents'
 import {
   createExamIncidentState,
   EXAM_FOCUS_LOSS_GRACE_MS,
@@ -80,6 +80,7 @@ interface StudentTestListResponse {
 }
 
 interface StudentTestDetailResponse {
+  draft_revision?: number | null
   test?: StudentTestView
   questions?: TestAssessmentQuestion[]
   student_responses?: Record<string, number | TestResponseDraftValue>
@@ -285,6 +286,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const [selectedTest, setSelectedTest] = useState<{
     test: StudentTestView
     questions: TestAssessmentQuestion[]
+    draftRevision?: number | null
     studentResponses: Record<string, number | TestResponseDraftValue>
   } | null>(null)
   const [startedTestId, setStartedTestId] = useState<string | null>(null)
@@ -356,6 +358,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         source: doc.source,
         url: doc.source === 'link' ? snapshotUrl : uploadUrl,
         content: doc.content,
+        imageType: getTestDocumentImageType(doc),
+        isPdf: isPdfTestDocument(doc),
       }
     })
     if (teacherManagedDocs.length > 0) return teacherManagedDocs
@@ -577,6 +581,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         test: { ...nextTest, student_status: studentStatus },
         questions: data.questions || [],
         studentResponses: data.student_responses || {},
+        draftRevision: data.draft_revision,
       })
       setFocusSummary((data.focus_summary as TestFocusSummary | null) || null)
       return true
@@ -1118,7 +1123,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     const fullscreenRequest = requestExamFullscreen('start_test_confirm')
     try {
       const response = await startRequest
-      const data = await response.json() as { questions?: TestAssessmentQuestion[] }
+      const data = await response.json() as { questions?: TestAssessmentQuestion[]; attempt?: { responses: Record<string, TestResponseDraftValue>; draft_revision: number } }
       if ((currentScopeRef.current.classroomId !== scope.classroomId) || selectedTestIdRef.current !== testId || detailRequestIdRef.current !== requestId) return
       if (!response.ok) {
         const message = typeof (data as { error?: unknown }).error === 'string'
@@ -1128,11 +1133,9 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       }
       // The RPC returns the post-lock question snapshot, so the student never
       // answers a structure loaded before a simultaneous teacher save.
-      if (Array.isArray(data.questions)) {
-        setSelectedTest((current) => current && current.test.id === testId
-          ? { ...current, questions: data.questions! }
-          : current)
-      }
+      setSelectedTest((current) => current && current.test.id === testId
+        ? { ...current, questions: data.questions ?? current.questions, studentResponses: data.attempt?.responses ?? current.studentResponses, draftRevision: data.attempt?.draft_revision }
+        : current)
       setStartingTestId(null)
     } catch (error) {
       if ((currentScopeRef.current.classroomId === scope.classroomId) && selectedTestIdRef.current === testId && detailRequestIdRef.current === requestId) {
@@ -1555,7 +1558,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                     data-testid="student-test-detail-pane"
                     className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
                       showCurrentTestInfoPanel
-                        ? 'min-h-0 overflow-y-auto scrollbar-hover'
+                        ? 'h-full min-h-0 overflow-y-auto scrollbar-hover'
                         : 'lg:h-full'
                     } ${
                       showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
@@ -1626,6 +1629,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                             testId={selectedTestId!}
                             questions={selectedTest.questions}
                             initialResponses={selectedTest.studentResponses}
+                            initialDraftRevision={selectedTest.draftRevision}
                             enableDraftAutosave
                             isInteractionLocked={showNotMaximizedWarning}
                             apiBasePath={apiBasePath}
@@ -1811,6 +1815,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                       testId={selectedTestId!}
                       questions={selectedTest.questions}
                       initialResponses={selectedTest.studentResponses}
+                            initialDraftRevision={selectedTest.draftRevision}
                       enableDraftAutosave
                       isInteractionLocked={showNotMaximizedWarning}
                       apiBasePath={apiBasePath}

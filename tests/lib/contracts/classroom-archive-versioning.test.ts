@@ -64,7 +64,7 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
     expect(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER).toHaveLength(42)
-    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(44)
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(45)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))

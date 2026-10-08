@@ -29,7 +29,7 @@ describe('courseBlueprintAssessmentsToMarkdown', () => {
         },
         documents: [],
         points_possible: 40,
-        gradebook_weight: 35,
+        gradebook_weight: 0,
         include_in_final: false,
         position: 0,
       },
@@ -42,11 +42,10 @@ describe('courseBlueprintAssessmentsToMarkdown', () => {
     expect(parsed.assessments[0]).toEqual(expect.objectContaining({
       artifact_id: '11111111-1111-4111-8111-111111111111',
       points_possible: 40,
-      gradebook_weight: 35,
+      gradebook_weight: 0,
       include_in_final: false,
     }))
   })
-
   it('rejects missing assessment artifact ids in the identity-aware format', () => {
     const parsed = markdownToCourseBlueprintAssessments(
       'Title: Unit test\nShow Results: false\nPoints Possible: 10\nGradebook Weight: 10\nInclude In Final: true\n\n## Questions',
@@ -96,14 +95,14 @@ describe('courseBlueprintAssessmentsToMarkdown', () => {
 
   it('rejects invalid assessment grading configuration', () => {
     const parsed = markdownToCourseBlueprintAssessments(
-      'Title: Unit test\nShow Results: false\nPoints Possible: -1\nGradebook Weight: 0\nInclude In Final: maybe\n\n## Questions',
+      'Title: Unit test\nShow Results: false\nPoints Possible: -1\nGradebook Weight: -1\nInclude In Final: maybe\n\n## Questions',
       [],
       'test'
     )
 
     expect(parsed.errors).toEqual(expect.arrayContaining([
       'Test 1: Points Possible must be a non-negative number or none',
-      'Test 1: Gradebook Weight must be an integer from 1 to 999',
+      'Test 1: Gradebook Weight must be an integer from 0 to 999',
       'Test 1: Include In Final must be true or false',
     ]))
   })

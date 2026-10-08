@@ -76,6 +76,8 @@ export interface ThreePanelProviderProps {
   routeKey: RouteKey
   /** Initial left sidebar state from cookie */
   initialLeftExpanded: boolean
+  /** Disable the shared classroom sidebar preference for isolated previews. */
+  persistLeftSidebar?: boolean
   /** Initial right sidebar state from cookie (if enabled) */
   initialRightOpen?: boolean
 }
@@ -84,6 +86,7 @@ export function ThreePanelProvider({
   children,
   routeKey,
   initialLeftExpanded,
+  persistLeftSidebar = true,
   initialRightOpen,
 }: ThreePanelProviderProps) {
   const config = useMemo(() => getLayoutConfig(routeKey), [routeKey])
@@ -137,8 +140,8 @@ export function ThreePanelProvider({
   // Left sidebar handlers
   const setLeftExpanded = useCallback((expanded: boolean) => {
     setLeftExpandedState(expanded)
-    writeCookie(COOKIE_NAMES.leftSidebar, expanded ? 'expanded' : 'collapsed')
-  }, [])
+    if (persistLeftSidebar) writeCookie(COOKIE_NAMES.leftSidebar, expanded ? 'expanded' : 'collapsed')
+  }, [persistLeftSidebar])
 
   const toggleLeft = useCallback(() => {
     setLeftExpanded(!leftExpanded)

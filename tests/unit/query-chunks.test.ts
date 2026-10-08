@@ -97,4 +97,39 @@ describe('query chunk helpers', () => {
     expect(rangeCalls).toContainEqual({ from: 0, to: 1 })
     expect(rangeCalls).toContainEqual({ from: 2, to: 3 })
   })
+
+  it('optionally preserves null source evidence as an error', async () => {
+    const supabase = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => {
+          const query: any = {
+            in: vi.fn(() => query),
+            order: vi.fn(() => query),
+            range: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }
+          return query
+        }),
+      })),
+    }
+
+    const legacy = await loadChunkedRows({
+      supabase,
+      table: 'assignment_docs',
+      select: '*',
+      filters: [{ column: 'assignment_id', values: ['assignment-1'] }],
+      pageSize: 1000,
+    })
+    expect(legacy).toEqual({ rows: [], error: null })
+
+    const strict = await loadChunkedRows({
+      supabase,
+      table: 'assignment_docs',
+      select: '*',
+      filters: [{ column: 'assignment_id', values: ['assignment-1'] }],
+      pageSize: 1000,
+      requireDataArray: true,
+    })
+    expect(strict.rows).toEqual([])
+    expect(strict.error).toMatchObject({ code: 'PIKA_NULL_DATA' })
+  })
 })

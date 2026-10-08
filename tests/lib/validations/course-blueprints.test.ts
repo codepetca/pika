@@ -8,6 +8,25 @@ import {
 } from '@/lib/validations/course-blueprints'
 
 describe('course blueprint validations', () => {
+  it('requires a revision and complete strict guidance when saving rules', () => {
+    const guidance = {
+      course_expectations_markdown: '',
+      assignment_guidance_markdown: '',
+      test_guidance_markdown: '',
+      unit_exceptions: [],
+    }
+    expect(updateCourseBlueprintSchema.safeParse({ authoring_guidance: guidance }).success).toBe(false)
+    expect(updateCourseBlueprintSchema.safeParse({
+      authoring_guidance: guidance,
+      expected_content_revision: 4,
+    }).success).toBe(true)
+    expect(updateCourseBlueprintSchema.safeParse({
+      authoring_guidance: { ...guidance, student_visible: true },
+      expected_content_revision: 4,
+    }).success).toBe(false)
+    expect(updateCourseBlueprintSchema.safeParse({ expected_content_revision: 4 }).success).toBe(false)
+  })
+
   it('rejects publishing a planned site when the request clears the slug', () => {
     const result = updateCourseBlueprintSchema.safeParse({
       planned_site_slug: null,

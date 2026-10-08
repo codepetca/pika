@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } from '@/lib/server/tests'
@@ -24,6 +25,9 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
+  }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot grade a draft test' }, { status: 400 })
   }
 
   const supabase = getServiceRoleClient()
@@ -69,7 +73,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
     [responseStudentId]
   )
   if (!enrollmentValidation.ok) {
-    console.error('Error validating response student enrollment for AI suggest:', enrollmentValidation.error)
+    logServerError('grading.suggestion_enrollment', enrollmentValidation.error)
     return NextResponse.json({ error: 'Failed to validate student enrollment' }, { status: 500 })
   }
   if (enrollmentValidation.missingStudentIds.length > 0) {
@@ -160,11 +164,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
       .eq('updated_at', question.updated_at)
 
     if (cacheUpdateError) {
-      console.error('Error caching generated reference answers for AI suggest:', {
-        testId,
-        questionId: question.id,
-        error: cacheUpdateError,
-      })
+      logServerError('grading.suggestion_reference_cache', cacheUpdateError)
     }
   }
 

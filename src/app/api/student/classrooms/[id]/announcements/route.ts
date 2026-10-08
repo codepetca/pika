@@ -3,21 +3,44 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  assertContextualAnnouncementRows,
+  authorizeClassroomAnnouncementRequest,
+} from '@/lib/server/classroom-announcement-access'
+import { authorizeSharedAnnouncementReadActor, readContextualAnnouncements } from '@/lib/server/contextual-announcement-read'
+import { markContextualAnnouncementsRead } from '@/lib/server/contextual-announcement-receipt'
+import { announcementReceiptParamsSchema } from '@/lib/validations/contextual-announcement-receipt'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/student/classrooms/[id]/announcements - List announcements (newest first)
 export const GET = withErrorHandler('GetStudentAnnouncements', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: classroomId } = await context.params
+  const params = context.params
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = await params
+    return NextResponse.json(await readContextualAnnouncements({
+      supabase: getServiceRoleClient(), actorId: sharedAccess.user.id,
+      classroomId, permission: 'member',
+    }))
+  }
+  const announcementAccess = await authorizeClassroomAnnouncementRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'student',
+    permission: 'member',
+  })
+  const { id: classroomId } = await params
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroomId)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (announcementAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(announcementAccess.user.id, classroomId)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -39,11 +62,22 @@ export const GET = withErrorHandler('GetStudentAnnouncements', async (request, c
     )
   }
 
+  if (announcementAccess.mode === 'contextual') {
+    assertContextualAnnouncementRows(classroomId, announcements)
+  }
+
   return NextResponse.json({ announcements: announcements || [] })
 })
 
 // POST /api/student/classrooms/[id]/announcements - Mark all announcements as read
 export const POST = withErrorHandler('PostStudentAnnouncementsRead', async (request, context) => {
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = announcementReceiptParamsSchema.parse(await context.params)
+    return NextResponse.json(await markContextualAnnouncementsRead({
+      actorId: sharedAccess.user.id, classroomId,
+    }))
+  }
   const user = await requireRole('student')
   const { id: classroomId } = await context.params
 

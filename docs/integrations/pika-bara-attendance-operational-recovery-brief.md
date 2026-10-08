@@ -26,8 +26,8 @@
   one-use timestamped nonces; fixed paths and origins; bounded body, timeout,
   and attempts; no attendance messages/events/projections are created or changed;
   response contains only aggregate check names and pass/fail state.
-- Preview rule: because no staging database exists, preview builds must record a
-  production-only skip and must never contact production. A production rollout
+- Production-only rule: development and rehearsal run locally. A Preview
+  invocation must record a production-only skip and must never contact production. A production rollout
   gate fails closed if the deployed smoke is skipped, unavailable, mis-scoped,
   replayed, or either direction rejects authentication.
 - Risks: treating malformed data as no claim, leaking Zod/database diagnostics,
@@ -35,7 +35,7 @@
   local self-comparison that does not exercise deployed receivers. Vercel
   Sensitive values are intentionally unreadable to `vercel env pull/run`, so a
   downloaded-env audit is advisory and never satisfies the hosted gate.
-- Simplification: no staging database, attendance-domain smoke fixture, browser
+- Simplification: no hosted test database, attendance-domain smoke fixture, browser
   endpoint, secret introspection, production flag mutation, or hosted requeue.
 - Acceptance: focused tests cover both no-claim shapes and malformed rows;
   deployed preflight mode/scope/target failures; directional smoke

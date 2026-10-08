@@ -71,6 +71,13 @@ describe('DELETE /api/teacher/tests/[id]/students/[studentId]/attempt', () => {
     expect(assertTeacherOwnsTest).toHaveBeenCalledWith('teacher-1', 'test-1', { checkArchived: true })
   })
 
+  it('does not delete work for a draft test', async () => {
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({ ok: true, test: { status: 'draft' } } as any)
+    const response = await DELETE(makeRequest(), makeContext())
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+  })
+
   it('deletes one student attempt data without changing access overrides', async () => {
     mockSupabaseClient.rpc = vi.fn(async () => ({
       data: {

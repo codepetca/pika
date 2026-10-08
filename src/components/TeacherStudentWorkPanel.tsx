@@ -20,7 +20,7 @@ import {
   type AssignmentWorkspaceMode,
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
-import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { countCharacters, hasRenderableContent, isEmpty } from '@/lib/tiptap-content'
 import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
 import type { InspectorSectionId } from '@/components/assignment-workspace/types'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
@@ -32,6 +32,8 @@ interface TeacherStudentWorkPanelProps {
   refreshKey?: number
   mode?: AssignmentWorkspaceMode | 'workspace'
   classPane?: ReactNode
+  /** Classwork owns the stable table split; this panel supplies its selected inspector. */
+  workspaceInspectorOnly?: boolean
   splitPaneView?: AssignmentSplitPaneView
   studentHeader?: ReactNode
   inspectorCollapsed?: boolean
@@ -241,6 +243,7 @@ export function TeacherStudentWorkPanel({
   refreshKey = 0,
   mode = 'details',
   classPane,
+  workspaceInspectorOnly = false,
   splitPaneView = 'students-grading',
   studentHeader,
   inspectorCollapsed = false,
@@ -480,7 +483,7 @@ export function TeacherStudentWorkPanel({
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto scrollbar-hover">
-        {displayContent && !isEmpty(displayContent) ? (
+        {displayContent && hasRenderableContent(displayContent) ? (
           <RichTextViewer
             content={displayContent}
             fillHeight
@@ -527,8 +530,10 @@ export function TeacherStudentWorkPanel({
 
     return (
       <TeacherWorkspaceSplit
-        className="flex-1"
+        className="h-full flex-1"
         splitVariant="gapped"
+        animateInspector
+        primaryCollapsed={workspaceInspectorOnly}
         primaryClassName="min-h-0 rounded-lg bg-surface"
         inspectorClassName="min-h-0 rounded-lg bg-surface"
         inspectorCollapsed={layout.inspectorCollapsed}
@@ -549,11 +554,11 @@ export function TeacherStudentWorkPanel({
           }))
         }}
         dividerLabel={dividerLabel}
-        primary={
+        primary={workspaceInspectorOnly ? null : (
           <AssignmentWorkspacePaneFrame header={primaryHeader}>
             {primaryPane}
           </AssignmentWorkspacePaneFrame>
-        }
+        )}
         inspector={
           <AssignmentWorkspacePaneFrame header={inspectorHeader}>
             {inspectorPane}

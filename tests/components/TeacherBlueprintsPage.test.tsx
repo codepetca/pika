@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render as renderComponent, screen, waitFor } from '@testing-library/react'
+import { TooltipProvider } from '@/ui'
 import TeacherBlueprintsPage from '@/app/teacher/blueprints/page'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+
+const render: typeof renderComponent = (ui, options) => renderComponent(ui, {
+  wrapper: ({ children }) => <TooltipProvider>{children}</TooltipProvider>,
+  ...options,
+})
 
 const mockPush = vi.fn()
 let searchParamsMap = new Map<string, string>()
@@ -204,6 +210,11 @@ function jsonResponse(body: unknown, ok = true): Response {
   } as Response
 }
 
+function openSection(workspace: 'Content' | 'Updates' | 'Settings', section: string | RegExp) {
+  fireEvent.click(screen.getByRole('tab', { name: workspace }))
+  fireEvent.click(screen.getByRole('tab', { name: section }))
+}
+
 describe('TeacherBlueprintsPage', () => {
   beforeEach(() => {
     searchParamsMap = new Map([
@@ -262,26 +273,238 @@ describe('TeacherBlueprintsPage', () => {
     cleanup()
   })
 
+  it('recovers a failed cold list without presenting empty or selection onboarding', async () => {
+    searchParamsMap.clear()
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let reads = 0
+    let resolveRetry!: (response: Response) => void
+    const pendingRetry = new Promise<Response>((resolve) => { resolveRetry = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input) === '/api/teacher/course-blueprints') {
+        reads += 1
+        return reads === 1 ? Promise.resolve(jsonResponse({ error: 'private database exception' }, false)) : pendingRetry
+      }
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    const retry = await screen.findByRole('button', { name: 'Retry course blueprint list' })
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load course blueprints')
+    expect(screen.queryByText('private database exception')).toBeNull()
+    expect(screen.queryByText('No course blueprints yet.')).toBeNull()
+    expect(screen.queryByText('Select a course blueprint to edit its course package.')).toBeNull()
+    retry.focus()
+    act(() => {
+      fireEvent.click(retry)
+      fireEvent.click(retry)
+    })
+    expect(screen.getByRole('region', { name: 'Course blueprint list' })).toHaveFocus()
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
+    await waitFor(() => expect(reads).toBe(2))
+    expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-blueprints:')
+    await act(async () => resolveRetry(jsonResponse({ blueprints: blueprintList })))
+    expect(await screen.findByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
+    expect(reads).toBe(2)
+  })
+
+  it('shows empty onboarding only after a successful empty list', async () => {
+    searchParamsMap.clear()
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints'
+      ? Promise.resolve(jsonResponse({ blueprints: [] })) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    expect(await screen.findByText('No course blueprints yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry course blueprint list' })).toBeNull()
+  })
+
+  it('retries the selected missing detail and keeps the independent list error', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let detailReads = 0
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints') return Promise.resolve(jsonResponse({ error: 'list unavailable' }, false))
+      if (url === '/api/teacher/course-blueprints/b-2') {
+        detailReads += 1
+        return detailReads === 1 ? Promise.reject(new Error('private detail error')) : defaultFetch(input, init)
+      }
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    const retry = await screen.findByRole('button', { name: 'Retry selected course blueprint' })
+    expect(screen.queryByText('Select a course blueprint to edit its course package.')).toBeNull()
+    expect(screen.queryByText('private detail error')).toBeNull()
+    retry.focus()
+    act(() => {
+      fireEvent.click(retry)
+      fireEvent.click(retry)
+    })
+    expect(screen.getByRole('region', { name: 'Selected course blueprint' })).toHaveFocus()
+    expect(await screen.findByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry course blueprint list' })).toBeInTheDocument()
+    expect(detailReads).toBe(2)
+  })
+
+  it('keeps the selected-detail error when retrying its failed list', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let listReads = 0
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints') {
+        listReads += 1
+        if (listReads === 1) return Promise.resolve(jsonResponse({}, false))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2') return Promise.resolve(jsonResponse({}, false))
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('button', { name: 'Retry selected course blueprint' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry course blueprint list' }))
+    expect(await screen.findByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry selected course blueprint' })).toBeInTheDocument()
+    expect(screen.queryByText('Select a course blueprint to edit its course package.')).toBeNull()
+  })
+
+  it('keeps a successful preferred detail available when its list read fails', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints'
+      ? Promise.reject(new Error('list unavailable')) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    expect(await screen.findByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry course blueprint list' })).toBeInTheDocument()
+    expect(screen.queryByText('No course blueprints yet.')).toBeNull()
+  })
+
+  it('retains operation feedback, rows, editor DOM, dirty sections and tab during warm list recovery', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let listReads = 0
+    let detailReads = 0
+    let resolveRetry!: (response: Response) => void
+    const pendingRetry = new Promise<Response>((resolve) => { resolveRetry = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints/b-2/export') return Promise.resolve(jsonResponse({ error: 'Blueprint Two export failed' }, false))
+      if (url === '/api/teacher/course-blueprints/b-2') detailReads += 1
+      if (url === '/api/teacher/course-blueprints') {
+        listReads += 1
+        if (listReads === 2) return Promise.reject(new Error('warm list unavailable'))
+        if (listReads === 3) return pendingRetry
+      }
+      return defaultFetch(input, init)
+    })
+    const view = render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    fireEvent.click(screen.getByRole('button', { name: 'Export Course Package' }))
+    expect(await screen.findByText('Blueprint Two export failed')).toBeInTheDocument()
+    openSection('Content', 'Outline')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Outline Markdown' }), { target: { value: 'Unsaved outline' } })
+    openSection('Settings', 'Course Details')
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Unsaved title' } })
+    searchParamsMap.delete('blueprint')
+    view.rerender(<TeacherBlueprintsPage />)
+    const retry = await screen.findByRole('button', { name: 'Retry course blueprint list' })
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    fireEvent.click(retry)
+    await waitFor(() => expect(listReads).toBe(3))
+    expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBe(title)
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    expect(title).toHaveValue('Unsaved title')
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+    await act(async () => resolveRetry(jsonResponse({}, false)))
+    expect(screen.getByRole('button', { name: 'Retry course blueprint list' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBe(title)
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry course blueprint list' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry course blueprint list' })).toBeNull())
+    expect(listReads).toBe(4)
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBe(title)
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    expect(detailReads).toBe(1)
+    openSection('Content', 'Outline')
+    expect(screen.getByRole('textbox', { name: 'Outline Markdown' })).toHaveValue('Unsaved outline')
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
+  })
+
+  it.each(['success', 'failure'] as const)('ignores late selected-detail retry %s and finalization after selecting another Blueprint', async (outcome) => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let aReads = 0
+    let settleA!: (response: Response) => void
+    let settleB!: (response: Response) => void
+    const delayedA = new Promise<Response>((resolve) => { settleA = resolve })
+    const delayedB = new Promise<Response>((resolve) => { settleB = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input) === '/api/teacher/course-blueprints/b-2') {
+        aReads += 1
+        return aReads === 1 ? Promise.resolve(jsonResponse({}, false)) : delayedA
+      }
+      if (String(input) === '/api/teacher/course-blueprints/b-1') return delayedB
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry selected course blueprint' }))
+    await waitFor(() => expect(aReads).toBe(2))
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await act(async () => settleA(outcome === 'success' ? jsonResponse({ blueprint: blueprintDetail }) : jsonResponse({}, false)))
+    expect(screen.getByText('Loading course blueprint')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry selected course blueprint' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Blueprint Two' })).toBeNull()
+    await act(async () => settleB(jsonResponse({ blueprint: blueprintOneDetail })))
+    expect(await screen.findByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
+  })
+
+  it('clears previous Blueprint operation feedback when selecting a different Blueprint', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints/b-2/export'
+      ? Promise.resolve(jsonResponse({ error: 'Blueprint Two export failed' }, false)) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    fireEvent.click(screen.getByRole('button', { name: 'Export Course Package' }))
+    expect(await screen.findByText('Blueprint Two export failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await screen.findByRole('heading', { name: 'Blueprint One' })
+    expect(screen.queryByText('Blueprint Two export failed')).toBeNull()
+  })
+
+
+  it('clears previous Blueprint operation feedback from a failed save when selecting a different Blueprint', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints/b-2' && init?.method === 'PATCH'
+      ? Promise.resolve(jsonResponse({ error: 'Blueprint Two save failed' }, false)) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    openSection('Settings', 'Course Details')
+    fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
+    expect(await screen.findByText('Blueprint Two save failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await screen.findByRole('heading', { name: 'Blueprint One' })
+    expect(screen.queryByText('Blueprint Two save failed')).toBeNull()
+  })
+
   it('selects the blueprint from the query param and shows workflow-oriented package actions', async () => {
     render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Course Blueprint')).toBeInTheDocument()
+    expect(screen.getByText('Course Blueprints')).toBeInTheDocument()
     expect(screen.getByText('Build, publish, export, and reuse course packages.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create course blueprint' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Import Course Package' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create classroom from blueprint' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export Course Package' })).toBeInTheDocument()
     expect(screen.getByText('Course blueprint saved from Semester 2. Review it here, then use it for another classroom or export the course package.')).toBeInTheDocument()
+    openSection('Settings', 'Course Details')
     expect(screen.getByText('Portable Course Package')).toBeInTheDocument()
     expect(screen.getByText(/Exports a .course-package.tar file with manifest.json and editable Markdown files./)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Quizzes' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Materials' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Surveys' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Content' }))
+    expect(screen.getByRole('tab', { name: 'Materials' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Surveys' })).toBeInTheDocument()
+    openSection('Settings', 'Grading')
     expect(screen.getByText('Reusable Gradebook Setup')).toBeInTheDocument()
     expect(screen.getByDisplayValue('65')).toBeInTheDocument()
     expect(screen.getByDisplayValue('35')).toBeInTheDocument()
@@ -297,11 +520,92 @@ describe('TeacherBlueprintsPage', () => {
     )
   })
 
+  it('exposes workspace tabs and moves focus with arrow keys', async () => {
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
+
+    const overview = screen.getByRole('tab', { name: 'Overview' })
+    const content = screen.getByRole('tab', { name: 'Content' })
+    expect(overview).toHaveAttribute('aria-selected', 'true')
+    expect(overview).toHaveAttribute('aria-controls', 'blueprint-overview-panel')
+    overview.focus()
+    fireEvent.keyDown(overview, { key: 'ArrowRight' })
+    expect(content).toHaveFocus()
+    expect(content).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel', { name: 'Content' })).toHaveAttribute(
+      'aria-labelledby', 'blueprint-content-tab',
+    )
+  })
+
+  it('reviews and rejects a proposed guidance edit without saving it', async () => {
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('tab', { name: 'Authoring Guidance' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown source' }))
+    const field = screen.getByRole('textbox', { name: 'Course expectations Markdown' })
+    fireEvent.change(field, { target: { value: 'Use consistent examples.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Review changes' }))
+    expect(screen.getByRole('heading', { name: 'Review guidance changes' })).toBeInTheDocument()
+    expect(screen.getByText('Use consistent examples.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reject changes' }))
+    expect(field).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Review changes' })).toBeDisabled()
+  })
+
+  it('carries the signed saved-guidance preview into a proposal after teacher edits', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints/b-2/ai/suggest' && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse({ suggestion: {
+          target: 'tests', content: 'Original test draft', draft_provenance_token: 'signed-token',
+          original_content_sha256: 'a'.repeat(64),
+          guidance: {
+            blueprint_revision: 4, unit_exception_id: null, unit_label: null,
+            rules_markdown: 'Saved course rules', trial: false,
+          },
+        } }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2/ai/apply' && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse({ proposal: proposalFixture('ai', 4) }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2/proposals') {
+        return Promise.resolve(jsonResponse({ proposals: [] }))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
+    openSection('Content', 'AI Drafting')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Draft Section' }), { target: { value: 'tests' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft Preview' }))
+    await waitFor(() => expect(screen.getByText('Preview: Tests')).toBeInTheDocument())
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft preview Markdown' }), {
+      target: { value: 'Teacher-edited test draft' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Propose Change' }))
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      '/api/teacher/course-blueprints/b-2/ai/apply',
+      expect.objectContaining({ method: 'POST' }),
+    ))
+    const applyCall = vi.mocked(fetch).mock.calls.find(([input]) =>
+      String(input) === '/api/teacher/course-blueprints/b-2/ai/apply')
+    const payload = JSON.parse(String(applyCall?.[1]?.body))
+    expect(payload).toEqual(expect.objectContaining({
+      target: 'tests',
+      content: 'Teacher-edited test draft',
+      original_content_sha256: 'a'.repeat(64),
+      draft_provenance_token: 'signed-token',
+      expected_blueprint_revision: 4,
+    }))
+  })
+
   it('reuses one import key when the same course package is retried', async () => {
     const view = render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
 
     const fetchMock = vi.mocked(fetch)
@@ -337,7 +641,7 @@ describe('TeacherBlueprintsPage', () => {
     const view = render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
 
     const fetchMock = vi.mocked(fetch)
@@ -404,7 +708,7 @@ describe('TeacherBlueprintsPage', () => {
     const view = render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
 
     const fetchMock = vi.mocked(fetch)
@@ -448,7 +752,7 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     const view = render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
     const fileInput = view.container.querySelector<HTMLInputElement>('input[type="file"]')
     const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
@@ -463,7 +767,7 @@ describe('TeacherBlueprintsPage', () => {
     await act(async () => {
       resolveImportedDetail(jsonResponse({ blueprint: blueprintOneDetail }))
     })
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument())
   })
 
   it('ignores an older Blueprint list response after import reloads the list', async () => {
@@ -497,7 +801,7 @@ describe('TeacherBlueprintsPage', () => {
     }) as any)
 
     const view = render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Import Course Package' })).not.toBeDisabled()
 
     const fileInput = view.container.querySelector<HTMLInputElement>('input[type="file"]')
@@ -507,7 +811,7 @@ describe('TeacherBlueprintsPage', () => {
     })
     fireEvent.change(fileInput!, { target: { files: [file] } })
 
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
 
     await act(async () => {
@@ -515,7 +819,7 @@ describe('TeacherBlueprintsPage', () => {
       await pendingInitialList
     })
 
-    expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
   })
 
@@ -533,7 +837,7 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Create course blueprint' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete Blueprint creation' }))
@@ -544,7 +848,7 @@ describe('TeacherBlueprintsPage', () => {
     await act(async () => {
       resolveCreatedDetail(jsonResponse({ blueprint: blueprintOneDetail }))
     })
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument())
   })
 
   it('opens classroom change review from the archived reuse handoff', async () => {
@@ -592,7 +896,7 @@ describe('TeacherBlueprintsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Blueprint One/ }))
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
     })
 
     await act(async () => {
@@ -600,7 +904,7 @@ describe('TeacherBlueprintsPage', () => {
       await delayedDetail
     })
 
-    expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
     expect(screen.queryByDisplayValue('Blueprint Two')).toBeNull()
   })
 
@@ -627,13 +931,13 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /Blueprint Two/ }))
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: /^Proposals/ }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
+    openSection('Updates', /^Proposals/)
 
     expect(await screen.findByText(/based on Blueprint revision 22/)).toBeInTheDocument()
 
@@ -669,8 +973,8 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
+    openSection('Updates', 'Classroom Updates')
 
     const compareButton = screen.getByRole('button', {
       name: 'Save Classroom Changes to Blueprint',
@@ -701,9 +1005,10 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
 
+    openSection('Settings', 'Course Details')
     fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
 
     await waitFor(() => {
@@ -715,12 +1020,13 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Outline' }))
+    openSection('Content', 'Outline')
     const outline = screen.getByRole('textbox', { name: 'Outline Markdown' })
     fireEvent.change(outline, { target: { value: 'Unsaved revised outline' } })
+    openSection('Settings', 'Course Details')
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Updated Blueprint Two' },
     })
@@ -738,6 +1044,7 @@ describe('TeacherBlueprintsPage', () => {
       )
     })
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save Details' })).not.toBeDisabled())
+    openSection('Content', 'Outline')
     expect(screen.getByRole('textbox', { name: 'Outline Markdown' })).toHaveValue('Unsaved revised outline')
     expect(screen.getByRole('status')).toHaveTextContent('Unsaved')
   })
@@ -756,16 +1063,16 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
-
+    openSection('Settings', 'Course Details')
     const title = screen.getByRole('textbox', { name: 'Title' })
     fireEvent.change(title, { target: { value: 'Saving Blueprint Two' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
 
     await waitFor(() => expect(title).toBeDisabled())
     expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeDisabled()
+    openSection('Updates', 'Classroom Updates')
     expect(screen.getByRole('button', {
       name: 'Update Classroom from Blueprint',
     })).toBeDisabled()
@@ -773,7 +1080,8 @@ describe('TeacherBlueprintsPage', () => {
     await act(async () => {
       resolveSave(jsonResponse({ blueprint: blueprintDetail }))
     })
-    await waitFor(() => expect(title).not.toBeDisabled())
+    openSection('Settings', 'Course Details')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Title' })).not.toBeDisabled())
   })
 
   it('clears the saved section without changing its accepted server value', async () => {
@@ -794,8 +1102,9 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
+    openSection('Settings', 'Course Details')
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Updated Blueprint Two' },
     })
@@ -809,8 +1118,9 @@ describe('TeacherBlueprintsPage', () => {
 
   it('keeps editing or explicitly discards changes before switching Blueprints', async () => {
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
+    openSection('Settings', 'Course Details')
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Unsaved title' },
     })
@@ -823,13 +1133,14 @@ describe('TeacherBlueprintsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Discard and switch' }))
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument())
   })
 
   it('requires confirmation before creating a classroom from the saved version', async () => {
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
+    openSection('Settings', 'Course Details')
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Unsaved title' },
     })
@@ -843,7 +1154,7 @@ describe('TeacherBlueprintsPage', () => {
 
   it('opens a newly created classroom on the combined Daily surface', async () => {
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Create classroom from blueprint' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete Classroom creation' }))
@@ -869,12 +1180,13 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
+    openSection('Settings', 'Course Details')
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Unsaved title' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
+    openSection('Updates', 'Classroom Updates')
     fireEvent.click(screen.getByRole('button', { name: 'Update Classroom from Blueprint' }))
 
     expect(screen.getByRole('dialog', {
@@ -914,14 +1226,14 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
+    openSection('Updates', 'Classroom Updates')
     fireEvent.click(screen.getByRole('button', { name: 'Update Classroom from Blueprint' }))
 
     const blueprintOne = screen.getByRole('button', { name: /Blueprint One/ })
     await waitFor(() => expect(blueprintOne).toBeDisabled())
     fireEvent.click(blueprintOne)
-    expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
 
     await act(async () => {
       resolveProposal(jsonResponse({ proposal: proposalFixture('classroom-update', 4) }))
@@ -929,13 +1241,14 @@ describe('TeacherBlueprintsPage', () => {
     })
 
     await waitFor(() => expect(blueprintOne).not.toBeDisabled())
-    expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
   })
 
   it('registers unload protection only while the Blueprint has unsaved changes', async () => {
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
+    openSection('Settings', 'Course Details')
     const cleanUnload = new Event('beforeunload', { cancelable: true })
     window.dispatchEvent(cleanUnload)
     expect(cleanUnload.defaultPrevented).toBe(false)
@@ -956,7 +1269,7 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
@@ -971,14 +1284,15 @@ describe('TeacherBlueprintsPage', () => {
     expect(mockPush).toHaveBeenCalledWith('/teacher/blueprints')
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
     })
   })
 
   it('keeps editing or explicitly discards changes before opening permanent deletion', async () => {
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
+    openSection('Settings', 'Course Details')
     const title = screen.getByRole('textbox', { name: 'Title' })
     fireEvent.change(title, { target: { value: 'Unsaved title' } })
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
@@ -1021,12 +1335,12 @@ describe('TeacherBlueprintsPage', () => {
     }) as any)
 
     render(<TeacherBlueprintsPage />)
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirm permanent deletion' }))
 
-    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: /Blueprint Two/ })).toBeNull()
 
     await act(async () => {
@@ -1034,7 +1348,7 @@ describe('TeacherBlueprintsPage', () => {
       await pendingPrePurgeList
     })
 
-    expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Blueprint Two/ })).toBeNull()
   })
 
@@ -1056,7 +1370,7 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
     })
     fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
 
@@ -1093,7 +1407,7 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('Repository-managed')).toBeInTheDocument()
+      expect(screen.getByText(/Repository-managed/)).toBeInTheDocument()
     })
     expect(screen.queryByRole('button', { name: 'Delete permanently' })).toBeNull()
   })

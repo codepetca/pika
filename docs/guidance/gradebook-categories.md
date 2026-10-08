@@ -28,6 +28,10 @@ two included assessments with weights 10 and 10, each assessment has an exact
 course weight of 32.5%. Changing those weights to 10 and 20 changes their exact
 course weights to 21.67% and 43.33%.
 
+An assessment weight may be 0–999. Weight 0 keeps the assessment and its marks
+visible but excludes it from the course grade. A category containing only
+zero-weight assessments has no grade yet and is omitted from the running final.
+
 A student's score in each category is the assessment-weighted average of fully
 graded, included work. The final percentage combines those category
 scores using the configured course percentages.

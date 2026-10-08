@@ -1,0 +1,18 @@
+'use client'
+
+import { TestImageDocumentViewer } from '@/components/TestImageDocumentViewer'
+
+// Fixed synthetic grid generated with browser canvas; no live API or student data.
+const KAREL_WORLD = 'data:image/png;base64,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'
+
+export function TestReferenceImagePattern() {
+  return (
+    <section id="test-reference-image" className="space-y-3">
+      <h3 className="text-base font-semibold text-text-default">Test reference image</h3>
+      <p className="text-sm text-text-muted">Feature-owned fit, zoom and image canvas shared by teacher preview and student tests.</p>
+      <div className="h-80 overflow-hidden rounded-card border border-border">
+        <TestImageDocumentViewer title="Karel start world" url={KAREL_WORLD} />
+      </div>
+    </section>
+  )
+}

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import {
   saveStudentTestAttempt,
   submitStudentTestAttempt,
@@ -33,6 +34,7 @@ describe('submitStudentTestAttempt', () => {
         attempt_id: '10000000-0000-4000-8000-000000000001',
         submitted_at: '2026-07-14T12:00:00.000Z',
         inserted_responses: 2,
+        draft_revision: 2,
       },
       error: null,
     })
@@ -43,13 +45,15 @@ describe('submitStudentTestAttempt', () => {
       testId: 'test-1',
       studentId: 'student-1',
       responses,
+      expectedRevision: 1,
     })
 
-    expect(result).toEqual({ ok: true })
-    expect(rpc).toHaveBeenCalledWith('submit_test_attempt_atomic', {
+    expect(result).toEqual({ ok: true, draftRevision: 2 })
+    expect(rpc).toHaveBeenCalledWith('submit_test_attempt_revision_atomic', {
       p_test_id: 'test-1',
       p_student_id: 'student-1',
       p_responses: responses,
+      p_expected_revision: 1,
       p_submitted_at: expect.any(String),
     })
     expect(insertVersionedBaselineHistory).toHaveBeenCalledWith(expect.objectContaining({
@@ -69,7 +73,8 @@ describe('submitStudentTestAttempt', () => {
       testId: 'test-1',
       studentId: 'student-1',
       responses,
-    })).resolves.toEqual({ ok: true })
+      expectedRevision: 1,
+    })).resolves.toEqual({ ok: true, draftRevision: 2 })
   })
 
   it.each([
@@ -88,6 +93,7 @@ describe('submitStudentTestAttempt', () => {
       testId: 'test-1',
       studentId: 'student-1',
       responses,
+      expectedRevision: 1,
     })
 
     expect(result).toEqual({ ok: false, status, error })
@@ -95,18 +101,20 @@ describe('submitStudentTestAttempt', () => {
   })
 
   it('fails closed when the RPC returns a malformed success payload', async () => {
-    rpc.mockResolvedValueOnce({ data: { inserted_responses: 2 }, error: null })
+    rpc.mockResolvedValueOnce({ data: { inserted_responses: 2, draft_revision: 2 }, error: null })
 
     await expect(submitStudentTestAttempt({
       testId: 'test-1',
       studentId: 'student-1',
       responses,
+      expectedRevision: 1,
     })).resolves.toEqual({ ok: false, status: 500, error: 'Failed to submit responses' })
     expect(insertVersionedBaselineHistory).not.toHaveBeenCalled()
   })
 })
 
 const savedAttempt = {
+  draft_revision: 2,
   id: '10000000-0000-4000-8000-000000000020',
   test_id: '10000000-0000-4000-8000-000000000010',
   student_id: '10000000-0000-4000-8000-000000000002',
@@ -116,6 +124,49 @@ const savedAttempt = {
   created_at: '2026-07-14T12:00:00.000Z',
   updated_at: '2026-07-14T12:01:00.000Z',
 }
+
+describe('test attempt diagnostic privacy', () => {
+  beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each(['submit', 'save'] as const)('keeps %s RPC failures content-free', async (operation) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    rpc.mockResolvedValueOnce({ data: null, error: privateDiagnosticError })
+    const input = { testId: 'private-test', studentId: 'private-student', responses, expectedRevision: 1, pasteWordCount: 0, keystrokeCount: 0 }
+    const result = await (operation === 'submit' ? submitStudentTestAttempt(input) : saveStudentTestAttempt(input))
+    expect(result).toEqual({ ok: false, status: 500, error: `Failed to ${operation} responses` })
+    expectContentFreeDiagnostic(consoleError.mock.calls, `test.${operation}`)
+    expect(insertVersionedBaselineHistory).not.toHaveBeenCalled()
+    expect(persistVersionedHistory).not.toHaveBeenCalled()
+  })
+
+  it.each(['submit', 'save'] as const)('keeps malformed %s results content-free', async (operation) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    rpc.mockResolvedValueOnce({ data: {
+      attempt_id: privateDiagnosticError.message,
+      attempt: { ...savedAttempt, responses: { PRIVATE_ANSWER: null } },
+    }, error: null })
+    const input = { testId: 'private-test', studentId: 'private-student', responses, expectedRevision: 1, pasteWordCount: 0, keystrokeCount: 0 }
+    const result = await (operation === 'submit' ? submitStudentTestAttempt(input) : saveStudentTestAttempt(input))
+    expect(result).toEqual({ ok: false, status: 500, error: `Failed to ${operation} responses` })
+    expectContentFreeDiagnostic(consoleError.mock.calls, `test.${operation}_result`, 'unexpected')
+    expect(insertVersionedBaselineHistory).not.toHaveBeenCalled()
+    expect(persistVersionedHistory).not.toHaveBeenCalled()
+  })
+
+  it.each(['submit', 'baseline', 'patch'] as const)('preserves a committed attempt when %s history fails without logging content', async (operation) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    rpc.mockResolvedValueOnce({ data: operation === 'submit'
+      ? { attempt_id: savedAttempt.id, submitted_at: '2026-07-14T12:00:00.000Z', inserted_responses: 2, draft_revision: 2 }
+      : { created: operation === 'baseline', previous_responses: responses, attempt: savedAttempt }, error: null })
+    vi.mocked(operation === 'patch' ? persistVersionedHistory : insertVersionedBaselineHistory)
+      .mockRejectedValueOnce(privateDiagnosticError)
+    const input = { testId: savedAttempt.test_id, studentId: savedAttempt.student_id, responses, expectedRevision: 1, pasteWordCount: 0, keystrokeCount: 0 }
+    const result = await (operation === 'submit' ? submitStudentTestAttempt(input) : saveStudentTestAttempt(input))
+    expect(result).toEqual(operation === 'submit' ? { ok: true, draftRevision: 2 } : { ok: true, attempt: savedAttempt, historyEntry: null })
+    expectContentFreeDiagnostic(consoleError.mock.calls, operation === 'submit' ? 'test.submit_history' : 'test.save_history')
+  })
+})
 
 describe('saveStudentTestAttempt', () => {
   beforeEach(() => {
@@ -131,16 +182,18 @@ describe('saveStudentTestAttempt', () => {
       testId: savedAttempt.test_id,
       studentId: savedAttempt.student_id,
       responses,
+      expectedRevision: 1,
       trigger: 'blur',
       pasteWordCount: 2,
       keystrokeCount: 4,
     })
 
     expect(result).toEqual({ ok: true, attempt: savedAttempt, historyEntry: { id: 'history-1' } })
-    expect(rpc).toHaveBeenCalledWith('save_test_attempt_atomic', {
+    expect(rpc).toHaveBeenCalledWith('save_test_attempt_revision_atomic', {
       p_test_id: savedAttempt.test_id,
       p_student_id: savedAttempt.student_id,
       p_responses: responses,
+      p_expected_revision: 1,
     })
     expect(insertVersionedBaselineHistory).toHaveBeenCalledWith(expect.objectContaining({
       ownerId: savedAttempt.id,
@@ -166,6 +219,7 @@ describe('saveStudentTestAttempt', () => {
       testId: savedAttempt.test_id,
       studentId: savedAttempt.student_id,
       responses,
+      expectedRevision: 1,
       trigger: 'blur',
       pasteWordCount: 0,
       keystrokeCount: 1,
@@ -194,6 +248,7 @@ describe('saveStudentTestAttempt', () => {
       testId: savedAttempt.test_id,
       studentId: savedAttempt.student_id,
       responses,
+      expectedRevision: 1,
       pasteWordCount: 0,
       keystrokeCount: 0,
     })
@@ -210,10 +265,23 @@ describe('saveStudentTestAttempt', () => {
       testId: savedAttempt.test_id,
       studentId: savedAttempt.student_id,
       responses,
+      expectedRevision: 1,
       pasteWordCount: 0,
       keystrokeCount: 0,
     })
 
     expect(result).toEqual({ ok: false, status: 500, error: 'Failed to save responses' })
+  })
+})
+
+ describe('revision conflict', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+  it.each(['save', 'submit'] as const)('rejects stale %s without writing history', async (operation) => {
+    rpc.mockResolvedValueOnce({ data: { conflict: true, attempt: savedAttempt }, error: null })
+    const input = { testId: savedAttempt.test_id, studentId: savedAttempt.student_id, responses, expectedRevision: 1, pasteWordCount: 0, keystrokeCount: 0 }
+    const result = await (operation === 'submit' ? submitStudentTestAttempt(input) : saveStudentTestAttempt(input))
+    expect(result).toEqual({ ok: false, status: 409, error: 'Test answers changed. Reload or reconcile your answers before saving again.', error_code: 'test_attempt_revision_conflict', attempt: savedAttempt })
+    expect(insertVersionedBaselineHistory).not.toHaveBeenCalled()
+    expect(persistVersionedHistory).not.toHaveBeenCalled()
   })
 })

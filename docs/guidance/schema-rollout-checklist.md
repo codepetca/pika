@@ -32,7 +32,7 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 
 Migration application is human-controlled by default. An AI agent may execute it only when the user
 gives a direct, one-time instruction in the current task that names both the target environment
-(`local`, `staging`, or `production`) and the exact migration number(s) or filename(s). Broad requests
+(`local` or `production`) and the exact migration number(s) or filename(s). Broad requests
 such as "apply migrations", "continue", or approval from an earlier task are not authorization.
 Permission expires after one attempted non-dry-run application command and cannot be reused for a
 retry or a different target.
@@ -59,6 +59,10 @@ During and after application:
   durable state and obtain new permission before retrying.
 - Re-run `supabase migration list`, verify the relevant database contract with read-only checks, and
   report the target, applied migration numbers, and verification result without exposing secrets.
+
+For browser-based owner execution, see [manual hosted migrations](./hosted-migrations.md).
+A human apply dispatch approves only that exact SHA, target, digest and complete migration set for
+one attempt. Configuring the workflow never authorizes an AI to apply migrations.
 
 ## Generated Database Contract
 

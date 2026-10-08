@@ -226,11 +226,15 @@ export function classroomArchiveRestoreObjectPath(args: {
   sha256: string
   sourcePath: string
   contentType: string | null
+  bucket?: string
 }): string {
   const objectIdentity = createHash('sha256')
     .update(`${args.sourcePath}\0${args.contentType ?? '<null>'}`)
     .digest('hex')
-  return `restores/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.operationId)}/${objectIdentity}-${args.sha256}`
+  const imageExtension = args.bucket === 'test-documents'
+    ? args.contentType === 'image/png' ? '.png' : args.contentType === 'image/jpeg' ? '.jpeg' : null
+    : null
+  return `restores/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.operationId)}/${imageExtension ? 'images/' : ''}${objectIdentity}-${args.sha256}${imageExtension || ''}`
 }
 
 function encodeStoragePath(path: string): string {
@@ -658,6 +662,7 @@ function buildClassroomArchiveRestorePlanForVersion(
           sha256: object.sha256,
           sourcePath: object.source_path,
           contentType: object.content_type,
+          bucket: object.bucket,
         }),
         managedObjectId: deterministicRestoreManagedObjectId({
           operationId,

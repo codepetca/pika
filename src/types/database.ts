@@ -230,8 +230,8 @@ type TableOverrides = {
   >
   test_attempts: TableContract<
     'test_attempts',
-    { authenticity_flags: AuthenticityFlag[] | null },
-    { authenticity_flags?: AuthenticityFlag[] | null }
+    { authenticity_flags: AuthenticityFlag[] | null; draft_revision: number },
+    { authenticity_flags?: AuthenticityFlag[] | null; draft_revision?: number }
   >
   test_focus_events: TableContract<
     'test_focus_events',
@@ -279,6 +279,65 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // Installed249 accepts SQLNULL when inspecting a missing draft. PostgreSQL
+  // metadata omits input nullability; retain every other generated RPC argument.
+  finish_test_draft_save_for_owner_v1: FunctionContract<
+    'finish_test_draft_save_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['finish_test_draft_save_for_owner_v1']['Args'], {
+      p_expected_version: number | null
+    }>
+  >
+
+  // PostgreSQL function metadata does not encode nullable input contracts.
+  finalize_auth_verification_attempt_v1: FunctionContract<
+    'finalize_auth_verification_attempt_v1',
+    Json,
+    Replace<GeneratedFunctions['finalize_auth_verification_attempt_v1']['Args'], {
+      p_handoff_expires_at: string | null
+      p_handoff_token_hash: string | null
+    }>
+  >
+
+  // Installed239's optional cursor/subject/snapshot arguments accept SQLNULL.
+  // Refine only their nullability while retaining genuine generated RPC keys.
+  discover_retained_student_cleanup_groups: FunctionContract<
+    'discover_retained_student_cleanup_groups',
+    Json,
+    Replace<GeneratedFunctions['discover_retained_student_cleanup_groups']['Args'], {
+      p_student_id?: string | null
+      p_after_student_id?: string | null
+      p_snapshot_sha256?: string | null
+    }>
+  >
+  // Installed235 accepts SQLNULL to clear a counselor; generatedpg metadata
+  // does not encode input nullability. Retain every other genuine RPC argument.
+  update_classroom_roster_counselor_for_owner_v1: FunctionContract<
+    'update_classroom_roster_counselor_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['update_classroom_roster_counselor_for_owner_v1']['Args'], {
+      p_counselor_email: string | null
+    }>
+  >
+  // Generated PostgreSQL metadata does not encode nullable input contracts.
+  create_announcement_for_owner_v1: FunctionContract<
+    'create_announcement_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['create_announcement_for_owner_v1']['Args'], {
+      p_scheduled_for: string | null
+      p_title: string | null
+    }>
+  >
+  set_gradebook_maximum_override: FunctionContract<
+    'set_gradebook_maximum_override',
+    Json,
+    Replace<GeneratedFunctions['set_gradebook_maximum_override']['Args'], { p_maximum: number | null }>
+  >
+  save_gradebook_effective_mark: FunctionContract<
+    'save_gradebook_effective_mark',
+    Json,
+    Replace<GeneratedFunctions['save_gradebook_effective_mark']['Args'], { p_earned: number | null }>
+  >
   // PostgreSQL function metadata does not encode nullable input contracts.
   authorize_attendance_generation_delivery: FunctionContract<
     'authorize_attendance_generation_delivery', boolean,
@@ -322,6 +381,25 @@ type FunctionOverrides = {
       p_paste_word_count: number
       p_keystroke_count: number
       p_patch: Json | null
+      p_snapshot: Json | null
+      p_word_count: number
+      p_char_count: number
+      p_save_session_id: string
+      p_save_sequence: number
+      p_metric_session_id: string
+    }
+    Returns: Json
+  }
+  save_assignment_doc_for_member_v1: {
+    Args: {
+      p_actor_id: string
+      p_assignment_id: string
+      p_content: Json
+      p_expected_updated_at: string | null
+      p_trigger: string
+      p_paste_word_count: number
+      p_keystroke_count: number
+      p_patch: Json
       p_snapshot: Json | null
       p_word_count: number
       p_char_count: number
@@ -399,6 +477,28 @@ type FunctionOverrides = {
       p_skip_reason: string | null
     }>
   >
+  finalize_assignment_ai_grading_item_with_provenance_lease_v1: FunctionContract<
+    'finalize_assignment_ai_grading_item_with_provenance_lease_v1',
+    Json,
+    Replace<GeneratedFunctions['finalize_assignment_ai_grading_item_with_provenance_lease_v1']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_ai_grading_provenance: GradingProvenance | null
+      p_graded_by: string | null
+      p_skip_reason: string | null
+    }>
+  >
+  finalize_assignment_ai_grading_item_and_settle_usage_v1: FunctionContract<
+    'finalize_assignment_ai_grading_item_and_settle_usage_v1',
+    Json,
+    Replace<GeneratedFunctions['finalize_assignment_ai_grading_item_and_settle_usage_v1']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_ai_grading_provenance: GradingProvenance | null
+      p_graded_by: string | null
+      p_skip_reason: string | null
+    }>
+  >
   finalize_test_ai_grading_item_atomic: FunctionContract<
     'finalize_test_ai_grading_item_atomic',
     Json,
@@ -446,10 +546,31 @@ type FunctionOverrides = {
       p_feedback: string | null
     }>
   >
+  return_assignment_docs_for_owner_v1: FunctionContract<
+    'return_assignment_docs_for_owner_v1',
+    Json
+  >
+  return_assignment_feedback_for_owner_v1: FunctionContract<
+    'return_assignment_feedback_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['return_assignment_feedback_for_owner_v1']['Args'], {
+      p_expected_doc_updated_at: string | null
+      p_feedback: string | null
+    }>
+  >
   save_assignment_grades_atomic: FunctionContract<
     'save_assignment_grades_atomic',
     Json,
     Replace<GeneratedFunctions['save_assignment_grades_atomic']['Args'], {
+      p_score_completion: number | null
+      p_score_thinking: number | null
+      p_score_workflow: number | null
+    }>
+  >
+  save_assignment_grades_for_owner_v1: FunctionContract<
+    'save_assignment_grades_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['save_assignment_grades_for_owner_v1']['Args'], {
       p_score_completion: number | null
       p_score_thinking: number | null
       p_score_workflow: number | null
@@ -521,7 +642,7 @@ type FunctionOverrides = {
   >
   return_test_attempts_atomic: FunctionContract<
     'return_test_attempts_atomic',
-    { returned_count: number; updated_count: number; inserted_count: number }
+    { returned_count: number; already_returned_count: number; skipped_count: number; test_closed: false }
   >
   unsubmit_test_attempts_atomic: FunctionContract<
     'unsubmit_test_attempts_atomic',

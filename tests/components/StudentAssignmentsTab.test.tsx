@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { forwardRef, useEffect, useImperativeHandle } from 'react'
 import { StudentAssignmentsTab } from '@/app/classrooms/[classroomId]/StudentAssignmentsTab'
+import { AppMessageProvider } from '@/ui'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { Classroom, AssignmentWithStatus, ClassworkMaterial, StudentSurveyView } from '@/types'
 
@@ -38,7 +39,7 @@ vi.mock('@/components/StudentAssignmentEditor', () => ({
     useEffect(() => {
       props.onStateChange?.(mockEditorState)
     }, [props.onStateChange])
-    return <div data-testid="student-editor">Editor</div>
+    return <div data-testid="student-editor">Editor<textarea aria-label="Assignment response" defaultValue="" /></div>
   }),
 }))
 
@@ -179,6 +180,24 @@ describe('StudentAssignmentsTab', () => {
     expect(screen.getByTestId('returned-marks')).toHaveAttribute('data-active', 'true')
     rerender(<StudentAssignmentsTab classroom={classroom} isActive={false} />)
     expect(screen.getByTestId('returned-marks')).toHaveAttribute('data-active', 'false')
+  })
+
+  it('preserves the selected editor and content frame across shell metadata updates', async () => {
+    mockFetchClasswork([makeAssignment({ instructions_markdown: null, description: null })])
+    const view = render(<StudentAssignmentsTab classroom={classroom} />)
+    await screen.findByTestId('assignment-card')
+    view.rerender(<StudentAssignmentsTab classroom={classroom} selectedAssignmentId="asgn-1" />)
+    const editor = await screen.findByTestId('student-editor')
+    const frame = editor.parentElement
+    editor.setAttribute('tabindex', '0')
+    editor.focus()
+    view.rerender(<StudentAssignmentsTab classroom={{ ...classroom, title: 'Updated title' }} selectedAssignmentId="asgn-1" />)
+    expect(screen.getByTestId('student-editor')).toBe(editor)
+    expect(editor.parentElement).toBe(frame)
+    expect(editor).toHaveFocus()
+    view.rerender(<StudentAssignmentsTab classroom={classroom} />)
+    expect(screen.queryByTestId('student-editor')).not.toBeInTheDocument()
+    expect(screen.getByTestId('assignment-card')).toBeInTheDocument()
   })
 
   it('shows a classwork error and restores the list after retry', async () => {
@@ -325,6 +344,130 @@ describe('StudentAssignmentsTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByText('Recovered after reactivation')).toBeInTheDocument()
+  })
+
+  it.each(['assignments', 'materials', 'surveys'])('retains the complete same-classroom snapshot if %s refresh fails and through retry', async (failedResource) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let shouldFail = false
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (shouldFail && url.includes(failedResource)) return { ok: false, json: async () => ({ error: 'Temporary failure' }) }
+      if (url.includes('/api/student/assignments')) return mockJSONResponse({ assignments: [makeAssignment()] })
+      if (url.includes('/materials')) return mockJSONResponse({ materials: [makeMaterial()] })
+      if (url.includes('/api/student/surveys')) return mockJSONResponse({ surveys: [makeSurvey()] })
+      throw new Error(`Unexpected request: ${url}`)
+    }))
+    const view = render(<StudentAssignmentsTab classroom={classroom} isActive />, { wrapper: AppMessageProvider })
+    const assignment = await screen.findByTestId('assignment-card')
+    const material = screen.getByTestId('material-card')
+    const survey = screen.getByTestId('survey-card')
+    shouldFail = true
+    invalidateCachedJSONMatching('student-')
+    view.rerender(<StudentAssignmentsTab classroom={classroom} isActive={false} />)
+    view.rerender(<StudentAssignmentsTab classroom={classroom} isActive />, { wrapper: AppMessageProvider })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Showing the last loaded classwork')
+    for (const [id, node] of [['assignment-card', assignment], ['material-card', material], ['survey-card', survey]] as const) {
+      expect(screen.getByTestId(id)).toBe(node)
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(screen.getByRole('region', { name: 'Classwork' })).toHaveFocus()
+    expect(screen.getByTestId('assignment-card')).toBe(assignment)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Showing the last loaded classwork')
+    shouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.getByTestId('assignment-card')).toBe(assignment)
+  })
+
+  it('preserves the selected editor, draft and focus on refresh failure, and the editor through repeated retries', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let shouldFail = false
+    const assignment = makeAssignment({ doc: { viewed_at: '2026-08-17T12:00:00Z' } as AssignmentWithStatus['doc'] })
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/student/assignments')) {
+        if (shouldFail) return { ok: false, json: async () => ({ error: 'Temporary failure' }) }
+        return mockJSONResponse({ assignments: [assignment] })
+      }
+      if (url.includes('/materials')) return mockJSONResponse({ materials: [] })
+      if (url.includes('/api/student/surveys')) return mockJSONResponse({ surveys: [] })
+      throw new Error(`Unexpected request: ${url}`)
+    }))
+    const props = { classroom, selectedAssignmentId: assignment.id }
+    const view = render(<StudentAssignmentsTab {...props} isActive />, { wrapper: AppMessageProvider })
+    const editor = await screen.findByTestId('student-editor')
+    const draft = screen.getByRole('textbox', { name: 'Assignment response' })
+    fireEvent.change(draft, { target: { value: 'Keep this unsaved response' } })
+    draft.focus()
+    shouldFail = true
+    invalidateCachedJSONMatching('student-')
+    view.rerender(<StudentAssignmentsTab {...props} isActive={false} />)
+    view.rerender(<StudentAssignmentsTab {...props} isActive />, { wrapper: AppMessageProvider })
+    await screen.findByRole('alert')
+    expect(screen.getByTestId('student-editor')).toBe(editor)
+    expect(draft).toHaveValue('Keep this unsaved response')
+    expect(draft).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(screen.getByTestId('student-editor')).toBe(editor)
+    await screen.findByRole('alert')
+    shouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.getByTestId('student-editor')).toBe(editor)
+    expect(draft).toHaveValue('Keep this unsaved response')
+  })
+
+  it('retains a successful empty snapshot when its background refresh fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetchClasswork([])
+    const view = render(<StudentAssignmentsTab classroom={classroom} isActive />, { wrapper: AppMessageProvider })
+    await screen.findByText('No classwork yet')
+    invalidateCachedJSONMatching('student-')
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: false, json: async () => ({ error: 'Temporary failure' }) })
+    view.rerender(<StudentAssignmentsTab classroom={classroom} isActive={false} />)
+    view.rerender(<StudentAssignmentsTab classroom={classroom} isActive />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Showing the last loaded classwork')
+    expect(screen.getByText('No classwork yet')).toBeInTheDocument()
+  })
+
+  it.each(['failure', 'success'])('ignores a late refresh %s after switching classrooms', async (outcome) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const nextClassroom = { ...classroom, id: 'cls-next-snapshot' }
+    let refreshing = false
+    let resolveRefresh: ((response: ReturnType<typeof mockJSONResponse>) => void) | undefined
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/student/assignments')) {
+        if (refreshing && url.includes(classroom.id)) {
+          return new Promise<ReturnType<typeof mockJSONResponse>>((resolve) => { resolveRefresh = resolve })
+        }
+        return mockJSONResponse({ assignments: [makeAssignment({
+          classroom_id: url.includes(nextClassroom.id) ? nextClassroom.id : classroom.id,
+          title: url.includes(nextClassroom.id) ? 'Next classroom work' : 'Current classroom work',
+        })] })
+      }
+      if (url.includes('/materials')) return mockJSONResponse({ materials: [] })
+      if (url.includes('/api/student/surveys')) return mockJSONResponse({ surveys: [] })
+      throw new Error(`Unexpected request: ${url}`)
+    }))
+    const view = render(<StudentAssignmentsTab classroom={classroom} isActive />, { wrapper: AppMessageProvider })
+    await screen.findByText('Current classroom work')
+    refreshing = true
+    invalidateCachedJSONMatching('student-')
+    view.rerender(<StudentAssignmentsTab classroom={classroom} isActive={false} />)
+    view.rerender(<StudentAssignmentsTab classroom={classroom} isActive />)
+    await waitFor(() => expect(resolveRefresh).toEqual(expect.any(Function)))
+    view.rerender(<StudentAssignmentsTab classroom={nextClassroom} isActive />)
+    expect(screen.queryByText('Current classroom work')).not.toBeInTheDocument()
+    const nextCard = await screen.findByText('Next classroom work')
+    await act(async () => {
+      resolveRefresh?.(outcome === 'failure'
+        ? { ok: false, json: async () => ({ error: 'Obsolete refresh failed' }) }
+        : mockJSONResponse({ assignments: [makeAssignment({ title: 'Obsolete classroom work' })] }))
+    })
+    expect(screen.getByText('Next classroom work')).toBe(nextCard)
+    expect(screen.queryByText('Obsolete classroom work')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('first-time view: auto-shows instructions modal', async () => {

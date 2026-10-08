@@ -91,12 +91,12 @@ export const gradebookPatchSchema = gradebookPatchInputSchema.transform((body, c
     const gradebookWeight = parseAssessmentWeight(body.gradebook_weight)
     if (
       gradebookWeight == null ||
-      gradebookWeight < 1 ||
+      gradebookWeight < 0 ||
       gradebookWeight > ASSESSMENT_WEIGHT_MAX
     ) {
       context.addIssue({
         code: 'custom',
-        message: `gradebook_weight must be an integer 1-${ASSESSMENT_WEIGHT_MAX}`,
+        message: `gradebook_weight must be an integer 0-${ASSESSMENT_WEIGHT_MAX}`,
       })
       return z.NEVER
     }

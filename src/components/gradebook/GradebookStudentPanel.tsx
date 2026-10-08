@@ -29,7 +29,7 @@ export function GradebookStudentPanel({
       aria-label={`${getStudentName(student)} assessment details`}
       className="flex h-full min-h-0 flex-col bg-surface"
     >
-      <div className="flex min-h-14 items-start justify-between gap-3 border-b border-border px-3 py-3">
+      <div className="flex min-h-14 items-start justify-between gap-3 px-3 py-3">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-text-default">
             {getStudentName(student)}
@@ -39,7 +39,7 @@ export function GradebookStudentPanel({
           </div>
         </div>
         <div className="flex shrink-0 items-start gap-2">
-          <div className="rounded-md bg-surface-2 px-2 py-1 text-right">
+          <div className="rounded-md bg-gradebook-final px-2 py-1 text-right">
             <div className="text-xs font-semibold uppercase tracking-normal text-text-muted">Final</div>
             <div className={[
               'text-sm font-semibold tabular-nums',
@@ -54,7 +54,7 @@ export function GradebookStudentPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {columns.length ? (
-          <div className="divide-y divide-border">
+          <div>
             {columns.map((column) => {
               const cell = getAssessmentCell(student, column)
               const percentScore = cell?.is_graded ? formatCompactPercent(cell.percent) : 'Not graded'

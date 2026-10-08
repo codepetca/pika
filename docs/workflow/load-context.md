@@ -1,64 +1,19 @@
 # Load Context Workflow
 
-When the user says "load context" or starts a new session, load the AI instructions and core documentation.
+Use [`.ai/START-HERE.md`](../../.ai/START-HERE.md) and the
+[session-start prompt](../../.codex/prompts/session-start.md) for a new session.
+Run the startup script from the current feature worktree:
 
----
-
-## Primary Entry Point
-
-If starting a new session, first read: `/.ai/START-HERE.md`
-
-Then start here: `/docs/ai-instructions.md`
-
-This file provides:
-- Required reading order for all core documentation
-- Architecture snapshot (tech stack, patterns, constraints)
-- Critical constraints (what is MANDATORY and PROHIBITED)
-- Common workflows (adding features, fixing bugs, working on issues)
-- Agent selection guide (which agent to use for which task)
-
----
-
-## Files to Load
-
-**Single source of truth:** See `/docs/ai-instructions.md` for the complete reading order (7 core docs).
-
----
-
-## Response Template
-
-After loading all files, respond with:
-
-```
-✅ Pika context loaded. Ready to work on student attendance & assignment tracking.
-
-Loaded AI instructions and core documentation:
-- AI orchestrator with reading order and constraints
-- System architecture patterns & data flow
-- UI/UX design guidelines (mobile-first, Tailwind, accessibility)
-- Project context (Next.js 14, Supabase, email verification + password auth)
-- Multi-agent collaboration (6 specialized agents)
-- TDD requirements (100% core coverage, test-first workflow)
-- Current roadmap (MVP complete, tests in progress)
-- AI continuity layer (`.ai/`): current context + rolling session log + feature inventory
-
-What would you like to work on?
+```bash
+bash .codex/skills/pika-session-start/scripts/session_start.sh
 ```
 
----
+For read-only orientation use `--orient-only`. When unchanged guidance has already
+been read in this conversation, `--context-loaded` avoids repeating its text while
+retaining fresh checks. See [the canonical workflow](../dev-workflow.md).
 
-## For Issue-Based Work
+Load only the task-specific documents selected by [the AI router](../ai-instructions.md)
+after the required startup set. Report the actual task, checkout, risk and next
+step using the dated checkpoint in `.ai/CURRENT.md` and status in `.ai/features.json`.
 
-After loading context, if working on an issue:
-
-1. Run: `gh issue view X --json number,title,body,labels`
-2. Follow `/docs/workflow/handle-issue.md` for detailed workflow
-
----
-
-## Notes
-
-- **Always read ai-instructions.md first** — It provides the reading order and critical constraints
-- **Follow the reading order** — Prevents architectural drift
-- **Choose appropriate agent role** — See agents.md for which agent to use
-- **TDD-first for core logic** — Write tests before implementation
+For issue work, inspect the issue and follow [the issue workflow](handle-issue.md).

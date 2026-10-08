@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatCompactRelativeAge,
+  getTestDocumentImageType,
   getTestDocumentValidationError,
+  isAllowedTestDocumentType,
   isLinkDocumentSnapshotStale,
+  isPdfTestDocument,
   normalizeTestDocuments,
   preserveCurrentTestDocumentSnapshots,
   sanitizeSnapshotHtml,
@@ -11,6 +14,31 @@ import {
 } from '@/lib/test-documents'
 
 describe('test-documents', () => {
+  it('identifies managed PDFs while keeping other references sandboxed', () => {
+    expect(isPdfTestDocument({
+      id: 'upload', title: 'PDF', source: 'upload', storage_path: 'documents/reference.txt',
+      upload_content_type: 'application/pdf',
+    })).toBe(true)
+    expect(isPdfTestDocument({
+      id: 'misnamed', title: 'Text', source: 'upload', storage_path: 'documents/reference.pdf',
+      upload_content_type: 'text/plain',
+    })).toBe(false)
+    expect(isPdfTestDocument({
+      id: 'legacy', title: 'Unknown', source: 'upload', storage_path: 'documents/reference.pdf',
+    })).toBe(false)
+    expect(isPdfTestDocument({
+      id: 'snapshot', title: 'PDF', source: 'link', url: 'https://example.com/reference',
+      snapshot_content_type: 'application/pdf',
+    })).toBe(true)
+    expect(isPdfTestDocument({
+      id: 'html', title: 'HTML', source: 'link', url: 'https://example.com/reference',
+      snapshot_content_type: 'text/html',
+    })).toBe(false)
+    expect(isPdfTestDocument({
+      id: 'unsynced', title: 'Unknown', source: 'link', url: 'https://example.com/reference.pdf',
+    })).toBe(false)
+  })
+
   it('normalizes valid documents and drops invalid entries', () => {
     const result = normalizeTestDocuments([
       {
@@ -189,6 +217,41 @@ describe('test-documents', () => {
 
     const invalidType = new File(['{}'], 'data.exe', { type: 'application/x-msdownload' })
     expect(getTestDocumentValidationError(invalidType)).toContain('Invalid file type')
+    expect(isAllowedTestDocumentType('image/png')).toBe(true)
+    expect(isAllowedTestDocumentType('image/jpeg')).toBe(true)
+    expect(isAllowedTestDocumentType('image/svg+xml')).toBe(false)
+  })
+
+  it('derives raster rendering hints only from canonical managed upload paths', () => {
+    expect(getTestDocumentImageType({
+      id: 'png-doc', title: 'Diagram', source: 'upload',
+      storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/images/object.png',
+    })).toBe('image/png')
+    expect(getTestDocumentImageType({
+      id: 'jpeg-doc', title: 'Photo', source: 'upload',
+      storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/images/object.jpeg',
+    })).toBe('image/jpeg')
+    expect(getTestDocumentImageType({
+      id: 'unmanaged-doc', title: 'Image', source: 'upload',
+      url: 'https://example.test/image.png',
+    })).toBeNull()
+    expect(getTestDocumentImageType({
+      id: 'svg-doc', title: 'Diagram', source: 'upload',
+      storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/object.svg',
+    })).toBeNull()
+  })
+
+  it.each(['png', 'jpeg'])('keeps legacy uploads with a misleading .%s suffix out of the image viewer', (extension) => {
+    expect(getTestDocumentImageType({
+      id: 'legacy-pdf', title: 'PDF named as an image', source: 'upload',
+      storage_bucket: 'test-documents', storage_path: `classrooms/a/tests/b/documents/c/object.${extension}`,
+    })).toBeNull()
+  })
+
+  it.each(['png', 'jpeg'])('recognizes managed-copy images without trusting legacy .%s suffixes', (extension) => {
+    const base = { id: 'copy', title: 'World', source: 'upload' as const, storage_bucket: 'test-documents' as const }
+    expect(getTestDocumentImageType({ ...base, storage_path: `managed-copies/op/images/object.${extension}` })).toBe(`image/${extension}`)
+    expect(getTestDocumentImageType({ ...base, storage_path: `managed-copies/op/object.${extension}` })).toBeNull()
   })
 
   it('formats compact relative sync ages', () => {

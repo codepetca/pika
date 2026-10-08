@@ -3,6 +3,8 @@
 import { useEffect, useState, FormEvent, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
+import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 import { navigateTo } from '@/lib/client-navigation'
 import { getSafeInternalPath } from '@/lib/navigation-safety'
 
@@ -19,6 +21,7 @@ function CreatePasswordForm() {
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const continuity = useAuthFormContinuity(loading)
 
   useEffect(() => {
     try {
@@ -36,25 +39,31 @@ function CreatePasswordForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
     setError('')
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/create-password', {
+      const response = await fetchAuthSubmit('/api/auth/create-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, passwordConfirmation, handoffToken }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
+      if (!continuity.isCurrent(request)) return
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create password')
       }
 
+      continuity.release(request)
       window.sessionStorage.removeItem(SIGNUP_HANDOFF_TOKEN_STORAGE_KEY)
       navigateTo(nextPath ?? data.redirectUrl)
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
+      continuity.finish(request)
       setError(err.message || 'An error occurred')
       setLoading(false)
     }
@@ -70,7 +79,7 @@ function CreatePasswordForm() {
           Choose a secure password for your account
         </p>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} aria-busy={loading}>
           <FormField label="Password" required className="mb-4">
             <Input
               type="password"
@@ -82,7 +91,7 @@ function CreatePasswordForm() {
             />
           </FormField>
 
-          <FormField label="Confirm Password" error={error} required>
+          <FormField label="Confirm Password" error={error} required reserveErrorSpace>
             <Input
               type="password"
               placeholder="Re-enter your password"
@@ -102,6 +111,7 @@ function CreatePasswordForm() {
 
           <Button
             type="submit"
+            aria-busy={loading || undefined}
             className="w-full mt-6"
             disabled={loading || !password || !passwordConfirmation}
           >

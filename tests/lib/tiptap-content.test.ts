@@ -3,6 +3,7 @@ import {
   parseContentField,
   isValidTiptapContent,
   extractPlainText,
+  hasRenderableContent,
   isEmpty,
   countCharacters,
   countWords,
@@ -133,6 +134,28 @@ describe('isEmpty', () => {
       content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }],
     }
     expect(isEmpty(doc)).toBe(false)
+  })
+})
+
+describe('hasRenderableContent', () => {
+  it('recognizes completed and unfinished image-only work without changing text emptiness', () => {
+    const completedImage = {
+      type: 'doc' as const,
+      content: [{ type: 'image', attrs: { src: '/api/storage/submission-images?object_id=1' } }],
+    }
+    const unfinishedUpload = {
+      type: 'doc' as const,
+      content: [{ type: 'imageUpload', attrs: { accept: 'image/*', limit: 1, maxSize: 10 } }],
+    }
+
+    expect(isEmpty(completedImage)).toBe(true)
+    expect(isEmpty(unfinishedUpload)).toBe(true)
+    expect(hasRenderableContent(completedImage)).toBe(true)
+    expect(hasRenderableContent(unfinishedUpload)).toBe(true)
+  })
+
+  it('does not treat an empty paragraph as renderable work', () => {
+    expect(hasRenderableContent({ type: 'doc', content: [{ type: 'paragraph' }] })).toBe(false)
   })
 })
 
