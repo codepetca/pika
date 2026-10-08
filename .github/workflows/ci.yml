@@ -49,7 +49,6 @@ jobs:
         id: runner
         env:
           CI_EVENT: ${{ github.event_name }}
-          CI_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
           CI_REPOSITORY: ${{ github.repository }}
           CI_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           CI_SELF_HOSTED_ENABLED: ${{ vars.PIKA_SELF_HOSTED_CI }}

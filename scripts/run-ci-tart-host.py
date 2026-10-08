@@ -25,7 +25,7 @@ TEMPLATE = 'pika-ci-linux-template-prep'
 REPOSITORY = 'codepetca/pika'
 LEASE_PATH = pathlib.Path('/private/tmp/hq-books-deep-validation-host.lock')
 RECEIPTS = pathlib.Path('/Users/stew/.codex/artifacts/pika/ci-tart-host')
-ACTIVATION_ACK = 'PRIVATE_PIKA_ONE_JOB_RUNNER'
+ACTIVATION_ACK = 'PIKA_ONE_JOB_RUNNER'
 DOCKER_SOCKET = 'unix:///run/user/1002/docker.sock'
 CLIENT = '/home/runner/pika-actions-runner'
 GUEST_ENV = {
@@ -415,9 +415,11 @@ class Backend:
                             '/repos/' + REPOSITORY + path], secret=secret)
         return json.loads(raw) if raw.strip() else None
 
-    def private(self):
+    def repository_allowed(self):
         data = self.api('')
-        return data.get('full_name') == REPOSITORY and data.get('private') is True and data.get('visibility') == 'private'
+        return data.get('full_name') == REPOSITORY and (
+            (data.get('visibility') == 'public' and data.get('private') is False)
+            or (data.get('visibility') == 'private' and data.get('private') is True))
 
     def demand(self, hint):
         if not hint or not re.fullmatch(r'[1-9][0-9]*', str(hint)):
@@ -606,8 +608,8 @@ class HostDriver:
                 raise Refusal('child-process-group-not-terminated')
         try:
             if mode == 'serve-one':
-                if not self.backend.private():
-                    raise Refusal('repository-not-private')
+                if not self.backend.repository_allowed():
+                    raise Refusal('repository-identity-refused')
                 if not self.backend.demand(run_id):
                     raise Refusal('no-eligible-queued-job')
             lease.acquire()
@@ -644,10 +646,10 @@ class HostDriver:
                 raise Refusal('unexpected-running-vm')
             if mode == 'serve-one':
                 result['stage'] = 'registration'
-                if not self.backend.private() or not self.backend.demand(run_id):
+                if not self.backend.repository_allowed() or not self.backend.demand(run_id):
                     raise Refusal('activation-recheck-refused')
                 token = self.backend.token()
-                if not self.backend.private():
+                if not self.backend.repository_allowed():
                     raise Refusal('activation-recheck-refused')
                 lease.assert_owned()
                 attempted_registration = True

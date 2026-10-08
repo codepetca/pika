@@ -6,14 +6,14 @@ remain required. A successful local run does not replace the PR gate.
 
 ## Delivery plan and acceptance
 
-1. Preserve job IDs, names and commands; add private-repository compute routing
+1. Preserve job IDs, names and commands; add same-repository compute routing
    and an explicit hosted fallback.
 2. Provide `pnpm ci:local` to execute canonical workflow commands in a clean
    checkout of a named commit with private logs and disposable stack isolation.
 3. Test routing/refusal behavior, dry-run all lanes, run local checks, independently
    review a fixed SHA, and obtain its required PR CI result.
 4. Choose and prepare the Linux host, register and rehearse its runner, then
-   enable it after the repository is private. Verify an eligible PR run uses the
+   enable it for public or private Pika. Verify an eligible PR run uses the
    runner and passes `PR Gate` before claiming operational completion.
 
 Preparation does not change visibility, register a runner, or enable the setting.
@@ -57,11 +57,18 @@ starting database cleanup; inspect the VM before retrying.
 
 ## Register and enable
 
-**Do not register a repository runner while Pika is public.** Routing code alone
-cannot constrain a public PR that changes the workflow. GitHub recommends private
-repositories for self-hosting; see [runner setup](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners).
+Public and private Pika repositories may use the isolated local runner. The owner
+removed the private-repository prerequisite on 2026-10-08. Registration remains
+an explicit operator action, and automatic routing remains opt-in through
+`PIKA_SELF_HOSTED_CI=true`. Canonical fork PRs use hosted compute; explicit
+self-hosted requests for fork PRs are refused.
 
-After the owner makes the repository private:
+Treat guest workflow execution as untrusted. Repository-level labels do not bind
+an ephemeral runner to the run named by the operator, and a modified public fork
+workflow can request those labels directly. The routing script cannot enforce its
+policy against altered workflow code. Retain the disposable, one-job VM, dedicated
+credential-free guest, no host mounts, cooperative host lease, bounded execution,
+and verified teardown. See [GitHub's self-hosted runner guidance](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners).
 
 For the shared Mac pilot, use the one-job admission procedure below to perform
 registration and execution. The general setup sequence also applies to a
@@ -79,8 +86,8 @@ separately dedicated Linux host:
    same-repository PR ready event uses that runner and passes `PR Gate` for the
    reviewed head.
 
-Unset/false settings and public or fork PRs use hosted compute. Malformed settings
-fail. An explicit self-hosted dispatch is refused for a public repository.
+Unset/false settings and fork PRs use hosted compute. Malformed settings
+fail. An explicit self-hosted dispatch is allowed for public or private Pika.
 Production migrations keep their existing manual hosted workflow and separate
 authorization. This change gives CI no production credentials or rollout authority.
 
@@ -114,18 +121,19 @@ destruction or registration cleanup cannot be verified. Inspect that receipt and
 VM before recovery. Do not delete another provisioner's lease or stop its VM.
 HQ's provisioner must honor the same lease for mutual exclusion to work.
 
-After a separate owner decision makes Pika private and authorizes registration,
-leave `PIKA_SELF_HOSTED_CI` unset and prepare a deliberate self-hosted diagnostic.
+After the owner authorizes runner registration, leave `PIKA_SELF_HOSTED_CI` unset
+and prepare a deliberate self-hosted diagnostic.
 Once an eligible CI job is queued, serve one job:
 
 ```bash
 python3 scripts/run-ci-tart-host.py --serve-one \
-  --ack PRIVATE_PIKA_ONE_JOB_RUNNER --run-id <github-run-id>
+  --ack PIKA_ONE_JOB_RUNNER --run-id <github-run-id>
 ```
 
-The driver refreshes repository visibility before admission and registration,
-refuses public repositories, and requires queued Pika CI demand. The host's `gh`
-authentication obtains the short-lived registration token; stdin carries it into
+The driver verifies the exact `codepetca/pika` repository identity and consistent
+public/private metadata before admission and registration, and requires queued
+same-repository Pika CI demand. The host's `gh` authentication obtains the
+short-lived registration token; stdin carries it into
 the guest. Host credentials and developer environment files stay on the host.
 The runner is ephemeral and its VM is disposable. GitHub deregisters an
 ephemeral runner after its one job; see [runner lifecycle and routing](https://docs.github.com/en/actions/reference/runners/self-hosted-runners).
