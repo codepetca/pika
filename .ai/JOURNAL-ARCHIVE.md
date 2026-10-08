@@ -42438,3 +42438,51 @@ promotion, activation, provider/account/billing/runner/visibility or phase exit.
 - Changed shared LeftSidebar mobile home link text and accessible name to Classrooms; updated existing component and browser selectors. Reused shared drawer and Pattern Lab mobile-drawer-controls reference; no new pattern or refactor. Risk profile: none.
 - Focused checks passed: 26 files/351 tests, architecture, UI/design policy, TypeScript and lint; audit clean. Playwright mobile-drawer-controls: teacher/student × light/dark 4/4 passed, including desktop guards and focus/open/hover/navigation states. Inspected mobile screenshots. Logs: /tmp/pika-mobile-label-{focused,visual}.log; screenshots in worktree test-results.
 - Independent low-risk review and PR lifecycle follow implementation. Task owns codex/mobile-classrooms-label; model/usage telemetry unknown.
+
+<!-- pika-session-log-archive-batch:5f1d6a604cf022d0b1457448387ec40ee3e29f2e242b23e073a601a8847d0ca0 -->
+## 2026-10-07 — Assignment Instructions preview exit
+
+Teacher preview opts into the reviewed opacity exit; root/editor/schedule remain immediate. Initial/post-create title timers now cancel on preview/session changes;3baseline focus races RED→GREEN. Real owner51testsPASS; focused370/18plusstaticPASS,8native browser cases and8natural visual cases across both viewports/themes/motion,4verified normal midpoints; student n/a. Backend isolated, no dependencies/schema/production changes. First visual capture invalidated by final lint-line correction and retained; final hash-bound capturePASS. Browser fixture/config TS issues corrected; old create/save response publication remains outside this slice. Next: independent review and exact-head PR Gate before authorized main merge. Broad fluidity goal incomplete.
+
+<!-- pika-session-log-archive-batch:5b24c1f5dd68a554b767aed84de447c15cfa478424fa8fcdd9e15efb264e3d2f -->
+## 2026-10-07 — Assignment preview CI test isolation
+
+PR1517 returned to draft after CI37623077507: 14490tests passed, one existing
+TestDetailPanel Markdown-save fixture exhausted positional fetch responses.
+Browser lane cancelled by draft transition; no CI/landing PASS claim.
+Target and full57-case file pass locally. Bind that fixture to unique owner, URL
+and method; assert two reads/one PATCH/one callback and payload/version/Markdown.
+Exact extra-request provenance remains unknown; no production change in this
+correction. Place the eight preview contracts in the existing experience matrix
+so normal e2e:ci selection includes them. Prior real-owner motion/visual source
+is unchanged; repeat the native browser matrix for the new test topology.
+Independent delta review and new stable-head CI required before main merge.
+Separate API-isolated baseline reproduced old autosave failure shown after
+editor reopen; session-lifetime correction remains next, outside1517.
+
+<!-- pika-session-log-archive-batch:583518cd6cd07d69b723f0c7fa8298284bdec17e84c416479a44dea5e78491d9 -->
+## 2026-10-07 — Assignment preview CI test isolation
+
+PR1517 returned to draft after CI37623077507: 14490tests passed, one existing
+TestDetailPanel Markdown-save fixture exhausted positional fetch responses.
+Browser lane cancelled by draft transition; no CI/landing PASS claim.
+Target and full57-case file pass locally. Bind that fixture to unique owner, URL
+and method; assert two reads/one PATCH/one callback and payload/version/Markdown.
+Exact extra-request provenance remains unknown; no production change in this
+correction. Place the eight preview contracts in the existing experience matrix
+so normal e2e:ci selection includes them. Prior real-owner motion/visual source
+is unchanged; repeat the native browser matrix for the new test topology.
+Independent delta review and new stable-head CI required before main merge.
+Separate API-isolated baseline reproduced old autosave failure shown after
+editor reopen; session-lifetime correction remains next, outside1517.
+
+## 2026-10-07 — Assignment editor session ownership
+
+PR1517 merged2c99c5f41 after exactd016 CI37626691269 Test/Build, Browser and PR Gate PASS; landing tree/sole base parent and clean hub sync verified. Fluidity follow-up guards AssignmentModal/create/save/flush/timer/close/discard and useAssignmentScheduling late effects by external session. Initiated original-resource commands and appropriate quiet publication continue; TeacherClassroomView guards stale-classroom list writes/reloads while retaining cache/creation positioning. Preserves editor/preview identity, native undo and current same-ID external refresh reset. No dependencies/backend/schema/deployment changes; abandoned backing-draft cleanup excluded. Risk: workspace-state; reuse actual editor and Pattern Lab SaveStatus references.
+
+Test-first evidence:21RED/1dirty-buffer control across separate baseline runs; additional manual Draft case genuinelyRED on original source thenGREEN. Six affected suites161PASS; cumulative focused465PASS with all static gates, after one nullable-ref annotation correction (failed logs retained). Isolated source work overlapped frozen1517CI after coordinator narrowed its own source hold; rebase/publication waited for landing. Exact six source/test hashes survived rebase onto identical main tree. Natural teacher8-case viewport/theme/motion visual matrixPASS;24PNG/8videos retained, all8 late-error images and4preview images inspected; APIs intercepted, zero backend writes. Native preview continuity8/8PASS (typing/undo, dismissal, rapid reopen and reduced-motion preference change); final rebased focused408/21plusallstatic/auditPASS. Draft-first independent review and stable-head CI follow before authorized main merge. Broad fluidity goal remains incomplete.
+
+<!-- pika-session-log-archive-batch:2bcdc28089bea08fa0c03918a83afa4d01b41b58c10773cefde9d66c234a86b6 -->
+## 2026-10-07 — Assignment session review correction
+
+Independent full PR1518 review found a P2: a stale manual Draft continuation compared reverted fields against the pre-autosave baseline and could omit its restoring PATCH. One correction batch retains the actual predecessor baseline and serializes same-session blur follow-ups. Five regressions cover full/mixed reverts in both preselected-action and actual menu/blur flows, plus a successful-save/failed-queued-save chain; original-resource publication remains quiet and the replacement editor retains drafts/focus/controls. All RED and intermediate failed correction evidence retained externally. Component58/58 and focused413/21 with architecture/UI/design/TypeScript/lint/audit PASS. Worker writes stopped; coordinator verified delivered hashes. Browser evidence is being refreshed before targeted independent delta review and final stable-head CI. PR remains draft; no production/schema/dependency changes. User pause honored, then explicit resume received. Broad product fluidity goal remains incomplete.

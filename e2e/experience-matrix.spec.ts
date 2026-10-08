@@ -18,6 +18,7 @@ import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
 import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
 import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
 import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
+import { verifyGradebookRetryFocus } from './helpers/gradebook-retry-focus'
 import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
@@ -94,6 +95,18 @@ test.describe('Assignment editor retirement', () => {
       })
       test('retires nested controls and closes after the parent publishes Post', async ({ page }, testInfo) => {
         await verifyAssignmentEditorControls(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('Gradebook retry focus', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('keeps explicit retry focus in the visible Gradebook workspace', async ({ page }, testInfo) => {
+        await verifyGradebookRetryFocus(page, testInfo)
       })
     })
   }

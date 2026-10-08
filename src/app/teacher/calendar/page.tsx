@@ -395,19 +395,19 @@ export default function CalendarPage() {
     return (
       <div>
         {/* Compact Multi-Month Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex flex-wrap gap-4">
           {months.map(month => {
             const monthStart = startOfMonth(month)
             const monthEnd = endOfMonth(month)
             const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
 
             return (
-              <div key={month.toString()} className="bg-surface rounded-lg shadow-sm p-4">
+              <div key={month.toString()} className="min-w-0 sm:min-w-fit max-w-96 flex-1 basis-80 overflow-x-auto bg-surface rounded-lg shadow-sm p-2">
                 <h3 className="text-center font-bold text-text-default mb-3">
                   {format(month, 'MMMM yyyy')}
                 </h3>
 
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid min-w-80 grid-cols-7 gap-0.5">
                   {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                     <div key={i} className="text-center text-xs font-medium text-text-muted py-1">
                       {day}
@@ -439,18 +439,20 @@ export default function CalendarPage() {
                             : 'bg-danger-bg text-danger hover:bg-danger-bg-hover'
 
                     return (
-                      <button
+                      <Button
                         key={dateString}
+                        variant="ghost"
+                        size="xs"
                         onClick={() => toggleClassDay(dateString, isClassDay)}
                         className={`
-                          aspect-square p-1 rounded text-xs font-medium transition-colors
+                          aspect-square p-1 rounded text-xs font-medium disabled:opacity-100
                           ${colorClasses}
                           ${disabled ? 'cursor-not-allowed' : ''}
                         `}
                         disabled={disabled}
                       >
                         {format(day, 'd')}
-                      </button>
+                      </Button>
                     )
                   })}
                 </div>

@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Assignment Instructions preview exit
-
-Teacher preview opts into the reviewed opacity exit; root/editor/schedule remain immediate. Initial/post-create title timers now cancel on preview/session changes;3baseline focus races RED→GREEN. Real owner51testsPASS; focused370/18plusstaticPASS,8native browser cases and8natural visual cases across both viewports/themes/motion,4verified normal midpoints; student n/a. Backend isolated, no dependencies/schema/production changes. First visual capture invalidated by final lint-line correction and retained; final hash-bound capturePASS. Browser fixture/config TS issues corrected; old create/save response publication remains outside this slice. Next: independent review and exact-head PR Gate before authorized main merge. Broad fluidity goal incomplete.
-
-## 2026-10-07 — Assignment preview CI test isolation
-
-PR1517 returned to draft after CI37623077507: 14490tests passed, one existing
-TestDetailPanel Markdown-save fixture exhausted positional fetch responses.
-Browser lane cancelled by draft transition; no CI/landing PASS claim.
-Target and full57-case file pass locally. Bind that fixture to unique owner, URL
-and method; assert two reads/one PATCH/one callback and payload/version/Markdown.
-Exact extra-request provenance remains unknown; no production change in this
-correction. Place the eight preview contracts in the existing experience matrix
-so normal e2e:ci selection includes them. Prior real-owner motion/visual source
-is unchanged; repeat the native browser matrix for the new test topology.
-Independent delta review and new stable-head CI required before main merge.
-Separate API-isolated baseline reproduced old autosave failure shown after
-editor reopen; session-lifetime correction remains next, outside1517.
-
-## 2026-10-07 — Assignment editor session ownership
-
-PR1517 merged2c99c5f41 after exactd016 CI37626691269 Test/Build, Browser and PR Gate PASS; landing tree/sole base parent and clean hub sync verified. Fluidity follow-up guards AssignmentModal/create/save/flush/timer/close/discard and useAssignmentScheduling late effects by external session. Initiated original-resource commands and appropriate quiet publication continue; TeacherClassroomView guards stale-classroom list writes/reloads while retaining cache/creation positioning. Preserves editor/preview identity, native undo and current same-ID external refresh reset. No dependencies/backend/schema/deployment changes; abandoned backing-draft cleanup excluded. Risk: workspace-state; reuse actual editor and Pattern Lab SaveStatus references.
-
-Test-first evidence:21RED/1dirty-buffer control across separate baseline runs; additional manual Draft case genuinelyRED on original source thenGREEN. Six affected suites161PASS; cumulative focused465PASS with all static gates, after one nullable-ref annotation correction (failed logs retained). Isolated source work overlapped frozen1517CI after coordinator narrowed its own source hold; rebase/publication waited for landing. Exact six source/test hashes survived rebase onto identical main tree. Natural teacher8-case viewport/theme/motion visual matrixPASS;24PNG/8videos retained, all8 late-error images and4preview images inspected; APIs intercepted, zero backend writes. Native preview continuity8/8PASS (typing/undo, dismissal, rapid reopen and reduced-motion preference change); final rebased focused408/21plusallstatic/auditPASS. Draft-first independent review and stable-head CI follow before authorized main merge. Broad fluidity goal remains incomplete.
-
-## 2026-10-07 — Assignment session review correction
-
-Independent full PR1518 review found a P2: a stale manual Draft continuation compared reverted fields against the pre-autosave baseline and could omit its restoring PATCH. One correction batch retains the actual predecessor baseline and serializes same-session blur follow-ups. Five regressions cover full/mixed reverts in both preselected-action and actual menu/blur flows, plus a successful-save/failed-queued-save chain; original-resource publication remains quiet and the replacement editor retains drafts/focus/controls. All RED and intermediate failed correction evidence retained externally. Component58/58 and focused413/21 with architecture/UI/design/TypeScript/lint/audit PASS. Worker writes stopped; coordinator verified delivered hashes. Browser evidence is being refreshed before targeted independent delta review and final stable-head CI. PR remains draft; no production/schema/dependency changes. User pause honored, then explicit resume received. Broad product fluidity goal remains incomplete.
-
 ## 2026-10-07 — Same-editor manual Draft restoration
 
 PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS; exact tree/sole parent and clean hub sync verified. Proven pre-existing same-editor reverts now retain the awaited persisted baseline and latest pending input. Four genuine RED regressions becameGREEN; two menu controls/original18 preserved; failed-predecessor/manual failure control preserves retry. Worker65component/420focused21 plus architecture/UI/design/type/lint/auditPASS on inherited reviewed source; isolated implementation overlapped frozen1518CI, publication waits for its actual landing. Teacher natural8-case viewport/theme/motion matrixPASS with exact restoring PATCH/close; old owner natural focus/click reproduction omits the restoring PATCH. APIs intercepted, zero backend writes. Screenshots inspected. Native preview initial4normal failures/4reducedPASS exposed timer-window assumptions; old/new measured native clicks cross200ms exit, so the helper checks physical eligibility at actual reopen and cleanup of reopened root. Failed/intermediate evidence retained. Rebase, final focused checks, complete independent review and stable-head CI remain before next main merge. No dependencies/backend/schema/deployment change; broad fluidity goal incomplete.
@@ -310,3 +281,25 @@ Focused initial14-path integration passed2350/202 and all static gates. Audit re
 ## 2026-10-08 — Public course section target adoption
 
 Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+## 2026-10-08 — Utility calendar minimum day targets
+
+- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
+- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
+- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
+
+## 2026-10-08 — Utility calendar compact boundary refinement
+
+- Root visual iteration capped month growth: 1024 now two348px month cards with45.703125px day targets; 1440 capped384px cards/50.84375px targets. Day grid minimum320px prevents320px viewport overlap; month cards contain8/48px horizontal scrolling at360/320, rootoverflow0. No API/domain logic changed.
+- Final teacher17cases /2839 centered native hits pass, alltargets≥44×44/nooverlap, Tabright-edge focus auto-scroll, zero runtimeerrors, real finalJune-date scroll inallcases; fixedGETfixture all181states match baseline. Evidence: external product-fluidity/utility-calendar-targets/final-candidate and final-small-keyboard; rejected/failed attempts preserved.
+- Repeated targeted15 and focused203files/2354tests +TS/lint/architecture/UI/design/audit pass. No browser registration edits (coordinator owns consolidated teacher refinement registration/review/publication).
+
+## 2026-10-08 — Gradebook explicit-retry focus
+
+Teacher Gradebook now returns successful explicit retry focus to the visible owner: existing desktop Gradebook students region, or named compact Gradebook workspace when CSS hides the table. Inactive/current-classroom completion guards, preventScroll and the shared inset focus ring keep the handoff local. No read/cache/role/mutation or shared primitive change.
+
+Reference: accepted Roster recovery baseline and executable Pattern Lab page-states; brief in docs/guidance/ui/changes/gradebook-retry-focus.md. Teacher desktop/mobile light/dark normal/reduced native controlled45-student/zero-assessment helper is registered narrowly in experience-matrix. Component33 PASS, focused306 PASS, architecture/TypeScript/lint/UI/design policy PASS. Native final8 cases prove cold/warm/resize handoffs, desktop DOM/600px scroll continuity; no API mutation attempts. Evidence: external product-fluidity/gradebook-retry-focus. Coordinator owns final review/acceptance and combined PR; no production/schema/provider/dependency operations. Risk: workspace-state; requested Sol/medium, effective/usage unknown.
+
+## 2026-10-08 — Calendar targets and Gradebook retry integration
+
+Combined the two verified teacher refinements on prospective Settings/Public/Attendance base0052 (whole tree508609, equivalent to published494ec826 source). Calendar6299 preserves compact wrapping with44px day targets and contained320/360 scrolling; Gradebookb179 restores explicit retry focus to the visible owner and paints the mobile ring above children. Root accepted17Calendar cases/2839hits/59PNG plus8Gradebook actual normal/reduced cases/84PNG. Controlled read fixtures only; student n/a for these teacher owners. Preserved both history bodies while resolving one archival-marker conflict. Next: combined focused/audit checks, actual-main binding after1529, draft-first independent review and exact-head PR Gate; broader goal remains incomplete. No production, migration or dependency changes.

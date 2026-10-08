@@ -257,7 +257,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 6,
+          "count": 5,
           "reason": "legacy-form-control"
         },
         {

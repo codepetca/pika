@@ -382,6 +382,24 @@ describe('Teacher calendar page', () => {
     expect(invalidateCachedJSON).not.toHaveBeenCalledWith('class-days:c2')
   })
 
+  it('keeps past and outside-range dates disabled while current dates retain classroom ownership', async () => {
+    const fetchMock = installFetchMock({
+      classrooms: [createMockClassroom({ id: 'c1', start_date: '2026-05-30', end_date: '2026-06-02' })],
+      classDays: [classDay('2026-05-30'), classDay('2026-06-01'), classDay('2026-06-02', false)],
+    })
+    renderCalendarPage()
+    const firstDays = await screen.findAllByRole('button', { name: '1' })
+    expect(firstDays[0]).toBeDisabled()
+    expect(firstDays[1]).toBeEnabled()
+    expect(screen.getAllByRole('button', { name: '30' })[0]).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: '3' })[1]).toBeDisabled()
+    fireEvent.click(firstDays[0])
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(false)
+    fireEvent.click(firstDays[1])
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/classrooms/c1/class-days',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ date: '2026-06-01', is_class_day: false }) })))
+  })
+
   it('invalidates class-day reads after toggling a class day', async () => {
     const fetchMock = installFetchMock({
       classDays: [classDay('2026-06-08')],

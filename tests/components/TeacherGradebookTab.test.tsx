@@ -455,6 +455,68 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('region', { name: 'Gradebook students' })).toHaveFocus()
   })
 
+  it.each([false, true])('uses the visible mobile workspace when table focus fails (empty: %s)', async (empty) => {
+    const originalFocus = HTMLElement.prototype.focus
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options) {
+      if (this.getAttribute('aria-label') !== 'Gradebook students') originalFocus.call(this, options)
+    })
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Unavailable' }) })
+    const response = gradebookResponse()
+    if (empty) response.students = []
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => response })
+    renderGradebook('grades')
+    const retry = await screen.findByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Gradebook workspace' })).toHaveFocus())
+    expect(screen.queryByText('Gradebook unavailable')).not.toBeInTheDocument()
+  })
+
+  it('does not autofocus a successful initial read', async () => {
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+
+  it('does not steal focus when an explicit retry completes after deactivation', async () => {
+    let finish: ((value: unknown) => void) | undefined
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Unavailable' }) })
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const view = render(<AppMessageProvider><TooltipProvider><TeacherGradebookTab classroom={classroom} isActive /></TooltipProvider></AppMessageProvider>)
+    const retry = await screen.findByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+    view.rerender(<AppMessageProvider><TooltipProvider><TeacherGradebookTab classroom={classroom} isActive={false} /></TooltipProvider></AppMessageProvider>)
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    await act(async () => { finish?.({ ok: true, json: async () => gradebookResponse() }) })
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+
+  it('does not carry retry focus into a different classroom', async () => {
+    let finish: ((value: unknown) => void) | undefined
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Unavailable' }) })
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const view = renderGradebook('grades')
+    const retry = await screen.findByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+    view.rerender(<AppMessageProvider><TooltipProvider><TeacherGradebookTab classroom={createMockClassroom({ id: 'other-classroom' })} /></TooltipProvider></AppMessageProvider>)
+    await screen.findByText('Ada')
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    await act(async () => { finish?.({ ok: true, json: async () => gradebookResponse() }) })
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+
   it('renders a successful empty gradebook without an error', async () => {
     const emptyResponse = gradebookResponse()
     emptyResponse.students = []
