@@ -3278,6 +3278,36 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByText('student-1')).toBeInTheDocument()
   })
 
+  it.each([401, 403, 404])('never advances assignment AI grading after status HTTP %i', async (status) => {
+    const initialRun = {
+      id: 'run-1', assignment_id: 'assignment-1', status: 'running', model: null,
+      requested_count: 1, gradable_count: 1, processed_count: 0, completed_count: 0,
+      skipped_missing_count: 0, skipped_empty_count: 0, failed_count: 0, pending_count: 1,
+      next_retry_at: null, error_samples: [], started_at: null, completed_at: null,
+      created_at: '2026-10-08T12:00:00Z',
+    }
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({ ok: true, json: async () => ({ class_days: [] }) })
+      }
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({ ok: true, json: async () => makeAssignmentDetails(
+          'assignment-1', 'Assignment One', 'student-1', initialRun,
+        ) })
+      }
+      return Promise.resolve({ ok: false, status, json: async () => ({ error: 'Unavailable' }) })
+    })
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    render(<TeacherClassroomView classroom={classroom} />)
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/auto-grade-runs/run-1'))).toBe(true))
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/tick'))).toBe(false)
+    expect(screen.getByText('Grading status is unavailable. Reload this page to reconnect to the saved run.')).toBeInTheDocument()
+    expect(mockUseOverlayMessage).toHaveBeenLastCalledWith(false, '', { tone: 'loading' })
+  })
+
   it('resumes an active assignment AI grading run and reports the final counts', async () => {
     const initialRun = {
       id: 'run-1',

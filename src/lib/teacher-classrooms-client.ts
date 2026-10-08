@@ -5,6 +5,7 @@ import {
   type ClassroomHotArchiveRecoverySummary,
 } from '@/lib/contracts/classroom-lifecycle'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { getCurrentUserId } from '@/lib/client-identity'
 
 type TeacherClassroomsResponse = {
   classrooms?: Classroom[]
@@ -38,13 +39,8 @@ function getTeacherClassroomsListSegment(options: TeacherClassroomsOptions = {})
 }
 
 async function getTeacherClassroomsCacheKey(options: TeacherClassroomsOptions = {}): Promise<string | null> {
-  const response = await fetch('/api/auth/me', { cache: 'no-store' })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok || typeof data.user?.id !== 'string') {
-    return null
-  }
-  const userId = data.user.id
-  return `${TEACHER_CLASSROOMS_CACHE_PREFIX}${userId}:${getTeacherClassroomsListSegment(options)}`
+  const userId = await getCurrentUserId()
+  return userId === null ? null : `${TEACHER_CLASSROOMS_CACHE_PREFIX}${userId}:${getTeacherClassroomsListSegment(options)}`
 }
 
 async function fetchTeacherClassroomsFromApi(options: TeacherClassroomsOptions = {}): Promise<TeacherClassroomsResponse> {

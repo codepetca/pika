@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
 import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 import { navigateTo } from '@/lib/client-navigation'
 import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
@@ -94,13 +95,13 @@ export function LoginClient({
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetchAuthSubmit('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
       if (!continuity.isCurrent(request)) return
 
       if (!response.ok) {

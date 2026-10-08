@@ -92,10 +92,12 @@ describe('prepared owner publication route', () => {
   })
   it.each([
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
-    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', '690d0dd806041e3493e1989d16e8053f2c6ec7defcfd2168a5c9eea392e19c71'],
-  ])('retains literal parent865d legacy source bytes: %s', (path, hash) => {
-    // Coordinator independently attested these exact hashes with git show at
-    // 865d837b740e781086f0209eb9c4d9c8dab78db3; this test never executes Git.
+    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', '1d334a7ad1fa67da9ac470add284cbab87dea8283888ed7afbc0e3fc3444be33'],
+  ])('retains reviewed legacy source bytes: %s', (path, hash) => {
+    // PATCH remains the attested parent865d source. PR1540 independently reviewed
+    // the separate grading-only UI delta at ae458ec36; its full-file hash replaces
+    // the historical UI hash690d0dd8, retaining an exact byte guard. Publication,
+    // editing and student-access paths are unchanged. This test never executes Git.
     expect(createHash('sha256').update(readFileSync(path)).digest('hex')).toBe(hash)
   })
 })

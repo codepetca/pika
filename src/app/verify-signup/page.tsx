@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
 import { buildAuthContinuationPath } from '@/lib/auth-redirect'
 import { getSafeInternalPath } from '@/lib/navigation-safety'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
 import { useAuthFormContinuity, useUppercaseAuthCode } from '@/hooks/useAuthFormContinuity'
 import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
 
@@ -40,13 +41,13 @@ function VerifySignupForm() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/verify-signup', {
+      const response = await fetchAuthSubmit('/api/auth/verify-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
       if (!continuity.isCurrent(request)) return
 
       if (!response.ok) {

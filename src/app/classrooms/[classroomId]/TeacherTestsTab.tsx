@@ -1,5 +1,7 @@
 'use client'
 
+import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
+
 import { Plus } from 'lucide-react'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
@@ -328,20 +330,6 @@ function isTestAiGradingRunActive(run: TestAiGradingRunSummary | null): boolean 
   return !!run && (run.status === 'queued' || run.status === 'running')
 }
 
-function getTestAiRunPollDelayMs(run: TestAiGradingRunSummary | null): number {
-  if (!run || !isTestAiGradingRunActive(run) || !run.next_retry_at) {
-    return 2000
-  }
-
-  const retryAt = new Date(run.next_retry_at).getTime()
-  if (!Number.isFinite(retryAt)) {
-    return 2000
-  }
-
-  const delay = retryAt - Date.now() + 250
-  return Math.min(Math.max(delay, 1000), 10_000)
-}
-
 function formatTestAiGradingRunMessage(run: TestAiGradingRunSummary): {
   info: string
   error: string
@@ -456,6 +444,7 @@ export function TeacherTestsTab({
   const [gradingQuestions, setGradingQuestions] = useState<TestGradingQuestionSummary[]>([])
   const [gradingServerTestStatus, setGradingServerTestStatus] = useState<TestAssessment['status'] | null>(null)
   const [gradingServerTestId, setGradingServerTestId] = useState<string | null>(null)
+  const [unavailableTestAiPollKey, setUnavailableTestAiPollKey] = useState<string | null>(null)
   const [testAiGradingRun, setTestAiGradingRun] = useState<TestAiGradingRunSummary | null>(null)
   const [gradingLoading, setGradingLoading] = useState(false)
   const [gradingRefreshing, setGradingRefreshing] = useState(false)
@@ -1331,71 +1320,23 @@ export function TeacherTestsTab({
       return
     }
 
-    let isCancelled = false
-    let timeoutId: number | undefined
-
-    const syncRun = async () => {
-      const testId = selectedTestId
-      const runId = activeTestAiRunId
-      let shouldContinue = true
-      let nextDelayMs = 2000
-
-      try {
-        const statusResponse = await fetch(
-          `${apiBasePath}/${testId}/auto-grade-runs/${runId}`,
-        )
-        const statusData = await statusResponse.json().catch(() => ({}))
-        if (!isCancelled && statusResponse.ok && statusData.run) {
-          const nextRun = statusData.run as TestAiGradingRunSummary
-          setTestAiGradingRun(nextRun)
-          if (!isTestAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-            return
-          }
-
-          const statusDelayMs = getTestAiRunPollDelayMs(nextRun)
-          nextDelayMs = statusDelayMs
-          if (statusDelayMs > 2500) {
-            return
-          }
-        }
-
-        const tickResponse = await fetch(
-          `${apiBasePath}/${testId}/auto-grade-runs/${runId}/tick`,
-          {
-            method: 'POST',
-          },
-        )
-        const tickData = await tickResponse.json().catch(() => ({}))
-        if (!isCancelled && tickResponse.ok && tickData.run) {
-          const nextRun = tickData.run as TestAiGradingRunSummary
-          setTestAiGradingRun(nextRun)
-          if (!isTestAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-          } else {
-            nextDelayMs = getTestAiRunPollDelayMs(nextRun)
-          }
-        }
-      } catch {
-        // Keep the run visible; the next poll cycle can recover.
-      } finally {
-        if (!isCancelled && shouldContinue) {
-          timeoutId = window.setTimeout(syncRun, nextDelayMs)
-        }
-      }
-    }
-
-    void syncRun()
-
-    return () => {
-      isCancelled = true
-      if (timeoutId) {
-        window.clearTimeout(timeoutId)
-      }
-    }
+    setUnavailableTestAiPollKey(null)
+    const pollKey = `${selectedTestId}:${activeTestAiRunId}`
+    return startAiGradingRunPolling({
+      resource: 'test',
+      resourceId: selectedTestId,
+      runId: activeTestAiRunId,
+      statusUrl: `${apiBasePath}/${selectedTestId}/auto-grade-runs/${activeTestAiRunId}`,
+      onRun: setTestAiGradingRun,
+      onUnavailable: () => {
+        setUnavailableTestAiPollKey(pollKey)
+        setGradingError('Grading status is unavailable. Reload this page to reconnect to the saved run.')
+      },
+    })
   }, [
     activeTestAiRunId,
     apiBasePath,
+    classroom.id,
     hasActiveTestAiRun,
     isDraftSelectedTest,
     selectedTestId,
@@ -2659,9 +2600,10 @@ export function TeacherTestsTab({
             : ''
       : ''
 
+  const testAiPollUnavailable = unavailableTestAiPollKey === `${selectedTestId}:${activeTestAiRunId}`
   const activeTestGradingMessage =
     workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
-      ? hasActiveTestAiRun && activeTestAiRun
+      ? hasActiveTestAiRun && activeTestAiRun && !testAiPollUnavailable
         ? `Grading ${Math.min(activeTestAiRun.processed_count, activeTestAiRun.requested_count)} of ${activeTestAiRun.requested_count} students…`
         : isBatchAutoGrading
           ? 'Starting grading…'

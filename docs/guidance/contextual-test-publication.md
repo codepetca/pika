@@ -225,6 +225,15 @@ small publication reader would regress them; cloning or reading the body twice
 would not establish one finite boundary. A purpose endpoint avoids both issues.
 The later controlled UI adopter is explicitly still required before cutover.
 
+Separate grading maintenance in PR1540 updates the browser poll driver and its
+unavailable-status feedback, without adopting this publication endpoint or
+changing legacy publication, editing, or student-access paths. The reviewed
+grading delta at `ae458ec36` supersedes the historical full-UI fingerprint
+`690d0dd8` with `1d334a7a`; the regression still checks the entire current UI
+file byte-for-byte. The PATCH fingerprint remains `d9947ed0` from parent865d.
+This scoped baseline update does not activate publication or satisfy its cutover
+and phase-exit obligations.
+
 ## Intended transaction contract
 
 Use one absolute request deadline spanning params, bounded body, read-only draft

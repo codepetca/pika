@@ -39,13 +39,14 @@ describe('POST /api/student/attendance/check-in', () => {
       title: 'You are checked in',
       description: 'Your attendance was recorded.',
       attendanceStatus: 'present',
+      classroomName: 'PPZ3C — Health for Life',
     })
   })
 
   it('derives the actor from the verified student session and accepts no client identity', async () => {
     const response = await POST(request({ entryToken, attemptId }))
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toMatchObject({ state: 'checked_in' })
+    await expect(response.json()).resolves.toMatchObject({ state: 'checked_in', classroomName: 'PPZ3C — Health for Life' })
     expect(mocks.requireRole).toHaveBeenCalledWith('student')
     expect(mocks.execute).toHaveBeenCalledWith({
       supabase: { kind: 'service-role' },

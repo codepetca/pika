@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
 import { Input, Button, FormField } from '@/ui'
 import { buildAuthContinuationPath } from '@/lib/auth-redirect'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
 import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 import { getSafeInternalPath } from '@/lib/navigation-safety'
 
@@ -37,12 +38,12 @@ export function SignupClient({
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetchAuthSubmit('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
       if (!continuity.isCurrent(request)) return
       if (!response.ok) throw new Error(data.error || 'Failed to send verification code')
 

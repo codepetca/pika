@@ -1,5 +1,6 @@
 import type { CourseBlueprint, CourseBlueprintDetail } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { getCurrentUserId } from '@/lib/client-identity'
 
 type TeacherBlueprintsResponse = {
   blueprints?: CourseBlueprint[]
@@ -13,12 +14,7 @@ export const TEACHER_BLUEPRINTS_CACHE_PREFIX = 'teacher-blueprints:'
 const TEACHER_BLUEPRINTS_CACHE_TTL_MS = 20_000
 
 async function getTeacherBlueprintsCacheScope(): Promise<string | null> {
-  const response = await fetch('/api/auth/me', { cache: 'no-store' })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok || typeof data.user?.id !== 'string') {
-    return null
-  }
-  return data.user.id
+  return getCurrentUserId()
 }
 
 async function fetchTeacherBlueprintsFromApi(): Promise<TeacherBlueprintsResponse> {

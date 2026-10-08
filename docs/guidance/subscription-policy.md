@@ -397,6 +397,13 @@ existing paid offering, charge, account assignment or rollout control. Prepare
 the guard disabled by default; activation requires reviewed database/integration
 evidence and a separately authorized rollout.
 
+Owner restriction, 2026-10-08: quota counters, warnings, allowance explanations
+and upgrade prompts are displayed only on upgrade pages/tier summaries for now.
+Do not add them to classrooms, Tests or creation flows. This does not authorize
+quota enforcement with silent/generic failures; its refusal and recovery UX must
+be explicitly reconciled before activation. Subscription UI remains separately
+owned billing work.
+
 ## Remaining launch prerequisites
 
 - Validate AI unit costs, publish final quantities, and specify reset anchors,
