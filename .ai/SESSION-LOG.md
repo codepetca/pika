@@ -11,6 +11,42 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-07 UTC — Student Grades reactivation continuity
+
+Retain same-classroom returned rows across inactive/reactivated reads and recoverable
+failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
+failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
+fences; Retry focuses stable Grades region before replacement and invalidates only
+its key. Student Grades-only scroll observation preserves long-list return position.
+Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
+visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
+genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
+cache, API/schema/dependencies or production changes. Draft preparation can proceed
+independently while1521CI runs; integrate landed base before independent review/CI.
+Required focused/audit/review/CI remain; broader17-family goal incomplete.
+
+## 2026-10-07 — Grades settled intent denial remediation
+
+PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
+
+## 2026-10-07 — Achievements local render recovery
+
+Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
+
+Evidence: genuine missing-retry RED2; affected GREEN24/3 and fixture gate6 PASS; native actual-owner desktop/mobile light/dark normal/reduced8 PASS plus default-fixture compatibility8 PASS. Screenshots inspected against Pattern Lab PageState and healthy roadmap. Window scroll retained; fixture has no inherited internal auto/scroll owner. Synthetic intercepted traffic; no authenticated provider/hardware claim. Evidence retained in coordinator product-fluidity/achievements-render-recovery. This slice does not complete the Grades/Achievements family. Full focused/static/audit and draft-first frozen review/CI/main landing follow; provider/package/gates and production promotion unchanged.
+
+## 2026-10-07 — Student experience delivery consolidation
+
+Combine reviewed Grades5508 and Achievementsf10 in PR1522. Preserve exact runtime, tests, fixtures and helpers from both candidates and both independent review records. Append the Achievements own entry without replacing Grades history. Final predecessor-base integration review and exact-head CI remain pending. PR1523 will be superseded only after its eight non-history paths are published in1522.
+
+## 2026-10-07 — Student experience predecessor integration
+
+Integrate consolidated Grades/Achievements delivery onto verified editor-exit PR1521 main8031d2b. Preserve reviewed runtime/test/fixture/helper bytes and both sets of history; combine disjoint experience-matrix registrations. Focused/static/audit and one final cumulative integration review precede ready CI.
+
+## 2026-10-07 — Student continuity CI source-contract correction
+
+Combined student PR1522 reviewed bcd0a5e00 reached normal CI37702440970; coverage passed14616 tests with one failure from an older exact JSX source assertion that omitted the newly reviewed Grades read handle ref. Returned PR to draft before correction; browser lane cancelled on draft transition and is not counted as passing. Reproduced locally1FAIL/7PASS, then updated the existing source contract to require the ref, classroom and active-tab props with whitespace tolerance; all84 tests across three parent/Grades suites pass. All production and native contract bytes stay unchanged. Focused checks, test audit and a bounded independent correction review precede another stable ready transition. No gates, runners, timeouts, provider, schema or production changes.
+
 ## 2026-10-07 — Scope existing formatted-help gallery test after CI timeout
 
 Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades source contract but coverage reports14616PASS/1FAIL/8SKIP: unchanged UiGallery formatted-help case exceeds its existing5000ms timeout. PR returned draft before correction; cancelled browser lane is not passing evidence. Original case passes isolated with coverage locally (1.35s test observation); Linux slowdown cause is unproven. Narrow only its Formatting help button lookup to the existing Core controls section, retaining clicks, tooltip content/accessibility/dismissal assertions, real tooltip portal, full gallery render and5000ms timeout. No production, dependency, runner/gate or clock changes. Same-case coverage observations and full gallery/focused checks, source parity and bounded independent correction review precede fresh stable exact-head CI.
@@ -311,3 +347,18 @@ Owner205 normal1k proof separately running; direct user authorized a fresh initi
 checkpoint after external-auth-only preflight drift. Two captures identical; other
 180 tables/four fields unchanged, all183/auth/all5 frozen for normal/twoforced;
 old checkpoints/failed preflight preserved. No canonical migrations or activation.
+## 2026-10-08 — Public reading stress fixture
+
+- Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
+- Native 56-case 320/390 light/dark normal/reduced witness: no document overflow, final content reachable; Actual title clipping measured and left for coordinator acceptance. Artifacts: product-fluidity/public-reading-stress-fixture under the Oct5 visualization workspace.
+- Focused semantic gate/parity/sparse coverage and architecture/UI/design/audit pass. Coordinator owns review/PR and family acceptance; no tracker promotion.
+
+## 2026-10-08 — Course Guide full title identity
+
+- Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
+- Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
+- Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.
+
+## 2026-10-08 — Course Guide reading and platform snapshot acceptance
+
+Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.

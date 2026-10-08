@@ -59,6 +59,14 @@ describe('CourseGuideView', () => {
     expect(screen.queryByRole('heading', { name: 'Announcements' })).toBeNull()
   })
 
+  it.each([false, true])('wraps the full course identity in embedded=%s read mode', (embedded) => {
+    const title = 'Environmental science and community inquiry — distinctive course identity'
+    render(<CourseGuideView guide={{ ...guide, classroom: { title } }} embedded={embedded} />)
+    const heading = screen.getByRole('heading', { level: 1, name: title })
+    expect(heading).toHaveClass('whitespace-normal')
+    expect(heading).not.toHaveClass('truncate')
+  })
+
   it('does not render the legacy Resources section', () => {
     render(<CourseGuideView guide={{
       ...guide,
