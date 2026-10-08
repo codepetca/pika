@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { usePasswordResetContinuity, useUppercaseResetCode } from '@/hooks/usePasswordResetContinuity'
+import { useAuthFormContinuity, useUppercaseAuthCode } from '@/hooks/useAuthFormContinuity'
 import { Input } from '@/ui/Input'
 
 function controls() {
@@ -24,7 +24,7 @@ afterEach(() => { cleanup(); document.querySelectorAll('form').forEach(form => f
 describe('password reset request activation ownership', () => {
   it('returns native activation focus after failure without scrolling', () => {
     const { form, button } = controls()
-    const { result, rerender } = renderHook(({ pending }) => usePasswordResetContinuity(pending), { initialProps: { pending: false } })
+    const { result, rerender } = renderHook(({ pending }) => useAuthFormContinuity(pending), { initialProps: { pending: false } })
     let request!: number
     act(() => { request = result.current.begin(form)! })
     rerender({ pending: true })
@@ -40,7 +40,7 @@ describe('password reset request activation ownership', () => {
 
   it.each(['pointer', 'keyboard', 'focus'] as const)('does not steal focus after deliberate %s movement', kind => {
     const { form, button } = controls()
-    const { result, rerender } = renderHook(({ pending }) => usePasswordResetContinuity(pending), { initialProps: { pending: false } })
+    const { result, rerender } = renderHook(({ pending }) => useAuthFormContinuity(pending), { initialProps: { pending: false } })
     let request!: number
     act(() => { request = result.current.begin(form)! })
     rerender({ pending: true })
@@ -60,7 +60,7 @@ describe('password reset request activation ownership', () => {
 
   it('never moves focus away from another active owner', () => {
     const { form } = controls()
-    const { result, rerender } = renderHook(({ pending }) => usePasswordResetContinuity(pending), { initialProps: { pending: false } })
+    const { result, rerender } = renderHook(({ pending }) => useAuthFormContinuity(pending), { initialProps: { pending: false } })
     let request!: number
     act(() => { request = result.current.begin(form)! })
     rerender({ pending: true })
@@ -72,7 +72,7 @@ describe('password reset request activation ownership', () => {
 
   it('rejects overlapping activation and obsolete completion after retirement', () => {
     const { form, button } = controls()
-    const { result, unmount } = renderHook(() => usePasswordResetContinuity(true))
+    const { result, unmount } = renderHook(() => useAuthFormContinuity(true))
     let request!: number
     act(() => { request = result.current.begin(form)! })
     expect(result.current.begin(form)).toBeNull()
@@ -89,7 +89,7 @@ describe('password reset request activation ownership', () => {
   it.each(['departure', 'unmount'] as const)('cancels the old two-second continuation on %s', kind => {
     vi.useFakeTimers()
     const { form } = controls()
-    const { result, unmount } = renderHook(() => usePasswordResetContinuity(true))
+    const { result, unmount } = renderHook(() => useAuthFormContinuity(true))
     const push = vi.fn()
     let request!: number
     act(() => { request = result.current.begin(form)!; result.current.continueAfter(request, push, 2000) })
@@ -104,7 +104,7 @@ describe('password reset request activation ownership', () => {
   it('continues at the existing two-second deadline while the owner remains current', () => {
     vi.useFakeTimers()
     const { form } = controls()
-    const { result } = renderHook(() => usePasswordResetContinuity(true))
+    const { result } = renderHook(() => useAuthFormContinuity(true))
     const push = vi.fn()
     act(() => { const request = result.current.begin(form)!; result.current.continueAfter(request, push, 2000) })
     act(() => vi.advanceTimersByTime(1999))
@@ -115,7 +115,7 @@ describe('password reset request activation ownership', () => {
 })
 
 function Code() {
-  const code = useUppercaseResetCode()
+  const code = useUppercaseAuthCode()
   return <Input aria-label="Reset code" value={code.code} ref={code.inputRef} onChange={code.onChange} />
 }
 
