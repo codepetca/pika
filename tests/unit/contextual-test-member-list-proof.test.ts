@@ -5,8 +5,10 @@ import { createClient } from '@supabase/supabase-js'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestMemberListFixture, testMemberListSetupSql, testMemberListSnapshotSql, testMemberListGuardSql,
   TEST_MEMBER_LIST_CAPS, validateTestMemberListSetupSnapshot, testMemberListExpectedResult } from '../../scripts/contextual-test-member-list-proof-fixture'
+import { TEST_MEMBER_LIST_CANONICAL_TABLES_248 } from '../../scripts/contextual-test-member-list-proof-fixture'
 import { createTestMemberListProofTransport, TEST_MEMBER_LIST_PROJECTIONS, testMemberListRequestManifest,
   testMemberListForcedReceipt, testMemberListCanonicalCatalog, validateTestMemberListCanonicalCheckpoint } from '../../scripts/check-contextual-test-member-list-lifecycle'
+import { testMemberListReviewedIsolatedCatalog } from '../../scripts/check-contextual-test-member-list-lifecycle'
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
@@ -152,6 +154,20 @@ describe('finite member Test list fixture', () => {
   })
 })
 describe('finite member SDK manifest', () => {
+  it('accepts both complete reviewed local248 and CI253 catalog profiles without exclusions', () => {
+    const sql = readFileSync(new URL('../../supabase/migrations/253_classroom_test_tier_caps.sql', import.meta.url), 'utf8')
+    const migrations = [{ name: '253_classroom_test_tier_caps.sql', sql, sha256: testOwnerDigest(sql) }]
+    const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248
+    const ci = [...local, 'private.classroom_test_quota_settings'].sort()
+    expect(local).toHaveLength(183); expect(ci).toHaveLength(184)
+    expect(testMemberListReviewedIsolatedCatalog(local, migrations)).toEqual(ci)
+    expect(testMemberListReviewedIsolatedCatalog(ci, migrations)).toEqual(ci)
+    expect(ci).toContain('public.auth_sessions')
+    for (const input of [local.slice(1), [...local, 'public.unexpected'], ['public.unexpected', ...local.slice(1)], [...ci, ci[0]]])
+      expect(() => testMemberListReviewedIsolatedCatalog(input, migrations)).toThrow()
+    expect(() => testMemberListReviewedIsolatedCatalog(ci, [{ ...migrations[0], sha256: 'invalid' }])).toThrow()
+    expect(() => testMemberListReviewedIsolatedCatalog(ci, [{ ...migrations[0], sql: sql + '\n' }])).toThrow()
+  })
   it('is frozen and contains only exact independent GET projections', () => {
     const { f } = fixture(), manifest = testMemberListRequestManifest(f)
     expect(Object.isFrozen(manifest)).toBe(true); expect(Object.isFrozen(manifest.projections)).toBe(true)

@@ -88,3 +88,16 @@ availability rows and nine SDK cases. Natural trigger categories/revisions are
 statically asserted. Every case requires full before/after table fingerprints;
 normal and both forced modes require inherited cleanup and unchanged canonical
 state. No native execution, independent review, PR or acceptance is claimed yet.
+
+Draft #1534's initial source07718606b received complete fresh security/privacy and
+architecture/compatibility reviews. Both found the same CI canonical-profile
+blocker, not an app authorization defect. One remediation accepts only the exact
+schema-only183-table held248 and184-table post253 catalogs, preserving every
+canonical field/table and the externally SHA-bound idempotent253 union. Its
+regression rejects missing, extra, substituted and duplicated table names and
+changed migration bytes/digest. Targeted review and native execution remain gates.
+
+Pre-run readonly checks found the earlier private canonical checkpoint differs
+only in login session/rate-limit tables. No member fixture or SDK run has started;
+the prior checkpoint is preserved, not overwritten, and no table is exempted.
+Reconcile local sign-in activity before accepting a verification checkpoint.

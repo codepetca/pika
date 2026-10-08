@@ -413,6 +413,12 @@ Source preparation and mock tests are not actual SDK or phase-exit acceptance.
 Do not expose the Tests tab while detail, participation, materials/history and
 returned results remain incomplete.
 
+Member-list #1534 is draft: initial two reviews identified one CI catalog-profile
+defect, remediated with exact held248/post253 catalogs and no preservation
+exclusions. Targeted review/native checks remain pending. A readonly pre-run check
+found only local login-session/rate-limit drift from the prior private checkpoint;
+preserve it and reconcile activity before native acceptance. No fixture has run.
+
 Continue within batch 2: owner metadata/documents/participation/manual-grade and
 return boundaries; member list/detail/recovery/start/save/submit/focus/results;
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

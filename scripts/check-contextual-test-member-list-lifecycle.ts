@@ -19,7 +19,7 @@ import { testOwnerListDockerInventory } from './contextual-test-owner-list-proof
 import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
 import { newTestMemberListFixture, testMemberListSetupSql, testMemberListSnapshotSql, testMemberListGuardSql,
   validateTestMemberListSetupSnapshot, testMemberListExpectedResult, testOwnerDigest, TEST_MEMBER_LIST_CAPS,
-  TEST_MEMBER_LIST_TEST_FIELDS, type TestMemberListFixture } from './contextual-test-member-list-proof-fixture'
+  TEST_MEMBER_LIST_TEST_FIELDS, TEST_MEMBER_LIST_CANONICAL_TABLES_248, type TestMemberListFixture } from './contextual-test-member-list-proof-fixture'
 
 const API = 'http://127.0.0.1:54331'
 const preflight = 'id,teacher_id,archived_at'
@@ -46,6 +46,18 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
   const value: unknown = JSON.parse(input.rowDigests); assert(value && typeof value === 'object' && !Array.isArray(value))
   const names = Object.keys(value).sort(); assert(names.length > 0 && names.length <= TEST_MEMBER_LIST_CAPS.tables)
   assert(names.every(t => /^(public|private|storage)\.[a-z_0-9]+$/.test(t))); return Object.freeze(names)
+}
+/** Both exact reviewed canonical profiles remain complete. The isolated253
+ * union is idempotent and bound to the reviewed migration, never fixture rows. */
+export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[], migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
+  assert.equal(TEST_MEMBER_LIST_CANONICAL_TABLES_248.length, 183)
+  assert.equal(testOwnerDigest(JSON.stringify(TEST_MEMBER_LIST_CANONICAL_TABLES_248)), '308e7dc097abf8b2bf030f4d9895006cc456622ead7c24da41caae30d180678b')
+  const expected = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
+  assert.equal(expected.length, 184)
+  assert.equal(testOwnerDigest(JSON.stringify(expected)), '8474c929e4a87299de8d0ac580aca9f7cfbe0dec364add175d872326b3388874')
+  assert(catalog.length === 183 || catalog.length === 184)
+  assert.deepEqual([...catalog].sort(), catalog.length === 183 ? TEST_MEMBER_LIST_CANONICAL_TABLES_248 : expected)
+  return classroomTestQuotaProofCatalog(catalog, migrations)
 }
 /** Supplemental equality never removes or replaces the inherited baseline. The
  * prior private once-captured receipt remains coordinator-owned, outside source. */
@@ -246,8 +258,7 @@ export async function testMemberListLifecycleMain(args = process.argv.slice(2)) 
         else {
           validateTestMemberListCanonicalCheckpoint(captured, captured); canonical = structuredClone(captured)
           const catalog = testMemberListCanonicalCatalog(captured)
-          assert.equal(catalog.length, 183); assert(!catalog.includes('private.classroom_test_quota_settings'))
-          expectedTables = classroomTestQuotaProofCatalog(catalog, migrations); assert.equal(expectedTables.length, 184)
+          expectedTables = testMemberListReviewedIsolatedCatalog(catalog, migrations)
         }
         return captured // All five original fields remain in the sealed lifecycle.
       },

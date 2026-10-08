@@ -22,7 +22,7 @@ No phase exit; `docs/guidance/contextual-test-publication.md`.
 Test caps#1524 merged50185559f; CI37715526569 PASS; enforcement OFF.
 Quota messaging only upgrade/tier summaries; creation-error slice deferred.
 Reorder#1515 draft9b1: capacity decision and migration collision pending.
-Member Test-list source prepared; execution in access roadmap.
+Member Test-list #1534 draft; gates in access roadmap.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.
