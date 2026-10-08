@@ -19,10 +19,11 @@ Publication735d6ab: native49/12/5/10 PASS; genuine252 types copied. LegacyPATCH/
 unchanged. 084 CI PASS;1510 rebase review/CI pending;249–252 unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.
 
-Native252 normal10 PASS; exact cleanup/whole B5 PASS, failures retained.
-B1–B4 retained; B5:all183 tables/all5 fields.
+Test caps OFF: `docs/guidance/classroom-test-tier-caps.md`.
+
+Native252 normal10/cleanup/B5 PASS; B1–B4/failures retained;183tables/all5fields.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.
-Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28.
-individual-student purge ON, other purge/Pal OFF. Historical receipts.
+Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
+individual-student purge ON; other purge/Pal OFF.

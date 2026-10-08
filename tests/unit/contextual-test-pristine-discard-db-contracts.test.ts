@@ -33,12 +33,12 @@ describe('contextual pristine Test discard rollback database contracts', () => {
     expect(TEST_OWNER_PRISTINE_DISCARD_DB_CHECK_LABELS).toHaveLength(Object.keys(TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS).length - 2)
   })
 
-  it('attests exact service-only RPCs,17 triggers,nine CASCADE Test FKs and the partial managed-resource index', () => {
+  it('attests exact service-only RPCs,18 triggers,nine CASCADE Test FKs and the partial managed-resource index', () => {
     for (const token of ['discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)',
       'discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)', 'prosecdef', 'search_path=""', 'lock_timeout=1s',
       "has_function_privilege('service_role'", "has_function_privilege('anon'", "has_function_privilege('authenticated'",
       'delete_test_gradebook_score_overrides', 'removed_academic_parent', 'tests_managed_storage_remove',
-      'touch_classroom_blueprint_source_from_drafts', 'Exact17 trigger closure differs',
+      'touch_classroom_blueprint_source_from_drafts', 'Exact18 trigger closure differs',
       'test_questions_test_id_fkey', 'test_attempts_test_id_fkey', 'test_responses_test_id_fkey', 'test_focus_events_test_id_fkey',
       'test_student_availability_test_id_fkey', 'test_ai_grading_runs_test_id_fkey', 'test_ai_grading_run_items_test_id_fkey',
       'managed_storage_json_references_test_id_fkey', 'classroom_guided_draft_provenance_test_id_fkey', "confdeltype='c'", "method<>'btree'",

@@ -169,6 +169,9 @@ jobs:
           bash scripts/check-subscription-renewal-closeout-database.sh
           bash scripts/check-subscription-prorated-upgrades-database.sh
 
+      - name: Verify dormant classroom Test quotas and retained-work protection
+        run: bash scripts/check-classroom-test-tier-caps-database.sh
+
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
 
