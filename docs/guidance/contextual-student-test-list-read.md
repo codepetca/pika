@@ -1,7 +1,7 @@
 # Dormant contextual member Test list read
 
 Source preparation on `codex/contextual-test-member-list-read`, main base
-`d826a01a3`. This is an independent batch-2 component, not production acceptance,
+`b778a6851`. This is an independent batch-2 component, not production acceptance,
 phase exit, cohort admission or product rollout. Owner reorder #1515's separate
 capacity decision does not block this read-only boundary.
 
@@ -152,3 +152,20 @@ conflicts preserving both histories, verify all runtime source bytes and incomin
 UI bytes, and obtain targeted current-base/handoff review plus focused checks
 before readiness. Eligible exact-final-head CI/PR Gate still precede merge.
 No public auth/browser/UI or production/admission rollout is established here.
+
+## Current-base handoff — 2026-10-08
+
+Merged main `b778a6851` (#1535) onto previously reviewed `2f1f82baa`: its 23
+nonhistory UI paths are byte-identical to main, and the member backend/tests,
+proof source, configuration and schema remain byte-identical to `2f1f82baa`.
+Both complete history bodies are retained across the rolling log and archive;
+the official default trim keeps the latest 40 entries. Prior native evidence
+remains bound to `f6fdc63fb`; no new native execution is claimed. Prior exact
+`2f1f82baa` CI37783778326 passed Test & Build while browser/database lanes were
+pending when the coordinator returned #1534 to draft for this base sync.
+Current-base focused 1,153 tests/43 files, architecture/UI/design policy,
+TypeScript/lint and documentation audit/history gates passed. Targeted independent
+handoff review, then eligible exact-final-head CI/PR Gate, remain required before
+main merge.
+All existing rollout, canonical249+, production, plan, billing and activation
+holds remain; this documentation reconciliation records no phase exit.
