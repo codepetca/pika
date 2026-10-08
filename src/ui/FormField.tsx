@@ -20,6 +20,8 @@ export interface FormFieldProps {
   htmlFor?: string
   /** Error message displayed below the control */
   error?: string
+  /** Reserve one error line across pending/retry; longer errors grow naturally. */
+  reserveErrorSpace?: boolean
   /** Hint text displayed below the control */
   hint?: string
   /** Show required indicator (*) after label */
@@ -66,6 +68,7 @@ export function FormField({
   htmlFor,
   error,
   hint,
+  reserveErrorSpace = false,
   required,
   hideLabel,
   collapseHiddenLabel,
@@ -116,11 +119,13 @@ export function FormField({
           {hint}
         </p>
       )}
-      {error && (
-        <p id={errorId} className={errorStyles} role="alert">
-          {error}
-        </p>
-      )}
+      {reserveErrorSpace ? (
+        <div className="mt-1 min-h-5 text-sm">
+          {error && <p id={errorId} className="text-danger" role="alert">{error}</p>}
+        </div>
+      ) : error ? (
+        <p id={errorId} className={errorStyles} role="alert">{error}</p>
+      ) : null}
     </div>
   )
 }

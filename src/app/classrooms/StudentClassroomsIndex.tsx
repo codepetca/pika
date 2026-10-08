@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LoaderCircle } from 'lucide-react'
 import {
+  CircularProgress,
   Button,
   Card,
   EmptyState,
@@ -20,15 +20,24 @@ import {
   useStudentAttendanceStatusView,
 } from '@/components/StudentAttendanceStatus'
 import type { Classroom } from '@/types'
+import { ClassroomsReadError } from './ClassroomsReadError'
 
 interface Props {
   initialClassrooms: Classroom[]
   studentId?: string
+  initialReadError?: boolean
 }
 
-export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) {
+export function StudentClassroomsIndex({ initialClassrooms, studentId, initialReadError = false }: Props) {
   const router = useRouter()
-  const [classrooms] = useState<Classroom[]>(initialClassrooms)
+  const [classrooms, setClassrooms] = useState<Classroom[]>(initialClassrooms)
+  const [hasSuccessfulRead, setHasSuccessfulRead] = useState(!initialReadError)
+  const classroomsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (initialReadError) return
+    setClassrooms(initialClassrooms)
+    setHasSuccessfulRead(true)
+  }, [initialClassrooms, initialReadError])
   const [openingClassroomId, setOpeningClassroomId] = useState<string | null>(null)
   const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
     useStudentAttendanceStatusView(studentId)
@@ -42,8 +51,13 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
     router.push(`/classrooms/${classroom.id}?tab=today`)
   }, [router])
 
+  if (!hasSuccessfulRead) {
+    return <PageLayout density="student" width="reading"><div ref={classroomsRef} role="region" aria-label="Classrooms" tabIndex={-1}><PageContent><ClassroomsReadError onRetry={() => classroomsRef.current?.focus()} /></PageContent></div></PageLayout>
+  }
+
   return (
     <PageLayout density="student" width="reading">
+      <div ref={classroomsRef} role="region" aria-label="Classrooms" tabIndex={-1}>
       <PageActionBar
         primary={<PageHeading title="Classrooms" />}
         actions={
@@ -59,7 +73,8 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
       />
 
       <PageContent>
-        {sorted.length === 0 ? (
+        {initialReadError ? <ClassroomsReadError compact onRetry={() => classroomsRef.current?.focus()} /> : null}
+        {initialReadError && sorted.length === 0 ? null : sorted.length === 0 ? (
           <EmptyState
             title="No classrooms yet"
             description="Join a classroom to get your lessons, assignments, and daily work in one place."
@@ -103,7 +118,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
                   ) : null}
                   {openingClassroomId === c.id && (
                     <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      <CircularProgress className="h-3.5 w-3.5" />
                       Opening classroom...
                     </div>
                   )}
@@ -113,6 +128,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
           </Card>
         )}
       </PageContent>
+      </div>
     </PageLayout>
   )
 }

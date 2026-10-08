@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, RotateCw } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, ConfirmDialog, FormField, Input, PageHeading, SaveStatus, Select, TabPanel, Tabs } from '@/ui'
+import { Button, ConfirmDialog, FormField, IconButton, Input, PageHeading, PageState, SaveStatus, Select, TabPanel, Tabs } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Spinner } from '@/components/Spinner'
 import { CourseBlueprintPurgeDialog } from '@/components/CourseBlueprintPurgeDialog'
@@ -231,6 +231,12 @@ export default function TeacherBlueprintsPage() {
     term_template: '',
   })
   const [error, setError] = useState('')
+  const [listReadError, setListReadError] = useState('')
+  const [detailReadError, setDetailReadError] = useState('')
+  const listRegionRef = useRef<HTMLElement | null>(null)
+  const detailRegionRef = useRef<HTMLElement | null>(null)
+  const listRetryRequestRef = useRef<number | null>(null)
+  const detailRetryRequestRef = useRef<number | null>(null)
   const [importingPackage, setImportingPackage] = useState(false)
   const [saving, setSaving] = useState(false)
   const [plannedSite, setPlannedSite] = useState<{
@@ -437,7 +443,10 @@ export default function TeacherBlueprintsPage() {
   }
 
   const beginBlueprintSelection = useCallback((blueprintId: string | null) => {
+    if (selectedBlueprintIdRef.current !== blueprintId) setError('')
     detailRequestIdRef.current += 1
+    detailRetryRequestRef.current = null
+    setDetailReadError('')
     proposalsRequestIdRef.current += 1
     guidanceHistoryRequestIdRef.current += 1
     mergeSuggestionsRequestIdRef.current += 1
@@ -461,11 +470,12 @@ export default function TeacherBlueprintsPage() {
   const loadBlueprints = useCallback(async (preferredId?: string) => {
     const requestId = listRequestIdRef.current + 1
     listRequestIdRef.current = requestId
+    listRetryRequestRef.current = null
     if (preferredId && preferredId !== selectedBlueprintIdRef.current) {
       beginBlueprintSelection(preferredId)
     }
     setLoadingList(true)
-    setError('')
+    setListReadError('')
     try {
       const nextBlueprints = await fetchTeacherBlueprints()
       if (listRequestIdRef.current !== requestId) return
@@ -477,9 +487,9 @@ export default function TeacherBlueprintsPage() {
       if (nextSelectedId !== selectedBlueprintIdRef.current) {
         beginBlueprintSelection(nextSelectedId)
       }
-    } catch (err: any) {
+    } catch {
       if (listRequestIdRef.current !== requestId) return
-      setError(err.message || 'Failed to load course blueprints')
+      setListReadError('The course blueprint list could not be retrieved. Your saved blueprints and local edits have not been changed.')
     } finally {
       if (listRequestIdRef.current !== requestId) return
       setLoadingList(false)
@@ -489,8 +499,9 @@ export default function TeacherBlueprintsPage() {
   const loadDetail = useCallback(async (id: string) => {
     const requestId = detailRequestIdRef.current + 1
     detailRequestIdRef.current = requestId
+    detailRetryRequestRef.current = null
     setLoadingDetail(true)
-    setError('')
+    setDetailReadError('')
     try {
       const blueprint = await fetchTeacherBlueprintDetail(id)
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
@@ -500,14 +511,39 @@ export default function TeacherBlueprintsPage() {
       setMergeSelection({})
       setAiPreview(null)
       setAiAnalysis(null)
-    } catch (err: any) {
+    } catch {
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
-      setError(err.message || 'Failed to load course blueprint')
+      setDetailReadError('The selected course blueprint could not be retrieved. Your saved blueprint and local edits have not been changed.')
     } finally {
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
       setLoadingDetail(false)
     }
   }, [replaceEditorWithDetail])
+
+  function retryBlueprintList() {
+    if (loadingList || listRetryRequestRef.current !== null) return
+    listRegionRef.current?.focus()
+    invalidateTeacherBlueprints()
+    const pending = loadBlueprints()
+    const requestId = listRequestIdRef.current
+    listRetryRequestRef.current = requestId
+    void pending.finally(() => {
+      if (listRetryRequestRef.current === requestId) listRetryRequestRef.current = null
+    })
+  }
+
+  function retrySelectedBlueprint() {
+    const id = selectedBlueprintIdRef.current
+    if (!id || loadingDetail || detail?.id === id || detailRetryRequestRef.current !== null) return
+    detailRegionRef.current?.focus()
+    invalidateTeacherBlueprints()
+    const pending = loadDetail(id)
+    const requestId = detailRequestIdRef.current
+    detailRetryRequestRef.current = requestId
+    void pending.finally(() => {
+      if (detailRetryRequestRef.current === requestId) detailRetryRequestRef.current = null
+    })
+  }
 
   async function loadProposals(id: string) {
     const requestId = proposalsRequestIdRef.current + 1
@@ -1282,18 +1318,29 @@ export default function TeacherBlueprintsPage() {
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
-          <aside className="self-start rounded-card border border-border bg-surface p-4">
-            {loadingList ? (
-              <div className="flex justify-center py-8">
-                <Spinner />
+          <aside
+            ref={listRegionRef}
+            role="region"
+            aria-label="Course blueprint list"
+            tabIndex={-1}
+            className={`self-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${blueprints.length > 0 ? 'rounded-card border border-border bg-surface p-4' : ''}`}
+          >
+            {blueprints.length > 0 && (loadingList || listReadError) ? (
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p role={listReadError ? 'alert' : 'status'} aria-busy={loadingList || undefined} className="text-sm text-text-muted">
+                  {listReadError || 'Refreshing course blueprints'}
+                </p>
+                {listReadError ? <IconButton icon={RotateCw} label="Retry course blueprint list" onClick={retryBlueprintList} /> : null}
               </div>
+            ) : null}
+            {blueprints.length === 0 && loadingList ? (
+              <PageState compact kind="loading" title="Loading course blueprints" className="motion-reduce:[&_svg]:animate-none" />
+            ) : blueprints.length === 0 && listReadError ? (
+              <PageState compact kind="error" title="Could not load course blueprints" description={listReadError}
+                action={<IconButton icon={RotateCw} label="Retry course blueprint list" onClick={retryBlueprintList} />} />
             ) : blueprints.length === 0 ? (
-              <div className="space-y-3 text-center">
-                <p className="text-sm text-text-muted">No course blueprints yet.</p>
-                <Button type="button" onClick={() => setShowCreate(true)}>
-                  Create Course Blueprint
-                </Button>
-              </div>
+              <PageState compact kind="empty" title="No course blueprints yet."
+                action={<Button type="button" onClick={() => setShowCreate(true)}>Create Course Blueprint</Button>} />
             ) : (
               <div className="space-y-2">
                 {blueprints.map((blueprint) => (
@@ -1321,13 +1368,23 @@ export default function TeacherBlueprintsPage() {
             )}
           </aside>
 
-          <section className="min-w-0 rounded-card border border-border bg-surface p-4">
+          <section
+            ref={detailRegionRef}
+            role="region"
+            aria-label="Selected course blueprint"
+            tabIndex={-1}
+            className={`min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${detail?.id === selectedBlueprintId && detail ? 'rounded-card border border-border bg-surface p-4' : ''}`}
+          >
+            {detail?.id === selectedBlueprintId && detail && detailReadError ? (
+              <p role="alert" className="mb-4 text-sm text-danger">{detailReadError}</p>
+            ) : null}
             {!selectedBlueprintId || !detail || detail.id !== selectedBlueprintId ? (
               loadingDetail ? (
-                <div className="flex justify-center py-12">
-                  <Spinner size="lg" />
-                </div>
-              ) : (
+                <PageState compact kind="loading" title="Loading course blueprint" className="motion-reduce:[&_svg]:animate-none" />
+              ) : selectedBlueprintId && detailReadError ? (
+                <PageState compact kind="error" title="Could not load course blueprint" description={detailReadError}
+                  action={<IconButton icon={RotateCw} label="Retry selected course blueprint" onClick={retrySelectedBlueprint} />} />
+              ) : loadingList || listReadError ? null : (
                 <div className="py-12 text-center text-sm text-text-muted">
                   Select a course blueprint to edit its course package.
                 </div>

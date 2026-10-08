@@ -13,7 +13,7 @@ import {
 
 export default function ClassroomError({ reset }: { error: Error; reset: () => void }) {
   return (
-    <AppShell showHeader={false}>
+    <AppShell initialNow={0} showHeader={false}>
       <PageLayout width="reading">
         <PageContent>
           <PageState

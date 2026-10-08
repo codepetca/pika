@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
+import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 import { navigateTo } from '@/lib/client-navigation'
 import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
 import { PikaLogo } from '@/components/PikaLogo'
@@ -36,6 +37,7 @@ export function LoginClient({
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const continuity = useAuthFormContinuity(loading)
   const [restoringWorkOSSession, setRestoringWorkOSSession] = useState(
     magicAuthEnabled && hasActiveWorkOSSession,
   )
@@ -86,6 +88,8 @@ export function LoginClient({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
     setError('')
     setLoading(true)
 
@@ -97,11 +101,13 @@ export function LoginClient({
       })
 
       const data = await response.json()
+      if (!continuity.isCurrent(request)) return
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed')
       }
 
+      continuity.release(request)
       const next = getSafeInternalPath(searchParams.get('next'))
       if (next) {
         navigateTo(next)
@@ -110,6 +116,8 @@ export function LoginClient({
 
       navigateTo(data.redirectUrl)
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
+      continuity.finish(request)
       setError(err.message || 'An error occurred')
       setLoading(false)
     }
@@ -198,7 +206,7 @@ export function LoginClient({
             nextPath={searchParams.get('next')}
           />
         ) : (
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} aria-busy={loading}>
             <FormField label="School Email" className="mb-4">
               <Input
                 ref={emailInputRef}
@@ -211,7 +219,7 @@ export function LoginClient({
               />
             </FormField>
 
-            <FormField label="Password" error={error} required>
+            <FormField label="Password" error={error} required reserveErrorSpace>
               <Input
                 type="password"
                 value={password}
@@ -232,7 +240,10 @@ export function LoginClient({
             <div className="mt-2 text-center">
               <button
                 type="button"
-                onClick={() => router.push('/forgot-password')}
+                onClick={() => {
+                  continuity.retire()
+                  router.push('/forgot-password')
+                }}
                 className="inline-flex min-h-control items-center justify-center rounded-control px-2 text-sm text-primary outline-none hover:underline focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
               >
                 Forgot password?
@@ -244,16 +255,18 @@ export function LoginClient({
         <div className="mt-2 text-center">
           <p className="text-sm text-text-muted">
             Don&apos;t have an account?{' '}
-            <button
-              type="button"
-              onClick={() => router.push(buildAuthContinuationPath('/signup', {
-                email,
-                next: searchParams.get('next'),
-              }))}
-              className="text-primary hover:underline font-medium"
+            <Button
+              type="button" variant="ghost" size="sm"
+              onClick={() => {
+                continuity.retire()
+                router.push(buildAuthContinuationPath('/signup', {
+                  email,
+                  next: searchParams.get('next'),
+                }))
+              }}
             >
               Sign up
-            </button>
+            </Button>
           </p>
         </div>
       </div>

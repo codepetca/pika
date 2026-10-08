@@ -60,9 +60,9 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/ClassroomPageClient', () => ({
-  ClassroomPageClient: ({ classroom: classroomRecord, user, classroomRole, initialTab, classroomQrAvailable }: { classroom: unknown; user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean }) => {
+  ClassroomPageClient: ({ initialNow, classroom: classroomRecord, user, classroomRole, initialTab, classroomQrAvailable }: { initialNow: number; classroom: unknown; user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean }) => {
     mocks.clientProps(classroomRecord)
-    return <div data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
+    return <div data-initial-now={initialNow} data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
   },
 }))
 
@@ -105,6 +105,20 @@ describe('ClassroomPage feature visibility redirects', () => {
     mocks.notFound.mockImplementation(() => {
       throw new Error('not-found')
     })
+  })
+
+  it.each(['teacher', 'student'] as const)('seeds the %s classroom header at the server owner', async (role) => {
+    const serverNow = Date.parse('2026-10-05T16:00:00Z')
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(serverNow)
+    try {
+      mocks.getCurrentUser.mockResolvedValue({ id: `${role}-1`, email: `${role}@example.test`, role })
+      mocks.singleResults.push({ data: classroom(), error: null })
+      if (role === 'student') mocks.singleResults.push({ data: { classroom_id: 'classroom-1' }, error: null })
+      await renderPage(role === 'teacher' ? 'daily' : 'today')
+      expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-initial-now', String(serverNow))
+    } finally {
+      dateNow.mockRestore()
+    }
   })
 
   it('supplies stable poster availability for an attendance-enabled teacher', async () => {

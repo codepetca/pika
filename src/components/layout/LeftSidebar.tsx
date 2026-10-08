@@ -5,7 +5,7 @@ import { useRef, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
 import { PikaLogo } from '@/components/PikaLogo'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
-import { ModalLayer, Tooltip } from '@/ui'
+import { IconButton, ModalLayer, Tooltip } from '@/ui'
 
 export interface LeftSidebarProps {
   children: ReactNode
@@ -108,15 +108,13 @@ export function LeftSidebar({
             <Menu className="h-6 w-6 text-text-muted" aria-hidden="true" />
             <span>Navigation</span>
           </div>
-          <button
+          <IconButton
             ref={firstFocusableRef}
-            type="button"
             onClick={close}
-            className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
-            aria-label="Close navigation"
-          >
-            <X className="h-6 w-6" aria-hidden="true" />
-          </button>
+            variant="ghost"
+            label="Close navigation"
+            icon={X}
+          />
         </div>
 
         {/* Nav content */}
@@ -134,10 +132,10 @@ export function LeftSidebar({
                   close()
                 }}
                 className="flex h-12 w-full min-w-0 items-center gap-3 rounded-control bg-surface-2 px-3 font-medium text-text-default transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
-                aria-label="All classrooms"
+                aria-label="Classrooms"
               >
                 <PikaLogo className="h-8 w-8 flex-shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-left">All classrooms</span>
+                <span className="min-w-0 flex-1 truncate text-left">Classrooms</span>
               </Link>
             </div>
           )}

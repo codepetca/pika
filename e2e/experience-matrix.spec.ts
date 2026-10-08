@@ -1,3 +1,12 @@
+import { verifySignupOwnerContinuity } from './helpers/signup-owner-continuity'
+import { verifyLoginRecoveryContinuity } from './helpers/login-recovery-continuity'
+import { verifyJoinRetryContinuity } from './helpers/join-retry-continuity'
+import { verifyPasswordResetContinuity, verifyLoginSignupTarget } from './helpers/password-reset-continuity'
+import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
+import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
+import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
+import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
+import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
   expect,
   test,
@@ -9,6 +18,12 @@ import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
 import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
 import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableShellReads } from './helpers/teacher-student-tables'
 import { verifyWorkspaceMotion } from './helpers/workspace-motion'
+import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
+import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
+import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
+import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
+import { verifyGradebookRetryFocus } from './helpers/gradebook-retry-focus'
+import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -50,6 +65,139 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Signup owner continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves full client signup owner recovery ${motion}`, async ({ page }, info) => {
+      await verifySignupOwnerContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Login recovery continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves classic Login ownership and Signup footer target ${motion}`, async ({ page }, info) => {
+      await verifyLoginRecoveryContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Join retry continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains native retry focus and truthful busy states ${motion}`, async ({ page }, testInfo) => {
+      await applyProjectTheme(page, testInfo)
+      await verifyJoinRetryContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Password reset continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves reset request ownership and recovery ${motion}`, async ({ page }, testInfo) => {
+      await verifyPasswordResetContinuity(page, testInfo, motion)
+    })
+    test(`keeps Sign up navigation comfortably focusable ${motion}`, async ({ page }, testInfo) => {
+      await verifyLoginSignupTarget(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Public course section targets', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves native section navigation with comfortable targets ${motion}`, async ({ page }, testInfo) => {
+      await verifyPublicCourseSectionTargets(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Calendar day interaction', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const role of ['teacher', 'student'] as const) {
+    for (const motion of ['no-preference', 'reduce'] as const) {
+      test.describe(`${role} ${motion}`, () => {
+        test.use({ contextOptions: { reducedMotion: motion } })
+        test('reads and dismisses the real Calendar day dialog', async ({ page }, testInfo) => {
+          await verifyCalendarDayInteraction(page, testInfo, role, motion)
+        })
+      })
+    }
+  }
+})
+
+test.describe('Assignment editor retirement', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retires active and pending native drags without breaking reordering', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorDragShutdown(page, testInfo)
+      })
+      test('retires nested controls and closes after the parent publishes Post', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorControls(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('Gradebook retry focus', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('keeps explicit retry focus in the visible Gradebook workspace', async ({ page }, testInfo) => {
+        await verifyGradebookRetryFocus(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('student Grades continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('preserves native reactivation and recovery', async ({ page }, testInfo) => {
+        test.setTimeout(150_000)
+        await applyProjectTheme(page, testInfo)
+        await verifyStudentGradesContinuity(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('Assignment Instructions preview continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('dismisses the real preview while preserving its editor', async ({ page }, testInfo) => {
+        await verifyAssignmentPreviewMotion(page, testInfo, motion)
+      })
+    })
+  }
+  test.describe('preference change with controlled exit timer', () => {
+    test.use({ contextOptions: { reducedMotion: 'no-preference' } })
+    test('removes the retained preview before its exit deadline', async ({ page }, testInfo) => {
+      await verifyAssignmentPreviewPreferenceChange(page, testInfo)
+    })
+  })
+})
+
+test.describe('Blueprint required-read recovery', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const failure of ['list', 'detail'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${failure} retry preserves focus with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyBlueprintRecovery(page, testInfo, failure, reducedMotion)
+      })
+    }
+  }
+})
 
 test.describe('approved classroom workspace motion', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
@@ -623,7 +771,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   let classroomQrToken = 'a'.repeat(43)
   let loseNextRotationResponse = false
 
-  const students = Array.from({ length: 18 }, (_, index) => {
+  // Keep the table scrollable even with the compact summary freeing more height.
+  const students = Array.from({ length: 32 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
     const studentId = `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
     const status = (['present', 'late', 'absent'] as const)[index % 3]
@@ -696,7 +845,9 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
           overview: 'Students reflected on their progress and next steps.',
           action_items: [{
             studentName: 'Student 02 Alpha02',
-            text: 'Student 02 Alpha02 needs a follow-up conversation.',
+            text: 'Student 02 Alpha02 asks whether the lab report needs a graph.',
+            detail: 'asks whether the lab report needs a graph.',
+            category: 'student_question',
           }],
           generated_at: '2026-08-29T14:10:00.000Z',
         },
@@ -971,10 +1122,26 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('button', { name: 'Refresh attendance' })).toHaveCount(0)
   const summary = page.getByRole('region', { name: 'Class Log Summary' })
   await expect(summary).toBeVisible()
-  await expect(summary.getByText('Students reflected on their progress and next steps.')).toBeVisible()
-  await expect(summary.getByText(/10:10 AM$/)).toBeVisible()
+  await expect(summary.getByText('Summary', { exact: true })).toBeVisible()
+  await expect(summary).toContainText('Student 02 asks whether the lab report needs a graph.')
+  await expect(summary.getByText('Students reflected on their progress and next steps.')).toHaveCount(0)
+  await expect(summary.getByText(/10:10 AM$/)).toHaveCount(0)
   await expect(summary.getByText(/student02/i)).toHaveCount(0)
-  await expect(summary.getByText('Student 02 Alpha02')).toBeVisible()
+  const summaryStudent = summary.getByRole('button', { name: 'Go to Student 02 Alpha02 in student table' })
+  await expect(summaryStudent).toHaveText('Student 02')
+  const scrollPane = page.getByTestId('daily-student-scroll-pane')
+  await scrollPane.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await summaryStudent.click()
+  const summaryStudentRow = scrollPane.getByRole('row').filter({
+    has: page.getByRole('cell', { name: 'Student 02', exact: true }),
+  })
+  await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'true')
+  await expect(summaryStudentRow).toBeFocused()
+  await expect(summary).toBeVisible()
+  await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'false')
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
@@ -1007,7 +1174,6 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
   await page.keyboard.press('Escape')
 
-  const scrollPane = page.getByTestId('daily-student-scroll-pane')
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   await scrollPane.evaluate((element) => {
     element.scrollTop = element.scrollHeight
@@ -1974,7 +2140,7 @@ test('shows the History join retry delay in empty and enrolled states', async ({
 
 test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
-  let state: 'open' | 'closed' | 'revoked' | 'not_joined' | 'not_on_roster' | 'ambiguous' | 'error' = 'open'
+  let state: 'open' | 'duplicate' | 'closed' | 'revoked' | 'not_joined' | 'not_on_roster' | 'ambiguous' | 'error' = 'open'
   await page.route('**/api/student/attendance/classroom-check-in', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const bodies = {
@@ -1982,8 +2148,16 @@ test('resolves permanent classroom attendance QR states after student authentica
         state: 'checked_in', title: 'You are checked in', description: 'Your attendance was recorded.',
         attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classroomName: 'PPZ3C — Health for Life',
         studentId: '40000000-0000-4000-8000-000000000001',
         occurrenceBinding: 'a'.repeat(32),
+      },
+      duplicate: {
+        state: 'already_checked_in', title: 'You are already checked in',
+        description: 'No additional attendance record was created.',
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classroomName: 'PPZ3C — Health for Life',
+        recordedAt: '2026-08-29T13:05:00.000Z',
       },
       closed: {
         state: 'closed', title: 'Attendance is not open',
@@ -2017,6 +2191,28 @@ test('resolves permanent classroom attendance QR states after student authentica
   await expect(page.getByRole('heading', { name: 'Checking you in…' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'You are checked in' })).toBeVisible()
 
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('Your attendance was recorded.', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
+  await expect(page.locator('time')).toHaveAttribute('datetime', '2026-08-29T13:05:00.000Z')
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-success.png`),
+    animations: 'disabled',
+  })
+
+  state = 'duplicate'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'You are already checked in' })).toBeVisible()
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('No additional attendance record was created.', { exact: true })).toHaveCount(0)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-duplicate.png`),
+    animations: 'disabled',
+  })
+
   state = 'closed'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
@@ -2044,7 +2240,15 @@ test('resolves permanent classroom attendance QR states after student authentica
 
   state = 'error'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: 'We could not confirm check-in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Not checked-in' })).toBeVisible()
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/It is safe to retry/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-failure.png`),
+    animations: 'disabled',
+  })
   await verifyProjectContract(page, testInfo)
 })
 
@@ -3841,7 +4045,7 @@ test('retains teacher Classwork student editor and table through background refr
   const scroller = page.getByTestId('assignment-student-scroll-pane')
   await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
   const editor = page.getByPlaceholder('Teacher comment draft')
-  if (await editor.count() === 0) await page.getByRole('button', { name: 'Student 00 Example', exact: true }).click()
+  // Student work loads separately after the table selects its first student.
   await expect(editor).toBeVisible()
   await editor.fill('Keep this teacher comment draft during refresh.')
   await scroller.evaluate((element) => { element.scrollTop = 160 })
@@ -3935,4 +4139,49 @@ test('retains teacher Classwork student editor and table through background refr
   expect(detailReads).toBe(newDetailReads)
   await capture('navigation-assignment-recovered')
   await verifyProjectContract(page, testInfo)
+})
+
+
+test.describe('Announcement mutation feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retains drafts and requires explicit mutation recovery', async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await verifyAnnouncementMutationFeedback(page, testInfo)
+      })
+    })
+  }
+})
+
+
+test.describe('Course Guide refresh continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  test.beforeEach(async ({ page }, testInfo) => { await applyProjectTheme(page, testInfo) })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains current guide work with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyCourseGuideContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Teacher settings clipboard feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`clipboard feedback ${motion} preserves the committed settings owner`, async ({ page }, testInfo) => {
+      await verifySettingsCopyFeedback(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Student attendance return navigation', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains canonical return targets with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyAttendanceReturnLink(page, testInfo, motion)
+    })
+  }
 })

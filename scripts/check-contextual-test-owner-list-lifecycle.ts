@@ -1,6 +1,7 @@
 /** Dormant finite SDK proof. Fixed-source review and explicit parent acceptance
  * precede execution. Import is inert; this is not HTTP/browser/race evidence. */
 import assert from 'node:assert/strict'
+import { createContextualProofTimings, extractContextualProofTimingArgs } from './contextual-proof-timings'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
@@ -245,16 +246,19 @@ export function validateTestOwnerListSetupSnapshot(f: TestOwnerListFixture, inpu
 }
 
 export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
-  const input = parseAssignmentListLifecycleArgs(args)
+  const timingArgs = extractContextualProofTimingArgs(args)
+  const input = parseAssignmentListLifecycleArgs(timingArgs.lifecycleArgs)
   const git = (values: string[]) => execFileSync('git', values, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }).trim()
   assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['status', '--porcelain']), ''); const repository = git(['rev-parse', '--show-toplevel']); assert.equal(repository, process.cwd())
   const original = newAssignmentListProofFixture(); const f = newTestOwnerListFixture(original); const projectId = `pika_assignment_list_${original.manifest.syntheticTag.slice(-12)}`
-  const native = createAssignmentListNativeAdapters(original); const originalSetup = assignmentListFixtureSetupSql(original, projectId)
+  let native = createAssignmentListNativeAdapters(original, { ephemeralSnapshot: 'metadata' }); const originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerListSetupSql(f, projectId); const snapshotSql = testOwnerListSnapshotSql(f)
   const setupHash = testOwnerDigest(setupSql); const snapshotHash = testOwnerDigest(snapshotSql)
   let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined; let session: Session | undefined; let complete = false; let matrixComplete = false; let step = 'not-started'; let checkpoint: SetupCheckpoint | undefined
   let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined
   let transport: ReturnType<typeof createTestOwnerListProofTransport> | undefined; let client: ReturnType<typeof createClient<Database>> | undefined; let readDiagnostic: string | undefined
+  const timings = createContextualProofTimings({ path: timingArgs.timingsPath, reviewedSha: input.head, profile: 'test-owner-list', mode: input.mode })
+  native = timings.decorate(native)
   const originalPal = process.env.PAL_ENABLED; process.env.PAL_ENABLED = 'false'
   async function guard() {
     assert(target && session); closure = validateIntegratedGuardResources(await testOwnerListDockerInventory(), projectId, session.containerId, closure)
@@ -307,15 +311,18 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
     assert.equal(transport.counts.storage, 0); assert.equal(transport.counts.rpc, 0); matrixComplete = true; step = 'matrix-complete'
   }
   try {
-    await runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir: assignmentListProofWorkdir(projectId), migrations: loadAssignmentListReviewedMigrations(repository), mode: input.mode,
-      expectedResources: assignmentListExpectedResources(projectId), reviewedManifestSha256: testOwnerDigest(JSON.stringify(original.manifest)),
-      restorationPolicies: assignmentListRevocationPlans(original).map(plan => assignmentListRestorationPolicy(original, plan)) },
-    { ...native, async command(request) { const result = await native.command(request); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },
-      async executeSql(request) { await native.executeSql(request); if (request.sql === originalSetup) {
-        assert(!session && target); session = { ...request }; transport = createTestOwnerListProofTransport(f, target, projectId, fetch, guard)
-        client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } }); await setup()
-      } }, async runCase(request) { const result = await native.runCase(request); if (!matrixComplete) await matrix(); return result } })
-    assert(complete && matrixComplete); process.stdout.write(`PASS isolated test-owner-list eight actual SDK cases; no auth HTTP/browser/race/public-legacy claim.\n${cleanupMarker}`)
+    await timings.run(async () => {
+      await runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir: assignmentListProofWorkdir(projectId), migrations: loadAssignmentListReviewedMigrations(repository), mode: input.mode,
+        expectedResources: assignmentListExpectedResources(projectId), reviewedManifestSha256: testOwnerDigest(JSON.stringify(original.manifest)),
+        restorationPolicies: assignmentListRevocationPlans(original).map(plan => assignmentListRestorationPolicy(original, plan)) },
+      { ...native, async command(request) { const result = await native.command(request); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },
+        async executeSql(request) { await native.executeSql(request); if (request.sql === originalSetup) {
+          assert(!session && target); session = { ...request }; transport = createTestOwnerListProofTransport(f, target, projectId, fetch, guard)
+          client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } }); await setup()
+        } }, async runCase(request) { const result = await native.runCase(request); if (!matrixComplete) await matrix(); return result } })
+      assert(complete && matrixComplete)
+    })
+    process.stdout.write(`PASS isolated test-owner-list eight actual SDK cases; no auth HTTP/browser/race/public-legacy claim.\n${cleanupMarker}`)
   } catch (error) {
     const receipt = testOwnerListForcedReceipt(input.mode, error, complete)
     if (receipt) { process.stdout.write(receipt.stdout); process.stderr.write(receipt.stderr); process.exitCode = receipt.exitCode; return }

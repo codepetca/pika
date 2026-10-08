@@ -1,13 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import { Spinner } from '@/components/Spinner'
 import { AppHeader } from '@/components/AppHeader'
+import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   Button,
   Card,
+  CircularProgress,
   ContentDialog,
+  ConfirmDialog,
   QrCode,
   FormField,
   Input,
@@ -20,6 +24,7 @@ import {
   SegmentedControl,
   Select,
   TabPanel,
+  TabContentTransition,
   Tabs,
   Tooltip,
   cn,
@@ -70,6 +75,7 @@ import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
 import { SurveyEditSplitPattern } from './SurveyEditSplitPattern'
+import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { GradebookCompactPattern } from './GradebookCompactPattern'
 import { PageMockups } from './PageMockups'
@@ -78,7 +84,12 @@ import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { UiConsistencyPattern } from './UiConsistencyPattern'
+import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { DialogEntryPattern } from './DialogEntryPattern'
+import { MobileDrawerControlsPattern } from './MobileDrawerControlsPattern'
+
+const HEADER_REFERENCE_INITIAL_NOW = Date.parse('2026-10-05T16:00:00Z')
 
 const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
   '### Task',
@@ -101,6 +112,30 @@ const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
 ].join('\n')
 
 type Role = 'teacher' | 'student'
+
+function TabEntryPreview() {
+  const [active, setActive] = useState<'draft' | 'activity'>('draft')
+  return (
+    <Card tone="panel" padding="md" className="max-w-reading">
+      <div data-testid="tab-entry-extension">
+        <Tabs ariaLabel="Tab continuity preview" value={active} onValueChange={setActive}
+          getTabId={(value) => `fluid-${value}-tab`}
+          getPanelId={(value) => `fluid-${value}-panel`}
+          items={[{ value: 'draft', label: 'Draft' }, { value: 'activity', label: 'Activity' }]} />
+        {(['draft', 'activity'] as const).map((value) => (
+          <TabContentTransition key={value} isActive={active === value}>
+            <TabPanel id={`fluid-${value}-panel`} labelledBy={`fluid-${value}-tab`}
+              className="min-h-20 bg-surface px-4 py-3 text-sm text-text-muted">
+              {value === 'draft'
+                ? <FormField label="Example draft"><Input defaultValue="Keep this draft while switching tabs." /></FormField>
+                : 'Example activity. The draft stays mounted while this panel is active.'}
+            </TabPanel>
+          </TabContentTransition>
+        ))}
+      </div>
+    </Card>
+  )
+}
 
 function QrSizingExample() {
   const [open, setOpen] = useState(false)
@@ -141,6 +176,8 @@ export function UiGallery({ role }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [exampleConfirmed, setExampleConfirmed] = useState(false)
   const referenceRoutes = REFERENCE_ROUTES[role]
   const navigationDestinations = getPatternLabDestinations(role)
   const quickLinkIds = role === 'teacher'
@@ -177,8 +214,9 @@ export function UiGallery({ role }: Props) {
   return (
     <main className="min-h-screen bg-page text-text-default">
       <section aria-label="Application header references">
-        <AppHeader user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
+        <AppHeader initialNow={HEADER_REFERENCE_INITIAL_NOW} user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
         <AppHeader
+          initialNow={HEADER_REFERENCE_INITIAL_NOW}
           user={{ email: `${role}@example.invalid`, role }}
           examModeHeader={{ testTitle: 'Exam header reference', exitsCount: 0, awayTotalSeconds: 0 }}
         />
@@ -348,6 +386,14 @@ export function UiGallery({ role }: Props) {
                   />
                 </PageLayout>
                 <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.{role === 'student' ? ' Student density adds space above the controls.' : null}</p>
+                <div data-testid="wrapping-course-heading-example" className="mt-4">
+                  <PageHeading
+                    title="Environmental science and community inquiry through evidence, reflection and practical investigation — distinctive course identity"
+                    level="h2"
+                    wrap
+                  />
+                  <p className="mt-1 text-xs text-text-muted">Course Guide opts into wrapping through PageHeading; other page headings retain truncation.</p>
+                </div>
               </Card>
             </div>
             <div className="[&>section]:scroll-mt-28">
@@ -379,6 +425,21 @@ export function UiGallery({ role }: Props) {
               </div>
             </Card>
 
+            <div id="circular-progress" data-testid="circular-progress-example">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Circular progress" owner="src/ui/CircularProgress.tsx" />
+                <p className="mt-2 text-sm text-text-muted">One circular loader with no background or track. Its status or control supplies the accessible label; reduced motion keeps it static.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-6">
+                  <Spinner size="sm" />
+                  <Spinner size="md" />
+                  <Spinner size="lg" />
+                  <Button size="sm" loading>Creating class</Button>
+                  <IconButton icon={Plus} label="Creating classroom" loading />
+                </div>
+                <PageState compact kind="loading" title="Loading classroom" />
+              </Card>
+            </div>
+
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Card tone="panel" padding="md">
                 <PatternHeading title="Form fields" owner="src/ui/FormField.tsx" />
@@ -395,6 +456,12 @@ export function UiGallery({ role }: Props) {
                         { value: 'semester-2', label: 'Semester 2' },
                       ]}
                     />
+                  </FormField>
+                  <FormField label="Reserved error space" reserveErrorSpace>
+                    <Input defaultValue="Ready to retry" />
+                  </FormField>
+                  <FormField label="Reserved error with hint" reserveErrorSpace hint="The hint remains visible during recovery." error="Request failed. Please try again.">
+                    <Input defaultValue="Keep this draft" />
                   </FormField>
                   <FormField label="Archived field">
                     <Input defaultValue="Unavailable in this state" disabled />
@@ -472,7 +539,11 @@ export function UiGallery({ role }: Props) {
                 <Button type="button" variant="surface" size="sm" onClick={() => setDialogOpen(true)}>
                   Open alert dialog
                 </Button>
+                <Button type="button" variant="surface" size="sm" onClick={() => setConfirmationOpen(true)}>
+                  Open confirmation dialog
+                </Button>
                 <span className="text-xs text-text-muted">Dialogs preserve focus, Escape, and overlay ownership.</span>
+                {exampleConfirmed ? <span role="status" className="text-xs text-text-muted">Local example confirmed.</span> : null}
                 <QrSizingExample />
               </div>
             </Card>
@@ -588,6 +659,29 @@ export function UiGallery({ role }: Props) {
           </PatternSection>
         </div>
 
+        <ClassroomsReadRecoveryPattern role={role} />
+        <PatternSection
+          id="dialog-entry-preview"
+          eyebrow="Experimental · dialog entry"
+          title="Dialog entry comparison"
+          description="Actual ContentDialog owners with a retained local draft, nested confirmation, and fixture destination callback. This comparison awaits human review."
+        >
+          <DialogEntryPattern role={role} />
+        </PatternSection>
+
+        <PatternSection
+          id="tab-entry-extension"
+          eyebrow="Experimental · shared interaction"
+          title="Quiet tab entry"
+          description="Immediate selection and retained drafts with quiet opacity entry. This extension is awaiting human acceptance."
+        >
+          <TabEntryPreview />
+        </PatternSection>
+
+        <TabSelectionVisibilityPattern />
+
+        <MobileDrawerControlsPattern role={role} />
+
         {role === 'teacher' && (
           <PatternSection
             id="teacher-patterns"
@@ -635,6 +729,15 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}
             {role === 'teacher' && <SurveyEditSplitPattern />}
+            <PatternSection id="survey-results" eyebrow="Feature-owned evidence"
+              title="Survey result bars" description="Labels overlay the shared teacher/student tracks, with selected percentages inside the right end of each backing. Options stay in their original order.">
+              <div className="space-y-1.5">
+                <SurveyOptionResultBar option="Group discussion" count={7} totalResponses={20} />
+                <SurveyOptionResultBar option="Practice problems" count={12} totalResponses={20} />
+                <SurveyOptionResultBar option="Independent reading with a longer option label that wraps on narrow screens" count={1} totalResponses={20} />
+                <SurveyOptionResultBar option="Other" count={0} totalResponses={20} />
+              </div>
+            </PatternSection>
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
@@ -671,6 +774,17 @@ export function UiGallery({ role }: Props) {
         description="This dialog is rendered by the canonical shared owner."
         variant="success"
         buttonLabel="Close example"
+      />
+      <ConfirmDialog
+        isOpen={confirmationOpen}
+        onCancel={() => setConfirmationOpen(false)}
+        onConfirm={() => {
+          setExampleConfirmed(true)
+          setConfirmationOpen(false)
+        }}
+        title="Confirm local example"
+        description="Confirm this example to update the local feedback."
+        confirmLabel="Confirm example"
       />
     </main>
   )
@@ -826,8 +940,8 @@ function StatusExample({ status }: { status: StatusCatalogEntry }) {
   return (
     <Card tone="panel" padding="md">
       <div className="flex items-start gap-3">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-control border', STATUS_TONE_CLASSES[status.tone])}>
-          <Icon className={cn('h-5 w-5', status.icon === 'loader' && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center', status.icon === 'loader' ? 'text-primary' : cn('rounded-control border', STATUS_TONE_CLASSES[status.tone]))}>
+          {status.icon === 'loader' ? <CircularProgress className="h-5 w-5" /> : <Icon className="h-5 w-5" aria-hidden="true" />}
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">

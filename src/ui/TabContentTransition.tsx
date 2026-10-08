@@ -16,9 +16,9 @@ export function TabContentTransition({
   return (
     <div
       aria-hidden={!isActive}
+      ref={(element) => { element?.toggleAttribute('inert', !isActive) }}
       className={[
-        'transition-opacity duration-fast motion-reduce:transition-none',
-        isActive ? 'flex min-h-0 flex-1 flex-col opacity-100' : 'hidden opacity-0',
+        isActive ? 'workspace-entry flex min-h-0 flex-1 flex-col opacity-100' : 'hidden opacity-0',
         className,
       ]
         .filter(Boolean)

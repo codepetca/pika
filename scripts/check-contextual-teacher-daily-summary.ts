@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { LOG_SUMMARY_POLICY_VERSION } from '../src/lib/log-summary'
 import { readContextualTeacherLogSummary } from '../src/lib/server/contextual-teacher-daily-summary'
 import type { Database } from '../src/types/database'
 
@@ -29,7 +30,11 @@ async function main() {
   const classesSql = `'${classA}','${classB}','${emptyClass}'`
   const todaySql = "(clock_timestamp() at time zone 'America/Toronto')::date"
   const [today, previous] = sql(`select ${todaySql}, ${todaySql}-1;`).split('\n').at(-1)!.split('|')
-  const currentItems = '{"policy_version":"high-priority-v1","overview":"fixture overview","action_items":[{"text":"A.L. reported an urgent wellbeing concern.","initials":"A.L."}]}'
+  const currentItems = JSON.stringify({
+    policy_version: LOG_SUMMARY_POLICY_VERSION,
+    overview: 'fixture overview',
+    action_items: [{ text: 'A.L. reported an urgent wellbeing concern.', initials: 'A.L.', detail: 'reports an urgent wellbeing concern.' }],
+  })
   const currentMap = '{"A.L.":"Alpha Learner"}'
   function restoreCache() {
     sql(`insert into public.log_summaries(classroom_id,date,model,summary_items,initials_map,entry_count,entries_updated_at)
@@ -107,7 +112,10 @@ async function main() {
     assert(ready.summary)
     assert.deepEqual(Object.keys(ready).sort(), ['summary','summary_status'])
     assert.deepEqual(Object.keys(ready.summary).sort(), ['action_items','generated_at','overview'])
-    assert.deepEqual(ready.summary.action_items, [{ text: 'Alpha Learner reported an urgent wellbeing concern.', studentName: 'Alpha Learner' }])
+    assert.deepEqual(ready.summary.action_items, [{
+      text: 'Alpha Learner reported an urgent wellbeing concern.', studentName: 'Alpha Learner',
+      detail: 'reports an urgent wellbeing concern.',
+    }])
     assert.deepEqual(trace.reads, ['stats','count','cache'])
     assert(!JSON.stringify(ready).includes('Other Classroom Learner'))
     assert(!JSON.stringify(ready).includes('Previous Day Learner'))
@@ -124,6 +132,16 @@ async function main() {
     sql(`update public.classrooms set archived_at=clock_timestamp() where id='${classA}';`)
     assert.equal((await summary(ownerStudent, classA)).summary_status, 'ready')
     sql(`update public.classrooms set archived_at=null where id='${classA}';`)
+    const questionItems = JSON.stringify({
+      policy_version: LOG_SUMMARY_POLICY_VERSION, overview: 'fixture overview',
+      action_items: [{ text: 'A.L. has a question.', initials: 'A.L.', detail: 'asks whether the lab report needs a graph.' }],
+    })
+    sql(`update public.log_summaries set summary_items='${questionItems}'::jsonb where classroom_id='${classA}' and date='${today}';`)
+    assert.deepEqual((await summary(ownerStudent, classA)).summary?.action_items, [{
+      text: 'Alpha Learner has a question.', studentName: 'Alpha Learner',
+      detail: 'asks whether the lab report needs a graph.',
+    }])
+    restoreCache()
     process.stdout.write('PASS both owner role values, name restoration/projection, class/date isolation, bound exact count, empty/archived reads and member/non-owner denials\n')
 
     sql(`update public.log_summaries set entry_count=1 where classroom_id='${classA}' and date='${today}';`)
@@ -140,7 +158,12 @@ async function main() {
     sql(`update public.log_summaries set summary_items='[]'::jsonb where classroom_id='${classA}' and date='${today}';`)
     assert.deepEqual(await summary(ownerStudent, classA), { summary: null, summary_status: 'unavailable' })
     restoreCache()
-    sql(`update public.log_summaries set summary_items='{"policy_version":"high-priority-v1","action_items":[]}'::jsonb where classroom_id='${classA}' and date='${today}';`)
+    for (const retiredPolicy of ['high-priority-v1', 'follow-ups-v2']) {
+      const retiredItems = JSON.stringify({ ...JSON.parse(currentItems), policy_version: retiredPolicy })
+      sql(`update public.log_summaries set summary_items='${retiredItems}'::jsonb where classroom_id='${classA}' and date='${today}';`)
+      assert.equal((await summary(ownerStudent, classA)).summary_status, 'unavailable', 'Retired caches must not appear ready')
+    }
+    sql(`update public.log_summaries set summary_items='{"policy_version":"${LOG_SUMMARY_POLICY_VERSION}","action_items":[]}'::jsonb where classroom_id='${classA}' and date='${today}';`)
     assert.equal((await summary(ownerStudent, classA)).summary_status, 'pending')
     restoreCache()
     sql(`update public.log_summaries set initials_map='{"A.L.":42}'::jsonb where classroom_id='${classA}' and date='${today}';`)
@@ -150,7 +173,7 @@ async function main() {
       await assert.rejects(summary(ownerStudent, classA), { statusCode: 503 })
     }
     restoreCache()
-    sql(`update public.log_summaries set summary_items='{"policy_version":"high-priority-v1","overview":"fixture","action_items":[{"text":"? reported an urgent wellbeing concern.","initials":"?"}]}'::jsonb where classroom_id='${classA}' and date='${today}';`)
+    sql(`update public.log_summaries set summary_items='{"policy_version":"${LOG_SUMMARY_POLICY_VERSION}","overview":"fixture","action_items":[{"text":"? reported an urgent wellbeing concern.","initials":"?","detail":"reports an urgent wellbeing concern."}]}'::jsonb where classroom_id='${classA}' and date='${today}';`)
     await assert.rejects(summary(ownerStudent, classA), { statusCode: 503 }, 'Unresolved warning must not become a ready all-clear')
     sql(`delete from public.log_summaries where classroom_id='${classA}' and date='${today}';`)
     assert.deepEqual(await summary(ownerStudent, classA), { summary: null, summary_status: 'pending' })

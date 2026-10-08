@@ -127,8 +127,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 8,
-          "fingerprint": "028c5ffb91c3ac4c",
+          "count": 7,
+          "fingerprint": "049b6a2890e8b435",
           "reason": "layout-geometry"
         }
       ]
@@ -1317,6 +1317,18 @@
           "kind": "arbitrary-spacing",
           "count": 1,
           "fingerprint": "f2a1079bec0fefb9",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/LogSummary.tsx",
+      "reviewBy": "phase-3-daily-attendance",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "4f3f4d1fb522586d",
           "reason": "layout-geometry"
         }
       ]

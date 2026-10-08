@@ -14,6 +14,8 @@ import { getClassroomThemeDefinition, getClassroomThemeStyle, type ClassroomThem
 import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 interface AppHeaderProps {
+  /** Server snapshot reused by the first client render, in epoch milliseconds. */
+  initialNow: number
   user?: {
     email: string
     role: 'student' | 'teacher'
@@ -51,6 +53,7 @@ const EXIT_COUNT_PULSE_MS = 1600
  * Compact global header (48px) with logo, classroom title, date, and user menu.
  */
 export function AppHeader({
+  initialNow,
   user,
   classrooms,
   currentClassroomId,
@@ -60,13 +63,14 @@ export function AppHeader({
   examModeHeader,
   pageTitle,
 }: AppHeaderProps) {
-  const [now, setNow] = useState(() => new Date())
+  const [now, setNow] = useState(() => new Date(initialNow))
   const [exitCountPulseActive, setExitCountPulseActive] = useState(false)
   const previousExamExitCountRef = useRef<number | null>(null)
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
   const hints = useKeyboardShortcutHint()
 
   useEffect(() => {
+    setNow(new Date())
     const id = window.setInterval(() => setNow(new Date()), 60_000)
     return () => window.clearInterval(id)
   }, [])

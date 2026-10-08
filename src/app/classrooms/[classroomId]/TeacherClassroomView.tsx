@@ -27,7 +27,6 @@ import {
   Copy,
   EllipsisVertical,
   GripVertical,
-  LoaderCircle,
   Lock,
   Menu,
   MessageSquare,
@@ -41,7 +40,7 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { CircularProgress, Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
@@ -95,6 +94,7 @@ import {
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
+import { invalidateClassworkLists, saveCreatedClassworkPlacement } from '@/lib/created-classwork-placement'
 import type {
   Classroom,
   Assignment,
@@ -831,6 +831,26 @@ export function TeacherClassroomView({
     void loadAssignments()
   }, [classroom.id, loadAssignments])
 
+  const positionedCreationKeysRef = useRef(new Set<string>())
+  const positionCreatedClasswork = useCallback(async (type: 'assignment' | 'material' | 'survey', id: string) => {
+    const key = `${classroom.id}:${type}:${id}`
+    if (positionedCreationKeysRef.current.has(key)) {
+      invalidateClassworkLists(classroom.id)
+      if (currentClassroomIdRef.current === classroom.id) void loadAssignments()
+      return
+    }
+    positionedCreationKeysRef.current.add(key)
+    try {
+      await saveCreatedClassworkPlacement(classroom.id, { type, id })
+    } catch {
+      if (currentClassroomIdRef.current === classroom.id) {
+        showMessage({ text: 'Classwork was created, but its position could not be saved. Drag it into place.', tone: 'warning' })
+      }
+    } finally {
+      if (currentClassroomIdRef.current === classroom.id) void loadAssignments()
+    }
+  }, [classroom.id, loadAssignments, showMessage])
+
   const handleMaterialSaved = useCallback((material: ClassworkMaterial) => {
     invalidateCachedJSON(`teacher-materials:${classroom.id}`)
     invalidateCachedJSON(`student-materials:${classroom.id}`)
@@ -842,7 +862,10 @@ export function TeacherClassroomView({
     })
     setEditMaterial(null)
     setIsMaterialModalOpen(false)
-  }, [classroom.id])
+    if (!editMaterial) {
+      void positionCreatedClasswork('material', material.id)
+    }
+  }, [classroom.id, editMaterial, positionCreatedClasswork])
 
   const handleSurveySaved = useCallback((
     survey: Survey,
@@ -877,8 +900,8 @@ export function TeacherClassroomView({
       params.delete('surveyId')
       params.delete('assignmentStudentId')
     }, { replace: true })
-    void loadAssignments()
-  }, [classroom.id, loadAssignments, updateSearchParams])
+    void positionCreatedClasswork('survey', survey.id)
+  }, [classroom.id, positionCreatedClasswork, updateSearchParams])
 
   const createSurveyDraft = async () => {
     if (isReadOnly || surveyCreationPendingRef.current) return
@@ -1395,14 +1418,24 @@ export function TeacherClassroomView({
   }, [assignmentEditMode])
 
   function handleCreateSuccess(created: Assignment) {
+    if (currentClassroomIdRef.current !== classroom.id) {
+      invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+      void positionCreatedClasswork('assignment', created.id)
+      return
+    }
     // Optimistically add the new assignment to the list
-    setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
-    // Reload to get accurate stats from server
-    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
-    loadAssignments()
+    setAssignments((prev) => {
+      const existing = prev.find((item) => item.id === created.id)
+      return existing
+        ? prev.map((item) => item.id === created.id ? { ...item, ...created } : item)
+        : [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }]
+    })
+    void positionCreatedClasswork('assignment', created.id)
   }
 
   function handleEditSuccess(updated: Assignment) {
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+    if (currentClassroomIdRef.current !== classroom.id) return
     // Optimistically update the assignment in the list
     setAssignments((prev) =>
       prev.map((assignment) =>
@@ -1415,7 +1448,6 @@ export function TeacherClassroomView({
       return { ...prev, assignment: updated }
     })
     // Reload to ensure consistency
-    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     loadAssignments()
   }
 
@@ -2460,7 +2492,7 @@ export function TeacherClassroomView({
 
   const workspaceStatus = workspaceLoading ? (
     <div aria-live="polite" className="inline-flex items-center text-text-muted">
-      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <CircularProgress className="h-4 w-4" />
       <span className="sr-only">Updating assignment workspace</span>
     </div>
   ) : null
@@ -3064,7 +3096,7 @@ export function TeacherClassroomView({
           } else {
             handleCreateSuccess(assignment)
           }
-          if (options?.closeModal === false) {
+          if (options?.closeModal === false || currentClassroomIdRef.current !== classroom.id) {
             return
           }
           closeAssignmentModal()

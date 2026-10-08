@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { Clock3, Download, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings, X } from 'lucide-react'
 import {
@@ -9,6 +9,7 @@ import {
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
 } from '@/app/classrooms/[classroomId]/TeacherAttendanceControls'
+import { LogSummaryContent } from '@/app/classrooms/[classroomId]/LogSummary'
 import { DateNavigator } from '@/components/DateNavigator'
 import {
   TeacherWorkSurfaceIconMenuButton,
@@ -142,6 +143,8 @@ export function DailyMockup({
   onPrototypeAction: (action: string) => void
 }) {
   const classroomQrTitleId = useId()
+  const mockupRef = useRef<HTMLDivElement>(null)
+  const [summaryStudentId, setSummaryStudentId] = useState<DailyStudentId | null>(null)
   const hasQrCheckIn = attendanceMode === 'qr'
   const [date, setDate] = useState('2026-09-16')
   const [showRelativeDate, setShowRelativeDate] = useState(true)
@@ -432,7 +435,7 @@ export function DailyMockup({
   )
 
   return (
-    <div className="space-y-3" data-testid="daily-mockup">
+    <div ref={mockupRef} className="space-y-3" data-testid="daily-mockup">
       <TeacherWorkSurfaceShell
         state="workspace"
         primary={actionBar}
@@ -494,7 +497,7 @@ export function DailyMockup({
                 </DataTableHead>
                 <DataTableBody>
                   {students.map((student) => (
-                    <DataTableRow key={student.id} className="group hover:bg-surface-hover">
+                    <DataTableRow key={student.id} data-summary-student-id={student.id} tabIndex={-1} aria-selected={summaryStudentId === student.id} className={cn('group', summaryStudentId === student.id ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover')}>
                       <DataTableCell density="tight">{student.first}</DataTableCell>
                       <DataTableCell density="tight">{student.last}</DataTableCell>
                       <DataTableCell density="tight"><span className="block truncate text-text-muted">{student.log ?? '—'}</span></DataTableCell>
@@ -536,10 +539,21 @@ export function DailyMockup({
                 </DataTableBody>
               </DataTable>
             </TeacherWorkSurfaceTableFrame>
-            <Card tone="panel" padding="sm">
-              <h4 className="text-sm font-semibold">Class Log Summary</h4>
-              <p className="mt-1 text-sm text-text-muted">3 complete · 1 incomplete · Habitat observations focused on moisture, shade, and pond edges.</p>
-            </Card>
+            <section aria-label="Class Log Summary" className="min-h-0 shrink-0 rounded-lg bg-surface">
+              <LogSummaryContent actionItems={[
+                { studentName: 'Maya Chen', text: 'Maya Chen has a question.', detail: 'asks whether the lab report needs a graph.' },
+                { studentName: 'Noah Williams', text: 'Noah Williams has a question.', detail: 'asks when the habitat observations are due.' },
+                { studentName: 'Theo Martin', text: 'Theo Martin has a question.', detail: 'asks how to label the pond-edge observations.' },
+              ]} onStudentClick={(name) => {
+                const student = DAILY_STUDENTS.find((item) => `${item.first} ${item.last}` === name)
+                if (!student) return
+                setSummaryStudentId(student.id)
+                const row = mockupRef.current?.querySelector<HTMLElement>(`[data-summary-student-id="${student.id}"]`)
+                row?.focus({ preventScroll: true })
+                row?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
+                onPrototypeAction(`Jump to ${name}`)
+              }} />
+            </section>
           </div>
         )}
       />

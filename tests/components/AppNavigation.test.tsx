@@ -54,4 +54,16 @@ describe('AppNavigation', () => {
     classrooms.focus()
     expect(classrooms).toHaveFocus()
   })
+
+  it('updates active-route semantics immediately without replacing the focused link', () => {
+    const { rerender } = render(<AppNavigation label="Teacher tools" items={items} />)
+    const calendar = screen.getByRole('link', { name: 'Calendar' })
+    calendar.focus()
+    pathname = '/teacher/calendar'
+    rerender(<AppNavigation label="Teacher tools" items={items} />)
+    expect(screen.getByRole('link', { name: 'Calendar' })).toBe(calendar)
+    expect(calendar).toHaveFocus()
+    expect(calendar).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Blueprints' })).not.toHaveAttribute('aria-current')
+  })
 })

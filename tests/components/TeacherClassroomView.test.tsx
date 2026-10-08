@@ -6,6 +6,7 @@ import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_GRADE_UPDATED_EVENT } from
 import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 import { TooltipProvider } from '@/ui'
 
+const mockAssignmentModalRender = vi.fn()
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
 const mockInvalidateGradebookForClassroom = vi.fn()
@@ -197,8 +198,10 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/AssignmentModal', () => ({
-  AssignmentModal: ({ isOpen, assignment, instructionsMode = 'visual', onClose }: any) => (
-    isOpen ? (
+  AssignmentModal: (props: any) => {
+    mockAssignmentModalRender(props)
+    const { isOpen, assignment, instructionsMode = 'visual', onClose } = props
+    return isOpen ? (
       <div role="dialog" data-instructions-mode={instructionsMode}>
         {assignment ? `Editing ${assignment.title}` : 'New Assignment'}
         <button type="button" onClick={onClose}>
@@ -206,7 +209,7 @@ vi.mock('@/components/AssignmentModal', () => ({
         </button>
       </div>
     ) : null
-  ),
+  },
 }))
 
 vi.mock('@/components/SortableAssignmentCard', () => ({
@@ -420,6 +423,12 @@ vi.mock('@/lib/scheduling', () => ({
 }))
 
 vi.mock('@/lib/request-cache', () => ({
+  fetchJSON: async (input: RequestInfo | URL, options?: { init?: RequestInit }) => {
+    const response = await fetch(input, options?.init)
+    const payload = await response.json()
+    if (!response.ok) throw new Error(payload?.error || 'Request failed')
+    return payload
+  },
   fetchCachedJSON: (key: string, input: RequestInfo | URL, options?: { ttlMs?: number; errorMessage?: string }) =>
     mockFetchJSONWithCache(
       key,
@@ -663,6 +672,7 @@ function getSelectedStudentAction(
 // Assignment table scroll containment is covered in the experience matrix browser suite.
 describe('TeacherClassroomView', () => {
   beforeEach(() => {
+    mockAssignmentModalRender.mockReset()
     vi.stubGlobal('fetch', vi.fn())
     vi.stubGlobal('ResizeObserver', class {
       observe() {}
@@ -717,6 +727,57 @@ describe('TeacherClassroomView', () => {
     window.sessionStorage.clear()
     clearSelectionCookie()
     clearAssignmentWorkspaceStudentCookie()
+  })
+
+  it('keeps a late assignment create publication out of a replacement classroom list', async () => {
+    const replacement = { ...classroom, id: 'classroom-session-B', title: 'Replacement classroom' }
+    const createdA = makeAssignmentSummary('late-created-A', 'Late assignment from A')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve({ assignments: [makeAssignmentSummary('assignment-1', 'Assignment One')] })
+      if (key === `teacher-assignments:${replacement.id}`) return Promise.resolve({ assignments: [makeAssignmentSummary('assignment-B', 'Assignment B', { classroom_id: replacement.id })] })
+      if (key.startsWith('teacher-materials:')) return Promise.resolve({ materials: [] })
+      if (key.startsWith('teacher-surveys:')) return Promise.resolve({ surveys: [] })
+      throw new Error(`Unexpected cached request ${key}`)
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Assignment', exact: true }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('New Assignment')
+    const originalSuccess = mockAssignmentModalRender.mock.calls.at(-1)![0].onSuccess
+    view.rerender(<TeacherClassroomView classroom={replacement} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment B' })
+    await act(async () => { originalSuccess(createdA, { closeModal: false }) })
+    expect(screen.queryByRole('button', { name: 'Late assignment from A' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Assignment B' })).toBeInTheDocument()
+    // Successful A publication may invalidate A's resource, never B's list.
+    expect(mockInvalidateCachedJSON).not.toHaveBeenCalledWith(`teacher-assignments:${replacement.id}`)
+  })
+
+  it('does not let a late assignment edit publication supersede the replacement classroom read', async () => {
+    const replacement = { ...classroom, id: 'classroom-session-B', title: 'Replacement classroom' }
+    const pendingB = createDeferred<{ assignments: ReturnType<typeof makeAssignmentSummary>[] }>()
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve({ assignments: [makeAssignmentSummary('assignment-1', 'Assignment One')] })
+      if (key === `teacher-assignments:${replacement.id}`) return pendingB.promise
+      if (key.startsWith('teacher-materials:')) return Promise.resolve({ materials: [] })
+      if (key.startsWith('teacher-surveys:')) return Promise.resolve({ surveys: [] })
+      throw new Error(`Unexpected cached request ${key}`)
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment One' })
+    toggleClassworkOrganize()
+    fireEvent.click(screen.getByRole('button', { name: 'Assignment One' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
+    const originalSuccess = mockAssignmentModalRender.mock.calls.at(-1)![0].onSuccess
+    const readsBefore = mockFetchJSONWithCache.mock.calls.filter(([key]) => key === `teacher-assignments:${classroom.id}`).length
+    view.rerender(<TeacherClassroomView classroom={replacement} selectedAssignmentId={null} />)
+    await waitFor(() => expect(mockFetchJSONWithCache).toHaveBeenCalledWith(`teacher-assignments:${replacement.id}`, expect.any(Function), expect.anything()))
+    await act(async () => { originalSuccess(makeAssignmentSummary('assignment-1', 'Saved A'), { closeModal: false }) })
+    await act(async () => { pendingB.resolve({ assignments: [makeAssignmentSummary('assignment-B', 'Assignment B', { classroom_id: replacement.id })] }); await pendingB.promise })
+    expect.soft(mockFetchJSONWithCache.mock.calls.filter(([key]) => key === `teacher-assignments:${classroom.id}`).length).toBe(readsBefore)
+    expect(screen.queryByRole('button', { name: 'Assignment B' })).toBeInTheDocument()
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-assignments:${classroom.id}`)
   })
 
   it.each([false, true])('retains a successful classwork snapshot (empty=%s) through pending, failed Retry, and recovery', async (empty) => {
@@ -1816,6 +1877,38 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(screen.getAllByRole('button', { name: 'Open poll' })[0]).not.toBeDisabled()
     })
+  })
+
+  it('keeps a created survey and warns if saving its placement conflicts', async () => {
+    const createdSurvey = makeSurveySummary('survey-new', 'New survey', { position: 2 })
+    let created = false
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('assignments') ? { assignments: [
+        makeAssignmentSummary('released', 'Released', { position: 0 }),
+        makeAssignmentSummary('draft', 'Draft', { position: 1, is_draft: true }),
+      ] } : key.includes('materials') ? { materials: [] }
+        : key.includes('surveys') ? { surveys: created ? [createdSurvey] : [] } : { class_days: [] },
+    ))
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/teacher/surveys') {
+        created = true
+        return Promise.resolve({ ok: true, json: async () => ({ survey: createdSurvey }) })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({ error: 'Classwork list changed' }) })
+    })
+    render(<TeacherClassroomView classroom={classroom} />)
+    await screen.findByRole('button', { name: 'Released' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Survey' }))
+    await waitFor(() => expect(mockShowMessage).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Classwork was created'), tone: 'warning',
+    })))
+    expect(screen.getByRole('dialog')).toHaveTextContent('survey-new')
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/teacher/surveys')).toHaveLength(1)
+    expect(JSON.parse(fetchMock.mock.calls.find(([url]) => url.endsWith('/reorder'))![1].body)).toEqual({ items: [
+      { type: 'assignment', id: 'released' }, { type: 'survey', id: 'survey-new' }, { type: 'assignment', id: 'draft' },
+    ] })
   })
 
   it('creates a draft survey from the New classwork menu and opens visual editing', async () => {

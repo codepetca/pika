@@ -2,6 +2,7 @@
  * SQL/request-manifest acceptance must precede execution. Import is inert.
  * SDK detail evidence only: no authenticated HTTP/browser/race/rollout claim. */
 import assert from 'node:assert/strict'
+import { createContextualProofTimings, extractContextualProofTimingArgs } from './contextual-proof-timings'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
@@ -183,18 +184,21 @@ export function testOwnerFailureDiagnostic(error: unknown, step: string) {
 }
 
 export async function testOwnerDetailLifecycleMain(args = process.argv.slice(2)) {
-  const input = parseAssignmentListLifecycleArgs(args)
+  const timingArgs = extractContextualProofTimingArgs(args)
+  const input = parseAssignmentListLifecycleArgs(timingArgs.lifecycleArgs)
   const git = (values: string[]) => execFileSync('git', values, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }).trim()
   assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['status', '--porcelain']), ''); const repository = git(['rev-parse', '--show-toplevel']); assert.equal(repository, process.cwd())
   const original = newAssignmentListProofFixture(); const f = newTestOwnerDetailFixture(original)
   const projectId = `pika_assignment_list_${original.manifest.syntheticTag.slice(-12)}`
-  const native = createAssignmentListNativeAdapters(original); const originalSetup = assignmentListFixtureSetupSql(original, projectId)
+  let native = createAssignmentListNativeAdapters(original, { ephemeralSnapshot: 'metadata' }); const originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerSetupSql(f, projectId); const bindSql = testOwnerBindDocumentsSql(f, projectId)
   const sqlHashes = new Map([[setupSql, testOwnerDigest(setupSql)], [bindSql, testOwnerDigest(bindSql)]])
   let target: Target | undefined; let bound: Session | undefined; let extensionComplete = false; let matrixComplete = false; let step = 'not-started'
   let resourceClosure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined
   let transport: ReturnType<typeof createTestOwnerProofTransport> | undefined
   let client: ReturnType<typeof createClient<Database>> | undefined
+  const timings = createContextualProofTimings({ path: timingArgs.timingsPath, reviewedSha: input.head, profile: 'test-owner-detail', mode: input.mode })
+  native = timings.decorate(native)
   const originalPal = process.env.PAL_ENABLED; process.env.PAL_ENABLED = 'false'
   async function guard() {
     assert(target && bound); const inventory = await assignmentListDockerInventory()
@@ -257,15 +261,17 @@ export async function testOwnerDetailLifecycleMain(args = process.argv.slice(2))
     matrixComplete = true; step = 'matrix-complete'
   }
   try {
-    await runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir: assignmentListProofWorkdir(projectId), migrations: loadAssignmentListReviewedMigrations(repository), mode: input.mode,
-      expectedResources: assignmentListExpectedResources(projectId), reviewedManifestSha256: testOwnerDigest(JSON.stringify(original.manifest)),
-      restorationPolicies: assignmentListRevocationPlans(original).map(plan => assignmentListRestorationPolicy(original, plan)) },
-    { ...native, async command(request) { const result = await native.command(request); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },
-      async executeSql(request) { await native.executeSql(request); if (request.sql === originalSetup) {
-        assert(!bound && target); bound = { ...request }; transport = createTestOwnerProofTransport(f, target, projectId, fetch, guard)
-        client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } }); await setup()
-      } }, async runCase(request) { const result = await native.runCase(request); if (!matrixComplete) await matrix(); return result } })
-    assert(extensionComplete && matrixComplete)
+    await timings.run(async () => {
+      await runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir: assignmentListProofWorkdir(projectId), migrations: loadAssignmentListReviewedMigrations(repository), mode: input.mode,
+        expectedResources: assignmentListExpectedResources(projectId), reviewedManifestSha256: testOwnerDigest(JSON.stringify(original.manifest)),
+        restorationPolicies: assignmentListRevocationPlans(original).map(plan => assignmentListRestorationPolicy(original, plan)) },
+      { ...native, async command(request) { const result = await native.command(request); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },
+        async executeSql(request) { await native.executeSql(request); if (request.sql === originalSetup) {
+          assert(!bound && target); bound = { ...request }; transport = createTestOwnerProofTransport(f, target, projectId, fetch, guard)
+          client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } }); await setup()
+        } }, async runCase(request) { const result = await native.runCase(request); if (!matrixComplete) await matrix(); return result } })
+      assert(extensionComplete && matrixComplete)
+    })
     process.stdout.write(`PASS isolated test-owner-detail eight actual SDK cases; no auth HTTP/browser/race/public-legacy claim.\n${cleanupMarker}`)
   } catch (error) {
     const receipt = testOwnerForcedReceipt(input.mode, error, extensionComplete)

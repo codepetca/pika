@@ -91,10 +91,27 @@ docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 
   create extension pg_net with schema extensions;
 ' >/dev/null
 
-docker exec "$DB_CONTAINER" pg_dump -U postgres -d postgres --schema-only --no-owner --no-privileges \
+if docker exec "$DB_CONTAINER" pg_dump -U postgres -d postgres --schema-only --no-owner --no-privileges \
   --schema=public --schema=private --schema=auth --schema=storage \
-  | sed '/^SET log_min_messages =/d; /^CREATE SCHEMA extensions;/d; /^CREATE SCHEMA vault;/d' \
-  | docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null
+  2>/dev/null \
+  | sed '/^SET log_min_messages =/d; /^CREATE SCHEMA extensions;/d; /^CREATE SCHEMA vault;/d' 2>/dev/null \
+  | docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null 2>&1; then
+  :
+else
+  # Capture before any command or EXIT cleanup overwrites PIPESTATUS. Child
+  # SQL/errors stay private; these shell exit statuses are finite (0–255).
+  pal_schema_copy_statuses=("${PIPESTATUS[@]}")
+  pal_schema_copy_exit=0
+  for pal_schema_copy_status in "${pal_schema_copy_statuses[@]}"; do
+    if [[ "$pal_schema_copy_status" -ne 0 ]]; then
+      pal_schema_copy_exit="$pal_schema_copy_status"
+    fi
+  done
+  # Preserve pipefail's rightmost nonzero exit even if diagnostics cannot write.
+  printf 'DIAG pal-outbox stage=schema-copy exporter=%d filter=%d importer=%d.\n' \
+    "${pal_schema_copy_statuses[@]}" >&2 || :
+  exit "$pal_schema_copy_exit"
+fi
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 set client_min_messages = warning;

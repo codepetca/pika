@@ -42,7 +42,7 @@ export function AppNavigation({ label, items, width = 'wide' }: AppNavigationPro
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={[
-                  'inline-flex min-h-11 flex-none items-center border-b-2 px-3 text-sm font-medium transition-colors',
+                  'inline-flex min-h-11 flex-none items-center border-b-2 px-3 text-sm font-medium transition-colors duration-fast ease-standard motion-reduce:transition-none',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
                   isActive
                     ? 'border-primary text-primary'

@@ -13,6 +13,9 @@ the shared primitive or hook.
   use `focusable` only when the panel itself needs to receive focus.
 - Tab lists scroll horizontally at narrow widths and tabs do not shrink, so labels remain legible
   without creating page-level overflow.
+- Mounting, changing selection or resizing reveals a clipped selected tab with immediate minimal
+  movement inside its own scroller. Preserve focus and ancestor scroll; unrelated rerenders do not
+  reset a user's manual browsing position. Oversized labels receive best-effort visibility.
 - Use the `connected` variant for a tab attached to a work surface and `underline` for tabs inside a
   dialog or bounded editor.
 - Do not use tabs for commands or for controls whose content does not replace a related panel.

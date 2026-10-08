@@ -1,5 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { startTransition, Suspense, useState } from 'react'
+import type { Editor } from '@tiptap/core'
 import userEvent from '@testing-library/user-event'
 import { RichTextEditor } from '@/components/editor'
 import { discardDirectUpload, uploadFileDirectly } from '@/lib/direct-storage-upload'
@@ -12,6 +14,53 @@ vi.mock('@/lib/direct-storage-upload', () => ({
 }))
 
 describe('RichTextEditor', () => {
+  it('publishes a real editor transaction while a retirement render is suspended', () => {
+    const pending = new Promise<void>(() => {})
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Live instructions' }] }] }
+    let retire!: (value: boolean) => void
+    let suspendedAttempts = 0
+    function Suspender({ inactive }: { inactive: boolean }) {
+      if (inactive) { suspendedAttempts += 1; throw pending }
+      return null
+    }
+    function Parent() {
+      const [inactive, setInactive] = useState(false)
+      retire = setInactive
+      return <Suspense fallback={<p>Pending</p>}>
+        <RichTextEditor interactionActive={!inactive} content={content} onChange={onChange} />
+        <Suspender inactive={inactive} />
+      </Suspense>
+    }
+    render(<Parent />)
+    const editor = screen.getByRole('textbox') as HTMLElement & { editor: Editor }
+    act(() => { startTransition(() => retire(true)) })
+    expect(suspendedAttempts).toBeGreaterThan(0)
+    act(() => { editor.editor.commands.insertContentAt(editor.editor.state.doc.content.size - 1, ' while pending') })
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(JSON.stringify(onChange.mock.calls[0][0])).toContain('Live instructions while pending')
+    act(() => { retire(false) })
+  })
+
+  it('retires editing and authenticity callbacks while retaining content and a passive toolbar strip', async () => {
+    const content: TiptapContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Retained instructions' }] }] }
+    const props = { content, onChange: vi.fn(), onBlur: vi.fn(), onPaste: vi.fn(), onKeystroke: vi.fn() }
+    const { rerender } = render(<RichTextEditor {...props} />)
+    const editor = await screen.findByRole('textbox', { name: 'Rich text editor' })
+    rerender(<RichTextEditor {...props} interactionActive={false} />)
+    expect(editor).toHaveAttribute('contenteditable', 'false')
+    expect(editor).toHaveTextContent('Retained instructions')
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(editor.closest('.simple-editor-wrapper')?.querySelector('.tiptap-toolbar[data-variant="fixed"]')).toBeInTheDocument()
+    fireEvent.blur(editor)
+    fireEvent.keyDown(editor, { key: 'a' })
+    fireEvent.paste(editor, { clipboardData: { getData: () => 'old paste' } })
+    expect(props.onBlur).not.toHaveBeenCalled()
+    expect(props.onPaste).not.toHaveBeenCalled()
+    expect(props.onKeystroke).not.toHaveBeenCalled()
+    expect(props.onChange).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(discardDirectUpload).mockResolvedValue(undefined)

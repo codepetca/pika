@@ -75,8 +75,41 @@ export function assignmentListRestorationPolicy(fixture: AssignmentListProofFixt
   return { transition: plan.transition, boundary: plan.boundary, allowedCells }
 }
 
+type StartupEvidence = { code: unknown; killed: boolean; stdout: string; stderr: string }
+const startupDiagnostics = new WeakMap<object, string>()
+const startupCodes = new Set(['ENOENT', 'EACCES', 'EPERM', 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'])
+// Fixed observed literals, not exclusive causes. CLI v2.103.0 utils/docker.go,
+// pkg/config/config.go, pkg/migration/file.go and internal/status/status.go;
+// Docker client errors and OS error messages supply the other fixed markers.
+const startupMarkers = [
+  ['disk-full', ['no space left on device']],
+  ['port-conflict', ['address already in use', 'failed: port is already allocated']],
+  ['docker-unavailable', ['Cannot connect to the Docker daemon']],
+  ['image-pull', ['failed to pull docker image:']],
+  ['config-invalid', ['failed to parse config:', 'failed to merge file config:', 'Missing required field in config:']],
+  ['migration-file', ['failed to open migration file:']],
+  ['health-check', ['container is not ready:', 'container is not running:']],
+] as const
+
+function startupDiagnostic(evidence?: StartupEvidence) {
+  const code = evidence?.code
+  const exit = typeof code === 'number' && Number.isInteger(code) && code >= 0 && code <= 255 ? code : 'unknown'
+  const command = typeof code === 'string' && startupCodes.has(code) ? code : exit !== 'unknown' ? 'exit' : 'unknown'
+  const killed = evidence?.killed === true ? 'true' : evidence?.killed === false ? 'false' : 'unknown'
+  const tails = [evidence?.stdout, evidence?.stderr].map(value => typeof value === 'string' ? boundedStartupTail(value) : '')
+  const markers = startupMarkers.filter(([, literals]) => literals.some(literal => tails.some(tail => tail.includes(literal)))).map(([label]) => label)
+  return `DIAG isolated assignment startup command=${command} exit=${exit} killed=${killed} observed-markers=${markers.join(',') || 'none'}.\n`
+}
 export class AssignmentListStartupError extends Error {
-  constructor(public readonly diagnosticPath: string) { super('Private isolated startup failure'); this.name = 'AssignmentListStartupError' }
+  constructor(public readonly diagnosticPath: string, evidence?: StartupEvidence) {
+    super('Private isolated startup failure'); this.name = 'AssignmentListStartupError'
+    // Retain only the closed line in memory; raw tails stay in the private receipt.
+    startupDiagnostics.set(this, startupDiagnostic(evidence))
+  }
+}
+/** Never read public error properties or serialize the private receipt/path. */
+export function assignmentListStartupDiagnostic(error: unknown) {
+  return error !== null && typeof error === 'object' ? startupDiagnostics.get(error) ?? startupDiagnostic() : startupDiagnostic()
 }
 function boundedStartupTail(value: string) {
   const bytes = Buffer.from(value, 'utf8')
@@ -85,7 +118,7 @@ function boundedStartupTail(value: string) {
   return bytes.subarray(start).toString('utf8')
 }
 /** Startup-only output never includes canonical snapshot rows; do not print it. */
-export function writeAssignmentListStartupDiagnostic(projectId: string, evidence: { code: unknown; killed: boolean; stdout: string; stderr: string }) {
+export function writeAssignmentListStartupDiagnostic(projectId: string, evidence: StartupEvidence) {
   const path = `${assignmentListProofWorkdir(projectId)}-startup.json`
   assert.equal(realpathSync(dirname(path)), dirname(path))
   const receipt = { stage: 'start', code: typeof evidence.code === 'string' || typeof evidence.code === 'number' ? evidence.code : null,
@@ -101,7 +134,10 @@ async function command(file: string, args: string[], options: { input?: string; 
     const child = execFile(file, args, { timeout: options.timeout ?? 20000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' }, (error, stdout, stderr) => {
       if (error) {
         try {
-          if (options.startupProjectId) return reject(new AssignmentListStartupError(writeAssignmentListStartupDiagnostic(options.startupProjectId, { code: error.code, killed: error.killed === true, stdout, stderr })))
+          if (options.startupProjectId) {
+            const evidence = { code: error.code, killed: error.killed === true, stdout, stderr }
+            return reject(new AssignmentListStartupError(writeAssignmentListStartupDiagnostic(options.startupProjectId, evidence), evidence))
+          }
         } catch { return reject(new Error('Private startup diagnostic failed')) }
         reject(new Error('Private platform command failed'))
       } else resolve(stdout.trim())
@@ -149,12 +185,16 @@ const dockerInventory = () => assignmentListDockerInventory()
 async function occupied(port: number): Promise<boolean> {
   return new Promise(resolve => { const server = createServer(); server.once('error', () => resolve(true)); server.listen(port, '127.0.0.1', () => server.close(() => resolve(false))) })
 }
-const snapshotSql = (rows: boolean) => `begin isolation level repeatable read read only;
+export type AssignmentListSnapshotScope = 'rows' | 'digests' | 'metadata'
+/** Metadata scope retains the exact safety evidence while omitting unused row scans. */
+export const assignmentListSnapshotSql = (scope: AssignmentListSnapshotScope) => {
+  assert(['rows', 'digests', 'metadata'].includes(scope))
+  return `begin isolation level repeatable read read only;
 set local statement_timeout='20s';set local lock_timeout='3s';
-select format('select jsonb_build_object(''table'',%L,''rows'',%s) from %I.%I r', n.nspname||'.'||c.relname,
- ${rows ? "'coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb)'" : "'jsonb_build_object(''count'',count(*),''digest'',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'''' order by md5(to_jsonb(r)::text)),'''')))'"},n.nspname,c.relname)
+${scope === 'metadata' ? '' : `select format('select jsonb_build_object(''table'',%L,''rows'',%s) from %I.%I r', n.nspname||'.'||c.relname,
+ ${scope === 'rows' ? "'coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb)'" : "'jsonb_build_object(''count'',count(*),''digest'',md5(coalesce(string_agg(md5(to_jsonb(r)::text),'''' order by md5(to_jsonb(r)::text)),'''')))'"},n.nspname,c.relname)
 from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p') and n.nspname in ('public','private','storage') order by n.nspname,c.relname
-\\gexec
+\\gexec`}
 select jsonb_build_object('metadata',jsonb_build_object(
  'functions',(select jsonb_agg(jsonb_build_array(n.nspname,p.proname,md5(pg_get_functiondef(p.oid)),p.proacl) order by p.oid) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where (n.nspname='private' and p.proname in ('pal_membership_scope','guard_pal_membership_evidence','register_pal_membership','track_pal_membership_enrollment','track_pal_removed_roster')) or (n.nspname='public' and p.proname='resolve_pal_membership')),
  'triggers',(select jsonb_agg(jsonb_build_array(t.tgname,pg_get_triggerdef(t.oid),t.tgenabled) order by t.tgname) from pg_trigger t where t.tgrelid in ('private.pal_membership_generations'::regclass,'public.classroom_enrollments'::regclass,'public.classroom_roster'::regclass) and not t.tgisinternal),
@@ -164,6 +204,7 @@ select jsonb_build_object('metadata',jsonb_build_object(
 select 'select jsonb_build_object(''cron'',coalesce(jsonb_agg(to_jsonb(j) order by j.jobid),''[]''::jsonb)) from cron.job j' where to_regclass('cron.job') is not null
 \\gexec
 rollback;`
+}
 async function sql(projectId: string, input: string, applicationName: string) {
   assert(projectId === 'pika' || /^pika_assignment_list_[a-f0-9]{12}$/.test(projectId))
   const resources = await dockerInventory(); const db = resources.find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`)
@@ -171,12 +212,17 @@ async function sql(projectId: string, input: string, applicationName: string) {
   assert(db.ports.length > 0 && db.ports.every(p => p === (projectId === 'pika' ? 54322 : 54332)))
   return command('docker', ['exec', '-i', '-e', `PGAPPNAME=${applicationName}`, db.id, 'psql', '-U', 'postgres', '-d', 'postgres', '-XqAt', '-v', 'ON_ERROR_STOP=1'], { input, timeout: 60000 })
 }
-async function databaseSnapshot(projectId: string, rows: boolean) {
-  const lines = (await sql(projectId, snapshotSql(rows), `${projectId}_snapshot`)).split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line))
+export function decodeAssignmentListSnapshot(output: string, scope: AssignmentListSnapshotScope) {
+  assert(['rows', 'digests', 'metadata'].includes(scope))
+  const lines = output.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line))
   const tables = Object.fromEntries(lines.filter(row => row.table).map(row => [row.table, row.rows]))
-  assert(Object.keys(tables).length > 0)
+  if (scope === 'metadata') assert.equal(Object.keys(tables).length, 0)
+  else assert(Object.keys(tables).length > 0)
   const metadata = lines.find(row => row.metadata)?.metadata; assert(metadata)
   return { tables, metadata: JSON.stringify(metadata), cron: JSON.stringify(lines.find(row => row.cron)?.cron ?? []) }
+}
+async function databaseSnapshot(projectId: string, scope: AssignmentListSnapshotScope) {
+  return decodeAssignmentListSnapshot(await sql(projectId, assignmentListSnapshotSql(scope), `${projectId}_snapshot`), scope)
 }
 export function loadAssignmentListReviewedMigrations(repository: string) {
   // Entry points bind this inventory to an exact reviewed HEAD and clean root.
@@ -215,14 +261,16 @@ export function prepareAssignmentListProjectFiles(
   }
 }
 
-export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture): AssignmentListLifecycleAdapters {
+export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture, options: { ephemeralSnapshot?: 'digests' | 'metadata' } = {}): AssignmentListLifecycleAdapters {
+  const ephemeralSnapshot = options.ephemeralSnapshot ?? 'digests'
+  assert(ephemeralSnapshot === 'digests' || ephemeralSnapshot === 'metadata')
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
   const workdir = assignmentListProofWorkdir(projectId)
   const createdDirectories = new Set<string>()
   let beforeTransition: Rows | undefined
   return {
     async canonicalSnapshot() {
-      const baseline = await databaseSnapshot('pika', false)
+      const baseline = await databaseSnapshot('pika', 'digests')
       const resources = (await dockerInventory()).filter(r => r.labels['com.supabase.cli.project'] === 'pika')
       assert(resources.length > 0)
       return { rowDigests: JSON.stringify(baseline.tables), guard168Metadata: baseline.metadata, settings: baseline.metadata, cronJobs: baseline.cron, resources: JSON.stringify(resources) }
@@ -247,7 +295,7 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
         'off',not ((select enabled from private.pal_membership_settings where singleton) or (select enabled from private.pal_classroom_signal_settings where singleton) or (select enabled or live_enabled or automatic_enabled from private.student_provider_cleanup_settings where singleton) or (select enabled from private.removed_student_academic_settings where singleton) or (select strict_enforcement_enabled from private.classroom_creation_entitlement_settings where singleton)),
         'no_work',not exists(select 1 from public.test_ai_grading_runs) and not exists(select 1 from public.test_ai_grading_run_items),
         'no_secrets',not exists(select 1 from vault.secrets));`, input.applicationName)
-      const result = JSON.parse(gates); const snapshot = await databaseSnapshot(projectId, false)
+      const result = JSON.parse(gates); const snapshot = await databaseSnapshot(projectId, ephemeralSnapshot)
       const jobs = JSON.parse(snapshot.cron) as Array<Record<string, unknown>>
       return { projectId, containerId: db.id, applicationName: input.applicationName, dbPort: 54332, guard168Enabled: result.guard === true, persistedGatesOff: result.off === true, activeNetworkCronAbsent: result.no_work === true && result.no_secrets === true && assignmentListSafeCronJobs(jobs) }
     },
@@ -286,12 +334,12 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       return { actorId: proofCase.actorId, classroomId: proofCase.classroomId, status: proofCase.expectedStatus }
     },
     async runRevocation(input) {
-      beforeTransition = (await databaseSnapshot(projectId, true)).tables as Rows
+      beforeTransition = (await databaseSnapshot(projectId, 'rows')).tables as Rows
       return observeAssignmentListRevocation({ ...input, originalFetch: fetch, transition: input.executeSql })
     },
     async verifyRestoration({ plan }) {
       assert(beforeTransition)
-      const after = (await databaseSnapshot(projectId, true)).tables as Rows
+      const after = (await databaseSnapshot(projectId, 'rows')).tables as Rows
       const changes = assignmentListRowChanges(beforeTransition, after)
       const policy = assignmentListRestorationPolicy(fixture, plan)
       const permitted = (cell: Cell) => policy.allowedCells.some(allow => allow.schema === cell.schema && allow.table === cell.table && allow.id === cell.id && cell.columns.every(column => allow.columns.includes(column)))

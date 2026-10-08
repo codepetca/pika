@@ -49,11 +49,10 @@ describe('contextual Test owner-create rollback database contracts', () => {
 
   it('includes existing gradebook deletion and removed-academic parent triggers in the exact closure', () => {
     const sql = manifest.contracts
-    // Immutable157 and173 define these on Tests; the disposable schema has17
-    // total noninternal triggers, not the incomplete15-entry inventory.
+    // Immutable157/173 plus dormant253 define an exact18-trigger closure.
     expect(sql.includes("('tests','delete_test_gradebook_score_overrides','public','delete_gradebook_overrides_for_assessment',9)")).toBe(true)
     expect(sql.includes("('tests','removed_academic_parent','private','guard_removed_academic_parent',27)")).toBe(true)
-    expect(sql.match(/\('(?:tests|assessment_drafts)','[a-z_]+','(?:public|private)','[a-z_]+',\d+\)/g)).toHaveLength(34)
+    expect(sql.match(/\('(?:tests|assessment_drafts)','[a-z_]+','(?:public|private)','[a-z_0-9]+',\d+\)/g)).toHaveLength(36)
     expect(sql).toContain('Exact noninternal trigger closure differs')
   })
 

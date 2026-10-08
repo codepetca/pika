@@ -65,12 +65,20 @@ not Max's new launch limit of 12. Legacy `plus` maps to the new Pro product.
 A future version-aware implementation must apply the new terms without rewriting
 historical migrations or existing purchases:
 
-| Account plan | Active owned classrooms | Other agreed direction |
-| --- | ---: | --- |
-| Free | 0 | May join classrooms |
-| Basic | 2 | Core teaching tools; no included AI grading |
-| Pro | 5 | Candidate 300 AI grading runs/month; validate costs |
-| Max | 12 | Candidate 1,000 AI grading runs/month; validate costs |
+| Account plan | Active owned classrooms | Tests per classroom | Other agreed direction |
+| --- | ---: | ---: | --- |
+| Free | 0 | 0 new | May join classrooms; preserve existing work |
+| Basic | 2 | 20 | Core teaching tools; no included AI grading |
+| Pro | 5 | 50 | Candidate 300 AI grading runs/month; validate costs |
+| Max | 12 | 100 | Candidate 1,000 AI grading runs/month; validate costs |
+
+The owner approved Test limits on 2026-10-07. SUB-16 in the subscription policy
+defines counting, over-limit preservation and immutable paid-offering terms.
+These numbers are not yet live. Implement a disabled database insertion/movement
+guard first, verify exact-boundary and concurrency behavior, then integrate
+creation/import error handling and the contextual proof catalog before activation.
+Do not treat a smaller Test allowance as proof that grandfathered over-limit
+classrooms satisfy the pending atomic reorder capacity gate.
 
 Applying migration 206 alone does not classify existing accounts, change their
 effective grants, activate strict enforcement, charge anyone, or enable AI
@@ -1279,6 +1287,36 @@ forced cleanup modes and SAME whole canonical equality passed. Final local
 checks, independent integration review and reviewed-head PR Gate remain pending.
 Canonical249–251 and all experience/billing activation remain held; real lifecycle
 state profiles and other owner/learner operations still prevent phase closure.
+
+Superseding2026-10-06: discard#1503 normally squash-merged865d837b7 after
+reviewed9c39132d passed all five CI37435496517 checks, including the serial
+normal/forced251 database profile and PR Gate. Canonical main cleanFF and36
+ordered unrelated stashes were verified unchanged. Next is
+[owner Test publication](contextual-test-publication.md): a dedicated dormant
+POST publishes the current saved draft to closed, retaining the legacy PATCH
+and UI byte-for-byte. HTTP/reader/SQL source-contract TDD186/4 passed. Native
+fixture/SDK/SQL-race source was initially integrated with one existing engine, four
+capability probes, unchanged budgets and separate committed-transition effects;
+all author deliveries are frozen and root offline integration296/6 and109/3
+checks pass, plus the additive shared180s race-clock test (native77/1).
+At that historical pre-type checkpoint, SerialCI3 source checks passed, but genuine252
+RPC generation, native proof, independent review and exact-head CI were unaccepted.
+That sourcefreeze was not PR readiness.
+
+Superseding2026-10-06: publication normal proof at735d6ab passed isolated001–252
+replay,49 rollback contracts,12 held-lock schedules,five committed transitions and
+ten actual installed-SDK cases (three exact closed publications,four restored
+raw42501 probes,20 RPC/0 Storage). Genuine CLI types added only the seven-argument
+252 declaration. Exact owned cleanup and a separate whole183-table/five-field B5
+check passed; B1–B4 were retained without exemptions. Current-owner publication,
+proof/migration/CI source bytes are unchanged after rebase onto2d89088cd.
+Cumulative code/SQL/security review at9dcf0d2 was clean apart from stale pre-type
+documentation. Combined focused777/30+policies/TypeScript/lint and fullcoverage
+14229/8SKIP passed at9dc with unchanged thresholds. Serialforced cleanup,
+documentation-correction review, stable exact-head CI/PR Gate and main merge
+remain required; this is draft PR#1510, not rollout. Canonical249–252,
+production promotion, admission/home/page/cutover and billing remain held.
+No component receipt constitutes the Tests batch or access phase exit.
 
 Historical source preparation below predates that actual merge receipt:
 [contextual owner Test draft GET](contextual-test-draft-get.md), including

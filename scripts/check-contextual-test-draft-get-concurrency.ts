@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { DRAFT_GET_CAPS, draftGetCandidate, draftGetFinishSql, draftGetGuardSql, draftGetJson, draftGetQuote as q,
-  draftGetSnapshotSql, validateDraftGetTarget, type DraftGetDriver, type DraftGetFixture,
+  draftGetSnapshotSql, validateDraftGetTarget, observeDraftGetProof, observeDraftGetProofFailure, type DraftGetDriver, type DraftGetFixture,
   type DraftGetSession, type DraftGetTarget } from './check-contextual-test-draft-get-db-contracts'
 
 type Schedule = Readonly<{ label: string; testId: string; holderSql: string; operation: 'create' | 'repair' | 'inspect'; afterSql?: string }>
@@ -81,11 +81,12 @@ export async function runDraftGetConcurrency(f: DraftGetFixture, target: DraftGe
     return session.execute(sql, DRAFT_GET_CAPS.requestMs)
   }
   const outcomes: string[] = []
-  for (const schedule of manifest.schedules) {
+  for (const [index, schedule] of manifest.schedules.entries()) {
     let holder: DraftGetSession | undefined
     let contender: DraftGetSession | undefined
     const cleanupErrors: unknown[] = []
     try {
+      observeDraftGetProof(driver, { event: 'schedule-start', index })
       assert.deepEqual(await driver.verifyTarget(), target)
       holder = await driver.openSession(`${f.projectId}_draft_holder`)
       assert.equal(holder.name, `${f.projectId}_draft_holder`)
@@ -110,12 +111,14 @@ export async function runDraftGetConcurrency(f: DraftGetFixture, target: DraftGe
       if (schedule.afterSql) await run(holder, schedule.afterSql)
       await run(holder, manifest.rollback)
       outcomes.push(schedule.label)
+    } catch (error) { observeDraftGetProofFailure(driver, error); throw error
     } finally {
       // Always close both, even when one rollback/close fails. Driver must cancel
       // or terminate its exact session on timeout; Promise.race alone is unsafe.
       const results = await Promise.allSettled([holder, contender].filter((s): s is DraftGetSession => Boolean(s))
         .map(s => s.rollbackAndClose(DRAFT_GET_CAPS.requestMs)))
       for (const result of results) if (result.status === 'rejected') cleanupErrors.push(result.reason)
+      observeDraftGetProof(driver, { event: 'schedule-end' })
       if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'Exact session cleanup failed; root must dispose verified project')
     }
   }

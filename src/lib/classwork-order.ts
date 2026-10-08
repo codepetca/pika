@@ -29,6 +29,7 @@ type AssignmentLike = {
   title: string
   position?: number | null
   created_at?: string | null
+  is_draft?: boolean
 }
 
 type MaterialLike = {
@@ -36,6 +37,7 @@ type MaterialLike = {
   title: string
   position?: number | null
   created_at?: string | null
+  is_draft?: boolean
 }
 
 type SurveyLike = {
@@ -43,6 +45,30 @@ type SurveyLike = {
   title: string
   position?: number | null
   created_at?: string | null
+  status?: string
+}
+
+/** Insert new work without changing the relative order of existing work. */
+export function placeCreatedClasswork<
+  TAssignment extends AssignmentLike,
+  TMaterial extends MaterialLike,
+  TSurvey extends SurveyLike,
+>(
+  items: OrderedClassworkItem<TAssignment, TMaterial, TSurvey>[],
+  created: { type: 'assignment' | 'material' | 'survey'; id: string },
+): OrderedClassworkItem<TAssignment, TMaterial, TSurvey>[] {
+  const newItem = items.find((item) => item.type === created.type && item.id === created.id)
+  if (!newItem) throw new Error('Created classwork is missing from the list')
+  const existing = items.filter((item) => item !== newItem)
+  let insertionIndex = 0
+  existing.forEach((item, index) => {
+    const released = item.type === 'survey'
+      ? item.survey.status === 'active' || item.survey.status === 'closed'
+      : (item.type === 'assignment' ? item.assignment : item.material).is_draft === false
+    if (released) insertionIndex = index + 1
+  })
+  existing.splice(insertionIndex, 0, newItem)
+  return existing
 }
 
 function normalizedPosition(position: number | null | undefined, fallback: number) {
