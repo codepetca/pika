@@ -235,7 +235,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     .select('title')
     .eq('id', entry.classroomId)
     .maybeSingle()
-  const parsedClassroom = z.object({ title: z.string().trim().min(1).max(200) })
+  const parsedClassroom = z.object({ title: z.string() })
     .strict().safeParse(classroom)
   if (classroomError || !parsedClassroom.success) {
     throw new StudentAttendanceCheckInError('upstream_unavailable')

@@ -64,6 +64,19 @@ describe('StudentAttendanceCheckIn', () => {
     expect(attendanceClientMocks.invalidate).toHaveBeenCalledWith(studentId)
   })
 
+  it('shows a classroom name longer than 200 characters without losing the confirmation', async () => {
+    const classroomName = 'Health and Wellness '.repeat(20).trim()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      state: 'checked_in', title: 'You are checked in',
+      description: 'Your attendance was recorded.', classroomName,
+      recordedAt: '2026-10-08T13:06:00.000Z',
+    }), { status: 200 })))
+    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
+    expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeVisible()
+    expect(screen.getByText(classroomName)).toBeVisible()
+    expect(screen.getByText('9:06 AM')).toBeVisible()
+  })
+
   it('retains keyboard focus on the semantic return link as confirmation updates its destination', async () => {
     let resolveCheckIn!: (response: Response) => void
     vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>(resolve => {

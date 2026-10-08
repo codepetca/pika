@@ -116,6 +116,19 @@ describe('native Pika student attendance check-in', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
+  it.each(['Health and Wellness '.repeat(20), ' '])('accepts a stored classroom title without imposing new naming rules', async title => {
+    classroomRead.mockResolvedValue({ data: { title }, error: null })
+    const send = vi.fn().mockResolvedValue({
+      outcome: 'applied', resultCode: 'check_in_accepted',
+      occurrenceRef: 'occurrence_one', sessionRevision: 1,
+    })
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser,
+      entryToken: entryToken(), attemptId, integrationState: 'ready',
+      resolveActor: vi.fn().mockResolvedValue(actor), send,
+    })).resolves.toMatchObject({ state: 'checked_in', classroomName: title })
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
   it('maps the verified local WorkOS link to an opaque Pika principal', async () => {
     withAuth.mockResolvedValue({
       user: {
