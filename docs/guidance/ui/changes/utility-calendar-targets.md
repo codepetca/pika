@@ -12,7 +12,7 @@ The executable reference was inspected before implementation with the developmen
 | Multi-month arrangement and status colors | Existing utility calendar composition | extend | Wrap month cards using available content width; keep seven weekdays and existing domain colors. |
 
 Teacher only. Student n/a: this route has no student owner. Verify 1440×900 and
-390×844, both themes and normal/reduced motion (8 cases), plus 375, 768, 1024,
+390×844, both themes and normal/reduced motion (8 cases), plus 320, 360, 375, 768, 968, 1000, 1024,
 1280 and 1536 width boundaries. States: class/non-class/weekend/holiday,
 disabled past/outside-range, native Tab focus, nonzero scroll and final month.
 Primary signal remains the existing date status background. Add no inspector,
@@ -40,19 +40,34 @@ model/attribution unknown. Publication and independent review belong to coordina
 Verification: targeted 15 tests passed; focused checks selected the complete
 incoming 38-path branch and passed 203 files / 2354 tests, architecture,
 TypeScript, lint and both policies. Audit and diff whitespace checks passed.
-Required 8 cases and 5 boundary widths were captured. All 167 enabled dates in
+Required 8 cases and 9 boundary widths were captured. All 167 enabled dates in
 each case measured at least 44px in both dimensions, with no overlap or root
-and month-card overflow. 2171 centered-scroll native hit checks passed. Native
-Tab reached the next enabled date with visible canonical focus. Transitions
-were 0.15s normally and 0s reduced. June remained reachable with nonzero actual
-scroll. All 181 date names/disabled-state records matched the baseline exactly.
+overflow. 2839 centered-scroll native hit checks passed. Native Tab reached the
+next enabled date with visible canonical focus. Transitions were 0.15s normally
+and 0s reduced. June's last date remained reachable with nonzero actual scroll in
+every case. All 181 date names/disabled-state records matched the baseline.
 
-Representative measurements: 1440 desktop 60px; 390 mobile 47.140625px;
-375 mobile 45px; 768 sidebar boundary 57.140625px; constrained 1024 content
-93.703125px. The 1024 card occupies one row because two fully padded seven-day
-cards cannot fit beside the sidebar. Root visual acceptance remains pending.
-A 375 initial hit probe encountered the Next development badge over February
-22 near the viewport bottom; the unchanged target passed centered-scroll hit
-verification. The initial failure is retained in candidate/cases.json.
-Below verified boundary widths, month cards retain their own overflow scroller
-rather than exporting oversized minimum button tracks to the utility root.
+Root visual iteration rejected the first candidate's avoidable growth (60px
+at 1440 and 93.703125px at 1024). The final composition caps card growth,
+keeps compact padding/gaps, and uses the existing Tailwind scale to ensure
+seven 44px controls and six 2px gaps occupy a minimum 320px day grid.
+Representative final measurements: 1440 desktop 50.84375px; 390 mobile
+47.140625px; 375 mobile 45px; 1024 two 348px cards with 45.703125px targets;
+1000 exact 44px targets; 968 one bounded card instead of undersized columns.
+
+Additional 360/320 boundary probes found 139 overlapping target pairs at 320
+in the intermediate composition. The final grid has a minimum width while
+its card contains necessary horizontal scrolling: 8px at 360 and 48px at 320,
+with no root overflow and no overlap. All dates pass centered hit testing.
+Native Tab to January 17 at 320 automatically scrolled the month card by 40px;
+the focused 44px control remained enabled, visibly focused and hit-testable.
+At 375 and every larger verified width, month-card overflow is zero.
+
+Evidence folders preserve baseline, rejected candidate, compact candidate,
+failed small-boundary geometry, final-candidate (17 cases), and
+final-small-keyboard. The initial 375 hit obstruction from the Next development
+badge is retained; centered target checks pass without hiding the badge.
+A compact capture launched before the restarted private server was ready,
+returned connection-refused, and is retained as compact-candidate-start-failure.
+Source correction batches: initial implementation, root compactness refinement,
+and narrow-grid containment. Publication/review remain with the coordinator.

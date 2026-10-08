@@ -402,12 +402,12 @@ export default function CalendarPage() {
             const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
 
             return (
-              <div key={month.toString()} className="min-w-0 flex-1 basis-96 overflow-x-auto bg-surface rounded-lg shadow-sm p-2 sm:p-4">
+              <div key={month.toString()} className="min-w-0 sm:min-w-fit max-w-96 flex-1 basis-80 overflow-x-auto bg-surface rounded-lg shadow-sm p-2">
                 <h3 className="text-center font-bold text-text-default mb-3">
                   {format(month, 'MMMM yyyy')}
                 </h3>
 
-                <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+                <div className="grid min-w-80 grid-cols-7 gap-0.5">
                   {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                     <div key={i} className="text-center text-xs font-medium text-text-muted py-1">
                       {day}

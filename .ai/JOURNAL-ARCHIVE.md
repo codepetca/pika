@@ -42443,3 +42443,19 @@ promotion, activation, provider/account/billing/runner/visibility or phase exit.
 ## 2026-10-07 — Assignment Instructions preview exit
 
 Teacher preview opts into the reviewed opacity exit; root/editor/schedule remain immediate. Initial/post-create title timers now cancel on preview/session changes;3baseline focus races RED→GREEN. Real owner51testsPASS; focused370/18plusstaticPASS,8native browser cases and8natural visual cases across both viewports/themes/motion,4verified normal midpoints; student n/a. Backend isolated, no dependencies/schema/production changes. First visual capture invalidated by final lint-line correction and retained; final hash-bound capturePASS. Browser fixture/config TS issues corrected; old create/save response publication remains outside this slice. Next: independent review and exact-head PR Gate before authorized main merge. Broad fluidity goal incomplete.
+
+<!-- pika-session-log-archive-batch:5b24c1f5dd68a554b767aed84de447c15cfa478424fa8fcdd9e15efb264e3d2f -->
+## 2026-10-07 — Assignment preview CI test isolation
+
+PR1517 returned to draft after CI37623077507: 14490tests passed, one existing
+TestDetailPanel Markdown-save fixture exhausted positional fetch responses.
+Browser lane cancelled by draft transition; no CI/landing PASS claim.
+Target and full57-case file pass locally. Bind that fixture to unique owner, URL
+and method; assert two reads/one PATCH/one callback and payload/version/Markdown.
+Exact extra-request provenance remains unknown; no production change in this
+correction. Place the eight preview contracts in the existing experience matrix
+so normal e2e:ci selection includes them. Prior real-owner motion/visual source
+is unchanged; repeat the native browser matrix for the new test topology.
+Independent delta review and new stable-head CI required before main merge.
+Separate API-isolated baseline reproduced old autosave failure shown after
+editor reopen; session-lifetime correction remains next, outside1517.
