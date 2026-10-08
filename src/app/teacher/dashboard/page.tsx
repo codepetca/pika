@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react'
 import { Plus, RotateCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
@@ -18,7 +18,6 @@ import {
   SortableHeaderCell,
   TableCard,
 } from '@/ui'
-import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
@@ -79,11 +78,23 @@ export default function TeacherDashboardPage() {
   })
   const attendanceRequestIdRef = useRef(0)
   const entryRequestIdRef = useRef(0)
+  const entryRetryRef = useRef<HTMLButtonElement>(null)
+  const entryContentRef = useRef<HTMLDivElement>(null)
+  const returnEntryFocusRef = useRef(false)
   const pageRegionRef = useRef<HTMLDivElement>(null)
   const selectedClassroomIdRef = useRef<string | null>(null)
   selectedClassroomIdRef.current = selectedClassroom?.id ?? null
 
   const { alertState, showSuccess, closeAlert } = useAlertDialog()
+
+  useLayoutEffect(() => {
+    if (entryDetail.status !== 'ready' && entryDetail.status !== 'empty') return
+    const shouldReturn = returnEntryFocusRef.current
+    returnEntryFocusRef.current = false
+    if (shouldReturn && document.activeElement === document.body) {
+      entryContentRef.current?.focus()
+    }
+  }, [entryDetail])
 
   const sortedAttendance = useMemo(() => {
     const rows = [...attendance]
@@ -174,6 +185,7 @@ export default function TeacherDashboardPage() {
     const requestId = entryRequestIdRef.current + 1
     entryRequestIdRef.current = requestId
 
+    returnEntryFocusRef.current = false
     setEntryDetail({ status: 'loading', target, isRetry })
 
     try {
@@ -186,6 +198,7 @@ export default function TeacherDashboardPage() {
         return
       }
 
+      returnEntryFocusRef.current = document.activeElement === entryRetryRef.current
       setEntryDetail(entry
         ? { status: 'ready', target, entry }
         : { status: 'empty', target })
@@ -212,6 +225,7 @@ export default function TeacherDashboardPage() {
   }
 
   function closeEntryDetail() {
+    returnEntryFocusRef.current = false
     entryRequestIdRef.current += 1
     setEntryDetail({ status: 'closed' })
   }
@@ -363,12 +377,14 @@ export default function TeacherDashboardPage() {
         <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-default">Classes</h3>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowCreateModal(true)}
-              className="text-primary hover:text-primary-hover text-sm font-medium"
+              className="px-0 text-primary hover:text-primary-hover"
             >
               + New
-            </button>
+            </Button>
           </div>
 
           <div className="space-y-2">
@@ -381,17 +397,22 @@ export default function TeacherDashboardPage() {
                     : 'hover:bg-surface-hover border-transparent'
                 }`}
               >
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={selectedClassroom?.id === classroom.id}
                   onClick={() => setSelectedClassroom(classroom)}
-                  className="w-full text-left"
+                  className="w-full justify-start px-0 py-0 text-left text-text-default"
                 >
-                  <div className="font-medium text-text-default text-sm">
-                    {classroom.title}
-                  </div>
-                  <div className="text-xs text-text-muted mt-1">
-                    {classroom.class_code}
-                  </div>
-                </button>
+                  <span className="block">
+                    <span className="block font-medium text-text-default text-sm">
+                      {classroom.title}
+                    </span>
+                    <span className="mt-1 block text-xs text-text-muted">
+                      {classroom.class_code}
+                    </span>
+                  </span>
+                </Button>
               </div>
             ))}
           </div>
@@ -453,9 +474,12 @@ export default function TeacherDashboardPage() {
             <PageContent>
               {/* Attendance Dashboard */}
               {loadingAttendance || attendanceClassroomId !== selectedClassroom.id ? (
-                <div className="flex justify-center py-12">
-                  <Spinner size="lg" />
-                </div>
+                <PageState
+                  compact
+                  kind="loading"
+                  title="Loading attendance"
+                  description="Getting the latest classroom attendance."
+                />
               ) : attendanceError ? (
                 <PageState
                   kind="error"
@@ -588,57 +612,66 @@ export default function TeacherDashboardPage() {
                 maxWidth="!max-w-2xl"
                 showFooterClose={false}
               >
-                {(entryDetail.status === 'loading' || entryDetail.status === 'error') && (
-                  <PageState
-                    kind={entryDetail.status === 'loading' ? 'loading' : 'error'}
-                    headingLevel="h3"
-                    title={entryDetail.status === 'loading' ? 'Loading log' : 'Could not load log'}
-                    description={entryDetail.status === 'loading'
-                      ? 'Getting the latest student entry.'
-                      : 'The student entry could not be retrieved.'}
-                    action={(entryDetail.status === 'error' || entryDetail.isRetry) ? (
-                      <Button
-                        aria-disabled={entryDetail.status === 'loading'}
-                        className={entryDetail.status === 'loading' ? 'cursor-not-allowed opacity-50' : undefined}
-                        onClick={entryDetail.status === 'error' ? retryEntryDetail : undefined}
-                      >
-                        {entryDetail.status === 'loading' ? 'Trying again' : 'Try again'}
-                      </Button>
-                    ) : undefined}
-                  />
-                )}
+                <div
+                  ref={entryContentRef}
+                  role="region"
+                  aria-label="Student log content"
+                  tabIndex={-1}
+                  className="rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+                >
+                  {(entryDetail.status === 'loading' || entryDetail.status === 'error') && (
+                    <PageState
+                      kind={entryDetail.status === 'loading' ? 'loading' : 'error'}
+                      headingLevel="h3"
+                      title={entryDetail.status === 'loading' ? 'Loading log' : 'Could not load log'}
+                      description={entryDetail.status === 'loading'
+                        ? 'Getting the latest student entry.'
+                        : 'The student entry could not be retrieved.'}
+                      action={(entryDetail.status === 'error' || entryDetail.isRetry) ? (
+                        <Button
+                          ref={entryRetryRef}
+                          aria-disabled={entryDetail.status === 'loading'}
+                          className={entryDetail.status === 'loading' ? 'cursor-not-allowed opacity-50' : undefined}
+                          onClick={entryDetail.status === 'error' ? retryEntryDetail : undefined}
+                        >
+                          {entryDetail.status === 'loading' ? 'Trying again' : 'Try again'}
+                        </Button>
+                      ) : undefined}
+                    />
+                  )}
 
-                {entryDetail.status === 'empty' && (
-                  <PageState
-                    kind="empty"
-                    headingLevel="h3"
-                    title="No log found"
-                    description="There is no student entry for this date."
-                  />
-                )}
+                  {entryDetail.status === 'empty' && (
+                    <PageState
+                      kind="empty"
+                      headingLevel="h3"
+                      title="No log found"
+                      description="There is no student entry for this date."
+                    />
+                  )}
 
-                {entryDetail.status === 'ready' && (
-                  <div className="space-y-4">
-                    <div>
-                      <div className="mb-1 text-sm font-medium text-text-muted">Entry</div>
-                      <p className="whitespace-pre-wrap text-text-default">{entryDetail.entry.text}</p>
+                  {entryDetail.status === 'ready' && (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="mb-1 text-sm font-medium text-text-muted">Entry</div>
+                        <p className="whitespace-pre-wrap text-text-default">{entryDetail.entry.text}</p>
+                      </div>
+
+                      {entryDetail.entry.minutes_reported != null && (
+                        <div>
+                          <div className="mb-1 text-sm font-medium text-text-muted">Time Spent</div>
+                          <p className="text-text-default">{entryDetail.entry.minutes_reported} minutes</p>
+                        </div>
+                      )}
+
+                      {entryDetail.entry.mood && (
+                        <div>
+                          <div className="mb-1 text-sm font-medium text-text-muted">Mood</div>
+                          <p className="text-2xl">{entryDetail.entry.mood}</p>
+                        </div>
+                      )}
                     </div>
-
-                    {entryDetail.entry.minutes_reported != null && (
-                      <div>
-                        <div className="mb-1 text-sm font-medium text-text-muted">Time Spent</div>
-                        <p className="text-text-default">{entryDetail.entry.minutes_reported} minutes</p>
-                      </div>
-                    )}
-
-                    {entryDetail.entry.mood && (
-                      <div>
-                        <div className="mb-1 text-sm font-medium text-text-muted">Mood</div>
-                        <p className="text-2xl">{entryDetail.entry.mood}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </ContentDialog>
             </PageContent>
           </PageLayout>

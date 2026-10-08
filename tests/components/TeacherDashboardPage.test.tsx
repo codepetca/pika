@@ -488,6 +488,46 @@ describe('Teacher dashboard page', () => {
     expect(fetchMock.mock.calls.filter(([input]) => String(input) === entryUrl)).toHaveLength(2)
   })
 
+  it.each([
+    { empty: false, moveFocus: false },
+    { empty: true, moveFocus: false },
+    { empty: false, moveFocus: true },
+    { empty: true, moveFocus: true },
+  ])('keeps retry focus inside the surviving dialog without stealing moved focus ($empty/$moveFocus)', async ({ empty, moveFocus }) => {
+    const pendingRetry = deferred<Entry[]>()
+    installFetchMock({
+      entryFailuresByScope: { 'c1:s1:2026-06-01': 1 },
+      entriesByScope: { 'c1:s1:2026-06-01': pendingRetry.promise },
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    renderDashboard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Open student@example.com log for 2026-06-01' }))
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    retry.focus()
+    fireEvent.click(retry)
+    const close = screen.getByRole('button', { name: 'Close' })
+    if (moveFocus) close.focus()
+    await act(async () => {
+      pendingRetry.resolve(empty ? [] : [entry({ studentId: 's1', classroomId: 'c1', date: '2026-06-01', text: 'Retry result' })])
+    })
+    expect(await screen.findByText(empty ? 'No log found' : 'Retry result')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toContainElement(document.activeElement)
+    expect(moveFocus ? close : screen.getByRole('region', { name: 'Student log content' })).toHaveFocus()
+  })
+
+  it('names pending attendance and keeps classroom selection semantic', async () => {
+    const pending = deferred<{ attendance: AttendanceRecord[]; dates: string[] }>()
+    installFetchMock({ attendanceByClassroom: { c1: pending.promise } })
+    renderDashboard()
+    const heading = await screen.findByRole('heading', { name: 'Loading attendance' })
+    const loading = heading.closest('[role="status"]')
+    expect(loading).toHaveTextContent('Loading attendance')
+    expect(loading).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'Dashboard Class DASH1' })).toHaveAttribute('aria-pressed', 'true')
+    await act(async () => { pending.resolve({ attendance: [], dates: [] }) })
+    expect(await screen.findByText('No students enrolled yet')).toBeInTheDocument()
+  })
+
   it('ignores a pending entry after the dialog closes and restores focus', async () => {
     const pendingEntry = deferred<Entry[]>()
     installFetchMock({

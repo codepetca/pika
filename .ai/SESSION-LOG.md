@@ -11,6 +11,47 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-07 — Preview preference coverage correction
+
+PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
+
+## 2026-10-07 — Assignment editor passive dismissal and drag ownership
+
+Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
+logical close, focus/scroll release and outgoing input fences. Its retained body
+receives live activity outside ModalLayer's snapshot; reopen gets fresh rich-editor
+history, while same-open undo and same-ID external object reset behavior remain.
+Toolbar portals, nested confirmations, action menus, deferred focus and Blueprint
+publication retire. CreationModalShell stays immediate by default. Active native
+keyboard proof caught dnd-kit sensor listeners surviving context unmount; feature
+sensors implement its public protocol with explicit resource ownership and instant
+next-key handling. External session refresh retires only the requirement drag
+owner. Visually found clipped desktop action options; reused upper placement and
+asserted panel bounds/unchanged title. UI brief: docs/guidance/ui/changes/assignment-editor-exit.md.
+Controlled teacher browser16PASS across desktop/mobile, light/dark, normal/reduced,
+including pending/active mouse/touch/keyboard, refresh, reopen reorder, real nested
+controls and parent Post publication. Natural main exit8PASS preserves measured
+text/field/toolbar geometry; actual compositor midpoint pixels inspected. Natural
+manual restoration8PASS with the clearing fixture parent and exact restoringPATCH.
+All APIs intercepted; no authenticated persistence, hardwareINP or full-video
+replay claim. Student n/a unchanged caller/default behavior. Genuine baseline and
+naive lifetime REDs plus capture/sensor/fixture failures retained externally.
+Focused source/checks, independent review and final exact-head CI remain required
+before main landing. Broad17-family product goal remains incomplete. No dependency,
+schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
+
+## 2026-10-07 — Assignment editor committed interaction ownership
+
+PR1521 initial23-path review found a genuine suspended-close Title-input loss.
+Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
+before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
+speculative legacy session generation remounted its visible requirement owner.
+Rollback-safe feature generation preserves abandoned-close drag continuity while
+external whole-object refresh still retires the drag and preserves Tiptap identity.
+Legacy initiated-command/session rules remain unchanged. Corrected-source local,
+visual, targeted independent review and exact-head CI remain required before merge.
+Broader17-family fluidity goal remains incomplete; no production promotion.
+
 ## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
 PR #1521 returned to draft after run37686387293: four inherited preview-helper
@@ -277,3 +318,6 @@ Classic Login native held401 baseline lost activation to BODY, omitted busy stat
 ## 2026-10-08 — Signup owner continuity
 
 Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
+## 2026-10-08 — Dashboard recovery refinement
+
+Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. Final native8-case verification runs after source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
