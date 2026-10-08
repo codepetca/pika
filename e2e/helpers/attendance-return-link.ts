@@ -65,14 +65,14 @@ export async function verifyAttendanceReturnLink(page: Page, testInfo: TestInfo,
   await verifyReturn('checked_in', true)
   for (outcome of ['already_checked_in', 'closed', 'unavailable'] as const) {
     await page.reload({ waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('heading', { name: outcome === 'already_checked_in' ? 'You are already checked in' : outcome === 'closed' ? 'Attendance is not open' : 'We could not confirm check-in', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: outcome === 'already_checked_in' ? 'You are already checked in' : outcome === 'closed' ? 'Attendance is not open' : 'Not checked-in', exact: true })).toBeVisible()
     await verifyReturn(outcome, outcome === 'already_checked_in')
   }
   const uncertainAttempt = requests.at(-1)!.attemptId
   const previousCount = requests.length
   await page.getByRole('button', { name: 'Try again', exact: true }).click()
   await expect.poll(() => requests.length).toBe(previousCount + 1)
-  await expect(page.getByRole('heading', { name: 'We could not confirm check-in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Not checked-in' })).toBeVisible()
   expect(requests.at(-1)!.attemptId).toBe(uncertainAttempt)
   expect(unexpectedWrites).toEqual([])
   await writeFile(testInfo.outputPath('receipt.json'), JSON.stringify({ theme, viewport, motion, measurements, uncertainRetrySameAttempt: true, unexpectedWrites, responses: 'controlled existing classroom fixture' }, null, 2))

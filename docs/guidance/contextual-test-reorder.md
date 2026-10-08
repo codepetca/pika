@@ -1,6 +1,6 @@
 # Dormant contextual Test-list reorder
 
-Implementation contract, 2026-10-08; main `b778a6851`; earlier main sync `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
+Implementation contract, 2026-10-08; main `51f1a3b99`; earlier main sync `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
 This is preparation, not native acceptance, migration application or rollout.
 
 The approved 1,000-cap source at `a8f2bc935` passed two complete targeted
@@ -29,6 +29,19 @@ state and bounded integer timings, keyed to the original error without raw text,
 identities, SQL or response content. Product access rules, required403,20-second
 read deadline, mutation admission, budgets and preservation gates are unchanged.
 Fresh targeted source review and actual normal/forced/CI evidence remain required.
+
+The correction at6b83528e received complete targeted Sol6.1/high review; focused
+1,558 tests/51 files and all static/audit/history checks pass. The direct reorder
+transition now settles before restoration. Two pre-existing student-detail and
+learner-open nested wrappers can settle before their inner SQL; that separate
+inherited limitation is not claimed closed here.
+Read-only pre-run verification of immutable5aed stopped before any fixture:
+only two auth-rate-limit tables differ, while other181 tables/allfour remaining
+fields and183-table catalog match. No reset, exemption or replacement occurred;
+fresh checkpoint authority is needed before a corrected actual runtime proof.
+Main then advanced51f through reviewed attendance1533; retain its exact17
+nonhistory paths and both histories. Current-base checks/review remain required;
+source/native/type/forced evidence is not reheaded or promoted.
 
 ## Scope and compatibility
 

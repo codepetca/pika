@@ -11,147 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Reorder initial guard diagnosis after resume
-
-Human pause honored, then resumed. Reviewedcfb normal failed initial app-guard
-with unknown non-assertion cause; idle transport, cleanupnone, no whole acceptance
-or generated types. Private failed receipt9deb1d7b retained; PR1515 stays draft.
-Read-only source inventory later PASS741resources/507ms, not earlier-cause proof.
-Sol6.1/high bounded read-only analysis identifies Git/file reads, masked inventory
-and Docker/psql guard failures; root verified source. Add fixed caller guard
-checkpoints, bound to the same rejected primary error, without raw data/classifier,
-execution/cap/transport/product changes. TDD18 RED then116 narrow PASS; focused
-885PASS/1 existing action-test5s timeout. Isolated case PASS2.86s at original5s;
-give only its200-plus fresh-manifest unit fixture15s under parallel load, retaining
-all assertions and product/proof caps. Full focused/static checks pending. Batch15;
-17 reviews/14 targets/original05:04/human stop waiver retained before review18.
-All canonical/prod/activation/billing holds unchanged. Worker effective/active/
-tokens unknown; elapsed approx5min, no savings claim. No native or eligible CI active.
-
-## 2026-10-07 — Reorder whole-frame timeout diagnosis
-
-Batch15 frozen700b source review CLEAN;886 focused/32files/static/audit/58of60
-PASS. Ordinary draft push and truthful PRbody update completed; metrics typo
-rejected before write, corrected once to43events/9correction-sync pushes. Native
-normal19947 failed after481000ms: setupcomplete, contracts timeout at bulk10000
-39actions/524controls; no inner deadline or cost attribution. Exact disposable
-cleanup and complete canonical five-field closure PASS; types/normal acceptance/
-forced checks absent. Private600 failure receipt f868a4fc retained, PR1515draft.
-Bounded Sol6.1/high read-only analysis/root verification identified five full
-graph computations within the same35s frame, not measured cost. Sol6.1/high sole
-writer completed six source/test paths; fixed INFO progress/calibration diagnostics
-retain source SQL/actions/transactions/assertions/workload/deadlines. TDD RED,
-then201 affected cases covered across passing runs, not combined acceptance.
-Initial focused907PASS/11 unchanged5s failures retained; both failing suites117
-PASS independently, then full focused918/33files PASS149.3s with one worker and
-all static checks PASS. No timer extension or additional source correction.
-Audit6TS/diff PASS; official trim kept40 and all58 prior log bodies/archive prefix
-preserved. Batch16;18reviews/15targets/original05:04 clock/human waiver retained
-before targetedreview19. Native/CI inactive; canonical/prod applications,
-promotion and activation remain held. Worker approx16min elapsed; effective/
-active/tokens unknown, no savings claim.
-
-## 2026-10-07 — Reorder Assignment editor-session base reconciliation
-
-Progress diagnostic frozen224 independentSol6.1/high review CLEAN; source scopes,
-first-fault privacy, unchangedcaps and all10paths checked,918 focused/staticPASS
-reused. No new normal proof or notice-delivery acceptance. Published draft224;
-lifecycle45events/10 correction-sync pushes, all earlier failures retained.
-Main5405/#1518 Assignment editor async-session ownership merged; source/UI/hook/
-tests/doc only, eligible TestBuild/browser/PRGate SUCCESS, no schema/proof change.
-Clean18commit rebase to7eed resolved two archive-marker-only conflicts retaining
-main prefix; all2545 prior and2521 main entry occurrences retained in2564 current
-entries,32 reviewedfeature paths unchanged and7 incoming paths byte-exactmain.
-253 unique/SHA71ed/no rename or application;38 ordered stashes/digest6b73c9fb
-unchanged, no stash commands. Update currentmain and require focused/proportional
-base review before fresh native/types/forced/CI. Batch17;19reviews/16targets,
-original05:04 clock/human waiver/all canonical-prod-activation holds retained.
-
-## 2026-10-07 — Reorder verified post-update deadline and bounded diagnostic plan
-
-Luna/medium20th review completed CLEAN5e after retracting an unsupported upstream
-callback concern; original-render closure capture preserves create placement.
-New-base918focused/33files/staticPASS; published5e with exact224 lease whiledraft,
-lifecycle47events/11sync pushes. Normal36363exit1: start16:41:30.687Z/356716ms,
-contracts child-exitPRD14 at524controls/39actions, lastPRG02/calibrationverified.
-Cumulative deadline after UPDATE+immediate triggers, not per-query measured cost.
-Source cleanupnone proves exactteardown/workdir/fullcanonical5field equality;
-freshreadonly48114 found0disposable resources/5canonicalfieldsreadable/typesabsent.
-Private600failedreceipt e62d6779 retained; no unchangedretry/normalacceptance/CI.
-Sol/high7min boundedsourceanalysis/rootverification found requiredCClass+2Carchive
-writes and no large safe removal. Select a separately reviewed diagnostic-only
-finite EXPLAIN+temporarypinnedRPC scalar timing profile; differentcachedplan/body
-is not product acceptance. SameSol/high solewriter ownsdiagnostic source/tests/
-minimalnativeplumbing; root lifecycle/docs/Git/review/runtime. No migration/src/
-types/config/deps/triggers/caps/deadline change, allholds unchanged. Batch18in
-progress;20reviews/17targets/17committedfixes(original05:04/taskwaiver retained).
-Diagnostic implementation is uncommitted: separate closed lifecycle/CLI, exact
-two SQL frames, numeric-only timing/plan receipt and no normal acceptance. Root
-135 lifecycle/diagnostic checks PASS; startup summary16962/17000 and required
-setup checks PASS. Prior focused935PASS/2FAIL and startup203PASS/3FAIL retained;
-helper extraction preserves normal guard order, required setup text restored.
-All60 prior rolling bodies and archive prefix retained, prior60/60 cap PASS;
-official default trim now retains40 rolling entries and archives20, without loss.
-Sol/high added four actual NativeSession stream regressions in one test file:
-163 checks PASS41.39s, writer stopped, ~3min elapsed/active tokens unknown.
-Final focused941/34files PASS150s; architecture/UI/design/TypeScript/lint PASS.
-Staged audit7 TypeScript files PASS; product migration253/SHA71ed unchanged.
-Frozen independent review and diagnostic execution remain pending; no runtime
-or normal/types/forced/CI acceptance, readiness or phase-exit claim.
-
-## 2026-10-07 — Reorder diagnostic assertion preservation
-
-Frozen7832 published draft; Sol/high security and Astra/high architecture reviews
-complete. One accepted blockingP2: outerWHENOTHERS could swallow witness/effect/
-rollback P0001 and produce failedcopy receipt after restoring baseline. No other
-actionable finding; architecture confirms inherited cleanup/canonical closure.
-Root restricts outcome handler to fixed RPC denial codes; unexpected errors and
-proof assertions abort completion. TDD12checks11PASS/1RED then affected139/2files
-PASS33.52s; genuine denial receipts remain covered. No actual diagnostic run.
-Main advanced7357/#1519 Assignment editor manual-save reconciliation, sevenpaths
-UI/e2e/history only, no schema/proof change. Need clean rebase/history/source
-preservation/finalfocused and targeted independent review before one diagnostic.
-Counters22reviews/18targets/18committedfixes plus batch19inprogress; original05:04
-clock/direct human workflow waiver/all canonical-prod-activation holds retained.
-
-## 2026-10-07 — Reorder diagnostic current-main reconciliation
-
-Clean21commit rebase onto7357/#1519 completea109. Two archive conflicts preserve
-newmain batch metadata and all content; no source conflict, stash push/pop or
-migration rename/application. All35 feature paths byte-exact0b43; all5 incoming
-non-history paths byte-exact7357. Existing ordered stash digestf6420820 unchanged.
-All2566 prior and2522 main body-occurrence counts retained in2587 current bodies,
-main archive prefix exact. Rebase merges retain overlapping history occurrences;
-official trim restores the rolling cap without deleting any content. Migration253
-unique/SHA71ed and main max252 unchanged; legacy/runtime/production controls held.
-Need new-base focused/static checks and one combined diagnostic-fix/base targeted
-review before one diagnostic-only native run. No acceptance or phase-exit claim.
-22reviews/18targets,19committedfixes plus base-sync20inprogress; original05:04 clock
-and direct human workflow waiver retained, no reviewer/CI/runtime/writer active.
-
-## 2026-10-07 — Reorder measured interval and capacity decision
-
-Sol/high23rd review COMPLETE CLEANa0/7357: acceptedP2 closed, no newfinding.
-Newbase945focused/34files/static PASS; published exact7832leasea0 while draft,
-lifecycle52events/13 correction-sync pushes. One diagnostic-only native86930
-exit1: start18:05:02.113Z/196932ms, setupcomplete/lifecyclecases/cleanupnone.
-Nativecontracts child-exitunknown at98controls/6actions/1session latched. Three
-fixed backend observationsvalid0/445023/11238707us; update/trigger interval
-10793684us includes ROW_COUNT scalar, instrumentation and copy/cache history.
-It exceeds8s, not isolated original production UPDATE cost. No sourceReturned
-or complete diagnostic/normal/types/forced/CI receipt; no unchanged retry.
-Source exactteardown/workdir/fullcanonical5field equality PASS; fresh59566exit0
-inventory found0 disposable resources. Private600failedreceipt SHA8aaa7669 kept.
-BoundedSol/high readonly source check confirms deadlinecopy falls backPRD01
-and is caught, postconditionPRD06 also caught; no missingcatch defect proved.
-Later error unresolved because terse stderr was discarded; assertions stay fatal.
-The original full-scale bulk gate is unresolved. Next needs a product/architecture
-choice: smaller atomic reorder ceiling (e.g.1000 Tests), or retain10000 with a
-separately reviewed inherited metadata-trigger redesign. Neither is authorized
-by changing proof assertions or deadlines; current legacy/UI/production held.
-No execution/provider/billing/account/cohort change or broaderphase exit.23reviews/
-19targets/20committedfixsync/original05:04 clock/taskhumanwaiver retained.
-
 ## 2026-10-08 — Reorder revocation observer settlement
 
 Quietc7 normal failed member-remove/later503vs403 after624524ms; exact183-table/
@@ -370,3 +229,45 @@ PASS, newexact2f1f82baa CI37783778326 running. Canonical249+/prod/activation hel
 ## 2026-10-08 — Course Guide reading and platform snapshot acceptance
 
 Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
+
+## 2026-10-08 — Student attendance confirmation
+
+Owner: current task; branch codex/attendance-success-classroom, base 47659857d. Success and duplicate scans show the confirmed classroom title and plain America/Toronto time beneath the success heading; explanatory subtitles are hidden only for positive results. Classroom metadata is read before the attendance command and returned only on success. No migrations, dependencies, permission or attendance-recording rules changed.
+UI brief: reuse StudentAttendanceCheckIn card/green Lucide check/return link; extend attendance result with optional classroomName. Reference: existing scan screen plus executable Pattern Lab statuses/Card. Student desktop1440×900/mobile390×844, light/dark, loading/success/duplicate/closed/error; teacher n/a (student-only route). No new shared pattern or composite interaction; no promotion required.
+Evidence: output/playwright/attendance-success-mobile.png (9:06 AM), Pattern Lab status reference, controlled native experience-matrix captures. Component/server/API43 PASS; local classroom-title query PASS; focused362 and UI/design/architecture/TypeScript/lint PASS on implementation tree. Final test-only checks passed. Initial independent Sol/medium full-diff review (4233451f6) found one accepted P2: the new 200-character title limit rejected valid saved classroom names. Remediation removes new naming constraints and adds >200-character and whitespace-compatible server coverage plus long-name component coverage; final focused checks and targeted re-review pending. Review budget: launches1/waves1/fix batches1, reviewer elapsed estimated5min, exact timing/tokens unknown. Weekly usage remaining72%; direct implementation, review model/effort to be recorded in PR receipt; coordinator tokens/active time unknown. One browser fixture placement corrected before final capture, no source rework.
+
+## 2026-10-08 — Attendance failure classroom context
+
+Owner request extends PR1533: failure header shows the classroom name and omits the generic retry paragraph; retain failure heading/Try again and domain-specific recovery explanations. Reuse the existing scan card and Pattern Lab status/Card reference; extend the server-page/client contract with optional initial classroomName. Student-only (teacher n/a), desktop1440×900/mobile390×844, light/dark; loading/success/duplicate/closed/error. No new shared pattern, composite interaction or experimental promotion.
+Optional server display context authenticates the QR, requires the signed-in student's enrollment, and checks unchanged membership generation before/after reading the name. Expired occurrence tokens can supply display context only; attendance-command expiry is unchanged. Missing/invalid/revoked/unavailable context returns no name and does not block check-in. No API, schema, mutation, dependency or permission-rule changes.
+Focused component/page/helper/QR32 PASS and native browser4 PASS. Local enrolled-title join and focused final checks pending. Review budget carried forward: 2 prior reviewer turns, 1 accepted/fixed P2; follow-up scope delta will receive independent review before ready. Prior candidate CI started while ready; PR returned to draft before scope extension. Current local server3269; screenshots in test-results and output/playwright. Risk none; direct implementation, bounded general-tier reviewer planned. Usage72% weekly remaining reused; attributable tokens/active time unknown.
+
+## 2026-10-08 — Attendance result text sizes
+
+Owner requests larger classroom names and check-in times. Reuse the existing StudentAttendanceCheckIn card and Pattern Lab status/Card reference; increase both text sizes from14px to20px using canonical text-xl. Retain wrapping and all scan/retry behavior. Student-only, teacher n/a; desktop1440×900/mobile390×844 in light/dark, plus long-title mobile boundary.
+Focused checks PASS376tests plus architecture/UI/design/TypeScript/lint. Native four-project browser scenario PASS32.7s; root inspected all eight success/failure captures and long-title mobile boundary, no viewport overflow. Independent typography-delta review pending; prior cumulative ec4f4a962 review clean. PR1533 returned to draft before edits. One native harness launch lacked the local session secret after prior server ended; restart via approved local-dev skill before rerun. No source rework. Risk none; fast-tier GPT-6 Luna/medium recommended for two-class delta, direct implementation. Prior reviewer turns3; tokens/active time unknown, weekly remaining72% reused.
+
+Audit heuristic flagged missing changed accessibility tests because it scans existing role/status markup. This delta changes only two typography classes; existing keyboard-focus regression and final 376 tests pass. No composite semantics changed, no mirrored CSS test or audit-rule weakening; independent reviewer will verify this classification.
+
+## 2026-10-08 — Attendance failure heading
+
+Owner requests exact failure heading “Not checked-in” in place of “We could not confirm check-in.” Reuse existing student scan card and Pattern Lab status/Card; no new pattern/interaction. Preserve classroom name,20px typography and Try again. Update existing semantic heading assertions in component and native QR/return-focus coverage. Teacher n/a; student desktop/mobile light/dark, normal/reduced motion for return navigation.
+Risk none; direct copy edit, final focused checks PASS376tests plus architecture/UI/design/TypeScript/lint; native12/12 PASS50.1s including actual retry/focus, both themes/viewports/motion. Root inspected all four updated failure screenshots. Narrow independent Luna/medium copy-delta review pending. Audit PASS, composite semantics unchanged. PR1533 returned to draft before update. Prior full scope and typography reviews clean; reviewer turns5 including one search-coverage clarification,1accepted/fixed P2 from initial title constraints. Weekly remaining72% reused; tokens/active time unknown. No schema, dependency, attendance or retry-rule changes.
+
+Initial focused and native runs timed out with worker/browser failures after an elapsed-time jump; reruns passed without changing tests/timeouts or product code. Prior review-session elapsed wall time exceeded the skill60-minute cap during the stall; no new reviewer launched. Leave PR draft for explicit review-budget extension. Reviewer launches/turns5, initialfullwave1, targetedwaves3 including owner extensions, fixbatches1; prior reviews clean, one earlierP2 fixed. Current copy delta is the only review gap; no extra review usage inferred from owner scope.
+
+## 2026-10-08 — Attendance card vertical centering
+
+Owner requests vertically centered text inside result cards. Reuse existing student attendance Card and executable Pattern Lab Card/status reference; apply flex-col/justify-center with canonical min-h-96 (384px). Long names expand the card naturally. Keep existing child order, typography, icons, headings, retry and return controls. No shared pattern/composite semantics or business behavior change. Teacher n/a; student desktop1440×900/mobile390×844, light/dark, loading/success/duplicate/closed/error and normal/reduced return motion.
+Focused376tests/30files plus architecture/UI/design/TypeScript/lint PASS. Native12/12 PASS1.0m; root inspected eight final success/failure PNGs and >200-character mobile name boundary without viewport overflow. Additional controlled mobile success measurement asserts content midpoint within1px of card midpoint. Screenshots output/playwright and native test-results.
+Audit heuristic again flags missing changed accessibility tests for existing role/status markup; no composite semantics changed, existing keyboard-focus component coverage and actual native return/retry checks pass. No CSS-mirroring test or weakened audit rule added. Risk none. Direct implementation, no reviewer launched: review elapsed-time cap remains exceeded and extension approval is still pending. PR1533 remains draft; heading6988c9462 and this centering delta are the only new review gap beyond clean713c8e463. Prior reviewer turns5, initialwave1/targetedwaves3/fixbatches1; attributable usage/time unknown, prior weekly72% reused. No schema/dependency/API changes.
+
+## 2026-10-08 — Attendance main merge preparation
+
+Owner direct reply “merge it” after the proposed final-review checkpoint authorizes that brief review and main merge after required gates; no production promotion. Continue the cumulative ledger rather than resetting it: prior5reviewer turns, initialwave1/targetedwaves3/fixbatches1, one accepted/fixedP2. Budget extension applies to this final integration and required merge checks. Fresh weekly remaining70%; direct implementation, one GPT-6.1 Sol/medium final cumulative review of requested copy/layout delta plus main-base integration, keeping prior unchanged coverage.
+Rebase onto actual main d826a01a3; all product/tests merged without conflict. Archive conflicts were duplicate batch markers for older entries already retained on main; preserve canonical main archive and all five attendance session entries. Shared UI/dependencies/config unchanged; only owned e2e matrix gains independently merged main cases alongside unchanged attendance scenario. Rebased final focused/native checks and reviewed stableSHA/CI precede merge. Risk none; no provider, schema or deployment operation. Attributable tokens/active time unknown.
+
+## 2026-10-08 — Attendance merge continuation after main advance
+
+Owner explicitly requested PR1533 main merge in production-drift chat. Original attendance coordinator stopped with systemError after finishing local verification; this task takes over only final integration/merge. CI37777785707 passed all five checks on reviewed4bb62bb56 (queue0s/run4244s), but main advanced via unrelated public-reading #1535 to b778a6851 during CI. PR returned to draft before clean seven-commit rebase; no source conflicts.
+All17 owned product/test/e2e paths are byte-identical to independent-reviewed4bb62bb56. Incoming Course Guide/planned reading and opt-in PageHeading.wrap do not intersect attendance routes; attendance uses unchanged Card/Button/Spinner/auth/server dependencies, and root layout/UI barrel/runtime config are unchanged. Reuse complete independent coverage rather than launching a redundant review: existing6turns, initialwave1/targetedwaves3/finalintegration1,1accepted/fixedP2,1remediation batch; no new finding, code change, review wave or coverage gap. Rebased focused checks and exact-new-head CI remain merge gates; retain earlier native/visual evidence for unchanged attendance source. Fresh task weekly68% at entry, attributable active/tokens unknown; prior CI and coordination waits are not active-development estimates. No production promotion or migration authority.
