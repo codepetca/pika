@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Assignment Instructions preview exit
-
-Teacher preview opts into the reviewed opacity exit; root/editor/schedule remain immediate. Initial/post-create title timers now cancel on preview/session changes;3baseline focus races RED→GREEN. Real owner51testsPASS; focused370/18plusstaticPASS,8native browser cases and8natural visual cases across both viewports/themes/motion,4verified normal midpoints; student n/a. Backend isolated, no dependencies/schema/production changes. First visual capture invalidated by final lint-line correction and retained; final hash-bound capturePASS. Browser fixture/config TS issues corrected; old create/save response publication remains outside this slice. Next: independent review and exact-head PR Gate before authorized main merge. Broad fluidity goal incomplete.
-
 ## 2026-10-07 — Assignment preview CI test isolation
 
 PR1517 returned to draft after CI37623077507: 14490tests passed, one existing
@@ -310,3 +306,9 @@ Focused initial14-path integration passed2350/202 and all static gates. Audit re
 ## 2026-10-08 — Public course section target adoption
 
 Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+## 2026-10-08 — Utility calendar minimum day targets
+
+- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
+- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
+- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
