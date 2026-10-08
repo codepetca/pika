@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Quiet-window native proof and catalogue alias diagnosis
-
-Owner yes authorized coordinating Clear sent comments and Make daily log summaries
-compact pauses plus fresh full checkpoint. Both confirmed quiet; readonly double
-B3 capture99a202 covers183/all5, exactauth3 drift only; B1/B2 retained. Review8
-custody clean except stale forced-wrapper label; one-line correction review9 CLEAN.
-Normalattempt3 isolateda2f67 applied001–252 then hit180s startup healthwait deadline.
-No explicitSQL/unhealthy/port/disk error; one controlled same-source retry4 isolated
-c4f435 passed startup/probes then failedcatalogueP2501. Both ownedteardowns and
-separate wholeB3 read-only checks PASS; both quiet windows explicitly released.
-Readonly anonymous catalogue-only PostgreSQL repro confirmedp alias/record collision
-42702 and distinctalias success; transactionREADONLY/ROLLBACK, no schema/data writes.
-Batch6 renames verification alias only; source regressionRED beforefix. API/252/
-caps/expectedcatalog unchanged; affected133/2PASS and ESLint2/diffPASS. Required
-audit/targetreview/native remain; no raw startup diagnostic or record output.
-Reviewclock13:07:17/9launches/7targets retained; humanstopoverride active. No types,
-PR/CI/merge or canonical/prod249–252 application/activation acceptance.
-
-## 2026-10-06 — Publication physical trigger catalogue correction
-
-Reviewed69ae380 normalattempt5 passed isolated001–252 startup and all four raw42501 probes, then failed catalogueP2501. Exact owned teardown and separate whole-B3/all183/all5 preservation passed; both named chats released. Read-only catalogue metadata found the expected66-byte question trigger name differs from PostgreSQL's physical63-byte name. Correct only that expected tuple; regression RED first. API/SQL252/caps unchanged; fresh targeted review/native proof remain gates. No types, migration application or rollout acceptance.
-
-## 2026-10-06 — Publication missing-Draft proof boundary correction
-
-Review11 CLEAN95aab04; normal6 timed out at180s startup. Owner-approved pause of onlyHQ/finance-intake stacks enabled normal7 startup/catalogue and first seven cases, thenP2514 missing-Draft. Owned teardown and separatewholeB3/all183/all5 PASS. All23 original containers restored to exact IDs/images/labels/running/healthy states after initial60s health window failure; both chats released. SQL probe expected snapshotHTTP404 and sent empty invalid content; use valid fixture content/finalCAS409 while retaining SDK1-RPC404. RegressionRED first; product/252/caps unchanged. Fullnative/types/review/PR/CI/merge and rollout remain unaccepted; persistent originalreviewclock/counters retained.
-
 ## 2026-10-06 — Publication unrelated-Class detector isolation
 
 Review12 CLEANc75. Preflightfound only PALgenerations8336→8339, consistentwith named Daily-summary synthetic3-enrollment test16:03:33–49UTC; exact randomIDs unrecorded/per-rowattribution unproven. AuthorizedfullB4 double-read183/all5 retainedB1B2B3; other182tables/all4metadataexact. Review13 supportinglogcustodyP2 fixed in reusableguard/fullobject+actualfilehash+private600copy; review14 CLEAN. Normal8 keptHQ/finance running, startup/earlierprobes passed thenP2542 unrelated-row detector. Exact ownedresourceabsence/separatewholeB4 PASS; quiet7releasedbothchats. Detector changed a Test in targetClass whileexpectingclosed success despiteexactrevisionfences. ChooseotheractiveClassfixtureTest; regressionRED reproducessameClass. Add complete unrelatedTestpre/postimage+exactdocumentappend+bothwholegraphrowassertions aftersecondRED. Fullgraph/rollback/marker/witness/counts/caps/product252unchanged. Originalreviewclock/counters/failedattempts retained; targetedreview/native/types/PR/CI/merge remainpending; canonical/prod249–252 unapplied/noactivation.
@@ -310,6 +284,7 @@ Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades
 ## 2026-10-07 — Circular progress student-main integration
 
 Reviewed0a5 exactCI37703713253 attempt2 passes all required gates after one publication-fixture timeout rerun. Main advanced to a2d70efa8 (#1522) during CI. Rebase preserves its Grades/Achievements recovery and formatted-help test scope. Only archive conflict: all2489 feature archive entry bodies already exist in main2493, verified before retaining main archive. Feature implementation/test/snapshot patches remain unchanged apart from upstream gallery test. Targeted source integration review, refreshed focused and no-update canonical browser verification precede new exact-head CI and the authorized merge. Human budget override persists; no production changes.
+
 ## 2026-10-07 — Dormant classroom Test tier caps
 
 Owner approved Basic20/Pro50/Max100 retained Tests per classroom; Free0 additions.
@@ -380,3 +355,20 @@ archive prefix and original25-line archive batch. Only archive conflict;253
 unchanged,39stashes/topSHA retained, no stash created/popped. Combined diagnostic/
 base review, focused checks and new isolated publication acceptance remain gates.
 Accepted create receipts retain actual2e9367 identity; no canonical/prod/activation.
+
+## 2026-10-08 — Test cap native acceptance and progress-UI synchronization
+
+Sol6.1/high diagnostic/base review CLEAN; exact651 focused875/38/static PASS.
+Publication and discard normal/types plus both forced modes PASS at65107317:
+49rollback/12races/5committed and56rollback/14races, actual10/18 SDKcases,
+20RPC each/zeroStorage; all sessions/resources disposed. Genuine437586-byte
+types match committedSHAcbed4142. SAME initialeab996183tables/all5 comparisons
+before/after every mode and final standalone PASS; historicalB5 unchanged.
+Create3 retains actual2e9367 identity; earlier failures retained, prior race
+cause unknown. No canonical writes. Rebased after native worker terminal onto
+a86a2093 (#1520 progress UI):24feature/27incoming nonhistory paths disjoint and
+byte-identical, exactmain archive prefix+completefeature suffix and80rolling
+bodies retained. Sole archive conflict;253 SHA unchanged,39stashes untouched.
+Fresh focused checks and narrow independent synchronization review precede
+one eligible exact-head CI/PRGate and authorized normal main squash merge.
+All canonical249+/production/promotion/quota/account/billing/cutover holds persist.

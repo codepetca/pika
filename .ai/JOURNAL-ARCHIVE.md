@@ -42274,3 +42274,30 @@ coverage3 evidence without claiming native/types/CI acceptance. Original clock
 Affected native126 + DB6 tests PASS; startup+DB82 PASS; ESLint3/audit3/diff PASS.
 One unpinned pnpm lint command refused shared modules before mutation; corrected
 pinned10.25 invocation passed. Targeted review and exact-head native remain.
+
+<!-- pika-session-log-archive-batch:2e800fd55eef240c38f423fcb62805d4deeae4ee33e36871493976104a7a4060 -->
+## 2026-10-06 — Quiet-window native proof and catalogue alias diagnosis
+
+Owner yes authorized coordinating Clear sent comments and Make daily log summaries
+compact pauses plus fresh full checkpoint. Both confirmed quiet; readonly double
+B3 capture99a202 covers183/all5, exactauth3 drift only; B1/B2 retained. Review8
+custody clean except stale forced-wrapper label; one-line correction review9 CLEAN.
+Normalattempt3 isolateda2f67 applied001–252 then hit180s startup healthwait deadline.
+No explicitSQL/unhealthy/port/disk error; one controlled same-source retry4 isolated
+c4f435 passed startup/probes then failedcatalogueP2501. Both ownedteardowns and
+separate wholeB3 read-only checks PASS; both quiet windows explicitly released.
+Readonly anonymous catalogue-only PostgreSQL repro confirmedp alias/record collision
+42702 and distinctalias success; transactionREADONLY/ROLLBACK, no schema/data writes.
+Batch6 renames verification alias only; source regressionRED beforefix. API/252/
+caps/expectedcatalog unchanged; affected133/2PASS and ESLint2/diffPASS. Required
+audit/targetreview/native remain; no raw startup diagnostic or record output.
+Reviewclock13:07:17/9launches/7targets retained; humanstopoverride active. No types,
+PR/CI/merge or canonical/prod249–252 application/activation acceptance.
+
+## 2026-10-06 — Publication physical trigger catalogue correction
+
+Reviewed69ae380 normalattempt5 passed isolated001–252 startup and all four raw42501 probes, then failed catalogueP2501. Exact owned teardown and separate whole-B3/all183/all5 preservation passed; both named chats released. Read-only catalogue metadata found the expected66-byte question trigger name differs from PostgreSQL's physical63-byte name. Correct only that expected tuple; regression RED first. API/SQL252/caps unchanged; fresh targeted review/native proof remain gates. No types, migration application or rollout acceptance.
+
+## 2026-10-06 — Publication missing-Draft proof boundary correction
+
+Review11 CLEAN95aab04; normal6 timed out at180s startup. Owner-approved pause of onlyHQ/finance-intake stacks enabled normal7 startup/catalogue and first seven cases, thenP2514 missing-Draft. Owned teardown and separatewholeB3/all183/all5 PASS. All23 original containers restored to exact IDs/images/labels/running/healthy states after initial60s health window failure; both chats released. SQL probe expected snapshotHTTP404 and sent empty invalid content; use valid fixture content/finalCAS409 while retaining SDK1-RPC404. RegressionRED first; product/252/caps unchanged. Fullnative/types/review/PR/CI/merge and rollout remain unaccepted; persistent originalreviewclock/counters retained.
