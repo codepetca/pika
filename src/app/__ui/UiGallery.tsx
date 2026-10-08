@@ -386,6 +386,14 @@ export function UiGallery({ role }: Props) {
                   />
                 </PageLayout>
                 <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.{role === 'student' ? ' Student density adds space above the controls.' : null}</p>
+                <div data-testid="wrapping-course-heading-example" className="mt-4">
+                  <PageHeading
+                    title="Environmental science and community inquiry through evidence, reflection and practical investigation — distinctive course identity"
+                    level="h2"
+                    wrap
+                  />
+                  <p className="mt-1 text-xs text-text-muted">Course Guide opts into wrapping through PageHeading; other page headings retain truncation.</p>
+                </div>
               </Card>
             </div>
             <div className="[&>section]:scroll-mt-28">

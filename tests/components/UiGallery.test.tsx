@@ -65,6 +65,15 @@ vi.mock('@/components/editor', async (importOriginal) => ({
 }))
 
 describe('UiGallery history preview fixture', () => {
+  it('demonstrates Course Guide wrapping through the shared heading owner', () => {
+    renderGallery('teacher')
+    const example = within(screen.getByTestId('wrapping-course-heading-example'))
+    expect(example.getByRole('heading', { level: 2 })).toHaveTextContent('distinctive course identity')
+    expect(example.getByRole('heading', { level: 2 })).toHaveClass('whitespace-normal')
+    expect(example.getByRole('heading', { level: 2 })).not.toHaveClass('truncate')
+    const actions = within(screen.getByTestId('page-action-icons-example'))
+    expect(actions.getByRole('heading', { name: 'Assignments' })).toHaveClass('truncate')
+  })
   it('demonstrates full-size QR rendering through the shared accessible dialog', async () => {
     renderGallery('teacher')
     expect(AssignmentEditSplitPattern).toBeTypeOf('function')

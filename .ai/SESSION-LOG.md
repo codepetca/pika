@@ -11,6 +11,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-07 UTC — Student Grades reactivation continuity
+
+Retain same-classroom returned rows across inactive/reactivated reads and recoverable
+failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
+failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
+fences; Retry focuses stable Grades region before replacement and invalidates only
+its key. Student Grades-only scroll observation preserves long-list return position.
+Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
+visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
+genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
+cache, API/schema/dependencies or production changes. Draft preparation can proceed
+independently while1521CI runs; integrate landed base before independent review/CI.
+Required focused/audit/review/CI remain; broader17-family goal incomplete.
+
+## 2026-10-07 — Grades settled intent denial remediation
+
+PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
+
 ## 2026-10-07 — Achievements local render recovery
 
 Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
@@ -255,3 +273,18 @@ Accepted native owner audit reproduced stale Signup held/timer navigation, Creat
 ## 2026-10-08 — Dashboard recovery refinement
 
 Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
+## 2026-10-08 — Public reading stress fixture
+
+- Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
+- Native 56-case 320/390 light/dark normal/reduced witness: no document overflow, final content reachable; Actual title clipping measured and left for coordinator acceptance. Artifacts: product-fluidity/public-reading-stress-fixture under the Oct5 visualization workspace.
+- Focused semantic gate/parity/sparse coverage and architecture/UI/design/audit pass. Coordinator owns review/PR and family acceptance; no tracker promotion.
+
+## 2026-10-08 — Course Guide full title identity
+
+- Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
+- Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
+- Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.
+
+## 2026-10-08 — Course Guide reading and platform snapshot acceptance
+
+Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
