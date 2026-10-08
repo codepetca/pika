@@ -1,9 +1,9 @@
 import type { Classroom } from '@/types'
-import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { fetchJSON, fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { getCurrentUserId } from '@/lib/client-identity'
 
 type StudentClassroomsResponse = {
-  classrooms?: Classroom[]
+  classrooms: Classroom[]
 }
 
 export const STUDENT_CLASSROOMS_CACHE_PREFIX = 'student-classrooms:'
@@ -15,20 +15,20 @@ async function getStudentClassroomsCacheKey(): Promise<string | null> {
 }
 
 async function fetchStudentClassroomsFromApi(): Promise<StudentClassroomsResponse> {
-  const response = await fetch('/api/student/classrooms')
-  const data = await response.json().catch(() => ({ classrooms: [] }))
-  if (!response.ok) {
-    const message = typeof data.error === 'string' ? data.error : 'Failed to load classrooms'
-    throw new Error(message)
+  const data = await fetchJSON<unknown>('/api/student/classrooms', {
+    errorMessage: 'Failed to load classrooms',
+  })
+  if (!data || typeof data !== 'object' || !('classrooms' in data) || !Array.isArray(data.classrooms)) {
+    throw new Error('Failed to load classrooms')
   }
-  return data
+  return { classrooms: data.classrooms as Classroom[] }
 }
 
 export async function fetchStudentClassrooms(): Promise<Classroom[]> {
   const cacheKey = await getStudentClassroomsCacheKey()
   if (!cacheKey) {
     const data = await fetchStudentClassroomsFromApi()
-    return data.classrooms || []
+    return data.classrooms
   }
 
   const data = await fetchJSONWithCache<StudentClassroomsResponse>(
@@ -37,7 +37,7 @@ export async function fetchStudentClassrooms(): Promise<Classroom[]> {
     STUDENT_CLASSROOMS_CACHE_TTL_MS,
   )
 
-  return data.classrooms || []
+  return data.classrooms
 }
 
 export function invalidateStudentClassrooms() {

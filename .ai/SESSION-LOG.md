@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Calendar day reader and dismissal refinement
-
-Bounded Calendar owner refinement on a2d70efa8: use approved DialogPanel opacity exit and named keyboard-focusable reading region with semantic focus ring. Preserve immediate logical close, day navigation and retired keydown listener; no shared primitive/API/read/business changes. Semantic49/13PASS, native16 teacher/student × desktop/mobile × light/dark × normal/reduced PASS with native keyboard reading/close/reopen, screenshots/videos and zero synthetic writes/pageerrors. Focused386 plus all static gates/audit PASS. External evidence in product-fluidity/calendar-day-interaction for coordinator chat01a10bfa; retain failed missing-asset setup and pointerdown observer evidence/two correction batches. No publication; coordinator owns independent review/final integration after Announcement/CourseGuide landings.
-
-## 2026-10-07 — Calendar native date reliability correction
-
-Bounded review remediation preserves b2da LessonCalendar/component-test/product bytes. Native helper seeds Oct5 Date with Playwright setFixedTime before goto; verified Toronto/ISO Date and live timeout/RAF/performance probe leave timers and animations advancing. External Nov3 context proves old helperRED (3s missing Oct5 opener), corrected same-contextGREEN passes. Full16 current matrix records console warnings/errors without suppression or clean-console assertion; new native-date-remediation evidence stays separate from original artifacts. Required focused/audit/current native proof and coordinator targeted rereview precede acceptance. No publication/PR state action from this worker.
-
 ## 2026-10-07 — Teacher settings clipboard feedback
 - Copy success now requires a resolved clipboard write; rejected/unavailable writes warn with concise copy labels. Committed classroom/latest-request guards retire stale feedback without changing settings saves or copied bytes.
 - QR copy feedback belongs inside the active dialog, with a separate logical session across close/reopen. Existing global notice + unavailable QR clipboard accessibility defect reproduced and fixed within feature ownership; shared providers/modal owners unchanged.
@@ -223,28 +215,18 @@ Rebase onto actual main d826a01a3; all product/tests merged without conflict. Ar
 Owner explicitly requested PR1533 main merge in production-drift chat. Original attendance coordinator stopped with systemError after finishing local verification; this task takes over only final integration/merge. CI37777785707 passed all five checks on reviewed4bb62bb56 (queue0s/run4244s), but main advanced via unrelated public-reading #1535 to b778a6851 during CI. PR returned to draft before clean seven-commit rebase; no source conflicts.
 All17 owned product/test/e2e paths are byte-identical to independent-reviewed4bb62bb56. Incoming Course Guide/planned reading and opt-in PageHeading.wrap do not intersect attendance routes; attendance uses unchanged Card/Button/Spinner/auth/server dependencies, and root layout/UI barrel/runtime config are unchanged. Reuse complete independent coverage rather than launching a redundant review: existing6turns, initialwave1/targetedwaves3/finalintegration1,1accepted/fixedP2,1remediation batch; no new finding, code change, review wave or coverage gap. Rebased focused checks and exact-new-head CI remain merge gates; retain earlier native/visual evidence for unchanged attendance source. Fresh task weekly68% at entry, attributable active/tokens unknown; prior CI and coordination waits are not active-development estimates. No production promotion or migration authority.
 
-## 2026-10-08 — Reduce idle identity and failed grading requests
+## 2026-10-08 — Public-repository local CI policy
 
-Owner authorized action after Pika usage investigation. Isolated branch
-`codex/reduce-background-requests`: pause watcher requests while visible but
-unfocused, validate immediately on return, preserve server authorization and
-focused60s cadence. Share same-batch client identity reads without settled reuse.
-Assignment/Test browser grading requires valid owned status before ticks, fences
-cancellation, honors retry deadlines and bounds transport retries. Existing error
-banners replace blocking spinner when status becomes unavailable; durable runs
-and mutation guards stay intact. Risk: workspace-state/async-grading/runtime-platform.
+Owner explicitly removed the private-repository prerequisite. Same-repository public/private PRs and explicit diagnostics may use the opt-in isolated runner; forks retain hosted routing. Host admission retains exact Pika identity, consistent visibility metadata and queued same-repository demand checks before registration. Independent security review found post-job diagnostics resent the registration token to the guest; move redaction exclusively to the host, with RED1 proving the resend. Renamed acknowledgement to PIKA_ONE_JOB_RUNNER; disposable VM, credential separation, host lease, one-job bounds and verified teardown remain required. No runner registration or routing activation performed.
 
-Workers: GPT-6.1 Sol/high, disjoint auth/grading ownership, no provider changes.
-Initial focused716 tests, TypeScript/lint/architecture/design/UI checks PASS.
-Rebased on currentmain51f1a3b9; draftPR1540. Independent security review clean;
-compatibility review reproduced pending retry request exceeding120s failure
-deadline. Batched fix caps pending retries by remaining budget, aborts at expiry,
-and fences late completions; regression RED then182 grading tests GREEN.
-Targeted re-review passed. CI37792184076 passed14865 tests but failed one
-full-UI source fingerprint from separate publication work. PR1540 returned to
-draft. Retain PATCH fingerprint and exact full-UI byte guard, superseding its
-historical snapshot with the independently reviewed grading-only source1d334a7a.
-Legacy publication/editing/access paths remain unchanged. Scoped105 tests PASS;
-baseline review and renewed exact-head CI pending.
-Teacher desktop/mobile light/dark recovery captures use synthetic fixtures;
-student n/a. No production promotion or hosted DB change.
+Evidence: targeted runner/routing/local-CI/preflight tests84 PASS; focused workflow/static verification and draft-first independent security/compatibility review follow. Existing hosted timing sample verified by GPT-6.1-sol medium: full CI60–69min, DB critical path; tiny queue; local preparation receipts were unregistered rehearsals. Coordinator weekly remaining69%; worker tokens unknown, no rework; native delivery verified against three run JSONs.
+
+## 2026-10-08 — Public local CI policy main synchronization
+
+Owner authorized rebasing and completing PR1537 after main advanced. Rebase onto b778a6851 preserves both session histories; all seven policy/workflow/host/test/documentation paths match approved1d06b8e27 byte-for-byte. Original exact-head hosted CI37780533276 all five checks PASS in62m15s. Final focused checks, one bounded independent integration review, and new exact-head CI precede the approved squash merge. Local runner registration/activation and production operations remain separate.
+
+## 2026-10-08 — Near-complete PR batch handoff
+
+Coordinator chat01a11c28 takes ownership from idle chats of PR1525,1538,1505,1536,1540,1534,1263,1539 for ordered main completion. Owner explicitly approved merge work and all budget extensions after reviewing each PR summary. Prepare fixed candidates in that order, reusing prior feature reviews/checks only where source and interactions remain covered; require bounded independent integration review, focused checks and exact-head PR Gate before each squash merge. Shared continuity reconciles all prior/main history bodies and multiplicities, retaining failed receipts, holds and original review counters. Production promotion, canonical/hosted migrations, rollout activation, provider and runner changes are excluded.
+
+Orchestration: GPT-6.1 Sol/medium older-PR triage delivered 13 exact-head records and conflict/dependency evidence; coordinator verified shortlisted overlaps. Worker tokens/attributable active time unknown; no measured savings claim. Weekly remaining64%; automatic DeepSeek pause through2026-12-31 retained. Current phase: candidate preparation/review/CI pending; no batch merge or whole-goal completion claimed. External handoff and immutable original inputs: ~/.codex/artifacts/pika/pr-completion-20261008.

@@ -10,9 +10,9 @@ spec = importlib.util.spec_from_file_location('host', ${JSON.stringify(resolve('
 h = importlib.util.module_from_spec(spec); spec.loader.exec_module(h)
 class Fake:
     def __init__(self):
-        self.calls=[]; self.vms=[{'Name':h.TEMPLATE,'Running':False}]; self.is_private=True
+        self.calls=[]; self.vms=[{'Name':h.TEMPLATE,'Running':False}]; self.repository_ok=True
         self.fail_cleanup=False; self.run_error=None; self.steal=False; self.lease=None
-    def private(self): self.calls.append('private'); return self.is_private
+    def repository_allowed(self): self.calls.append('repository'); return self.repository_ok
     def demand(self, hint): self.calls.append('demand'); return True
     def inventory(self): self.calls.append('inventory'); return self.vms.copy()
     def clone(self, vm):
@@ -247,6 +247,31 @@ describe('serial Tart host admission (offline)', () => {
 `)
   })
 
+  it('never forwards registration secrets to post-registration guest calls', () => {
+    offline(String.raw`
+    import base64
+    backend=h.Backend(root);token='PRIVATE-TOKEN-SENTINEL'
+    backend.registration_issued=True;backend.redactions=[token]
+    captured=[]
+    def guest(vm, code, payload=None, timeout=90):
+        captured.append(code)
+        assert token not in code and token not in json.dumps(payload)
+        if code==h.GUEST_RUN: return json.dumps({'runner_exit':0,'assigned_job':None})
+        if code==h.GUEST_COLLECT:
+            return json.dumps({'files':[{'name':'Worker_offline.log',
+                'data':base64.b64encode(('synthetic '+token).encode()).decode()}]})
+        if code==h.GUEST_EMPTY: return 'EMPTY'
+        raise AssertionError('unexpected guest operation')
+    backend.guest=guest;backend.command=lambda *args,**kwargs: ''
+    assert backend.run_one('pika-ci-job-offline',1,2)=={'runner_exit':0,'assigned_job':None}
+    assert backend.collect('pika-ci-job-offline')['status']=='collected'
+    assert backend.stop('pika-ci-job-offline')
+    assert captured==[h.GUEST_RUN,h.GUEST_COLLECT,h.GUEST_EMPTY]
+    stored=(root/'guest-diagnostics'/'Worker_offline.log').read_text()
+    assert stored=='synthetic [redacted]' and token not in stored
+`)
+  })
+
   it('redacts and caps actual guest diagnostics while excluding config and symlinks', () => {
     offline(String.raw`
     import base64
@@ -256,16 +281,18 @@ describe('serial Tart host admission (offline)', () => {
     for i in range(8): (client/'_diag'/('Worker_'+str(i)+'.log')).write_bytes((token.encode()+b'x')*10000)
     (client/'.credentials').write_text('FORBIDDEN-CREDENTIAL-CONTENT')
     code=h.GUEST_COLLECT.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
-    payload={'client':str(client),'redactions':[token],'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    payload={'client':str(client),'environment':dict(h.GUEST_ENV,HOME=str(root))}
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
     assert result.returncode==0, result.stderr
     data=json.loads(result.stdout); total=sum(len(base64.b64decode(f['data'])) for f in data['files'])
     assert total<=256*1024 and len(result.stdout)<512*1024
-    assert all(token.encode() not in base64.b64decode(f['data']) for f in data['files'])
+    assert any(token.encode() in base64.b64decode(f['data']) for f in data['files'])
     assert not any(f['name'].startswith('.') for f in data['files'])
     backend=h.Backend(root); backend.redactions=[token]; backend.guest=lambda *args,**kwargs: result.stdout
     summary=backend.collect('pika-ci-job-offline')
-    assert summary['bytes']==total and 'PRIVATE-DIAGNOSTIC-SENTINEL' not in json.dumps(summary)
+    redacted_total=sum(len(base64.b64decode(f['data']).replace(token.encode(),b'[redacted]')) for f in data['files'])
+    assert summary['bytes']==redacted_total and 'PRIVATE-DIAGNOSTIC-SENTINEL' not in json.dumps(summary)
+    assert all(token.encode() not in p.read_bytes() for p in (root/'guest-diagnostics').iterdir())
     assert (root/'guest-diagnostics').stat().st_mode & 0o777==0o700
     assert all(p.stat().st_mode & 0o777==0o600 for p in (root/'guest-diagnostics').iterdir())
     assert len(data['files'])<=5, 'raw read budget exceeded before redaction'
@@ -385,12 +412,66 @@ describe('serial Tart host admission (offline)', () => {
 `)
   })
 
-  it('refuses public repository before boot, lease claim or token API', () => {
+  it('refuses an unexpected repository before boot, lease claim or token API', () => {
     offline(String.raw`
-    fake.is_private=False
+    fake.repository_ok=False
     result=serve()
-    assert result['status']=='refused' and fake.calls==['private']
+    assert result['status']=='refused' and fake.calls==['repository']
     assert not lease.exists()
+`)
+  })
+
+  it('accepts public and private Pika identities and rejects inconsistent or foreign metadata', () => {
+    offline(String.raw`
+    backend=h.Backend(root)
+    for visibility, private in [('public', False), ('private', True)]:
+        backend.api=lambda path: {'full_name':h.REPOSITORY,'visibility':visibility,'private':private}
+        assert backend.repository_allowed()
+    for data in [{'full_name':'someone/pika','visibility':'public','private':False},
+                 {'full_name':h.REPOSITORY,'visibility':'public','private':True},
+                 {'full_name':h.REPOSITORY,'visibility':'internal','private':True},
+                 {'full_name':h.REPOSITORY}]:
+        backend.api=lambda path: data
+        assert not backend.repository_allowed()
+`)
+  })
+
+  it('refuses fork, wrong-workflow and inactive demand before reading queued jobs', () => {
+    offline(String.raw`
+    backend=h.Backend(root)
+    run={'path':'.github/workflows/ci.yml','head_repository':{'full_name':h.REPOSITORY},
+         'event':'pull_request','status':'in_progress'}
+    calls=[]
+    def api(path):
+        calls.append(path)
+        if path.endswith('/jobs?per_page=100'):
+            return {'jobs':[{'status':'queued','labels':['self-hosted','Linux','pika-ci']}]}
+        return run
+    backend.api=api
+    assert backend.demand(123)
+    for key, value in [('head_repository',{'full_name':'someone/pika'}),
+                       ('path','.github/workflows/other.yml'),('event','pull_request_target'),
+                       ('status','completed')]:
+        original=run[key];run[key]=value;calls.clear()
+        try: backend.demand(123)
+        except h.Refusal as e: assert str(e)=='ineligible-demand'
+        else: raise AssertionError('unsafe demand accepted')
+        assert len(calls)==1
+        run[key]=original
+`)
+  })
+
+  it.each([2, 3])('rechecks repository identity before registration (check %s)', failedCheck => {
+    offline(String.raw`
+    checks=[]
+    def repository_allowed():
+        checks.append(1)
+        return len(checks)!=${failedCheck}
+    fake.repository_allowed=repository_allowed
+    result=serve()
+    assert result['status']=='failed' and result['failure']=='activation-recheck-refused'
+    assert 'register' not in fake.calls and 'run_one' not in fake.calls
+    assert not lease.exists() and fake.vms==[{'Name':h.TEMPLATE,'Running':False}]
 `)
   })
 
@@ -433,7 +514,7 @@ describe('serial Tart host admission (offline)', () => {
     offline(String.raw`
     result=driver.execute('rehearse', '', None, 1, 2)
     assert result['status']=='rehearsed' and not lease.exists()
-    assert not any(c in fake.calls for c in ['private','demand','token','register','run_one','unregister'])
+    assert not any(c in fake.calls for c in ['repository','demand','token','register','run_one','unregister'])
     assert fake.calls.index('stop') < fake.calls.index('delete')
     assert fake.vms==[{'Name':h.TEMPLATE,'Running':False}]
     assert (receipts.stat().st_mode & 0o777)==0o700
