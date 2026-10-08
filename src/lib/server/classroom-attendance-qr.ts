@@ -203,7 +203,7 @@ export async function rotateTeacherClassroomQrPresentation(input: {
   }
 }
 
-async function resolveClassroomId(supabase: any, token: string) {
+export async function resolveClassroomAttendanceQrId(supabase: any, token: string) {
   const handleId = openClassroomAttendanceQrToken(token)
   const { data, error } = await supabase
     .from('attendance_classroom_qr_handles')
@@ -364,7 +364,7 @@ export async function executeClassroomQrStudentCheckIn(input: {
   studentId?: string
   occurrenceBinding?: string
 }> {
-  const classroomId = await resolveClassroomId(input.supabase, input.classroomQrToken)
+  const classroomId = await resolveClassroomAttendanceQrId(input.supabase, input.classroomQrToken)
   const access = await getBaraAttendanceClassroomIdAccess({
     supabase: input.supabase,
     classroomId,
