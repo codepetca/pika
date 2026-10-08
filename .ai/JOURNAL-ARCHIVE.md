@@ -44674,3 +44674,34 @@ archive prefix and original25-line archive batch. Only archive conflict;253
 unchanged,39stashes/topSHA retained, no stash created/popped. Combined diagnostic/
 base review, focused checks and new isolated publication acceptance remain gates.
 Accepted create receipts retain actual2e9367 identity; no canonical/prod/activation.
+
+## 2026-10-08 — Test cap native catalog corrections
+
+Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
+and PRGate failed. Actual isolated PG17 confirmed nested record/alias42702;
+three aliases corrected77f9 after3RED,490/28focused/static and Sol/high delta
+reviewPASS. Full local create then failed before SDK: canonical248 has183tables,
+but253 adds private quota settings. Exact own teardown/SAME183/all5 preservation
+PASS; failure retained. Separate source-SHA-bound isolated catalog now requires
+that exact addition without omitting inherited/unexpected table checks or quota
+fingerprints. Targeted79/5 and focused864/37/staticPASS. Native normal/types,
+both forced modes, targeted review and exact-head CI remain gates. Product SQL,
+limits and all249+/production/activation/account/billing holds unchanged.
+
+## 2026-10-08 — Reorder source-only main completion candidate
+
+Synced dormant PR1515 from7d5dff8 onto fixed main1dd5325 in owned completion
+worktree; feature commitbb731336 retains32/38 exact feature blobs and combines
+six shared proof/CI/guidance paths without product expansion. Route/helper,
+validator/migration254 remain exact7d; incoming91 nonhistory paths preserved.
+Final focused1613/54, architecture/UI/design/TypeScript/lint and33TS audit PASS;
+first unchanged run had four5s timeouts, exact targeted rerun and final gate
+passed without changing assertions or limits. All historical1515/main entry
+bodies and multiplicities retained by append-only union and official trim.
+Private inert verifier awaits exact final-H review, specific fresh immutable
+canonical183/all5 checkpoint authority and a new finite quiet window; no native,
+DB/checkpoint/CI/push/PR operation, proof acceptance or epic completion claimed.
+Preserve originalOct7 05:04 clock,31reviews/27targeted and prior28fix-sync batches;
+feature synchronization is batch29, this continuity-only commit is not another
+fix batch. Human workflow-stop/budget waiver remains task-scoped; correctness,
+checkpoint/migration/production/activation/provider/billing holds remain.
