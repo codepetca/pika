@@ -95,7 +95,10 @@ export function startAiGradingRunPolling<Resource extends keyof RunByResource>(
         throw new PollFailure(response.status === 408 || response.status === 429 || response.status >= 500)
       }
       let data: unknown
-      try { data = await response.json() } catch { throw new PollFailure(false) }
+      // Invalid JSON is permanent; a broken body stream or timeout can recover.
+      try { data = await response.json() } catch (error) {
+        throw new PollFailure(!(error instanceof SyntaxError))
+      }
       assertActive()
       if (controller.signal.aborted) throw new PollFailure(true)
       return parseRun(data, options)

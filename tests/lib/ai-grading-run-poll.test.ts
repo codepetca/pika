@@ -60,6 +60,51 @@ describe('teacher AI grading run polling', () => {
     expect(onUnavailable).toHaveBeenCalledTimes(1)
   })
 
+  it('reconciles status after a tick body stream fails before allowing another tick', async () => {
+    const brokenBody = new Response(new ReadableStream({
+      start(controller) { controller.error(new TypeError('connection closed')) },
+    }))
+    fetchMock.mockResolvedValueOnce(response({ run }))
+      .mockResolvedValueOnce(brokenBody)
+      .mockResolvedValueOnce(response({ run: { ...run, status: 'completed' } }))
+    start(); await settle()
+    expect(onUnavailable).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetchMock.mock.calls.map(([, init]) => init.method)).toEqual(['GET', 'POST', 'GET'])
+    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'completed' }))
+    expect(onUnavailable).not.toHaveBeenCalled()
+  })
+
+  it('retries a status body timeout without ticking before a fresh status read', async () => {
+    fetchMock.mockImplementationOnce((_, init: RequestInit) => Promise.resolve({
+      ok: true, status: 200, json: () => new Promise((_, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      }),
+    } as Response))
+      .mockResolvedValueOnce(response({ run }))
+      .mockResolvedValueOnce(response({ run: { ...run, status: 'completed' } }))
+    start(); await settle(); await vi.advanceTimersByTimeAsync(30_000)
+    expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true)
+    expect(onUnavailable).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(fetchMock.mock.calls.map(([, init]) => init.method)).toEqual(['GET', 'GET', 'POST'])
+    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'completed' }))
+    expect(onUnavailable).not.toHaveBeenCalled()
+  })
+
+  it('bounds repeated response body transport failures', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(new ReadableStream({
+      start(controller) { controller.error(new TypeError('connection closed')) },
+    }))))
+    start(); await settle(); await vi.advanceTimersByTimeAsync(180_000)
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(fetchMock.mock.calls.every(([, init]) => init.method === 'GET')).toBe(true)
+    expect(onRun).not.toHaveBeenCalled()
+    expect(onUnavailable).toHaveBeenCalledTimes(1)
+  })
+
   it('retries a failed status read with exponential backoff and then stops', async () => {
     fetchMock.mockRejectedValue(new TypeError('network failed'))
     start(); await settle()
