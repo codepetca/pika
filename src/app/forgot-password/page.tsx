@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
+import { usePasswordResetContinuity } from '@/hooks/usePasswordResetContinuity'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -10,9 +11,12 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const continuity = usePasswordResetContinuity(loading)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
     setError('')
     setLoading(true)
 
@@ -29,14 +33,17 @@ export default function ForgotPasswordPage() {
         throw new Error(data.error || 'Failed to send reset code')
       }
 
+      if (!continuity.isCurrent(request)) return
       setSuccess(true)
       // Redirect to reset password page after 2 seconds
-      setTimeout(() => {
+      continuity.continueAfter(request, () => {
         router.push(`/reset-password?email=${encodeURIComponent(email)}`)
       }, 2000)
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
       setError(err.message || 'An error occurred')
       setLoading(false)
+      continuity.finish(request)
     }
   }
 
@@ -51,7 +58,7 @@ export default function ForgotPasswordPage() {
         </p>
 
         {success ? (
-          <div className="bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
+          <div role="status" aria-live="polite" className="bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
             <p className="font-medium">Check your email!</p>
             <p className="text-sm mt-1">
               If an account exists with this email, you will receive password reset instructions.
@@ -59,7 +66,7 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <FormField label="School Email" error={error} required>
+            <FormField label="School Email" error={error} reserveErrorSpace required>
               <Input
                 type="email"
                 placeholder="number@gapps.yrdsb.ca"
@@ -71,6 +78,7 @@ export default function ForgotPasswordPage() {
             </FormField>
 
             <Button
+              aria-busy={loading || undefined}
               type="submit"
               className="w-full mt-6"
               disabled={loading || !email}
@@ -81,12 +89,12 @@ export default function ForgotPasswordPage() {
         )}
 
         <div className="mt-6 text-center">
-          <button
-            onClick={() => router.push('/login')}
-            className="text-sm text-primary hover:underline"
+          <Button
+            type="button" variant="ghost" size="sm"
+            onClick={() => { continuity.retire(); router.push('/login') }}
           >
             Back to login
-          </button>
+          </Button>
         </div>
       </div>
     </div>

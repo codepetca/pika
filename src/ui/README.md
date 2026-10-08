@@ -98,12 +98,15 @@ interface FormFieldProps {
   htmlFor?: string
   error?: string
   hint?: string
+  reserveErrorSpace?: boolean
   required?: boolean
   children: ReactElement  // Exactly one Input, Select, Textarea, etc.
 }
 ```
 
 `FormField` preserves a control-provided `id` unless an explicit `htmlFor` override is supplied, associates the label, propagates native `required` plus ARIA required/invalid state, and merges existing descriptions with hint and error ids. Hints remain available when an error is present. Pass exactly one form control as its child.
+
+`reserveErrorSpace` is an opt-in for forms whose inline request error must not move the controls during pending/retry. It reserves one text line plus the existing error gap. Longer errors grow naturally without clipping; an empty slot has no alert, placeholder text, error ID or invalid semantics. Hints remain independently visible. Default field behavior is unchanged.
 
 ### AlertDialog
 

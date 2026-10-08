@@ -1,0 +1,19 @@
+# Password reset continuity
+
+Scope: the existing anonymous forgot/reset forms and Login's Sign up navigation. Approved references are `/pattern-lab#controls` Buttons and Form fields, canonical status semantics (`role=status`, polite live region), and the existing auth-resend pending/focus contract. Keep all endpoints, payloads, code/token/security semantics, account-neutral acknowledgement, safe continuation and the actual two-second forgot continuation intact.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Back to login and Sign up targets/focus | Button ghost/small | reuse | Canonical44px target and keyboard focus without feature sizing. |
+| Reset inputs and inline errors | Input/FormField | reuse | Preserve input owners, label/required/error descriptions and drafts. |
+| Stable inline error recovery space | FormField | extend | Opt-in reserved one-line error space for genuine forgot/reset adopters; default behavior and hints remain unchanged. Multiline errors grow without clipping. |
+| Generic acknowledgement | Existing status semantics | reuse | Announce truthful account-neutral acceptance without adding a new notice owner. |
+| Submission focus, code caret and continuation retirement | Feature-owned reset continuity | create | Bounded hook owns native request activation and owner lifetime outside shared UI; no authentication business logic moves. |
+
+Roles: teacher/student n/a before authentication. Pattern Lab default-field regressions cover both role densities. Viewports desktop1440×900/mobile390×844; light/dark; actual normal/reduced motion. Required reset matrix: all eight combinations, empty storage, fenced synthetic APIs, partial code/native caret, deferred pending, generic200, actual2000ms continuation, invalid/expired-equivalent401, malformed response, verify200, confirmation500/retry200, requested-destination sentinel, refresh restart, owner departure and no stale continuation. Login Sign up: eight matching viewport/theme/motion cases,44px target, visible native focus, carried email and safe next into real signup only. Existing full signup proof remains partial.
+
+Primary signal: immediate pending labels, local announced failure, preserved drafts/caret and visible keyboard recovery focus. Must not add: new provider/auth/session/schema/security behavior, validations, cooldowns, dependencies, page redesign, motion delay, extra dialogs, fake hint/empty alert, clipped fixed error height, or changes to dev quick login/Forgot navigation. Composite-widget review: native form keyboard and ARIA/focus ownership only; no new composite widget.
+
+Acceptance: focused default/opt-in FormField semantics and multiline-visible checks; meaningful code-caret, native focus restoration/no theft/deliberate movement/unmount and old-owner timer retirement tests. Durable native regression belongs in selected experience-matrix with empty storage and all API fencing, including malformed/401/500/retry behavior. Natural PNG/WebM and actual matchMedia, source/config/helper/dependency/runtime-input manifests immediately before/after native execution. Local proof does not establish server identity/password persistence or full auth-family completion. Coordinator handles publication/review/exact-main binding/CI after frozen local delivery.
+
+Accessibility checklist reviewed: native keyboard and focus recovery covered, naming/required/error/status semantics covered by focused tests, no new composite widget. Successful code-step continuation explicitly releases activation before React can reuse the code node as a password field; only failed same-owner recovery restores eligible focus.

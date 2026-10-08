@@ -101,3 +101,56 @@ describe('form control contract', () => {
     }
   })
 })
+
+describe('FormField reserved error space opt-in', () => {
+  it('leaves the default empty field without a feedback slot or error semantics', () => {
+    const { container } = render(<FormField label="Default"><Input /></FormField>)
+    const input = screen.getByRole('textbox', { name: 'Default' })
+    expect(container.querySelector('.mt-1.min-h-5')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(input).not.toHaveAttribute('aria-errormessage')
+    expect(input).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('reserves an empty line without creating an empty announced error or description', () => {
+    const { container } = render(<FormField label="Code" reserveErrorSpace><Input /></FormField>)
+    const input = screen.getByRole('textbox', { name: 'Code' })
+    expect(container.querySelector('.mt-1.min-h-5')).toBeEmptyDOMElement()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(input).not.toHaveAttribute('aria-errormessage')
+    expect(input).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('preserves the input, hint and existing descriptions while errors appear and clear', () => {
+    const field = (error?: string) => <FormField label="Code" reserveErrorSpace hint="Keep your code." error={error}>
+      <Input id="reserved-code" aria-describedby="existing-help" defaultValue="ABCDE" />
+    </FormField>
+    const { rerender } = render(field())
+    const input = screen.getByRole('textbox', { name: 'Code' })
+    expect(input).toHaveAttribute('aria-describedby', 'existing-help reserved-code-hint')
+    rerender(field('Request failed.'))
+    expect(screen.getByRole('textbox', { name: 'Code' })).toBe(input)
+    expect(input).toHaveValue('ABCDE')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAttribute('aria-errormessage', 'reserved-code-error')
+    expect(input).toHaveAttribute('aria-describedby', 'existing-help reserved-code-hint reserved-code-error')
+    expect(screen.getByText('Keep your code.')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent('Request failed.')
+    rerender(field())
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(input).not.toHaveAttribute('aria-errormessage')
+    expect(input).toHaveAttribute('aria-describedby', 'existing-help reserved-code-hint')
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('uses a minimum line without clipping a longer error', () => {
+    render(<FormField label="Code" reserveErrorSpace error="This longer request failure remains fully available and can wrap onto multiple lines without being clipped."><Input /></FormField>)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeVisible()
+    expect(alert.parentElement).toHaveClass('min-h-5')
+    expect(alert.parentElement).not.toHaveClass('h-5', 'overflow-hidden', 'truncate')
+    expect(alert).not.toHaveClass('overflow-hidden', 'truncate', 'line-clamp-1')
+  })
+})

@@ -1,3 +1,4 @@
+import { verifyPasswordResetContinuity, verifyLoginSignupTarget } from './helpers/password-reset-continuity'
 import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
 import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
 import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
@@ -61,6 +62,18 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Password reset continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves reset request ownership and recovery ${motion}`, async ({ page }, testInfo) => {
+      await verifyPasswordResetContinuity(page, testInfo, motion)
+    })
+    test(`keeps Sign up navigation comfortably focusable ${motion}`, async ({ page }, testInfo) => {
+      await verifyLoginSignupTarget(page, testInfo, motion)
+    })
+  }
+})
 
 test.describe('Public course section targets', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
