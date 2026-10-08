@@ -449,6 +449,12 @@ export function UiGallery({ role }: Props) {
                       ]}
                     />
                   </FormField>
+                  <FormField label="Reserved error space" reserveErrorSpace>
+                    <Input defaultValue="Ready to retry" />
+                  </FormField>
+                  <FormField label="Reserved error with hint" reserveErrorSpace hint="The hint remains visible during recovery." error="Request failed. Please try again.">
+                    <Input defaultValue="Keep this draft" />
+                  </FormField>
                   <FormField label="Archived field">
                     <Input defaultValue="Unavailable in this state" disabled />
                   </FormField>

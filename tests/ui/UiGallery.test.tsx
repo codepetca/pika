@@ -26,6 +26,21 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('shows default and opt-in FormField semantics independently for %s', role => {
+    renderGallery(role)
+    const controls = within(screen.getByTestId('pattern-section-controls'))
+    const empty = controls.getByRole('textbox', { name: 'Reserved error space' })
+    expect(empty).not.toHaveAttribute('aria-invalid')
+    expect(empty).not.toHaveAttribute('aria-errormessage')
+    const failed = controls.getByRole('textbox', { name: 'Reserved error with hint' })
+    expect(failed).toHaveAttribute('aria-invalid', 'true')
+    expect(failed).toHaveAccessibleDescription('The hint remains visible during recovery. Request failed. Please try again.')
+    expect(controls.getByText('Request failed. Please try again.')).toHaveAttribute('role', 'alert')
+    const defaultField = controls.getByRole('textbox', { name: 'Class name' })
+    expect(defaultField).toHaveAccessibleDescription('Use the name students already recognize.')
+    expect(defaultField).not.toHaveAttribute('aria-invalid')
+  })
+
   it.each(['teacher', 'student'] as const)('keeps loading names and busy semantics with decorative circular progress for %s', (role) => {
     renderGallery(role)
     const example = screen.getByTestId('circular-progress-example')

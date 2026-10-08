@@ -177,10 +177,16 @@ describe('LoginClient', () => {
     const user = userEvent.setup()
 
     render(<LoginClient />)
-    await user.click(screen.getByRole('button', { name: 'Sign up' }))
+    await user.type(screen.getByLabelText('School Email'), 'reset@example.invalid')
+    screen.getByRole('button', { name: 'Forgot password?' }).focus()
+    await user.tab()
+    const signup = screen.getByRole('button', { name: 'Sign up' })
+    expect(signup).toHaveFocus()
+    expect(signup).toHaveClass('min-h-control', 'min-w-control', 'focus-visible:ring-focus')
+    await user.keyboard('{Enter}')
 
     expect(mockPush).toHaveBeenCalledWith(
-      '/signup?next=%2Fattendance%2Fclassroom%2Fqr-token',
+      '/signup?email=reset%40example.invalid&next=%2Fattendance%2Fclassroom%2Fqr-token',
     )
   })
 
