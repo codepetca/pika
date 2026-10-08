@@ -305,3 +305,11 @@ inspection. No fixture, limit, guard or checkpoint replacement. Draft1534 remain
 blocked on targeted source review and all three actual modes. Reorder1515's
 independent1000-cap worker owns its source; root retains sole native runtime.
 Canonical249+/production/admission/UI/quota/billing/provider holds remain.
+
+Targeted reviewturn4 found P1 expiry blocks restoration and P2 unguarded work
+preparation. One batch adopts optional inherited checkWork at work-only phase
+boundaries, retaining exact-current-plan restoration/verification and finally
+resource/canonical inspection unconditionally. Fake-clock RED3 nowGREEN plus
+restore regression; 87checks/2files PASS. Original primitive timeout caps remain;
+900s is work eligibility, not exact physical process termination. Re-review and
+same-checkpoint normal/two-forced runtime still required, no native retry yet.

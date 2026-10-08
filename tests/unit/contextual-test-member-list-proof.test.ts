@@ -8,7 +8,7 @@ import { newTestMemberListFixture, testMemberListSetupSql, testMemberListSnapsho
 import { TEST_MEMBER_LIST_CANONICAL_TABLES_248 } from '../../scripts/contextual-test-member-list-proof-fixture'
 import { createTestMemberListProofTransport, TEST_MEMBER_LIST_PROJECTIONS, testMemberListRequestManifest,
   testMemberListForcedReceipt, testMemberListCanonicalCatalog, validateTestMemberListCanonicalCheckpoint } from '../../scripts/check-contextual-test-member-list-lifecycle'
-import { testMemberListReviewedIsolatedCatalog, testMemberListLifecycleFailureDiagnostic, testMemberListBoundedPhase } from '../../scripts/check-contextual-test-member-list-lifecycle'
+import { testMemberListReviewedIsolatedCatalog, testMemberListLifecycleFailureDiagnostic } from '../../scripts/check-contextual-test-member-list-lifecycle'
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
@@ -227,19 +227,10 @@ describe('finite member SDK manifest', () => {
     expect(testMemberListLifecycleFailureDiagnostic(new Error(privateValue), 1)).toContain('stage=unknown')
     expect(testMemberListLifecycleFailureDiagnostic(new AssignmentListLifecycleError({ stage: privateValue, error: new Error(privateValue) }, []), 1)).not.toContain(privateValue)
   })
-  it('checks the unchanged total budget before and after inherited native phases', async () => {
-    const events: string[] = [], check = vi.fn(() => { events.push('check') })
-    expect(await testMemberListBoundedPhase(check, async () => { events.push('native'); return 1 })).toBe(1)
-    expect(events).toEqual(['check', 'native', 'check'])
-    const action = vi.fn(async () => 1)
-    await expect(testMemberListBoundedPhase(() => { throw new Error('Budget') }, action)).rejects.toThrow('Budget')
-    expect(action).not.toHaveBeenCalled()
-    let checks = 0
-    await expect(testMemberListBoundedPhase(() => { if (++checks === 2) throw new Error('Budget') }, action)).rejects.toThrow('Budget')
-    expect(action).toHaveBeenCalledTimes(1)
+  it('adopts the inherited work-only budget hook without gating its cleanup adapters', () => {
     const source = readFileSync(new URL('../../scripts/check-contextual-test-member-list-lifecycle.ts', import.meta.url), 'utf8')
-    for (const method of ['command', 'verifyEphemeral', 'executeSql', 'runCase', 'runRevocation', 'verifyRestoration'])
-      expect(source).toContain(`testMemberListBoundedPhase(check, () => native.${method}(request))`)
+    expect(source).toContain('checkWork: check')
+    expect(source).not.toContain('testMemberListBoundedPhase')
     expect(source).toContain('const captured = await native.canonicalSnapshot(request)')
   })
   it('cancels a body when cumulative output accounting rejects it', async () => {

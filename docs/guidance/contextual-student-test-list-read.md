@@ -122,3 +122,16 @@ phases. Cleanup and canonical-after inspection remain unconditional and outside
 that work budget. No deadline, fixture, assertion, restoration policy or transport
 limit is relaxed. Independent targeted review and a fresh normal/two-forced run
 against the same preserved checkpoint remain required; the PR stays draft.
+
+The targeted review rejected that first budget correction: it could prevent
+exact-plan restoration after expiry and did not guard preparation/resource
+discovery on work paths. The next batch uses an optional inherited work-admission
+hook, checked before each new work phase and before accepting case/revocation
+results. Only the exact current plan's restoration/verification and finally
+cleanup remain independent of work eligibility, with all existing identity,
+SQL-allowlist, resource and primitive-timeout checks intact. Fake-clock tests
+refuse preparation after an expired baseline, clean expired prepared/started
+projects, and prove restoration/verification plus canonical inspection still run
+after a revoke crosses the deadline. This is an admission/acceptance deadline,
+not a promise of physical termination at exactly 900 seconds; an already admitted
+primitive retains its existing finite timeout. Targeted re-review remains pending.
