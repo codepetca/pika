@@ -42648,3 +42648,57 @@ Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades
 - Final reviewed76c1e04cf CI37699017298 passed all required lanes/PR Gate:14529tests and browser matrix. Main advanced to8031d2bed (#1521) during CI, causing a journal-only conflict. Rebased while draft; kept main's archive entry already identical to our archived receipt, preserving both histories. Range-diff shows all product/test/snapshot patches unchanged. Combined main's SplitButton interaction retirement still requires integration-focused review, local checks, and exact rebased-SHA CI before the owner-authorized merge; budget override remains active.
 - Audit heuristic flags existing composite semantics in touched feature files even though only decorative icons change; direct keyboard/state suites and independent review cover these unchanged contracts. No audit rule or policy is weakened.
 - Orchestration: small coherent implementation handled locally; weekly remaining86%, DeepSeek pilot paused through2026-12-31. GPT-6 Luna/medium initial review318de08 completed with one missing checklist import blocker, confirmed by TypeScript and fixed in one batch; targeted re-review pending. One launch/initial wave/one fix batch; per-task tokens/time unknown.
+
+<!-- pika-session-log-archive-batch:00c1b5f13f77b084a8eae5308c8ef914f48423845627cc53624bb680d993d1d2 -->
+## 2026-10-07 — Circular progress student-main integration
+
+Reviewed0a5 exactCI37703713253 attempt2 passes all required gates after one publication-fixture timeout rerun. Main advanced to a2d70efa8 (#1522) during CI. Rebase preserves its Grades/Achievements recovery and formatted-help test scope. Only archive conflict: all2489 feature archive entry bodies already exist in main2493, verified before retaining main archive. Feature implementation/test/snapshot patches remain unchanged apart from upstream gallery test. Targeted source integration review, refreshed focused and no-update canonical browser verification precede new exact-head CI and the authorized merge. Human budget override persists; no production changes.
+
+## 2026-10-07 — Dormant classroom Test tier caps
+
+Owner approved Basic20/Pro50/Max100 retained Tests per classroom; Free0 additions.
+Separate codex/classroom-test-tier-caps branch on7357f9f0; final checks caught
+the reserved254 gap; cap uses next253 and pending reorder must later resequence.
+Private guard OFF, owner-derived plan, TRY/NOWAIT authority locking,
+all-row consumption, retained same-class edits and privileged recovery preserved.
+Immutable billing versions without explicit Test terms retain purchased behavior;
+no account assignment, catalog rewrite, canonical schema or production change.
+Sol6.1/high worker delivered migration, rollback fixture and exact old proof
+catalog additions; coordinator verified source and ran actual isolated PG17
+boundary/bulk/move/restore-spoof and observed two-session insert/plan/parent/owner
+contention. Rollbackfalse|0 and owned container removal verified. Narrow fixture
+uses setup stub: not full Supabase replay or native proof acceptance. Initial
+focused197PASS/14 before final catalog/CI edits; worker35PASS/4, CIhook2PASS.
+Final focused/audit, independent high-risk review and exact-head CI follow.
+Initial final-check attempt failed the migration gap and startup summary budget;
+both corrected before publication, with failure evidence retained.
+Error response integration remains next before activation. Reorder1515 draft
+unchanged;10k fixture not a real over-limit class and not silently reduced.
+Standing task workflow waiver persists; original05:04UTC ledger24reviews,
+20targetedwaves/21fix-sync batches retained. Weekly83percent remaining at start;
+DeepSeek explicitly paused. No phase exit,249+ application or rollout claim.
+
+## 2026-10-07 — Test cap review remediation and full-schema proof
+
+Draft1524 at1a0c6497 completed Sol/high security and Astra/high compatibility
+reviews:3accepted P2 (trial authority, fixture creators, transfer categories).
+One batched correction;3source regressions genuinelyRED then48/7GREEN;487/27
+focused plus all static/auditPASS. BodyMD5 8e21004e27de5796420497e475ab808b
+sealed in all3 quota catalog blocks. Full001–253 fresh Supabase DB-only replay
+and corrected rollback fixture PASS with real plan/trial/expiry writers;false|0|0|0
+preserved. All3 quota metadataDOs PASS, not full inherited native profiles.
+Three concurrency schedules PASS; eligible Pro100-to-Basic20 owner follow-up
+PASS, stale isolation denied and20retained edits preserved. Initial full harness
+expected busy before inherited car_tests; actual archive revision serialization
+waits1.8s thenPTC01. Source-confirmed expectation correction retained oldfailure;
+Free owner transfer correctly fails existing creation gate, so actual eligible
+transfer tested separately. No product gate/assertion weakened. Bootstrap/CLI
+port/exclusion failures retained; normal CLI isolation used without stopping
+canonical resources. Whole owned synthetic project cleanup follows verification.
+Targeted delta review/final integration and exact-head CI remain before main
+merge; no canonical/prod249+ application, activation, billing/account/promotion.
+Task waiver/original05:04ledger24launches retained; capwave2reviews/1fixbatch.
+
+## 2026-10-07 — Teacher Announcement mutation feedback preparation
+
+Add current-operation visible POST/PATCH/DELETE failure alerts with accurate confirmation wording, preserved input and explicit identified delete reconfirmation. Meaningful RED6/27 to GREEN32/32; TypeScript and2TS audit PASS. Approved Pattern Lab and both-role baseline references inspected. Isolated implementation prepared during predecessorCI; final actual-parent browser verification and student-delivery baseintegration/review/CI pending. No server/schema/dependency or production change.

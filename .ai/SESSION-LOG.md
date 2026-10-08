@@ -11,59 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Circular progress student-main integration
-
-Reviewed0a5 exactCI37703713253 attempt2 passes all required gates after one publication-fixture timeout rerun. Main advanced to a2d70efa8 (#1522) during CI. Rebase preserves its Grades/Achievements recovery and formatted-help test scope. Only archive conflict: all2489 feature archive entry bodies already exist in main2493, verified before retaining main archive. Feature implementation/test/snapshot patches remain unchanged apart from upstream gallery test. Targeted source integration review, refreshed focused and no-update canonical browser verification precede new exact-head CI and the authorized merge. Human budget override persists; no production changes.
-
-## 2026-10-07 — Dormant classroom Test tier caps
-
-Owner approved Basic20/Pro50/Max100 retained Tests per classroom; Free0 additions.
-Separate codex/classroom-test-tier-caps branch on7357f9f0; final checks caught
-the reserved254 gap; cap uses next253 and pending reorder must later resequence.
-Private guard OFF, owner-derived plan, TRY/NOWAIT authority locking,
-all-row consumption, retained same-class edits and privileged recovery preserved.
-Immutable billing versions without explicit Test terms retain purchased behavior;
-no account assignment, catalog rewrite, canonical schema or production change.
-Sol6.1/high worker delivered migration, rollback fixture and exact old proof
-catalog additions; coordinator verified source and ran actual isolated PG17
-boundary/bulk/move/restore-spoof and observed two-session insert/plan/parent/owner
-contention. Rollbackfalse|0 and owned container removal verified. Narrow fixture
-uses setup stub: not full Supabase replay or native proof acceptance. Initial
-focused197PASS/14 before final catalog/CI edits; worker35PASS/4, CIhook2PASS.
-Final focused/audit, independent high-risk review and exact-head CI follow.
-Initial final-check attempt failed the migration gap and startup summary budget;
-both corrected before publication, with failure evidence retained.
-Error response integration remains next before activation. Reorder1515 draft
-unchanged;10k fixture not a real over-limit class and not silently reduced.
-Standing task workflow waiver persists; original05:04UTC ledger24reviews,
-20targetedwaves/21fix-sync batches retained. Weekly83percent remaining at start;
-DeepSeek explicitly paused. No phase exit,249+ application or rollout claim.
-
-## 2026-10-07 — Test cap review remediation and full-schema proof
-
-Draft1524 at1a0c6497 completed Sol/high security and Astra/high compatibility
-reviews:3accepted P2 (trial authority, fixture creators, transfer categories).
-One batched correction;3source regressions genuinelyRED then48/7GREEN;487/27
-focused plus all static/auditPASS. BodyMD5 8e21004e27de5796420497e475ab808b
-sealed in all3 quota catalog blocks. Full001–253 fresh Supabase DB-only replay
-and corrected rollback fixture PASS with real plan/trial/expiry writers;false|0|0|0
-preserved. All3 quota metadataDOs PASS, not full inherited native profiles.
-Three concurrency schedules PASS; eligible Pro100-to-Basic20 owner follow-up
-PASS, stale isolation denied and20retained edits preserved. Initial full harness
-expected busy before inherited car_tests; actual archive revision serialization
-waits1.8s thenPTC01. Source-confirmed expectation correction retained oldfailure;
-Free owner transfer correctly fails existing creation gate, so actual eligible
-transfer tested separately. No product gate/assertion weakened. Bootstrap/CLI
-port/exclusion failures retained; normal CLI isolation used without stopping
-canonical resources. Whole owned synthetic project cleanup follows verification.
-Targeted delta review/final integration and exact-head CI remain before main
-merge; no canonical/prod249+ application, activation, billing/account/promotion.
-Task waiver/original05:04ledger24launches retained; capwave2reviews/1fixbatch.
-
-## 2026-10-07 — Teacher Announcement mutation feedback preparation
-
-Add current-operation visible POST/PATCH/DELETE failure alerts with accurate confirmation wording, preserved input and explicit identified delete reconfirmation. Meaningful RED6/27 to GREEN32/32; TypeScript and2TS audit PASS. Approved Pattern Lab and both-role baseline references inspected. Isolated implementation prepared during predecessorCI; final actual-parent browser verification and student-delivery baseintegration/review/CI pending. No server/schema/dependency or production change.
-
 ## 2026-10-07 — Announcement mutation native verification
 
 Feature-owned POST/PATCH/DELETE feedback now preserves editor work, describes unconfirmed writes accurately and requires a new identified confirmation before retrying delete. Root accepted Sol/high worker exact2 source hashes and genuine6RED/32GREEN; preserved all production bytes during browser-harness corrections. Current native8 PASS with136 settled PNGs/8 recordings across teacher/student desktop/mobile light/dark normal/reduced fixtures; all requests intercepted. Root inspected8 contact sheets/four full feedback views against prior actual-parent/Pattern Lab references. Native checks retain editor DOM/input/caret/height/internal scroll/focus, explicit recovery counts/confirmation/Escape and student retained tab DOM; no absolute window anchoring claim after existing optimistic rollback, no auth/provider/hardware claim. Raw failed harness attempts and earlier mid-exit captures retained/excluded where appropriate. Focused293/17 plus static checks PASS; final capture-only guard gets targeted type/lint/audit. Student1522 exact reviewed CI37704331390 remains predecessor for Announcement publication/review/CI. Course Guide held; no whole-family completion or production/schema/dependency changes.
@@ -221,6 +168,7 @@ Accepted native owner audit reproduced stale Signup held/timer navigation, Creat
 ## 2026-10-08 — Dashboard recovery refinement
 
 Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
+
 ## 2026-10-08 — Public reading stress fixture
 
 - Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
@@ -273,3 +221,8 @@ Audit heuristic again flags missing changed accessibility tests for existing rol
 
 Owner direct reply “merge it” after the proposed final-review checkpoint authorizes that brief review and main merge after required gates; no production promotion. Continue the cumulative ledger rather than resetting it: prior5reviewer turns, initialwave1/targetedwaves3/fixbatches1, one accepted/fixedP2. Budget extension applies to this final integration and required merge checks. Fresh weekly remaining70%; direct implementation, one GPT-6.1 Sol/medium final cumulative review of requested copy/layout delta plus main-base integration, keeping prior unchanged coverage.
 Rebase onto actual main d826a01a3; all product/tests merged without conflict. Archive conflicts were duplicate batch markers for older entries already retained on main; preserve canonical main archive and all five attendance session entries. Shared UI/dependencies/config unchanged; only owned e2e matrix gains independently merged main cases alongside unchanged attendance scenario. Rebased final focused/native checks and reviewed stableSHA/CI precede merge. Risk none; no provider, schema or deployment operation. Attributable tokens/active time unknown.
+
+## 2026-10-08 — Attendance merge continuation after main advance
+
+Owner explicitly requested PR1533 main merge in production-drift chat. Original attendance coordinator stopped with systemError after finishing local verification; this task takes over only final integration/merge. CI37777785707 passed all five checks on reviewed4bb62bb56 (queue0s/run4244s), but main advanced via unrelated public-reading #1535 to b778a6851 during CI. PR returned to draft before clean seven-commit rebase; no source conflicts.
+All17 owned product/test/e2e paths are byte-identical to independent-reviewed4bb62bb56. Incoming Course Guide/planned reading and opt-in PageHeading.wrap do not intersect attendance routes; attendance uses unchanged Card/Button/Spinner/auth/server dependencies, and root layout/UI barrel/runtime config are unchanged. Reuse complete independent coverage rather than launching a redundant review: existing6turns, initialwave1/targetedwaves3/finalintegration1,1accepted/fixedP2,1remediation batch; no new finding, code change, review wave or coverage gap. Rebased focused checks and exact-new-head CI remain merge gates; retain earlier native/visual evidence for unchanged attendance source. Fresh task weekly68% at entry, attributable active/tokens unknown; prior CI and coordination waits are not active-development estimates. No production promotion or migration authority.
