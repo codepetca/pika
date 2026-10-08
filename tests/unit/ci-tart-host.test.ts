@@ -247,6 +247,31 @@ describe('serial Tart host admission (offline)', () => {
 `)
   })
 
+  it('never forwards registration secrets to post-registration guest calls', () => {
+    offline(String.raw`
+    import base64
+    backend=h.Backend(root);token='PRIVATE-TOKEN-SENTINEL'
+    backend.registration_issued=True;backend.redactions=[token]
+    captured=[]
+    def guest(vm, code, payload=None, timeout=90):
+        captured.append(code)
+        assert token not in code and token not in json.dumps(payload)
+        if code==h.GUEST_RUN: return json.dumps({'runner_exit':0,'assigned_job':None})
+        if code==h.GUEST_COLLECT:
+            return json.dumps({'files':[{'name':'Worker_offline.log',
+                'data':base64.b64encode(('synthetic '+token).encode()).decode()}]})
+        if code==h.GUEST_EMPTY: return 'EMPTY'
+        raise AssertionError('unexpected guest operation')
+    backend.guest=guest;backend.command=lambda *args,**kwargs: ''
+    assert backend.run_one('pika-ci-job-offline',1,2)=={'runner_exit':0,'assigned_job':None}
+    assert backend.collect('pika-ci-job-offline')['status']=='collected'
+    assert backend.stop('pika-ci-job-offline')
+    assert captured==[h.GUEST_RUN,h.GUEST_COLLECT,h.GUEST_EMPTY]
+    stored=(root/'guest-diagnostics'/'Worker_offline.log').read_text()
+    assert stored=='synthetic [redacted]' and token not in stored
+`)
+  })
+
   it('redacts and caps actual guest diagnostics while excluding config and symlinks', () => {
     offline(String.raw`
     import base64
@@ -256,16 +281,18 @@ describe('serial Tart host admission (offline)', () => {
     for i in range(8): (client/'_diag'/('Worker_'+str(i)+'.log')).write_bytes((token.encode()+b'x')*10000)
     (client/'.credentials').write_text('FORBIDDEN-CREDENTIAL-CONTENT')
     code=h.GUEST_COLLECT.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
-    payload={'client':str(client),'redactions':[token],'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    payload={'client':str(client),'environment':dict(h.GUEST_ENV,HOME=str(root))}
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
     assert result.returncode==0, result.stderr
     data=json.loads(result.stdout); total=sum(len(base64.b64decode(f['data'])) for f in data['files'])
     assert total<=256*1024 and len(result.stdout)<512*1024
-    assert all(token.encode() not in base64.b64decode(f['data']) for f in data['files'])
+    assert any(token.encode() in base64.b64decode(f['data']) for f in data['files'])
     assert not any(f['name'].startswith('.') for f in data['files'])
     backend=h.Backend(root); backend.redactions=[token]; backend.guest=lambda *args,**kwargs: result.stdout
     summary=backend.collect('pika-ci-job-offline')
-    assert summary['bytes']==total and 'PRIVATE-DIAGNOSTIC-SENTINEL' not in json.dumps(summary)
+    redacted_total=sum(len(base64.b64decode(f['data']).replace(token.encode(),b'[redacted]')) for f in data['files'])
+    assert summary['bytes']==redacted_total and 'PRIVATE-DIAGNOSTIC-SENTINEL' not in json.dumps(summary)
+    assert all(token.encode() not in p.read_bytes() for p in (root/'guest-diagnostics').iterdir())
     assert (root/'guest-diagnostics').stat().st_mode & 0o777==0o700
     assert all(p.stat().st_mode & 0o777==0o600 for p in (root/'guest-diagnostics').iterdir())
     assert len(data['files'])<=5, 'raw read budget exceeded before redaction'

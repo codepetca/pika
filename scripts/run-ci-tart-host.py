@@ -265,7 +265,6 @@ print(json.dumps({'runner_exit':runner.returncode,'assigned_job':None}))
 GUEST_COLLECT = GUEST_COMMON + r'''
 import base64, re, stat
 require(client.is_dir() and not client.is_symlink(),'client')
-secrets=[s.encode() for s in payload['redactions']]
 remaining=256*1024; files=[]
 groups=[(client,['pika-host-run.log'])]
 diag=client/'_diag'
@@ -278,7 +277,6 @@ for folder,names in groups:
     try:
         for name in names:
             if not remaining: break
-            require(not any(s.decode() in name for s in secrets),'credentials')
             try: fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=directory)
             except FileNotFoundError: continue
             with os.fdopen(fd,'rb') as stream:
@@ -287,7 +285,6 @@ for folder,names in groups:
                 size=min(64*1024,remaining,info.st_size)
                 stream.seek(max(0,info.st_size-size)); content=stream.read(size)
             remaining-=len(content)
-            for secret in secrets: content=content.replace(secret,b'[redacted]')
             files.append({'name':name,'data':base64.b64encode(content).decode()})
     finally: os.close(directory)
 print(json.dumps({'files':files}))
@@ -517,7 +514,7 @@ class Backend:
             raise
 
     def collect(self, vm):
-        data = json.loads(self.guest(vm, GUEST_COLLECT, {'redactions': self.redactions}, timeout=20))
+        data = json.loads(self.guest(vm, GUEST_COLLECT, timeout=20))
         files = data['files']
         if not isinstance(files, list) or len(files) > 9:
             raise Refusal('invalid-diagnostics')

@@ -110,7 +110,9 @@ replay migrations. Receipts and child logs are private files under
 While host admission and child containment remain verified, the driver collects
 bounded tails of allowlisted guest
 runner diagnostics into that private directory. It excludes configuration,
-credentials, and environment files and redacts its known registration token.
+credentials, and environment files. The host redacts its known registration token
+from collected files; diagnostics never send that token back into the guest after
+runner configuration.
 The receipt records collection failure or skipped collection. These
 bounded logs may be truncated and do not replace GitHub job results.
 
