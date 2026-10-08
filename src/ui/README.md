@@ -200,6 +200,8 @@ wrappers:
   standard content rhythm. The default remains compact for compatibility while callers migrate.
 - `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
   sizes.
+  Pass `wrap` for a reading title that must expose its complete identity; the default stays truncated.
+  CourseGuideView is the scoped adopter, demonstrated in Pattern Lab Page actions.
   For intentional focus after in-page navigation, pass `headingRef` and `tabIndex={-1}`;
   callers own when focus moves, and default headings remain outside the Tab order.
 - Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.

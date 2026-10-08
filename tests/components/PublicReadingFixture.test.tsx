@@ -1,7 +1,5 @@
 import { render, screen, within, cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('not found') } }))
 vi.mock('@/lib/server/course-sites', () => ({ buildMarkdownSectionContent: (markdown: string) => markdown }))
@@ -21,13 +19,16 @@ describe('PublicReadingFixture', () => {
     vi.stubEnv('NODE_ENV', 'test'); vi.stubEnv('PIKA_E2E_FIXTURES', 'false')
     await expect(page('actual-long')).rejects.toThrow('not found')
     enable(); await expect(page('unknown')).rejects.toThrow('not found')
+    await expect(PublicReadingFixture({ searchParams: Promise.resolve({ variant: 'actual-long', role: 'admin' }) })).rejects.toThrow('not found')
+    await expect(PublicReadingFixture({ searchParams: Promise.resolve({ variant: 'planned-long', role: 'teacher' }) })).rejects.toThrow('not found')
   })
-  it('preserves the original Planned presentation body byte for byte', () => {
-    const base = execFileSync('git', ['show', '47659857d0ce39431cda46faa0426fd520912025:src/app/planned/[slug]/page.tsx'], { encoding: 'utf8' })
-    const owner = readFileSync('src/app/planned/PlannedCourseDocument.tsx', 'utf8')
-    expect(owner.slice(owner.indexOf('  const config ='))).toBe(base.slice(base.indexOf('  const config =')))
-    const constants = base.slice(base.indexOf('const sectionClassName'), base.indexOf('export default'))
-    expect(owner).toContain(constants)
+  it.each(['teacher', 'student'])('renders the real embedded read owner for %s', async role => {
+    enable()
+    const { container } = render(await PublicReadingFixture({ searchParams: Promise.resolve({ variant: 'actual-long', role }) }))
+    expect(container.querySelector('[data-fixture-role]')).toHaveAttribute('data-fixture-role', role)
+    expect(screen.queryByText('Course Guide', { exact: true })).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveClass('truncate')
+    expect(screen.getByText(finalTest)).toBeInTheDocument()
   })
   it('keeps final-only Planned nav and rendered sections in correspondence', async () => {
     enable(); const { container } = render(await page('planned-final'))

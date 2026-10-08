@@ -13,6 +13,10 @@ export default async function PublicReadingFixture({ searchParams }: {
   const query = await searchParams
   const variant = query.variant || 'planned-long'
   if (!publicReadingVariants.some((candidate) => candidate === variant)) notFound()
+  if (query.role !== undefined) {
+    if ((query.role !== 'teacher' && query.role !== 'student') || variant.startsWith('planned-')) notFound()
+    return <div data-fixture-role={query.role}><CourseGuideView guide={actualFixture(variant)} embedded /></div>
+  }
   return variant.startsWith('planned-')
     ? <PlannedCourseDocument blueprint={plannedFixture(variant)} />
     : <CourseGuideView guide={actualFixture(variant)} />

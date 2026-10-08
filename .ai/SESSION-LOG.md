@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Assignment editor committed interaction ownership
-
-PR1521 initial23-path review found a genuine suspended-close Title-input loss.
-Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
-before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
-speculative legacy session generation remounted its visible requirement owner.
-Rollback-safe feature generation preserves abandoned-close drag continuity while
-external whole-object refresh still retires the drag and preserves Tiptap identity.
-Legacy initiated-command/session rules remain unchanged. Corrected-source local,
-visual, targeted independent review and exact-head CI remain required before merge.
-Broader17-family fluidity goal remains incomplete; no production promotion.
-
 ## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
 PR #1521 returned to draft after run37686387293: four inherited preview-helper
@@ -303,3 +291,9 @@ Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement
 - Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
 - Native 56-case 320/390 light/dark normal/reduced witness: no document overflow, final content reachable; Actual title clipping measured and left for coordinator acceptance. Artifacts: product-fluidity/public-reading-stress-fixture under the Oct5 visualization workspace.
 - Focused semantic gate/parity/sparse coverage and architecture/UI/design/audit pass. Coordinator owns review/PR and family acceptance; no tracker promotion.
+
+## 2026-10-08 — Course Guide full title identity
+
+- Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
+- Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
+- Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.

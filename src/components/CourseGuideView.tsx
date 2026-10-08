@@ -79,6 +79,7 @@ export function CourseGuideView({
             ) : null}
             <PageHeading
               title={guide.classroom.title}
+              wrap
             />
           </PageContent>
         </PageLayout>
