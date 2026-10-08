@@ -42493,6 +42493,46 @@ Independent full PR1518 review found a P2: a stale manual Draft continuation com
 PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS; exact tree/sole parent and clean hub sync verified. Proven pre-existing same-editor reverts now retain the awaited persisted baseline and latest pending input. Four genuine RED regressions becameGREEN; two menu controls/original18 preserved; failed-predecessor/manual failure control preserves retry. Worker65component/420focused21 plus architecture/UI/design/type/lint/auditPASS on inherited reviewed source; isolated implementation overlapped frozen1518CI, publication waits for its actual landing. Teacher natural8-case viewport/theme/motion matrixPASS with exact restoring PATCH/close; old owner natural focus/click reproduction omits the restoring PATCH. APIs intercepted, zero backend writes. Screenshots inspected. Native preview initial4normal failures/4reducedPASS exposed timer-window assumptions; old/new measured native clicks cross200ms exit, so the helper checks physical eligibility at actual reopen and cleanup of reopened root. Failed/intermediate evidence retained. Rebase, final focused checks, complete independent review and stable-head CI remain before next main merge. No dependencies/backend/schema/deployment change; broad fluidity goal incomplete.
 
 <!-- pika-session-log-archive-batch:f32ca1cbbe37d37b1618ef55735312f482a167612834232fa84cfaf9dc2cc12c -->
+<!-- pika-session-log-archive-batch:80a0264e8db2604f7ae4121a1a1c17a75ab2266ccd722e386fd37a91409315f5 -->
 ## 2026-10-07 — Preview preference coverage correction
 
 PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
+
+<!-- pika-session-log-archive-batch:6bc2e412819b6d8b71d3ad6e775abaa1f7a0cee982b90f27ceb02ee83a21b65d -->
+## 2026-10-07 — Assignment editor passive dismissal and drag ownership
+
+Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
+logical close, focus/scroll release and outgoing input fences. Its retained body
+receives live activity outside ModalLayer's snapshot; reopen gets fresh rich-editor
+history, while same-open undo and same-ID external object reset behavior remain.
+Toolbar portals, nested confirmations, action menus, deferred focus and Blueprint
+publication retire. CreationModalShell stays immediate by default. Active native
+keyboard proof caught dnd-kit sensor listeners surviving context unmount; feature
+sensors implement its public protocol with explicit resource ownership and instant
+next-key handling. External session refresh retires only the requirement drag
+owner. Visually found clipped desktop action options; reused upper placement and
+asserted panel bounds/unchanged title. UI brief: docs/guidance/ui/changes/assignment-editor-exit.md.
+Controlled teacher browser16PASS across desktop/mobile, light/dark, normal/reduced,
+including pending/active mouse/touch/keyboard, refresh, reopen reorder, real nested
+controls and parent Post publication. Natural main exit8PASS preserves measured
+text/field/toolbar geometry; actual compositor midpoint pixels inspected. Natural
+manual restoration8PASS with the clearing fixture parent and exact restoringPATCH.
+All APIs intercepted; no authenticated persistence, hardwareINP or full-video
+replay claim. Student n/a unchanged caller/default behavior. Genuine baseline and
+naive lifetime REDs plus capture/sensor/fixture failures retained externally.
+Focused source/checks, independent review and final exact-head CI remain required
+before main landing. Broad17-family product goal remains incomplete. No dependency,
+schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
+
+<!-- pika-session-log-archive-batch:52c77d5a2e90a1ca669f0c632b6b72fa22427526e43b129783301907a8477aee -->
+## 2026-10-07 — Assignment editor committed interaction ownership
+
+PR1521 initial23-path review found a genuine suspended-close Title-input loss.
+Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
+before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
+speculative legacy session generation remounted its visible requirement owner.
+Rollback-safe feature generation preserves abandoned-close drag continuity while
+external whole-object refresh still retires the drag and preserves Tiptap identity.
+Legacy initiated-command/session rules remain unchanged. Corrected-source local,
+visual, targeted independent review and exact-head CI remain required before merge.
+Broader17-family fluidity goal remains incomplete; no production promotion.

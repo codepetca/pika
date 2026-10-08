@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
-import { usePasswordResetContinuity } from '@/hooks/usePasswordResetContinuity'
+import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -11,7 +11,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const continuity = usePasswordResetContinuity(loading)
+  const continuity = useAuthFormContinuity(loading)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

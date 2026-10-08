@@ -4,7 +4,7 @@ import { useState, useRef, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
 import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
-import { usePasswordResetContinuity, useUppercaseResetCode } from '@/hooks/usePasswordResetContinuity'
+import { useAuthFormContinuity, useUppercaseAuthCode } from '@/hooks/useAuthFormContinuity'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -13,14 +13,14 @@ function ResetPasswordForm() {
 
   const [step, setStep] = useState<'verify' | 'reset'>('verify')
   const [email, setEmail] = useState(emailFromUrl)
-  const resetCode = useUppercaseResetCode()
+  const resetCode = useUppercaseAuthCode()
   const code = resetCode.code
   const [handoffToken, setHandoffToken] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const continuity = usePasswordResetContinuity(loading)
+  const continuity = useAuthFormContinuity(loading)
 
   const verifyingRef = useRef(false)
   const resend = useAuthCodeResend({

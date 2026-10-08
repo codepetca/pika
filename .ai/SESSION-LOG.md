@@ -11,43 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Assignment editor passive dismissal and drag ownership
-
-Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
-logical close, focus/scroll release and outgoing input fences. Its retained body
-receives live activity outside ModalLayer's snapshot; reopen gets fresh rich-editor
-history, while same-open undo and same-ID external object reset behavior remain.
-Toolbar portals, nested confirmations, action menus, deferred focus and Blueprint
-publication retire. CreationModalShell stays immediate by default. Active native
-keyboard proof caught dnd-kit sensor listeners surviving context unmount; feature
-sensors implement its public protocol with explicit resource ownership and instant
-next-key handling. External session refresh retires only the requirement drag
-owner. Visually found clipped desktop action options; reused upper placement and
-asserted panel bounds/unchanged title. UI brief: docs/guidance/ui/changes/assignment-editor-exit.md.
-Controlled teacher browser16PASS across desktop/mobile, light/dark, normal/reduced,
-including pending/active mouse/touch/keyboard, refresh, reopen reorder, real nested
-controls and parent Post publication. Natural main exit8PASS preserves measured
-text/field/toolbar geometry; actual compositor midpoint pixels inspected. Natural
-manual restoration8PASS with the clearing fixture parent and exact restoringPATCH.
-All APIs intercepted; no authenticated persistence, hardwareINP or full-video
-replay claim. Student n/a unchanged caller/default behavior. Genuine baseline and
-naive lifetime REDs plus capture/sensor/fixture failures retained externally.
-Focused source/checks, independent review and final exact-head CI remain required
-before main landing. Broad17-family product goal remains incomplete. No dependency,
-schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
-
-## 2026-10-07 — Assignment editor committed interaction ownership
-
-PR1521 initial23-path review found a genuine suspended-close Title-input loss.
-Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
-before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
-speculative legacy session generation remounted its visible requirement owner.
-Rollback-safe feature generation preserves abandoned-close drag continuity while
-external whole-object refresh still retires the drag and preserves Tiptap identity.
-Legacy initiated-command/session rules remain unchanged. Corrected-source local,
-visual, targeted independent review and exact-head CI remain required before merge.
-Broader17-family fluidity goal remains incomplete; no production promotion.
-
 ## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
 PR #1521 returned to draft after run37686387293: four inherited preview-helper
@@ -303,3 +266,14 @@ Anonymous forgot/reset recovery preserves native uppercase insertion caret, elig
 ## 2026-10-08 — Password reset reference snapshot correction
 
 Returned PR#1531 to draft after four Linux Pattern Lab contract snapshot mismatches. Inspected exact CI artifact expected/actual comparisons in all four projects before accepting the two new reserved-error-space examples and translated gallery content. Updated only the four matching Linux baselines and evidence/history; product source unchanged. Focused checks PASS205files/2386tests plus architecture, UI/design policy, TypeScript and lint; targeted independent delta review precedes fresh ready-head CI.
+## 2026-10-08 Join retry focus continuity
+
+Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
+
+## 2026-10-08 — Entry recovery continuity
+
+Classic Login native held401 baseline lost activation to BODY, omitted busy state and shifted error geometry. Reused existing reserved FormField slot and renamed the unchanged reset feature request owner to useAuthFormContinuity for genuine third Login adoption. Failed requests preserve nodes/drafts/caret and eligible focus; explicit Forgot/Sign up or unmount retires obsolete results. Signup footer Login now canonical ghost/sm44px, retaining continuation. Existing Magic/session-reason/WorkOS/dev branches and accepted Join source untouched. Focused semantic and selected native regression added; representative desktop/mobile native smoke passed before full combined32case verification. Coordinator owns actual-main binding/review/CI, no worker push/PR. External final execution receipt binds source/dependencies/headless shell/ffmpeg and natural media.
+
+## 2026-10-08 — Signup owner continuity
+
+Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
