@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 UTC — Assignment editor exit CI contract correction
-
-PR #1521 returned to draft after run37686387293: four inherited preview-helper
-expectations required immediate physical main-editor removal despite its approved
-200ms exit. Check immediate logical dismissal/focus, then eventual removal; all
-eight viewport/theme/motion cases PASS. Production code unchanged. The separate
-publication failure showed loading; one retry lost hydration during a logged Next
-memory restart, while the initial cause remains unknown. Local seeded lifecycle and authenticated
-setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attempts
-retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
-Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
-No production promotion, schema/dependency change or product-wide completion.
-
 ## 2026-10-07 UTC — Student Grades reactivation continuity
 
 Retain same-classroom returned rows across inactive/reactivated reads and recoverable
@@ -297,3 +284,7 @@ Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement
 - Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
 - Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
 - Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.
+
+## 2026-10-08 — Course Guide reading and platform snapshot acceptance
+
+Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.

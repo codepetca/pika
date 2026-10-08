@@ -42582,6 +42582,7 @@ Legacy initiated-command/session rules remain unchanged. Corrected-source local,
 visual, targeted independent review and exact-head CI remain required before merge.
 Broader17-family fluidity goal remains incomplete; no production promotion.
 
+<!-- pika-session-log-archive-batch:f4d132dbe645cfa228c0d966ea29f2458256c9ef6495e723c67a558d81712838 -->
 ## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
 PR #1521 returned to draft after run37686387293: four inherited preview-helper
