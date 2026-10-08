@@ -42431,3 +42431,10 @@ focused checks and new exact-head CI precede main merge. Original13:07:17UTC clo
 23launches20targets20batches retained/taskwaiver active, weekly9percent remaining/
 ordinaryexecutionallowed, DeepSeek paused. No canonical/prod249–252 application,
 promotion, activation, provider/account/billing/runner/visibility or phase exit.
+
+<!-- pika-session-log-archive-batch:ff6b6fc7dbabe4d92f1b9f5d3ea5300806c770be14eec8903a560117e8e5f12c -->
+## 2026-10-07 — Mobile sidebar Classrooms label
+
+- Changed shared LeftSidebar mobile home link text and accessible name to Classrooms; updated existing component and browser selectors. Reused shared drawer and Pattern Lab mobile-drawer-controls reference; no new pattern or refactor. Risk profile: none.
+- Focused checks passed: 26 files/351 tests, architecture, UI/design policy, TypeScript and lint; audit clean. Playwright mobile-drawer-controls: teacher/student × light/dark 4/4 passed, including desktop guards and focus/open/hover/navigation states. Inspected mobile screenshots. Logs: /tmp/pika-mobile-label-{focused,visual}.log; screenshots in worktree test-results.
+- Independent low-risk review and PR lifecycle follow implementation. Task owns codex/mobile-classrooms-label; model/usage telemetry unknown.
