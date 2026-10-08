@@ -213,6 +213,27 @@ for ordinary JSON reads. Use a stable identity key, invalidate after mutations,
 and bypass caching for reads that must always be fresh. Raw `fetch()` is also
 appropriate for one-off mutations (POST/PATCH/DELETE).
 
+Classroom and Course Blueprint list clients resolve the current actor before
+using actor-scoped caches. `client-identity` shares that lookup only among callers
+started in the same synchronous batch; an awaited or browser-event boundary
+starts a fresh lookup, even while the earlier lookup remains pending. It does
+not retain an identity cache. `AuthSessionWatcher` uses its own fresh lookup,
+checks every minute while visible and focused, and checks immediately on focus.
+Blur and hidden-page transitions fence older responses. Server authorization
+continues to validate the session independently on every protected request.
+
+Teacher Assignment and Test grading use `ai-grading-run-poll` for their browser
+driver. A successful, validated status for the selected resource and run must
+precede each tick. Permanent HTTP or invalid-response failures stop the browser
+driver; transient failures back off with jitter, bounded by six consecutive
+failures and a two-minute failure deadline. Future retry times suppress ticks
+until due, with status reconciliation at most once a minute during longer waits.
+Cancellation aborts pending requests and prevents late state writes or ticks.
+If status becomes unavailable, the existing error banner offers page reload to
+reconnect to the saved run; the blocking loading overlay is removed, while the
+durable run and active-run mutation guards remain intact. Provider attempt
+limits, leases, and background server drivers retain their separate contracts.
+
 ### Assessments Pattern
 Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed.
 The active database, API, package, and TypeScript contracts are Tests-only.

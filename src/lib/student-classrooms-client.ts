@@ -1,5 +1,6 @@
 import type { Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { getCurrentUserId } from '@/lib/client-identity'
 
 type StudentClassroomsResponse = {
   classrooms?: Classroom[]
@@ -9,12 +10,8 @@ export const STUDENT_CLASSROOMS_CACHE_PREFIX = 'student-classrooms:'
 const STUDENT_CLASSROOMS_CACHE_TTL_MS = 20_000
 
 async function getStudentClassroomsCacheKey(): Promise<string | null> {
-  const response = await fetch('/api/auth/me', { cache: 'no-store' })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok || typeof data.user?.id !== 'string') {
-    return null
-  }
-  return `${STUDENT_CLASSROOMS_CACHE_PREFIX}${data.user.id}:list`
+  const userId = await getCurrentUserId()
+  return userId === null ? null : `${STUDENT_CLASSROOMS_CACHE_PREFIX}${userId}:list`
 }
 
 async function fetchStudentClassroomsFromApi(): Promise<StudentClassroomsResponse> {

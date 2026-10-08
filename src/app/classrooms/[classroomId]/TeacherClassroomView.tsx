@@ -1,5 +1,7 @@
 'use client'
 
+import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
+
 import { useCallback, useMemo, useState, useEffect, useId, useRef, type MouseEvent } from 'react'
 import {
   DndContext,
@@ -458,20 +460,6 @@ function isAssignmentAiGradingRunActive(run: AssignmentAiGradingRunSummary | nul
   return !!run && (run.status === 'queued' || run.status === 'running')
 }
 
-function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null): number {
-  if (!run || !isAssignmentAiGradingRunActive(run) || !run.next_retry_at) {
-    return 2000
-  }
-
-  const retryAt = new Date(run.next_retry_at).getTime()
-  if (!Number.isFinite(retryAt)) {
-    return 2000
-  }
-
-  const delay = retryAt - Date.now() + 250
-  return Math.min(Math.max(delay, 1000), 10_000)
-}
-
 function isGradeSelectedScoreValueValid(value: string, allowBlank: boolean): boolean {
   const trimmed = value.trim()
   if (allowBlank && !trimmed) return true
@@ -662,6 +650,7 @@ export function TeacherClassroomView({
     assignment: Assignment
     students: StudentSubmissionRow[]
   } | null>(null)
+  const [unavailableAssignmentAiPollKey, setUnavailableAssignmentAiPollKey] = useState<string | null>(null)
   const [assignmentAiGradingRun, setAssignmentAiGradingRun] = useState<AssignmentAiGradingRunSummary | null>(null)
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
   const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
@@ -1615,69 +1604,20 @@ export function TeacherClassroomView({
   useEffect(() => {
     if (!selectedAssignmentKey || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
 
-    let isCancelled = false
-    let timeoutId: number | undefined
-
-    const syncRun = async () => {
-      const assignmentId = selectedAssignmentKey
-      const runId = activeAssignmentAiRunId
-      let shouldContinue = true
-      let nextDelayMs = 2000
-
-      try {
-        const statusResponse = await fetch(
-          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}`,
-        )
-        const statusData = await statusResponse.json().catch(() => ({}))
-        if (!isCancelled && statusResponse.ok && statusData.run) {
-          const nextRun = statusData.run as AssignmentAiGradingRunSummary
-          setAssignmentAiGradingRun(nextRun)
-          if (!isAssignmentAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-            return
-          }
-
-          const statusDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
-          nextDelayMs = statusDelayMs
-          if (statusDelayMs > 2500) {
-            return
-          }
-        }
-
-        const tickResponse = await fetch(
-          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}/tick`,
-          {
-            method: 'POST',
-          },
-        )
-        const tickData = await tickResponse.json().catch(() => ({}))
-        if (!isCancelled && tickResponse.ok && tickData.run) {
-          const nextRun = tickData.run as AssignmentAiGradingRunSummary
-          setAssignmentAiGradingRun(nextRun)
-          if (!isAssignmentAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-          } else {
-            nextDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
-          }
-        }
-      } catch {
-        // Keep the run state visible; the next poll cycle can recover.
-      } finally {
-        if (!isCancelled && shouldContinue) {
-          timeoutId = window.setTimeout(syncRun, nextDelayMs)
-        }
-      }
-    }
-
-    void syncRun()
-
-    return () => {
-      isCancelled = true
-      if (timeoutId) {
-        window.clearTimeout(timeoutId)
-      }
-    }
-  }, [activeAssignmentAiRunId, hasActiveAssignmentAiRun, selectedAssignmentKey])
+    setUnavailableAssignmentAiPollKey(null)
+    const pollKey = `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
+    return startAiGradingRunPolling({
+      resource: 'assignment',
+      resourceId: selectedAssignmentKey,
+      runId: activeAssignmentAiRunId,
+      statusUrl: `/api/teacher/assignments/${selectedAssignmentKey}/auto-grade-runs/${activeAssignmentAiRunId}`,
+      onRun: setAssignmentAiGradingRun,
+      onUnavailable: () => {
+        setUnavailableAssignmentAiPollKey(pollKey)
+        setError('Grading status is unavailable. Reload this page to reconnect to the saved run.')
+      },
+    })
+  }, [activeAssignmentAiRunId, classroom.id, hasActiveAssignmentAiRun, selectedAssignmentKey])
 
   useEffect(() => {
     if (!activeAssignmentAiRun || hasActiveAssignmentAiRun) return
@@ -2281,7 +2221,8 @@ export function TeacherClassroomView({
       : gradeSelectedConfirmTarget === 'comments'
         ? isApplyCommentsSelectedDisabled
         : true
-  const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
+  const assignmentAiPollUnavailable = unavailableAssignmentAiPollKey === `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
+  const showAssignmentAiRunOverlay = isAutoGrading || (hasActiveAssignmentAiRun && !assignmentAiPollUnavailable)
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
