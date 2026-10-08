@@ -11,50 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Approved local CI diagnostics merge synchronization
-
-Owner approved PR1488 squash merge after reviewed86012 CI37493751710 passed
-all five jobs including PR Gate. Main advanced to2d89088cd Daily summaries;
-continuity-only rebase conflicts reconciled by preserving both complete histories.
-All eight diagnostics and Classwork readiness correction remain byte-identical;
-incoming Daily source/tests retained. New head requires focused checks, targeted
-independent synchronization review and eligible exact-head CI before approved
-merge. Prior full local DB proof remains tied to its original0d72/schema251
-inputs; incoming Daily harness changes are verified by new CI. Local auth2/
-Classwork12 zero-retry proof remains86012 evidence. Public visibility and
-unregistered/inactive runner holds persist; no production/HQ changes.
-
-## 2026-10-06 Product fluidity final current-main reconciliation
-
-Owner approved one final reconciliation batch and one independent integration reviewer within120minutes. Reconciled current main693a096df (#1488 database proof diagnostics) into the frozen baf23560 candidate. Application/UI source stays unchanged; the archive retains both exact histories, and the automatically merged experience contract retains the upstream student-work readiness correction. Parent baf23560 passed independent review, focused2388tests,8newbrowsercontracts,16composition captures, and exact-head CI37511211431 (13919coveragepasses;386browserpasses,11configured retry recoveries,20skips;PRGatePASS). Required focused checks and one final frozen-SHA review precede fresh exact-head CI, main merge and8superseded closures. No production promotion.
-
-## 2026-10-06 — Survey results merge synchronization
-
-Owner authorized merging PR1511. Final4e78030 CI37514295830 passed all required
-checks/PR Gate; main advanced693a096df and conflicted only in archived session
-history. Preserved both histories and incoming main source; survey implementation
-bytes unchanged. Required focused checks and exact synchronization CI pending.
-
-## 2026-10-06 — Fluidity current-main survey reconciliation
-
-Owner explicitly overrode task approval stops; cumulative8batches/10reviewer launches retained before ninth reconciliation. Reviewedf03 CI37530998188 allrequiredgatesPASS; main1511 advanced duringCI. Preserve exactmain archive prefix, feature append, both rolling bodies and existing fluidity previews alongside exact upstream survey fixtures. Temporary main-merge hold sent to three coding chats; release after landing/checkpoint. Focused, both-role visual, targeted independent review and fresh exact-head CI pending; no production/provider/schema permission changed. Broad fluidity goal remains incomplete; softer modal exits follow verified landing.
-
-## 2026-10-06 — Scope Pattern Lab test queries after CI timing failures
-
-65a exact-head CI37539601613 TestBuild13946PASS/2FAIL/8SKIP; two unchanged whole-gallery interactions exceeded5000ms. Both cases pass isolated with coverage; cause of Linux slowdown unproven. Source batch10 narrows QR lookup to real Core controls and navigator lookups to real navigation/target Survey section, retaining all interactions/assertions/5000ms limits and every production blob. Same two-case local coverage observation3.17s→1.11s; partial coverage threshold errors expected, not full-gate evidence. Old ownCI cancelled/draft before correction; accepted32browser/8visual proofs reusable by exact UI identity. Focused, targeted independent review and new exact-head CI pending. Owner task override persists; cumulative counters retained; main mergeholds retained until landing/checkpoint. No production/provider/schema changes.
-
-## 2026-10-06 — Shared Mac CI admission preparation
-
-- Continued the owner's shared-Mac CI goal after #1488 merged; Pika remains public, with runner registration and automatic self-hosted routing pending an explicit activation decision.
-- Prepared an on-demand, one-job Tart host driver with a shared exclusive HQ/Pika lease, separate Pika guest template, private receipts, and disposable VM teardown. Default planning and unregistered rehearsal do not register a GitHub runner or replay migrations.
-- Risk: runtime-platform. Documented the fixed Sep 29–Oct 6 cohort: 179.58 heavy-job hours exceed one serial host's weekly hours before HQ/startup. Initial74ba298c passed15offlinefault tests, focused204/14 plus static checks, and an unregistered VM rehearsal with all3preflights/emptyDocker/ownedVMdeleted/leasefree. PR1512 published draft; two independent reviews identified containment, lease-acquisition, listener-exit and private-diagnostic issues for one batched correction. Final readiness remains tied to corrected-source evidence and the required PR gate.
-
-## 2026-10-06 — Shared Mac one-job CI admission preparation reviewed
-
-Draft PR1512 adds operator-present Pika Tart admission under the shared HQ lease, separate 4CPU/12GiB disposable guest and at most one ephemeral job. Fixed8f6ebdff security and final integration reviews CLEAN after two batched corrections. Focused235/14 and46 offline driver fault cases PASS; exact8f6 unregistered rehearsal passed three canonical preflights, rootless/emptyDocker, bounded private diagnostics, ownedVM disposal and lease release. Source hashes bind retained proof; no SQL replay or registration. Sync incomingmainbac3ab94 (#1511) preserves its survey source/test bytes and both dated history bodies; reviewed driver/preflight/workflow inputs retained. Relevant new-base focused verification and targeted sync acceptance precede a stable reviewed head.
-
-Repository remains public, zero runners and automatic PIKA opt-in unset. Known cohort heavy demand179.58h/week exceeds one serial host's168h theoretical week before HQ/startup; this driver provides no unattended scheduler/fair queue. Exact-head PRGate, new PR merge and private registered activation retain separate owner decisions. No HQ/production mutations. Delegation requested GPT5.6Sol/high security and GPT6.1Sol/high operability (Terra unavailable), five review launches, two fix batches; final source acceptance verified by coordinator. Weekly14% remaining at phase start; effective model/token/active-use telemetry unknown; DeepSeek paused. Task-scoped human stop override persists without removing correctness or consequential authority gates.
-
 ## 2026-10-06 — CI runner preparation synchronized after fluidity landing
 
 Owner selected keep-public and coordinate toward merging1512. The1490coordinator explicitly released its temporary main-merge hold after verified landing3a0b17d6; preserve incoming product/CI inputs and both complete continuity histories in1512. Reviewed8f6driver and46fault cases, corrected unregistered rehearsal and security/finalintegration coverage remain source-specific; retain original executionSHA when relevant byte parity permits reuse. Prior25cde focused461/25/static and targeted sync CLEAN; new-base focused/targeted integration and one final exact-head hostedCI/PRGate precede normal squash merge. No public runner registration, privatevisibility, automaticoptin, HQ, database or production changes. Requested source coordinator defer its next mainmerge until1512landing/checkpoint; local softer-modal work can continue. Cumulative review counters and human task-stop waiver retained; weekly11%remaining/ordinaryusageallowed; DeepSeek pause remains.
@@ -399,3 +355,43 @@ setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attemp
 retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
 Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
 No production promotion, schema/dependency change or product-wide completion.
+
+## 2026-10-07 UTC — Student Grades reactivation continuity
+
+Retain same-classroom returned rows across inactive/reactivated reads and recoverable
+failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
+failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
+fences; Retry focuses stable Grades region before replacement and invalidates only
+its key. Student Grades-only scroll observation preserves long-list return position.
+Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
+visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
+genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
+cache, API/schema/dependencies or production changes. Draft preparation can proceed
+independently while1521CI runs; integrate landed base before independent review/CI.
+Required focused/audit/review/CI remain; broader17-family goal incomplete.
+
+## 2026-10-07 — Grades settled intent denial remediation
+
+PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
+
+## 2026-10-07 — Achievements local render recovery
+
+Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
+
+Evidence: genuine missing-retry RED2; affected GREEN24/3 and fixture gate6 PASS; native actual-owner desktop/mobile light/dark normal/reduced8 PASS plus default-fixture compatibility8 PASS. Screenshots inspected against Pattern Lab PageState and healthy roadmap. Window scroll retained; fixture has no inherited internal auto/scroll owner. Synthetic intercepted traffic; no authenticated provider/hardware claim. Evidence retained in coordinator product-fluidity/achievements-render-recovery. This slice does not complete the Grades/Achievements family. Full focused/static/audit and draft-first frozen review/CI/main landing follow; provider/package/gates and production promotion unchanged.
+
+## 2026-10-07 — Student experience delivery consolidation
+
+Combine reviewed Grades5508 and Achievementsf10 in PR1522. Preserve exact runtime, tests, fixtures and helpers from both candidates and both independent review records. Append the Achievements own entry without replacing Grades history. Final predecessor-base integration review and exact-head CI remain pending. PR1523 will be superseded only after its eight non-history paths are published in1522.
+
+## 2026-10-07 — Student experience predecessor integration
+
+Integrate consolidated Grades/Achievements delivery onto verified editor-exit PR1521 main8031d2b. Preserve reviewed runtime/test/fixture/helper bytes and both sets of history; combine disjoint experience-matrix registrations. Focused/static/audit and one final cumulative integration review precede ready CI.
+
+## 2026-10-07 — Student continuity CI source-contract correction
+
+Combined student PR1522 reviewed bcd0a5e00 reached normal CI37702440970; coverage passed14616 tests with one failure from an older exact JSX source assertion that omitted the newly reviewed Grades read handle ref. Returned PR to draft before correction; browser lane cancelled on draft transition and is not counted as passing. Reproduced locally1FAIL/7PASS, then updated the existing source contract to require the ref, classroom and active-tab props with whitespace tolerance; all84 tests across three parent/Grades suites pass. All production and native contract bytes stay unchanged. Focused checks, test audit and a bounded independent correction review precede another stable ready transition. No gates, runners, timeouts, provider, schema or production changes.
+
+## 2026-10-07 — Scope existing formatted-help gallery test after CI timeout
+
+Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades source contract but coverage reports14616PASS/1FAIL/8SKIP: unchanged UiGallery formatted-help case exceeds its existing5000ms timeout. PR returned draft before correction; cancelled browser lane is not passing evidence. Original case passes isolated with coverage locally (1.35s test observation); Linux slowdown cause is unproven. Narrow only its Formatting help button lookup to the existing Core controls section, retaining clicks, tooltip content/accessibility/dismissal assertions, real tooltip portal, full gallery render and5000ms timeout. No production, dependency, runner/gate or clock changes. Same-case coverage observations and full gallery/focused checks, source parity and bounded independent correction review precede fresh stable exact-head CI.

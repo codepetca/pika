@@ -41980,3 +41980,50 @@ independent verification, then one stable-SHA eligible CI/PR Gate run.
 ## 2026-10-06 15:22 [CODEX]
 
 PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
+
+<!-- pika-session-log-archive-batch:e6b5c9ed080af4e72dd479d9ebe33efb48e8ce1c7510d1ab93ffd3dfba36b29f -->
+## 2026-10-06 — Approved local CI diagnostics merge synchronization
+
+Owner approved PR1488 squash merge after reviewed86012 CI37493751710 passed
+all five jobs including PR Gate. Main advanced to2d89088cd Daily summaries;
+continuity-only rebase conflicts reconciled by preserving both complete histories.
+All eight diagnostics and Classwork readiness correction remain byte-identical;
+incoming Daily source/tests retained. New head requires focused checks, targeted
+independent synchronization review and eligible exact-head CI before approved
+merge. Prior full local DB proof remains tied to its original0d72/schema251
+inputs; incoming Daily harness changes are verified by new CI. Local auth2/
+Classwork12 zero-retry proof remains86012 evidence. Public visibility and
+unregistered/inactive runner holds persist; no production/HQ changes.
+
+## 2026-10-06 Product fluidity final current-main reconciliation
+
+Owner approved one final reconciliation batch and one independent integration reviewer within120minutes. Reconciled current main693a096df (#1488 database proof diagnostics) into the frozen baf23560 candidate. Application/UI source stays unchanged; the archive retains both exact histories, and the automatically merged experience contract retains the upstream student-work readiness correction. Parent baf23560 passed independent review, focused2388tests,8newbrowsercontracts,16composition captures, and exact-head CI37511211431 (13919coveragepasses;386browserpasses,11configured retry recoveries,20skips;PRGatePASS). Required focused checks and one final frozen-SHA review precede fresh exact-head CI, main merge and8superseded closures. No production promotion.
+
+## 2026-10-06 — Survey results merge synchronization
+
+Owner authorized merging PR1511. Final4e78030 CI37514295830 passed all required
+checks/PR Gate; main advanced693a096df and conflicted only in archived session
+history. Preserved both histories and incoming main source; survey implementation
+bytes unchanged. Required focused checks and exact synchronization CI pending.
+
+## 2026-10-06 — Fluidity current-main survey reconciliation
+
+Owner explicitly overrode task approval stops; cumulative8batches/10reviewer launches retained before ninth reconciliation. Reviewedf03 CI37530998188 allrequiredgatesPASS; main1511 advanced duringCI. Preserve exactmain archive prefix, feature append, both rolling bodies and existing fluidity previews alongside exact upstream survey fixtures. Temporary main-merge hold sent to three coding chats; release after landing/checkpoint. Focused, both-role visual, targeted independent review and fresh exact-head CI pending; no production/provider/schema permission changed. Broad fluidity goal remains incomplete; softer modal exits follow verified landing.
+
+## 2026-10-06 — Scope Pattern Lab test queries after CI timing failures
+
+65a exact-head CI37539601613 TestBuild13946PASS/2FAIL/8SKIP; two unchanged whole-gallery interactions exceeded5000ms. Both cases pass isolated with coverage; cause of Linux slowdown unproven. Source batch10 narrows QR lookup to real Core controls and navigator lookups to real navigation/target Survey section, retaining all interactions/assertions/5000ms limits and every production blob. Same two-case local coverage observation3.17s→1.11s; partial coverage threshold errors expected, not full-gate evidence. Old ownCI cancelled/draft before correction; accepted32browser/8visual proofs reusable by exact UI identity. Focused, targeted independent review and new exact-head CI pending. Owner task override persists; cumulative counters retained; main mergeholds retained until landing/checkpoint. No production/provider/schema changes.
+
+<!-- pika-session-log-archive-batch:246a58b9d3eb93246570291ad1cf1a63dad97346fdf04286c5127b7dfc09291d -->
+## 2026-10-06 — Shared Mac CI admission preparation
+
+- Continued the owner's shared-Mac CI goal after #1488 merged; Pika remains public, with runner registration and automatic self-hosted routing pending an explicit activation decision.
+- Prepared an on-demand, one-job Tart host driver with a shared exclusive HQ/Pika lease, separate Pika guest template, private receipts, and disposable VM teardown. Default planning and unregistered rehearsal do not register a GitHub runner or replay migrations.
+- Risk: runtime-platform. Documented the fixed Sep 29–Oct 6 cohort: 179.58 heavy-job hours exceed one serial host's weekly hours before HQ/startup. Initial74ba298c passed15offlinefault tests, focused204/14 plus static checks, and an unregistered VM rehearsal with all3preflights/emptyDocker/ownedVMdeleted/leasefree. PR1512 published draft; two independent reviews identified containment, lease-acquisition, listener-exit and private-diagnostic issues for one batched correction. Final readiness remains tied to corrected-source evidence and the required PR gate.
+
+<!-- pika-session-log-archive-batch:46943d21422aec422942dc1cf73df8dc157e1847bf49d5f1dea1a79fc04b07e7 -->
+## 2026-10-06 — Shared Mac one-job CI admission preparation reviewed
+
+Draft PR1512 adds operator-present Pika Tart admission under the shared HQ lease, separate 4CPU/12GiB disposable guest and at most one ephemeral job. Fixed8f6ebdff security and final integration reviews CLEAN after two batched corrections. Focused235/14 and46 offline driver fault cases PASS; exact8f6 unregistered rehearsal passed three canonical preflights, rootless/emptyDocker, bounded private diagnostics, ownedVM disposal and lease release. Source hashes bind retained proof; no SQL replay or registration. Sync incomingmainbac3ab94 (#1511) preserves its survey source/test bytes and both dated history bodies; reviewed driver/preflight/workflow inputs retained. Relevant new-base focused verification and targeted sync acceptance precede a stable reviewed head.
+
+Repository remains public, zero runners and automatic PIKA opt-in unset. Known cohort heavy demand179.58h/week exceeds one serial host's168h theoretical week before HQ/startup; this driver provides no unattended scheduler/fair queue. Exact-head PRGate, new PR merge and private registered activation retain separate owner decisions. No HQ/production mutations. Delegation requested GPT5.6Sol/high security and GPT6.1Sol/high operability (Terra unavailable), five review launches, two fix batches; final source acceptance verified by coordinator. Weekly14% remaining at phase start; effective model/token/active-use telemetry unknown; DeepSeek paused. Task-scoped human stop override persists without removing correctness or consequential authority gates.

@@ -29,10 +29,13 @@ export default async function TeacherStudentTablesFixture({
   if (process.env.NODE_ENV === 'production' || process.env.PIKA_E2E_FIXTURES !== 'true') notFound()
   const query = await searchParams
   const role = query.role === 'student' ? 'student' : 'teacher'
+  const fixtureClassroom = role === 'student' && query.grades === 'true'
+    ? { ...classroom, feature_visibility: { ...classroom.feature_visibility, student_grades: true } }
+    : classroom
   return (
     <LayoutInitialStateProvider leftSidebarExpanded>
       <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
-        classroom={classroom}
+        classroom={fixtureClassroom}
         user={{ id: role === 'teacher' ? classroom.teacher_id : '30000000-0000-4000-8000-000000000015',
           email: `${role}@example.invalid`, role, first_name: 'Fixture', last_name: role }}
         classroomRole={role}
