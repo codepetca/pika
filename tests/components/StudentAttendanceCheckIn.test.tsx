@@ -117,9 +117,11 @@ describe('StudentAttendanceCheckIn', () => {
       }), { status: 200 }))
     vi.stubGlobal('fetch', fetcher)
 
-    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
+    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn classroomName="PPZ3C — Health for Life" />)
     expect(await screen.findByRole('heading', { name: 'We could not confirm check-in' }))
       .toBeInTheDocument()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
+    expect(screen.queryByText(/It is safe to retry/)).not.toBeInTheDocument()
     expect(screen.queryByText('You are checked in')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
@@ -148,10 +150,12 @@ describe('StudentAttendanceCheckIn', () => {
         entryToken={'a'.repeat(43)}
         canCheckIn
         mode="classroom"
+        classroomName="PPZ3C — Health for Life"
       />,
     )
 
     expect(await screen.findByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeVisible()
     expect(screen.getByText('This classroom poster works when your teacher opens attendance.'))
       .toBeVisible()
     expect(fetcher).toHaveBeenCalledWith(

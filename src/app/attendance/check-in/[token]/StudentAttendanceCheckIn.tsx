@@ -23,10 +23,12 @@ export function StudentAttendanceCheckIn({
   entryToken,
   canCheckIn,
   mode = 'occurrence',
+  classroomName,
 }: {
   entryToken: string
   canCheckIn: boolean
   mode?: 'occurrence' | 'classroom'
+  classroomName?: string
 }) {
   const [view, setView] = useState<ViewState>(() => canCheckIn
     ? { kind: 'loading' }
@@ -96,12 +98,13 @@ export function StudentAttendanceCheckIn({
   const result = view.kind === 'result' ? view.result : null
   const positive = result?.state === 'checked_in' || result?.state === 'already_checked_in'
   const Icon = positive ? CheckCircle2 : result?.state === 'closed' ? Clock3 : AlertCircle
+  const returnedClassroomName = result && 'classroomName' in result ? result.classroomName : undefined
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
       <Card className="w-full max-w-md p-6 text-center sm:p-8">
         <p className="break-words text-sm font-semibold text-primary">
-          {positive && result?.classroomName ? result.classroomName : 'Pika attendance'}
+          {returnedClassroomName || classroomName || 'Pika attendance'}
         </p>
         {view.kind === 'loading' ? (
           <div className="py-10" role="status" aria-live="polite">
@@ -113,9 +116,6 @@ export function StudentAttendanceCheckIn({
           <div className="pt-6" role="alert">
             <AlertCircle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" />
             <h1 className="mt-4 text-xl font-semibold text-text-default">We could not confirm check-in</h1>
-            <p className="mt-2 text-sm text-text-muted">
-              It is safe to retry. Do not assume attendance was recorded until this page confirms it.
-            </p>
             <Button className="mt-6 w-full" onClick={() => void checkIn()}>Try again</Button>
           </div>
         ) : result ? (

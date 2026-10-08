@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Assignment editor committed interaction ownership
-
-PR1521 initial23-path review found a genuine suspended-close Title-input loss.
-Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
-before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
-speculative legacy session generation remounted its visible requirement owner.
-Rollback-safe feature generation preserves abandoned-close drag continuity while
-external whole-object refresh still retires the drag and preserves Tiptap identity.
-Legacy initiated-command/session rules remain unchanged. Corrected-source local,
-visual, targeted independent review and exact-head CI remain required before merge.
-Broader17-family fluidity goal remains incomplete; no production promotion.
-
 ## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
 PR #1521 returned to draft after run37686387293: four inherited preview-helper
@@ -318,3 +306,9 @@ Full Course Guide titles wrap through an opt-in shared heading; default headings
 Owner: current task; branch codex/attendance-success-classroom, base 47659857d. Success and duplicate scans show the confirmed classroom title and plain America/Toronto time beneath the success heading; explanatory subtitles are hidden only for positive results. Classroom metadata is read before the attendance command and returned only on success. No migrations, dependencies, permission or attendance-recording rules changed.
 UI brief: reuse StudentAttendanceCheckIn card/green Lucide check/return link; extend attendance result with optional classroomName. Reference: existing scan screen plus executable Pattern Lab statuses/Card. Student desktop1440×900/mobile390×844, light/dark, loading/success/duplicate/closed/error; teacher n/a (student-only route). No new shared pattern or composite interaction; no promotion required.
 Evidence: output/playwright/attendance-success-mobile.png (9:06 AM), Pattern Lab status reference, controlled native experience-matrix captures. Component/server/API43 PASS; local classroom-title query PASS; focused362 and UI/design/architecture/TypeScript/lint PASS on implementation tree. Final test-only checks passed. Initial independent Sol/medium full-diff review (4233451f6) found one accepted P2: the new 200-character title limit rejected valid saved classroom names. Remediation removes new naming constraints and adds >200-character and whitespace-compatible server coverage plus long-name component coverage; final focused checks and targeted re-review pending. Review budget: launches1/waves1/fix batches1, reviewer elapsed estimated5min, exact timing/tokens unknown. Weekly usage remaining72%; direct implementation, review model/effort to be recorded in PR receipt; coordinator tokens/active time unknown. One browser fixture placement corrected before final capture, no source rework.
+
+## 2026-10-08 — Attendance failure classroom context
+
+Owner request extends PR1533: failure header shows the classroom name and omits the generic retry paragraph; retain failure heading/Try again and domain-specific recovery explanations. Reuse the existing scan card and Pattern Lab status/Card reference; extend the server-page/client contract with optional initial classroomName. Student-only (teacher n/a), desktop1440×900/mobile390×844, light/dark; loading/success/duplicate/closed/error. No new shared pattern, composite interaction or experimental promotion.
+Optional server display context authenticates the QR, requires the signed-in student's enrollment, and checks unchanged membership generation before/after reading the name. Expired occurrence tokens can supply display context only; attendance-command expiry is unchanged. Missing/invalid/revoked/unavailable context returns no name and does not block check-in. No API, schema, mutation, dependency or permission-rule changes.
+Focused component/page/helper/QR32 PASS and native browser4 PASS. Local enrolled-title join and focused final checks pending. Review budget carried forward: 2 prior reviewer turns, 1 accepted/fixed P2; follow-up scope delta will receive independent review before ready. Prior candidate CI started while ready; PR returned to draft before scope extension. Current local server3269; screenshots in test-results and output/playwright. Risk none; direct implementation, bounded general-tier reviewer planned. Usage72% weekly remaining reused; attributable tokens/active time unknown.
