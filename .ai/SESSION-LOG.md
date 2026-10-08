@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Assignment editor passive dismissal and drag ownership
-
-Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
-logical close, focus/scroll release and outgoing input fences. Its retained body
-receives live activity outside ModalLayer's snapshot; reopen gets fresh rich-editor
-history, while same-open undo and same-ID external object reset behavior remain.
-Toolbar portals, nested confirmations, action menus, deferred focus and Blueprint
-publication retire. CreationModalShell stays immediate by default. Active native
-keyboard proof caught dnd-kit sensor listeners surviving context unmount; feature
-sensors implement its public protocol with explicit resource ownership and instant
-next-key handling. External session refresh retires only the requirement drag
-owner. Visually found clipped desktop action options; reused upper placement and
-asserted panel bounds/unchanged title. UI brief: docs/guidance/ui/changes/assignment-editor-exit.md.
-Controlled teacher browser16PASS across desktop/mobile, light/dark, normal/reduced,
-including pending/active mouse/touch/keyboard, refresh, reopen reorder, real nested
-controls and parent Post publication. Natural main exit8PASS preserves measured
-text/field/toolbar geometry; actual compositor midpoint pixels inspected. Natural
-manual restoration8PASS with the clearing fixture parent and exact restoringPATCH.
-All APIs intercepted; no authenticated persistence, hardwareINP or full-video
-replay claim. Student n/a unchanged caller/default behavior. Genuine baseline and
-naive lifetime REDs plus capture/sensor/fixture failures retained externally.
-Focused source/checks, independent review and final exact-head CI remain required
-before main landing. Broad17-family product goal remains incomplete. No dependency,
-schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
-
 ## 2026-10-07 — Assignment editor committed interaction ownership
 
 PR1521 initial23-path review found a genuine suspended-close Title-input loss.
@@ -303,3 +278,19 @@ Anonymous forgot/reset recovery preserves native uppercase insertion caret, elig
 ## 2026-10-08 — Password reset reference snapshot correction
 
 Returned PR#1531 to draft after four Linux Pattern Lab contract snapshot mismatches. Inspected exact CI artifact expected/actual comparisons in all four projects before accepting the two new reserved-error-space examples and translated gallery content. Updated only the four matching Linux baselines and evidence/history; product source unchanged. Focused checks PASS205files/2386tests plus architecture, UI/design policy, TypeScript and lint; targeted independent delta review precedes fresh ready-head CI.
+
+## 2026-10-08 — Classroom-access remaining-work orchestration
+
+Reconciled main47659857d, merged publication1510/473a5de8a and caps1524/50185559f.
+Reorder1515 remains draft9b1 with migration collision and unresolved10k capacity;
+requested material operating-contract decision without weakening proof gates.
+Independent source inventory verified unfinished Test learner, Surveys, Grades and
+grading boundaries. Started dormant member Test-list source preparation and separate
+read-only finite SDK proof design; app/docs ownership is disjoint. Existing access
+roadmap remains the execution plan; batch2 has not exited. Recorded owner's quota
+messaging restriction (upgrade/tier summaries only), deferring creation-error mapping.
+No canonical migration, production, quota/cohort/UI/account/billing/provider change.
+Managed checkout creation succeeded but attachment limit/overload prevented app
+registration; retain the actual source path, no duplicate checkout or artifact deletion.
+Requested inventorySol6.1medium/app+proofSol6.1high; effective config and attributable
+time/tokens unknown; accountwide72% weekly remaining is not task attribution.

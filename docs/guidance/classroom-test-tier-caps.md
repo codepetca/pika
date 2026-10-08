@@ -2,14 +2,14 @@
 
 Owner-approved 2026-10-07: Basic 20, Pro 50, Max 100 retained Tests per
 classroom. See SUB-16 in [subscription policy](subscription-policy.md).
-Implementation is prepared separately from the dormant atomic reorder PR
+Foundation #1524 is merged separately from the dormant atomic reorder PR
 #1515. These limits are not activated, applied to canonical local/production,
 or used as a replacement for that PR's missing capacity evidence.
 
 The quota foundation uses migration `253_classroom_test_tier_caps.sql`, the next
 contiguous migration after main's 252. PR #1515's separate reorder source also
-currently uses 253; that source must be resequenced when rebased after the quota
-foundation lands. This does not apply either migration to a canonical database.
+currently uses 253; that source must be resequenced on the next main rebase.
+This does not apply either migration to a canonical database.
 
 ## Contract and enforcement boundary
 
@@ -47,9 +47,12 @@ modify old offering JSON or historical migrations to retrofit this allowance.
    offering-version behavior and role privileges in disposable database checks.
 3. Verify simultaneous inserts, plan changes and owner changes cannot overspend
    or use stale authority. Source-string assertions alone are not database proof.
-4. Integrate the closed quota errors through ordinary/guided/Blueprint creation
-   responses. Review rendered error states using the existing Test error surface;
-   do not introduce a new dashboard or billing UI in the foundation slice.
+4. Owner restriction, 2026-10-08: show quota counters, warnings, limit explanations
+   and upgrade prompts only on upgrade pages/tier summaries. Do not show them in
+   classrooms, Tests or ordinary/guided/Blueprint creation. The previously planned
+   friendly creation-error integration is deferred. This restriction does not
+   approve activation with hidden or generic failures; resolve enforcement-time
+   refusal/recovery behavior with the owner before enabling the disabled guard.
 5. Verify the updated contextual Test proof catalogs include the exact new trigger and
    private function metadata. Keep every inherited trigger/effect/rollback
    assertion. Off-by-default runtime compatibility is not complete proof parity.
@@ -61,6 +64,18 @@ changes, billing, admission/home/page/cutover activation and production
 promotion remain held. A main merge alone must not make the cap live.
 
 ## Current evidence
+
+PR #1524 merged normally as `50185559fa4391c4a75cd1a7be2bb05fb426bfe7`
+after all five required checks in exact-head CI `37715526569` passed on reviewed
+`f4f2d992745ac92754bf96391accb80415a4f9ab`. The final focused gate passed
+875 tests/38 files and static checks. Create's accepted normal/two-forced native
+receipts retain source `2e9367`; publication/discard retain source `651073`.
+Each profile verified exact owned teardown and the same complete canonical
+183-table/five-field checkpoint; genuine CLI types were verified. Base-sync
+review established unchanged feature bytes before reusing those identities.
+Migration 253 remains unapplied to canonical local/production and enforcement
+remains disabled. These receipts supersede earlier pending foundation gates
+below, not the separate reorder capacity or future activation requirements.
 
 The initial migration and rollback contract passed against isolated PostgreSQL 17
 on 2026-10-07: all tier boundaries, bulk rollback, moves, retained edits,

@@ -1,0 +1,90 @@
+# Dormant contextual member Test list read
+
+Source preparation on `codex/contextual-test-member-list-read`, main base
+`47659857d`. This is an independent batch-2 component, not native acceptance,
+phase exit, cohort admission or product rollout. Owner reorder #1515's separate
+capacity decision does not block this read-only boundary.
+
+## Boundary and compatibility
+
+Only GET `/api/student/tests?classroom_id=...` receives dormant shared admission.
+Absent/nonadmitted configuration preserves its legacy role guard, queries, DTO
+and missing-schema compatibility. A present configuration is authenticated and
+strictly decoded before parameters or service-client construction; malformed
+configuration fails closed. Use the existing single admission contract, not a
+new per-route switch.
+
+The actual active Classroom's current nonowner member may read the published
+Test list regardless of global account role or subscription plan. Self-enrolled
+owners remain owners, not learners. Archived Classrooms, removed membership and
+hidden Tests deny member access. Creation quotas are not learner authorization.
+
+A single metadata-only preflight may read exact Classroom `id,teacher_id,
+archived_at` to retain missing-Class and owner/archive refusal behavior. It grants
+no payload authority. Every subsequent control, payload, child, terminal-empty
+and final statement independently binds the exact Classroom/current owner,
+nonowner actor, active archive state, named-FK `!inner` membership and Tests
+visibility. Capture the feature JSON and require the same fingerprint thereafter.
+Child pages also bind Test id/Class/status/updated timestamp and the actor's own
+rows; no roster-wide participant data is fetched.
+
+Preserve the legacy thirteen Test fields, active-before-closed position ordering,
+normalized documents and student/effective-access status calculation. Draft Tests
+never enter the read. Blueprint-retired published rows retain legacy visibility.
+Submitted/returned/closed-for-grading attempt controls, meaningful option zero,
+repeated responses and availability overrides retain their existing semantics.
+Documents are empty unless effective access allows start/continue or viewing
+submitted work. Question/answer content, raw responses, grades, feedback and
+private child identities are not returned.
+
+## Completeness, privacy and limits
+
+Use complete bounded keyset pages and parent batches, strict identity/cardinality
+checks, an abortable deadline and bounded decoded/cumulative output. Reuse the
+existing Test-list limits: 1,000 root page, 50 parent batch, 100 child page,
+10,000 per collection, 100,000 aggregate rows, 1,024 statements, 20 seconds,
+8 MiB per decoded DTO/final response and 64 MiB cumulative decoded output.
+Verification reads count against these limits; never silently truncate or
+substitute zeroed status on missing/error data.
+
+Re-read the complete Test set and own attempt/response/availability collections,
+then final parent and Classroom controls before returning. Failure or drift is
+unavailable, not permissive fallback. This is statement-bound authorization and
+bounded revalidation, not a transaction snapshot or protection against a change
+after the last guard. Transport-origin errors cannot supply public status/text.
+
+## Acceptance and exclusions
+
+Require role-neutral member and owner-precedence cases, current archive/visibility
+and revocation binding, publication/document/status compatibility, child parent
+and actor validation, uneven/terminal pages, cardinality/completeness, malformed
+results and every size/action/time limit. Route tests must prove auth/config
+ordering and unchanged unmatched legacy dispatch. Mock tests alone are not
+actual installed-SDK or database evidence.
+
+Prepare an independently frozen finite disposable-local SDK fixture and request
+manifest, retaining the inherited lifecycle/platform guards, restoration policies,
+full five-field canonical preservation, exact resource teardown and both fully
+set-up forced-failure modes. Current source replays through disabled quota253;
+its isolated catalog addition must be externally migration-SHA-bound, not inferred
+from the fixture or used to exempt any canonical table/state. Independent fixed
+source review and explicit coordinator manifest acceptance precede execution.
+Focused checks and exact reviewed-head CI/PR Gate precede normal main merge.
+
+No member detail/start/save/submit/history/material/results, owner mutations,
+grading, UI adopter, new migration/type contract, Storage/provider or billing
+change is included. Do not expose the Tests tab until its complete reachable
+member workflow is integrated. Quota messages belong only on upgrade/tier
+summaries. All canonical migration249+, production promotion, enforcement,
+admission/home/page/cohort/cutover and account/provider/billing holds remain.
+
+## Source checkpoint — 2026-10-08
+
+App source and inert proof-source preparation are complete: 49 helper, 12 route,
+28 proof-source and one CI-contract checks pass (90 total). The independently
+enumerated proof contains five actors, five Classrooms, eight Tests, seven live
+memberships plus one removed generation, four attempts, five responses, three
+availability rows and nine SDK cases. Natural trigger categories/revisions are
+statically asserted. Every case requires full before/after table fingerprints;
+normal and both forced modes require inherited cleanup and unchanged canonical
+state. No native execution, independent review, PR or acceptance is claimed yet.
