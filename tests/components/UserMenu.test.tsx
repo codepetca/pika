@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { renderToString } from 'react-dom/server'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { UserMenu } from '@/components/UserMenu'
 
@@ -12,6 +13,21 @@ function renderUserMenu() {
 }
 
 describe('UserMenu', () => {
+  it('keeps the server account menu hidden before client-only relationships attach', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(
+      <ThemeProvider><UserMenu user={{ email: 'teacher@example.com', role: 'teacher' }} /></ThemeProvider>,
+    )
+    const trigger = container.querySelector('[aria-label="User menu"]')!
+    const menu = container.querySelector('[role="menu"]')!
+    expect(trigger).not.toHaveAttribute('id')
+    expect(trigger).not.toHaveAttribute('aria-controls')
+    expect(menu).not.toHaveAttribute('id')
+    expect(menu).not.toHaveAttribute('aria-labelledby')
+    expect(menu).toHaveAttribute('aria-hidden', 'true')
+    expect(menu).toHaveClass('pointer-events-none', 'opacity-0')
+  })
+
   it('keeps the closed account menu out of the accessibility tree', () => {
     renderUserMenu()
 

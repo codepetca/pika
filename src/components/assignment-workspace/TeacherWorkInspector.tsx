@@ -159,12 +159,12 @@ function InspectorSection({
       data-testid={`inspector-section-${id}`}
       data-highlighted={isHighlighted ? 'true' : undefined}
       className={[
-        'overflow-hidden rounded-lg border transition-[border-color,background-color,box-shadow]',
+        'overflow-hidden rounded-lg transition-colors',
         isHighlighted
-          ? 'border-primary bg-info-bg shadow-sm ring-1 ring-primary/30'
+          ? 'bg-info-bg'
           : visible
-            ? 'border-border bg-surface'
-            : 'border-dashed border-border bg-surface-2',
+            ? 'bg-surface'
+            : 'bg-surface-2',
       ].join(' ')}
     >
       <div
@@ -370,7 +370,7 @@ function AutoGrowFeedbackTextarea({
         'min-h-[10rem] w-full overflow-hidden rounded border px-2 py-1 text-sm text-text-default',
         hasFreshAIDraft ? 'border-primary bg-info-bg' : 'border-border bg-surface',
       ].join(' ')}
-      placeholder="Teacher comment draft"
+      placeholder="Leave a comment..."
     />
   )
 }
@@ -412,6 +412,7 @@ export function TeacherWorkInspector({
   feedbackReturning,
   gradeSaving,
   mutationsDisabled = false,
+  writeActionsDisabled = false,
   showDraftAutosavedNotice,
   highlightedSections = [],
   expandedSections,
@@ -450,6 +451,7 @@ export function TeacherWorkInspector({
   feedbackReturning: boolean
   gradeSaving: boolean
   mutationsDisabled?: boolean
+  writeActionsDisabled?: boolean
   showDraftAutosavedNotice: boolean
   highlightedSections?: readonly InspectorSectionId[]
   expandedSections: InspectorSectionId[]
@@ -461,6 +463,7 @@ export function TeacherWorkInspector({
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
 }) {
   const gradeMutationsDisabled = gradeSaving || feedbackReturning || mutationsDisabled
+  const writeCommandsDisabled = gradeMutationsDisabled || writeActionsDisabled
   const feedbackEditorDisabled = feedbackReturning || mutationsDisabled
   const gradeStatusLabel = gradeSaving
     ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
@@ -547,8 +550,8 @@ export function TeacherWorkInspector({
               }}
               testId="grade-mode-toggle"
               options={[
-                { value: 'draft', label: 'Draft', disabled: gradeMutationsDisabled },
-                { value: 'graded', label: 'Final', disabled: gradeMutationsDisabled },
+                { value: 'draft', label: 'Draft', disabled: writeCommandsDisabled },
+                { value: 'graded', label: 'Final', disabled: writeCommandsDisabled },
               ]}
             />
           </div>
@@ -583,7 +586,7 @@ export function TeacherWorkInspector({
                 onClick={() => {
                   void handleReturnFeedback()
                 }}
-                disabled={gradeMutationsDisabled || !feedbackDraft.trim()}
+                disabled={writeCommandsDisabled || !feedbackDraft.trim()}
               >
                 {feedbackReturning ? (
                   'Sending...'
@@ -602,7 +605,7 @@ export function TeacherWorkInspector({
               <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
                 Comments Sent
               </div>
-              <div className="rounded border border-border bg-surface p-3">
+              <div className="rounded bg-surface p-3">
                 <div className="space-y-3">
                   {feedbackEntries.map((entry) => (
                     <div key={entry.id}>

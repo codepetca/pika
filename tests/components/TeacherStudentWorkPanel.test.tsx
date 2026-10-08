@@ -347,24 +347,277 @@ describe('TeacherStudentWorkPanel', () => {
     clearInspectorSectionsCookies()
   })
 
+  function recoveryHarness() {
+    const readState = vi.fn()
+    const props = { onWorkReadStateChange: readState, classroomId: 'classroom-1', assignmentId: 'assignment-1', studentId: 'student-1',
+      mode: 'details' as const, inspectorWidth: 40, totalWidth: 1200 }
+    const baseline = makeStudentWork('student-1', { graded: true })
+    let detail = () => Promise.resolve({ ok: true, status: 200, json: async () => baseline })
+    const writes: any[] = []
+    let write = () => Promise.resolve({ ok: true, json: async () => ({ doc: baseline.doc }) })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input, init) => {
+      if (init?.method === 'POST') {
+        writes.push({ url: String(input), body: JSON.parse(init.body) })
+        return write()
+      }
+      if (String(input).includes('/students/')) return detail()
+      return Promise.resolve({ ok: true, json: async () => ({ history: [] }) })
+    })
+    return { props, baseline, writes, readState, setDetail: (next: typeof detail) => { detail = next },
+      setWrite: (next: typeof write) => { write = next } }
+  }
+
+  it.each(['503 response', 'interrupted response body'] as const)('retains dirty controls through %s and equal-revision retry', async (failure) => {
+    const h = recoveryHarness()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    const comment = await screen.findByPlaceholderText('Leave a comment...') as HTMLTextAreaElement
+    fireEvent.change(comment, { target: { value: 'Keep my live comment' } })
+    fireEvent.change(screen.getByLabelText('Completion score'), { target: { value: '6' } })
+    comment.focus()
+    comment.setSelectionRange(2, 8)
+    const scroller = screen.getByTestId('grading-inspector-pane').firstElementChild as HTMLElement
+    scroller.scrollTop = 120
+    h.setDetail(() => Promise.resolve(failure === 'interrupted response body'
+      ? new Response(new ReadableStream({ start(controller) { controller.error(new TypeError('Network connection lost')) } }), { status: 200 })
+      : { ok: false, status: 503, json: async () => ({ error: 'Unavailable' }) }) as any)
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    await screen.findByRole('button', { name: 'Try again' })
+    expect(h.readState).toHaveBeenLastCalledWith({ classroomId: 'classroom-1', assignmentId: 'assignment-1', studentId: 'student-1', writesPaused: true })
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBe(comment)
+    expect(comment).toHaveFocus()
+    expect(comment).toHaveValue('Keep my live comment')
+    expect([comment.selectionStart, comment.selectionEnd]).toEqual([2, 8])
+    expect(scroller.scrollTop).toBe(120)
+    expect(comment).toBeEnabled()
+    expect(screen.getByLabelText('Completion score')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Final' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Send comment' })).toBeDisabled()
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1000)) })
+    expect(h.writes).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: 'Send comment' }))
+    expect(h.writes).toEqual([])
+    const held = createDeferred<any>()
+    h.setDetail(() => held.promise)
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Send comment' })).toBeDisabled()
+    expect(comment).toBeEnabled()
+    expect(screen.getByLabelText('Completion score')).toBeEnabled()
+    fireEvent.change(comment, { target: { value: 'Edited during retry' } })
+    await act(async () => { held.resolve({ ok: true, status: 200, json: async () => h.baseline }) })
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBe(comment)
+    expect(comment).toHaveValue('Edited during retry')
+    expect(screen.getByLabelText('Completion score')).toHaveValue(6)
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeEnabled()
+    expect(h.readState).toHaveBeenLastCalledWith({ classroomId: 'classroom-1', assignmentId: 'assignment-1', studentId: 'student-1', writesPaused: false })
+    expect(screen.getByRole('button', { name: 'Send comment' })).toBeEnabled()
+    await waitFor(() => expect(h.writes).toHaveLength(1), { timeout: 1500 })
+    expect(h.writes[0].body.expected_doc_updated_at).toBe(h.baseline.doc.updated_at)
+    expect(h.writes[0].body.feedback).toBe('Edited during retry')
+  })
+
+  it('keeps the draft and blocks dispatch when a warm read finds a changed revision', async () => {
+    const h = recoveryHarness()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    const comment = await screen.findByPlaceholderText('Leave a comment...')
+    fireEvent.change(comment, { target: { value: 'Local draft' } })
+    h.setDetail(() => Promise.resolve({ ok: true, status: 200, json: async () => ({ ...h.baseline,
+      doc: { ...h.baseline.doc, updated_at: '2026-02-20T14:00:00Z', teacher_feedback_draft: 'Remote draft' } }) }))
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    await screen.findByText(/Student work changed/)
+    expect(comment).toHaveValue('Local draft')
+    expect(comment).toBeEnabled()
+    expect(screen.getByLabelText('Completion score')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Send comment' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Send comment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1000)) })
+    expect(h.writes).toEqual([])
+  })
+
+  it.each([401, 403, 404, 400])('hides protected content and blocks dispatch after detail status %s', async (status) => {
+    const h = recoveryHarness()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    const comment = await screen.findByPlaceholderText('Leave a comment...')
+    fireEvent.change(comment, { target: { value: 'Local draft' } })
+    h.setDetail(() => Promise.resolve({ ok: false, status, json: async () => ({ error: 'Sensitive server message' }) } as any))
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    await screen.findByText('Student work unavailable')
+    expect(screen.queryByPlaceholderText('Leave a comment...')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sensitive server message')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('rich-text-viewer')).not.toBeInTheDocument()
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1000)) })
+    expect(h.writes).toEqual([])
+  })
+
+  it('keeps a malformed successful response unavailable instead of offering unsafe retry', async () => {
+    const h = recoveryHarness()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    const comment = await screen.findByPlaceholderText('Leave a comment...')
+    fireEvent.change(comment, { target: { value: 'Local draft' } })
+    h.setDetail(() => Promise.resolve(new Response('Not JSON', { status: 200 })) as any)
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    await screen.findByText('Student work unavailable')
+    expect(screen.queryByPlaceholderText('Leave a comment...')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(h.writes).toEqual([])
+  })
+
+  it('retries an initial 503 even when the failed response body is malformed', async () => {
+    const h = recoveryHarness()
+    h.setDetail(() => Promise.resolve({ ok: false, status: 503, json: async () => { throw new SyntaxError('Bad gateway HTML') } } as any))
+    render(<TeacherStudentWorkPanel {...h.props} />)
+    await screen.findByText('Could not load student work')
+    expect(screen.queryByPlaceholderText('Leave a comment...')).not.toBeInTheDocument()
+    h.setDetail(() => Promise.resolve({ ok: true, status: 200, json: async () => h.baseline }))
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByPlaceholderText('Leave a comment...')).toHaveValue('Nice work')
+    expect(h.writes).toEqual([])
+  })
+
+  it.each(['fetch rejection', 'body rejection'] as const)('recovers an initial network %s with a GET retry', async (failure) => {
+    const h = recoveryHarness()
+    h.setDetail(() => failure === 'fetch rejection'
+      ? Promise.reject(new TypeError('Failed to fetch'))
+      : Promise.resolve(new Response(new ReadableStream({ start(controller) { controller.error(new TypeError('Network connection lost')) } }), { status: 200 })) as any)
+    render(<TeacherStudentWorkPanel {...h.props} />)
+    await screen.findByText('Could not load student work')
+    h.setDetail(() => Promise.resolve({ ok: true, status: 200, json: async () => h.baseline }))
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await screen.findByPlaceholderText('Leave a comment...')
+    expect(h.writes).toEqual([])
+  })
+
+  it('defers a refresh until the in-flight grade acknowledgement and retains newer local edits', async () => {
+    const h = recoveryHarness()
+    const pendingWrite = createDeferred<any>()
+    const acknowledged = { ...h.baseline, doc: { ...h.baseline.doc, graded_at: null,
+      updated_at: '2026-02-20T14:00:00Z' } }
+    h.setWrite(() => pendingWrite.promise)
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    const comment = await screen.findByPlaceholderText('Leave a comment...')
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+    expect(h.writes).toHaveLength(1)
+    const read = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => acknowledged }))
+    h.setDetail(read)
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    await screen.findByText('Refreshing student work. Saving is paused.')
+    expect(read).not.toHaveBeenCalled()
+    fireEvent.change(comment, { target: { value: 'Typed after save began' } })
+    await act(async () => { pendingWrite.resolve({ ok: true, json: async () => ({ doc: acknowledged.doc }) }) })
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    expect(comment).toHaveValue('Typed after save began')
+    h.setWrite(() => Promise.resolve({ ok: true, json: async () => ({ doc: acknowledged.doc }) }))
+    await waitFor(() => expect(h.writes).toHaveLength(2), { timeout: 1500 })
+    expect(h.writes[1].body.expected_doc_updated_at).toBe(acknowledged.doc.updated_at)
+    expect(h.writes[1].body.feedback).toBe('Typed after save began')
+  })
+
+  it.each(['classroomId', 'assignmentId', 'studentId'] as const)('blocks stale writes when %s changes and the new owner read fails', async (ownerField) => {
+    const h = recoveryHarness()
+    const template = vi.fn()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} mode="overview" onGradeTemplateChange={template} />)
+    const comment = await screen.findByPlaceholderText('Leave a comment...')
+    fireEvent.change(comment, { target: { value: 'Old owner draft' } })
+    const pending = createDeferred<any>()
+    h.setDetail(() => pending.promise)
+    rerender(<TeacherStudentWorkPanel {...h.props} {...{ [ownerField]: 'next-owner' }} mode="overview" onGradeTemplateChange={template} />)
+    expect(comment).toBeDisabled()
+    expect(template).toHaveBeenLastCalledWith(null)
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+    await act(async () => { pending.resolve({ ok: false, status: 503, json: async () => ({}) }) })
+    await screen.findByText('Could not load student work')
+    expect(screen.queryByPlaceholderText('Leave a comment...')).not.toBeInTheDocument()
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1000)) })
+    expect(h.writes).toEqual([])
+  })
+
+  it('ignores an old-owner grade acknowledgement after the new student loads', async () => {
+    const h = recoveryHarness()
+    const template = vi.fn()
+    const pendingWrite = createDeferred<any>()
+    h.setWrite(() => pendingWrite.promise)
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} mode="workspace" splitPaneView="content-grading" onGradeTemplateChange={template} />)
+    await screen.findByPlaceholderText('Leave a comment...')
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+    h.setDetail(() => Promise.resolve({ ok: true, status: 200, json: async () => makeStudentWork('student-2',
+      { graded: true, teacherFeedbackDraft: 'Student two draft' }) }))
+    rerender(<TeacherStudentWorkPanel {...h.props} studentId="student-2" mode="workspace" splitPaneView="content-grading" onGradeTemplateChange={template} />)
+    await waitFor(() => expect(screen.getByPlaceholderText('Leave a comment...')).toHaveValue('Student two draft'))
+    await act(async () => { pendingWrite.resolve({ ok: true, json: async () => ({ doc: { ...h.baseline.doc,
+      teacher_feedback_draft: 'Old acknowledgement', updated_at: '2026-02-20T15:00:00Z' } }) }) })
+    expect(screen.getByPlaceholderText('Leave a comment...')).toHaveValue('Student two draft')
+    expect(screen.getByRole('button', { name: 'Final' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Work for student-2')
+    expect(template).toHaveBeenLastCalledWith(expect.objectContaining({ studentId: 'student-2',
+      feedbackDraft: 'Student two draft', expectedDocUpdatedAt: h.baseline.doc.updated_at }))
+  })
+
+  it('keeps the named region focused from initial retry through loading and success', async () => {
+    const h = recoveryHarness()
+    h.setDetail(() => Promise.resolve({ ok: false, status: 503, json: async () => ({}) } as any))
+    render(<TeacherStudentWorkPanel {...h.props} />)
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    const region = screen.getByRole('region', { name: 'Student work' })
+    const pending = createDeferred<any>()
+    h.setDetail(() => pending.promise)
+    retry.focus()
+    fireEvent.click(retry)
+    await screen.findByText('Loading student work')
+    expect(region).toHaveFocus()
+    await act(async () => { pending.resolve({ ok: true, status: 200, json: async () => h.baseline }) })
+    expect(await screen.findByPlaceholderText('Leave a comment...')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Student work' })).toBe(region)
+    expect(region).toHaveFocus()
+  })
+
+  it('ignores a late old-owner read after a different assignment owner has loaded', async () => {
+    const h = recoveryHarness()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    await screen.findByPlaceholderText('Leave a comment...')
+    const pending = createDeferred<any>()
+    h.setDetail(() => pending.promise)
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    const next = { ...h.baseline, doc: { ...h.baseline.doc, teacher_feedback_draft: 'New assignment draft' } }
+    h.setDetail(() => Promise.resolve({ ok: true, status: 200, json: async () => next }))
+    rerender(<TeacherStudentWorkPanel {...h.props} assignmentId="assignment-2" refreshKey={1} />)
+    await waitFor(() => expect(screen.getByPlaceholderText('Leave a comment...')).toHaveValue('New assignment draft'))
+    await act(async () => { pending.resolve({ ok: true, status: 200, json: async () => h.baseline }) })
+    expect(screen.getByPlaceholderText('Leave a comment...')).toHaveValue('New assignment draft')
+  })
+
+  it('hydrates a clean same-owner refresh from the confirmed remote revision', async () => {
+    const h = recoveryHarness()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    const comment = await screen.findByPlaceholderText('Leave a comment...')
+    h.setDetail(() => Promise.resolve({ ok: true, status: 200, json: async () => ({ ...h.baseline,
+      doc: { ...h.baseline.doc, teacher_feedback_draft: 'New server comment', updated_at: '2026-02-20T16:00:00Z' } }) }))
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    await waitFor(() => expect(comment).toHaveValue('New server comment'))
+    expect(h.writes).toEqual([])
+  })
+
   it('keeps the actual grading control, selection, focus and scroller across grading layouts', async () => {
     mockFetchByStudent({ 'student-1': { graded: true, teacherFeedbackDraft: 'Keep this comment draft' } })
-    const props = { classroomId: 'classroom-1', assignmentId: 'assignment-1', studentId: 'student-1',
+    const readState = vi.fn()
+    const props = { onWorkReadStateChange: readState, classroomId: 'classroom-1', assignmentId: 'assignment-1', studentId: 'student-1',
       mode: 'workspace' as const, inspectorWidth: 40, totalWidth: 1200 }
     const { rerender } = render(<TeacherStudentWorkPanel {...props} workspaceInspectorOnly splitPaneView="students-grading" />)
-    const comment = await screen.findByPlaceholderText('Teacher comment draft') as HTMLTextAreaElement
+    const comment = await screen.findByPlaceholderText('Leave a comment...') as HTMLTextAreaElement
     const scroller = screen.getByTestId('grading-inspector-pane').firstElementChild as HTMLDivElement
     comment.focus()
     comment.setSelectionRange(2, 8)
     scroller.scrollTop = 120
     rerender(<TeacherStudentWorkPanel {...props} workspaceInspectorOnly={false} splitPaneView="content-grading" />)
-    expect(screen.getByPlaceholderText('Teacher comment draft')).toBe(comment)
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBe(comment)
     expect(screen.getByTestId('grading-inspector-pane').firstElementChild).toBe(scroller)
     expect(comment).toHaveFocus()
     expect([comment.selectionStart, comment.selectionEnd]).toEqual([2, 8])
     expect(scroller.scrollTop).toBe(120)
     rerender(<TeacherStudentWorkPanel {...props} workspaceInspectorOnly splitPaneView="students-grading" />)
-    expect(screen.getByPlaceholderText('Teacher comment draft')).toBe(comment)
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBe(comment)
     expect(comment).toHaveFocus()
     expect([comment.selectionStart, comment.selectionEnd]).toEqual([2, 8])
     expect(scroller.scrollTop).toBe(120)
@@ -416,7 +669,7 @@ describe('TeacherStudentWorkPanel', () => {
     const completionQuickScore = screen.getByRole('button', { name: 'Set Completion score to 6' })
     fireEvent.click(completionQuickScore)
     expect(completionQuickScore).toHaveClass('bg-primary-solid', 'text-text-inverse')
-    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
@@ -448,7 +701,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    const draft = await screen.findByPlaceholderText('Leave a comment...')
     await user.type(draft, 'Use stronger evidence in the second paragraph.')
     await user.click(screen.getByRole('button', { name: 'Send comment' }))
 
@@ -457,6 +710,37 @@ describe('TeacherStudentWorkPanel', () => {
     })
     expect(screen.getByText('Comments Sent')).toBeInTheDocument()
     expect(screen.getByText('Use stronger evidence in the second paragraph.')).toBeInTheDocument()
+  })
+
+  it.each(['feedback_returned_at', 'returned_at'] as const)('keeps sent comments out of the draft after reopening work with %s', async (returnField) => {
+    const payload = makeStudentWork('student-1', { graded: true, teacherFeedbackDraft: null, feedbackEntries: [
+      { id: 'sent-1', body: 'Nice work', returned_at: '2026-02-20T14:05:00Z' },
+    ] })
+    Object.assign(payload.doc, { [returnField]: '2026-02-20T14:05:00Z' })
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((input: RequestInfo | URL) => Promise.resolve({
+      ok: true,
+      json: async () => String(input).includes('/history') ? { history: [] } : payload,
+    }))
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" mode="details" inspectorCollapsed={false} inspectorWidth={40} totalWidth={1200} />)
+    expect(await screen.findByPlaceholderText('Leave a comment...')).toHaveValue('')
+    expect(screen.getByText('Nice work')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send comment' })).toBeDisabled()
+  })
+
+  it('preserves the comment draft when sending fails', async () => {
+    mockFetchByStudent({ 'student-1': { graded: false } })
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const baseFetch = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => String(input).endsWith('/feedback-return')
+      ? Promise.resolve({ ok: false, json: async () => ({ error: 'Send failed' }) })
+      : baseFetch(input, init))
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" mode="details" inspectorCollapsed={false} inspectorWidth={40} totalWidth={1200} />)
+    const draft = await screen.findByPlaceholderText('Leave a comment...')
+    fireEvent.change(draft, { target: { value: 'Keep this comment for retry.' } })
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Send comment' }))
+    await screen.findByText('Send failed')
+    expect(draft).toHaveValue('Keep this comment for retry.')
   })
 
   it('cancels pending grade autosave before sending a comment', async () => {
@@ -485,7 +769,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    const draft = await screen.findByPlaceholderText('Leave a comment...')
     await user.type(draft, 'Feedback that should only be sent once.')
     await user.click(screen.getByRole('button', { name: 'Send comment' }))
 
@@ -547,7 +831,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    const draft = await screen.findByPlaceholderText('Leave a comment...')
     await user.type(draft, 'Do not persist while the parent is returning work.')
     rerender(
       <TeacherStudentWorkPanel
@@ -595,7 +879,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    const draft = await screen.findByPlaceholderText('Leave a comment...')
     await user.type(draft, 'Wait for this autosave.')
 
     await act(async () => {
@@ -935,7 +1219,7 @@ describe('TeacherStudentWorkPanel', () => {
     const { rerender } = render(<TeacherStudentWorkPanel {...panelProps} />)
 
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBeInTheDocument()
 
     rerender(
       <TeacherStudentWorkPanel
@@ -949,7 +1233,7 @@ describe('TeacherStudentWorkPanel', () => {
     await waitFor(() => {
       expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
     })
-    expect(screen.queryByPlaceholderText('Teacher comment draft')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Leave a comment...')).not.toBeInTheDocument()
   })
 
   it('autosaves valid grading edits as final by default without a save button', async () => {
@@ -1016,7 +1300,7 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Set Completion score to 6' }))
     await user.click(screen.getByRole('button', { name: 'Set Thinking score to 7' }))
     await user.click(screen.getByRole('button', { name: 'Set Workflow score to 8' }))
-    fireEvent.change(screen.getByPlaceholderText('Teacher comment draft'), {
+    fireEvent.change(screen.getByPlaceholderText('Leave a comment...'), {
       target: { value: 'Teacher note' },
     })
 
@@ -1098,7 +1382,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await screen.findByPlaceholderText('Teacher comment draft')
+    await screen.findByPlaceholderText('Leave a comment...')
     await user.click(screen.getByRole('button', { name: 'Draft' }))
 
     await waitFor(() => {
@@ -1106,7 +1390,7 @@ describe('TeacherStudentWorkPanel', () => {
     })
     gradeBodies.length = 0
 
-    await user.type(screen.getByPlaceholderText('Teacher comment draft'), 'Teacher note')
+    await user.type(screen.getByPlaceholderText('Leave a comment...'), 'Teacher note')
 
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1100))
@@ -1185,7 +1469,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await screen.findByPlaceholderText('Teacher comment draft')
+    await screen.findByPlaceholderText('Leave a comment...')
     await user.click(screen.getByRole('button', { name: 'Draft' }))
 
     await waitFor(() => {
@@ -1193,7 +1477,7 @@ describe('TeacherStudentWorkPanel', () => {
     })
     gradeBodies.length = 0
 
-    await user.type(screen.getByPlaceholderText('Teacher comment draft'), 'Teacher note')
+    await user.type(screen.getByPlaceholderText('Leave a comment...'), 'Teacher note')
 
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1100))
@@ -1354,7 +1638,7 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
   })
@@ -1378,7 +1662,7 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
   })
 
@@ -1626,7 +1910,7 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Comments' }))
 
     await waitFor(() => {
-      expect(screen.queryByPlaceholderText('Teacher comment draft')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Leave a comment...')).not.toBeInTheDocument()
     })
     expect(screen.queryByText('Draft present')).not.toBeInTheDocument()
     expect(screen.queryByText('1 returned')).not.toBeInTheDocument()
@@ -1673,7 +1957,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    const draft = await screen.findByPlaceholderText('Leave a comment...')
     expect(draft).toHaveValue('AI feedback suggestion\n\nTeacher note')
     expect(draft).toHaveClass('border-primary')
     expect(draft).toHaveClass('bg-info-bg')
@@ -1710,7 +1994,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    const draft = await screen.findByPlaceholderText('Leave a comment...')
     expect(draft).toHaveValue('Edited teacher comment')
     expect(screen.queryByText('AI draft')).not.toBeInTheDocument()
   })

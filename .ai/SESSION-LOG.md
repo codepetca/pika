@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Test cap native catalog corrections
-
-Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
-and PRGate failed. Actual isolated PG17 confirmed nested record/alias42702;
-three aliases corrected77f9 after3RED,490/28focused/static and Sol/high delta
-reviewPASS. Full local create then failed before SDK: canonical248 has183tables,
-but253 adds private quota settings. Exact own teardown/SAME183/all5 preservation
-PASS; failure retained. Separate source-SHA-bound isolated catalog now requires
-that exact addition without omitting inherited/unexpected table checks or quota
-fingerprints. Targeted79/5 and focused864/37/staticPASS. Native normal/types,
-both forced modes, targeted review and exact-head CI remain gates. Product SQL,
-limits and all249+/production/activation/account/billing holds unchanged.
-
-## 2026-10-08 — Publication proof diagnosis and current-main reconciliation
-
-At2e9367, create normal/types and both forced modes PASS; genuine types match
-committed437586bytes. Publication failed an unlocated race AssertionError;
-same183/all5 checkpoint and exact teardown PASS. Do not infer timeout or success.
-Added closed source-coordinate/deadline-label diagnostics with row/stack privacy
-regressions;39/2 and875/38/staticPASS. Rebased onto a2d70efa8 (#1522), retaining
-24feature and18incoming nonhistory blobs, all40+40 rolling bodies, exactmain
-archive prefix and original25-line archive batch. Only archive conflict;253
-unchanged,39stashes/topSHA retained, no stash created/popped. Combined diagnostic/
-base review, focused checks and new isolated publication acceptance remain gates.
-Accepted create receipts retain actual2e9367 identity; no canonical/prod/activation.
-
 ## 2026-10-08 — Test cap native acceptance and progress-UI synchronization
 
 Sol6.1/high diagnostic/base review CLEAN; exact651 focused875/38/static PASS.
@@ -233,3 +207,11 @@ Prior clean fixed-SHA integration reviews:1525 at43bb,1538 atd9d,1505 at1081 and
 Fixed batch0f6737b has2239 tests/109files and TypeScript/lint/architecture/UI/design PASS. Two independent GPT-6.1 Sol/high cumulative reviewers completed backend/security and architecture/compatibility scopes; compatibility CLEAN, security accepted oneP2: body transport or timeout errors bypassed grading polling retry budget. One correction batch distinguishes SyntaxError from transient body failures, retaining finite failure/deadline limits, status-before-tick ownership and cancellation. Three regression cases cover real broken Response streams, body timeout and repeated transport exhaustion; polling28 PASS and changed-file audit PASS. Targeted independent delta review and corrected-head focused checks precede readiness. Ledger:2 initial cumulative reviewer turns,1 wave,1 accepted finding,1 fix batch; prior per-PR counters preserved. Reported review intervals123/253seconds are elapsed estimates, active time/tokens unknown.
 
 Fresh fixture-only visual evidence at0f6737b:8 teacher/student×desktop/mobile×light/dark captures PASS and4 unchanged Darwin contract comparisons PASS; synthetic API interception/empty storage, zero custom-capture API requests, no authenticated-app or canonical-data claim. Normal/late16px ring and12px late clock verified; compact fixture is14px submitted, no dedicated compact-progress fixture. Original compact-progress evidence remains tied to its executed source. Two original ready-event runs intentionally cancelled by returning1525/1538 to draft for batch strategy; no product failure inferred. Exact corrected-head CI/PRGate and merge still pending. Evidence/handoff:~/.codex/artifacts/pika/pr-completion-20261008; all production/migration/activation/provider/runner holds retained.
+
+## 2026-10-08 — Combined recovery and dormant Test reorder completion candidate
+
+Coordinated five original drafts (1501,1502,1504,1508,1515) onto main1dd532581. Imported journal live-editor/autosave continuity, initial Assignment GET retry ownership, teacher read/draft fencing, two Classwork layouts and returned-Test feedback composer, plus dormant owner-scoped atomic Test reorder. Existing Markdown owner-draft CI corrections were already on main. Shared dropdown relationships now attach after hydration; strict16 role/motion checks and37 owner tests pass. All68 final student/dropdown/returned-feedback browsers pass; journal32 receipts have no unexpected errors/writes and96 journal states plus16 settled menus were visually accepted. Teacher parent four-case regression passes with nonempty table selection after completed-run clearing; full68 teacher/motion/static gates remain pending. Preserve all historical entry-body multiplicities from main and all originals. Native source e351 assigned security review is clean; private-wrapper postfailure observation P2 was corrected and targeted-review accepted with21 original+8 offline fault assertions. Preserve1515 original31reviews/27targeted/29fix-sync counts and human extensions; new actual review receipts live in the private completion ledger. Final combined compatibility review, specific fresh immutable canonical checkpoint/finite quiet-window authority, actual normal/types/two forced proofs, exact-head eligible CI/PR Gate and main merge remain pending. No canonical migration, production, activation, provider or billing operation; held1217 untouched.
+
+## 2026-10-08 — UI recovery completion separated from native checkpoint gate
+
+The final UI completion branch contains1501/1502/1504/1508 feature changes and the shared dropdown hydration regression.1515 remains on clean e351bd133 in its dedicated worktree, with separate security and corrected-wrapper receipts; no native/checkpoint authority is inferred from budget extensions. Retain prior combined candidate history. All68 student/dropdown/returned-Test cases pass; all68 distinct teacher recovery cases pass across initial60 and unchanged isolatedremaining8, retaining the first mobile403 timeout receipt. All16 changed parent cases pass after advancing only the existing modal exit token for settled captures. Owner suites and visual/hash receipts remain tied to unchanged product paths; no timeout, console, snapshot, motion or native-preservation threshold was relaxed. Motion/reference, final UI-focused/static gate, independent cumulative UI review, exact-head CI and protected main merge remain required. Canonical migrations/production/activation and held1217 remain untouched.
