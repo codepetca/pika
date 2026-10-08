@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Approved local CI diagnostics merge synchronization
-
-Owner approved PR1488 squash merge after reviewed86012 CI37493751710 passed
-all five jobs including PR Gate. Main advanced to2d89088cd Daily summaries;
-continuity-only rebase conflicts reconciled by preserving both complete histories.
-All eight diagnostics and Classwork readiness correction remain byte-identical;
-incoming Daily source/tests retained. New head requires focused checks, targeted
-independent synchronization review and eligible exact-head CI before approved
-merge. Prior full local DB proof remains tied to its original0d72/schema251
-inputs; incoming Daily harness changes are verified by new CI. Local auth2/
-Classwork12 zero-retry proof remains86012 evidence. Public visibility and
-unregistered/inactive runner holds persist; no production/HQ changes.
-
 ## 2026-10-06 Product fluidity final current-main reconciliation
 
 Owner approved one final reconciliation batch and one independent integration reviewer within120minutes. Reconciled current main693a096df (#1488 database proof diagnostics) into the frozen baf23560 candidate. Application/UI source stays unchanged; the archive retains both exact histories, and the automatically merged experience contract retains the upstream student-work readiness correction. Parent baf23560 passed independent review, focused2388tests,8newbrowsercontracts,16composition captures, and exact-head CI37511211431 (13919coveragepasses;386browserpasses,11configured retry recoveries,20skips;PRGatePASS). Required focused checks and one final frozen-SHA review precede fresh exact-head CI, main merge and8superseded closures. No production promotion.
@@ -399,3 +386,7 @@ setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attemp
 retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
 Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
 No production promotion, schema/dependency change or product-wide completion.
+
+## 2026-10-08 — PR review efficiency measurements
+
+Local lifecycle recorder accepts optional identified review receipts, coverage/model/effort, elapsed seconds, finding counts and cached input. Summary honors the existing merge-recording-correction receipt for PR1516, retains unknown legacy measurements, and keeps review time separate from CI. Three regression cases failed on baseline then all seven recorder tests passed. Personal pr-review skill adds cheap preflight checks and per-turn measurement guidance; validator PASS. Task owns codex/pr-review-metrics; tooling-only, no app/schema/dependency changes. Focused gate PASS194 tests/13 files plus static/audit; draft publication, fixed-SHA independent review and ready CI follow. Merge authority not established in this task.
