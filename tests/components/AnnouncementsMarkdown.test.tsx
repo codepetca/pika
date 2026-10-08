@@ -1058,6 +1058,60 @@ describe('announcement markdown rendering', () => {
     consoleError.mockRestore()
   })
 
+  it('settles a cancelled POST without attaching its failure to a fresh create editor', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const pending = deferred<Response>()
+    let writes = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') { writes += 1; return pending.promise }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), { target: { value: 'Cancelled creation body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Announcement body' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    await act(async () => pending.resolve(new Response('{}', { status: 500 })))
+    expect(screen.queryByText('Cancelled creation body')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    const fresh = screen.getByRole('textbox', { name: 'Announcement body' })
+    expect(fresh).toBeEnabled()
+    expect(fresh).toHaveValue('')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.change(fresh, { target: { value: 'Fresh draft' } })
+    expect(screen.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+    expect(writes).toBe(1)
+  })
+
+  it('settles a cancelled PATCH without attaching its failure to a reopened edit session', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const pending = deferred<Response>()
+    let writes = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') { writes += 1; return pending.promise }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByText('bring notes'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), { target: { value: 'Cancelled edit body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    await act(async () => pending.resolve(new Response('{}', { status: 500 })))
+    expect(screen.queryByText('Cancelled edit body')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('bring notes'))
+    const fresh = screen.getByRole('textbox', { name: 'Edit announcement body' })
+    expect(fresh).toBeEnabled()
+    expect(fresh).toHaveValue(markdownAnnouncement.content)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.change(fresh, { target: { value: 'Fresh edit' } })
+    expect(screen.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+    expect(writes).toBe(1)
+  })
+
   it('marks student announcements read once per classroom', async () => {
     const markedReadUrls: string[] = []
     let resolveSecondRead: ((response: Response) => void) | null = null

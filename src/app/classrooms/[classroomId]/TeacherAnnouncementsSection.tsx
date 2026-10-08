@@ -116,6 +116,8 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const loadRequestIdRef = useRef(0)
   const saveRequestIdRef = useRef(0)
   const deleteRequestIdRef = useRef(0)
+  const createFeedbackSessionRef = useRef(0)
+  const editFeedbackSessionRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
 
   const isReadOnly = !!classroom.archived_at
@@ -248,6 +250,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   }
 
   function cancelEditing() {
+    editFeedbackSessionRef.current += 1
     setEditError(null)
     setEditingId(null)
     setEditTitle('')
@@ -263,6 +266,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     if (!editingId || !editContent.trim() || saving) return
     const classroomId = classroom.id
     const announcementId = editingId
+    const feedbackSession = editFeedbackSessionRef.current
     const requestId = saveRequestIdRef.current + 1
     saveRequestIdRef.current = requestId
 
@@ -359,10 +363,12 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         : mode === 'draft' ? 'saving this draft'
           : mode === 'schedule' ? 'scheduling this announcement'
             : 'saving changes to this announcement'
-      setEditError({
-        announcementId,
-        message: `Pika could not confirm ${operation}. Review the announcement list before using the current save or publication action again.`,
-      })
+      if (editFeedbackSessionRef.current === feedbackSession) {
+        setEditError({
+          announcementId,
+          message: `Pika could not confirm ${operation}. Review the announcement list before using the current save or publication action again.`,
+        })
+      }
       console.error('Error updating announcement:', err)
     } finally {
       if (saveRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
@@ -377,6 +383,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   ) {
     if (!newContent.trim() || saving) return
     const classroomId = classroom.id
+    const feedbackSession = createFeedbackSessionRef.current
     const requestId = saveRequestIdRef.current + 1
     saveRequestIdRef.current = requestId
 
@@ -445,7 +452,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       const operation = mode === 'publish' ? 'posting this announcement'
         : mode === 'draft' ? 'saving this draft' : 'scheduling this announcement'
       const action = mode === 'publish' ? 'Post' : mode === 'draft' ? 'Save draft' : 'Schedule'
-      setCreateError(`Pika could not confirm ${operation}. Review the announcement list before using ${action} again.`)
+      if (createFeedbackSessionRef.current === feedbackSession) {
+        setCreateError(`Pika could not confirm ${operation}. Review the announcement list before using ${action} again.`)
+      }
       console.error('Error creating announcement:', err)
     } finally {
       if (saveRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
@@ -496,6 +505,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
   function handleNewKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Escape') {
+      createFeedbackSessionRef.current += 1
       setCreateError(null)
       setIsCreating(false)
       setNewTitle('')
@@ -671,6 +681,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             <button
               type="button"
               onClick={() => {
+                createFeedbackSessionRef.current += 1
                 setCreateError(null)
                 setIsCreating(false)
                 setNewTitle('')
