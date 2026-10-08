@@ -1,3 +1,4 @@
+import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
   expect,
   test,
@@ -4028,6 +4029,17 @@ test.describe('Announcement mutation feedback', () => {
         await applyProjectTheme(page, testInfo)
         await verifyAnnouncementMutationFeedback(page, testInfo)
       })
+    })
+  }
+})
+
+
+test.describe('Course Guide refresh continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  test.beforeEach(async ({ page }, testInfo) => { await applyProjectTheme(page, testInfo) })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains current guide work with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyCourseGuideContinuity(page, testInfo, motion)
     })
   }
 })

@@ -42338,3 +42338,57 @@ Original review clock/counters and human task-stop waiver persist. Targeted
 changed-base independent review/focused checks and one new exact-head CI precede
 ordinary main merge. Read-only next-slice inventory recommends atomic Test order;
 retired-row and subset/full-list semantics need explicit treatment before writing.
+
+<!-- pika-session-log-archive-batch:1418fbd9f862e1061edd1efdb4d2f441d704a17e6a2f5457fbfaec071e345908 -->
+## 2026-10-06 — Publication CI startup diagnostic containment
+
+Changed-base Sol20 review/focused777/30 passed006; CI37528258223 failed existing
+Assignment integrated startup in5s before Test publication. Build passed;
+returning PR1510 to draft caused concurrency replacement/browser cancellation;
+PRGate failed. Private600 job log06ddb685 retained; startup JSON not uploaded,
+cause unknown. Bounded readonly6.1Sol/high worker verified gap/closed literals,
+no operations; effective configuration/attributableusage unknown, weekly13%.
+Root32 RED precede closed command/exit/killed/observed-marker facts sealed in
+WeakMap; raw tails/path/credentials never emitted. Mock native wiring/private
+receipt and related lifecycle144/4 PASS; lint/audit PASS. Product/252/types,
+normal/forced output, authorities and caps unchanged. Source batch18/current
+targeted review/focused/exactheadCI pending; original13:07:17 clock/20 launches
+retained/taskstopwaiver active/DeepSeek paused. Local/prod249–252 unapplied;
+no migration/promotion/cohort/account/provider/billing/rollout or phase exit.
+
+## 2026-10-06 — Publication Survey-main reconciliation before CI
+
+Sol21 targeted startup-diagnostic review CLEAN866; focused1302/44/policies/TSC/
+lintPASS. Pushed866 onlywhilePR1510DRAFT; no ready/CI request after discovering
+mainbac3ab94c (#1511 Survey UI).16-commit rebase succeeded; sole archive conflict
+removed3markers retainingbothsides. IncomingUI/tests exactmain; publication,
+SQL252/types/nativeproof/tooling/CI byte-identical866. All37 stashes/ordereddigest
+7bb1ea11 retained; no newstash/pop/drop. Main251/branch252 unchanged/no resequence.
+Currentdocs record newbase; changed-base narrow review/focused/exactCI remain.
+Original13:07:17 reviewclock/21launches18targets1initial1final/19batches andhuman
+taskstopwaiver retained. Local/prod249–252 unapplied/noactivationorphaseexit.
+
+## 2026-10-06 — Publication CI acceptance and released UI-main hold
+
+Exact reviewed d7 CI37532673399 all5/PRGatePASS; private600 final receipt retained,
+queue4s/run3592s recorded append-only. No merge through Svelte coordination hold.
+Owner coordinator released after #1490 merged3a0b17d6a. PR1510 returnedDRAFT;
+17-commit rebase preserved source/252/types/proof/CI and all37 stashes. Sole
+archive conflict retained both sides; repaired three auto-merged rolling heading
+splits without losing either history. Official trim/check and full history-body
+comparison required. Incoming UI/test/audit-tooling is upstream only; no owned UI
+change. Original13:07:17 clock/22launches19targets19batches retained; task waiver
+active, weekly11percent remaining/ordinaryexecutionallowed, DeepSeek paused.
+Targeted GPT6.1Sol/high changed-base review, focused checks and new exact CI precede
+main merge. No canonical/prod249–252 application, promotion, account/provider/
+billing/activation or phase exit; broader classroom-access goal remains incomplete.
+
+## 2026-10-07 — Approved final Classwork placement history synchronization
+
+Owner approved a fifth synchronization batch, one additional five-minute changed-base review and fresh exact-head CI within ninety minutes, then main-only merge. Previous reviewed aebf427e passed all five jobs in CI37533902840 (3983 seconds). Coordination holds for PR1490 and PR1514 are explicitly released; main has also landed Test publication1510. Prepared current-main continuity preserves both parent histories and the authoritative upstream archive. All eight owned feature/test files are untouched by incoming main. No application correction, dependency or schema change; no production promotion or migration authority. Reuse existing Classwork/Tests cards and Pattern Lab owners; ordering extension only, UI risk none. Focused and teacher/student visual integration checks, seventh targeted review and final exact-head CI follow. Cumulative ledger stays intact: fifth batch, sixth correction/sync push; seventh reviewer launch planned with five-minute cap. Account weekly usage reading6% used; attributable active time/tokens unknown. Main merge and cleanup pending required gates.
+
+## 2026-10-07 — Teacher gallery image baseline correction (#1514)
+
+- Full coverage and Test & Build passed at daaebd00:14,027 tests/1,087 files,8 test/2 file skips; original coverage floors and all static/build checks passed. Browser37555943140 passed389 cases, recovered4 configured retries and skipped20; four terminal teacher-contract screenshots mismatch because the added confirmation example changes the fixture. PR Gate failed; draft restored before correction. Browser ephemeral cleanup passed; no manual rerun/dispatch.
+- Inspected exact-head Linux expected/actual pairs in all four desktop/mobile light/dark variants. Expected artifacts match prior tracked bytes; all three attempts are pixel-identical. Confirmation is on the desktop row, adds56px on mobile; reviewed control/icon regions remain coherent. Copy only these four actual PNG baselines; source, assertions, thresholds, native events, configuration and dependencies stay identical. Initial analysis helpers needed Pillow instead of unavailable NumPy and corrected a desktop-height assumption before any mutation.
+- Prior focused/static,48 browser/48 visual/24 midpoint and race evidence retains its original source provenance. Baseline-only stable-SHA independent review and corrected normal CI remain required. Task approval override and cumulative failed attempts/counters persist. Broader product goal incomplete; excluded PRs/production/schema/provider/dependency holds preserved. Next owner proposal remains Assignment Instructions preview only, pending current landing and individual lifecycle evidence.
