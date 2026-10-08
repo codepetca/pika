@@ -948,7 +948,7 @@ export function TeacherGradebookTab({
         />
       </div>
       <div ref={mobileGradebookWorkspaceRef} role="region" aria-label="Gradebook workspace" tabIndex={-1}
-        className="min-h-0 flex-1 overflow-hidden rounded-lg bg-surface outline-none focus-visible:ring-inset focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface lg:hidden">
+        className="relative isolate min-h-0 flex-1 overflow-hidden rounded-lg bg-surface outline-none after:pointer-events-none after:absolute after:inset-0 after:z-local-menu after:rounded-lg after:content-[''] focus-visible:after:ring-inset focus-visible:after:ring-foundation focus-visible:after:ring-focus lg:hidden">
         {mobileStudent ? (
           <GradebookStudentPanel
             student={mobileStudent}

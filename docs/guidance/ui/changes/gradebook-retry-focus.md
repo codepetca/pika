@@ -13,4 +13,4 @@ Roles: teacher; student n/a (teacher-only owner). Desktop/mobile, light/dark, no
 
 Composite accessibility review: yes, explicit Retry keyboard handoff; pending focus stays on Retry. Successful explicit retry alone moves focus. Initial/background reads do not. Inactive/current-classroom guards prevent late reads stealing focus; actual focus receipt chooses responsive presentation rather than duplicating CSS breakpoints. Local native helper must prove all four theme/view pairs × normal/reduced motion; controlled45 students/zero assessments, no database persistence. Unit tests cover fallback, empty success, inactive and stale-classroom guards; native coverage owns CSS-hidden behavior.
 
-Visual refinement: use the existing inset focus-ring variant on the compact workspace so its parent scroll/overflow framing does not clip the retry handoff signal. Desktop ring owner is unchanged.
+Visual refinement: paint the governed inset ring on a feature-local pointer-transparent pseudo-element above the compact workspace children; their surfaces otherwise cover its shadow. Desktop ring owner is unchanged.

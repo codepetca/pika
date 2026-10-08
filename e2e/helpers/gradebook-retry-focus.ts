@@ -17,6 +17,8 @@ async function measure(page: Page) {
     return {
       focus: { name: active?.getAttribute('aria-label'), tag: active?.tagName,
         connected: active?.isConnected, visible: Boolean(rect?.width && rect.height),
+        focusVisible: active?.matches(':focus-visible'),
+        overlayShadow: active ? getComputedStyle(active, '::after').boxShadow : null,
         rect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null },
       width: innerWidth, height: innerHeight,
       overflow: document.documentElement.scrollWidth - innerWidth,
@@ -31,6 +33,9 @@ async function measure(page: Page) {
 
 /** Controlled GET payloads, native production owner/focus. No database persistence or clocks. */
 export async function verifyGradebookRetryFocus(page: Page, testInfo: TestInfo) {
+  const requestedMotion = testInfo.titlePath.includes('reduce') ? 'reduce' : 'no-preference'
+  await page.emulateMedia({ reducedMotion: requestedMotion })
+  let actualMotion: string | null = null
   const mobile = testInfo.project.metadata.viewport === 'mobile'
   const theme = testInfo.project.metadata.theme === 'dark' ? 'dark' : 'light'
   await page.addInitScript(value => localStorage.setItem('theme', value), theme)
@@ -80,6 +85,10 @@ export async function verifyGradebookRetryFocus(page: Page, testInfo: TestInfo) 
   async function capture(name: string) {
     states[name] = await measure(page)
     expect(states[name].overflow).toBe(0)
+    if (name.endsWith('success') && states[name].focus.name === 'Gradebook workspace') {
+      expect(states[name].focus.focusVisible).toBe(true)
+      expect(states[name].focus.overlayShadow).not.toBe('none')
+    }
     await page.screenshot({ path: testInfo.outputPath(`gradebook-${name}.png`), animations: 'allow' })
   }
   async function navigate(label: string) {
@@ -90,6 +99,8 @@ export async function verifyGradebookRetryFocus(page: Page, testInfo: TestInfo) 
   const workspace = () => page.getByRole('region', { name: mobile ? 'Gradebook workspace' : 'Gradebook students', exact: true })
   try {
     await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=gradebook')
+    actualMotion = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduce' : 'no-preference')
+    expect(actualMotion).toBe(requestedMotion)
     await expect(page.getByText('Gradebook unavailable', { exact: true })).toBeVisible()
     await expect(page.getByText('No students enrolled yet.', { exact: true })).toHaveCount(0)
     await capture('cold-error')
@@ -153,12 +164,12 @@ export async function verifyGradebookRetryFocus(page: Page, testInfo: TestInfo) 
     releaseWarm()
     releaseResize()
     const facts = JSON.stringify({ controlledGETs: true, students: 45, assessmentColumns: 0,
-      motion: testInfo.title.includes('reduce') ? 'reduce' : 'no-preference', theme, mobile,
+      motion: actualMotion, requestedMotion, theme, mobile,
       states, requests, mutations, pageErrors, consoleErrors }, null, 2)
     await writeFile(testInfo.outputPath('native-facts.json'), facts)
     await testInfo.attach('Gradebook retry native facts', {
       body: JSON.stringify({ controlledGETs: true, students: 45, assessmentColumns: 0,
-        motion: testInfo.title.includes('reduce') ? 'reduce' : 'no-preference', theme, mobile,
+        motion: actualMotion, requestedMotion, theme, mobile,
         states, requests, mutations, pageErrors, consoleErrors }, null, 2), contentType: 'application/json',
     })
   }
