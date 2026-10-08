@@ -132,13 +132,12 @@ describe('assignment grading layout helpers', () => {
   it('cycles assignment split pane views in the requested order', () => {
     expect(getDefaultAssignmentSplitPaneView()).toBe('students-grading')
     expect(getNextAssignmentSplitPaneView('students-grading')).toBe('content-grading')
-    expect(getNextAssignmentSplitPaneView('content-grading')).toBe('students-content')
-    expect(getNextAssignmentSplitPaneView('students-content')).toBe('students-grading')
+    expect(getNextAssignmentSplitPaneView('content-grading')).toBe('students-grading')
   })
 
   it('parses assignment split pane view memory defensively', () => {
     expect(parseAssignmentSplitPaneView('content-grading')).toBe('content-grading')
-    expect(parseAssignmentSplitPaneView('students-content')).toBe('students-content')
+    expect(parseAssignmentSplitPaneView('students-content')).toBe('students-grading')
     expect(parseAssignmentSplitPaneView('bad')).toBe(getDefaultAssignmentSplitPaneView())
     expect(parseAssignmentSplitPaneView(null)).toBe(getDefaultAssignmentSplitPaneView())
   })

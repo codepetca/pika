@@ -21,6 +21,24 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('AppHeader home navigation', () => {
+  it('keeps account-menu relationships unique across header instances', () => {
+    const user = { email: 'teacher@example.com', role: 'teacher' as const }
+    render(
+      <>
+        <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} user={user} />
+        <AppHeader initialNow={Date.parse('2026-10-05T16:00:00Z')} user={user} />
+      </>,
+      { wrapper: Wrapper },
+    )
+    const triggers = screen.getAllByRole('button', { name: 'User menu' })
+    expect(new Set(triggers.map(trigger => trigger.id)).size).toBe(2)
+    for (const trigger of triggers) {
+      const menu = document.getElementById(trigger.getAttribute('aria-controls') ?? '')
+      expect(menu).toHaveAttribute('aria-labelledby', trigger.id)
+      expect(menu).toHaveAttribute('aria-hidden', 'true')
+    }
+  })
+
   it('names a non-classroom sidebar trigger for its destination', () => {
     const onOpenSidebar = vi.fn()
     render(

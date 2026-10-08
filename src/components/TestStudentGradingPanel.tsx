@@ -72,6 +72,8 @@ type TestResultsResponsePayload = Omit<TestResultsPayload, 'test'> & {
 interface GradeDraft {
   score: string
   feedback: string
+  // Returned feedback is retained for grading; only the new composer text is editable.
+  returnedFeedbackDraft?: string
 }
 
 interface SplitScoreInputProps {
@@ -232,6 +234,7 @@ function buildGradeDrafts(payload: TestResultsPayload): Record<string, GradeDraf
       drafts[answer.response_id] = {
         score: answer.score != null ? String(answer.score) : '',
         feedback: answer.feedback || '',
+        ...(student.status === 'returned' ? { returnedFeedbackDraft: '' } : {}),
       }
     }
   }
@@ -342,7 +345,10 @@ export function TestStudentGradingPanel({
       if (score.kind === 'value' && (score.value < 0 || score.value > item.maxPoints)) {
         return `Q${item.questionNumber}: score must be between 0 and ${item.maxPoints}`
       }
-      if (item.questionType === 'open_response' && score.kind === 'empty' && feedback.length > 0) {
+      const hasCommentDraft = draft?.returnedFeedbackDraft === undefined
+        ? feedback.length > 0
+        : draft.returnedFeedbackDraft.trim().length > 0
+      if (item.questionType === 'open_response' && score.kind === 'empty' && hasCommentDraft) {
         return `Q${item.questionNumber}: enter a score or clear feedback`
       }
     }
@@ -352,19 +358,25 @@ export function TestStudentGradingPanel({
   function updateDraft(responseId: string, updates: Partial<GradeDraft>) {
     conflictRetryCountRef.current = 0
     setGradingError('')
-    setGradeDrafts((prev) => ({
-      ...prev,
-      [responseId]: {
-        score: prev[responseId]?.score ?? '',
-        feedback: prev[responseId]?.feedback ?? '',
+    setGradeDrafts((prev) => {
+      const draft: GradeDraft = {
+        ...(prev[responseId] ?? { score: '', feedback: '' }),
         ...updates,
-      },
-    }))
+      }
+      if (prev[responseId]?.returnedFeedbackDraft !== undefined && updates.feedback !== undefined) {
+        draft.returnedFeedbackDraft = updates.feedback
+        draft.feedback = updates.feedback.trim()
+          ? updates.feedback
+          : persistedDrafts[responseId]?.feedback ?? ''
+      }
+      return { ...prev, [responseId]: draft }
+    })
   }
 
   function autoResizeFeedbackTextarea(textarea: HTMLTextAreaElement | null) {
     if (!textarea) return
     textarea.style.height = `${GRADE_BOX_HEIGHT_PX}px`
+    if (!textarea.value) return
     const measuredHeight = textarea.scrollHeight
     const nextHeight =
       measuredHeight > GRADE_BOX_HEIGHT_PX + 2
@@ -481,7 +493,13 @@ export function TestStudentGradingPanel({
               submittedDraftsByResponseId.has(responseId)
               || !areDraftsEqual(currentDraft, persistedDrafts[responseId])
             ) {
-              next[responseId] = currentDraft
+              next[responseId] = {
+                ...currentDraft,
+                ...(currentDraft.returnedFeedbackDraft !== undefined
+                  && !currentDraft.returnedFeedbackDraft.trim()
+                  ? { feedback: refreshedDrafts[responseId]?.feedback ?? '' }
+                  : {}),
+              }
             }
           }
           return next
@@ -519,7 +537,17 @@ export function TestStudentGradingPanel({
         setGradeDrafts((prev) => {
           const next = { ...prev }
           for (const [responseId, draft] of canonicalDraftsByResponseId) {
-            if (areDraftsEqual(next[responseId], submittedDraftsByResponseId.get(responseId))) {
+            const current = next[responseId]
+            const submitted = submittedDraftsByResponseId.get(responseId)
+            if (current?.returnedFeedbackDraft !== undefined) {
+              const hasNewerComment = current.returnedFeedbackDraft.trim().length > 0
+                && current.returnedFeedbackDraft !== submitted?.feedback
+              next[responseId] = {
+                score: current.score === submitted?.score ? draft.score : current.score,
+                feedback: hasNewerComment ? current.feedback : draft.feedback,
+                returnedFeedbackDraft: hasNewerComment ? current.returnedFeedbackDraft : '',
+              }
+            } else if (areDraftsEqual(current, submitted)) {
               next[responseId] = draft
             }
           }
@@ -773,6 +801,9 @@ export function TestStudentGradingPanel({
                   )}
                 </div>
 
+                {selectedStudent.status === 'returned' && answer?.feedback ? (
+                  <p className="whitespace-pre-wrap text-sm text-text-muted">{answer.feedback}</p>
+                ) : null}
                 {!answer ? (
                   <p className="text-sm text-text-muted">No response submitted.</p>
                 ) : answer.is_draft || !responseId ? (
@@ -786,7 +817,7 @@ export function TestStudentGradingPanel({
                         feedbackTextareaRefs.current[responseId!] = element
                         autoResizeFeedbackTextarea(element)
                       }}
-                      value={gradeDrafts[responseId]?.feedback ?? ''}
+                      value={gradeDrafts[responseId]?.returnedFeedbackDraft ?? gradeDrafts[responseId]?.feedback ?? ''}
                       onChange={(event) =>
                         {
                           updateDraft(responseId!, { feedback: event.target.value })
@@ -796,7 +827,7 @@ export function TestStudentGradingPanel({
                       onBlur={flushAutosave}
                       rows={1}
                       className="h-9 w-full overflow-hidden resize-none rounded-md border border-border bg-surface px-3 py-1 text-base leading-tight text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Comment"
+                      placeholder="Leave a comment..."
                     />
                     <SplitScoreInput
                       ariaLabel={`Q${index + 1} score`}

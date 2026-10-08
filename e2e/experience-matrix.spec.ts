@@ -4044,7 +4044,7 @@ test('retains teacher Classwork student editor and table through background refr
   await page.goto('/e2e-fixtures/teacher-assignment-grading', { waitUntil: 'domcontentloaded' })
   const scroller = page.getByTestId('assignment-student-scroll-pane')
   await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
-  const editor = page.getByPlaceholder('Teacher comment draft')
+  const editor = page.getByPlaceholder('Leave a comment...')
   // Student work loads separately after the table selects its first student.
   await expect(editor).toBeVisible()
   await editor.fill('Keep this teacher comment draft during refresh.')

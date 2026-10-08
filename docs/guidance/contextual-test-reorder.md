@@ -3,6 +3,16 @@
 Implementation contract, 2026-10-08; main `51f1a3b99`; earlier main sync `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
 This is preparation, not native acceptance, migration application or rollout.
 
+## UI completion main synchronization — 2026-10-08
+
+Completion1543 includes actual main83087cc4 (UI1542), preserving the
+independently accepted70aa exact-plan restoration correction and all incoming
+UI behavior/history. Product API/SQL/types and proof runtime remain unchanged
+from70aa. This is source sync batch31, with original clocks/counters retained.
+Final delta review and specifically authorized fresh immutable183/all5 checkpoint
+and finite quiet window precede actual normal/types/two-forced proof acceptance
+and exact-head CI. No runtime evidence, rollout or activation is claimed here.
+
 ## Current-main source synchronization — 2026-10-08
 
 The source-only completion candidate imports the reviewed7d feature delta onto
