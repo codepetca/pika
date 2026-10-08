@@ -44996,3 +44996,10 @@ CI interruption or auth-row rollback. CURRENT restores the existing contracted
 prior-control wording and retains release/startup markers; doc-only review follows.
 Member1534 repaired its analogous CURRENT CI failure; review8 clean,1153/43static
 PASS, newexact2f1f82baa CI37783778326 running. Canonical249+/prod/activation held.
+
+## 2026-10-08 — Member profile official trim metadata
+
+<!-- pika-session-log-archive-batch:230de8215eb39e932d08c02814489a72ced7a9e8255e2e703c71fb51315963ed -->
+## 2026-10-08 — Announcement progress-owner integration
+
+Rebased reviewed Announcement feedback onto main a86a20930 (#1520 shared circular progress). Product, regression tests, browser helper and matrix registration remain byte-identical to accepted68ba5857c. Incoming main histories and shared progress owners are preserved. Prior CI37711933656 failed the unchanged Blueprint lifecycle on request/navigation timeouts; all8 Announcement cases passed. Required current-base focused/native verification, proportional independent integration review and a new exact-head CI gate remain pending; PR1526 stays draft. No production or family-completion claim.

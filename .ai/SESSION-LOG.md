@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Announcement progress-owner integration
-
-Rebased reviewed Announcement feedback onto main a86a20930 (#1520 shared circular progress). Product, regression tests, browser helper and matrix registration remain byte-identical to accepted68ba5857c. Incoming main histories and shared progress owners are preserved. Prior CI37711933656 failed the unchanged Blueprint lifecycle on request/navigation timeouts; all8 Announcement cases passed. Required current-base focused/native verification, proportional independent integration review and a new exact-head CI gate remain pending; PR1526 stays draft. No production or family-completion claim.
-
 ## 2026-10-08 — Announcement Test-cap main synchronization
 
 Exact reviewed3079933 CI37717844370 passed all selected lanes and PR Gate; concurrent main50185559 (#1524 dormant classroom Test caps) landed before merge and introduced history conflicts. Returned1526 to draft before synchronizing. Preserve every incoming Test-cap path and history body; all five Announcement feature files remain byte-identical to307. Focused checks and proportional integration review precede a new exact-head CI gate. No Test-cap activation, database application, production promotion or whole-family completion.
@@ -227,3 +223,17 @@ Final focused/delta review, one specifically authorized immutable local183/all5
 checkpoint with finite quiet window, actual normal/genuine types/twoforced and
 exact-head CI remain gates. No native/DB/checkpoint/provider/production operation
 or phase exit is claimed; canonical249+, activation and1217 remain held.
+
+## 2026-10-08 — Exact member-list migration profile compatibility (source batch 32)
+
+CI37849992101 failed before fixture setup on the stale exact253 assertion at
+99c83fe21. Member proof now accepts only complete253 or exact reviewed254:
+filename and literal SHA256 plus actual SQL bytes, retaining source-chain/union
+equality, literal quota253, both183/184 catalogs and all five checkpoints.
+Offline actual-source RED reproduced254!=253; GREEN224/5 PASS. Focused/audit
+receipts remain private; DB/native/genuineCLItypes/checkpoint operations are held
+pending new final-head finite quiet-window authorization. No old99 receipt is
+reheaded. Original1515 clock,31reviews/27targeted/29prior, completionreviews5,
+source30/sync31 and private-wrapper correction stay separate; this is batch32.
+No API/SQL/types/reorder executable change, provider/production/1217 action,
+push or PR-state change. Exact old archive prefix and all prior body counts kept.

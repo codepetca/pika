@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../src/types/database'
 import { ApiError } from '../src/lib/api-error'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from './contextual-assignment-list-proof-fixture'
-import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, assignmentListLifecycleDiagnostic, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
+import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, assignmentListLifecycleDiagnostic, validateAssignmentListMigrationChain, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
 import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources,
   assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
@@ -46,6 +46,18 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
   const value: unknown = JSON.parse(input.rowDigests); assert(value && typeof value === 'object' && !Array.isArray(value))
   const names = Object.keys(value).sort(); assert(names.length > 0 && names.length <= TEST_MEMBER_LIST_CAPS.tables)
   assert(names.every(t => /^(public|private|storage)\.[a-z_0-9]+$/.test(t))); return Object.freeze(names)
+}
+/** Exact complete source profiles for this proof; future additions need review. */
+export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
+  validateAssignmentListMigrationChain(migrations)
+  assert(migrations.length === 253 || migrations.length === 254, 'Unreviewed member-list migration profile')
+  classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
+  if (migrations.length === 254) {
+    const addition = migrations[253]
+    assert.equal(addition.name, '254_contextual_test_owner_reorder.sql')
+    assert.equal(addition.sha256, '7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea')
+    assert.equal(testOwnerDigest(addition.sql), '7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea')
+  }
 }
 /** Both exact reviewed canonical profiles remain complete. The isolated253
  * union is idempotent and bound to the reviewed migration, never fixture rows. */
@@ -202,7 +214,7 @@ export async function testMemberListLifecycleMain(args = process.argv.slice(2)) 
   const git = (args: string[]) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }).trim()
   assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['status', '--porcelain']), '')
   const repository = git(['rev-parse', '--show-toplevel']); assert.equal(repository, process.cwd())
-  const migrations = loadAssignmentListReviewedMigrations(repository); assert.equal(migrations.length, 253)
+  const migrations = loadAssignmentListReviewedMigrations(repository); validateTestMemberListReviewedMigrations(migrations)
   const original = newAssignmentListProofFixture(), f = newTestMemberListFixture(original), projectId = `pika_assignment_list_${original.manifest.syntheticTag.slice(-12)}`
   const native = createAssignmentListNativeAdapters(original), originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testMemberListSetupSql(f, projectId), snapshotSql = testMemberListSnapshotSql(f), guardSql = testMemberListGuardSql(projectId)
