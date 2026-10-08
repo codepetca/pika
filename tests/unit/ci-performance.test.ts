@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeCiRuns } from '../../scripts/measure-ci-performance.mjs'
+import { distinctJobExecutions, summarizeCiRuns } from '../../scripts/measure-ci-performance.mjs'
 
 describe('CI performance measurement', () => {
   it('reports queue, run, wall, cancellation, and conclusion evidence', () => {
@@ -84,7 +84,7 @@ describe('CI performance measurement', () => {
       prGate: { mode: 'full', startedAt: '2026-10-08T12:09:00Z', completedAt: '2026-10-08T12:10:00Z' },
       jobs: [job('Database', 600), job('Browser', 480)] }])
     expect(summary.successfulWallSeconds.p50).toBe(600)
-    expect(summary.runEvidence).toEqual([{ runId: 7, headSha: 'abc', mode: 'full', conclusion: 'success',
+    expect(summary.runEvidence).toEqual([{ runId: 7, headSha: 'abc', latestAttempt: null, executionAttempts: [], mode: 'full', conclusion: 'success',
       timedJobs: 2, runnerSeconds: 1080, failedSteps: [] }])
     expect(summary.successfulJobTimings).toEqual(expect.arrayContaining([
       expect.objectContaining({ mode: 'full', job: 'Database', runner: 'hosted', sampleSize: 1, seconds: expect.objectContaining({ p50: 600 }) }),
@@ -109,6 +109,38 @@ describe('CI performance measurement', () => {
     expect(summary).toMatchObject({ cancelledJobSeconds: 300, missingJobDurations: 1,
       runsWithoutJobEvidence: 1, successfulJobTimings: [], successfulStepTimings: [] })
     expect(summary.runEvidence[1]).toMatchObject({ mode: 'unknown', headSha: null,
-      failedSteps: [{ job: 'Database', step: 'Proof', timeToFailureSeconds: 300 }] })
+      failedSteps: [{ job: 'Database', step: 'Proof', attempt: null, timeToFailureSeconds: 300 }] })
+    expect(summary.missingStepDurations).toBe(1)
+  })
+
+  it('retains earlier failed attempts without charging carried-over successes twice', () => {
+    const carried = { name: 'Build', runner_id: 10, labels: ['ubuntu-latest'], conclusion: 'success',
+      started_at: '2026-10-08T12:00:00Z', completed_at: '2026-10-08T12:01:00Z' }
+    const failed = { name: 'Browser', runner_id: 11, run_attempt: 1, conclusion: 'failure',
+      started_at: '2026-10-08T12:00:00Z', completed_at: '2026-10-08T12:05:00Z',
+      steps: [{ name: 'Browser tests', conclusion: 'failure', started_at: '2026-10-08T12:01:00Z', completed_at: '2026-10-08T12:05:00Z' }] }
+    const retry = { ...failed, runner_id: 12, run_attempt: 2, conclusion: 'success',
+      started_at: '2026-10-08T12:10:00Z', completed_at: '2026-10-08T12:15:00Z', steps: [] }
+    const jobs = [retry, { ...carried, id: 3, run_attempt: 2 }, failed, { ...carried, id: 1, run_attempt: 1 }]
+    expect(distinctJobExecutions(jobs)).toHaveLength(3)
+    const summary = summarizeCiRuns([{ status: 'completed', conclusion: 'success', attempt: 2, headSha: 'same-sha',
+      createdAt: '2026-10-08T12:00:00Z', startedAt: retry.started_at, updatedAt: retry.completed_at, jobs }])
+    expect(summary.earlierFailedJobSeconds).toBe(300)
+    expect(summary.runEvidence[0]).toMatchObject({ headSha: 'same-sha', latestAttempt: 2, executionAttempts: [1, 2],
+      runnerSeconds: 660, timedJobs: 3, failedSteps: [{ job: 'Browser', step: 'Browser tests', attempt: 1, timeToFailureSeconds: 300 }] })
+    expect(summary.successfulJobTimings.find(row => row.job === 'Build')?.sampleSize).toBe(1)
+  })
+
+  it('preserves job evidence when workflow timestamps are missing, invalid or reversed', () => {
+    const jobs = [{ name: 'Database', conclusion: 'cancelled', started_at: '2026-10-08T12:00:00Z', completed_at: '2026-10-08T12:04:00Z' }]
+    const summary = summarizeCiRuns([
+      { status: 'completed', conclusion: 'cancelled', createdAt: '2026-10-08T12:00:00Z', updatedAt: '2026-10-08T12:04:00Z', jobs },
+      { status: 'completed', conclusion: 'success', createdAt: 'bad', startedAt: '2026-10-08T12:04:00Z', updatedAt: '2026-10-08T12:00:00Z', jobs: [] },
+    ])
+    expect(summary).toMatchObject({ sampleSize: 2, cancelledJobSeconds: 240, cancelledElapsedSeconds: 0,
+      cancelledRunsWithoutElapsedEvidence: 1, missingJobDurations: 0, runsWithoutJobEvidence: 0,
+      successfulWallSeconds: { p50: null, sampleSize: 0, missingSamples: 1 },
+      successfulRunSeconds: { p50: null, missingSamples: 1 } })
+    expect(summary.runEvidence).toHaveLength(2)
   })
 })

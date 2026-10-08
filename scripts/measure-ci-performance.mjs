@@ -2,10 +2,6 @@
 
 import { execFileSync } from 'node:child_process'
 
-function secondsBetween(start, end) {
-  return Math.max(0, (Date.parse(end) - Date.parse(start)) / 1000)
-}
-
 function percentile(values, fraction) {
   if (values.length === 0) return null
   const sorted = [...values].sort((left, right) => left - right)
@@ -23,8 +19,13 @@ function summarize(values) {
   }
 }
 
+function summarizeMeasured(values) {
+  const valid = values.filter(value => value !== null)
+  return { ...summarize(valid), sampleSize: valid.length, missingSamples: values.length - valid.length }
+}
+
 export function summarizeCiRuns(runs) {
-  const completed = runs.filter((run) => run.status === 'completed' && run.startedAt && run.updatedAt)
+  const completed = runs.filter((run) => run.status === 'completed')
   const successful = completed.filter((run) => run.conclusion === 'success')
   const counts = Object.fromEntries(
     [...new Set(completed.map((run) => run.conclusion || 'unknown'))]
@@ -34,14 +35,13 @@ export function summarizeCiRuns(runs) {
         completed.filter((run) => (run.conclusion || 'unknown') === conclusion).length,
       ]),
   )
-  const queueSeconds = successful.map((run) => secondsBetween(run.createdAt, run.startedAt))
-  const runSeconds = successful.map((run) => secondsBetween(run.startedAt, run.updatedAt))
-  const wallSeconds = successful.map((run) => secondsBetween(run.createdAt, run.updatedAt))
+  const queueSeconds = successful.map((run) => measuredSeconds(run.createdAt, run.startedAt))
+  const runSeconds = successful.map((run) => measuredSeconds(run.startedAt, run.updatedAt))
+  const wallSeconds = successful.map((run) => measuredSeconds(run.createdAt, run.updatedAt))
   const cancelled = completed.filter((run) => run.conclusion === 'cancelled')
   const successfulWithGate = successful.filter((run) => (
     run.prGate?.mode
-    && run.prGate.startedAt
-    && run.prGate.completedAt
+    && measuredSeconds(run.prGate.startedAt, run.prGate.completedAt) !== null
   ))
   const perMode = Object.fromEntries(
     [...new Set(successfulWithGate.map((run) => run.prGate.mode))]
@@ -50,14 +50,14 @@ export function summarizeCiRuns(runs) {
         const modeRuns = successfulWithGate.filter((run) => run.prGate.mode === mode)
         return [mode, {
           sampleSize: modeRuns.length,
-          timeToGateStartSeconds: summarize(modeRuns.map((run) => (
-            secondsBetween(run.createdAt, run.prGate.startedAt)
+          timeToGateStartSeconds: summarizeMeasured(modeRuns.map((run) => (
+            measuredSeconds(run.createdAt, run.prGate.startedAt)
           ))),
-          gateRunSeconds: summarize(modeRuns.map((run) => (
-            secondsBetween(run.prGate.startedAt, run.prGate.completedAt)
+          gateRunSeconds: summarizeMeasured(modeRuns.map((run) => (
+            measuredSeconds(run.prGate.startedAt, run.prGate.completedAt)
           ))),
-          timeToGatePassSeconds: summarize(modeRuns.map((run) => (
-            secondsBetween(run.createdAt, run.prGate.completedAt)
+          timeToGatePassSeconds: summarizeMeasured(modeRuns.map((run) => (
+            measuredSeconds(run.createdAt, run.prGate.completedAt)
           ))),
         }]
       }),
@@ -69,16 +69,36 @@ export function summarizeCiRuns(runs) {
     counts,
     cancellationRate: completed.length === 0 ? null : cancelled.length / completed.length,
     cancelledElapsedSeconds: Math.round(cancelled.reduce(
-      (sum, run) => sum + secondsBetween(run.startedAt, run.updatedAt),
+      (sum, run) => sum + (measuredSeconds(run.startedAt, run.updatedAt) ?? 0),
       0,
     )),
-    successfulQueueSeconds: summarize(queueSeconds),
-    successfulRunSeconds: summarize(runSeconds),
-    successfulWallSeconds: summarize(wallSeconds),
+    cancelledRunsWithoutElapsedEvidence: cancelled.filter(run => measuredSeconds(run.startedAt, run.updatedAt) === null).length,
+    successfulQueueSeconds: summarizeMeasured(queueSeconds),
+    successfulRunSeconds: summarizeMeasured(runSeconds),
+    successfulWallSeconds: summarizeMeasured(wallSeconds),
     successfulRunsWithoutPrGateEvidence: successful.length - successfulWithGate.length,
     prGateByMode: perMode,
     ...summarizeJobEvidence(completed),
   }
+}
+
+// Rerunning failed jobs gives carried successes new IDs/attempt labels without
+// executing them again. Retain all failures but count identical physical job
+// intervals once, attributing carried evidence to its earliest observed attempt.
+export function distinctJobExecutions(jobs) {
+  const executions = new Map()
+  for (const [index, job] of jobs.entries()) {
+    const interval = measuredSeconds(job.started_at, job.completed_at)
+    const key = interval === null ? `missing:${index}` : JSON.stringify([
+      job.name, job.runner_id ?? null, job.started_at, job.completed_at, job.conclusion,
+    ])
+    const previous = executions.get(key)
+    if (!previous) executions.set(key, { ...job })
+    else if (Number.isInteger(job.run_attempt) && (!Number.isInteger(previous.run_attempt) || job.run_attempt < previous.run_attempt)) {
+      previous.run_attempt = job.run_attempt
+    }
+  }
+  return [...executions.values()]
 }
 
 function measuredSeconds(start, end) {
@@ -96,6 +116,8 @@ export function summarizeJobEvidence(runs) {
   const evidence = []
   let cancelledJobSeconds = 0
   let missingJobDurations = 0
+  let missingStepDurations = 0
+  let earlierFailedJobSeconds = 0
   const collect = (groups, identity, seconds) => {
     const key = JSON.stringify(identity)
     const group = groups.get(key) ?? { ...identity, durations: [] }
@@ -108,7 +130,7 @@ export function summarizeJobEvidence(runs) {
     const failedSteps = []
     let runnerSeconds = 0
     let timedJobs = 0
-    for (const job of run.jobs) {
+    for (const job of distinctJobExecutions(run.jobs)) {
       if (job.conclusion === 'skipped') continue
       const runner = job.labels?.includes('self-hosted') ? 'self-hosted'
         : job.labels?.some(label => label.startsWith('ubuntu-')) ? 'hosted' : 'unknown'
@@ -118,20 +140,23 @@ export function summarizeJobEvidence(runs) {
       else {
         runnerSeconds += seconds
         timedJobs++
+        if (job.conclusion === 'failure' && Number.isInteger(run.attempt) && job.run_attempt < run.attempt) earlierFailedJobSeconds += seconds
         if (run.conclusion === 'success' && job.conclusion === 'success') collect(jobs, identity, seconds)
       }
       for (const step of job.steps ?? []) {
         if (step.conclusion === 'skipped') continue
         const elapsed = measuredSeconds(step.started_at, step.completed_at)
+        if (elapsed === null) missingStepDurations++
         if (run.conclusion === 'success' && step.conclusion === 'success' && elapsed !== null) {
           collect(steps, { ...identity, step: step.name }, elapsed)
         }
-        if (step.conclusion === 'failure') failedSteps.push({ job: job.name, step: step.name,
+        if (step.conclusion === 'failure') failedSteps.push({ job: job.name, step: step.name, attempt: job.run_attempt ?? null,
           timeToFailureSeconds: measuredSeconds(run.createdAt, step.completed_at) })
       }
     }
     if (run.conclusion === 'cancelled') cancelledJobSeconds += runnerSeconds
-    evidence.push({ runId: run.databaseId ?? null, headSha: run.headSha ?? null,
+    evidence.push({ runId: run.databaseId ?? null, headSha: run.headSha ?? null, latestAttempt: run.attempt ?? null,
+      executionAttempts: [...new Set(run.jobs.map(job => job.run_attempt).filter(Number.isInteger))].sort((a, b) => a - b),
       mode, conclusion: run.conclusion, timedJobs, runnerSeconds, failedSteps })
   }
   const finish = groups => [...groups.values()].map(({ durations, ...identity }) => ({
@@ -140,7 +165,9 @@ export function summarizeJobEvidence(runs) {
   return {
     runsWithoutJobEvidence: runs.filter(run => !Array.isArray(run.jobs)).length,
     missingJobDurations,
+    missingStepDurations,
     cancelledJobSeconds,
+    earlierFailedJobSeconds,
     successfulJobTimings: finish(jobs),
     successfulStepTimings: finish(steps),
     runEvidence: evidence,
@@ -166,7 +193,7 @@ function parseArguments(argv) {
 function loadJobs(runId, repo) {
   try {
     const pages = JSON.parse(execFileSync('gh', [
-      'api', `repos/${repo}/actions/runs/${runId}/jobs?filter=latest&per_page=100`,
+      'api', `repos/${repo}/actions/runs/${runId}/jobs?filter=all&per_page=100`,
       '--paginate', '--slurp',
     ], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }))
     if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page.jobs))) return null
@@ -176,7 +203,8 @@ function loadJobs(runId, repo) {
 
 function loadPrGateEvidence(runId, repo, jobs) {
   try {
-    const gate = jobs?.find((job) => job.name === 'PR Gate')
+    const gate = jobs?.filter((job) => job.name === 'PR Gate' && job.conclusion === 'success')
+      .sort((a, b) => (b.run_attempt ?? 0) - (a.run_attempt ?? 0))[0]
     if (!gate?.id || !gate.started_at || !gate.completed_at) return null
 
     const log = execFileSync('gh', [
@@ -215,7 +243,7 @@ if (invokedPath === import.meta.url) {
       '--limit',
       String(args.limit),
       '--json',
-      'databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,headSha',
+      'databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,headSha,attempt',
     ], { encoding: 'utf8' })
     const runs = JSON.parse(raw).map((run) => {
       const jobs = run.status === 'completed' ? loadJobs(run.databaseId, args.repo) : null

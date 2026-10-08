@@ -107,3 +107,15 @@ Budget: at most seven launches, one full-diff wave, four targeted remediation
 waves, one final integration wave, four fix batches, 60 minutes total and
 30 minutes per reviewer. Initial wave not yet launched; zero remediation batches.
 Review receipts will bind base/head in the PR and local lifecycle record.
+
+Initial review completed against `47e705976c75289ff13fd899f96b69d340684964`:
+correctness/privacy passed (independent 249/249 tests); compatibility found two
+P2 measurement issues: earlier attempts were omitted and missing workflow times
+dropped usable job evidence. One batched correction retains all job attempts,
+deduplicates carried successes by physical intervals, preserves failed attempts
+and validates workflow/job/step intervals independently. New regression cases
+cover both failures. Draft PR: https://github.com/codepetca/pika/pull/1538.
+Reviewer effective configurations, tokens and active elapsed time are unknown.
+Final cumulative review follows the corrective fixed SHA; no proof code changed
+in this remediation batch. Review budget consumed: two initial launches, one
+remediation batch; final integration wave pending.

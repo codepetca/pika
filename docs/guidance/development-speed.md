@@ -48,6 +48,16 @@ Failure entries identify the failed step and elapsed time from run creation to
 that failure. This includes dependency and execution time; GitHub's available
 timestamps do not isolate runner queue time for each job.
 
+Job history includes all attempts. Rerunning failed jobs can give carried-over
+successes new job IDs and attempt labels without re-executing them. The report
+deduplicates matching job/runner/timestamp/conclusion intervals and attributes
+them to their earliest observed attempt. It preserves earlier failure locations,
+latest attempt and observed attempt numbers; `earlierFailedJobSeconds` exposes
+failed runner time preceding the final attempt. Workflow timestamp availability
+is validated separately, so missing workflow intervals do not erase valid job
+evidence. Each workflow metric includes sample and missing-sample counts, and
+missing step intervals are counted. GitHub documents the [job-history API](https://docs.github.com/en/rest/actions/workflow-jobs#list-jobs-for-a-workflow-run).
+
 `cancelledJobSeconds` sums completed job intervals to estimate cancelled runner
 consumption. Parallel jobs overlap, so this sum must not be interpreted as
 workflow elapsed time. Runs with unavailable intervals make it a lower bound.
