@@ -47,6 +47,10 @@ describe('Status catalog examples', () => {
       expect(label.parentElement?.querySelector('svg')).toHaveClass('lucide-reply', 'text-primary')
     }
     expect(screen.getByText('Closed for grading')).toBeInTheDocument()
+    expect(screen.getByText('In progress (late)')).toBeInTheDocument()
+    const lateProgress = screen.getByTestId('assessment-status-icon-in_progress-late')
+    expect(within(lateProgress).getByTestId('assessment-status-icon-late-clock')).toBeInTheDocument()
+    expect(screen.getAllByText('In progress', { exact: true })).toHaveLength(2)
     expect(screen.getByText(/Checked in confirmation is separate/)).toBeInTheDocument()
   })
 })

@@ -99,6 +99,7 @@ const config: Config = {
           DEFAULT: 'var(--color-warning)',
           bg: 'var(--color-warning-bg)',
         },
+        'assessment-progress': 'var(--color-assessment-progress)',
         info: {
           DEFAULT: 'var(--color-info)',
           bg: {
