@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-07 UTC
 
-Main `7357f9f0b`; 27 audit findings accepted.
+Main `47659857d`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE since2026-10-05 06:27UTC; loginHTTP200. Appc6f23b4b (#1476),
@@ -17,13 +17,15 @@ Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Discard251: #1503/865d837b7; exact9c391 CI37435496517 all5PASS.
 Publication#1510 merged473a5de8a: reviewed2f3/CI37564268228 all5PASS.
 Native25249/12/5/10 PASS/types; legacyPATCH/UI unchanged.
-Next: reorder253 capacity decision; observed10.79s interval, cleanup PASS.
-249–253 unapplied; legacy reorder/UI unchanged.
+Next: approved1,000-Test atomic reorder; source/proof update pending.
+249 onward unapplied; legacy reorder/UI unchanged.
 No phase exit; `docs/guidance/contextual-test-reorder.md`.
 
-B1–B5 retained; native252 cleanup/all183-table,5-field B5 PASS.
+Test caps#1524 merged50185559f; enforcement OFF.
+
+Native252 normal10/cleanup/B5 PASS; B1–B4/failures retained;183tables/all5fields.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.
 Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
-student purge ON, other purge/Pal OFF.
+individual-student purge ON; other purge/Pal OFF.

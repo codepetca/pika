@@ -26,7 +26,6 @@ import {
   CircleDot,
   CopyPlus,
   DatabaseBackup,
-  LoaderCircle,
   GripVertical,
   MoreVertical,
   Plus,
@@ -41,7 +40,7 @@ import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
 import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { Button, IconButton, ConfirmDialog, PageActionBar, PageContent, PageHeading, PageLayout, PageState } from '@/ui'
+import { CircularProgress, Button, IconButton, ConfirmDialog, PageActionBar, PageContent, PageHeading, PageLayout, PageState } from '@/ui'
 import { ClassroomsReadError } from './ClassroomsReadError'
 import { Spinner } from '@/components/Spinner'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
@@ -880,7 +879,7 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
                             )}
                             {openingClassroomId === c.id && (
                               <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                                <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                <CircularProgress className="h-3.5 w-3.5" />
                                 Opening classroom...
                               </div>
                             )}
@@ -905,7 +904,7 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
                             ariaLabel={`Settings for ${c.title}`}
                             tooltip="Settings"
                             icon={reusingClassroomId === c.id
-                              ? <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
+                              ? <CircularProgress className="h-5 w-5" />
                               : <Settings className="h-5 w-5" aria-hidden="true" />}
                             disabled={openingClassroomId !== null || reusingClassroomId !== null}
                             buttonProps={{ 'aria-busy': reusingClassroomId === c.id || undefined }}

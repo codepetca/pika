@@ -1,3 +1,9 @@
+import { verifyPasswordResetContinuity, verifyLoginSignupTarget } from './helpers/password-reset-continuity'
+import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
+import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
+import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
+import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
+import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
   expect,
   test,
@@ -11,6 +17,10 @@ import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableSh
 import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
 import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
+import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
+import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
+import { verifyGradebookRetryFocus } from './helpers/gradebook-retry-focus'
+import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -52,6 +62,82 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Password reset continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves reset request ownership and recovery ${motion}`, async ({ page }, testInfo) => {
+      await verifyPasswordResetContinuity(page, testInfo, motion)
+    })
+    test(`keeps Sign up navigation comfortably focusable ${motion}`, async ({ page }, testInfo) => {
+      await verifyLoginSignupTarget(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Public course section targets', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves native section navigation with comfortable targets ${motion}`, async ({ page }, testInfo) => {
+      await verifyPublicCourseSectionTargets(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Calendar day interaction', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const role of ['teacher', 'student'] as const) {
+    for (const motion of ['no-preference', 'reduce'] as const) {
+      test.describe(`${role} ${motion}`, () => {
+        test.use({ contextOptions: { reducedMotion: motion } })
+        test('reads and dismisses the real Calendar day dialog', async ({ page }, testInfo) => {
+          await verifyCalendarDayInteraction(page, testInfo, role, motion)
+        })
+      })
+    }
+  }
+})
+
+test.describe('Assignment editor retirement', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retires active and pending native drags without breaking reordering', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorDragShutdown(page, testInfo)
+      })
+      test('retires nested controls and closes after the parent publishes Post', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorControls(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('Gradebook retry focus', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('keeps explicit retry focus in the visible Gradebook workspace', async ({ page }, testInfo) => {
+        await verifyGradebookRetryFocus(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('student Grades continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('preserves native reactivation and recovery', async ({ page }, testInfo) => {
+        test.setTimeout(150_000)
+        await applyProjectTheme(page, testInfo)
+        await verifyStudentGradesContinuity(page, testInfo)
+      })
+    })
+  }
+})
 
 test.describe('Assignment Instructions preview continuity', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
@@ -3984,4 +4070,49 @@ test('retains teacher Classwork student editor and table through background refr
   expect(detailReads).toBe(newDetailReads)
   await capture('navigation-assignment-recovered')
   await verifyProjectContract(page, testInfo)
+})
+
+
+test.describe('Announcement mutation feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retains drafts and requires explicit mutation recovery', async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await verifyAnnouncementMutationFeedback(page, testInfo)
+      })
+    })
+  }
+})
+
+
+test.describe('Course Guide refresh continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  test.beforeEach(async ({ page }, testInfo) => { await applyProjectTheme(page, testInfo) })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains current guide work with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyCourseGuideContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Teacher settings clipboard feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`clipboard feedback ${motion} preserves the committed settings owner`, async ({ page }, testInfo) => {
+      await verifySettingsCopyFeedback(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Student attendance return navigation', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains canonical return targets with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyAttendanceReturnLink(page, testInfo, motion)
+    })
+  }
 })

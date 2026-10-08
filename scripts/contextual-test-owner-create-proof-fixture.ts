@@ -232,8 +232,9 @@ function baseline(f: TestOwnerCreateFixture, before: Snapshot, prior: TestOwnerC
 }
 /** The expected table catalogue is externally sealed from the original
  * canonical read-only receipt before project preparation. Never derive this
- * set from the ephemeral fingerprint list it is intended to verify. Both249
- * and250 add functions/indexes only, so the complete table set must match. */
+ * set from the ephemeral fingerprint list it is intended to verify. The source-
+ * hash-bound253 addition is required alongside every canonical table; neither
+ * omitted inherited tables nor unexpected additions are permitted. */
 export function validateTestOwnerCreateSetupSnapshot(f: TestOwnerCreateFixture, value: unknown, expectedTables: readonly string[]) {
   const rows = snapshot(value)
   assert(Array.isArray(expectedTables) && expectedTables.length > 0 && expectedTables.length <= TEST_OWNER_CREATE_CAPS.fingerprintTables)

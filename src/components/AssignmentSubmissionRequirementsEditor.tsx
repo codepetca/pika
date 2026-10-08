@@ -2,8 +2,6 @@
 
 import {
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
   closestCenter,
   type DragEndEvent,
   useSensor,
@@ -18,18 +16,21 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { FolderGit2, GripVertical, ImageIcon, Link2, Plus, Trash2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useInsertionEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button, ConfirmDialog, Input, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
 import {
   DEFAULT_REQUIREMENT_LABELS,
   type AssignmentSubmissionRequirementDraft,
 } from '@/lib/assignment-submission-requirements'
 import type { AssignmentSubmissionRequirementType } from '@/types'
+import { AssignmentKeyboardSensor, AssignmentPointerSensor, createAssignmentDragSensorOwner } from '@/lib/assignment-drag-sensors'
 
 interface AssignmentSubmissionRequirementsEditorProps {
   requirements: AssignmentSubmissionRequirementDraft[]
   onChange: (requirements: AssignmentSubmissionRequirementDraft[]) => void
   disabled?: boolean
+  /** Retire nested owners and sensors without changing saved row presentation. */
+  interactionActive?: boolean
 }
 
 const TYPE_OPTIONS: Array<{
@@ -57,6 +58,7 @@ interface SortableRequirementRowProps {
   index: number
   totalRequirements: number
   disabled: boolean
+  interactionActive: boolean
   onUpdate: (index: number, patch: Partial<AssignmentSubmissionRequirementDraft>) => void
   onRemove: (index: number, sortableId: string) => void
 }
@@ -67,10 +69,12 @@ function SortableRequirementRow({
   index,
   totalRequirements,
   disabled,
+  interactionActive,
   onUpdate,
   onRemove,
 }: SortableRequirementRowProps) {
-  const isDragDisabled = disabled || totalRequirements < 2
+  const visuallyDragDisabled = disabled || totalRequirements < 2
+  const isDragDisabled = !interactionActive || visuallyDragDisabled
   const {
     attributes,
     listeners,
@@ -99,7 +103,7 @@ function SortableRequirementRow({
         type="button"
         className={cn(
           'flex h-11 w-11 touch-none items-center justify-center rounded text-text-muted transition-colors',
-          isDragDisabled
+          visuallyDragDisabled
             ? 'cursor-default opacity-50'
             : 'cursor-grab hover:bg-surface-hover hover:text-text-default active:cursor-grabbing'
         )}
@@ -129,7 +133,7 @@ function SortableRequirementRow({
           <span id={imageLimitsId} className="sr-only">PNG, JPG, GIF, WebP · maximum 10 MB</span>
         ) : null}
       </div>
-      <Tooltip content="Remove">
+      <Tooltip content="Remove" disabled={!interactionActive}>
         <Button
           type="button"
           variant="ghost"
@@ -150,17 +154,32 @@ export function AssignmentSubmissionRequirementsEditor({
   requirements,
   onChange,
   disabled = false,
+  interactionActive = true,
 }: AssignmentSubmissionRequirementsEditorProps) {
+  const activeRef = useRef(interactionActive)
+  const disabledRef = useRef(disabled)
+  useInsertionEffect(() => {
+    activeRef.current = interactionActive
+    disabledRef.current = disabled
+    return () => { activeRef.current = false }
+  }, [interactionActive, disabled])
+  const [sensorOwner] = useState(() => createAssignmentDragSensorOwner(() => activeRef.current && !disabledRef.current))
+  useLayoutEffect(() => {
+    if (!interactionActive || disabled) sensorOwner.cancel()
+    return () => sensorOwner.cancel()
+  }, [interactionActive, disabled, sensorOwner])
   const nextSortableIdRef = useRef(0)
   const sortableIdsRef = useRef<string[]>([])
   const [pendingRemoval, setPendingRemoval] = useState<{ sortableId: string; label: string } | null>(null)
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(AssignmentPointerSensor, {
+      owner: sensorOwner,
       activationConstraint: {
         distance: 6,
       },
     }),
-    useSensor(KeyboardSensor, {
+    useSensor(AssignmentKeyboardSensor, {
+      owner: sensorOwner,
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
@@ -181,6 +200,7 @@ export function AssignmentSubmissionRequirementsEditor({
   const sortableIds = sortableIdsRef.current
 
   function updateRequirement(index: number, patch: Partial<AssignmentSubmissionRequirementDraft>) {
+    if (!activeRef.current) return
     onChange(requirements.map((requirement, currentIndex) =>
       currentIndex === index
         ? { ...requirement, ...patch }
@@ -189,6 +209,7 @@ export function AssignmentSubmissionRequirementsEditor({
   }
 
   function addRequirement(type: AssignmentSubmissionRequirementType) {
+    if (!activeRef.current) return
     const sortableId = `requirement-${nextSortableIdRef.current}`
     nextSortableIdRef.current += 1
     sortableIdsRef.current = [...sortableIdsRef.current, sortableId]
@@ -213,6 +234,7 @@ export function AssignmentSubmissionRequirementsEditor({
   }
 
   function requestRemoveRequirement(index: number, sortableId: string) {
+    if (!activeRef.current) return
     const requirement = requirements[index]
     if (!requirement) return
 
@@ -228,6 +250,7 @@ export function AssignmentSubmissionRequirementsEditor({
   }
 
   function confirmPendingRemoval() {
+    if (!activeRef.current) return
     if (!pendingRemoval) return
 
     const index = sortableIdsRef.current.indexOf(pendingRemoval.sortableId)
@@ -238,7 +261,7 @@ export function AssignmentSubmissionRequirementsEditor({
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    if (disabled) return
+    if (disabled || !activeRef.current) return
 
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -258,11 +281,12 @@ export function AssignmentSubmissionRequirementsEditor({
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-text-default">Submission Requirement</div>
           </div>
-          <Tooltip content="Add submission requirement" side="left">
+          <Tooltip content="Add submission requirement" side="left" disabled={!interactionActive}>
             <span className="inline-flex shrink-0">
               <SplitButton
                 label={<Plus className="h-4 w-4" aria-hidden="true" />}
                 singleMenuTrigger
+                interactionActive={interactionActive}
                 options={TYPE_OPTIONS.map((option) => ({
                   id: option.type,
                   label: option.label,
@@ -284,7 +308,8 @@ export function AssignmentSubmissionRequirementsEditor({
 
         {requirements.length > 0 ? (
           <DndContext
-            sensors={sensors}
+            key={interactionActive ? 'active' : 'retired'}
+            sensors={interactionActive ? sensors : []}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
@@ -298,6 +323,7 @@ export function AssignmentSubmissionRequirementsEditor({
                     index={index}
                     totalRequirements={requirements.length}
                     disabled={disabled}
+                    interactionActive={interactionActive}
                     onUpdate={updateRequirement}
                     onRemove={requestRemoveRequirement}
                   />
@@ -308,7 +334,7 @@ export function AssignmentSubmissionRequirementsEditor({
         ) : null}
       </div>
       <ConfirmDialog
-        isOpen={Boolean(pendingRemoval)}
+        isOpen={interactionActive && Boolean(pendingRemoval)}
         title="Remove attachment?"
         description={pendingRemoval ? `This removes "${pendingRemoval.label}" from the assignment.` : undefined}
         confirmLabel="Remove"

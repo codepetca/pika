@@ -205,7 +205,7 @@ describe('AssignmentModal Instructions preview lifecycle with the real editor', 
     expect(fetchMock).toHaveBeenCalledTimes(writesBeforeDismissal)
   })
 
-  it('immediately tears down the owner editor and never activates stale preview text in a new assignment session', async () => {
+  it('retains an inactive outgoing owner and never activates its stale editor or preview in a new session', async () => {
     const onClose = vi.fn()
     const onSuccess = vi.fn()
     function Harness() {
@@ -220,20 +220,27 @@ describe('AssignmentModal Instructions preview lifecycle with the real editor', 
     render(<Harness />, { wrapper: TooltipProvider })
     const editor = screen.getByRole('textbox', { name: 'Instructions' }) as HTMLElement & { editor: Editor }
     const originalTiptap = editor.editor
+    const ownerLayer = editor.closest('[data-modal-state]')!
     const { preview, layer } = openPreview()
     fireEvent.click(screen.getByRole('button', { name: 'Parent close', hidden: true }))
-    expect(editor).not.toBeInTheDocument()
+    expect(editor).toBeInTheDocument()
+    expect(ownerLayer).toHaveAttribute('data-modal-state', 'closing')
+    expect(ownerLayer).toHaveAttribute('aria-hidden', 'true')
+    expect((ownerLayer as HTMLElement).inert).toBe(true)
+    expect(originalTiptap.isEditable).toBe(false)
     expect(screen.queryByRole('dialog', { name: 'Edit Draft' })).not.toBeInTheDocument()
     expect(layer).toHaveAttribute('data-modal-state', 'closing')
-    // useEditor owns its existing deferred destroy tick; preview retention must
-    // not keep that instance alive for the 180 ms visual exit.
+    // The individually adopted main owner retains a passive editor until expiry
+    // or replacement; its existing deferred destroy tick still follows unmount.
     await advance(1)
-    expect(originalTiptap.isDestroyed).toBe(true)
+    expect(originalTiptap.isDestroyed).toBe(false)
     await advance(39)
     fireEvent.click(screen.getByRole('button', { name: 'Second session' }))
     const newEditor = screen.getByRole('textbox', { name: 'Instructions' })
     expect(newEditor).not.toBe(editor)
     expect(newEditor).toHaveTextContent('Second instructions')
+    await advance(1)
+    expect(originalTiptap.isDestroyed).toBe(true)
     expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
     expect(preview).toHaveTextContent('Original instructions')
     const activePreview = openPreview()

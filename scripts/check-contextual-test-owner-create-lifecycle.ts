@@ -30,6 +30,7 @@ export { createTestOwnerCreateProofTransport } from './contextual-test-owner-cre
 import { testOwnerCreateConcurrencyManifest } from './check-contextual-test-create-concurrency'
 import { buildTestOwnerCreateNativeContractsManifest, createTestOwnerCreateNativeContracts } from './contextual-test-draft-save-native-contracts'
 import { generateTestDraftSaveTypes } from './generate-contextual-test-draft-save-types'
+import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
 
 const paths = Object.freeze(['/rest/v1/rpc/create_test_for_owner_v1'])
 const cleanupMarker = 'PASS isolated test-owner-create exact teardown and unchanged canonical baseline.\n'
@@ -180,7 +181,7 @@ export async function testOwnerCreateLifecycleMain(args = process.argv.slice(2))
   const setupSql = testOwnerCreateSetupSql(f, projectId), snapshotSql = testOwnerCreateSnapshotSql(f), union = testOwnerCreateUnionManifest(original, f, input.head, repository)
   const unionSha256 = testOwnerDigest(JSON.stringify(union)), started = Date.now()
   let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined, session: Session | undefined
-  let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined, expectedTables: readonly string[] | undefined, canonicalSha256: string | undefined
+  let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined, expectedTables: readonly string[] | undefined, canonicalTables: readonly string[] | undefined, canonicalSha256: string | undefined
   let transport: ReturnType<typeof createTestOwnerCreateProofTransport> | undefined, client: ReturnType<typeof createClient<Database>> | undefined
   let sqlContracts: ReturnType<typeof createTestOwnerCreateNativeContracts> | undefined, nativeReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['run']>> | undefined
   let complete = false, matrixComplete = false, sqlComplete = false, setupStage = 'pending', controls = 0, actions = 0, appBytes = 0
@@ -274,7 +275,8 @@ export async function testOwnerCreateLifecycleMain(args = process.argv.slice(2))
       ...native,
       async canonicalSnapshot(request) {
         const captured = await native.canonicalSnapshot(request), catalog = testOwnerCreateCanonicalTableCatalog(captured)
-        if (expectedTables) assert.deepEqual(catalog, expectedTables); else { expectedTables = catalog; canonicalSha256 = testOwnerDigest(JSON.stringify(captured)) }
+        if (canonicalTables) assert.deepEqual(catalog, canonicalTables)
+        else { canonicalTables = catalog; expectedTables = classroomTestQuotaProofCatalog(catalog, migrations); canonicalSha256 = testOwnerDigest(JSON.stringify(captured)) }
         return captured
       },
       async command(request) { const result = await native.command(request); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },

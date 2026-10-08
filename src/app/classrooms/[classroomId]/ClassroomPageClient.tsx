@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { CalendarDays } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
@@ -21,7 +21,7 @@ import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { TeacherBlueprintTab } from './TeacherBlueprintTab'
 import { StudentTestsTab } from './StudentTestsTab'
-import { StudentGradesTab } from './StudentGradesTab'
+import { StudentGradesTab, type StudentGradesReadHandle } from './StudentGradesTab'
 import { StudentPalAmbientSurfaces } from '@/integrations/pal'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentCalendarDateContent } from '@/components/StudentCalendarDateContent'
@@ -60,6 +60,7 @@ import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/Teacher
 import { Button, ConfirmDialog, DialogPanel, TabContentTransition } from '@/ui'
 import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
+import { ApiError } from '@/lib/api-error'
 import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
@@ -629,6 +630,7 @@ function ClassroomPageContent({
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
+  const studentGradesReadRef = useRef<StudentGradesReadHandle>(null)
   const lastTabIntentRef = useRef<Record<string, number>>({})
   const scrollPositionsRef = useRef<Record<string, number>>({})
   const prevActiveTabRef = useRef(activeTab)
@@ -806,13 +808,24 @@ function ClassroomPageContent({
     })
   }, [activeTab, availableTabs])
 
+  useLayoutEffect(() => {
+    if (isTeacher || activeTab !== 'grades') return
+    const rememberGradesScroll = () => {
+      scrollPositionsRef.current.grades = window.scrollY
+    }
+    window.addEventListener('scroll', rememberGradesScroll, { passive: true })
+    return () => window.removeEventListener('scroll', rememberGradesScroll)
+  }, [activeTab, isTeacher])
+
   useEffect(() => {
     const previousTab = prevActiveTabRef.current
-    scrollPositionsRef.current[previousTab] = window.scrollY
+    if (isTeacher || previousTab !== 'grades') {
+      scrollPositionsRef.current[previousTab] = window.scrollY
+    }
     prevActiveTabRef.current = activeTab
     const nextScrollTop = scrollPositionsRef.current[activeTab] ?? 0
     window.scrollTo({ top: nextScrollTop, left: 0, behavior: 'auto' })
-  }, [activeTab])
+  }, [activeTab, isTeacher])
 
   // State for selected assignment instructions (assignments tab)
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
@@ -1543,11 +1556,19 @@ function ClassroomPageContent({
       }
 
       if (tab === 'grades' && !isTeacher) {
+        const gradesOwner = studentGradesReadRef.current
+        if (gradesOwner?.classroomId === classroom.id) {
+          gradesOwner.prefetch()
+          return
+        }
         prefetchJSON(
           `student-grades:${classroom.id}`,
           async () => {
             const response = await fetch(`/api/student/classrooms/${classroom.id}/grades`)
-            if (!response.ok) throw new Error('Prefetch failed')
+            if (!response.ok) {
+              const json = await response.json().catch(() => null)
+              throw new ApiError(response.status, typeof json?.error === 'string' && json.error.trim() ? json.error : 'Failed to load grades')
+            }
             return response.json()
           },
           30_000,
@@ -2092,7 +2113,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.grades && (
                     <TabContentTransition isActive={activeTab === 'grades'}>
-                      <StudentGradesTab classroom={classroom} isActive={activeTab === 'grades'} />
+                      <StudentGradesTab ref={studentGradesReadRef} classroom={classroom} isActive={activeTab === 'grades'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.calendar && (

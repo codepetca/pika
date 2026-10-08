@@ -586,6 +586,7 @@ export function LessonCalendar({
 
       <DialogPanel
         isOpen={presentedDayDetails !== null}
+        exitMotion="opacity"
         onClose={() => setPresentedDay(null)}
         ariaLabelledBy="calendar-day-presentation-title"
         maxWidth="max-w-none"
@@ -620,7 +621,12 @@ export function LessonCalendar({
               </div>
             </div>
 
-            <div className="mt-8 flex-1 overflow-y-auto">
+            <div
+              role="region"
+              aria-label="Day lesson and events"
+              tabIndex={0}
+              className="mt-8 flex-1 overflow-y-auto focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset"
+            >
               {presentedDayDetails.lessonMarkdown ? (
                 <LimitedMarkdown
                   content={presentedDayDetails.lessonMarkdown}

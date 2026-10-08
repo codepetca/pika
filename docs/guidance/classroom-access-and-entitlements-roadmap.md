@@ -65,12 +65,20 @@ not Max's new launch limit of 12. Legacy `plus` maps to the new Pro product.
 A future version-aware implementation must apply the new terms without rewriting
 historical migrations or existing purchases:
 
-| Account plan | Active owned classrooms | Other agreed direction |
-| --- | ---: | --- |
-| Free | 0 | May join classrooms |
-| Basic | 2 | Core teaching tools; no included AI grading |
-| Pro | 5 | Candidate 300 AI grading runs/month; validate costs |
-| Max | 12 | Candidate 1,000 AI grading runs/month; validate costs |
+| Account plan | Active owned classrooms | Tests per classroom | Other agreed direction |
+| --- | ---: | ---: | --- |
+| Free | 0 | 0 new | May join classrooms; preserve existing work |
+| Basic | 2 | 20 | Core teaching tools; no included AI grading |
+| Pro | 5 | 50 | Candidate 300 AI grading runs/month; validate costs |
+| Max | 12 | 100 | Candidate 1,000 AI grading runs/month; validate costs |
+
+The owner approved Test limits on 2026-10-07. SUB-16 in the subscription policy
+defines counting, over-limit preservation and immutable paid-offering terms.
+These numbers are not yet live. Implement a disabled database insertion/movement
+guard first, verify exact-boundary and concurrency behavior, then integrate
+creation/import error handling and the contextual proof catalog before activation.
+Do not treat a smaller Test allowance as proof that grandfathered over-limit
+classrooms satisfy the pending atomic reorder capacity gate.
 
 Applying migration 206 alone does not classify existing accounts, change their
 effective grants, activate strict enforcement, charge anyone, or enable AI

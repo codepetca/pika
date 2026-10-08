@@ -244,16 +244,15 @@ export function LoginClient({
         <div className="mt-2 text-center">
           <p className="text-sm text-text-muted">
             Don&apos;t have an account?{' '}
-            <button
-              type="button"
+            <Button
+              type="button" variant="ghost" size="sm"
               onClick={() => router.push(buildAuthContinuationPath('/signup', {
                 email,
                 next: searchParams.get('next'),
               }))}
-              className="text-primary hover:underline font-medium"
             >
               Sign up
-            </button>
+            </Button>
           </p>
         </div>
       </div>

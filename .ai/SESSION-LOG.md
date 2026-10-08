@@ -206,134 +206,260 @@ ordinary main merge. Read-only next-slice inventory recommends atomic Test order
 retired-row and subset/full-list semantics need explicit treatment before writing.
 
 ## 2026-10-06 — Publication CI startup diagnostic containment
+## 2026-10-07 — Assignment editor passive dismissal and drag ownership
 
-Changed-base Sol20 review/focused777/30 passed006; CI37528258223 failed existing
-Assignment integrated startup in5s before Test publication. Build passed;
-returning PR1510 to draft caused concurrency replacement/browser cancellation;
-PRGate failed. Private600 job log06ddb685 retained; startup JSON not uploaded,
-cause unknown. Bounded readonly6.1Sol/high worker verified gap/closed literals,
-no operations; effective configuration/attributableusage unknown, weekly13%.
-Root32 RED precede closed command/exit/killed/observed-marker facts sealed in
-WeakMap; raw tails/path/credentials never emitted. Mock native wiring/private
-receipt and related lifecycle144/4 PASS; lint/audit PASS. Product/252/types,
-normal/forced output, authorities and caps unchanged. Source batch18/current
-targeted review/focused/exactheadCI pending; original13:07:17 clock/20 launches
-retained/taskstopwaiver active/DeepSeek paused. Local/prod249–252 unapplied;
-no migration/promotion/cohort/account/provider/billing/rollout or phase exit.
+Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
+logical close, focus/scroll release and outgoing input fences. Its retained body
+receives live activity outside ModalLayer's snapshot; reopen gets fresh rich-editor
+history, while same-open undo and same-ID external object reset behavior remain.
+Toolbar portals, nested confirmations, action menus, deferred focus and Blueprint
+publication retire. CreationModalShell stays immediate by default. Active native
+keyboard proof caught dnd-kit sensor listeners surviving context unmount; feature
+sensors implement its public protocol with explicit resource ownership and instant
+next-key handling. External session refresh retires only the requirement drag
+owner. Visually found clipped desktop action options; reused upper placement and
+asserted panel bounds/unchanged title. UI brief: docs/guidance/ui/changes/assignment-editor-exit.md.
+Controlled teacher browser16PASS across desktop/mobile, light/dark, normal/reduced,
+including pending/active mouse/touch/keyboard, refresh, reopen reorder, real nested
+controls and parent Post publication. Natural main exit8PASS preserves measured
+text/field/toolbar geometry; actual compositor midpoint pixels inspected. Natural
+manual restoration8PASS with the clearing fixture parent and exact restoringPATCH.
+All APIs intercepted; no authenticated persistence, hardwareINP or full-video
+replay claim. Student n/a unchanged caller/default behavior. Genuine baseline and
+naive lifetime REDs plus capture/sensor/fixture failures retained externally.
+Focused source/checks, independent review and final exact-head CI remain required
+before main landing. Broad17-family product goal remains incomplete. No dependency,
+schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
 
-## 2026-10-06 — Publication Survey-main reconciliation before CI
+## 2026-10-07 — Assignment editor committed interaction ownership
 
-Sol21 targeted startup-diagnostic review CLEAN866; focused1302/44/policies/TSC/
-lintPASS. Pushed866 onlywhilePR1510DRAFT; no ready/CI request after discovering
-mainbac3ab94c (#1511 Survey UI).16-commit rebase succeeded; sole archive conflict
-removed3markers retainingbothsides. IncomingUI/tests exactmain; publication,
-SQL252/types/nativeproof/tooling/CI byte-identical866. All37 stashes/ordereddigest
-7bb1ea11 retained; no newstash/pop/drop. Main251/branch252 unchanged/no resequence.
-Currentdocs record newbase; changed-base narrow review/focused/exactCI remain.
-Original13:07:17 reviewclock/21launches18targets1initial1final/19batches andhuman
-taskstopwaiver retained. Local/prod249–252 unapplied/noactivationorphaseexit.
+PR1521 initial23-path review found a genuine suspended-close Title-input loss.
+Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
+before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
+speculative legacy session generation remounted its visible requirement owner.
+Rollback-safe feature generation preserves abandoned-close drag continuity while
+external whole-object refresh still retires the drag and preserves Tiptap identity.
+Legacy initiated-command/session rules remain unchanged. Corrected-source local,
+visual, targeted independent review and exact-head CI remain required before merge.
+Broader17-family fluidity goal remains incomplete; no production promotion.
 
-## 2026-10-06 — Publication CI acceptance and released UI-main hold
+## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
-Exact reviewed d7 CI37532673399 all5/PRGatePASS; private600 final receipt retained,
-queue4s/run3592s recorded append-only. No merge through Svelte coordination hold.
-Owner coordinator released after #1490 merged3a0b17d6a. PR1510 returnedDRAFT;
-17-commit rebase preserved source/252/types/proof/CI and all37 stashes. Sole
-archive conflict retained both sides; repaired three auto-merged rolling heading
-splits without losing either history. Official trim/check and full history-body
-comparison required. Incoming UI/test/audit-tooling is upstream only; no owned UI
-change. Original13:07:17 clock/22launches19targets19batches retained; task waiver
-active, weekly11percent remaining/ordinaryexecutionallowed, DeepSeek paused.
-Targeted GPT6.1Sol/high changed-base review, focused checks and new exact CI precede
-main merge. No canonical/prod249–252 application, promotion, account/provider/
-billing/activation or phase exit; broader classroom-access goal remains incomplete.
+PR #1521 returned to draft after run37686387293: four inherited preview-helper
+expectations required immediate physical main-editor removal despite its approved
+200ms exit. Check immediate logical dismissal/focus, then eventual removal; all
+eight viewport/theme/motion cases PASS. Production code unchanged. The separate
+publication failure showed loading; one retry lost hydration during a logged Next
+memory restart, while the initial cause remains unknown. Local seeded lifecycle and authenticated
+setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attempts
+retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
+Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
+No production promotion, schema/dependency change or product-wide completion.
 
-## 2026-10-07 — Approved final Classwork placement history synchronization
+## 2026-10-07 UTC — Student Grades reactivation continuity
 
-Owner approved a fifth synchronization batch, one additional five-minute changed-base review and fresh exact-head CI within ninety minutes, then main-only merge. Previous reviewed aebf427e passed all five jobs in CI37533902840 (3983 seconds). Coordination holds for PR1490 and PR1514 are explicitly released; main has also landed Test publication1510. Prepared current-main continuity preserves both parent histories and the authoritative upstream archive. All eight owned feature/test files are untouched by incoming main. No application correction, dependency or schema change; no production promotion or migration authority. Reuse existing Classwork/Tests cards and Pattern Lab owners; ordering extension only, UI risk none. Focused and teacher/student visual integration checks, seventh targeted review and final exact-head CI follow. Cumulative ledger stays intact: fifth batch, sixth correction/sync push; seventh reviewer launch planned with five-minute cap. Account weekly usage reading6% used; attributable active time/tokens unknown. Main merge and cleanup pending required gates.
+Retain same-classroom returned rows across inactive/reactivated reads and recoverable
+failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
+failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
+fences; Retry focuses stable Grades region before replacement and invalidates only
+its key. Student Grades-only scroll observation preserves long-list return position.
+Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
+visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
+genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
+cache, API/schema/dependencies or production changes. Draft preparation can proceed
+independently while1521CI runs; integrate landed base before independent review/CI.
+Required focused/audit/review/CI remain; broader17-family goal incomplete.
 
-## 2026-10-07 — Teacher gallery image baseline correction (#1514)
+## 2026-10-07 — Grades settled intent denial remediation
 
-- Full coverage and Test & Build passed at daaebd00:14,027 tests/1,087 files,8 test/2 file skips; original coverage floors and all static/build checks passed. Browser37555943140 passed389 cases, recovered4 configured retries and skipped20; four terminal teacher-contract screenshots mismatch because the added confirmation example changes the fixture. PR Gate failed; draft restored before correction. Browser ephemeral cleanup passed; no manual rerun/dispatch.
-- Inspected exact-head Linux expected/actual pairs in all four desktop/mobile light/dark variants. Expected artifacts match prior tracked bytes; all three attempts are pixel-identical. Confirmation is on the desktop row, adds56px on mobile; reviewed control/icon regions remain coherent. Copy only these four actual PNG baselines; source, assertions, thresholds, native events, configuration and dependencies stay identical. Initial analysis helpers needed Pillow instead of unavailable NumPy and corrected a desktop-height assumption before any mutation.
-- Prior focused/static,48 browser/48 visual/24 midpoint and race evidence retains its original source provenance. Baseline-only stable-SHA independent review and corrected normal CI remain required. Task approval override and cumulative failed attempts/counters persist. Broader product goal incomplete; excluded PRs/production/schema/provider/dependency holds preserved. Next owner proposal remains Assignment Instructions preview only, pending current landing and individual lifecycle evidence.
+PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
 
-## 2026-10-07 — Softer modal dismissal implementation
+## 2026-10-07 — Achievements local render recovery
 
-Continued the product-wide fluidity goal after #1490 landed at `3a0b17d6a`. Reused canonical ModalLayer/Dialog and semantic motion tokens; extended passive opacity exits with immediate logical close, focus/scroll/isolation restoration, reduced-motion removal and reopen cancellation. Static AlertDialog/ConfirmDialog adopt the fade; generic ContentDialog/DialogPanel and drawers remain immediate unless explicitly opted in after a child-lifetime audit. Added real Pattern Lab confirmation/action coverage and quiet-entry/exit comparison; broader UI coverage remains incomplete.
+Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
 
-Worker delivery: 96 targeted tests, TypeScript and targeted ESLint passed. Coordinator audit and 24 Gallery tests passed after adding meaningful local confirmation coverage. Both-role desktop/mobile light/dark normal/reduced screenshots, natural recordings and frame assertions: 48 capture cases passed; exact browser/focused final results remain in the external task evidence/PR. Historical normal-motion baseline disappeared on the first frame; new passive exits retain inert/aria-hidden content while commands and focus complete immediately. Temporary peer #1512 main merge hold is respected. Owner's task-wide approval override waives workflow budget/elapsed/low-usage stops; existing correctness and explicit holds remain.
+Evidence: genuine missing-retry RED2; affected GREEN24/3 and fixture gate6 PASS; native actual-owner desktop/mobile light/dark normal/reduced8 PASS plus default-fixture compatibility8 PASS. Screenshots inspected against Pattern Lab PageState and healthy roadmap. Window scroll retained; fixture has no inherited internal auto/scroll owner. Synthetic intercepted traffic; no authenticated provider/hardware claim. Evidence retained in coordinator product-fluidity/achievements-render-recovery. This slice does not complete the Grades/Achievements family. Full focused/static/audit and draft-first frozen review/CI/main landing follow; provider/package/gates and production promotion unchanged.
 
-## 2026-10-07 — Modal replacement focus correction
+## 2026-10-07 — Student experience delivery consolidation
 
-Draft #1514 at7619e522 completed one independent Sol/high full-diff review. Accepted one blocking P2: closing a later sibling while opening an earlier sibling in the same commit overrode the replacement's initial focus and lost its outside opener. Exact-base/head harness comparison reproduced it; new tests failed4/8 before correction across sibling orders and mixed immediate/opacity modes.
+Combine reviewed Grades5508 and Achievementsf10 in PR1522. Preserve exact runtime, tests, fixtures and helpers from both candidates and both independent review records. Append the Achievements own entry without replacing Grades history. Final predecessor-base integration review and exact-head CI remain pending. PR1523 will be superseded only after its eight non-history paths are published in1522.
 
-One remediation batch preserves return provenance through React's cleanup/setup handoff and respects an already-focused active replacement. Coordinator's original reproduction now restores the initial button and outside opener. Required focused/browser/visual and targeted cumulative independent review follow on the corrected frozen head. Task waiver and cumulative original review counts persist; #1512 main merge hold and production exclusions remain.
+## 2026-10-07 — Student experience predecessor integration
 
-## 2026-10-07 — Softer modal exits synchronized after CI preparation landing
+Integrate consolidated Grades/Achievements delivery onto verified editor-exit PR1521 main8031d2b. Preserve reviewed runtime/test/fixture/helper bytes and both sets of history; combine disjoint experience-matrix registrations. Focused/static/audit and one final cumulative integration review precede ready CI.
 
-PR1512 hold explicitly released after verified80ae7746 landing, reviewed tree parity and all five gates PASS. PR1514 synchronized once while draft: preserve incoming runner documentation/script/test and both complete histories; previously reviewed modal source/tests/briefs unchanged. Corrected2680 review CLEAN, focused2186/195+static, native browser48PASS without retries, fresh48 visual cases with24 true midpoint captures and both-role pointer/reduced-motion races retained with original execution provenance. New-base focused and targeted synchronization review precede final ready-SHA CI/PR Gate; no production, schema, dependency, provider/runner change or generic-dialog promotion. Task approval override persists; current phase review launches2/remediation1 and prior1490 counters12/10 retained. Broader route/state coverage remains incomplete.
+## 2026-10-07 — Student continuity CI source-contract correction
 
-## 2026-10-07 — Modal CI confirmation-query remediation
+Combined student PR1522 reviewed bcd0a5e00 reached normal CI37702440970; coverage passed14616 tests with one failure from an older exact JSX source assertion that omitted the newly reviewed Grades read handle ref. Returned PR to draft before correction; browser lane cancelled on draft transition and is not counted as passing. Reproduced locally1FAIL/7PASS, then updated the existing source contract to require the ref, classroom and active-tab props with whitespace tolerance; all84 tests across three parent/Grades suites pass. All production and native contract bytes stay unchanged. Focused checks, test audit and a bounded independent correction review precede another stable ready transition. No gates, runners, timeouts, provider, schema or production changes.
 
-CI37553687244 failed three five-second Gallery cases: both new confirmation flows and existing teacher classroom recovery; 14024 tests PASS/8skip. Browser job canceled and ephemeral cleanup PASS; no manual rerun/dispatch. Narrowed confirmation queries to existing controls/active modal, preserving the global closed-dialog absence assertion, accessible description, Escape/opener focus, local status, real user events and unchanged timeout. Four affected isolated instrumented cases PASS: one local before/after tests observation2.82s→1.67s, not proof of the Linux cause. Full Gallery24 cases PASS with coverage instrumentation; partial runs still fail unchanged repository coverage floors and are not full coverage acceptance. All UI/config/dependency blobs remain unchanged; original browser/visual/race provenance retained. New focused and targeted test-only review precede one corrected exact-head CI. Current post-review fixbatches2, prior1490 sourcefix10/reviews12 preserved; no cap reset under task waiver. Three-owner audit found static Instructions preview first source candidate; QR menus/rich viewers/scheduling need lifetime evidence, with promotion/production holds retained. Broad goal incomplete.
+## 2026-10-07 — Scope existing formatted-help gallery test after CI timeout
 
-## 2026-10-07 — Publication merge-window release and final-base reconciliation
+Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades source contract but coverage reports14616PASS/1FAIL/8SKIP: unchanged UiGallery formatted-help case exceeds its existing5000ms timeout. PR returned draft before correction; cancelled browser lane is not passing evidence. Original case passes isolated with coverage locally (1.35s test observation); Linux slowdown cause is unproven. Narrow only its Formatting help button lookup to the existing Core controls section, retaining clicks, tooltip content/accessibility/dismissal assertions, real tooltip portal, full gallery render and5000ms timeout. No production, dependency, runner/gate or clock changes. Same-case coverage observations and full gallery/focused checks, source parity and bounded independent correction review precede fresh stable exact-head CI.
 
-Exact084 CI37548424656 all5/PRGatePASS; publication/Assignmentintegrated proofs
-passed, private600 receipt retained, queue3s/run3733s/event37 recorded. Main1512
-advanced80a during CI; respected Svelte1514 window through two test/image fixes,
-without duplicate sync/review/CI. Source explicitly released after1514 landed
-d0bdbdfa5.18-commit rebase succeeded: sole archive conflict retained both sides;
-all28 publication/product/proof/type/CI files byte-identical084, all21 incoming
-nonhistory files exactmain, no empty/split headings. Official trim and full body/
-multiplicity verification required. All37 stashes/orderhash7bb1ea11 retained;
-SQL252 unchangedb506e610/mainmax251/no resequence. GPT6.1Sol/high targeted review24,
-focused checks and new exact-head CI precede main merge. Original13:07:17UTC clock,
-23launches20targets20batches retained/taskwaiver active, weekly9percent remaining/
-ordinaryexecutionallowed, DeepSeek paused. No canonical/prod249–252 application,
-promotion, activation, provider/account/billing/runner/visibility or phase exit.
+## 2026-10-07 — Consistent circular progress
 
-## 2026-10-07 — Mobile sidebar Classrooms label
+- Owner request: use one circular progress indicator without a background throughout the app. Risk `none`; this task owns `codex/circular-progress-no-background`.
+- Added `CircularProgress` in `@/ui` using the existing borderless Lucide loader. Reused it in Button, IconButton, PageState, legacy Spinner, classroom opening, submission validation, and busy refresh actions. Removed muted tracks and loading-only tiles; existing sizes, colors, labels and disabled/busy semantics remain.
+- UI brief: reference IconButton and Pattern Lab controls/page states; create one shared indicator, extend Spinner/PageState. Teacher/student, desktop1440×900/mobile390×844, light/dark, loading and normal/reduced motion. No composite behavior change, experimental pattern, or additional promotion needed; owner explicitly chose no background.
+- Playwright representative matrix8/8 and normal/reduced motion passed; Darwin4/4 and Linux4/4 canonical Pattern Lab snapshots updated and visually reviewed. Final focused gate2232 passed, including the corrected checklist import and pending-validation regression coverage; independent review accepted1922edb90. PR1520 CI exposed an unchanged Markdown test selecting another fixture's PATCH; scope its assertion to existing ownerCalls and recheck/review before merge. Evidence: `/tmp/pika-circular-evidence/`; startup verified after dependency install. Initial import/fixture mistakes corrected before review.
+- Merge follow-up: Markdown test correction independently accepted at e036c5c21; Test & Build CI passed. Browser CI identified duplicate Saving fixture name and incorrect Linux capture font. Rename the new example Creating class; retain unique Saving coverage. Recapture Linux with fonts-dejavu-core in the disposable Playwright container: desktop pixels outside the label match CI; mobile dimensions match with minor rendering noise. Interaction16/16 and representative matrix8/8 pass; Darwin4/4 and Linux4/4 reviewed. Owner explicitly overrode review budgets on2026-10-07; counters retained in the evidence ledger, exact-SHA review/CI still required before authorized main merge. No product dependency or font change.
+- Third CI exposed a5s timeout in the new gallery test's redundant whole-page Saving lookup. Remove that expensive lookup; existing browser continuity16/16 retains unique Saving coverage, while the unit test retains exact scoped loading names/busy/disabled/decorative assertions. Targeted26tests pass under coverage instrumentation (whole-repo coverage thresholds are inapplicable to a single file); final focused check and targeted review required. Playwright's unchanged comparator also accepts all four Linux captures against CI outside the changed example.
+- Final reviewed76c1e04cf CI37699017298 passed all required lanes/PR Gate:14529tests and browser matrix. Main advanced to8031d2bed (#1521) during CI, causing a journal-only conflict. Rebased while draft; kept main's archive entry already identical to our archived receipt, preserving both histories. Range-diff shows all product/test/snapshot patches unchanged. Combined main's SplitButton interaction retirement still requires integration-focused review, local checks, and exact rebased-SHA CI before the owner-authorized merge; budget override remains active.
+- Audit heuristic flags existing composite semantics in touched feature files even though only decorative icons change; direct keyboard/state suites and independent review cover these unchanged contracts. No audit rule or policy is weakened.
+- Orchestration: small coherent implementation handled locally; weekly remaining86%, DeepSeek pilot paused through2026-12-31. GPT-6 Luna/medium initial review318de08 completed with one missing checklist import blocker, confirmed by TypeScript and fixed in one batch; targeted re-review pending. One launch/initial wave/one fix batch; per-task tokens/time unknown.
 
-- Changed shared LeftSidebar mobile home link text and accessible name to Classrooms; updated existing component and browser selectors. Reused shared drawer and Pattern Lab mobile-drawer-controls reference; no new pattern or refactor. Risk profile: none.
-- Focused checks passed: 26 files/351 tests, architecture, UI/design policy, TypeScript and lint; audit clean. Playwright mobile-drawer-controls: teacher/student × light/dark 4/4 passed, including desktop guards and focus/open/hover/navigation states. Inspected mobile screenshots. Logs: /tmp/pika-mobile-label-{focused,visual}.log; screenshots in worktree test-results.
-- Independent low-risk review and PR lifecycle follow implementation. Task owns codex/mobile-classrooms-label; model/usage telemetry unknown.
+## 2026-10-07 — Circular progress student-main integration
 
-## 2026-10-07 — Assignment Instructions preview exit
+Reviewed0a5 exactCI37703713253 attempt2 passes all required gates after one publication-fixture timeout rerun. Main advanced to a2d70efa8 (#1522) during CI. Rebase preserves its Grades/Achievements recovery and formatted-help test scope. Only archive conflict: all2489 feature archive entry bodies already exist in main2493, verified before retaining main archive. Feature implementation/test/snapshot patches remain unchanged apart from upstream gallery test. Targeted source integration review, refreshed focused and no-update canonical browser verification precede new exact-head CI and the authorized merge. Human budget override persists; no production changes.
 
-Teacher preview opts into the reviewed opacity exit; root/editor/schedule remain immediate. Initial/post-create title timers now cancel on preview/session changes;3baseline focus races RED→GREEN. Real owner51testsPASS; focused370/18plusstaticPASS,8native browser cases and8natural visual cases across both viewports/themes/motion,4verified normal midpoints; student n/a. Backend isolated, no dependencies/schema/production changes. First visual capture invalidated by final lint-line correction and retained; final hash-bound capturePASS. Browser fixture/config TS issues corrected; old create/save response publication remains outside this slice. Next: independent review and exact-head PR Gate before authorized main merge. Broad fluidity goal incomplete.
+## 2026-10-07 — Dormant classroom Test tier caps
 
-## 2026-10-07 — Assignment preview CI test isolation
+Owner approved Basic20/Pro50/Max100 retained Tests per classroom; Free0 additions.
+Separate codex/classroom-test-tier-caps branch on7357f9f0; final checks caught
+the reserved254 gap; cap uses next253 and pending reorder must later resequence.
+Private guard OFF, owner-derived plan, TRY/NOWAIT authority locking,
+all-row consumption, retained same-class edits and privileged recovery preserved.
+Immutable billing versions without explicit Test terms retain purchased behavior;
+no account assignment, catalog rewrite, canonical schema or production change.
+Sol6.1/high worker delivered migration, rollback fixture and exact old proof
+catalog additions; coordinator verified source and ran actual isolated PG17
+boundary/bulk/move/restore-spoof and observed two-session insert/plan/parent/owner
+contention. Rollbackfalse|0 and owned container removal verified. Narrow fixture
+uses setup stub: not full Supabase replay or native proof acceptance. Initial
+focused197PASS/14 before final catalog/CI edits; worker35PASS/4, CIhook2PASS.
+Final focused/audit, independent high-risk review and exact-head CI follow.
+Initial final-check attempt failed the migration gap and startup summary budget;
+both corrected before publication, with failure evidence retained.
+Error response integration remains next before activation. Reorder1515 draft
+unchanged;10k fixture not a real over-limit class and not silently reduced.
+Standing task workflow waiver persists; original05:04UTC ledger24reviews,
+20targetedwaves/21fix-sync batches retained. Weekly83percent remaining at start;
+DeepSeek explicitly paused. No phase exit,249+ application or rollout claim.
 
-PR1517 returned to draft after CI37623077507: 14490tests passed, one existing
-TestDetailPanel Markdown-save fixture exhausted positional fetch responses.
-Browser lane cancelled by draft transition; no CI/landing PASS claim.
-Target and full57-case file pass locally. Bind that fixture to unique owner, URL
-and method; assert two reads/one PATCH/one callback and payload/version/Markdown.
-Exact extra-request provenance remains unknown; no production change in this
-correction. Place the eight preview contracts in the existing experience matrix
-so normal e2e:ci selection includes them. Prior real-owner motion/visual source
-is unchanged; repeat the native browser matrix for the new test topology.
-Independent delta review and new stable-head CI required before main merge.
-Separate API-isolated baseline reproduced old autosave failure shown after
-editor reopen; session-lifetime correction remains next, outside1517.
+## 2026-10-07 — Test cap review remediation and full-schema proof
 
-## 2026-10-07 — Assignment editor session ownership
+Draft1524 at1a0c6497 completed Sol/high security and Astra/high compatibility
+reviews:3accepted P2 (trial authority, fixture creators, transfer categories).
+One batched correction;3source regressions genuinelyRED then48/7GREEN;487/27
+focused plus all static/auditPASS. BodyMD5 8e21004e27de5796420497e475ab808b
+sealed in all3 quota catalog blocks. Full001–253 fresh Supabase DB-only replay
+and corrected rollback fixture PASS with real plan/trial/expiry writers;false|0|0|0
+preserved. All3 quota metadataDOs PASS, not full inherited native profiles.
+Three concurrency schedules PASS; eligible Pro100-to-Basic20 owner follow-up
+PASS, stale isolation denied and20retained edits preserved. Initial full harness
+expected busy before inherited car_tests; actual archive revision serialization
+waits1.8s thenPTC01. Source-confirmed expectation correction retained oldfailure;
+Free owner transfer correctly fails existing creation gate, so actual eligible
+transfer tested separately. No product gate/assertion weakened. Bootstrap/CLI
+port/exclusion failures retained; normal CLI isolation used without stopping
+canonical resources. Whole owned synthetic project cleanup follows verification.
+Targeted delta review/final integration and exact-head CI remain before main
+merge; no canonical/prod249+ application, activation, billing/account/promotion.
+Task waiver/original05:04ledger24launches retained; capwave2reviews/1fixbatch.
 
-PR1517 merged2c99c5f41 after exactd016 CI37626691269 Test/Build, Browser and PR Gate PASS; landing tree/sole base parent and clean hub sync verified. Fluidity follow-up guards AssignmentModal/create/save/flush/timer/close/discard and useAssignmentScheduling late effects by external session. Initiated original-resource commands and appropriate quiet publication continue; TeacherClassroomView guards stale-classroom list writes/reloads while retaining cache/creation positioning. Preserves editor/preview identity, native undo and current same-ID external refresh reset. No dependencies/backend/schema/deployment changes; abandoned backing-draft cleanup excluded. Risk: workspace-state; reuse actual editor and Pattern Lab SaveStatus references.
+## 2026-10-07 — Teacher Announcement mutation feedback preparation
 
-Test-first evidence:21RED/1dirty-buffer control across separate baseline runs; additional manual Draft case genuinelyRED on original source thenGREEN. Six affected suites161PASS; cumulative focused465PASS with all static gates, after one nullable-ref annotation correction (failed logs retained). Isolated source work overlapped frozen1517CI after coordinator narrowed its own source hold; rebase/publication waited for landing. Exact six source/test hashes survived rebase onto identical main tree. Natural teacher8-case viewport/theme/motion visual matrixPASS;24PNG/8videos retained, all8 late-error images and4preview images inspected; APIs intercepted, zero backend writes. Native preview continuity8/8PASS (typing/undo, dismissal, rapid reopen and reduced-motion preference change); final rebased focused408/21plusallstatic/auditPASS. Draft-first independent review and stable-head CI follow before authorized main merge. Broad fluidity goal remains incomplete.
+Add current-operation visible POST/PATCH/DELETE failure alerts with accurate confirmation wording, preserved input and explicit identified delete reconfirmation. Meaningful RED6/27 to GREEN32/32; TypeScript and2TS audit PASS. Approved Pattern Lab and both-role baseline references inspected. Isolated implementation prepared during predecessorCI; final actual-parent browser verification and student-delivery baseintegration/review/CI pending. No server/schema/dependency or production change.
 
-## 2026-10-07 — Assignment session review correction
+## 2026-10-07 — Announcement mutation native verification
 
-Independent full PR1518 review found a P2: a stale manual Draft continuation compared reverted fields against the pre-autosave baseline and could omit its restoring PATCH. One correction batch retains the actual predecessor baseline and serializes same-session blur follow-ups. Five regressions cover full/mixed reverts in both preselected-action and actual menu/blur flows, plus a successful-save/failed-queued-save chain; original-resource publication remains quiet and the replacement editor retains drafts/focus/controls. All RED and intermediate failed correction evidence retained externally. Component58/58 and focused413/21 with architecture/UI/design/TypeScript/lint/audit PASS. Worker writes stopped; coordinator verified delivered hashes. Browser evidence is being refreshed before targeted independent delta review and final stable-head CI. PR remains draft; no production/schema/dependency changes. User pause honored, then explicit resume received. Broad product fluidity goal remains incomplete.
+Feature-owned POST/PATCH/DELETE feedback now preserves editor work, describes unconfirmed writes accurately and requires a new identified confirmation before retrying delete. Root accepted Sol/high worker exact2 source hashes and genuine6RED/32GREEN; preserved all production bytes during browser-harness corrections. Current native8 PASS with136 settled PNGs/8 recordings across teacher/student desktop/mobile light/dark normal/reduced fixtures; all requests intercepted. Root inspected8 contact sheets/four full feedback views against prior actual-parent/Pattern Lab references. Native checks retain editor DOM/input/caret/height/internal scroll/focus, explicit recovery counts/confirmation/Escape and student retained tab DOM; no absolute window anchoring claim after existing optimistic rollback, no auth/provider/hardware claim. Raw failed harness attempts and earlier mid-exit captures retained/excluded where appropriate. Focused293/17 plus static checks PASS; final capture-only guard gets targeted type/lint/audit. Student1522 exact reviewed CI37704331390 remains predecessor for Announcement publication/review/CI. Course Guide held; no whole-family completion or production/schema/dependency changes.
 
-## 2026-10-07 — Same-editor manual Draft restoration
+## 2026-10-07 — Calendar day reader and dismissal refinement
 
-PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS; exact tree/sole parent and clean hub sync verified. Proven pre-existing same-editor reverts now retain the awaited persisted baseline and latest pending input. Four genuine RED regressions becameGREEN; two menu controls/original18 preserved; failed-predecessor/manual failure control preserves retry. Worker65component/420focused21 plus architecture/UI/design/type/lint/auditPASS on inherited reviewed source; isolated implementation overlapped frozen1518CI, publication waits for its actual landing. Teacher natural8-case viewport/theme/motion matrixPASS with exact restoring PATCH/close; old owner natural focus/click reproduction omits the restoring PATCH. APIs intercepted, zero backend writes. Screenshots inspected. Native preview initial4normal failures/4reducedPASS exposed timer-window assumptions; old/new measured native clicks cross200ms exit, so the helper checks physical eligibility at actual reopen and cleanup of reopened root. Failed/intermediate evidence retained. Rebase, final focused checks, complete independent review and stable-head CI remain before next main merge. No dependencies/backend/schema/deployment change; broad fluidity goal incomplete.
+Bounded Calendar owner refinement on a2d70efa8: use approved DialogPanel opacity exit and named keyboard-focusable reading region with semantic focus ring. Preserve immediate logical close, day navigation and retired keydown listener; no shared primitive/API/read/business changes. Semantic49/13PASS, native16 teacher/student × desktop/mobile × light/dark × normal/reduced PASS with native keyboard reading/close/reopen, screenshots/videos and zero synthetic writes/pageerrors. Focused386 plus all static gates/audit PASS. External evidence in product-fluidity/calendar-day-interaction for coordinator chat01a10bfa; retain failed missing-asset setup and pointerdown observer evidence/two correction batches. No publication; coordinator owns independent review/final integration after Announcement/CourseGuide landings.
 
-## 2026-10-07 — Preview preference coverage correction
+## 2026-10-07 — Calendar native date reliability correction
+
+Bounded review remediation preserves b2da LessonCalendar/component-test/product bytes. Native helper seeds Oct5 Date with Playwright setFixedTime before goto; verified Toronto/ISO Date and live timeout/RAF/performance probe leave timers and animations advancing. External Nov3 context proves old helperRED (3s missing Oct5 opener), corrected same-contextGREEN passes. Full16 current matrix records console warnings/errors without suppression or clean-console assertion; new native-date-remediation evidence stays separate from original artifacts. Required focused/audit/current native proof and coordinator targeted rereview precede acceptance. No publication/PR state action from this worker.
+
+## 2026-10-07 — Teacher settings clipboard feedback
+- Copy success now requires a resolved clipboard write; rejected/unavailable writes warn with concise copy labels. Committed classroom/latest-request guards retire stale feedback without changing settings saves or copied bytes.
+- QR copy feedback belongs inside the active dialog, with a separate logical session across close/reopen. Existing global notice + unavailable QR clipboard accessibility defect reproduced and fixed within feature ownership; shared providers/modal owners unchanged.
+- Evidence: external product-fluidity/settings-copy-feedback (baseline false-success, QR accessibility reproduction, unit RED/GREEN, native matrix, focused/audit receipts). Final coordinator owns review/publication/integration; no hosted changes.
+
+## 2026-10-08 — Test cap native catalog corrections
+
+Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
+and PRGate failed. Actual isolated PG17 confirmed nested record/alias42702;
+three aliases corrected77f9 after3RED,490/28focused/static and Sol/high delta
+reviewPASS. Full local create then failed before SDK: canonical248 has183tables,
+but253 adds private quota settings. Exact own teardown/SAME183/all5 preservation
+PASS; failure retained. Separate source-SHA-bound isolated catalog now requires
+that exact addition without omitting inherited/unexpected table checks or quota
+fingerprints. Targeted79/5 and focused864/37/staticPASS. Native normal/types,
+both forced modes, targeted review and exact-head CI remain gates. Product SQL,
+limits and all249+/production/activation/account/billing holds unchanged.
+
+## 2026-10-08 — Publication proof diagnosis and current-main reconciliation
+
+At2e9367, create normal/types and both forced modes PASS; genuine types match
+committed437586bytes. Publication failed an unlocated race AssertionError;
+same183/all5 checkpoint and exact teardown PASS. Do not infer timeout or success.
+Added closed source-coordinate/deadline-label diagnostics with row/stack privacy
+regressions;39/2 and875/38/staticPASS. Rebased onto a2d70efa8 (#1522), retaining
+24feature and18incoming nonhistory blobs, all40+40 rolling bodies, exactmain
+archive prefix and original25-line archive batch. Only archive conflict;253
+unchanged,39stashes/topSHA retained, no stash created/popped. Combined diagnostic/
+base review, focused checks and new isolated publication acceptance remain gates.
+Accepted create receipts retain actual2e9367 identity; no canonical/prod/activation.
+
+## 2026-10-08 — Test cap native acceptance and progress-UI synchronization
+
+Sol6.1/high diagnostic/base review CLEAN; exact651 focused875/38/static PASS.
+Publication and discard normal/types plus both forced modes PASS at65107317:
+49rollback/12races/5committed and56rollback/14races, actual10/18 SDKcases,
+20RPC each/zeroStorage; all sessions/resources disposed. Genuine437586-byte
+types match committedSHAcbed4142. SAME initialeab996183tables/all5 comparisons
+before/after every mode and final standalone PASS; historicalB5 unchanged.
+Create3 retains actual2e9367 identity; earlier failures retained, prior race
+cause unknown. No canonical writes. Rebased after native worker terminal onto
+a86a2093 (#1520 progress UI):24feature/27incoming nonhistory paths disjoint and
+byte-identical, exactmain archive prefix+completefeature suffix and80rolling
+bodies retained. Sole archive conflict;253 SHA unchanged,39stashes untouched.
+Fresh focused checks and narrow independent synchronization review precede
+one eligible exact-head CI/PRGate and authorized normal main squash merge.
+All canonical249+/production/promotion/quota/account/billing/cutover holds persist.
+
+## 2026-10-08 — Student landing and Announcement integration
+
+Student experience1522 exact02b CI37705734087 Test/Build, Browser and PR Gate PASS; squash merged a2d70efa8 with whole reviewed tree94bbe302 and sole8031 parent verified, clean hub fast-forwarded. Announcement integrated onto a2d70efa8 with exact worker2/helper bytes and incoming matrix/history retained. Stable focused300/17 plus static checks,4TS audit and both-role native8/136 settled PNGs PASS; all8 contacts accepted. One local matrix-conflict truncation corrected before publication, stable checks rerun; raw attempts retained. Draft/frozen independent review and normal exact-head CI precede authorized main merge. Course Guide accepted locally, delivered next. Broad UIUX goal remains open; no production/schema/dependency/provider changes.
+
+## 2026-10-08 — Announcement cancellation feedback remediation
+
+Independent complete Sol/high review1526 accepted R1: late POST/PATCH failure could reattach feedback after Cancel/reopen; R2 readonly runtime claim unsupported. Two local deferred regressions RED before fix, GREEN34/34 after separate create/edit feedback session fences. Request ids, optimistic rollback/cache settlement and finally saving cleanup unchanged; no automatic retry. Corrected native8 includes cancelled POST/PATCH and usable fresh controls;152 settled PNGs/8 recordings retained, all8 contacts accepted. Focused302/17 plus static checks PASS; scoped readonly guard evidence qualified as source-only. One batched correction requires targeted independent acceptance before Ready/exact CI/main merge. Broad UIUX goal remains open; no production/schema/dependency changes.
+
+## 2026-10-08 — Announcement progress-owner integration
+
+Rebased reviewed Announcement feedback onto main a86a20930 (#1520 shared circular progress). Product, regression tests, browser helper and matrix registration remain byte-identical to accepted68ba5857c. Incoming main histories and shared progress owners are preserved. Prior CI37711933656 failed the unchanged Blueprint lifecycle on request/navigation timeouts; all8 Announcement cases passed. Required current-base focused/native verification, proportional independent integration review and a new exact-head CI gate remain pending; PR1526 stays draft. No production or family-completion claim.
+
+## 2026-10-08 — Announcement Test-cap main synchronization
+
+Exact reviewed3079933 CI37717844370 passed all selected lanes and PR Gate; concurrent main50185559 (#1524 dormant classroom Test caps) landed before merge and introduced history conflicts. Returned1526 to draft before synchronizing. Preserve every incoming Test-cap path and history body; all five Announcement feature files remain byte-identical to307. Focused checks and proportional integration review precede a new exact-head CI gate. No Test-cap activation, database application, production promotion or whole-family completion.
+
+## 2026-10-08 — Course Guide refresh continuity local acceptance
+
+Retain current-owner document/editor during warm reads and recoverable failures; explicit Retry hands focus from its disappearing button to the stable workspace region without scrolling. Latest/committed-owner fences retire old reads and writes; current401/403/404 clears content/editor and keeps denial latched until valid success.31 feature and4 gated-fixture tests PASS, required focused283/18 plus static checks and7TS audit PASS. Both-role native8/200 settled PNGs with actual normal/reduced media accepted;4 same-source recordings retained. Desktop pane/mobile window scroll and native Markdown/visual draft/caret/focus preserved. Long-document feedback follows the guide and can be outside the viewport; no always-visible, authenticated persistence or whole-family claim. Local delivery follows Announcement main after student1522. No server/schema/dependency/production change.
+
+## 2026-10-08 — Course Guide student-main integration
+
+Rebased accepted Course Guide onto student1522 main a2d70efa8; feature2/controller/helper bytes retained, incoming student Grades fixture preserved. Archive conflict rebuilt from complete main plus own entry before trim. Focused290/18 and static checks,7TS audit PASS. Both-role/theme/viewport/motion native8 PASS with200 settled PNGs and8 retained recordings; all8 contacts accepted. Metadata wrong-key and empty grep selections retained as tooling rework, not test successes. Initial frozen draft review may proceed while Announcement delivery runs; Course Guide final new-base acceptance, ready CI and merge remain after Announcement main. No production/server/schema/dependency changes or whole-family completion.
+
+## 2026-10-08 — Course Guide and Calendar combined preparation
+
+Prepared existing Course Guide branch against prospective Announcement3079933c6, preserving exact accepted Course Guide d058 and Calendar025 product/test/helper/brief bytes. Whole incoming matrix survives removal of both independent registrations; full incoming archive and dated bodies plus own Course Guide2/Calendar2 entries preserved through normal trim. Current native Course Guide8/200PNG and Calendar16/48PNG PASS with24 recordings, verified media and Date-only live timer/RAF Calendar clock; all24 contact sheets inspected. Runtime1360-file source bookends match. Serial focused424/27 plus architecture/UI/design/TypeScript/lint and10TS temporary-index audit PASS; earlier unchanged gallery2 timeout failures retained, no assertion/timeout changes. Own3250 server stopped. External combined-preparation receipt retains hashes, references, clock proof and qualifications; synthetic Next Issue badges remain unclassified and no global console-clean claim. Long-guide feedback can be outside viewport; no authentication persistence, hardware or whole-family completion claim. Root must verify actual Announcement landing, rebind exact main, independently review cumulative14 paths, and own draft publication/ready/CI/merge. No production/schema/dependency/provider changes.
+
+## 2026-10-08 — Combined Course Guide Calendar Test-cap synchronization
+
+Synchronized accepted combined124f63640 onto prospective Announcement84841f24 after concurrent dormant Test-cap main50185559 landed. All12 nonhistory candidate files and all1360 native effective-input hashes remain byte-identical; reuse accepted24 native cases/248PNG/24videos with original qualifications, no new browser/server. Complete incoming archive/dates and five own prior entries preserved through full-byte reconstruction and normal trim; stripping both registrations yields whole incoming848 matrix. Current-base focused424/27 and architecture/UI/design/TypeScript/lint plus10TS temporary-base-index audit PASS; no continuation failures or source/assertion/timeout changes. Original124 proof/ref and reports remain retained. Root verifies actual Announcement landing, rebinds main, then owns proportional cumulative14 review/publication/CI/merge. No Test-cap activation, database application, production/provider/dependency changes or broad family completion claim.
+
+## 2026-10-08 — Attendance return target adoption
+
+Measured native student return links20px in24 baseline captures; native focus alreadyvisible. Reuse unchanged ghost/sm buttonVariants via narrow public UI export for44px targets/rings, preserving href/labels/all attendance request and retry logic. Eight new controlled browser variants pass40 loading/success/already/closed/unavailable target/focus measurements; same uncertain retry attempt retained. Root visually inspected40PNG; staticproof has0videos, no elapsed animation or authenticated/backend claim. Initial missing-public-export HTTP500 and malformed fixture description failures retained, corrected without assertion/timeout weakening; type-safe view fixture added. Included in existing draft1529 alongside unchanged reviewed Settings copy handling; current-base checks, clipboard parent recheck, proportional independent review and stable exact-head CI remain before main merge.
+
+## 2026-10-08 — Classroom access draft integration
+
+Existing draft1529 combines reviewed teacher Settings copy feedback with narrow student attendance return targets. Preserve incoming N848/GuideCalendar602 sources and histories; eleven standalone feature/test/brief files remain byte-identical to preintegrationd1, matrix adds only the two independent registrations. Incoming main501 dormant Test caps remain preserved without application or activation. Base602 is prospective: ancestor actual-tree binding and exact-head CI remain required. Current-base focused checks, clipboard parent re-verification and independent cumulative14 review precede ready/main merge; original failed attempts and static40PNG/0video attendance evidence remain retained.
 
 PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
 
@@ -762,3 +888,40 @@ separately reviewed inherited metadata-trigger redesign. Neither is authorized
 by changing proof assertions or deadlines; current legacy/UI/production held.
 No execution/provider/billing/account/cohort change or broaderphase exit.23reviews/
 19targets/20committedfixsync/original05:04 clock/taskhumanwaiver retained.
+## 2026-10-08 — Classroom access semantic navigation verification
+
+Focused initial14-path integration passed2350/202 and all static gates. Audit requested matching component accessibility coverage for the attendance owner; add meaningful loading-to-confirmed link identity, destination and keyboard focus regression, five existing-owner tests PASS, precommit11TS audit PASS. Production and native runtime inputs unchanged; new owned scope15 includes this component test. Final focused binding, current QR browser completion and independent cumulative15 review precede actualancestor binding, ready/exact CI and authorized main merge. Preserve prior failed native/audit/metadata attempts; no class-string mirror assertions, audit-rule changes, schema application or production promotion.
+
+## 2026-10-08 — Public course section target adoption
+
+Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+## 2026-10-08 — Utility calendar minimum day targets
+
+- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
+- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
+- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
+
+## 2026-10-08 — Utility calendar compact boundary refinement
+
+- Root visual iteration capped month growth: 1024 now two348px month cards with45.703125px day targets; 1440 capped384px cards/50.84375px targets. Day grid minimum320px prevents320px viewport overlap; month cards contain8/48px horizontal scrolling at360/320, rootoverflow0. No API/domain logic changed.
+- Final teacher17cases /2839 centered native hits pass, alltargets≥44×44/nooverlap, Tabright-edge focus auto-scroll, zero runtimeerrors, real finalJune-date scroll inallcases; fixedGETfixture all181states match baseline. Evidence: external product-fluidity/utility-calendar-targets/final-candidate and final-small-keyboard; rejected/failed attempts preserved.
+- Repeated targeted15 and focused203files/2354tests +TS/lint/architecture/UI/design/audit pass. No browser registration edits (coordinator owns consolidated teacher refinement registration/review/publication).
+
+## 2026-10-08 — Gradebook explicit-retry focus
+
+Teacher Gradebook now returns successful explicit retry focus to the visible owner: existing desktop Gradebook students region, or named compact Gradebook workspace when CSS hides the table. Inactive/current-classroom completion guards, preventScroll and the shared inset focus ring keep the handoff local. No read/cache/role/mutation or shared primitive change.
+
+Reference: accepted Roster recovery baseline and executable Pattern Lab page-states; brief in docs/guidance/ui/changes/gradebook-retry-focus.md. Teacher desktop/mobile light/dark normal/reduced native controlled45-student/zero-assessment helper is registered narrowly in experience-matrix. Component33 PASS, focused306 PASS, architecture/TypeScript/lint/UI/design policy PASS. Native final8 cases prove cold/warm/resize handoffs, desktop DOM/600px scroll continuity; no API mutation attempts. Evidence: external product-fluidity/gradebook-retry-focus. Coordinator owns final review/acceptance and combined PR; no production/schema/provider/dependency operations. Risk: workspace-state; requested Sol/medium, effective/usage unknown.
+
+## 2026-10-08 — Calendar targets and Gradebook retry integration
+
+Combined the two verified teacher refinements on prospective Settings/Public/Attendance base0052 (whole tree508609, equivalent to published494ec826 source). Calendar6299 preserves compact wrapping with44px day targets and contained320/360 scrolling; Gradebookb179 restores explicit retry focus to the visible owner and paints the mobile ring above children. Root accepted17Calendar cases/2839hits/59PNG plus8Gradebook actual normal/reduced cases/84PNG. Controlled read fixtures only; student n/a for these teacher owners. Preserved both history bodies while resolving one archival-marker conflict. Next: combined focused/audit checks, actual-main binding after1529, draft-first independent review and exact-head PR Gate; broader goal remains incomplete. No production, migration or dependency changes.
+
+## 2026-10-08 — Password reset continuity refinement
+
+Anonymous forgot/reset recovery preserves native uppercase insertion caret, eligible retry focus, drafts and stable opt-in FormField error space; generic acceptance is announced and old two-second continuation retires on Back/unmount. Canonical44px Back and Login Sign up targets preserve existing continuation contracts; default fields/hints unchanged. API/provider/security behavior unchanged. Worker focused205files/2380tests plus policy/types/lint/auditPASS; frozen9e7 native16/16 (8reset+8SignUp target) across both viewports/themes/actualmotion,112PNG/16naturalvideos. Root verified426artifacthashes and3566source/41781dependency/337binary/four execution inputs; reviewed finalPNGs and64video samples. No real identity/password persistence or complete signup-chain claim; teacher PatternLab existing warnings separately qualified. Sole-writer handoff complete/own3263 stopped. Rebased onto actual1530 main227eab768; preserved new teacher matrix/registry edits and canonical history. Auth runtime remains byte-equivalent to native source; final focused checks, draft independent review and exact-head CI precede authorized main landing. No production/schema/dependency operations; broad fluidity goal incomplete. RequestedSol/medium, effective/attributableusageunknown.
+
+## 2026-10-08 — Password reset reference snapshot correction
+
+Returned PR#1531 to draft after four Linux Pattern Lab contract snapshot mismatches. Inspected exact CI artifact expected/actual comparisons in all four projects before accepting the two new reserved-error-space examples and translated gallery content. Updated only the four matching Linux baselines and evidence/history; product source unchanged. Focused checks PASS205files/2386tests plus architecture, UI/design policy, TypeScript and lint; targeted independent delta review precedes fresh ready-head CI.

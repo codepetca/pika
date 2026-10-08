@@ -358,6 +358,45 @@ of 10 does not override Max's newly approved launch limit of 12. Updating the
 runtime requires a separately reviewed version-aware implementation; this policy
 edit must not rewrite an already-purchased offering or a historical migration.
 
+### SUB-16 — Tests per classroom (owner approved 2026-10-07)
+
+| Plan | Retained Tests per classroom |
+| --- | ---: |
+| Free | 0 new Tests |
+| Basic | 20 |
+| Pro | 50 |
+| Max | 100 |
+
+These are per-classroom limits, not monthly usage or AI grading allowances.
+The classroom owner's effective plan supplies the limit automatically; the
+operator does not set individual classroom quotas. Legacy runtime `plus` maps
+to Pro (50) and `pro` maps to Max (100). A Pro trial uses the Pro allowance.
+
+Count all retained classroom Test rows, including drafts, published Tests and
+Blueprint-retired Tests. A visibility/status change does not free a slot.
+Deleting through an already-authorized Test deletion path frees capacity; this
+policy does not introduce automatic deletion or loosen deletion safeguards.
+Course Blueprint templates themselves are not classroom Tests; consumption is
+checked when they create or move Tests into a classroom. Enforce at the database
+write boundary so bulk imports, guided creation and concurrent requests cannot
+bypass the same allowance.
+
+A downgrade does not delete Tests or apply this cap to same-classroom editing,
+grading, viewing, exporting or reordering existing work. At or above the new
+limit, deny additional Tests and moves into that classroom. Preserve existing
+archive recovery, including an over-limit retained graph. Recovery must not be
+used as an ordinary new-Test creation path. Existing publishing and subscription
+expiry rules remain separate and still apply.
+
+For billing-managed accounts, purchased offering versions carry an explicit
+`features.tests_per_classroom` integer. Existing versions lacking this term
+retain their purchased terms; do not silently retrofit a cap from today's tier
+name. New offerings and any subscriber transitions follow SUB-07/SUB-08.
+This approval changes the future policy and non-billing tier mapping, not an
+existing paid offering, charge, account assignment or rollout control. Prepare
+the guard disabled by default; activation requires reviewed database/integration
+evidence and a separately authorized rollout.
+
 ## Remaining launch prerequisites
 
 - Validate AI unit costs, publish final quantities, and specify reset anchors,

@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockGetPublishedPlannedCourseSite } = vi.hoisted(() => ({
@@ -60,6 +61,23 @@ describe('PlannedCourseSitePage', () => {
         },
       },
     })
+  })
+
+  it('keeps every document section reachable through the native keyboard link index', async () => {
+    const user = userEvent.setup()
+    render(await PlannedCourseSitePage({ params: Promise.resolve({ slug: 'computer-science-11' }) }))
+    const navigation = screen.getByRole('navigation', { name: 'Course sections' })
+    const links = within(navigation).getAllByRole('link')
+    expect(links).toHaveLength(6)
+
+    for (const link of links) {
+      await user.tab()
+      expect(link).toHaveFocus()
+      const destination = document.getElementById(link.getAttribute('href')!.slice(1))
+      expect(destination).not.toBeNull()
+      const heading = within(destination!).getByRole('heading', { level: 2 })
+      expect(heading.textContent?.toLowerCase()).toBe(link.textContent?.toLowerCase())
+    }
   })
 
   it('exposes a semantic section index without rendering private Test content', async () => {

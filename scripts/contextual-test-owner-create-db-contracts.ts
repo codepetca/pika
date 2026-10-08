@@ -57,6 +57,7 @@ const expectedDraftColumns = ['id','assessment_type','assessment_id','classroom_
 const expectedTestDefaultColumns = ['id','status','show_results','position','points_possible','include_in_final','created_at','updated_at','documents','artifact_id','gradebook_weight','gradebook_score_scale']
 const expectedDraftDefaultColumns = ['id','content','version','created_at','updated_at']
 const triggerPairs = [
+  ['tests','enforce_classroom_test_quota','private','enforce_classroom_test_quota_v1',23],
   ['tests','assign_test_default_gradebook_category','public','assign_default_gradebook_category',23],
   ['tests','car_tests','public','bump_classroom_archive_revision_from_resource',31],
   ['tests','classroom_purge_fence_tests','public','reject_classroom_resource_change_during_purge',31],
@@ -155,6 +156,29 @@ function snapshotFunction(f: TestOwnerCreateFixture) {
  'managed_storage_settings',(select pg_catalog.to_jsonb(settings) from public.managed_storage_settings settings where singleton))$snap$;`
 }
 
+
+// Immutable migration253 body receipt: review and refresh only with its source.
+function quota253CatalogSql() {
+  return `declare quota_proc pg_catalog.pg_proc;settings_table pg_catalog.pg_class;begin
+ select quota_catalog_proc.* into quota_proc from pg_catalog.pg_proc quota_catalog_proc where quota_catalog_proc.oid='private.enforce_classroom_test_quota_v1()'::regprocedure;
+ select c.* into settings_table from pg_catalog.pg_class c where c.oid='private.classroom_test_quota_settings'::regclass;
+ if quota_proc.proowner::regrole::text<>'postgres' or not quota_proc.prosecdef
+ or quota_proc.prorettype::regtype::text<>'trigger' or quota_proc.provolatile<>'v'
+ or quota_proc.prolang<>(select oid from pg_catalog.pg_language where lanname='plpgsql')
+ or quota_proc.proconfig is distinct from array['search_path=""']::text[]
+ or pg_catalog.md5(quota_proc.prosrc)<> '8e21004e27de5796420497e475ab808b'
+ or exists(select 1 from pg_catalog.aclexplode(coalesce(quota_proc.proacl,pg_catalog.acldefault('f',quota_proc.proowner))) quota_acl where quota_acl.privilege_type='EXECUTE' and quota_acl.grantee<>quota_proc.proowner)
+ or not settings_table.relrowsecurity or settings_table.relowner::regrole::text<>'postgres'
+ or exists(select 1 from pg_catalog.aclexplode(coalesce(settings_table.relacl,pg_catalog.acldefault('r',settings_table.relowner))) settings_acl where settings_acl.grantee<>settings_table.relowner)
+ or exists(select 1 from pg_catalog.pg_attribute a cross join lateral pg_catalog.aclexplode(a.attacl) column_acl where a.attrelid=settings_table.oid and column_acl.grantee<>settings_table.relowner)
+ or (select count(*) from private.classroom_test_quota_settings)<>1
+ or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
+ or not exists(select 1 from pg_catalog.pg_attribute a join pg_catalog.pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum where a.attrelid=settings_table.oid and a.attname='enabled' and a.attnotnull and a.atttypid='boolean'::regtype and pg_catalog.pg_get_expr(d.adbin,d.adrelid)='false')
+ or not exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass and t.tgname='enforce_classroom_test_quota'
+   and t.tgattr::text=(select a.attnum::text from pg_catalog.pg_attribute a where a.attrelid='public.tests'::regclass and a.attname='classroom_id'))
+ then raise exception 'Quota253 function or dormant settings differ';end if;end;`
+}
+
 function catalogSql() {
   const columnSet = (columns: string[]) => `(select pg_catalog.array_agg(column_name order by column_name collate "C") from pg_catalog.unnest(array[${columns.map(q).join(',')}]) column_name)`
   const tests = columnSet(expectedTestColumns)
@@ -243,6 +267,7 @@ function catalogSql() {
    join pg_namespace n on n.oid=c.relnamespace join pg_proc fn on fn.oid=t.tgfoid join pg_namespace fnn on fnn.oid=fn.pronamespace
    where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal))
  ) delta;if bad<>0 then raise exception 'Exact noninternal trigger closure differs';end if;
+ ${quota253CatalogSql()}
  if exists(select 1 from pg_trigger t where t.tgrelid in ('public.tests'::regclass,'public.assessment_drafts'::regclass)
    and not t.tgisinternal and (t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred))
  then raise exception 'Trigger enable/deferral mode differs';end if;
@@ -251,7 +276,8 @@ function catalogSql() {
     const needle = `raise exception ${q(message)};`
     assert.equal(statement.split(needle).length, 2)
     return statement.replace(needle, `raise exception using errcode=${q(failureCode(label))},message=${q(message)};`)
-  }, sql)
+  }, sql).replace("raise exception 'Quota253 function or dormant settings differ';",
+    `raise exception using errcode=${q(failureCode('catalog-triggers'))},message='Quota253 function or dormant settings differ';`)
 }
 
 function strictPairHelper() {

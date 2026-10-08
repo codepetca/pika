@@ -39,6 +39,7 @@ function validateFixture(f: TestOwnerPristineDiscardFixture, projectId: string) 
   assert.equal(new Set(f.allocatedIds).size, f.allocatedIds.length)
 }
 const triggerPairs = [
+  ['tests','enforce_classroom_test_quota','private','enforce_classroom_test_quota_v1',23],
   ['tests','assign_test_default_gradebook_category','public','assign_default_gradebook_category',23],
   ['tests','car_tests','public','bump_classroom_archive_revision_from_resource',31],
   ['tests','classroom_purge_fence_tests','public','reject_classroom_resource_change_during_purge',31],
@@ -144,6 +145,29 @@ function caseProbe(f: TestOwnerPristineDiscardFixture, c: TestOwnerPristineDisca
  end;`
   return closedProbe(c.label, body)
 }
+
+// Immutable migration253 body receipt: review and refresh only with its source.
+function quota253CatalogSql() {
+  return `declare quota_proc pg_catalog.pg_proc;settings_table pg_catalog.pg_class;begin
+ select quota_catalog_proc.* into quota_proc from pg_catalog.pg_proc quota_catalog_proc where quota_catalog_proc.oid='private.enforce_classroom_test_quota_v1()'::regprocedure;
+ select c.* into settings_table from pg_catalog.pg_class c where c.oid='private.classroom_test_quota_settings'::regclass;
+ if quota_proc.proowner::regrole::text<>'postgres' or not quota_proc.prosecdef
+ or quota_proc.prorettype::regtype::text<>'trigger' or quota_proc.provolatile<>'v'
+ or quota_proc.prolang<>(select oid from pg_catalog.pg_language where lanname='plpgsql')
+ or quota_proc.proconfig is distinct from array['search_path=""']::text[]
+ or pg_catalog.md5(quota_proc.prosrc)<> '8e21004e27de5796420497e475ab808b'
+ or exists(select 1 from pg_catalog.aclexplode(coalesce(quota_proc.proacl,pg_catalog.acldefault('f',quota_proc.proowner))) quota_acl where quota_acl.privilege_type='EXECUTE' and quota_acl.grantee<>quota_proc.proowner)
+ or not settings_table.relrowsecurity or settings_table.relowner::regrole::text<>'postgres'
+ or exists(select 1 from pg_catalog.aclexplode(coalesce(settings_table.relacl,pg_catalog.acldefault('r',settings_table.relowner))) settings_acl where settings_acl.grantee<>settings_table.relowner)
+ or exists(select 1 from pg_catalog.pg_attribute a cross join lateral pg_catalog.aclexplode(a.attacl) column_acl where a.attrelid=settings_table.oid and column_acl.grantee<>settings_table.relowner)
+ or (select count(*) from private.classroom_test_quota_settings)<>1
+ or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
+ or not exists(select 1 from pg_catalog.pg_attribute a join pg_catalog.pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum where a.attrelid=settings_table.oid and a.attname='enabled' and a.attnotnull and a.atttypid='boolean'::regtype and pg_catalog.pg_get_expr(d.adbin,d.adrelid)='false')
+ or not exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass and t.tgname='enforce_classroom_test_quota'
+   and t.tgattr::text=(select a.attnum::text from pg_catalog.pg_attribute a where a.attrelid='public.tests'::regclass and a.attname='classroom_id'))
+ then raise exception 'Quota253 function or dormant settings differ';end if;end;`
+}
+
 function catalogProbe() {
   const triggers = `values ${triggerPairs.map(([table,name,schema,fn,type]) => `(${q(table)},${q(name)},${q(schema)},${q(fn)},${type})`).join(',')}`
   const fks = `values ${directFks.map(name => `(${q(name)})`).join(',')}`
@@ -161,7 +185,7 @@ function catalogProbe() {
  or pg_catalog.has_function_privilege('anon','public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)','EXECUTE')
  or pg_catalog.has_function_privilege('authenticated','public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)','EXECUTE') then raise exception 'Legacy discard capability differs';end if;end;`
   const triggerBody = `declare bad integer;begin select count(*) into bad from (((select c.relname::text,t.tgname::text,nf.nspname::text,p.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid join pg_namespace nf on nf.oid=p.pronamespace where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal) except (select * from (${triggers}) expected(table_name,trigger_name,function_schema,function_name,trigger_type))) union all ((select * from (${triggers}) expected(table_name,trigger_name,function_schema,function_name,trigger_type)) except (select c.relname::text,t.tgname::text,nf.nspname::text,p.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid join pg_namespace nf on nf.oid=p.pronamespace where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal))) delta;
- if bad<>0 or exists(select 1 from pg_trigger where tgrelid in ('public.tests'::regclass,'public.assessment_drafts'::regclass) and not tgisinternal and (tgenabled<>'O' or tgdeferrable or tginitdeferred)) then raise exception 'Exact17 trigger closure differs';end if;end;`
+ if bad<>0 or exists(select 1 from pg_trigger where tgrelid in ('public.tests'::regclass,'public.assessment_drafts'::regclass) and not tgisinternal and (tgenabled<>'O' or tgdeferrable or tginitdeferred)) then raise exception 'Exact18 trigger closure differs';end if;${quota253CatalogSql()}end;`
   const fkBody = `declare bad integer;begin select count(*) into bad from (((select c.conname::text from pg_constraint c where c.confrelid='public.tests'::regclass and c.contype='f') except (select * from (${fks}) expected(name))) union all ((select * from (${fks}) expected(name)) except (select c.conname::text from pg_constraint c where c.confrelid='public.tests'::regclass and c.contype='f'))) delta;
  if bad<>0 or exists(select 1 from pg_constraint c where c.confrelid='public.tests'::regclass and c.contype='f' and (not (c.confdeltype='c') or c.condeferrable or c.condeferred))
  or exists(select 1 from pg_constraint c where c.conrelid='public.assessment_drafts'::regclass and c.confrelid='public.tests'::regclass) then raise exception 'Exact direct Test FK actions differ; confdeltype=''c'' required';end if;end;`

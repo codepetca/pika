@@ -110,6 +110,7 @@ describe('CreationModalShell', () => {
     await user.keyboard('{Escape}')
     await waitFor(() => expect(opener).toHaveFocus())
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(dialog).not.toBeInTheDocument() // Other creation callers retain immediate physical removal.
   })
 
   it('blocks close requests while closing is disabled', () => {

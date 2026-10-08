@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
-import { Button, DialogPanel, Input, TabPanel, Tabs } from '@/ui'
+import { CircularProgress, Button, DialogPanel, Input, TabPanel, Tabs } from '@/ui'
 import {
   MAX_TEST_DOCUMENT_TEXT_LENGTH,
   TEST_DOCUMENT_ACCEPT,
@@ -457,7 +457,7 @@ export function TestDocumentsEditor({
                         disabled={!isEditable || saving || uploading || syncingDocId === doc.id}
                         aria-label={`Refresh ${doc.title}`}
                       >
-                        <RefreshCw className={`h-4 w-4 ${syncingDocId === doc.id ? 'animate-spin' : ''}`} />
+                        {syncingDocId === doc.id ? <CircularProgress /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
                       </Button>
                     </>
                   )}

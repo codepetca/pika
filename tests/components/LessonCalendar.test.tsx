@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { LessonCalendar } from '@/components/LessonCalendar'
@@ -198,6 +199,76 @@ describe('LessonCalendar', () => {
 
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText('Week 11 test')).toBeInTheDocument()
+  })
+
+  it('includes the named reading region in the dialog tab order', async () => {
+    const user = userEvent.setup()
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
+      viewMode="week" currentDate={new Date('2026-03-16T12:00:00')}
+      editable={false} onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+    await user.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Previous day' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Next day' })).toHaveFocus()
+    await user.tab()
+    const reading = screen.getByRole('region', { name: 'Day lesson and events' })
+    expect(reading).toHaveFocus()
+    for (const key of ['PageDown', ' ', 'ArrowDown']) fireEvent.keyDown(reading, { key })
+    expect(screen.getByRole('dialog', { name: 'Mon Mar 16, 2026' })).toBeInTheDocument()
+    fireEvent.keyDown(reading, { key: 'ArrowRight' })
+    expect(screen.getByRole('dialog', { name: 'Tue Mar 17, 2026' })).toBeInTheDocument()
+    await user.tab({ shift: true })
+    expect(screen.getByRole('button', { name: 'Next day' })).toHaveFocus()
+  })
+
+  it.each([false, true])('closes logically and retires navigation with reduced motion=%s', (reduced) => {
+    vi.useFakeTimers()
+    const addListenerSpy = vi.spyOn(window, 'addEventListener')
+    const removeListenerSpy = vi.spyOn(window, 'removeEventListener')
+    const styleSpy = vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+      getPropertyValue: () => '200ms',
+    } as unknown as CSSStyleDeclaration))
+    const mediaSpy = vi.spyOn(window, 'matchMedia').mockImplementation((media) => ({
+      matches: reduced, media, onchange: null, addListener: vi.fn(), removeListener: vi.fn(),
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }))
+    try {
+      render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
+        viewMode="week" currentDate={new Date('2026-03-16T12:00:00')}
+        editable={false} onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+      const opener = screen.getByRole('button', { name: /open monday, march 16, 2026/i })
+      opener.focus()
+      fireEvent.click(opener)
+      const dialog = screen.getByRole('dialog')
+      const layer = dialog.closest('[data-modal-state]')!
+      const dayListener = addListenerSpy.mock.calls.filter(([event]) => event === 'keydown').at(-1)![1]
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(opener).toHaveFocus()
+      expect(removeListenerSpy).toHaveBeenCalledWith('keydown', dayListener)
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+      if (reduced) expect(layer).not.toBeInTheDocument()
+      else {
+        expect(layer).toBeInTheDocument()
+        expect(layer).toHaveAttribute('data-modal-state', 'closing')
+        expect(layer).toHaveAttribute('aria-hidden', 'true')
+        expect((layer as HTMLElement).inert).toBe(true)
+        expect(dialog).toHaveTextContent('Mon Mar 16, 2026')
+        expect(dialog).toHaveTextContent('All mode lesson')
+      }
+      fireEvent.click(opener)
+      act(() => vi.advanceTimersByTime(250))
+      expect(screen.getByRole('dialog', { name: 'Mon Mar 16, 2026' })).toBeInTheDocument()
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+      expect(screen.getByRole('dialog', { name: 'Tue Mar 17, 2026' })).toBeInTheDocument()
+      fireEvent.keyDown(document, { key: 'Escape' })
+      act(() => vi.advanceTimersByTime(250))
+      expect(layer).not.toBeInTheDocument()
+    } finally {
+      styleSpy.mockRestore(); mediaSpy.mockRestore()
+      addListenerSpy.mockRestore(); removeListenerSpy.mockRestore()
+    }
   })
 
   it('renders announcement markdown in the focused day dialog', () => {

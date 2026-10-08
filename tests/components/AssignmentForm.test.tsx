@@ -4,6 +4,27 @@ import { AssignmentForm } from '@/components/AssignmentForm'
 import { TooltipProvider } from '@/ui'
 
 describe('AssignmentForm', () => {
+  it('retires the real editor controls while keeping field values and its toolbar strip', async () => {
+    const props = { title: 'Essay', instructionsMarkdown: 'Explain **why**.', dueAt: '',
+      onTitleChange: vi.fn(), onInstructionsMarkdownChange: vi.fn(), onDueAtChange: vi.fn(), onBlur: vi.fn() }
+    const { rerender } = render(<AssignmentForm {...props} />)
+    const instructions = await screen.findByRole('textbox', { name: 'Instructions' })
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    const originalClass = title.className
+    expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
+    rerender(<AssignmentForm {...props} interactionActive={false} />)
+    expect(instructions).toHaveAttribute('contenteditable', 'false')
+    expect(instructions).toHaveTextContent('Explain why.')
+    expect(title).toHaveValue('Essay')
+    expect(title.className).toBe(originalClass)
+    expect(title).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Bold' })).not.toBeInTheDocument()
+    expect(instructions.closest('.simple-editor-wrapper')?.querySelector('.tiptap-toolbar[data-variant="fixed"]')).toBeInTheDocument()
+    fireEvent.blur(instructions)
+    expect(props.onBlur).not.toHaveBeenCalled()
+    expect(props.onInstructionsMarkdownChange).not.toHaveBeenCalled()
+  })
+
   it('uses placeholders while keeping Title and Instructions as accessible labels', async () => {
     render(
       <TooltipProvider><AssignmentForm
