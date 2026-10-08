@@ -160,7 +160,184 @@ describe('announcement markdown rendering', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it.each(['publish', 'draft', 'schedule'] as const)('shows an unconfirmed %s failure and retains the creation fields until explicit recovery', async (mode) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const response = deferred<Response>()
+    let postCount = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        postCount += 1
+        if (postCount === 1) return response.promise
+        return new Response(JSON.stringify({ announcement: {
+          ...markdownAnnouncement, id: 'recovered-create', title: 'Retained title', content: 'Retained body',
+          is_draft: mode === 'draft', scheduled_for: mode === 'schedule' ? '2099-06-15T13:45:00.000Z' : null,
+        } }), { status: 201 })
+      }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    fireEvent.change(screen.getByPlaceholderText('Title (optional)'), { target: { value: 'Retained title' } })
+    const textarea = screen.getByRole('textbox', { name: 'Announcement body' }) as HTMLTextAreaElement
+    fireEvent.change(textarea, { target: { value: 'Retained body' } })
+    if (mode !== 'publish') {
+      fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: mode === 'draft' ? 'Save draft' : 'Schedule...' }))
+    }
+    if (mode === 'schedule') {
+      fireEvent.change(screen.getByLabelText('Date (Toronto)'), { target: { value: '2099-06-15' } })
+      fireEvent.change(screen.getByLabelText('Time (Toronto)'), { target: { value: '09:45' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
+    } else if (mode === 'publish') {
+      fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    }
+    const listLink = screen.getByRole('link', { name: 'course outline' })
+    listLink.focus()
+    textarea.setSelectionRange(3, 3)
+    const height = textarea.style.height
+    await act(async () => response.resolve(new Response('{}', { status: 500 })))
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(`Pika could not confirm ${mode === 'publish' ? 'posting this announcement' : mode === 'draft' ? 'saving this draft' : 'scheduling this announcement'}.`)
+    expect(alert).toHaveTextContent('Review the announcement list')
+    expect(screen.getByPlaceholderText('Title (optional)')).toHaveValue('Retained title')
+    expect(screen.getByRole('textbox', { name: 'Announcement body' })).toBe(textarea)
+    expect(textarea).toHaveValue('Retained body')
+    expect(textarea.selectionStart).toBe(3)
+    expect(textarea.style.height).toBe(height)
+    expect(listLink).toHaveFocus()
+    expect(postCount).toBe(1)
+    if (mode === 'draft') {
+      fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Save draft' }))
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: mode === 'schedule' ? 'Schedule' : 'Post' }))
+    }
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(postCount).toBe(2)
+    expect(screen.getByText('Retained body', { selector: 'p' })).toBeInTheDocument()
+    consoleError.mockRestore()
+  })
+
+  it('retains edit fields and schedule after an unconfirmed save and clears only the edit failure on recovery', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let patchCount = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        patchCount += 1
+        if (patchCount === 1) throw new TypeError('Network disconnected')
+        return new Response(JSON.stringify({ announcement: {
+          ...markdownAnnouncement, title: 'Edited title', content: 'Edited body', scheduled_for: '2099-06-15T13:45:00.000Z',
+        } }), { status: 200 })
+      }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByText('bring notes'))
+    fireEvent.change(screen.getByPlaceholderText('Title (optional)'), { target: { value: 'Edited title' } })
+    const textarea = screen.getByRole('textbox', { name: 'Edit announcement body' })
+    fireEvent.change(textarea, { target: { value: 'Edited body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+    fireEvent.change(screen.getByLabelText('Date (Toronto)'), { target: { value: '2099-06-15' } })
+    fireEvent.change(screen.getByLabelText('Time (Toronto)'), { target: { value: '09:45' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pika could not confirm saving changes to this announcement.')
+    expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toBe(textarea)
+    expect(textarea).toHaveValue('Edited body')
+    expect(screen.getByPlaceholderText('Title (optional)')).toHaveValue('Edited title')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    expect(patchCount).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.getByText('Edited body')).toBeInTheDocument()
+    consoleError.mockRestore()
+  })
+
+  it('identifies a failed delete and requires a fresh confirmation, while unrelated create success preserves its error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let deleteCount = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'DELETE') {
+        deleteCount += 1
+        return new Response('{}', { status: deleteCount === 1 ? 500 : 200 })
+      }
+      if (init?.method === 'POST') return new Response(JSON.stringify({ announcement: {
+        ...markdownAnnouncement, id: 'unrelated-create', title: 'Other update', content: 'Other content',
+      } }), { status: 201 })
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete announcement' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pika could not confirm deleting “Unit update”.')
+    expect(screen.getByText('Unit update')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(deleteCount).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), { target: { value: 'Other content' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    await screen.findByText('Other update')
+    expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm deleting “Unit update”.')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry delete' }))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Unit update')
+    expect(deleteCount).toBe(1)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(deleteCount).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry delete' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(deleteCount).toBe(2)
+    expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
+    consoleError.mockRestore()
+  })
+
+  it('retires existing failure feedback on a committed classroom change', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'DELETE') return new Response('{}', { status: 500 })
+      return new Response(JSON.stringify({ announcements: String(input).includes(secondClassroom.id)
+        ? [secondClassroomAnnouncement] : [markdownAnnouncement] }), { status: 200 })
+    }))
+    const view = render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete announcement' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unit update')
+    view.rerender(teacherAnnouncementsElement(secondClassroom))
+    await screen.findByText('Second classroom update')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry delete' })).not.toBeInTheDocument()
+  })
+
+  it('preserves a creation failure when an unrelated announcement is deleted successfully', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') return new Response('{}', { status: 500 })
+      if (init?.method === 'DELETE') return new Response('{}', { status: 200 })
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), { target: { value: 'Pending creation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pika could not confirm posting this announcement.')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete announcement' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm posting this announcement.')
+    expect(screen.getByRole('textbox', { name: 'Announcement body' })).toHaveValue('Pending creation')
   })
 
   it('renders teacher announcements as markdown without turning link clicks into edit mode', async () => {
@@ -652,6 +829,7 @@ describe('announcement markdown rendering', () => {
 
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Pending Classroom A update')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
     consoleError.mockRestore()
@@ -698,12 +876,13 @@ describe('announcement markdown rendering', () => {
 
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Edited Classroom A update')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
     consoleError.mockRestore()
   })
 
-  it('ignores a successful teacher delete after switching classrooms', async () => {
+  it.each([200, 500])('ignores a teacher delete response with status %s after switching classrooms', async (status) => {
     const deleteResponse = deferred<Response>()
     vi.stubGlobal(
       'fetch',
@@ -732,19 +911,21 @@ describe('announcement markdown rendering', () => {
     await act(async () => {
       deleteResponse.resolve(
         new Response(JSON.stringify({ success: true }), {
-          status: 200,
+          status,
           headers: { 'Content-Type': 'application/json' },
         }),
       )
     })
 
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
   })
 
-  it('finishes a teacher create when a suspended classroom switch is abandoned', async () => {
+  it.each([200, 500])('finishes a teacher create response with status %s when a suspended classroom switch is abandoned', async (status) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const createResponse = deferred<Response>()
     vi.stubGlobal(
       'fetch',
@@ -775,17 +956,28 @@ describe('announcement markdown rendering', () => {
             content: 'Created while switch is suspended',
           },
         }), {
-          status: 200,
+          status,
           headers: { 'Content-Type': 'application/json' },
         }),
       )
     })
 
-    expect(screen.getByText('Created while switch is suspended', { selector: 'p' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
+    if (status === 200) {
+      expect(screen.getByText('Created while switch is suspended', { selector: 'p' })).toBeInTheDocument()
+    } else {
+      expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm posting this announcement.')
+      expect(screen.getByRole('textbox', { name: 'Announcement body' })).toHaveValue('Created while switch is suspended')
+      expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled()
+    }
+    if (status === 200) {
+      expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
+    } else {
+      expect(screen.getByRole('button', { name: 'Create announcement' })).toBeDisabled()
+    }
   })
 
-  it('finishes a teacher edit when a suspended classroom switch is abandoned', async () => {
+  it.each([200, 500])('finishes a teacher edit response with status %s when a suspended classroom switch is abandoned', async (status) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const editResponse = deferred<Response>()
     vi.stubGlobal(
       'fetch',
@@ -815,13 +1007,19 @@ describe('announcement markdown rendering', () => {
             content: 'Edited while switch is suspended',
           },
         }), {
-          status: 200,
+          status,
           headers: { 'Content-Type': 'application/json' },
         }),
       )
     })
 
-    expect(screen.getByText('Edited while switch is suspended', { selector: 'p' })).toBeInTheDocument()
+    if (status === 200) {
+      expect(screen.getByText('Edited while switch is suspended', { selector: 'p' })).toBeInTheDocument()
+    } else {
+      expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm saving changes to this announcement.')
+      expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toHaveValue('Edited while switch is suspended')
+      expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled()
+    }
     expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
   })
 
@@ -855,8 +1053,63 @@ describe('announcement markdown rendering', () => {
     })
 
     expect(screen.getByText('Unit update')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm deleting “Unit update”.')
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
     consoleError.mockRestore()
+  })
+
+  it('settles a cancelled POST without attaching its failure to a fresh create editor', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const pending = deferred<Response>()
+    let writes = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') { writes += 1; return pending.promise }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), { target: { value: 'Cancelled creation body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Announcement body' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    await act(async () => pending.resolve(new Response('{}', { status: 500 })))
+    expect(screen.queryByText('Cancelled creation body')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    const fresh = screen.getByRole('textbox', { name: 'Announcement body' })
+    expect(fresh).toBeEnabled()
+    expect(fresh).toHaveValue('')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.change(fresh, { target: { value: 'Fresh draft' } })
+    expect(screen.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+    expect(writes).toBe(1)
+  })
+
+  it('settles a cancelled PATCH without attaching its failure to a reopened edit session', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const pending = deferred<Response>()
+    let writes = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') { writes += 1; return pending.promise }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByText('bring notes'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), { target: { value: 'Cancelled edit body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    await act(async () => pending.resolve(new Response('{}', { status: 500 })))
+    expect(screen.queryByText('Cancelled edit body')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('bring notes'))
+    const fresh = screen.getByRole('textbox', { name: 'Edit announcement body' })
+    expect(fresh).toBeEnabled()
+    expect(fresh).toHaveValue(markdownAnnouncement.content)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.change(fresh, { target: { value: 'Fresh edit' } })
+    expect(screen.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+    expect(writes).toBe(1)
   })
 
   it('marks student announcements read once per classroom', async () => {
