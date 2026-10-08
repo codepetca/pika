@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Confirmed reorder bulk deadline and scalar-byte candidate
-
-Sol/high current-main review CLEAN b3;833focused/static+87incoming checks PASS.
-Ready b3 CI37607651625 terminalFAIL:14878tests/coverage/build and browser PASS,
-reorder frame26 bulk10000 PRD01/39actions/524controls confirms exact product
-deadline, internal checkpoint unobserved. Setup complete/cleanupNONE; full SDK,
-race and committed proofs not reached. PR1515 returnedDRAFT before edits;
-watch19290exit1, no activeCI/watch/native. Private600 final receipt/SHA retained,
-queue3/run3581seconds; lifecycle29events/5sync pushes. No blindretry/cancel/bypass.
-Bounded Sol/high source analysis accepted: three scalar-only measured CTEs avoid
-duplicated SUM/MAX full-row serialization; no fullJSON materialization before
-guards. Root TDD2RED->11PASS, sourcehash updated to71ed9848; all original bounds,
-8s/20s/35s/900s clocks,10k workload, trigger/revision/full-postimage contracts stay.
-Actual performance benefit unmeasured. Fullfocused/review/new native+forced proofs
-and exactheadCI remain gates; old240e receipts not reused as newSQL acceptance.
-Original05:04clock/12reviews9targets1initial1final9fix-sync retained under waiver;
-this candidate is batch10, targeted independent review follows, no counterreset.
-Canonical/prod249–253 application, promotion and all rollout/account/billing held.
-
 ## 2026-10-07 — Reorder mobile-label main reconciliation
 
 Scalar-byte e0fa source review CLEAN;39 affected/835 focused/static checks PASS.
@@ -408,3 +389,20 @@ mainUIbyte checks/focused/targetedbase review precede actualnewcapnative/types.
 RootsoleDBowner; memberf6 normal/twoforced all183/all5/resources0 PASS, no cutover.
 Original05:04clock/26reviews22targets/23fixsync plus thissync retained; all
 canonical249+/production/quota/admission/UI/account/billing/provider holds remain.
+
+## 2026-10-08 — Reorder proof stages complete but canonical preservation fails
+
+Exact205 normal first refused before fixture because canonical auth rows drifted.
+User authorized fresh initial capture: twiceequal8e792e7c, all183/all5 frozen, only
+3auth tables differed from prior16c; other180/fourfields matched. Preserve both old
+checkpoints and failed receipts. Actualretry865832ms: nativeSQL/SDK/committed stages
+complete (18RPCs/36snapshots/storage0); genuine CLI artifact d84c71ee byteequal to
+database.generated.ts. Finalcanonical comparison failed: only2auth rate-limit
+tables changed; other181/fourfields match, disposable resources0. No overall
+native/type receipt or forced acceptance, no limit relaxation or baseline reset.
+User authorized quiet-window coordination with Compare attendance scan outcomes;
+its3269 localserver is a candidate, not a proven writer. No unrelatedprocess stop,
+CI interruption or auth-row rollback. CURRENT restores the existing contracted
+prior-control wording and retains release/startup markers; doc-only review follows.
+Member1534 repaired its analogous CURRENT CI failure; review8 clean,1153/43static
+PASS, newexact2f1f82baa CI37783778326 running. Canonical249+/prod/activation held.

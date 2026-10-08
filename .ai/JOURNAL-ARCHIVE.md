@@ -43555,3 +43555,23 @@ Source-equivalent old native receipts stay labeled240e; changed-base review and
 fresh focused checks/new exact-head CI remain required. Original05:04 clock,
 11 launches/8 targeted/1 final/8 fixes and human stop waiver retained; one Sol/high
 changed-base review follows. Canonical/prod249–253, promotion and rollout held.
+
+<!-- pika-session-log-archive-batch:60dd4adbdc95e57bb60cd6c07921022533ec53df1c38b84df0981f52f9c3fba4 -->
+## 2026-10-07 — Confirmed reorder bulk deadline and scalar-byte candidate
+
+Sol/high current-main review CLEAN b3;833focused/static+87incoming checks PASS.
+Ready b3 CI37607651625 terminalFAIL:14878tests/coverage/build and browser PASS,
+reorder frame26 bulk10000 PRD01/39actions/524controls confirms exact product
+deadline, internal checkpoint unobserved. Setup complete/cleanupNONE; full SDK,
+race and committed proofs not reached. PR1515 returnedDRAFT before edits;
+watch19290exit1, no activeCI/watch/native. Private600 final receipt/SHA retained,
+queue3/run3581seconds; lifecycle29events/5sync pushes. No blindretry/cancel/bypass.
+Bounded Sol/high source analysis accepted: three scalar-only measured CTEs avoid
+duplicated SUM/MAX full-row serialization; no fullJSON materialization before
+guards. Root TDD2RED->11PASS, sourcehash updated to71ed9848; all original bounds,
+8s/20s/35s/900s clocks,10k workload, trigger/revision/full-postimage contracts stay.
+Actual performance benefit unmeasured. Fullfocused/review/new native+forced proofs
+and exactheadCI remain gates; old240e receipts not reused as newSQL acceptance.
+Original05:04clock/12reviews9targets1initial1final9fix-sync retained under waiver;
+this candidate is batch10, targeted independent review follows, no counterreset.
+Canonical/prod249–253 application, promotion and all rollout/account/billing held.

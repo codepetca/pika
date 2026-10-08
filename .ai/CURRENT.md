@@ -1,4 +1,4 @@
-# Checkpoint — 2026-10-07 UTC
+# Checkpoint — 2026-10-08 UTC
 
 Main `d826a01a3`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
@@ -11,19 +11,17 @@ Oct5 follow-ups closed; braces deferred:
 
 admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Settings: prior receipts, no fresh hosted query.
+Settings last verified in prior receipts; no fresh hosted query here for controls.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Discard251: #1503/865d837b7; exact9c391 CI37435496517 all5PASS.
 Publication#1510 merged473a5de8a: reviewed2f3/CI37564268228 all5PASS.
 Native25249/12/5/10 PASS/types; legacyPATCH/UI unchanged.
-Approved1,000-Test reorder source; review/native pending.
+Reorder#1515:1,000/254 source reviewed; native preservation retry pending.
 249 onward unapplied; legacy reorder/UI unchanged.
 No phase exit; `docs/guidance/contextual-test-reorder.md`.
 
 Test caps#1524 merged50185559f; enforcement OFF.
-
-Native252 normal10/cleanup/B5 PASS; prior failures retained;183tables/all5fields.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.
