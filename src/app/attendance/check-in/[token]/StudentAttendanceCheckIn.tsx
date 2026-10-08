@@ -102,7 +102,7 @@ export function StudentAttendanceCheckIn({
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
-      <Card className="w-full max-w-md p-6 text-center sm:p-8">
+      <Card className="flex min-h-96 w-full max-w-md flex-col justify-center p-6 text-center sm:p-8">
         <p className="break-words text-xl font-semibold text-primary">
           {returnedClassroomName || classroomName || 'Pika attendance'}
         </p>
