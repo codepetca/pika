@@ -7,33 +7,28 @@ vi.mock('@/app/attendance/check-in/[token]/StudentAttendanceCheckIn', () => ({ S
 import { getCurrentUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { loadStudentAttendanceEntryClassroomName } from '@/lib/server/student-attendance-entry-context'
-import ClassroomAttendanceCheckInPage from '@/app/attendance/classroom/[token]/page'
+import AttendanceCheckInPage from '@/app/attendance/check-in/[token]/page'
 
-describe('classroom attendance sign-in handoff', () => {
-  const token = 'a'.repeat(43)
+describe('occurrence attendance display context', () => {
+  const token = 'a'.repeat(100)
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.mocked(redirect).mockImplementation(path => { throw new Error(path) })
     vi.mocked(loadStudentAttendanceEntryClassroomName).mockResolvedValue('Health for Life')
   })
 
-  it('preserves the opaque classroom path through login', async () => {
+  it('requires authentication before loading a classroom name', async () => {
     vi.mocked(getCurrentUser).mockResolvedValue(null)
-    vi.mocked(redirect).mockImplementation(path => { throw new Error(path) })
-    const path = `/login?next=${encodeURIComponent(`/attendance/classroom/${token}`)}`
-    await expect(ClassroomAttendanceCheckInPage({ params: Promise.resolve({ token }) })).rejects.toThrow(path)
-    expect(redirect).toHaveBeenCalledWith(path)
+    const path = `/login?next=${encodeURIComponent(`/attendance/check-in/${token}`)}`
+    await expect(AttendanceCheckInPage({ params: Promise.resolve({ token }) })).rejects.toThrow(path)
+    expect(loadStudentAttendanceEntryClassroomName).not.toHaveBeenCalled()
   })
 
-  it.each(['student', 'teacher'] as const)('only allows student check-in after %s authentication', async role => {
+  it.each(['student', 'teacher'] as const)('loads display context only for a student, with role %s', async role => {
     vi.mocked(getCurrentUser).mockResolvedValue({ id: 'user', email: 'person@example.com', role } as Awaited<ReturnType<typeof getCurrentUser>>)
-    const page = await ClassroomAttendanceCheckInPage({ params: Promise.resolve({ token }) })
-    expect(page.props).toMatchObject({ entryToken: token, mode: 'classroom', canCheckIn: role === 'student' })
+    const page = await AttendanceCheckInPage({ params: Promise.resolve({ token }) })
+    expect(page.props).toMatchObject({ entryToken: token, canCheckIn: role === 'student' })
     expect(page.props.classroomName).toBe(role === 'student' ? 'Health for Life' : undefined)
-    if (role === 'student') {
-      expect(loadStudentAttendanceEntryClassroomName).toHaveBeenCalledWith(expect.objectContaining({ entryToken: token, mode: 'classroom' }))
-    } else {
-      expect(loadStudentAttendanceEntryClassroomName).not.toHaveBeenCalled()
-    }
-    expect(redirect).not.toHaveBeenCalled()
+    if (role !== 'student') expect(loadStudentAttendanceEntryClassroomName).not.toHaveBeenCalled()
   })
 })
