@@ -117,6 +117,7 @@ export function TeacherGradebookTab({
   const scoreMutationSequenceRef = useRef(0)
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
+  const mobileGradebookWorkspaceRef = useRef<HTMLDivElement>(null)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: GradebookSortColumn
     direction: 'asc' | 'desc'
@@ -367,11 +368,21 @@ export function TeacherGradebookTab({
   }
 
   useEffect(() => {
-    if (!loading && !loadError && hasCurrentSnapshot && retryFocusIntentRef.current) {
+    if (!isActive) {
       retryFocusIntentRef.current = false
-      gradebookTableScrollRef.current?.focus()
+      return
     }
-  }, [gradebookTableScrollRef, hasCurrentSnapshot, loadError, loading])
+    if (!loading && !loadError && hasCurrentSnapshot && retryFocusIntentRef.current
+      && currentClassroomIdRef.current === classroom.id) {
+      retryFocusIntentRef.current = false
+      const table = gradebookTableScrollRef.current
+      table?.focus({ preventScroll: true })
+      // CSS owns the responsive presentation: hidden tables cannot receive focus.
+      if (!table || document.activeElement !== table) {
+        mobileGradebookWorkspaceRef.current?.focus({ preventScroll: true })
+      }
+    }
+  }, [classroom.id, gradebookTableScrollRef, hasCurrentSnapshot, isActive, loadError, loading])
 
   useEffect(() => {
     if (sectionParam !== 'settings') settingsLinkHandledRef.current = false
@@ -936,7 +947,8 @@ export function TeacherGradebookTab({
           maxInspectorPercent={45}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-surface lg:hidden">
+      <div ref={mobileGradebookWorkspaceRef} role="region" aria-label="Gradebook workspace" tabIndex={-1}
+        className="min-h-0 flex-1 overflow-hidden rounded-lg bg-surface outline-none focus-visible:ring-inset focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface lg:hidden">
         {mobileStudent ? (
           <GradebookStudentPanel
             student={mobileStudent}
