@@ -10,7 +10,7 @@
 
 // Components
 export { CircularProgress, type CircularProgressProps } from './CircularProgress'
-export { Button, type ButtonProps } from './Button'
+export { Button, buttonVariants, type ButtonProps } from './Button'
 export { Input, type InputProps } from './Input'
 export { Select, type SelectProps, type SelectOption } from './Select'
 export { FormField, type FormFieldProps } from './FormField'

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AlertCircle, CheckCircle2, Clock3 } from 'lucide-react'
-import { Button, Card } from '@/ui'
+import { Button, Card, buttonVariants } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import {
   studentAttendanceCheckInViewSchema,
@@ -139,7 +139,7 @@ export function StudentAttendanceCheckIn({
           </div>
         ) : null}
         <Link
-          className="mt-8 inline-block text-sm font-medium text-primary hover:underline"
+          className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'mt-8' })}
           href={positive && result?.classroomId
             ? `/classrooms/${result.classroomId}?tab=today`
             : '/classrooms'}

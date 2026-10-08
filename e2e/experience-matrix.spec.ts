@@ -1,4 +1,5 @@
 import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
+import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
 import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
 import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
@@ -4066,6 +4067,16 @@ test.describe('Teacher settings clipboard feedback', () => {
   for (const motion of ['no-preference', 'reduce'] as const) {
     test(`clipboard feedback ${motion} preserves the committed settings owner`, async ({ page }, testInfo) => {
       await verifySettingsCopyFeedback(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Student attendance return navigation', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains canonical return targets with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyAttendanceReturnLink(page, testInfo, motion)
     })
   }
 })
