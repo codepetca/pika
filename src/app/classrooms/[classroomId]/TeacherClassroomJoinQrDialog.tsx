@@ -2,7 +2,7 @@
 
 import { useId } from 'react'
 import { ClipboardCopy, X } from 'lucide-react'
-import { Button, DialogPanel, QrCode } from '@/ui'
+import { Button, DialogPanel, QrCode, cn } from '@/ui'
 
 export function TeacherClassroomJoinQrDialog({
   classroomTitle,
@@ -11,6 +11,7 @@ export function TeacherClassroomJoinQrDialog({
   isOpen,
   onClose,
   onCopyLink,
+  copyNotice,
 }: {
   classroomTitle: string
   joinCode: string
@@ -18,6 +19,7 @@ export function TeacherClassroomJoinQrDialog({
   isOpen: boolean
   onClose: () => void
   onCopyLink: () => void
+  copyNotice?: { text: string; tone: 'success' | 'warning' } | null
 }) {
   const titleId = useId()
   return (
@@ -26,8 +28,21 @@ export function TeacherClassroomJoinQrDialog({
       onClose={onClose}
       ariaLabelledBy={titleId}
       maxWidth="max-w-6xl"
-      className="aspect-[2/3] overflow-hidden sm:aspect-video"
+      className="aspect-[2/3] sm:aspect-video"
     >
+      {isOpen && copyNotice ? (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={cn(
+            'pointer-events-none absolute left-1/2 top-0 z-local-menu max-w-full -translate-x-1/2 -translate-y-1/2 rounded-badge border bg-surface px-3 py-1.5 text-sm font-medium shadow-elevated',
+            copyNotice.tone === 'success' ? 'border-success text-success' : 'border-warning text-warning',
+          )}
+        >
+          {copyNotice.text}
+        </div>
+      ) : null}
       <h2 id={titleId} className="sr-only">Join this classroom</h2>
       <Button
         type="button"

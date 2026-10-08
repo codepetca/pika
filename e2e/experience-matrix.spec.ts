@@ -1,3 +1,4 @@
+import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
 import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
 import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
@@ -4055,6 +4056,16 @@ test.describe('Course Guide refresh continuity', () => {
   for (const motion of ['no-preference', 'reduce'] as const) {
     test(`retains current guide work with ${motion} motion`, async ({ page }, testInfo) => {
       await verifyCourseGuideContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Teacher settings clipboard feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`clipboard feedback ${motion} preserves the committed settings owner`, async ({ page }, testInfo) => {
+      await verifySettingsCopyFeedback(page, testInfo, motion)
     })
   }
 })
