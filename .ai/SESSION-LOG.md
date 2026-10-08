@@ -11,65 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Publication CI startup diagnostic containment
-
-Changed-base Sol20 review/focused777/30 passed006; CI37528258223 failed existing
-Assignment integrated startup in5s before Test publication. Build passed;
-returning PR1510 to draft caused concurrency replacement/browser cancellation;
-PRGate failed. Private600 job log06ddb685 retained; startup JSON not uploaded,
-cause unknown. Bounded readonly6.1Sol/high worker verified gap/closed literals,
-no operations; effective configuration/attributableusage unknown, weekly13%.
-Root32 RED precede closed command/exit/killed/observed-marker facts sealed in
-WeakMap; raw tails/path/credentials never emitted. Mock native wiring/private
-receipt and related lifecycle144/4 PASS; lint/audit PASS. Product/252/types,
-normal/forced output, authorities and caps unchanged. Source batch18/current
-targeted review/focused/exactheadCI pending; original13:07:17 clock/20 launches
-retained/taskstopwaiver active/DeepSeek paused. Local/prod249–252 unapplied;
-no migration/promotion/cohort/account/provider/billing/rollout or phase exit.
-
-## 2026-10-06 — Publication Survey-main reconciliation before CI
-
-Sol21 targeted startup-diagnostic review CLEAN866; focused1302/44/policies/TSC/
-lintPASS. Pushed866 onlywhilePR1510DRAFT; no ready/CI request after discovering
-mainbac3ab94c (#1511 Survey UI).16-commit rebase succeeded; sole archive conflict
-removed3markers retainingbothsides. IncomingUI/tests exactmain; publication,
-SQL252/types/nativeproof/tooling/CI byte-identical866. All37 stashes/ordereddigest
-7bb1ea11 retained; no newstash/pop/drop. Main251/branch252 unchanged/no resequence.
-Currentdocs record newbase; changed-base narrow review/focused/exactCI remain.
-Original13:07:17 reviewclock/21launches18targets1initial1final/19batches andhuman
-taskstopwaiver retained. Local/prod249–252 unapplied/noactivationorphaseexit.
-
-## 2026-10-06 — Publication CI acceptance and released UI-main hold
-
-Exact reviewed d7 CI37532673399 all5/PRGatePASS; private600 final receipt retained,
-queue4s/run3592s recorded append-only. No merge through Svelte coordination hold.
-Owner coordinator released after #1490 merged3a0b17d6a. PR1510 returnedDRAFT;
-17-commit rebase preserved source/252/types/proof/CI and all37 stashes. Sole
-archive conflict retained both sides; repaired three auto-merged rolling heading
-splits without losing either history. Official trim/check and full history-body
-comparison required. Incoming UI/test/audit-tooling is upstream only; no owned UI
-change. Original13:07:17 clock/22launches19targets19batches retained; task waiver
-active, weekly11percent remaining/ordinaryexecutionallowed, DeepSeek paused.
-Targeted GPT6.1Sol/high changed-base review, focused checks and new exact CI precede
-main merge. No canonical/prod249–252 application, promotion, account/provider/
-billing/activation or phase exit; broader classroom-access goal remains incomplete.
-
-## 2026-10-07 — Approved final Classwork placement history synchronization
-
-Owner approved a fifth synchronization batch, one additional five-minute changed-base review and fresh exact-head CI within ninety minutes, then main-only merge. Previous reviewed aebf427e passed all five jobs in CI37533902840 (3983 seconds). Coordination holds for PR1490 and PR1514 are explicitly released; main has also landed Test publication1510. Prepared current-main continuity preserves both parent histories and the authoritative upstream archive. All eight owned feature/test files are untouched by incoming main. No application correction, dependency or schema change; no production promotion or migration authority. Reuse existing Classwork/Tests cards and Pattern Lab owners; ordering extension only, UI risk none. Focused and teacher/student visual integration checks, seventh targeted review and final exact-head CI follow. Cumulative ledger stays intact: fifth batch, sixth correction/sync push; seventh reviewer launch planned with five-minute cap. Account weekly usage reading6% used; attributable active time/tokens unknown. Main merge and cleanup pending required gates.
-
-## 2026-10-07 — Teacher gallery image baseline correction (#1514)
-
-- Full coverage and Test & Build passed at daaebd00:14,027 tests/1,087 files,8 test/2 file skips; original coverage floors and all static/build checks passed. Browser37555943140 passed389 cases, recovered4 configured retries and skipped20; four terminal teacher-contract screenshots mismatch because the added confirmation example changes the fixture. PR Gate failed; draft restored before correction. Browser ephemeral cleanup passed; no manual rerun/dispatch.
-- Inspected exact-head Linux expected/actual pairs in all four desktop/mobile light/dark variants. Expected artifacts match prior tracked bytes; all three attempts are pixel-identical. Confirmation is on the desktop row, adds56px on mobile; reviewed control/icon regions remain coherent. Copy only these four actual PNG baselines; source, assertions, thresholds, native events, configuration and dependencies stay identical. Initial analysis helpers needed Pillow instead of unavailable NumPy and corrected a desktop-height assumption before any mutation.
-- Prior focused/static,48 browser/48 visual/24 midpoint and race evidence retains its original source provenance. Baseline-only stable-SHA independent review and corrected normal CI remain required. Task approval override and cumulative failed attempts/counters persist. Broader product goal incomplete; excluded PRs/production/schema/provider/dependency holds preserved. Next owner proposal remains Assignment Instructions preview only, pending current landing and individual lifecycle evidence.
-
-## 2026-10-07 — Softer modal dismissal implementation
-
-Continued the product-wide fluidity goal after #1490 landed at `3a0b17d6a`. Reused canonical ModalLayer/Dialog and semantic motion tokens; extended passive opacity exits with immediate logical close, focus/scroll/isolation restoration, reduced-motion removal and reopen cancellation. Static AlertDialog/ConfirmDialog adopt the fade; generic ContentDialog/DialogPanel and drawers remain immediate unless explicitly opted in after a child-lifetime audit. Added real Pattern Lab confirmation/action coverage and quiet-entry/exit comparison; broader UI coverage remains incomplete.
-
-Worker delivery: 96 targeted tests, TypeScript and targeted ESLint passed. Coordinator audit and 24 Gallery tests passed after adding meaningful local confirmation coverage. Both-role desktop/mobile light/dark normal/reduced screenshots, natural recordings and frame assertions: 48 capture cases passed; exact browser/focused final results remain in the external task evidence/PR. Historical normal-motion baseline disappeared on the first frame; new passive exits retain inert/aria-hidden content while commands and focus complete immediately. Temporary peer #1512 main merge hold is respected. Owner's task-wide approval override waives workflow budget/elapsed/low-usage stops; existing correctness and explicit holds remain.
-
 ## 2026-10-07 — Modal replacement focus correction
 
 Draft #1514 at7619e522 completed one independent Sol/high full-diff review. Accepted one blocking P2: closing a later sibling while opening an earlier sibling in the same commit overrode the replacement's initial focus and lost its outside opener. Exact-base/head harness comparison reproduced it; new tests failed4/8 before correction across sibling orders and mixed immediate/opacity modes.
@@ -302,6 +243,14 @@ Add current-operation visible POST/PATCH/DELETE failure alerts with accurate con
 
 Feature-owned POST/PATCH/DELETE feedback now preserves editor work, describes unconfirmed writes accurately and requires a new identified confirmation before retrying delete. Root accepted Sol/high worker exact2 source hashes and genuine6RED/32GREEN; preserved all production bytes during browser-harness corrections. Current native8 PASS with136 settled PNGs/8 recordings across teacher/student desktop/mobile light/dark normal/reduced fixtures; all requests intercepted. Root inspected8 contact sheets/four full feedback views against prior actual-parent/Pattern Lab references. Native checks retain editor DOM/input/caret/height/internal scroll/focus, explicit recovery counts/confirmation/Escape and student retained tab DOM; no absolute window anchoring claim after existing optimistic rollback, no auth/provider/hardware claim. Raw failed harness attempts and earlier mid-exit captures retained/excluded where appropriate. Focused293/17 plus static checks PASS; final capture-only guard gets targeted type/lint/audit. Student1522 exact reviewed CI37704331390 remains predecessor for Announcement publication/review/CI. Course Guide held; no whole-family completion or production/schema/dependency changes.
 
+## 2026-10-07 — Calendar day reader and dismissal refinement
+
+Bounded Calendar owner refinement on a2d70efa8: use approved DialogPanel opacity exit and named keyboard-focusable reading region with semantic focus ring. Preserve immediate logical close, day navigation and retired keydown listener; no shared primitive/API/read/business changes. Semantic49/13PASS, native16 teacher/student × desktop/mobile × light/dark × normal/reduced PASS with native keyboard reading/close/reopen, screenshots/videos and zero synthetic writes/pageerrors. Focused386 plus all static gates/audit PASS. External evidence in product-fluidity/calendar-day-interaction for coordinator chat01a10bfa; retain failed missing-asset setup and pointerdown observer evidence/two correction batches. No publication; coordinator owns independent review/final integration after Announcement/CourseGuide landings.
+
+## 2026-10-07 — Calendar native date reliability correction
+
+Bounded review remediation preserves b2da LessonCalendar/component-test/product bytes. Native helper seeds Oct5 Date with Playwright setFixedTime before goto; verified Toronto/ISO Date and live timeout/RAF/performance probe leave timers and animations advancing. External Nov3 context proves old helperRED (3s missing Oct5 opener), corrected same-contextGREEN passes. Full16 current matrix records console warnings/errors without suppression or clean-console assertion; new native-date-remediation evidence stays separate from original artifacts. Required focused/audit/current native proof and coordinator targeted rereview precede acceptance. No publication/PR state action from this worker.
+
 ## 2026-10-08 — Test cap native catalog corrections
 
 Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
@@ -360,3 +309,19 @@ Rebased reviewed Announcement feedback onto main a86a20930 (#1520 shared circula
 ## 2026-10-08 — Announcement Test-cap main synchronization
 
 Exact reviewed3079933 CI37717844370 passed all selected lanes and PR Gate; concurrent main50185559 (#1524 dormant classroom Test caps) landed before merge and introduced history conflicts. Returned1526 to draft before synchronizing. Preserve every incoming Test-cap path and history body; all five Announcement feature files remain byte-identical to307. Focused checks and proportional integration review precede a new exact-head CI gate. No Test-cap activation, database application, production promotion or whole-family completion.
+
+## 2026-10-08 — Course Guide refresh continuity local acceptance
+
+Retain current-owner document/editor during warm reads and recoverable failures; explicit Retry hands focus from its disappearing button to the stable workspace region without scrolling. Latest/committed-owner fences retire old reads and writes; current401/403/404 clears content/editor and keeps denial latched until valid success.31 feature and4 gated-fixture tests PASS, required focused283/18 plus static checks and7TS audit PASS. Both-role native8/200 settled PNGs with actual normal/reduced media accepted;4 same-source recordings retained. Desktop pane/mobile window scroll and native Markdown/visual draft/caret/focus preserved. Long-document feedback follows the guide and can be outside the viewport; no always-visible, authenticated persistence or whole-family claim. Local delivery follows Announcement main after student1522. No server/schema/dependency/production change.
+
+## 2026-10-08 — Course Guide student-main integration
+
+Rebased accepted Course Guide onto student1522 main a2d70efa8; feature2/controller/helper bytes retained, incoming student Grades fixture preserved. Archive conflict rebuilt from complete main plus own entry before trim. Focused290/18 and static checks,7TS audit PASS. Both-role/theme/viewport/motion native8 PASS with200 settled PNGs and8 retained recordings; all8 contacts accepted. Metadata wrong-key and empty grep selections retained as tooling rework, not test successes. Initial frozen draft review may proceed while Announcement delivery runs; Course Guide final new-base acceptance, ready CI and merge remain after Announcement main. No production/server/schema/dependency changes or whole-family completion.
+
+## 2026-10-08 — Course Guide and Calendar combined preparation
+
+Prepared existing Course Guide branch against prospective Announcement3079933c6, preserving exact accepted Course Guide d058 and Calendar025 product/test/helper/brief bytes. Whole incoming matrix survives removal of both independent registrations; full incoming archive and dated bodies plus own Course Guide2/Calendar2 entries preserved through normal trim. Current native Course Guide8/200PNG and Calendar16/48PNG PASS with24 recordings, verified media and Date-only live timer/RAF Calendar clock; all24 contact sheets inspected. Runtime1360-file source bookends match. Serial focused424/27 plus architecture/UI/design/TypeScript/lint and10TS temporary-index audit PASS; earlier unchanged gallery2 timeout failures retained, no assertion/timeout changes. Own3250 server stopped. External combined-preparation receipt retains hashes, references, clock proof and qualifications; synthetic Next Issue badges remain unclassified and no global console-clean claim. Long-guide feedback can be outside viewport; no authentication persistence, hardware or whole-family completion claim. Root must verify actual Announcement landing, rebind exact main, independently review cumulative14 paths, and own draft publication/ready/CI/merge. No production/schema/dependency/provider changes.
+
+## 2026-10-08 — Combined Course Guide Calendar Test-cap synchronization
+
+Synchronized accepted combined124f63640 onto prospective Announcement84841f24 after concurrent dormant Test-cap main50185559 landed. All12 nonhistory candidate files and all1360 native effective-input hashes remain byte-identical; reuse accepted24 native cases/248PNG/24videos with original qualifications, no new browser/server. Complete incoming archive/dates and five own prior entries preserved through full-byte reconstruction and normal trim; stripping both registrations yields whole incoming848 matrix. Current-base focused424/27 and architecture/UI/design/TypeScript/lint plus10TS temporary-base-index audit PASS; no continuation failures or source/assertion/timeout changes. Original124 proof/ref and reports remain retained. Root verifies actual Announcement landing, rebinds main, then owns proportional cumulative14 review/publication/CI/merge. No Test-cap activation, database application, production/provider/dependency changes or broad family completion claim.

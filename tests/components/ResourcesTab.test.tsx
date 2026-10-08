@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render as renderTestingLibrary, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render as renderTestingLibrary, screen, waitFor } from '@testing-library/react'
 import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResourcesTab'
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
@@ -8,7 +8,7 @@ import { CourseGuidePanel } from '@/components/CourseGuidePanel'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { Classroom } from '@/types'
-import type { ReactNode } from 'react'
+import { Suspense, startTransition, useState, type ReactNode } from 'react'
 
 const mockPush = vi.fn()
 
@@ -128,6 +128,24 @@ function fetchResult(value: unknown, ok = true) {
   } as Response)
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => { resolve = res })
+  return { promise, resolve }
+}
+
+function guideResponse(value: unknown, status = 200) {
+  return new Response(JSON.stringify(value), { status })
+}
+
+function guideElement(value: Classroom, role: 'teacher' | 'student' = 'teacher') {
+  return (
+    <AppMessageProvider>
+      <TooltipProvider><CourseGuidePanel classroom={value} role={role} /></TooltipProvider>
+    </AppMessageProvider>
+  )
+}
+
 function render(ui: ReactNode) {
   return renderTestingLibrary(
     <AppMessageProvider>
@@ -168,7 +186,7 @@ describe('Course Guide classroom tabs', () => {
       expect(screen.getByRole('menuitem', { name: 'Edit with Markdown' })).toBeInTheDocument()
       expect(screen.getByRole('menuitem', { name: 'Guide options' })).toBeInTheDocument()
       fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
-      expect(screen.getByLabelText('Course guide')).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'Course guide' })).toBeInTheDocument()
       expect(mockPush).not.toHaveBeenCalled()
     } else {
       expect(screen.getByRole('link', { name: 'Open public guide' })).toHaveAttribute(
@@ -212,7 +230,7 @@ describe('Course Guide classroom tabs', () => {
     expect(screen.queryByRole('heading', { name: 'Course Guide' })).toBeNull()
     if (_role === 'teacher') {
       selectCourseGuideAction('Edit')
-      expect(screen.getByLabelText('Course guide')).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'Course guide' })).toBeInTheDocument()
       expect(mockPush).not.toHaveBeenCalled()
     }
   })
@@ -228,7 +246,7 @@ describe('Course Guide classroom tabs', () => {
     render(<TeacherResourcesTab classroom={classroom} onClassroomUpdated={onClassroomUpdated} />)
     await screen.findByTestId('course-guide-view')
     selectCourseGuideAction('Edit')
-    fireEvent.change(screen.getByLabelText('Course guide'), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Course guide' }), {
       target: { value: 'Updated overview' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -256,6 +274,385 @@ describe('Course Guide classroom tabs', () => {
     expect(markdownEditor).toHaveValue(classroom.course_overview_markdown)
     fireEvent.change(markdownEditor, { target: { value: '# Pasted course guide' } })
     expect(markdownEditor).toHaveValue('# Pasted course guide')
+  })
+
+  it('retains the teacher Markdown editor through a same-classroom warm refresh and recoverable failure', async () => {
+    const refresh = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(refresh.promise)
+    const element = (value: Classroom) => (
+      <AppMessageProvider>
+        <TooltipProvider><TeacherResourcesTab classroom={value} /></TooltipProvider>
+      </AppMessageProvider>
+    )
+    const view = renderTestingLibrary(element(classroom))
+    const originalGuide = await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    const editor = screen.getByRole('textbox', { name: 'Course guide Markdown' }) as HTMLTextAreaElement
+    const draft = '# Unsaved course guide\n\nKeep this draft and caret.'
+    fireEvent.change(editor, { target: { value: draft } })
+    editor.focus()
+    editor.setSelectionRange(12, 12)
+    editor.scrollTop = 75
+    editor.style.height = '450px'
+    expect(editor).toHaveFocus()
+    expect(editor.selectionStart).toBe(12)
+
+    view.rerender(element({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/classrooms/classroom-1/course-guide', undefined)
+
+    const expectEditorRetained = () => {
+      expect.soft(screen.queryByTestId('course-guide-view')).toBe(originalGuide)
+      expect.soft(screen.queryByRole('textbox', { name: 'Course guide Markdown' })).toBe(editor)
+      expect.soft(editor).toBeInTheDocument()
+      expect.soft(editor).toHaveValue(draft)
+      expect.soft(editor).toHaveFocus()
+      expect.soft([editor.selectionStart, editor.selectionEnd]).toEqual([12, 12])
+      expect.soft(editor.scrollTop).toBe(75)
+      expect.soft(editor.style.height).toBe('450px')
+    }
+    // Soft assertions let the same deferred request prove both lifecycle phases.
+    expectEditorRetained()
+    expect.soft(screen.queryByText('Loading course guide')).toBeNull()
+
+    await act(async () => {
+      refresh.resolve(new Response(JSON.stringify({ error: 'Temporary guide failure' }), { status: 503 }))
+    })
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expectEditorRetained()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains the student guide through a same-classroom warm refresh and recoverable failure', async () => {
+    const refresh = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(refresh.promise)
+    const element = (value: Classroom) => (
+      <AppMessageProvider>
+        <TooltipProvider><StudentResourcesTab classroom={value} /></TooltipProvider>
+      </AppMessageProvider>
+    )
+    const view = renderTestingLibrary(element(classroom))
+    const originalGuide = await screen.findByTestId('course-guide-view')
+
+    view.rerender(element({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/classrooms/classroom-1/course-guide', undefined)
+    expect.soft(screen.queryByTestId('course-guide-view')).toBe(originalGuide)
+    expect.soft(originalGuide).toBeInTheDocument()
+    expect.soft(screen.queryByText('Loading course guide')).toBeNull()
+
+    await act(async () => {
+      refresh.resolve(new Response(JSON.stringify({ error: 'Temporary guide failure' }), { status: 503 }))
+    })
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect.soft(screen.queryByTestId('course-guide-view')).toBe(originalGuide)
+    expect.soft(originalGuide).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['success', 'failure'] as const)('keeps the latest warm %s authoritative over an older read', async (outcome) => {
+    const older = deferred<Response>()
+    const latest = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(latest.promise)
+    const view = renderTestingLibrary(guideElement(classroom))
+    const originalGuide = await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    const editor = screen.getByRole('textbox', { name: 'Course guide Markdown' }) as HTMLTextAreaElement
+    fireEvent.change(editor, { target: { value: 'Unsaved latest-owner draft' } })
+    editor.focus()
+    editor.setSelectionRange(7, 7)
+    editor.scrollTop = 60
+    editor.style.height = '430px'
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:02:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    expect(screen.getByTestId('course-guide-view')).toBe(originalGuide)
+
+    await act(async () => {
+      latest.resolve(outcome === 'success'
+        ? guideResponse({ guide: { ...guide, classroom: { title: 'Latest accepted guide' } } })
+        : guideResponse({ error: 'Temporary latest failure' }, 503))
+    })
+    expect(screen.getByTestId('course-guide-view')).toBe(originalGuide)
+    expect(originalGuide).toHaveTextContent(outcome === 'success' ? 'Latest accepted guide' : 'Test Classroom')
+    if (outcome === 'failure') expect(screen.getByRole('alert')).toHaveTextContent('last loaded course guide')
+    await act(async () => {
+      // A late denial must not clear newer accepted data; a late success must
+      // not erase the newest failure or replace the accepted snapshot either.
+      older.resolve(outcome === 'success'
+        ? guideResponse({ error: 'Obsolete denial' }, 403)
+        : guideResponse({ guide: { ...guide, classroom: { title: 'Obsolete guide' } } }))
+    })
+    expect(screen.getByTestId('course-guide-view')).toBe(originalGuide)
+    expect(originalGuide).not.toHaveTextContent('Obsolete guide')
+    expect(screen.getByRole('textbox', { name: 'Course guide Markdown' })).toBe(editor)
+    expect(editor).toHaveValue('Unsaved latest-owner draft')
+    expect(editor).toHaveFocus()
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([7, 7])
+    expect(editor.scrollTop).toBe(60)
+    expect(editor.style.height).toBe('430px')
+    if (outcome === 'success') expect(screen.queryByRole('alert')).toBeNull()
+    else expect(screen.getByRole('alert')).toHaveTextContent('last loaded course guide')
+  })
+
+  it.each([401, 403, 404])('clears a current %s snapshot, editor and dialog instead of retaining denied data', async (status) => {
+    const refresh = deferred<Response>()
+    const retry = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(refresh.promise)
+      .mockReturnValueOnce(retry.promise)
+    const view = renderTestingLibrary(guideElement(classroom))
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Course guide Markdown' }), { target: { value: 'Denied draft' } })
+    selectCourseGuideAction('Guide options')
+    fireEvent.change(screen.getByLabelText('Public page address'), { target: { value: 'denied-options' } })
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
+    await act(async () => { refresh.resolve(guideResponse({ error: 'Access revoked' }, status)) })
+    expect(screen.queryByTestId('course-guide-view')).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Course guide Markdown' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
+    expect(screen.getByRole('alert')).toHaveTextContent('Course guide unavailable')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    expect(screen.getByText('Loading course guide')).toBeInTheDocument()
+    expect(screen.queryByTestId('course-guide-view')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
+    await act(async () => { retry.resolve(guideResponse({ guide })) })
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    expect(screen.getByRole('textbox', { name: 'Course guide Markdown' })).toHaveValue(classroom.course_overview_markdown)
+    selectCourseGuideAction('Guide options')
+    expect(screen.getByLabelText('Public page address')).toHaveValue('test-classroom')
+  })
+
+  it.each(['classroom', 'role'] as const)('cold-loads a changed %s and ignores the previous owner read', async (boundary) => {
+    const oldRead = deferred<Response>()
+    const nextRead = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(oldRead.promise)
+      .mockReturnValueOnce(nextRead.promise)
+    const view = renderTestingLibrary(guideElement(classroom))
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Course guide Markdown' }), { target: { value: 'Previous owner draft' } })
+    selectCourseGuideAction('Guide options')
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    const nextClassroom = boundary === 'classroom' ? { ...classroom, id: 'classroom-2', title: 'Next classroom' } : classroom
+    const nextRole = boundary === 'role' ? 'student' : 'teacher'
+    view.rerender(guideElement(nextClassroom, nextRole))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    expect(screen.getByText('Loading course guide')).toBeInTheDocument()
+    expect(screen.queryByTestId('course-guide-view')).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Course guide Markdown' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull()
+    await act(async () => { nextRead.resolve(guideResponse({ guide: { ...guide, classroom: { title: 'Current owner guide' } } })) })
+    const currentGuide = await screen.findByTestId('course-guide-view')
+    await act(async () => { oldRead.resolve(guideResponse({ error: 'Previous owner denial' }, 403)) })
+    expect(screen.getByTestId('course-guide-view')).toBe(currentGuide)
+    expect(currentGuide).toHaveTextContent('Current owner guide')
+    expect(screen.queryByRole('alert')).toBeNull()
+    if (nextRole === 'student') expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
+    else {
+      selectCourseGuideAction('Edit with Markdown')
+      expect(screen.getByRole('textbox', { name: 'Course guide Markdown' })).toHaveValue(nextClassroom.course_overview_markdown)
+    }
+  })
+
+  it('keeps a current denial blocking after an older successful read arrives', async () => {
+    const older = deferred<Response>()
+    const denied = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(denied.promise)
+    const view = renderTestingLibrary(guideElement(classroom))
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:02:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    await act(async () => { denied.resolve(guideResponse({ error: 'Current denial' }, 403)) })
+    const blockingState = screen.getByRole('alert')
+    await act(async () => { older.resolve(guideResponse({ guide: { ...guide, classroom: { title: 'Obsolete allowed guide' } } })) })
+    expect(screen.getByRole('alert')).toBe(blockingState)
+    expect(screen.queryByTestId('course-guide-view')).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Course guide Markdown' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
+  })
+
+  it.each(['overview', 'options'] as const)('ignores a late %s save after a committed role change and return', async (writeKind) => {
+    const write = deferred<Response>()
+    const onClassroomUpdated = vi.fn()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(write.promise)
+      .mockReturnValue(fetchResult({ guide }))
+    const element = (role: 'teacher' | 'student') => (
+      <AppMessageProvider>
+        <TooltipProvider><CourseGuidePanel classroom={classroom} role={role} onClassroomUpdated={onClassroomUpdated} /></TooltipProvider>
+      </AppMessageProvider>
+    )
+    const view = renderTestingLibrary(element('teacher'))
+    await screen.findByTestId('course-guide-view')
+    if (writeKind === 'overview') {
+      selectCourseGuideAction('Edit with Markdown')
+      fireEvent.change(screen.getByRole('textbox', { name: 'Course guide Markdown' }), { target: { value: 'Previous role save' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    } else {
+      selectCourseGuideAction('Guide options')
+      fireEvent.change(screen.getByLabelText('Public page address'), { target: { value: 'previous-role-slug' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save options' }))
+    }
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    view.rerender(element('student'))
+    await screen.findByTestId('course-guide-view')
+    view.rerender(element('teacher'))
+    const currentGuide = await screen.findByTestId('course-guide-view')
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    await act(async () => { write.resolve(guideResponse({ classroom: { ...classroom, course_overview_markdown: 'Previous role save', actual_site_slug: 'previous-role-slug' } })) })
+    expect(onClassroomUpdated).not.toHaveBeenCalled()
+    expect(screen.getByTestId('course-guide-view')).toBe(currentGuide)
+    expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull()
+    selectCourseGuideAction('Edit with Markdown')
+    expect(screen.getByRole('textbox', { name: 'Course guide Markdown' })).toHaveValue(classroom.course_overview_markdown)
+    selectCourseGuideAction('Guide options')
+    expect(screen.getByLabelText('Public page address')).toHaveValue('test-classroom')
+  })
+
+  it('does not revive denied work when its explicit retry fails recoverably', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockResolvedValueOnce(guideResponse({ error: 'Denied' }, 403))
+      .mockResolvedValueOnce(guideResponse({ error: 'Retry unavailable' }, 503))
+    const view = renderTestingLibrary(guideElement(classroom))
+    await screen.findByTestId('course-guide-view')
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Course guide unavailable')
+    expect(screen.queryByTestId('course-guide-view')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
+  })
+
+  it('retires a pending overview write when its panel unmounts', async () => {
+    const write = deferred<Response>()
+    const onClassroomUpdated = vi.fn()
+    vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(write.promise)
+    const view = render(<CourseGuidePanel classroom={classroom} role="teacher" onClassroomUpdated={onClassroomUpdated} />)
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Course guide Markdown' }), { target: { value: 'Unmounted save' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    view.unmount()
+    await act(async () => { write.resolve(guideResponse({ classroom: { ...classroom, course_overview_markdown: 'Unmounted save' } })) })
+    expect(onClassroomUpdated).not.toHaveBeenCalled()
+  })
+
+  it.each([true, false])('retries once and hands off focus only when Retry owns focus (%s)', async (retryFocused) => {
+    const refresh = deferred<Response>()
+    const retryRead = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(refresh.promise)
+      .mockReturnValueOnce(retryRead.promise)
+    const view = renderTestingLibrary(guideElement(classroom))
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    const editor = screen.getByRole('textbox', { name: 'Course guide Markdown' })
+    fireEvent.change(editor, { target: { value: 'Retry preserves this draft' } })
+    view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await act(async () => { refresh.resolve(guideResponse({ error: 'Temporary failure' }, 503)) })
+    const retryButton = screen.getByRole('button', { name: 'Retry' })
+    const region = screen.getByRole('region', { name: 'Course guide workspace' })
+    const focusSpy = vi.spyOn(region, 'focus')
+    if (retryFocused) retryButton.focus()
+    else editor.focus()
+    act(() => {
+      fireEvent.click(retryButton)
+      fireEvent.click(retryButton)
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    if (retryFocused) {
+      expect(region).toHaveFocus()
+      expect(focusSpy).toHaveBeenCalledOnce()
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
+    } else {
+      expect(editor).toHaveFocus()
+      expect(focusSpy).not.toHaveBeenCalled()
+    }
+    editor.focus()
+    await act(async () => { retryRead.resolve(guideResponse({ guide })) })
+    expect(screen.getByRole('textbox', { name: 'Course guide Markdown' })).toBe(editor)
+    expect(editor).toHaveFocus()
+    expect(editor).toHaveValue('Retry preserves this draft')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps committed read and write authority when a different-owner render is suspended and abandoned', async () => {
+    const write = deferred<Response>()
+    const refresh = deferred<Response>()
+    const onClassroomUpdated = vi.fn()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(write.promise)
+      .mockReturnValueOnce(refresh.promise)
+    const suspended = new Promise<void>(() => {})
+    let selectClassroom!: (value: Classroom) => void
+    function SuspendAfterPanel({ value }: { value: Classroom }) {
+      if (value.id !== classroom.id) throw suspended
+      return null
+    }
+    function Harness() {
+      const [value, setValue] = useState(classroom)
+      selectClassroom = setValue
+      return (
+        <>
+          <CourseGuidePanel classroom={value} role="teacher" onClassroomUpdated={onClassroomUpdated} />
+          <SuspendAfterPanel value={value} />
+        </>
+      )
+    }
+    render(<Suspense fallback={<div>Suspended owner fallback</div>}><Harness /></Suspense>)
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Course guide Markdown' }), { target: { value: 'Committed owner save' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    const committedClassroom = { ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }
+    await act(async () => { selectClassroom(committedClassroom) })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    await act(async () => { startTransition(() => selectClassroom({ ...classroom, id: 'suspended-owner' })) })
+    expect(screen.queryByText('Suspended owner fallback')).toBeNull()
+    expect(screen.getByRole('textbox', { name: 'Course guide Markdown' })).toHaveValue('Committed owner save')
+    await act(async () => { refresh.resolve(guideResponse({ guide: { ...guide, classroom: { title: 'Committed fresh guide' } } })) })
+    expect(screen.getByTestId('course-guide-view')).toHaveTextContent('Committed fresh guide')
+    const savedClassroom = { ...classroom, course_overview_markdown: 'Committed owner save' }
+    await act(async () => { write.resolve(guideResponse({ classroom: savedClassroom })) })
+    expect(onClassroomUpdated).toHaveBeenCalledOnce()
+    expect(onClassroomUpdated).toHaveBeenCalledWith(savedClassroom)
+    expect(screen.queryByRole('textbox', { name: 'Course guide Markdown' })).toBeNull()
+    await act(async () => { selectClassroom(committedClassroom) })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('owns visibility and public sharing in the accessible Guide options dialog', async () => {
@@ -316,7 +713,7 @@ describe('Course Guide classroom tabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     selectCourseGuideAction('Edit')
-    fireEvent.change(screen.getByLabelText('Course guide'), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Course guide' }), {
       target: { value: 'Unsaved overview' },
     })
     selectCourseGuideAction('Guide options')
@@ -394,13 +791,13 @@ describe('Course Guide classroom tabs', () => {
     render(<TeacherResourcesTab classroom={classroom} />)
     await screen.findByTestId('course-guide-view')
     selectCourseGuideAction('Edit')
-    fireEvent.change(screen.getByLabelText('Course guide'), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Course guide' }), {
       target: { value: 'Unsaved overview' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not save overview')
-    expect(screen.getByLabelText('Course guide')).toHaveValue('Unsaved overview')
+    expect(screen.getByRole('textbox', { name: 'Course guide' })).toHaveValue('Unsaved overview')
   })
 
   it('keeps archived classroom guides read-only', async () => {
