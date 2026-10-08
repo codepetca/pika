@@ -103,7 +103,7 @@ export function StudentAttendanceCheckIn({
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
       <Card className="w-full max-w-md p-6 text-center sm:p-8">
-        <p className="break-words text-sm font-semibold text-primary">
+        <p className="break-words text-xl font-semibold text-primary">
           {returnedClassroomName || classroomName || 'Pika attendance'}
         </p>
         {view.kind === 'loading' ? (
@@ -129,7 +129,7 @@ export function StudentAttendanceCheckIn({
               <p className="mt-2 text-sm text-text-muted">{result.description}</p>
             ) : null}
             {result.recordedAt ? (
-              <time className="mt-2 block text-sm text-text-muted" dateTime={result.recordedAt}>
+              <time className="mt-2 block text-xl text-text-muted" dateTime={result.recordedAt}>
                 {new Date(result.recordedAt).toLocaleTimeString('en-US', {
                   hour: 'numeric',
                   minute: '2-digit',
