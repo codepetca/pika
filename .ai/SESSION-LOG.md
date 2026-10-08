@@ -11,65 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Authorized publication checkpoint and native failure
-
-Owner yes approved retaining B1 and a NEW complete read-only checkpoint. Stable
-double capture covers183tables/all5fields; other4 fields/catalog unchanged. Exact
-seven changed tables recorded privately: auth3 plus Class/archive/Assignment docs
-and Daily entries20->21; observed writes13:25–13:27 predate capture, attribution
-unknown. Four closed diagnostic/capture attempts wrote no artifact; fifth captured
-exclusive600B2 0f48c051 and reconciliationdd9a3f3a. No exemptions or canonicalwrites.
-Independent Sol/high review5 CLEAN at96cfa10 for exactB2/source/normal+forced wrappers.
-Actual normalattempt2 replayed001–252 in owned7fcf42057a98. Four withdrawn capability
-probes restored/raw42501; SQL contracts thenfailed (native41actions/656controls),
-privatecodeunknown. Owned teardown clean; independent wholeB2/all5 verification
-and oldB1 hash PASS; no generatedtypes/receipt acceptance. Canonical/prod249–252
-remainunapplied; no production/admission/cutover/account/provider mutation.
-Batch3 adds only the finite48 publication-contract SQLSTATEs to existing privacy
-diagnostics. TDD knownfirst/last codes RED2 then GREEN; out-of-range staysunknown,
-rawsecret/rows suppressed. Affected85/2PASS/lintPASS; audit/review/newexactnative
-attempt stillrequired. Original13:07:17reviewclock/5launches/3targets/2batches kept;
-human stopoverride persists; actual correctness/permission holds remain.
-
-## 2026-10-06 — Publication emitted-code correction
-
-Targeted review6 at0fcc837 found five unused diagnostic codes and stale feature
-guide status. Batch4 retains only actual P2501/P2507–48 emissions; all49 range
-cases test accepted/unknown codes and raw-row suppression. TDD unusedfive RED;
-SQL/API/caps/deadlines unchanged. Guide now records approved completeB2,
-attempt2 replay/probes then contractfailure, teardown/wholeB2 PASS, and prior
-coverage3 evidence without claiming native/types/CI acceptance. Original clock
-13:07:17/6launches/4targetwaves/4fixbatches retained; human override persists.
-Affected native126 + DB6 tests PASS; startup+DB82 PASS; ESLint3/audit3/diff PASS.
-One unpinned pnpm lint command refused shared modules before mutation; corrected
-pinned10.25 invocation passed. Targeted review and exact-head native remain.
-
-## 2026-10-06 — Quiet-window native proof and catalogue alias diagnosis
-
-Owner yes authorized coordinating Clear sent comments and Make daily log summaries
-compact pauses plus fresh full checkpoint. Both confirmed quiet; readonly double
-B3 capture99a202 covers183/all5, exactauth3 drift only; B1/B2 retained. Review8
-custody clean except stale forced-wrapper label; one-line correction review9 CLEAN.
-Normalattempt3 isolateda2f67 applied001–252 then hit180s startup healthwait deadline.
-No explicitSQL/unhealthy/port/disk error; one controlled same-source retry4 isolated
-c4f435 passed startup/probes then failedcatalogueP2501. Both ownedteardowns and
-separate wholeB3 read-only checks PASS; both quiet windows explicitly released.
-Readonly anonymous catalogue-only PostgreSQL repro confirmedp alias/record collision
-42702 and distinctalias success; transactionREADONLY/ROLLBACK, no schema/data writes.
-Batch6 renames verification alias only; source regressionRED beforefix. API/252/
-caps/expectedcatalog unchanged; affected133/2PASS and ESLint2/diffPASS. Required
-audit/targetreview/native remain; no raw startup diagnostic or record output.
-Reviewclock13:07:17/9launches/7targets retained; humanstopoverride active. No types,
-PR/CI/merge or canonical/prod249–252 application/activation acceptance.
-
-## 2026-10-06 — Publication physical trigger catalogue correction
-
-Reviewed69ae380 normalattempt5 passed isolated001–252 startup and all four raw42501 probes, then failed catalogueP2501. Exact owned teardown and separate whole-B3/all183/all5 preservation passed; both named chats released. Read-only catalogue metadata found the expected66-byte question trigger name differs from PostgreSQL's physical63-byte name. Correct only that expected tuple; regression RED first. API/SQL252/caps unchanged; fresh targeted review/native proof remain gates. No types, migration application or rollout acceptance.
-
-## 2026-10-06 — Publication missing-Draft proof boundary correction
-
-Review11 CLEAN95aab04; normal6 timed out at180s startup. Owner-approved pause of onlyHQ/finance-intake stacks enabled normal7 startup/catalogue and first seven cases, thenP2514 missing-Draft. Owned teardown and separatewholeB3/all183/all5 PASS. All23 original containers restored to exact IDs/images/labels/running/healthy states after initial60s health window failure; both chats released. SQL probe expected snapshotHTTP404 and sent empty invalid content; use valid fixture content/finalCAS409 while retaining SDK1-RPC404. RegressionRED first; product/252/caps unchanged. Fullnative/types/review/PR/CI/merge and rollout remain unaccepted; persistent originalreviewclock/counters retained.
-
 ## 2026-10-06 — Publication unrelated-Class detector isolation
 
 Review12 CLEANc75. Preflightfound only PALgenerations8336→8339, consistentwith named Daily-summary synthetic3-enrollment test16:03:33–49UTC; exact randomIDs unrecorded/per-rowattribution unproven. AuthorizedfullB4 double-read183/all5 retainedB1B2B3; other182tables/all4metadataexact. Review13 supportinglogcustodyP2 fixed in reusableguard/fullobject+actualfilehash+private600copy; review14 CLEAN. Normal8 keptHQ/finance running, startup/earlierprobes passed thenP2542 unrelated-row detector. Exact ownedresourceabsence/separatewholeB4 PASS; quiet7releasedbothchats. Detector changed a Test in targetClass whileexpectingclosed success despiteexactrevisionfences. ChooseotheractiveClassfixtureTest; regressionRED reproducessameClass. Add complete unrelatedTestpre/postimage+exactdocumentappend+bothwholegraphrowassertions aftersecondRED. Fullgraph/rollback/marker/witness/counts/caps/product252unchanged. Originalreviewclock/counters/failedattempts retained; targetedreview/native/types/PR/CI/merge remainpending; canonical/prod249–252 unapplied/noactivation.
@@ -431,10 +372,3 @@ bodies retained. Sole archive conflict;253 SHA unchanged,39stashes untouched.
 Fresh focused checks and narrow independent synchronization review precede
 one eligible exact-head CI/PRGate and authorized normal main squash merge.
 All canonical249+/production/promotion/quota/account/billing/cutover holds persist.
-## 2026-10-07 — Teacher Announcement mutation feedback preparation
-
-Add current-operation visible POST/PATCH/DELETE failure alerts with accurate confirmation wording, preserved input and explicit identified delete reconfirmation. Meaningful RED6/27 to GREEN32/32; TypeScript and2TS audit PASS. Approved Pattern Lab and both-role baseline references inspected. Isolated implementation prepared during predecessorCI; final actual-parent browser verification and student-delivery baseintegration/review/CI pending. No server/schema/dependency or production change.
-
-## 2026-10-07 — Announcement mutation native verification
-
-Feature-owned POST/PATCH/DELETE feedback now preserves editor work, describes unconfirmed writes accurately and requires a new identified confirmation before retrying delete. Root accepted Sol/high worker exact2 source hashes and genuine6RED/32GREEN; preserved all production bytes during browser-harness corrections. Current native8 PASS with136 settled PNGs/8 recordings across teacher/student desktop/mobile light/dark normal/reduced fixtures; all requests intercepted. Root inspected8 contact sheets/four full feedback views against prior actual-parent/Pattern Lab references. Native checks retain editor DOM/input/caret/height/internal scroll/focus, explicit recovery counts/confirmation/Escape and student retained tab DOM; no absolute window anchoring claim after existing optimistic rollback, no auth/provider/hardware claim. Raw failed harness attempts and earlier mid-exit captures retained/excluded where appropriate. Focused293/17 plus static checks PASS; final capture-only guard gets targeted type/lint/audit. Student1522 exact reviewed CI37704331390 remains predecessor for Announcement publication/review/CI. Course Guide held; no whole-family completion or production/schema/dependency changes.
