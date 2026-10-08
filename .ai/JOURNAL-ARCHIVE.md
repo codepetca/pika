@@ -42500,6 +42500,7 @@ PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS
 PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
 
 <!-- pika-session-log-archive-batch:6bc2e412819b6d8b71d3ad6e775abaa1f7a0cee982b90f27ceb02ee83a21b65d -->
+<!-- pika-session-log-archive-batch:fd1592768121a657400f21cbc8ff5b870b4d2ed0ebe469899fa23d102245f6b3 -->
 ## 2026-10-07 — Assignment editor passive dismissal and drag ownership
 
 Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
