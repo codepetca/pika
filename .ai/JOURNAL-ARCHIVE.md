@@ -42399,3 +42399,42 @@ Owner approved a fifth synchronization batch, one additional five-minute changed
 Continued the product-wide fluidity goal after #1490 landed at `3a0b17d6a`. Reused canonical ModalLayer/Dialog and semantic motion tokens; extended passive opacity exits with immediate logical close, focus/scroll/isolation restoration, reduced-motion removal and reopen cancellation. Static AlertDialog/ConfirmDialog adopt the fade; generic ContentDialog/DialogPanel and drawers remain immediate unless explicitly opted in after a child-lifetime audit. Added real Pattern Lab confirmation/action coverage and quiet-entry/exit comparison; broader UI coverage remains incomplete.
 
 Worker delivery: 96 targeted tests, TypeScript and targeted ESLint passed. Coordinator audit and 24 Gallery tests passed after adding meaningful local confirmation coverage. Both-role desktop/mobile light/dark normal/reduced screenshots, natural recordings and frame assertions: 48 capture cases passed; exact browser/focused final results remain in the external task evidence/PR. Historical normal-motion baseline disappeared on the first frame; new passive exits retain inert/aria-hidden content while commands and focus complete immediately. Temporary peer #1512 main merge hold is respected. Owner's task-wide approval override waives workflow budget/elapsed/low-usage stops; existing correctness and explicit holds remain.
+
+<!-- pika-session-log-archive-batch:a4c436ec24d0eabd072700ddae311c69bec1e1c7b354c858dcc2d35fe3c82375 -->
+## 2026-10-07 — Modal replacement focus correction
+
+Draft #1514 at7619e522 completed one independent Sol/high full-diff review. Accepted one blocking P2: closing a later sibling while opening an earlier sibling in the same commit overrode the replacement's initial focus and lost its outside opener. Exact-base/head harness comparison reproduced it; new tests failed4/8 before correction across sibling orders and mixed immediate/opacity modes.
+
+One remediation batch preserves return provenance through React's cleanup/setup handoff and respects an already-focused active replacement. Coordinator's original reproduction now restores the initial button and outside opener. Required focused/browser/visual and targeted cumulative independent review follow on the corrected frozen head. Task waiver and cumulative original review counts persist; #1512 main merge hold and production exclusions remain.
+
+## 2026-10-07 — Softer modal exits synchronized after CI preparation landing
+
+PR1512 hold explicitly released after verified80ae7746 landing, reviewed tree parity and all five gates PASS. PR1514 synchronized once while draft: preserve incoming runner documentation/script/test and both complete histories; previously reviewed modal source/tests/briefs unchanged. Corrected2680 review CLEAN, focused2186/195+static, native browser48PASS without retries, fresh48 visual cases with24 true midpoint captures and both-role pointer/reduced-motion races retained with original execution provenance. New-base focused and targeted synchronization review precede final ready-SHA CI/PR Gate; no production, schema, dependency, provider/runner change or generic-dialog promotion. Task approval override persists; current phase review launches2/remediation1 and prior1490 counters12/10 retained. Broader route/state coverage remains incomplete.
+
+## 2026-10-07 — Modal CI confirmation-query remediation
+
+CI37553687244 failed three five-second Gallery cases: both new confirmation flows and existing teacher classroom recovery; 14024 tests PASS/8skip. Browser job canceled and ephemeral cleanup PASS; no manual rerun/dispatch. Narrowed confirmation queries to existing controls/active modal, preserving the global closed-dialog absence assertion, accessible description, Escape/opener focus, local status, real user events and unchanged timeout. Four affected isolated instrumented cases PASS: one local before/after tests observation2.82s→1.67s, not proof of the Linux cause. Full Gallery24 cases PASS with coverage instrumentation; partial runs still fail unchanged repository coverage floors and are not full coverage acceptance. All UI/config/dependency blobs remain unchanged; original browser/visual/race provenance retained. New focused and targeted test-only review precede one corrected exact-head CI. Current post-review fixbatches2, prior1490 sourcefix10/reviews12 preserved; no cap reset under task waiver. Three-owner audit found static Instructions preview first source candidate; QR menus/rich viewers/scheduling need lifetime evidence, with promotion/production holds retained. Broad goal incomplete.
+
+<!-- pika-session-log-archive-batch:12786d8fc8024c9b693e371c28ef73c0da54267c4d6cdacce24073a69a2d803a -->
+## 2026-10-07 — Publication merge-window release and final-base reconciliation
+
+Exact084 CI37548424656 all5/PRGatePASS; publication/Assignmentintegrated proofs
+passed, private600 receipt retained, queue3s/run3733s/event37 recorded. Main1512
+advanced80a during CI; respected Svelte1514 window through two test/image fixes,
+without duplicate sync/review/CI. Source explicitly released after1514 landed
+d0bdbdfa5.18-commit rebase succeeded: sole archive conflict retained both sides;
+all28 publication/product/proof/type/CI files byte-identical084, all21 incoming
+nonhistory files exactmain, no empty/split headings. Official trim and full body/
+multiplicity verification required. All37 stashes/orderhash7bb1ea11 retained;
+SQL252 unchangedb506e610/mainmax251/no resequence. GPT6.1Sol/high targeted review24,
+focused checks and new exact-head CI precede main merge. Original13:07:17UTC clock,
+23launches20targets20batches retained/taskwaiver active, weekly9percent remaining/
+ordinaryexecutionallowed, DeepSeek paused. No canonical/prod249–252 application,
+promotion, activation, provider/account/billing/runner/visibility or phase exit.
+
+<!-- pika-session-log-archive-batch:ff6b6fc7dbabe4d92f1b9f5d3ea5300806c770be14eec8903a560117e8e5f12c -->
+## 2026-10-07 — Mobile sidebar Classrooms label
+
+- Changed shared LeftSidebar mobile home link text and accessible name to Classrooms; updated existing component and browser selectors. Reused shared drawer and Pattern Lab mobile-drawer-controls reference; no new pattern or refactor. Risk profile: none.
+- Focused checks passed: 26 files/351 tests, architecture, UI/design policy, TypeScript and lint; audit clean. Playwright mobile-drawer-controls: teacher/student × light/dark 4/4 passed, including desktop guards and focus/open/hover/navigation states. Inspected mobile screenshots. Logs: /tmp/pika-mobile-label-{focused,visual}.log; screenshots in worktree test-results.
+- Independent low-risk review and PR lifecycle follow implementation. Task owns codex/mobile-classrooms-label; model/usage telemetry unknown.

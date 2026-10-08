@@ -1,3 +1,6 @@
+import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
+import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
+import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
 import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
 import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
@@ -57,6 +60,15 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Public course section targets', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves native section navigation with comfortable targets ${motion}`, async ({ page }, testInfo) => {
+      await verifyPublicCourseSectionTargets(page, testInfo, motion)
+    })
+  }
+})
 
 test.describe('Calendar day interaction', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
@@ -4055,6 +4067,26 @@ test.describe('Course Guide refresh continuity', () => {
   for (const motion of ['no-preference', 'reduce'] as const) {
     test(`retains current guide work with ${motion} motion`, async ({ page }, testInfo) => {
       await verifyCourseGuideContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Teacher settings clipboard feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`clipboard feedback ${motion} preserves the committed settings owner`, async ({ page }, testInfo) => {
+      await verifySettingsCopyFeedback(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Student attendance return navigation', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains canonical return targets with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyAttendanceReturnLink(page, testInfo, motion)
     })
   }
 })

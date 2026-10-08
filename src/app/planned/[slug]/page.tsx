@@ -59,7 +59,7 @@ export default async function PlannedCourseSitePage({ params }: PageProps) {
                 <a
                   key={id}
                   href={`#${id}`}
-                  className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  className="inline-flex min-h-control min-w-control items-center rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   {label}
                 </a>
