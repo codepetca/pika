@@ -1,3 +1,4 @@
+import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
 import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
   expect,
@@ -56,6 +57,20 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Calendar day interaction', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const role of ['teacher', 'student'] as const) {
+    for (const motion of ['no-preference', 'reduce'] as const) {
+      test.describe(`${role} ${motion}`, () => {
+        test.use({ contextOptions: { reducedMotion: motion } })
+        test('reads and dismisses the real Calendar day dialog', async ({ page }, testInfo) => {
+          await verifyCalendarDayInteraction(page, testInfo, role, motion)
+        })
+      })
+    }
+  }
+})
 
 test.describe('Assignment editor retirement', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
