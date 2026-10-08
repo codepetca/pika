@@ -304,6 +304,16 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
     if (ordinary) check()
     assert(inheritedCalls[name] < union.inheritedLifecycleCapabilities[name]); inheritedCalls[name]++
   }
+  // Private authority exists only while this source-issued revocation executes.
+  // The parent selects restoration before asking for its fresh scoped session.
+  const issuedRevocations = assignmentListRevocationPlans(original)
+  type RevocationRequest = Parameters<AssignmentListLifecycleAdapters['runRevocation']>[0]
+  let restoring: { request: RevocationRequest; sourcePlan: RevocationRequest['plan']; phase: 'transition' | 'session' | 'checking-session' | 'sql' | 'executing' | 'restored' | 'verification' | 'checking-verification' | 'verified' } | undefined
+  function exactRestorationTarget(request: { fixture: typeof original; plan: RevocationRequest['plan']; target: NonNullable<typeof target> }) {
+    assert(restoring && request.fixture === original && request.plan === restoring.request.plan)
+    assert.deepEqual(request.plan, restoring.sourcePlan)
+    assert.deepEqual(request.target, target); assert.deepEqual(request.target, restoring.request.target)
+  }
   let client: ReturnType<typeof createClient<Database>> | undefined
   let sqlContracts: ReturnType<typeof createTestOwnerReorderNativeContracts> | undefined, nativeReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['run']>> | undefined
   let committedReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['runCommittedTransitions']>> | undefined
@@ -468,10 +478,31 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
         if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result
       },
       async verifyEphemeral(request) {
-        inheritedAdmission('verifyEphemeral'); const result = await native.verifyEphemeral(request); check(); return result
+        const restoration = restoring?.phase === 'session'
+        if (restoration) {
+          assert(session && target); assert.deepEqual(request, { projectId: session.projectId, dbPort: session.dbPort,
+            applicationName: session.applicationName, target })
+        }
+        inheritedAdmission('verifyEphemeral', !restoration)
+        if (restoration) { assert(restoring); restoring.phase = 'checking-session' }
+        const result = await native.verifyEphemeral(request)
+        if (restoration) {
+          assert(restoring?.phase === 'checking-session' && session)
+          assert.equal(result.projectId, session.projectId); assert.equal(result.dbPort, session.dbPort)
+          assert.equal(result.applicationName, session.applicationName); assert.equal(result.containerId, session.containerId)
+          assert(result.guard168Enabled && result.persistedGatesOff && result.activeNetworkCronAbsent)
+          restoring.phase = 'sql'
+        } else check()
+        return result
       },
       async executeSql(request) {
-        inheritedAdmission('executeSql'); await native.executeSql(request); check()
+        const restoration = restoring?.phase === 'sql'
+        if (restoration) {
+          assert(restoring && session); assert.deepEqual(request, { ...session, sql: restoring.sourcePlan.restoreSql })
+          restoring.phase = 'executing'
+        }
+        inheritedAdmission('executeSql', !restoration); await native.executeSql(request)
+        if (restoration) { assert(restoring?.phase === 'executing'); restoring.phase = 'restored' } else check()
         if (request.sql === originalSetup) {
           assert(!session && target && expectedTables); session = { ...request }
           if (!diagnosticOnly) {
@@ -488,10 +519,44 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
         if (!matrixComplete) await matrix(); check(); return result
       },
       async runRevocation(request) {
-        inheritedAdmission('runRevocation'); const result = await native.runRevocation(request); check(); return result
+        inheritedAdmission('runRevocation')
+        assert(!restoring && request.fixture === original && target && session)
+        assert.deepEqual(request.target, target)
+        const issued = issuedRevocations.find(plan => plan.transition === request.plan.transition && plan.boundary === request.plan.boundary)
+        assert(issued); assert.deepEqual(request.plan, issued)
+        const bound = { request, sourcePlan: issued, phase: 'transition' as NonNullable<typeof restoring>['phase'] }
+        restoring = bound
+        let attempted = false, settled = false
+        try {
+          const result = await native.runRevocation({ ...request,
+            async executeSql(sql) {
+              assert(restoring === bound); assert.deepEqual(request.plan, issued)
+              if (sql === issued.revokeSql) {
+                assert(bound.phase === 'transition' && !attempted); check(); attempted = true
+                try { await request.executeSql(sql) } finally { settled = true }
+                return
+              }
+              assert(sql === issued.restoreSql && attempted && settled && bound.phase === 'transition')
+              bound.phase = 'session'
+              await request.executeSql(sql); assert.equal(bound.phase, 'restored')
+            },
+            async verifyRestoration(plan) {
+              assert(restoring === bound && plan === request.plan && bound.phase === 'restored')
+              assert.deepEqual(plan, issued); bound.phase = 'verification'
+              await request.verifyRestoration(plan); assert.equal(bound.phase, 'verified')
+            },
+          })
+          check(); return result
+        } finally { restoring = undefined }
       },
       async verifyRestoration(request) {
-        inheritedAdmission('verifyRestoration'); const result = await native.verifyRestoration(request); check(); return result
+        const restoration = restoring?.phase === 'verification'
+        if (restoration) exactRestorationTarget(request)
+        inheritedAdmission('verifyRestoration', !restoration)
+        if (restoration) { assert(restoring); restoring.phase = 'checking-verification' }
+        const result = await native.verifyRestoration(request)
+        if (restoration) { assert(restoring?.phase === 'checking-verification'); restoring.phase = 'verified' } else check()
+        return result
       },
       async teardown(request) { inheritedAdmission('teardown', false); return native.teardown(request) },
       async removeWorkdir(request) { inheritedAdmission('removeWorkdir', false); return native.removeWorkdir(request) },

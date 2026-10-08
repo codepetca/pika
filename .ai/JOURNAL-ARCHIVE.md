@@ -44182,3 +44182,17 @@ that exact addition without omitting inherited/unexpected table checks or quota
 fingerprints. Targeted79/5 and focused864/37/staticPASS. Native normal/types,
 both forced modes, targeted review and exact-head CI remain gates. Product SQL,
 limits and all249+/production/activation/account/billing holds unchanged.
+
+<!-- pika-session-log-archive-batch:8db577b6e058baf772137d02cca9d917e5237508756e8919b97f96ea79c53ed5 -->
+## 2026-10-08 — Publication proof diagnosis and current-main reconciliation
+
+At2e9367, create normal/types and both forced modes PASS; genuine types match
+committed437586bytes. Publication failed an unlocated race AssertionError;
+same183/all5 checkpoint and exact teardown PASS. Do not infer timeout or success.
+Added closed source-coordinate/deadline-label diagnostics with row/stack privacy
+regressions;39/2 and875/38/staticPASS. Rebased onto a2d70efa8 (#1522), retaining
+24feature and18incoming nonhistory blobs, all40+40 rolling bodies, exactmain
+archive prefix and original25-line archive batch. Only archive conflict;253
+unchanged,39stashes/topSHA retained, no stash created/popped. Combined diagnostic/
+base review, focused checks and new isolated publication acceptance remain gates.
+Accepted create receipts retain actual2e9367 identity; no canonical/prod/activation.

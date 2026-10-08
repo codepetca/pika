@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Publication proof diagnosis and current-main reconciliation
-
-At2e9367, create normal/types and both forced modes PASS; genuine types match
-committed437586bytes. Publication failed an unlocated race AssertionError;
-same183/all5 checkpoint and exact teardown PASS. Do not infer timeout or success.
-Added closed source-coordinate/deadline-label diagnostics with row/stack privacy
-regressions;39/2 and875/38/staticPASS. Rebased onto a2d70efa8 (#1522), retaining
-24feature and18incoming nonhistory blobs, all40+40 rolling bodies, exactmain
-archive prefix and original25-line archive batch. Only archive conflict;253
-unchanged,39stashes/topSHA retained, no stash created/popped. Combined diagnostic/
-base review, focused checks and new isolated publication acceptance remain gates.
-Accepted create receipts retain actual2e9367 identity; no canonical/prod/activation.
-
 ## 2026-10-08 — Test cap native acceptance and progress-UI synchronization
 
 Sol6.1/high diagnostic/base review CLEAN; exact651 focused875/38/static PASS.
@@ -238,3 +225,7 @@ Preserve originalOct7 05:04 clock,31reviews/27targeted and prior28fix-sync batch
 feature synchronization is batch29, this continuity-only commit is not another
 fix batch. Human workflow-stop/budget waiver remains task-scoped; correctness,
 checkpoint/migration/production/activation/provider/billing holds remain.
+
+## 2026-10-08 — Reorder exact restoration composition correction (batch30)
+
+Fixed the accepted e351 compatibility P2 by privately binding the current source-issued revocation plan across its exact restoration session, SQL and verification. The900s ordinary gate remains sticky; scoped restoration retains finite inherited/native caps, primary failures, exact teardown and all five canonical comparisons. Real adopter/parent/SDK-observer regressions with pure platform stubs fail10/10 against e351 and pass the correction; unrelated setup/matrix evidence is stubbed, with no native/type/forced/CI acceptance. Preserve31 original reviews/27 targeted/29 preceding fix-sync batches; this source correction is batch30, distinct from the root's private-wrapper artifact correction. Targeted final review and all actual native evidence remain pending; all runtime/database/checkpoint/production/rollout holds remain.

@@ -25,6 +25,31 @@ Preserve both histories, verify unchanged feature/runtime and incoming-main UI
 bytes, and complete the targeted base/handoff review before actual finite native
 normal/genuine types/two-forced execution. No old10k failure is new-cap acceptance.
 
+## Exact restoration through adopter expiry — 2026-10-08
+
+Independent architecture review of e351 accepted one blocking P2: the reorder
+adapter reapplied ordinary admission to the parent's exact current-plan restore
+session, SQL and verification after900s expiry. Source correction batch30 binds
+only the executing source-issued plan, fixture, target and original session
+privately across the native observer's scoped callbacks. Restoration follows a
+single finite session/SQL/verification sequence after transition settlement;
+authority closes in finally. Existing inherited call ceilings and native
+primitive caps still apply. Ordinary work never resumes and the absolute clock
+is never renewed. Original failure and restoration-verification failure remain
+failures; exact disposable teardown and all five canonical comparisons remain.
+
+Pure composition regressions use the real adopter, parent and installed-SDK
+revocation observer with platform stubs, exercising fulfillment and ambiguous
+rejection after work expiry, expiry during the restoration session and after
+restore SQL, scoped identity/SQL rejection, one restoration and verification,
+no new work, disposal and each canonical-field mismatch. These regressions fail
+against e351 and pass the corrected source. Unrelated reorder setup/matrix
+proof evidence is stubbed; this is no actual native/type/forced/CI acceptance.
+Preserve31 original reviews/27 targeted reviews/29 preceding fix-sync batches;
+this source remediation is batch30. Fresh targeted independent review remains
+required. All database/checkpoint/Docker/native/type/provider/billing/activation/
+production and canonical migration operations remain held.
+
 ## Inherited revocation proof correction — 2026-10-08
 
 The coordinated quiet-window normal proof at c7a01e3 failed after624524ms:

@@ -536,8 +536,12 @@ describe('closed adopter AST/source wiring', () => {
     for (const name of ['executeSql','runCase','runRevocation','verifyRestoration','verifyEphemeral']) {
       const start = source.lastIndexOf(`async ${name}(request)`), end = source.indexOf('\n      },', start)
       const body = source.slice(start, end)
-      expect(body.indexOf(`inheritedAdmission('${name}')`)).toBeLessThan(body.indexOf(`await native.${name}(request)`))
-      expect(body.indexOf(`await native.${name}(request)`)).toBeLessThan(body.indexOf('check()'))
+      const admission = name === 'runCase' || name === 'runRevocation' ? `inheritedAdmission('${name}')` : `inheritedAdmission('${name}', !restoration)`
+      const forward = name === 'runRevocation' ? 'await native.runRevocation({' : `await native.${name}(request)`
+      expect(body.indexOf(admission)).toBeGreaterThanOrEqual(0)
+      expect(body.indexOf(admission)).toBeLessThan(body.indexOf(forward))
+      if (name === 'runCase' || name === 'runRevocation') expect(body.slice(body.indexOf(forward))).toContain('check()')
+      else expect(body.slice(body.indexOf(forward))).toContain('else check()')
     }
     expect(source).toContain('testOwnerReorderAccountingReceipt(union, { controls, actions, exchangeBytes: appBytes }, committedReceipt,')
     expect(source).toContain('rollback: nativeReceipt, native: committedReceipt')
