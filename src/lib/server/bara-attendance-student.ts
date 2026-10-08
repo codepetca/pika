@@ -43,6 +43,7 @@ export interface StudentAttendanceCheckInView {
   description: string
   attendanceStatus?: 'present' | 'late'
   recordedAt?: string
+  classroomName?: string
 }
 
 export class StudentAttendanceCheckInError extends Error {
@@ -227,6 +228,18 @@ export async function executeStudentAttendanceCheckIn(input: {
   }
   const generation = await readGeneration()
   if (generation.status === 'forbidden') return membershipUnavailable()
+  // Resolve display metadata before sending the attendance command, so a failed
+  // read cannot hide an otherwise confirmed check-in behind a retry screen.
+  const { data: classroom, error: classroomError } = await input.supabase
+    .from('classrooms')
+    .select('title')
+    .eq('id', entry.classroomId)
+    .maybeSingle()
+  const parsedClassroom = z.object({ title: z.string().trim().min(1).max(200) })
+    .strict().safeParse(classroom)
+  if (classroomError || !parsedClassroom.success) {
+    throw new StudentAttendanceCheckInError('upstream_unavailable')
+  }
   // Emit the new optional wire field only under the explicit rollout gate.
   // Current-state checks still run when that gate is paused.
   const participantRef = generation.status === 'active' && process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true'
@@ -298,6 +311,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     ? {
         ...mapped,
         classroomId: entry.classroomId,
+        classroomName: parsedClassroom.data.title,
         studentId: input.pikaUser.id,
         occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
           studentId: input.pikaUser.id,

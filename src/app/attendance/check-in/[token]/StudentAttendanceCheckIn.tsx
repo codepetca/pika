@@ -100,7 +100,9 @@ export function StudentAttendanceCheckIn({
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
       <Card className="w-full max-w-md p-6 text-center sm:p-8">
-        <p className="text-sm font-semibold text-primary">Pika attendance</p>
+        <p className="break-words text-sm font-semibold text-primary">
+          {positive && result?.classroomName ? result.classroomName : 'Pika attendance'}
+        </p>
         {view.kind === 'loading' ? (
           <div className="py-10" role="status" aria-live="polite">
             <Spinner size="lg" />
@@ -123,18 +125,18 @@ export function StudentAttendanceCheckIn({
               aria-hidden="true"
             />
             <h1 className="mt-4 text-xl font-semibold text-text-default">{result.title}</h1>
-            {result.description ? (
+            {!positive && result.description ? (
               <p className="mt-2 text-sm text-text-muted">{result.description}</p>
             ) : null}
             {result.recordedAt ? (
-              <p className="mt-3 text-xs text-text-muted">
-                Confirmed {new Date(result.recordedAt).toLocaleTimeString([], {
+              <time className="mt-2 block text-sm text-text-muted" dateTime={result.recordedAt}>
+                {new Date(result.recordedAt).toLocaleTimeString('en-US', {
                   hour: 'numeric',
                   minute: '2-digit',
+                  hour12: true,
                   timeZone: 'America/Toronto',
-                  timeZoneName: 'short',
                 })}
-              </p>
+              </time>
             ) : null}
           </div>
         ) : null}

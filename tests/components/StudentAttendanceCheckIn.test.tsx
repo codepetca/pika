@@ -30,6 +30,7 @@ describe('StudentAttendanceCheckIn', () => {
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
       classroomId: '20000000-0000-4000-8000-000000000001',
+      classroomName: 'PPZ3C — Health for Life',
       studentId,
       occurrenceBinding,
     }), { status: 200 }))
@@ -38,7 +39,11 @@ describe('StudentAttendanceCheckIn', () => {
     render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
 
     expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeInTheDocument()
-    expect(screen.getByText('Your attendance was recorded.')).toBeInTheDocument()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
+    expect(screen.getByText('9:01 AM')).toBeInTheDocument()
+    expect(screen.queryByText('Pika attendance')).not.toBeInTheDocument()
+    expect(screen.queryByText('Your attendance was recorded.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Confirmed|EDT|EST/)).not.toBeInTheDocument()
     expect(fetcher).toHaveBeenCalledWith('/api/student/attendance/check-in', expect.objectContaining({
       method: 'POST',
     }))
@@ -94,6 +99,8 @@ describe('StudentAttendanceCheckIn', () => {
         description: 'No additional attendance record was created.',
         attendanceStatus: 'present',
         classroomId: '20000000-0000-4000-8000-000000000001',
+        classroomName: 'PPZ3C — Health for Life',
+        recordedAt: '2026-01-08T14:06:00.000Z',
       }), { status: 200 }))
     vi.stubGlobal('fetch', fetcher)
 
@@ -106,6 +113,9 @@ describe('StudentAttendanceCheckIn', () => {
     expect(await screen.findByRole('heading', { name: 'You are already checked in' }))
       .toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to classroom' })).toBeInTheDocument()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
+    expect(screen.getByText('9:06 AM')).toBeInTheDocument()
+    expect(screen.queryByText('No additional attendance record was created.')).not.toBeInTheDocument()
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
     const firstBody = JSON.parse(fetcher.mock.calls[0][1].body)
     const retryBody = JSON.parse(fetcher.mock.calls[1][1].body)

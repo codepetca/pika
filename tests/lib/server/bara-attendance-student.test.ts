@@ -25,6 +25,25 @@ const pikaUser = { id: studentId, email: 'student@example.com', role: 'student' 
 const actor = { principalRef: 'principal_student_one', displayName: 'Student One' }
 const attemptId = '11111111-1111-4111-8111-111111111111'
 const classroomId = '20000000-0000-4000-8000-000000000002'
+const classroomName = 'PPZ3C — Health for Life'
+const classroomRead = vi.fn()
+const supabase = {
+  from: vi.fn((table: string) => {
+    expect(table).toBe('classrooms')
+    const query = {
+      select: vi.fn((columns: string) => {
+        expect(columns).toBe('title')
+        return query
+      }),
+      eq: vi.fn((column: string, value: string) => {
+        expect([column, value]).toEqual(['id', classroomId])
+        return query
+      }),
+      maybeSingle: classroomRead,
+    }
+    return query
+  }),
+}
 
 function entryToken() {
   return sealAttendanceEntryToken({
@@ -39,6 +58,7 @@ function entryToken() {
 describe('native Pika student attendance check-in', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    classroomRead.mockResolvedValue({ data: { title: classroomName }, error: null })
     resolveGeneration.mockReset().mockResolvedValue({ status: 'legacy' })
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', entrySecret)
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'pika_test')
@@ -51,20 +71,21 @@ describe('native Pika student attendance check-in', () => {
     resolveGeneration.mockResolvedValue(generation)
     const send = vi.fn().mockResolvedValue({ outcome: 'no_op', resultCode: 'not_authorized',
       occurrenceRef: 'occurrence_one', sessionRevision: 1 })
-    await executeStudentAttendanceCheckIn({ supabase: {}, pikaUser, entryToken: entryToken(), attemptId,
+    await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
       integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ participant_ref: generation.participant_ref }))
     expect(resolveGeneration).toHaveBeenCalledTimes(2)
-    expect(resolveGeneration).toHaveBeenLastCalledWith({ supabase: {}, classroomId, studentId })
+    expect(resolveGeneration).toHaveBeenLastCalledWith({ supabase, classroomId, studentId })
   })
 
   it('still rejects removed membership when the new rollout gate is paused', async () => {
     vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'false')
     resolveGeneration.mockResolvedValue({ status: 'forbidden' })
     const send = vi.fn()
-    await expect(executeStudentAttendanceCheckIn({ supabase: {}, pikaUser, entryToken: entryToken(), attemptId,
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
       integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })).resolves.toMatchObject({ state: 'needs_staff' })
     expect(send).not.toHaveBeenCalled()
+    expect(classroomRead).not.toHaveBeenCalled()
   })
 
   it.each(['retry', 'response'] as const)('discards a removed generation during the %s gap', async gap => {
@@ -76,12 +97,23 @@ describe('native Pika student attendance check-in', () => {
       occurrenceRef: 'occurrence_one', sessionRevision: 1,
       checkIn: { checkInRef: 'check_in_one', participantRef: 'participant_one', checkInRevision: 1,
         acceptedAt: '2026-09-02T13:01:00.000Z' } })
-    const result = await executeStudentAttendanceCheckIn({ supabase: {}, pikaUser, entryToken: entryToken(), attemptId,
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
       integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send,
       loadPresentThroughAt: vi.fn().mockResolvedValue('2026-09-02T13:05:00.000Z') })
     expect(result).toMatchObject({ state: 'needs_staff' })
     expect(result).not.toHaveProperty('recordedAt')
+    expect(result).not.toHaveProperty('classroomName')
     expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not send a check-in when the classroom name cannot be loaded', async () => {
+    classroomRead.mockResolvedValue({ data: null, error: { message: 'read unavailable' } })
+    const send = vi.fn()
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser,
+      entryToken: entryToken(), attemptId, integrationState: 'ready',
+      resolveActor: vi.fn().mockResolvedValue(actor), send,
+    })).rejects.toEqual(new StudentAttendanceCheckInError('upstream_unavailable'))
+    expect(send).not.toHaveBeenCalled()
   })
 
   it('maps the verified local WorkOS link to an opaque Pika principal', async () => {
@@ -135,7 +167,7 @@ describe('native Pika student attendance check-in', () => {
     })
 
     const result = await executeStudentAttendanceCheckIn({
-      supabase: {},
+      supabase,
       pikaUser,
       entryToken: entryToken(),
       attemptId,
@@ -145,7 +177,7 @@ describe('native Pika student attendance check-in', () => {
       loadPresentThroughAt: vi.fn().mockResolvedValue('2026-09-02T13:05:00.000Z'),
     })
 
-    expect(resolveActor).toHaveBeenCalledWith({ supabase: {}, pikaUser })
+    expect(resolveActor).toHaveBeenCalledWith({ supabase, pikaUser })
     expect(send).toHaveBeenCalledWith(expect.objectContaining({
       schema_version: 1,
       message_type: 'student_check_in',
@@ -164,6 +196,7 @@ describe('native Pika student attendance check-in', () => {
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
       classroomId,
+      classroomName,
       studentId,
       occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
         studentId,
@@ -184,14 +217,14 @@ describe('native Pika student attendance check-in', () => {
       })
 
     await expect(executeStudentAttendanceCheckIn({
-      supabase: {},
+      supabase,
       pikaUser,
       entryToken: entryToken(),
       attemptId,
       integrationState: 'ready',
       resolveActor: vi.fn().mockResolvedValue(actor),
       send,
-    })).resolves.toMatchObject({ state: 'already_checked_in', classroomId })
+    })).resolves.toMatchObject({ state: 'already_checked_in', classroomId, classroomName })
 
     expect(send).toHaveBeenCalledTimes(2)
     expect(send.mock.calls[0][0]).toEqual(send.mock.calls[1][0])
@@ -209,7 +242,7 @@ describe('native Pika student attendance check-in', () => {
       '22222222-2222-4222-8222-222222222222',
     ]) {
       await executeStudentAttendanceCheckIn({
-        supabase: {},
+        supabase,
         pikaUser,
         entryToken: entryToken(),
         attemptId: logicalAttempt,
@@ -229,7 +262,7 @@ describe('native Pika student attendance check-in', () => {
     )
 
     await expect(executeStudentAttendanceCheckIn({
-      supabase: {},
+      supabase,
       pikaUser,
       entryToken: entryToken(),
       attemptId,
@@ -244,7 +277,7 @@ describe('native Pika student attendance check-in', () => {
     const resolveActor = vi.fn()
     const send = vi.fn()
     await expect(executeStudentAttendanceCheckIn({
-      supabase: {},
+      supabase,
       pikaUser,
       entryToken: 'invalid',
       attemptId,
@@ -266,7 +299,7 @@ describe('native Pika student attendance check-in', () => {
     const send = vi.fn()
 
     await expect(executeStudentAttendanceCheckIn({
-      supabase: {},
+      supabase,
       pikaUser,
       entryToken: entryToken(),
       attemptId,
@@ -290,7 +323,7 @@ describe('native Pika student attendance check-in', () => {
     )
 
     await expect(executeStudentAttendanceCheckIn({
-      supabase: {},
+      supabase,
       pikaUser,
       entryToken: entryToken(),
       attemptId,
@@ -308,7 +341,7 @@ describe('native Pika student attendance check-in', () => {
     ['not_on_roster', 'needs_staff'],
   ] as const)('maps %s to a native %s state', async (resultCode, state) => {
     await expect(executeStudentAttendanceCheckIn({
-      supabase: {},
+      supabase,
       pikaUser,
       entryToken: entryToken(),
       attemptId,

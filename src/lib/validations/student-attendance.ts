@@ -17,6 +17,7 @@ const detailedStudentAttendanceCheckInViewSchema = z.object({
   attendanceStatus: z.enum(['present', 'late']).optional(),
   recordedAt: z.string().datetime({ offset: true }).optional(),
   classroomId: z.string().uuid().optional(),
+  classroomName: z.string().trim().min(1).max(200).optional(),
   studentId: z.string().uuid().optional(),
   occurrenceBinding: z.string().regex(/^[A-Za-z0-9_-]{32}$/).optional(),
 }).strict()
