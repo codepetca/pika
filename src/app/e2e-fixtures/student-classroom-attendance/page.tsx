@@ -13,6 +13,7 @@ export default function StudentClassroomAttendanceFixturePage() {
       entryToken={'a'.repeat(43)}
       canCheckIn
       mode="classroom"
+      classroomName="PPZ3C — Health for Life"
     />
   )
 }

@@ -1,7 +1,7 @@
 # Dormant contextual member Test list read
 
 Source preparation on `codex/contextual-test-member-list-read`, main base
-`b778a6851`. This is an independent batch-2 component, not production acceptance,
+`51f1a3b99`. This is an independent batch-2 component, not production acceptance,
 phase exit, cohort admission or product rollout. Owner reorder #1515's separate
 capacity decision does not block this read-only boundary.
 
@@ -169,3 +169,24 @@ handoff review, then eligible exact-final-head CI/PR Gate, remain required befor
 main merge.
 All existing rollout, canonical249+, production, plan, billing and activation
 holds remain; this documentation reconciliation records no phase exit.
+
+## Attendance-base reconciliation — 2026-10-08
+
+Main advanced to `51f1a3b99` (#1533) during readiness for `24337ada1`.
+The coordinator returned #1534 to draft before another push; exact-243 CI
+37790410987 is obsolete and cancellation was planned, with no passing claim.
+Ordinary base sync imports all 17 nonhistory attendance paths byte-identically,
+including attendance display-context helpers. Member API/helper/validation,
+proof source, member tests, configuration and schema bytes remain unchanged
+from `24337ada1`; the incoming attendance files receive no member-task edits.
+Preserve complete 243/main history bodies and apply the official 40-entry trim.
+The original `f6fdc63fb` native receipts remain bound to their actual execution;
+base interaction review remains required before reuse. Current-base focused
+1,338 tests/60 files, architecture/UI/design policy, TypeScript/lint, 17-file
+audit and history/diff gates passed. Incoming attendance imports do not intersect
+the member imports; shared auth/Supabase/admission/proof dependencies are unchanged.
+Prior review9/targeted7/fix-sync8 counters and clocks remain; this ordinary merge
+is sync batch9 and documentation reconciliation batch10. No new native, phase
+exit or release of existing rollout/canonical249+/production/plan/billing/
+activation holds. Independent interaction/handoff review and exact-final-head
+CI/PR Gate remain coordinator-owned merge gates.

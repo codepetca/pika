@@ -33,12 +33,14 @@ describe('POST /api/student/attendance/classroom-check-in', () => {
     mocks.requireRole.mockResolvedValue(user)
     mocks.execute.mockResolvedValue({
       state: 'checked_in', title: 'You are checked in', description: 'Recorded',
+      classroomName: 'PPZ3C — Health for Life',
     })
   })
 
   it('derives identity only from the authenticated student session', async () => {
     const response = await POST(request({ classroomQrToken, attemptId }))
     expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ classroomName: 'PPZ3C — Health for Life' })
     expect(mocks.requireRole).toHaveBeenCalledWith('student')
     expect(mocks.execute).toHaveBeenCalledWith({
       supabase: mocks.supabase, pikaUser: user, classroomQrToken, attemptId,
