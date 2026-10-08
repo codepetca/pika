@@ -26,6 +26,37 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('shows default and opt-in FormField semantics independently for %s', role => {
+    renderGallery(role)
+    const controls = within(screen.getByTestId('pattern-section-controls'))
+    const empty = controls.getByRole('textbox', { name: 'Reserved error space' })
+    expect(empty).not.toHaveAttribute('aria-invalid')
+    expect(empty).not.toHaveAttribute('aria-errormessage')
+    const failed = controls.getByRole('textbox', { name: 'Reserved error with hint' })
+    expect(failed).toHaveAttribute('aria-invalid', 'true')
+    expect(failed).toHaveAccessibleDescription('The hint remains visible during recovery. Request failed. Please try again.')
+    expect(controls.getByText('Request failed. Please try again.')).toHaveAttribute('role', 'alert')
+    const defaultField = controls.getByRole('textbox', { name: 'Class name' })
+    expect(defaultField).toHaveAccessibleDescription('Use the name students already recognize.')
+    expect(defaultField).not.toHaveAttribute('aria-invalid')
+  })
+
+  it.each(['teacher', 'student'] as const)('keeps loading names and busy semantics with decorative circular progress for %s', (role) => {
+    renderGallery(role)
+    const example = screen.getByTestId('circular-progress-example')
+    const status = within(example).getByRole('status')
+    expect(status).toHaveTextContent('Loading classroom')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    for (const name of ['Creating class', 'Creating classroom']) {
+      const button = within(example).getByRole('button', { name, exact: true })
+      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute('aria-busy', 'true')
+    }
+    for (const icon of example.querySelectorAll('svg')) {
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    }
+  })
+
   it.each(['teacher', 'student'] as const)('returns focus and confirms only the explicit local action for %s', async (role) => {
     const user = userEvent.setup()
     renderGallery(role)
@@ -131,7 +162,8 @@ describe('UiGallery accessibility contracts', () => {
   afterEach(() => { vi.unstubAllGlobals() })
   it('demonstrates explicitly activated formatted help', async () => {
     renderGallery()
-    const help = screen.getByRole('button', { name: 'Formatting help' })
+    const controls = within(screen.getByTestId('pattern-section-controls'))
+    const help = controls.getByRole('button', { name: 'Formatting help' })
     fireEvent.click(help)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Use plain text.')
     expect(help).toHaveAccessibleDescription(/Use plain text/)

@@ -4,6 +4,7 @@ import { useState, useRef, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
 import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
+import { useAuthFormContinuity, useUppercaseAuthCode } from '@/hooks/useAuthFormContinuity'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -12,12 +13,14 @@ function ResetPasswordForm() {
 
   const [step, setStep] = useState<'verify' | 'reset'>('verify')
   const [email, setEmail] = useState(emailFromUrl)
-  const [code, setCode] = useState('')
+  const resetCode = useUppercaseAuthCode()
+  const code = resetCode.code
   const [handoffToken, setHandoffToken] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const continuity = useAuthFormContinuity(loading)
 
   const verifyingRef = useRef(false)
   const resend = useAuthCodeResend({
@@ -33,6 +36,8 @@ function ResetPasswordForm() {
   async function handleVerifyCode(e: FormEvent) {
     e.preventDefault()
     if (verifyingRef.current || resend.isPending()) return
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
     verifyingRef.current = true
     resend.clearFeedback()
     setError('')
@@ -51,19 +56,25 @@ function ResetPasswordForm() {
         throw new Error(data.error || 'Invalid code')
       }
 
+      if (!continuity.isCurrent(request)) return
       setHandoffToken(data.handoffToken)
+      continuity.release(request)
       setStep('reset')
       verifyingRef.current = false
       setLoading(false)
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
       setError(err.message || 'An error occurred')
       verifyingRef.current = false
       setLoading(false)
+      continuity.finish(request)
     }
   }
 
   async function handleResetPassword(e: FormEvent) {
     e.preventDefault()
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
     setError('')
     setLoading(true)
 
@@ -80,11 +91,14 @@ function ResetPasswordForm() {
         throw new Error(data.error || 'Failed to reset password')
       }
 
+      if (!continuity.isCurrent(request)) return
       // Redirect based on user role
       router.push(data.redirectUrl)
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
       setError(err.message || 'An error occurred')
       setLoading(false)
+      continuity.finish(request)
     }
   }
 
@@ -112,12 +126,13 @@ function ResetPasswordForm() {
                 />
               </FormField>
 
-              <FormField label="Reset Code" error={error || resend.error} required>
+              <FormField label="Reset Code" error={error || resend.error} reserveErrorSpace required>
                 <Input
                   type="text"
                   placeholder="A7Q2F"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  ref={resetCode.inputRef}
+                  onChange={resetCode.onChange}
                   required
                   disabled={loading || resend.pending}
                   maxLength={5}
@@ -125,6 +140,7 @@ function ResetPasswordForm() {
               </FormField>
 
               <Button
+                aria-busy={loading || undefined}
                 type="submit"
                 className="w-full mt-6"
                 disabled={loading || resend.pending || !email || code.length !== 5}
@@ -145,12 +161,12 @@ function ResetPasswordForm() {
               >
                 {resend.pending ? 'Sending…' : 'Resend reset code'}
               </Button>
-              <button
-                onClick={() => router.push('/login')}
-                className="text-sm text-text-muted hover:underline block w-full"
+              <Button
+                type="button" variant="ghost" size="sm" fullWidth
+                onClick={() => { continuity.retire(); router.push('/login') }}
               >
                 Back to login
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -182,7 +198,7 @@ function ResetPasswordForm() {
               />
             </FormField>
 
-            <FormField label="Confirm Password" error={error} required>
+            <FormField label="Confirm Password" error={error} reserveErrorSpace required>
               <Input
                 type="password"
                 placeholder="Re-enter your password"
@@ -201,6 +217,7 @@ function ResetPasswordForm() {
             </div>
 
             <Button
+              aria-busy={loading || undefined}
               type="submit"
               className="w-full mt-6"
               disabled={loading || !password || !passwordConfirmation}

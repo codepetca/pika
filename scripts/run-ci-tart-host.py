@@ -25,7 +25,7 @@ TEMPLATE = 'pika-ci-linux-template-prep'
 REPOSITORY = 'codepetca/pika'
 LEASE_PATH = pathlib.Path('/private/tmp/hq-books-deep-validation-host.lock')
 RECEIPTS = pathlib.Path('/Users/stew/.codex/artifacts/pika/ci-tart-host')
-ACTIVATION_ACK = 'PRIVATE_PIKA_ONE_JOB_RUNNER'
+ACTIVATION_ACK = 'PIKA_ONE_JOB_RUNNER'
 DOCKER_SOCKET = 'unix:///run/user/1002/docker.sock'
 CLIENT = '/home/runner/pika-actions-runner'
 GUEST_ENV = {
@@ -265,7 +265,6 @@ print(json.dumps({'runner_exit':runner.returncode,'assigned_job':None}))
 GUEST_COLLECT = GUEST_COMMON + r'''
 import base64, re, stat
 require(client.is_dir() and not client.is_symlink(),'client')
-secrets=[s.encode() for s in payload['redactions']]
 remaining=256*1024; files=[]
 groups=[(client,['pika-host-run.log'])]
 diag=client/'_diag'
@@ -278,7 +277,6 @@ for folder,names in groups:
     try:
         for name in names:
             if not remaining: break
-            require(not any(s.decode() in name for s in secrets),'credentials')
             try: fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=directory)
             except FileNotFoundError: continue
             with os.fdopen(fd,'rb') as stream:
@@ -287,7 +285,6 @@ for folder,names in groups:
                 size=min(64*1024,remaining,info.st_size)
                 stream.seek(max(0,info.st_size-size)); content=stream.read(size)
             remaining-=len(content)
-            for secret in secrets: content=content.replace(secret,b'[redacted]')
             files.append({'name':name,'data':base64.b64encode(content).decode()})
     finally: os.close(directory)
 print(json.dumps({'files':files}))
@@ -415,9 +412,11 @@ class Backend:
                             '/repos/' + REPOSITORY + path], secret=secret)
         return json.loads(raw) if raw.strip() else None
 
-    def private(self):
+    def repository_allowed(self):
         data = self.api('')
-        return data.get('full_name') == REPOSITORY and data.get('private') is True and data.get('visibility') == 'private'
+        return data.get('full_name') == REPOSITORY and (
+            (data.get('visibility') == 'public' and data.get('private') is False)
+            or (data.get('visibility') == 'private' and data.get('private') is True))
 
     def demand(self, hint):
         if not hint or not re.fullmatch(r'[1-9][0-9]*', str(hint)):
@@ -515,7 +514,7 @@ class Backend:
             raise
 
     def collect(self, vm):
-        data = json.loads(self.guest(vm, GUEST_COLLECT, {'redactions': self.redactions}, timeout=20))
+        data = json.loads(self.guest(vm, GUEST_COLLECT, timeout=20))
         files = data['files']
         if not isinstance(files, list) or len(files) > 9:
             raise Refusal('invalid-diagnostics')
@@ -606,8 +605,8 @@ class HostDriver:
                 raise Refusal('child-process-group-not-terminated')
         try:
             if mode == 'serve-one':
-                if not self.backend.private():
-                    raise Refusal('repository-not-private')
+                if not self.backend.repository_allowed():
+                    raise Refusal('repository-identity-refused')
                 if not self.backend.demand(run_id):
                     raise Refusal('no-eligible-queued-job')
             lease.acquire()
@@ -644,10 +643,10 @@ class HostDriver:
                 raise Refusal('unexpected-running-vm')
             if mode == 'serve-one':
                 result['stage'] = 'registration'
-                if not self.backend.private() or not self.backend.demand(run_id):
+                if not self.backend.repository_allowed() or not self.backend.demand(run_id):
                     raise Refusal('activation-recheck-refused')
                 token = self.backend.token()
-                if not self.backend.private():
+                if not self.backend.repository_allowed():
                     raise Refusal('activation-recheck-refused')
                 lease.assert_owned()
                 attempted_registration = True

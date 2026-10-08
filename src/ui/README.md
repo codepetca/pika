@@ -45,6 +45,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 ```
 
+### CircularProgress
+
+Use `CircularProgress` for circular loading indicators. It renders the Lucide
+`LoaderCircle` with no background, border tile, or muted track, inherits the
+owning surface's text color, and stops spinning for reduced motion. Set size
+and semantic color through `className`; the default is 16px.
+
+The indicator is decorative. Its owning control or status supplies the loading
+label and busy semantics. `Button`, `IconButton`, `PageState`, and the legacy
+`Spinner` wrapper all use this owner. Do not recreate a loading SVG or add a
+background around the indicator.
+
 ### IconButton
 
 Use `IconButton` for icon-only actions. Pass a Lucide `icon` and contextual `label`;
@@ -86,12 +98,15 @@ interface FormFieldProps {
   htmlFor?: string
   error?: string
   hint?: string
+  reserveErrorSpace?: boolean
   required?: boolean
   children: ReactElement  // Exactly one Input, Select, Textarea, etc.
 }
 ```
 
 `FormField` preserves a control-provided `id` unless an explicit `htmlFor` override is supplied, associates the label, propagates native `required` plus ARIA required/invalid state, and merges existing descriptions with hint and error ids. Hints remain available when an error is present. Pass exactly one form control as its child.
+
+`reserveErrorSpace` is an opt-in for forms whose inline request error must not move the controls during pending/retry. It reserves one text line plus the existing error gap. Longer errors grow naturally without clipping; an empty slot has no alert, placeholder text, error ID or invalid semantics. Hints remain independently visible. Default field behavior is unchanged.
 
 ### AlertDialog
 
@@ -185,6 +200,8 @@ wrappers:
   standard content rhythm. The default remains compact for compatibility while callers migrate.
 - `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
   sizes.
+  Pass `wrap` for a reading title that must expose its complete identity; the default stays truncated.
+  CourseGuideView is the scoped adopter, demonstrated in Pattern Lab Page actions.
   For intentional focus after in-page navigation, pass `headingRef` and `tabIndex={-1}`;
   callers own when focus moves, and default headings remain outside the Tab order.
 - Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.

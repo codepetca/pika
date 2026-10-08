@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import JoinClassroomPage from '@/app/join/[code]/page'
 import { invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 
@@ -45,6 +46,98 @@ describe('JoinClassroomPage', () => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     cleanup()
+  })
+
+
+  it('does not move focus during the initial pending request or response', async () => {
+    let resolve!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => { resolve = done })))
+    const outside = document.createElement('button')
+    outside.textContent = 'Another task'
+    document.body.append(outside)
+    outside.focus()
+    render(<JoinClassroomPage />)
+    expect(screen.getByRole('region', { name: 'Join this classroom' })).toHaveAttribute('aria-busy', 'true')
+    expect(outside).toHaveFocus()
+    await act(async () => resolve(jsonResponse({ code: 'enrollment_closed' }, false, 403)))
+    expect(outside).toHaveFocus()
+    expect(screen.getByRole('region', { name: 'Join this classroom' })).not.toHaveAttribute('aria-busy')
+    outside.remove()
+  })
+
+  it('keeps native retry focus in the same named region through pending, error and success', async () => {
+    const pending: Array<(response: Response) => void> = []
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => pending.push(done))))
+    const user = userEvent.setup()
+    render(<JoinClassroomPage />)
+    await act(async () => pending.shift()!(jsonResponse({ code: 'enrollment_closed' }, false, 403)))
+    const region = screen.getByRole('region', { name: 'Join this classroom' })
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(region).toHaveFocus()
+    expect(region).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
+    await act(async () => pending.shift()!(jsonResponse({ code: 'enrollment_closed' }, false, 403)))
+    expect(region).toHaveFocus()
+    expect(region).not.toHaveAttribute('aria-busy')
+    await user.tab()
+    await user.keyboard('{Enter}')
+    expect(region).toHaveFocus()
+    await act(async () => pending.shift()!(jsonResponse({ classroom: { id: 'classroom-1', title: 'Biology' } })))
+    expect(screen.getByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Join this classroom' })).toBe(region)
+    expect(region).toHaveFocus()
+  })
+
+  it('does not reclaim deliberate focus movement after retry or unmount', async () => {
+    const pending: Array<(response: Response) => void> = []
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => pending.push(done))))
+    const outside = document.createElement('button')
+    outside.textContent = 'Another task'
+    document.body.append(outside)
+    const { unmount } = render(<JoinClassroomPage />)
+    await act(async () => pending.shift()!(jsonResponse({ code: 'enrollment_closed' }, false, 403)))
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(screen.getByRole('region', { name: 'Join this classroom' })).toHaveFocus()
+    outside.focus()
+    await act(async () => pending.shift()!(jsonResponse({ code: 'enrollment_closed' }, false, 403)))
+    expect(outside).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    unmount()
+    outside.focus()
+    await act(async () => pending.shift()!(jsonResponse({ classroom: { id: 'classroom-1', title: 'Biology' } })))
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+
+  it('exposes profile busy state and preserves input nodes, draft and caret after a failed submission', async () => {
+    navigation.profileRequired = true
+    let resolve!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => { resolve = done })))
+    render(<JoinClassroomPage />)
+    const first = screen.getByLabelText('First name')
+    const last = screen.getByLabelText('Last name')
+    const number = screen.getByLabelText('Student number or lab ID (optional)') as HTMLInputElement
+    fireEvent.change(first, { target: { value: 'Ada' } })
+    fireEvent.change(last, { target: { value: 'Lovelace' } })
+    fireEvent.change(number, { target: { value: 'S-123' } })
+    number.setSelectionRange(2, 2)
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+    expect(screen.getByRole('button', { name: 'Joining…' })).toHaveAttribute('aria-busy', 'true')
+    expect(first).toBeDisabled()
+    expect(screen.getByRole('region', { name: 'Join this classroom' })).toHaveAttribute('aria-busy', 'true')
+    await act(async () => resolve(jsonResponse({ code: 'rate_limited', retryAfterSeconds: 30 }, false, 429)))
+    expect(screen.getByLabelText('First name')).toBe(first)
+    expect(screen.getByLabelText('Last name')).toBe(last)
+    expect(screen.getByLabelText('Student number or lab ID (optional)')).toBe(number)
+    expect(first).toHaveValue('Ada')
+    expect(last).toHaveValue('Lovelace')
+    expect(number).toHaveValue('S-123')
+    expect(number.selectionStart).toBe(2)
+    expect(number.selectionEnd).toBe(2)
+    expect(screen.getByRole('button', { name: 'Join classroom' })).not.toHaveAttribute('aria-busy')
+    expect(screen.getByRole('region', { name: 'Join this classroom' })).not.toHaveAttribute('aria-busy')
   })
 
   it('invalidates student classroom caches after joining by link', async () => {

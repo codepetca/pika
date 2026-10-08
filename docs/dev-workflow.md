@@ -297,8 +297,8 @@ CI classifies changes conservatively:
   exact `main` SHA.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
-Heavy jobs support an opt-in private Linux runner while classification and
-`PR Gate` stay hosted. Setup, isolation, local full-CI commands and the hosted
+Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
+while classification and `PR Gate` stay hosted. Setup, isolation, local full-CI commands and the hosted
 fallback are defined in [self-hosted CI](./guidance/self-hosted-ci.md). A manual
 dispatch is diagnostic evidence, not a substitute for PR-required ruleset checks;
 use the documented draft-to-ready fallback for an unavailable runner.

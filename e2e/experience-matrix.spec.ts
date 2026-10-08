@@ -1,3 +1,12 @@
+import { verifySignupOwnerContinuity } from './helpers/signup-owner-continuity'
+import { verifyLoginRecoveryContinuity } from './helpers/login-recovery-continuity'
+import { verifyJoinRetryContinuity } from './helpers/join-retry-continuity'
+import { verifyPasswordResetContinuity, verifyLoginSignupTarget } from './helpers/password-reset-continuity'
+import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
+import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
+import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
+import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
+import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
   expect,
   test,
@@ -12,6 +21,9 @@ import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
 import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
 import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
+import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
+import { verifyGradebookRetryFocus } from './helpers/gradebook-retry-focus'
+import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -54,6 +66,69 @@ const rolloverBlueprint = {
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
 
+test.describe('Signup owner continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves full client signup owner recovery ${motion}`, async ({ page }, info) => {
+      await verifySignupOwnerContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Login recovery continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves classic Login ownership and Signup footer target ${motion}`, async ({ page }, info) => {
+      await verifyLoginRecoveryContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Join retry continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains native retry focus and truthful busy states ${motion}`, async ({ page }, testInfo) => {
+      await applyProjectTheme(page, testInfo)
+      await verifyJoinRetryContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Password reset continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves reset request ownership and recovery ${motion}`, async ({ page }, testInfo) => {
+      await verifyPasswordResetContinuity(page, testInfo, motion)
+    })
+    test(`keeps Sign up navigation comfortably focusable ${motion}`, async ({ page }, testInfo) => {
+      await verifyLoginSignupTarget(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Public course section targets', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves native section navigation with comfortable targets ${motion}`, async ({ page }, testInfo) => {
+      await verifyPublicCourseSectionTargets(page, testInfo, motion)
+    })
+  }
+})
+
+test.describe('Calendar day interaction', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const role of ['teacher', 'student'] as const) {
+    for (const motion of ['no-preference', 'reduce'] as const) {
+      test.describe(`${role} ${motion}`, () => {
+        test.use({ contextOptions: { reducedMotion: motion } })
+        test('reads and dismisses the real Calendar day dialog', async ({ page }, testInfo) => {
+          await verifyCalendarDayInteraction(page, testInfo, role, motion)
+        })
+      })
+    }
+  }
+})
+
 test.describe('Assignment editor retirement', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
   for (const motion of ['no-preference', 'reduce'] as const) {
@@ -64,6 +139,32 @@ test.describe('Assignment editor retirement', () => {
       })
       test('retires nested controls and closes after the parent publishes Post', async ({ page }, testInfo) => {
         await verifyAssignmentEditorControls(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('Gradebook retry focus', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('keeps explicit retry focus in the visible Gradebook workspace', async ({ page }, testInfo) => {
+        await verifyGradebookRetryFocus(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('student Grades continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('preserves native reactivation and recovery', async ({ page }, testInfo) => {
+        test.setTimeout(150_000)
+        await applyProjectTheme(page, testInfo)
+        await verifyStudentGradesContinuity(page, testInfo)
       })
     })
   }
@@ -2039,7 +2140,7 @@ test('shows the History join retry delay in empty and enrolled states', async ({
 
 test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
-  let state: 'open' | 'closed' | 'revoked' | 'not_joined' | 'not_on_roster' | 'ambiguous' | 'error' = 'open'
+  let state: 'open' | 'duplicate' | 'closed' | 'revoked' | 'not_joined' | 'not_on_roster' | 'ambiguous' | 'error' = 'open'
   await page.route('**/api/student/attendance/classroom-check-in', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const bodies = {
@@ -2047,8 +2148,16 @@ test('resolves permanent classroom attendance QR states after student authentica
         state: 'checked_in', title: 'You are checked in', description: 'Your attendance was recorded.',
         attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classroomName: 'PPZ3C — Health for Life',
         studentId: '40000000-0000-4000-8000-000000000001',
         occurrenceBinding: 'a'.repeat(32),
+      },
+      duplicate: {
+        state: 'already_checked_in', title: 'You are already checked in',
+        description: 'No additional attendance record was created.',
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classroomName: 'PPZ3C — Health for Life',
+        recordedAt: '2026-08-29T13:05:00.000Z',
       },
       closed: {
         state: 'closed', title: 'Attendance is not open',
@@ -2082,6 +2191,28 @@ test('resolves permanent classroom attendance QR states after student authentica
   await expect(page.getByRole('heading', { name: 'Checking you in…' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'You are checked in' })).toBeVisible()
 
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('Your attendance was recorded.', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
+  await expect(page.locator('time')).toHaveAttribute('datetime', '2026-08-29T13:05:00.000Z')
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-success.png`),
+    animations: 'disabled',
+  })
+
+  state = 'duplicate'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'You are already checked in' })).toBeVisible()
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('No additional attendance record was created.', { exact: true })).toHaveCount(0)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-duplicate.png`),
+    animations: 'disabled',
+  })
+
   state = 'closed'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
@@ -2109,7 +2240,15 @@ test('resolves permanent classroom attendance QR states after student authentica
 
   state = 'error'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: 'We could not confirm check-in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Not checked-in' })).toBeVisible()
+  await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
+  await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/It is safe to retry/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-failure.png`),
+    animations: 'disabled',
+  })
   await verifyProjectContract(page, testInfo)
 })
 
@@ -4000,4 +4139,49 @@ test('retains teacher Classwork student editor and table through background refr
   expect(detailReads).toBe(newDetailReads)
   await capture('navigation-assignment-recovered')
   await verifyProjectContract(page, testInfo)
+})
+
+
+test.describe('Announcement mutation feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retains drafts and requires explicit mutation recovery', async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await verifyAnnouncementMutationFeedback(page, testInfo)
+      })
+    })
+  }
+})
+
+
+test.describe('Course Guide refresh continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  test.beforeEach(async ({ page }, testInfo) => { await applyProjectTheme(page, testInfo) })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains current guide work with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyCourseGuideContinuity(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Teacher settings clipboard feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`clipboard feedback ${motion} preserves the committed settings owner`, async ({ page }, testInfo) => {
+      await verifySettingsCopyFeedback(page, testInfo, motion)
+    })
+  }
+})
+
+
+test.describe('Student attendance return navigation', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains canonical return targets with ${motion} motion`, async ({ page }, testInfo) => {
+      await verifyAttendanceReturnLink(page, testInfo, motion)
+    })
+  }
 })

@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
+import { getServiceRoleClient } from '@/lib/supabase'
+import { loadStudentAttendanceEntryClassroomName } from '@/lib/server/student-attendance-entry-context'
 import { StudentAttendanceCheckIn } from './StudentAttendanceCheckIn'
 
 export const dynamic = 'force-dynamic'
@@ -15,5 +17,8 @@ export default async function AttendanceCheckInPage({ params }: PageProps) {
   const user = await getCurrentUser()
   if (!user) redirect(`/login?next=${encodeURIComponent(entryPath)}`)
 
-  return <StudentAttendanceCheckIn entryToken={token} canCheckIn={user.role === 'student'} />
+  const classroomName = user.role === 'student'
+    ? await loadStudentAttendanceEntryClassroomName({ supabase: getServiceRoleClient(), pikaUser: user, entryToken: token })
+    : undefined
+  return <StudentAttendanceCheckIn entryToken={token} canCheckIn={user.role === 'student'} classroomName={classroomName} />
 }

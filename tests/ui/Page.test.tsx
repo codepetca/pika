@@ -72,6 +72,16 @@ describe('Page primitives', () => {
     )
   })
 
+  it('preserves default truncation and opts reading headings into natural wrapping', () => {
+    const title = 'Environmental science and community inquiry — distinctive course identity'
+    const { rerender } = render(<PageHeading title={title} />)
+    expect(screen.getByRole('heading', { level: 1, name: title })).toHaveClass('truncate')
+    rerender(<PageHeading title={title} wrap />)
+    const heading = screen.getByRole('heading', { level: 1, name: title })
+    expect(heading).not.toHaveClass('truncate')
+    expect(heading).toHaveClass('whitespace-normal', 'text-2xl', 'leading-8')
+  })
+
   it('keeps the title and overflow action in one stable row', () => {
     render(
       <PageActionBar

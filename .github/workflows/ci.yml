@@ -49,7 +49,6 @@ jobs:
         id: runner
         env:
           CI_EVENT: ${{ github.event_name }}
-          CI_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
           CI_REPOSITORY: ${{ github.repository }}
           CI_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           CI_SELF_HOSTED_ENABLED: ${{ vars.PIKA_SELF_HOSTED_CI }}
@@ -168,6 +167,9 @@ jobs:
           bash scripts/check-subscription-lifecycle-database.sh
           bash scripts/check-subscription-renewal-closeout-database.sh
           bash scripts/check-subscription-prorated-upgrades-database.sh
+
+      - name: Verify dormant classroom Test quotas and retained-work protection
+        run: bash scripts/check-classroom-test-tier-caps-database.sh
 
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Spinner } from '@/components/Spinner'
 import { AppHeader } from '@/components/AppHeader'
 import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -8,6 +9,7 @@ import {
   AlertDialog,
   Button,
   Card,
+  CircularProgress,
   ContentDialog,
   ConfirmDialog,
   QrCode,
@@ -384,6 +386,14 @@ export function UiGallery({ role }: Props) {
                   />
                 </PageLayout>
                 <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.{role === 'student' ? ' Student density adds space above the controls.' : null}</p>
+                <div data-testid="wrapping-course-heading-example" className="mt-4">
+                  <PageHeading
+                    title="Environmental science and community inquiry through evidence, reflection and practical investigation — distinctive course identity"
+                    level="h2"
+                    wrap
+                  />
+                  <p className="mt-1 text-xs text-text-muted">Course Guide opts into wrapping through PageHeading; other page headings retain truncation.</p>
+                </div>
               </Card>
             </div>
             <div className="[&>section]:scroll-mt-28">
@@ -415,6 +425,21 @@ export function UiGallery({ role }: Props) {
               </div>
             </Card>
 
+            <div id="circular-progress" data-testid="circular-progress-example">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Circular progress" owner="src/ui/CircularProgress.tsx" />
+                <p className="mt-2 text-sm text-text-muted">One circular loader with no background or track. Its status or control supplies the accessible label; reduced motion keeps it static.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-6">
+                  <Spinner size="sm" />
+                  <Spinner size="md" />
+                  <Spinner size="lg" />
+                  <Button size="sm" loading>Creating class</Button>
+                  <IconButton icon={Plus} label="Creating classroom" loading />
+                </div>
+                <PageState compact kind="loading" title="Loading classroom" />
+              </Card>
+            </div>
+
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Card tone="panel" padding="md">
                 <PatternHeading title="Form fields" owner="src/ui/FormField.tsx" />
@@ -431,6 +456,12 @@ export function UiGallery({ role }: Props) {
                         { value: 'semester-2', label: 'Semester 2' },
                       ]}
                     />
+                  </FormField>
+                  <FormField label="Reserved error space" reserveErrorSpace>
+                    <Input defaultValue="Ready to retry" />
+                  </FormField>
+                  <FormField label="Reserved error with hint" reserveErrorSpace hint="The hint remains visible during recovery." error="Request failed. Please try again.">
+                    <Input defaultValue="Keep this draft" />
                   </FormField>
                   <FormField label="Archived field">
                     <Input defaultValue="Unavailable in this state" disabled />
@@ -909,8 +940,8 @@ function StatusExample({ status }: { status: StatusCatalogEntry }) {
   return (
     <Card tone="panel" padding="md">
       <div className="flex items-start gap-3">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-control border', STATUS_TONE_CLASSES[status.tone])}>
-          <Icon className={cn('h-5 w-5', status.icon === 'loader' && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center', status.icon === 'loader' ? 'text-primary' : cn('rounded-control border', STATUS_TONE_CLASSES[status.tone]))}>
+          {status.icon === 'loader' ? <CircularProgress className="h-5 w-5" /> : <Icon className="h-5 w-5" aria-hidden="true" />}
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">

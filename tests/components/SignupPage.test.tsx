@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, cleanup } from '@testing-library/react'
+import { AppMessageProvider, AppMessageFallback } from '@/ui'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   enabled: vi.fn(),
@@ -22,11 +24,20 @@ vi.mock('@/app/signup/SignupClient', () => ({
 
 import SignupPage from '@/app/signup/page'
 
+afterEach(cleanup)
+
 describe('SignupPage pending challenge continuation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.enabled.mockReturnValue(true)
     mocks.hasPending.mockResolvedValue(false)
+  })
+
+  it('uses existing visible loading status while Signup suspends', async () => {
+    const page = await SignupPage({ searchParams: Promise.resolve({}) })
+    expect(page.props.fallback.type).toBe(AppMessageFallback)
+    render(<AppMessageProvider>{page.props.fallback}</AppMessageProvider>)
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading')
   })
 
   it('resumes only a signup challenge bound to the scanned attendance path', async () => {
