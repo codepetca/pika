@@ -149,7 +149,7 @@ function caseProbe(f: TestOwnerPristineDiscardFixture, c: TestOwnerPristineDisca
 // Immutable migration253 body receipt: review and refresh only with its source.
 function quota253CatalogSql() {
   return `declare quota_proc pg_catalog.pg_proc;settings_table pg_catalog.pg_class;begin
- select p.* into quota_proc from pg_catalog.pg_proc p where p.oid='private.enforce_classroom_test_quota_v1()'::regprocedure;
+ select quota_catalog_proc.* into quota_proc from pg_catalog.pg_proc quota_catalog_proc where quota_catalog_proc.oid='private.enforce_classroom_test_quota_v1()'::regprocedure;
  select c.* into settings_table from pg_catalog.pg_class c where c.oid='private.classroom_test_quota_settings'::regclass;
  if quota_proc.proowner::regrole::text<>'postgres' or not quota_proc.prosecdef
  or quota_proc.prorettype::regtype::text<>'trigger' or quota_proc.provolatile<>'v'
