@@ -2,27 +2,31 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { selectCiRunner } from '../../scripts/ci-runner-policy.mjs'
 
-const privatePr = { event: 'pull_request', privateRepository: 'true', headRepository: 'codepetca/pika', repository: 'codepetca/pika' }
+const sameRepositoryPr = { event: 'pull_request', privateRepository: 'true', headRepository: 'codepetca/pika', repository: 'codepetca/pika' }
 
 describe('CI compute routing', () => {
   it('keeps hosted compute until explicitly enabled', () => {
-    expect(selectCiRunner(privatePr)).toEqual(['ubuntu-latest'])
-    expect(selectCiRunner({ ...privatePr, enabled: 'true' })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
+    expect(selectCiRunner(sameRepositoryPr)).toEqual(['ubuntu-latest'])
+    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true' })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
   })
-  it('never automatically routes public or fork code to the private runner', () => {
-    expect(selectCiRunner({ ...privatePr, enabled: 'true', privateRepository: 'false' })).toEqual(['ubuntu-latest'])
-    expect(selectCiRunner({ ...privatePr, enabled: 'true', headRepository: 'someone/pika' })).toEqual(['ubuntu-latest'])
-    expect(selectCiRunner({ ...privatePr, enabled: 'true', headRepository: '' })).toEqual(['ubuntu-latest'])
+  it.each(['true', 'false'])('routes enabled same-repository PRs regardless of visibility (%s)', privateRepository => {
+    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', privateRepository })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
+  })
+  it('keeps fork and missing-source PRs hosted', () => {
+    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', headRepository: 'someone/pika' })).toEqual(['ubuntu-latest'])
+    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', headRepository: '' })).toEqual(['ubuntu-latest'])
   })
   it('supports an explicit hosted diagnostic despite the enabled default', () => {
-    expect(selectCiRunner({ ...privatePr, event: 'workflow_dispatch', enabled: 'true', requested: 'hosted' })).toEqual(['ubuntu-latest'])
+    expect(selectCiRunner({ ...sameRepositoryPr, event: 'workflow_dispatch', enabled: 'true', requested: 'hosted' })).toEqual(['ubuntu-latest'])
   })
-  it('allows explicit private dispatch and rejects unsafe or malformed routing', () => {
-    expect(selectCiRunner({ ...privatePr, event: 'workflow_dispatch', requested: 'self-hosted' })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
-    expect(() => selectCiRunner({ ...privatePr, event: 'workflow_dispatch', requested: 'self-hosted', privateRepository: 'false' })).toThrow(/private/)
-    expect(() => selectCiRunner({ ...privatePr, requested: 'anything' })).toThrow(/runner/)
-    expect(() => selectCiRunner({ ...privatePr, enabled: 'TRUE' })).toThrow(/PIKA_SELF_HOSTED_CI/)
-    expect(() => selectCiRunner({ ...privatePr, event: 'push' })).toThrow(/event/)
+  it('allows explicit dispatch and rejects unsafe or malformed routing', () => {
+    expect(selectCiRunner({ ...sameRepositoryPr, event: 'workflow_dispatch', requested: 'self-hosted' })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
+    expect(selectCiRunner({ ...sameRepositoryPr, event: 'workflow_dispatch', requested: 'self-hosted', privateRepository: 'false', headRepository: '' })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
+    expect(() => selectCiRunner({ ...sameRepositoryPr, requested: 'self-hosted', headRepository: 'someone/pika' })).toThrow(/same-repository/)
+    expect(() => selectCiRunner({ ...sameRepositoryPr, requested: 'self-hosted', repository: '' })).toThrow(/repository/)
+    expect(() => selectCiRunner({ ...sameRepositoryPr, requested: 'anything' })).toThrow(/runner/)
+    expect(() => selectCiRunner({ ...sameRepositoryPr, enabled: 'TRUE' })).toThrow(/PIKA_SELF_HOSTED_CI/)
+    expect(() => selectCiRunner({ ...sameRepositoryPr, event: 'push' })).toThrow(/event/)
   })
 
   it('changes only heavy-job compute and keeps refusal from triggering database cleanup', () => {
@@ -43,7 +47,7 @@ describe('CI compute routing', () => {
       }
     }
     expect(workflow).toContain('permissions:\n  contents: read')
-    expect(workflow).toContain('CI_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}')
+    expect(workflow).not.toContain('CI_REPOSITORY_PRIVATE:')
     expect(workflow).toContain('CI_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}')
   })
 })
