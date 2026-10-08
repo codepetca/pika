@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
 import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 
 export default function ForgotPasswordPage() {
@@ -21,13 +22,13 @@ export default function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
+      const response = await fetchAuthSubmit('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send reset code')

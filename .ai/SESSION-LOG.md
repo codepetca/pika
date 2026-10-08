@@ -226,3 +226,9 @@ Rebase onto actual main d826a01a3; all product/tests merged without conflict. Ar
 
 Owner explicitly requested PR1533 main merge in production-drift chat. Original attendance coordinator stopped with systemError after finishing local verification; this task takes over only final integration/merge. CI37777785707 passed all five checks on reviewed4bb62bb56 (queue0s/run4244s), but main advanced via unrelated public-reading #1535 to b778a6851 during CI. PR returned to draft before clean seven-commit rebase; no source conflicts.
 All17 owned product/test/e2e paths are byte-identical to independent-reviewed4bb62bb56. Incoming Course Guide/planned reading and opt-in PageHeading.wrap do not intersect attendance routes; attendance uses unchanged Card/Button/Spinner/auth/server dependencies, and root layout/UI barrel/runtime config are unchanged. Reuse complete independent coverage rather than launching a redundant review: existing6turns, initialwave1/targetedwaves3/finalintegration1,1accepted/fixedP2,1remediation batch; no new finding, code change, review wave or coverage gap. Rebased focused checks and exact-new-head CI remain merge gates; retain earlier native/visual evidence for unchanged attendance source. Fresh task weekly68% at entry, attributable active/tokens unknown; prior CI and coordination waits are not active-development estimates. No production promotion or migration authority.
+## 2026-10-08 — Classic auth submit failure copy
+
+- Narrow boundary helper for seven classic anonymous auth submit stages; valid
+  server messages, success and continuity ownership preserved. WorkOS/resend excluded.
+- Targeted tests 68/68; TDD red log retained. Native/check evidence owned by the
+  coordinator in product-fluidity/auth-error-copy; independent review and PR pending.

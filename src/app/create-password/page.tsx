@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
 import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 import { navigateTo } from '@/lib/client-navigation'
 import { getSafeInternalPath } from '@/lib/navigation-safety'
@@ -44,13 +45,13 @@ function CreatePasswordForm() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/create-password', {
+      const response = await fetchAuthSubmit('/api/auth/create-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, passwordConfirmation, handoffToken }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
       if (!continuity.isCurrent(request)) return
 
       if (!response.ok) {
