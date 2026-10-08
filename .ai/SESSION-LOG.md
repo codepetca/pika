@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Achievements local render recovery
-
-Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
-
-Evidence: genuine missing-retry RED2; affected GREEN24/3 and fixture gate6 PASS; native actual-owner desktop/mobile light/dark normal/reduced8 PASS plus default-fixture compatibility8 PASS. Screenshots inspected against Pattern Lab PageState and healthy roadmap. Window scroll retained; fixture has no inherited internal auto/scroll owner. Synthetic intercepted traffic; no authenticated provider/hardware claim. Evidence retained in coordinator product-fluidity/achievements-render-recovery. This slice does not complete the Grades/Achievements family. Full focused/static/audit and draft-first frozen review/CI/main landing follow; provider/package/gates and production promotion unchanged.
-
 ## 2026-10-07 — Student experience delivery consolidation
 
 Combine reviewed Grades5508 and Achievementsf10 in PR1522. Preserve exact runtime, tests, fixtures and helpers from both candidates and both independent review records. Append the Achievements own entry without replacing Grades history. Final predecessor-base integration review and exact-head CI remain pending. PR1523 will be superseded only after its eight non-history paths are published in1522.
@@ -255,3 +249,7 @@ Accepted native owner audit reproduced stale Signup held/timer navigation, Creat
 ## 2026-10-08 — Dashboard recovery refinement
 
 Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
+
+## 2026-10-08 — CI proof scan optimization pilot
+
+User authorized planning/orchestration. Base d826a01a3; dedicated codex/ci-proof-setup-optimization. Plan: docs/plans/ci-proof-setup-optimization.md. Opted Test owner-detail/list repeated safety checks into metadata snapshots; retained all fresh modes, canonical/restoration full snapshots and exact receipts. Added sanitized private operation timings and extended measure:ci jobs/steps/SHA/failure/cancelled runner evidence. No schema/app/rollout change or local DB operation. Native validation delegated to disposable CI because shared host is active. Worker Sol/high design+safety, one implementation; effective config/tokens/active time unknown. Weekly69% remaining at phase start; DeepSeek paused. Frozen-lockfile install fixed missing dependencies; startup PASS. Targeted124 PASS; workflow/metrics/localCI52 PASS; full focused1007 PASS + architecture/UI/design/tsc/lint. Audit PASS. Independent fixed-SHA review and required CI pending; no speedup or phase completion claimed.

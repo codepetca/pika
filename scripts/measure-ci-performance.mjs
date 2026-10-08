@@ -77,6 +77,73 @@ export function summarizeCiRuns(runs) {
     successfulWallSeconds: summarize(wallSeconds),
     successfulRunsWithoutPrGateEvidence: successful.length - successfulWithGate.length,
     prGateByMode: perMode,
+    ...summarizeJobEvidence(completed),
+  }
+}
+
+function measuredSeconds(start, end) {
+  const first = Date.parse(start)
+  const last = Date.parse(end)
+  return Number.isFinite(first) && Number.isFinite(last) && last >= first
+    ? (last - first) / 1000 : null
+}
+
+// Job elapsed time includes setup and teardown. Summing it measures runner
+// consumption; overlapping jobs must never be summed as workflow wall time.
+export function summarizeJobEvidence(runs) {
+  const jobs = new Map()
+  const steps = new Map()
+  const evidence = []
+  let cancelledJobSeconds = 0
+  let missingJobDurations = 0
+  const collect = (groups, identity, seconds) => {
+    const key = JSON.stringify(identity)
+    const group = groups.get(key) ?? { ...identity, durations: [] }
+    group.durations.push(seconds)
+    groups.set(key, group)
+  }
+  for (const run of runs) {
+    if (!Array.isArray(run.jobs)) continue
+    const mode = run.prGate?.mode ?? 'unknown'
+    const failedSteps = []
+    let runnerSeconds = 0
+    let timedJobs = 0
+    for (const job of run.jobs) {
+      if (job.conclusion === 'skipped') continue
+      const runner = job.labels?.includes('self-hosted') ? 'self-hosted'
+        : job.labels?.some(label => label.startsWith('ubuntu-')) ? 'hosted' : 'unknown'
+      const identity = { mode, job: job.name, runner }
+      const seconds = measuredSeconds(job.started_at, job.completed_at)
+      if (seconds === null) missingJobDurations++
+      else {
+        runnerSeconds += seconds
+        timedJobs++
+        if (run.conclusion === 'success' && job.conclusion === 'success') collect(jobs, identity, seconds)
+      }
+      for (const step of job.steps ?? []) {
+        if (step.conclusion === 'skipped') continue
+        const elapsed = measuredSeconds(step.started_at, step.completed_at)
+        if (run.conclusion === 'success' && step.conclusion === 'success' && elapsed !== null) {
+          collect(steps, { ...identity, step: step.name }, elapsed)
+        }
+        if (step.conclusion === 'failure') failedSteps.push({ job: job.name, step: step.name,
+          timeToFailureSeconds: measuredSeconds(run.createdAt, step.completed_at) })
+      }
+    }
+    if (run.conclusion === 'cancelled') cancelledJobSeconds += runnerSeconds
+    evidence.push({ runId: run.databaseId ?? null, headSha: run.headSha ?? null,
+      mode, conclusion: run.conclusion, timedJobs, runnerSeconds, failedSteps })
+  }
+  const finish = groups => [...groups.values()].map(({ durations, ...identity }) => ({
+    ...identity, sampleSize: durations.length, seconds: summarize(durations),
+  })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+  return {
+    runsWithoutJobEvidence: runs.filter(run => !Array.isArray(run.jobs)).length,
+    missingJobDurations,
+    cancelledJobSeconds,
+    successfulJobTimings: finish(jobs),
+    successfulStepTimings: finish(steps),
+    runEvidence: evidence,
   }
 }
 
@@ -96,19 +163,21 @@ function parseArguments(argv) {
   return args
 }
 
-function loadPrGateEvidence(runId, repo) {
+function loadJobs(runId, repo) {
   try {
-    const rawJobs = execFileSync('gh', [
-      'run',
-      'view',
-      String(runId),
-      '--repo',
-      repo,
-      '--json',
-      'jobs',
-    ], { encoding: 'utf8' })
-    const gate = JSON.parse(rawJobs).jobs?.find((job) => job.name === 'PR Gate')
-    if (!gate?.databaseId || !gate.startedAt || !gate.completedAt) return null
+    const pages = JSON.parse(execFileSync('gh', [
+      'api', `repos/${repo}/actions/runs/${runId}/jobs?filter=latest&per_page=100`,
+      '--paginate', '--slurp',
+    ], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }))
+    if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page.jobs))) return null
+    return pages.flatMap(page => page.jobs)
+  } catch { return null }
+}
+
+function loadPrGateEvidence(runId, repo, jobs) {
+  try {
+    const gate = jobs?.find((job) => job.name === 'PR Gate')
+    if (!gate?.id || !gate.started_at || !gate.completed_at) return null
 
     const log = execFileSync('gh', [
       'run',
@@ -117,15 +186,15 @@ function loadPrGateEvidence(runId, repo) {
       '--repo',
       repo,
       '--job',
-      String(gate.databaseId),
+      String(gate.id),
       '--log',
     ], { encoding: 'utf8' })
     const mode = log.match(/CI mode:\s*([a-z-]+)/)?.[1] ?? null
     if (!mode) return null
     return {
       mode,
-      startedAt: gate.startedAt,
-      completedAt: gate.completedAt,
+      startedAt: gate.started_at,
+      completedAt: gate.completed_at,
     }
   } catch {
     return null
@@ -146,14 +215,14 @@ if (invokedPath === import.meta.url) {
       '--limit',
       String(args.limit),
       '--json',
-      'databaseId,status,conclusion,createdAt,startedAt,updatedAt,url',
+      'databaseId,status,conclusion,createdAt,startedAt,updatedAt,url,headSha',
     ], { encoding: 'utf8' })
-    const runs = JSON.parse(raw).map((run) => ({
-      ...run,
-      prGate: run.status === 'completed' && run.conclusion === 'success'
-        ? loadPrGateEvidence(run.databaseId, args.repo)
-        : null,
-    }))
+    const runs = JSON.parse(raw).map((run) => {
+      const jobs = run.status === 'completed' ? loadJobs(run.databaseId, args.repo) : null
+      return { ...run, jobs,
+        prGate: run.status === 'completed' && run.conclusion === 'success'
+          ? loadPrGateEvidence(run.databaseId, args.repo, jobs) : null }
+    })
     console.log(JSON.stringify(summarizeCiRuns(runs), null, 2))
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))

@@ -73,4 +73,42 @@ describe('CI performance measurement', () => {
       prGateByMode: {},
     })
   })
+
+  it('separates overlapping runner consumption from workflow time and binds evidence to SHA', () => {
+    const job = (name: string, seconds: number) => ({ name, conclusion: 'success', labels: ['ubuntu-latest'],
+      started_at: '2026-10-08T12:00:00Z', completed_at: `2026-10-08T12:${String(seconds / 60).padStart(2, '0')}:00Z`,
+      steps: [{ name: 'Start ephemeral Supabase and replay migrations', conclusion: 'success',
+        started_at: '2026-10-08T12:00:00Z', completed_at: '2026-10-08T12:01:00Z' }] })
+    const summary = summarizeCiRuns([{ databaseId: 7, headSha: 'abc', status: 'completed', conclusion: 'success',
+      createdAt: '2026-10-08T12:00:00Z', startedAt: '2026-10-08T12:00:00Z', updatedAt: '2026-10-08T12:10:00Z',
+      prGate: { mode: 'full', startedAt: '2026-10-08T12:09:00Z', completedAt: '2026-10-08T12:10:00Z' },
+      jobs: [job('Database', 600), job('Browser', 480)] }])
+    expect(summary.successfulWallSeconds.p50).toBe(600)
+    expect(summary.runEvidence).toEqual([{ runId: 7, headSha: 'abc', mode: 'full', conclusion: 'success',
+      timedJobs: 2, runnerSeconds: 1080, failedSteps: [] }])
+    expect(summary.successfulJobTimings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ mode: 'full', job: 'Database', runner: 'hosted', sampleSize: 1, seconds: expect.objectContaining({ p50: 600 }) }),
+    ]))
+    expect(summary.successfulStepTimings[0].seconds.p50).toBe(60)
+  })
+
+  it('counts cancelled runner time, preserves failure signals, and reports unavailable timing', () => {
+    const common = { status: 'completed', createdAt: '2026-10-08T12:00:00Z',
+      startedAt: '2026-10-08T12:00:00Z', updatedAt: '2026-10-08T12:05:00Z' }
+    const summary = summarizeCiRuns([
+      { ...common, conclusion: 'cancelled', jobs: [
+        { name: 'Database', conclusion: 'cancelled', started_at: common.startedAt, completed_at: common.updatedAt },
+        { name: 'Browser', conclusion: 'cancelled', started_at: 'invalid', completed_at: common.updatedAt },
+        { name: 'Skipped', conclusion: 'skipped' },
+      ] },
+      { ...common, conclusion: 'failure', jobs: [{ name: 'Database', conclusion: 'failure',
+        started_at: common.startedAt, completed_at: common.updatedAt,
+        steps: [{ name: 'Proof', conclusion: 'failure', completed_at: common.updatedAt }] }] },
+      { ...common, conclusion: 'success', jobs: null },
+    ])
+    expect(summary).toMatchObject({ cancelledJobSeconds: 300, missingJobDurations: 1,
+      runsWithoutJobEvidence: 1, successfulJobTimings: [], successfulStepTimings: [] })
+    expect(summary.runEvidence[1]).toMatchObject({ mode: 'unknown', headSha: null,
+      failedSteps: [{ job: 'Database', step: 'Proof', timeToFailureSeconds: 300 }] })
+  })
 })

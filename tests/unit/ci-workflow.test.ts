@@ -6,6 +6,24 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('keeps all fresh Test pilot modes and failure receipts while collecting only sanitized timings', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    for (const profile of ['detail', 'list']) {
+      const step = workflow.split(`      - name: Verify isolated contextual Test owner-${profile} SDK reads`)[1]?.split('      - name:')[0]
+      expect(step).toContain(`--mode normal --timings-path "$proof_timings_dir/test-owner-${profile}-normal.json"`)
+      expect(step).toContain(`for test_owner_${profile}_mode in after-fixture before-capture; do`)
+      expect(step).toContain(`--mode "$test_owner_${profile}_mode" --timings-path`)
+      expect(step).toContain(`[[ "$test_owner_${profile}_status" -eq 1 ]] || exit 1`)
+      expect(step).toContain(`wc -l < "$test_owner_${profile}_log"`)
+      expect(step).toContain('" -eq 2 ]] || exit 1')
+      expect(step).toContain(`PASS isolated test-owner-${profile} exact teardown and unchanged canonical baseline.`)
+      expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    }
+    const upload = workflow.split('      - name: Upload sanitized Test proof timings')[1]?.split('\n  test-and-build:')[0]
+    expect(upload).toContain('if: always()')
+    expect(upload).toContain('path: ${{ runner.temp }}/pika-proof-timings/*.json')
+    expect(upload).not.toMatch(/startup|\.log|workdir/)
+  })
   it('requires a separate serial integrated SDK rehearsal and exact forced-cleanup receipts', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Verify isolated contextual Assignment integrated SDK effects and private delivery'
