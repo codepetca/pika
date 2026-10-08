@@ -52,6 +52,25 @@ function artifact(
 }
 
 describe('StudentAssignmentSubmissionChecklist', () => {
+  it('keeps a saved attachment available while validation is pending', () => {
+    render(
+      <StudentAssignmentSubmissionChecklist
+        assignmentId="assignment-1"
+        requirements={[requirement({})]}
+        artifacts={[artifact({ validation_status: 'pending' })]}
+        githubIdentity={null}
+        onArtifactsChange={vi.fn()}
+        onError={vi.fn()}
+      />
+    )
+
+    const status = screen.getByText('Checking')
+    expect(status).toBeInTheDocument()
+    expect(status.parentElement?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByDisplayValue('https://codehs.com/sandbox/example')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
   it('uses the teacher label and generic URL copy for link requirements', () => {
     render(
       <StudentAssignmentSubmissionChecklist

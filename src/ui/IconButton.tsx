@@ -1,7 +1,8 @@
 'use client'
 
 import { forwardRef, type ReactNode } from 'react'
-import { LoaderCircle, type LucideIcon } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { CircularProgress } from './CircularProgress'
 import { Button, type ButtonProps } from './Button'
 import { Tooltip } from './Tooltip'
 import { cn } from './utils'
@@ -30,7 +31,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       className={cn('h-11 w-11 p-0', className)}
     >
       {loading
-        ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+        ? <CircularProgress />
         : <Icon className="h-4 w-4" aria-hidden="true" />}
     </Button>
   )

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LoaderCircle } from 'lucide-react'
 import {
+  CircularProgress,
   Button,
   Card,
   EmptyState,
@@ -118,7 +118,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId, initialRe
                   ) : null}
                   {openingClassroomId === c.id && (
                     <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      <CircularProgress className="h-3.5 w-3.5" />
                       Opening classroom...
                     </div>
                   )}

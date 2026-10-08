@@ -11,74 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — CI runner preparation synchronized after fluidity landing
-
-Owner selected keep-public and coordinate toward merging1512. The1490coordinator explicitly released its temporary main-merge hold after verified landing3a0b17d6; preserve incoming product/CI inputs and both complete continuity histories in1512. Reviewed8f6driver and46fault cases, corrected unregistered rehearsal and security/finalintegration coverage remain source-specific; retain original executionSHA when relevant byte parity permits reuse. Prior25cde focused461/25/static and targeted sync CLEAN; new-base focused/targeted integration and one final exact-head hostedCI/PRGate precede normal squash merge. No public runner registration, privatevisibility, automaticoptin, HQ, database or production changes. Requested source coordinator defer its next mainmerge until1512landing/checkpoint; local softer-modal work can continue. Cumulative review counters and human task-stop waiver retained; weekly11%remaining/ordinaryusageallowed; DeepSeek pause remains.
-
-## 2026-10-06 — Owner Test publication boundary started
-
-Discard#1503 merged865d837b7 after exact reviewed9c391 CI37435496517 all5PASS;
-DB56m49s/PRGate2s. Canonicalmain cleanFF;36orderedstashes unchanged. Parentledger
-retains allfailed attempts,7reviews/4batches and originalclock; no phaseexit.
-Owner approved nextpublication slice. Newworktree865d/startupNode24.12 PASS;
-managedattachment100identitycap retained checkout afteroneattachretry.
-Two existingSol-class/high workers delivered read-only SQL/HTTPdesigns and now
-author disjoint SQL/HTTP files; third maps nativeproof read-only. Effective
-configuration/tokens unknown. Weeklyremaining29percent account-wide;
-DeepSeekpausedthroughDecember31Toronto. Root selects separate gatedPOSTpublish:
-literalPATCH/UI unchanged avoids16Kclassificationregression for large documents.
-Draft-to-closed only; two boundedread/validated-sourceCAS phases. Root verified
-HTTP frozenreceipt/hash andcombined186/4PASS; worker555/8adjacent+lintPASS. Root reader
-TDD RED/GREEN for duplicate keys, rawsize, locked-body and empty-chunk bounds.
-SQL252 full690line/hash rootread/sourceTDDPASS. Next disjoint nativefixture,
-SDKtransport andDB/race source authors reuseSol-class/high; rootprivateengine/
-lifecycle/serialCI. Fixture38offlinePASS provisional; rootAST18/CI3PASS,5filelint.
-Weekly27remaining accountwide, active/tokensunknown; no savingsclaimed. Native
-profileTDD5RED beforeimplementation; integrationpending. Actualnative proof/
-types/cleanup, independentreview andexactCI remain. No native/CI dispatch.
-Canonical249–new/prod/cohort/account/provider/UI/cutover/billing holds unchanged.
-Allthree authors now relinquished frozen fixture/transport/DB+race sources;
-root fullsource/hash delivery checks and296/6 product/adapter integrationPASS.
-Corrected proof holders actor/settingsFORUPDATE, exact advisory key observers,
-consolidated12schedules48actions, exact Start denial codes/successsentinels,
-reached fault markers/fullrollback baseline49checks, five committed transitions.
-Root added final-restoration/catalog/completion tests109/3PASS and one shared
-180s race-clock test (native77/1PASS). Lint/diffPASS; TSC sole genuine252 gap.
-Precommit audit initially sees onlytracked2files; staged fullaudit stillrequired.
-Pre-type sourcefreeze/independenthigh-risk review precedes isolated runtime.
-No native/types/CI/PR dispatch or component/phase/goal acceptance yet.
-Staged fullaudit21TSfilesPASS. Combined420/14PASS; root foundcompletion context
-set sorting mismatch, reproducedRED1 then minimalexpected-sort fix28/1GREEN.
-Latest4rootfilelintPASS; no actualDatabase/SDK/CLI acceptance from these tests.
-Initial independent243a26 security341/11 and compatibility418/12 reviews CLEAN;
-both inspected mode600 exact-head wrappers, inheritedB1 and unchangedlegacyUI.
-Normalattempt1 stopped BEFORE disposable setup: wholeB1 differs only in local
-auth_sessions/auth_rate_limits/auth_global_rate_limits. Otherfour baselinefields
-match; no252replay/nativeeffect/type artifact. Readonlymetadata shows58->62
-sessions, latestlocal auth13:26:26UTC; no row/secret output or data mutation.
-OriginalB1 retained; asyncowner direction forNEWfullcheckpoint pending.
-Coverageattempt1 retained14118PASS/14FAIL/8SKIP264.84s: missingCLIshim9,
-legacytimeouts4 and startupbudget1. PinnedtemporaryCorepackpnpm10.25+two workers
-attempt2 retained14130PASS/2FAIL/8SKIP406.01s. Root restoredrequired historical
-startup text and budget16944/17000; splitonly one legacydiscard multi-probe
-test into same full1001-row cases/default5s. Diagnosticcoverage110/3testsPASS,
-expectedglobalfloorsfail becauseonly3suitesselected; notfullcoverageacceptance.
-Main advanced3b838 (#1507 gradebookFinal) independently; safe rebase next,
-no migration collision. Reviewclock13:07:17/2launch/0batches carriedforward;
-doc/test remediation batch1 pending. No PR/CI/production/canonical migrations.
-Rebase onto3b838 complete: archive conflict retainedboth batch provenance markers
-and one shared historicalentry; currentowncode unchanged. Exactownedstash5c594
-restored cleanly; unrelated36 preserved. Requiredstartup/attendance docs and
-splitdiscard110/3 testsPASS undercoverage (globalpartialfloors expectedFAIL).
-One remediation batch1 contains docs/test isolation only; native/type holds remain.
-Batch1/rebase review3 completed: product/scripts/252/CI unchanged243a26, gradebook
-unchangedmain; originaldiscard assertions retained. One P1 missing historical
-purge-ON CURRENT receipt validatedRED and restored without any rollout change.
-Wholecoverage attempt3 at3f30c482 PASS14139/8SKIP,1085files,481.91s; coverage
-85.24statements/77.42branches/91.47functions/87.22lines. This precedes the docs-only
-batch2 correction; targeted docs checks and review remain required. WholeB1 owner
-decision still pending; no native/types/PR/CI/merge or activation acceptance.
-
 ## 2026-10-06 — Authorized publication checkpoint and native failure
 
 Owner yes approved retaining B1 and a NEW complete read-only checkpoint. Stable
@@ -395,3 +327,19 @@ Combined student PR1522 reviewed bcd0a5e00 reached normal CI37702440970; coverag
 ## 2026-10-07 — Scope existing formatted-help gallery test after CI timeout
 
 Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades source contract but coverage reports14616PASS/1FAIL/8SKIP: unchanged UiGallery formatted-help case exceeds its existing5000ms timeout. PR returned draft before correction; cancelled browser lane is not passing evidence. Original case passes isolated with coverage locally (1.35s test observation); Linux slowdown cause is unproven. Narrow only its Formatting help button lookup to the existing Core controls section, retaining clicks, tooltip content/accessibility/dismissal assertions, real tooltip portal, full gallery render and5000ms timeout. No production, dependency, runner/gate or clock changes. Same-case coverage observations and full gallery/focused checks, source parity and bounded independent correction review precede fresh stable exact-head CI.
+
+## 2026-10-07 — Consistent circular progress
+
+- Owner request: use one circular progress indicator without a background throughout the app. Risk `none`; this task owns `codex/circular-progress-no-background`.
+- Added `CircularProgress` in `@/ui` using the existing borderless Lucide loader. Reused it in Button, IconButton, PageState, legacy Spinner, classroom opening, submission validation, and busy refresh actions. Removed muted tracks and loading-only tiles; existing sizes, colors, labels and disabled/busy semantics remain.
+- UI brief: reference IconButton and Pattern Lab controls/page states; create one shared indicator, extend Spinner/PageState. Teacher/student, desktop1440×900/mobile390×844, light/dark, loading and normal/reduced motion. No composite behavior change, experimental pattern, or additional promotion needed; owner explicitly chose no background.
+- Playwright representative matrix8/8 and normal/reduced motion passed; Darwin4/4 and Linux4/4 canonical Pattern Lab snapshots updated and visually reviewed. Final focused gate2232 passed, including the corrected checklist import and pending-validation regression coverage; independent review accepted1922edb90. PR1520 CI exposed an unchanged Markdown test selecting another fixture's PATCH; scope its assertion to existing ownerCalls and recheck/review before merge. Evidence: `/tmp/pika-circular-evidence/`; startup verified after dependency install. Initial import/fixture mistakes corrected before review.
+- Merge follow-up: Markdown test correction independently accepted at e036c5c21; Test & Build CI passed. Browser CI identified duplicate Saving fixture name and incorrect Linux capture font. Rename the new example Creating class; retain unique Saving coverage. Recapture Linux with fonts-dejavu-core in the disposable Playwright container: desktop pixels outside the label match CI; mobile dimensions match with minor rendering noise. Interaction16/16 and representative matrix8/8 pass; Darwin4/4 and Linux4/4 reviewed. Owner explicitly overrode review budgets on2026-10-07; counters retained in the evidence ledger, exact-SHA review/CI still required before authorized main merge. No product dependency or font change.
+- Third CI exposed a5s timeout in the new gallery test's redundant whole-page Saving lookup. Remove that expensive lookup; existing browser continuity16/16 retains unique Saving coverage, while the unit test retains exact scoped loading names/busy/disabled/decorative assertions. Targeted26tests pass under coverage instrumentation (whole-repo coverage thresholds are inapplicable to a single file); final focused check and targeted review required. Playwright's unchanged comparator also accepts all four Linux captures against CI outside the changed example.
+- Final reviewed76c1e04cf CI37699017298 passed all required lanes/PR Gate:14529tests and browser matrix. Main advanced to8031d2bed (#1521) during CI, causing a journal-only conflict. Rebased while draft; kept main's archive entry already identical to our archived receipt, preserving both histories. Range-diff shows all product/test/snapshot patches unchanged. Combined main's SplitButton interaction retirement still requires integration-focused review, local checks, and exact rebased-SHA CI before the owner-authorized merge; budget override remains active.
+- Audit heuristic flags existing composite semantics in touched feature files even though only decorative icons change; direct keyboard/state suites and independent review cover these unchanged contracts. No audit rule or policy is weakened.
+- Orchestration: small coherent implementation handled locally; weekly remaining86%, DeepSeek pilot paused through2026-12-31. GPT-6 Luna/medium initial review318de08 completed with one missing checklist import blocker, confirmed by TypeScript and fixed in one batch; targeted re-review pending. One launch/initial wave/one fix batch; per-task tokens/time unknown.
+
+## 2026-10-07 — Circular progress student-main integration
+
+Reviewed0a5 exactCI37703713253 attempt2 passes all required gates after one publication-fixture timeout rerun. Main advanced to a2d70efa8 (#1522) during CI. Rebase preserves its Grades/Achievements recovery and formatted-help test scope. Only archive conflict: all2489 feature archive entry bodies already exist in main2493, verified before retaining main archive. Feature implementation/test/snapshot patches remain unchanged apart from upstream gallery test. Targeted source integration review, refreshed focused and no-update canonical browser verification precede new exact-head CI and the authorized merge. Human budget override persists; no production changes.

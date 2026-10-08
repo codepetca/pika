@@ -2976,12 +2976,7 @@ _None_
       ])
       expect(onTestUpdate).toHaveBeenCalledTimes(1)
 
-      const patchCall = fetchMock.mock.calls.find(
-        (call: any[]) =>
-          typeof call[0] === 'string' &&
-          call[0].includes('/draft') &&
-          call[1]?.method === 'PATCH'
-      )
+      const patchCall = ownerCalls.find(([, init]) => init?.method === 'PATCH')
       expect(patchCall).toBeTruthy()
       const body = JSON.parse(patchCall?.[1]?.body ?? '{}')
       expect(body.version).toBe(1)
