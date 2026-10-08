@@ -117,6 +117,40 @@ describe('teacher AI grading run polling', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('ends the failure budget during a stalled retry tick and fences its late success', async () => {
+    let finishTick!: (response: Response) => void
+    fetchMock.mockResolvedValueOnce(response({ run }))
+      .mockResolvedValueOnce(response({}, 503))
+      .mockResolvedValueOnce(response({ run }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishTick = resolve }))
+    start(); await settle()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(onRun).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(117_999)
+    expect(onUnavailable).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetchMock.mock.calls[3][1].signal.aborted).toBe(true)
+    expect(onUnavailable).toHaveBeenCalledTimes(1)
+    finishTick(response({ run: { ...run, status: 'completed' } }))
+    await settle(); await vi.advanceTimersByTimeAsync(300_000)
+    expect(onRun).toHaveBeenCalledTimes(2)
+    expect(onUnavailable).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('retains the full tick allowance before any transport failure', async () => {
+    let finishTick!: (response: Response) => void
+    fetchMock.mockResolvedValueOnce(response({ run }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishTick = resolve }))
+    start(); await settle(); await vi.advanceTimersByTimeAsync(120_000)
+    expect(fetchMock.mock.calls[1][1].signal.aborted).toBe(false)
+    expect(onUnavailable).not.toHaveBeenCalled()
+    finishTick(response({ run: { ...run, status: 'completed' } }))
+    await settle()
+    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'completed' }))
+  })
+
   it.each(['completed', 'completed_with_errors', 'failed'])('stops at terminal %s status', async (status) => {
     fetchMock.mockResolvedValue(response({ run: { ...run, status } }))
     start(); await settle(); await vi.advanceTimersByTimeAsync(180_000)

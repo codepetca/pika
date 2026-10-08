@@ -54,23 +54,50 @@ export function startAiGradingRunPolling<Resource extends keyof RunByResource>(
   let failures = 0
   let firstFailureAt: number | undefined
 
-  const readRun = async (method: 'GET' | 'POST') => {
+  const stopUnavailable = () => {
+    if (cancelled) return
+    cancelled = true
+    clearTimeout(timeout)
+    requestAbort?.abort()
+    options.onUnavailable()
+  }
+
+  const assertActive = () => {
     if (cancelled) throw new PollFailure(false)
+    if (firstFailureAt !== undefined && Date.now() - firstFailureAt >= FAILURE_DEADLINE_MS) {
+      stopUnavailable()
+      throw new PollFailure(false)
+    }
+  }
+
+  const readRun = async (method: 'GET' | 'POST') => {
+    assertActive()
     const controller = new AbortController()
     requestAbort = controller
     // Ticks can own a bounded server chunk for up to the route's five-minute limit.
-    const requestTimeout = setTimeout(() => controller.abort(), method === 'GET' ? 30_000 : 300_000)
+    const requestWait = method === 'GET' ? 30_000 : 300_000
+    const failureWait = firstFailureAt === undefined ? requestWait
+      : FAILURE_DEADLINE_MS - (Date.now() - firstFailureAt)
+    const requestTimeout = setTimeout(() => {
+      if (firstFailureAt !== undefined && Date.now() - firstFailureAt >= FAILURE_DEADLINE_MS) {
+        stopUnavailable()
+      } else {
+        controller.abort()
+      }
+    }, Math.min(requestWait, failureWait))
     try {
       const response = await fetch(method === 'GET' ? options.statusUrl : `${options.statusUrl}/tick`, {
         method, signal: controller.signal, cache: 'no-store',
       })
-      if (cancelled) throw new PollFailure(false)
+      assertActive()
+      if (controller.signal.aborted) throw new PollFailure(true)
       if (!response.ok) {
         throw new PollFailure(response.status === 408 || response.status === 429 || response.status >= 500)
       }
       let data: unknown
       try { data = await response.json() } catch { throw new PollFailure(false) }
-      if (cancelled) throw new PollFailure(false)
+      assertActive()
+      if (controller.signal.aborted) throw new PollFailure(true)
       return parseRun(data, options)
     } finally {
       clearTimeout(requestTimeout)
@@ -81,7 +108,7 @@ export function startAiGradingRunPolling<Resource extends keyof RunByResource>(
   const syncRun = async () => {
     if (cancelled) return
     if (firstFailureAt !== undefined && Date.now() - firstFailureAt >= FAILURE_DEADLINE_MS) {
-      options.onUnavailable()
+      stopUnavailable()
       return
     }
     let nextDelay = 2000
@@ -111,7 +138,7 @@ export function startAiGradingRunPolling<Resource extends keyof RunByResource>(
       firstFailureAt ??= Date.now()
       if ((error instanceof PollFailure && !error.retryable) || failures >= MAX_FAILURES ||
         Date.now() - firstFailureAt >= FAILURE_DEADLINE_MS) {
-        options.onUnavailable()
+        stopUnavailable()
         return
       }
       const backoff = Math.min(2000 * 2 ** (failures - 1), 30_000)

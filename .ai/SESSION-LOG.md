@@ -236,6 +236,10 @@ and mutation guards stay intact. Risk: workspace-state/async-grading/runtime-pla
 
 Workers: GPT-6.1 Sol/high, disjoint auth/grading ownership, no provider changes.
 Initial focused716 tests, TypeScript/lint/architecture/design/UI checks PASS.
-Rebased on currentmain51f1a3b9; final checks and draft/independent review in progress.
+Rebased on currentmain51f1a3b9; draftPR1540. Independent security review clean;
+compatibility review reproduced pending retry request exceeding120s failure
+deadline. Batched fix caps pending retries by remaining budget, aborts at expiry,
+and fences late completions; regression RED then182 grading tests GREEN.
+Targeted re-review and exact-head CI pending.
 Teacher desktop/mobile light/dark recovery captures use synthetic fixtures;
 student n/a. No production promotion or hosted DB change.
