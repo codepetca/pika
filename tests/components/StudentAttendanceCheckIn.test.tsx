@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StudentAttendanceCheckIn } from '@/app/attendance/check-in/[token]/StudentAttendanceCheckIn'
 
@@ -56,6 +57,32 @@ describe('StudentAttendanceCheckIn', () => {
       confirmedAt: '2026-09-02T13:01:00.000Z',
     })
     expect(attendanceClientMocks.invalidate).toHaveBeenCalledWith(studentId)
+  })
+
+  it('retains keyboard focus on the semantic return link as confirmation updates its destination', async () => {
+    let resolveCheckIn!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>(resolve => {
+      resolveCheckIn = resolve
+    })))
+    const user = userEvent.setup()
+    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
+
+    const loadingReturn = screen.getByRole('link', { name: 'Back to classrooms', exact: true })
+    expect(loadingReturn).toHaveAttribute('href', '/classrooms')
+    await user.tab()
+    expect(loadingReturn).toHaveFocus()
+
+    await act(async () => resolveCheckIn(new Response(JSON.stringify({
+      state: 'checked_in',
+      title: 'You are checked in',
+      description: 'Your attendance was recorded.',
+      classroomId: '20000000-0000-4000-8000-000000000001',
+    }), { status: 200 })))
+
+    const confirmedReturn = await screen.findByRole('link', { name: 'Back to classroom', exact: true })
+    expect(confirmedReturn).toBe(loadingReturn)
+    expect(confirmedReturn).toHaveFocus()
+    expect(confirmedReturn).toHaveAttribute('href', '/classrooms/20000000-0000-4000-8000-000000000001?tab=today')
   })
 
   it('never claims success for an uncertain response and allows an explicit retry', async () => {

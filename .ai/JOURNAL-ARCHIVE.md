@@ -42414,3 +42414,20 @@ PR1512 hold explicitly released after verified80ae7746 landing, reviewed tree pa
 ## 2026-10-07 — Modal CI confirmation-query remediation
 
 CI37553687244 failed three five-second Gallery cases: both new confirmation flows and existing teacher classroom recovery; 14024 tests PASS/8skip. Browser job canceled and ephemeral cleanup PASS; no manual rerun/dispatch. Narrowed confirmation queries to existing controls/active modal, preserving the global closed-dialog absence assertion, accessible description, Escape/opener focus, local status, real user events and unchanged timeout. Four affected isolated instrumented cases PASS: one local before/after tests observation2.82s→1.67s, not proof of the Linux cause. Full Gallery24 cases PASS with coverage instrumentation; partial runs still fail unchanged repository coverage floors and are not full coverage acceptance. All UI/config/dependency blobs remain unchanged; original browser/visual/race provenance retained. New focused and targeted test-only review precede one corrected exact-head CI. Current post-review fixbatches2, prior1490 sourcefix10/reviews12 preserved; no cap reset under task waiver. Three-owner audit found static Instructions preview first source candidate; QR menus/rich viewers/scheduling need lifetime evidence, with promotion/production holds retained. Broad goal incomplete.
+
+<!-- pika-session-log-archive-batch:12786d8fc8024c9b693e371c28ef73c0da54267c4d6cdacce24073a69a2d803a -->
+## 2026-10-07 — Publication merge-window release and final-base reconciliation
+
+Exact084 CI37548424656 all5/PRGatePASS; publication/Assignmentintegrated proofs
+passed, private600 receipt retained, queue3s/run3733s/event37 recorded. Main1512
+advanced80a during CI; respected Svelte1514 window through two test/image fixes,
+without duplicate sync/review/CI. Source explicitly released after1514 landed
+d0bdbdfa5.18-commit rebase succeeded: sole archive conflict retained both sides;
+all28 publication/product/proof/type/CI files byte-identical084, all21 incoming
+nonhistory files exactmain, no empty/split headings. Official trim and full body/
+multiplicity verification required. All37 stashes/orderhash7bb1ea11 retained;
+SQL252 unchangedb506e610/mainmax251/no resequence. GPT6.1Sol/high targeted review24,
+focused checks and new exact-head CI precede main merge. Original13:07:17UTC clock,
+23launches20targets20batches retained/taskwaiver active, weekly9percent remaining/
+ordinaryexecutionallowed, DeepSeek paused. No canonical/prod249–252 application,
+promotion, activation, provider/account/billing/runner/visibility or phase exit.
