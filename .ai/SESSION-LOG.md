@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Test cap native catalog corrections
-
-Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
-and PRGate failed. Actual isolated PG17 confirmed nested record/alias42702;
-three aliases corrected77f9 after3RED,490/28focused/static and Sol/high delta
-reviewPASS. Full local create then failed before SDK: canonical248 has183tables,
-but253 adds private quota settings. Exact own teardown/SAME183/all5 preservation
-PASS; failure retained. Separate source-SHA-bound isolated catalog now requires
-that exact addition without omitting inherited/unexpected table checks or quota
-fingerprints. Targeted79/5 and focused864/37/staticPASS. Native normal/types,
-both forced modes, targeted review and exact-head CI remain gates. Product SQL,
-limits and all249+/production/activation/account/billing holds unchanged.
-
 ## 2026-10-08 — Publication proof diagnosis and current-main reconciliation
 
 At2e9367, create normal/types and both forced modes PASS; genuine types match
@@ -233,3 +220,21 @@ Prior clean fixed-SHA integration reviews:1525 at43bb,1538 atd9d,1505 at1081 and
 Fixed batch0f6737b has2239 tests/109files and TypeScript/lint/architecture/UI/design PASS. Two independent GPT-6.1 Sol/high cumulative reviewers completed backend/security and architecture/compatibility scopes; compatibility CLEAN, security accepted oneP2: body transport or timeout errors bypassed grading polling retry budget. One correction batch distinguishes SyntaxError from transient body failures, retaining finite failure/deadline limits, status-before-tick ownership and cancellation. Three regression cases cover real broken Response streams, body timeout and repeated transport exhaustion; polling28 PASS and changed-file audit PASS. Targeted independent delta review and corrected-head focused checks precede readiness. Ledger:2 initial cumulative reviewer turns,1 wave,1 accepted finding,1 fix batch; prior per-PR counters preserved. Reported review intervals123/253seconds are elapsed estimates, active time/tokens unknown.
 
 Fresh fixture-only visual evidence at0f6737b:8 teacher/student×desktop/mobile×light/dark captures PASS and4 unchanged Darwin contract comparisons PASS; synthetic API interception/empty storage, zero custom-capture API requests, no authenticated-app or canonical-data claim. Normal/late16px ring and12px late clock verified; compact fixture is14px submitted, no dedicated compact-progress fixture. Original compact-progress evidence remains tied to its executed source. Two original ready-event runs intentionally cancelled by returning1525/1538 to draft for batch strategy; no product failure inferred. Exact corrected-head CI/PRGate and merge still pending. Evidence/handoff:~/.codex/artifacts/pika/pr-completion-20261008; all production/migration/activation/provider/runner holds retained.
+
+## 2026-10-08 — Reorder source-only main completion candidate
+
+Synced dormant PR1515 from7d5dff8 onto fixed main1dd5325 in owned completion
+worktree; feature commitbb731336 retains32/38 exact feature blobs and combines
+six shared proof/CI/guidance paths without product expansion. Route/helper,
+validator/migration254 remain exact7d; incoming91 nonhistory paths preserved.
+Final focused1613/54, architecture/UI/design/TypeScript/lint and33TS audit PASS;
+first unchanged run had four5s timeouts, exact targeted rerun and final gate
+passed without changing assertions or limits. All historical1515/main entry
+bodies and multiplicities retained by append-only union and official trim.
+Private inert verifier awaits exact final-H review, specific fresh immutable
+canonical183/all5 checkpoint authority and a new finite quiet window; no native,
+DB/checkpoint/CI/push/PR operation, proof acceptance or epic completion claimed.
+Preserve originalOct7 05:04 clock,31reviews/27targeted and prior28fix-sync batches;
+feature synchronization is batch29, this continuity-only commit is not another
+fix batch. Human workflow-stop/budget waiver remains task-scoped; correctness,
+checkpoint/migration/production/activation/provider/billing holds remain.
