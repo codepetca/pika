@@ -512,7 +512,10 @@ describe('Teacher dashboard page', () => {
     })
     expect(await screen.findByText(empty ? 'No log found' : 'Retry result')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toContainElement(document.activeElement)
-    expect(moveFocus ? close : screen.getByRole('region', { name: 'Student log content' })).toHaveFocus()
+    const content = screen.getByRole('region', { name: 'Student log content' })
+    // The recovery anchor accepts programmatic focus without adding a new Tab stop.
+    expect(content).toHaveAttribute('tabindex', '-1')
+    expect(moveFocus ? close : content).toHaveFocus()
   })
 
   it('names pending attendance and keeps classroom selection semantic', async () => {

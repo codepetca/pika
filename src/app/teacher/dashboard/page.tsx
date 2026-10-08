@@ -617,7 +617,7 @@ export default function TeacherDashboardPage() {
                   role="region"
                   aria-label="Student log content"
                   tabIndex={-1}
-                  className="rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+                  className="rounded-control p-1 focus:outline-none focus-visible:ring-foundation focus-visible:ring-inset focus-visible:ring-focus"
                 >
                   {(entryDetail.status === 'loading' || entryDetail.status === 'error') && (
                     <PageState
