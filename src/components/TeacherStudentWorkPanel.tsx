@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { FolderGit2, Image as ImageIcon, Link2 } from 'lucide-react'
-import { Spinner } from '@/components/Spinner'
+import { Button, PageState } from '@/ui'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
@@ -45,6 +45,7 @@ interface TeacherStudentWorkPanelProps {
       | ((current: AssignmentWorkspacePaneLayout) => AssignmentWorkspacePaneLayout),
   ) => void
   onLoadingStateChange?: (loading: boolean) => void
+  onWorkReadStateChange?: (state: TeacherAssignmentWorkReadState) => void
   inspectorEditMode?: boolean
   onDetailsMetaChange?: (meta: { studentName: string; characterCount: number } | null) => void
   onGradeTemplateChange?: (template: TeacherAssignmentGradeTemplate | null) => void
@@ -53,12 +54,20 @@ interface TeacherStudentWorkPanelProps {
   highlightedInspectorSections?: readonly InspectorSectionId[]
 }
 
+export interface TeacherAssignmentWorkReadState {
+  classroomId: string
+  assignmentId: string
+  studentId: string
+  writesPaused: boolean
+}
+
 export interface TeacherAssignmentGradePersistenceState {
   hasPendingChanges: boolean
   isSaving: boolean
 }
 
 export interface TeacherAssignmentGradeTemplate {
+  assignmentId: string
   studentId: string
   scoreCompletion: string
   scoreThinking: string
@@ -251,6 +260,7 @@ export function TeacherStudentWorkPanel({
   totalWidth = 0,
   onLayoutChange,
   onLoadingStateChange,
+  onWorkReadStateChange,
   inspectorEditMode = false,
   onDetailsMetaChange,
   onGradeTemplateChange,
@@ -261,6 +271,11 @@ export function TeacherStudentWorkPanel({
   const {
     data,
     error,
+    loading,
+    readState,
+    hasMatchingOwner,
+    writesPaused,
+    retryStudentWork,
     showInitialSpinner,
     historyEntries,
     historyLoading,
@@ -307,8 +322,11 @@ export function TeacherStudentWorkPanel({
     mutationsDisabled,
     onGradePersistenceStateChange,
   })
+  useEffect(() => {
+    onWorkReadStateChange?.({ classroomId, assignmentId, studentId, writesPaused })
+  }, [classroomId, assignmentId, studentId, writesPaused, onWorkReadStateChange])
+  const workRegionRef = useRef<HTMLDivElement>(null)
   const previousInspectorEditModeRef = useRef(inspectorEditMode)
-  const hasGradingPane = mode !== 'workspace' || splitPaneView !== 'students-content'
   const layoutMode: AssignmentWorkspaceMode =
     mode === 'workspace'
       ? splitPaneView === 'content-grading'
@@ -350,7 +368,7 @@ export function TeacherStudentWorkPanel({
     const hasStudentContentPane = mode !== 'overview' && (
       mode !== 'workspace' || splitPaneView !== 'students-grading'
     )
-    if (!hasStudentContentPane || showInitialSpinner || error || !data) {
+    if (!hasStudentContentPane || showInitialSpinner || readState === 'unavailable' || !hasMatchingOwner || !data) {
       onDetailsMetaChange?.(null)
       return
     }
@@ -366,20 +384,21 @@ export function TeacherStudentWorkPanel({
       studentName: nextStudentDisplayName,
       characterCount: nextCharacterCount,
     })
-  }, [data, error, mode, onDetailsMetaChange, previewContent, showInitialSpinner, splitPaneView])
+  }, [data, hasMatchingOwner, readState, mode, onDetailsMetaChange, previewContent, showInitialSpinner, splitPaneView])
 
   useEffect(() => {
     return () => onGradeTemplateChange?.(null)
   }, [onGradeTemplateChange])
 
   useEffect(() => {
-    const shouldReportGradeTemplate = (mode === 'overview' || mode === 'workspace') && hasGradingPane
-    if (!shouldReportGradeTemplate || showInitialSpinner || error || !data || data.student.id !== studentId) {
+    const shouldReportGradeTemplate = (mode === 'overview' || mode === 'workspace')
+    if (!shouldReportGradeTemplate || showInitialSpinner || writesPaused || !data || data.student.id !== studentId || data.assignment.id !== assignmentId) {
       onGradeTemplateChange?.(null)
       return
     }
 
     onGradeTemplateChange?.({
+      assignmentId,
       studentId,
       scoreCompletion,
       scoreThinking,
@@ -389,11 +408,11 @@ export function TeacherStudentWorkPanel({
       expectedDocUpdatedAt: data.doc?.updated_at ?? null,
     })
   }, [
+    assignmentId,
     data,
-    error,
+    writesPaused,
     feedbackDraft,
     gradeMode,
-    hasGradingPane,
     mode,
     onGradeTemplateChange,
     scoreCompletion,
@@ -403,21 +422,45 @@ export function TeacherStudentWorkPanel({
     studentId,
   ])
 
-  if (showInitialSpinner) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    )
+  const renderWorkRegion = (content: ReactNode) => (
+    <div ref={workRegionRef} role="region" aria-label="Student work" tabIndex={-1}
+      className="flex h-full min-h-0 flex-1 flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset motion-reduce:[&_svg]:animate-none">
+      {content}
+    </div>
+  )
+  const retryAction = <Button onClick={() => {
+    workRegionRef.current?.focus({ preventScroll: true })
+    void retryStudentWork()
+  }}>Try again</Button>
+  const canRetainWork = !!data && readState !== 'unavailable'
+    && (hasMatchingOwner || (loading && !error))
+
+  if (!canRetainWork) {
+    if (readState === 'unavailable') {
+      return renderWorkRegion(<PageState kind="forbidden" title="Student work unavailable" description="This work cannot be opened right now." compact />)
+    }
+    if (readState === 'transient') {
+      return renderWorkRegion(<PageState kind="error" title="Could not load student work" description="Try again to load this student's work." action={retryAction} compact />)
+    }
+    return renderWorkRegion(<PageState kind="loading" title="Loading student work" compact />)
   }
 
-  if (error) {
-    return <div className="p-4 text-sm text-danger">{error}</div>
-  }
-
-  if (!data) {
-    return <div className="p-4 text-sm text-text-muted">No data</div>
-  }
+  const refreshNotice = !hasMatchingOwner || readState !== 'ready' ? (
+    <div
+      role={readState === 'pending' ? 'status' : 'alert'}
+      aria-label="Student work refresh"
+      className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm text-text-muted"
+    >
+      <span>{!hasMatchingOwner
+        ? 'Loading selected student work. Previous student work is shown until loading finishes.'
+        : readState === 'pending'
+        ? 'Refreshing student work. Saving is paused.'
+        : readState === 'conflict'
+          ? 'Student work changed. Your draft is kept here. Saving is paused.'
+          : 'Could not refresh student work. Your draft is kept here. Saving is paused.'}</span>
+      {readState === 'transient' ? retryAction : null}
+    </div>
+  ) : null
 
   const displayContent = previewContent || data.doc?.content
   const submissionRequirements = data.assignment.submission_requirements || []
@@ -428,45 +471,49 @@ export function TeacherStudentWorkPanel({
   )
   const hasRequiredSubmissionCards = submissionRequirements.length > 0 || submittedArtifacts.length > 0
   const inspector = (
-    <TeacherWorkInspector
-      data={data}
-      historyEntries={historyEntries}
-      historyLoading={historyLoading}
-      historyError={historyError}
-      previewEntry={previewEntry}
-      onEntryClick={handlePreviewLock}
-      onEntryHover={handlePreviewHover}
-      onHistoryMouseLeave={handleHistoryMouseLeave}
-      isPreviewLocked={isPreviewLocked}
-      onExitPreview={handleExitPreview}
-      scoreCompletion={scoreCompletion}
-      setScoreCompletion={setScoreCompletion}
-      scoreThinking={scoreThinking}
-      setScoreThinking={setScoreThinking}
-      scoreWorkflow={scoreWorkflow}
-      setScoreWorkflow={setScoreWorkflow}
-      totalPercent={totalPercent}
-      totalScore={totalScore}
-      feedbackEntries={feedbackEntries}
-      feedbackDraft={feedbackDraft}
-      hasFreshAIDraft={hasFreshAIDraft}
-      setFeedbackDraft={setFeedbackDraft}
-      onAIDraftAcknowledge={handleAIDraftAcknowledge}
-      gradeMode={gradeMode}
-      gradeError={gradeError}
-      feedbackReturning={feedbackReturning}
-      gradeSaving={gradeSaving}
-      mutationsDisabled={mutationsDisabled}
-      showDraftAutosavedNotice={showDraftAutosavedNotice}
-      highlightedSections={highlightedInspectorSections}
-      expandedSections={expandedSections}
-      visibleSections={visibleSections}
-      editMode={inspectorEditMode}
-      onToggleSection={toggleSection}
-      onToggleSectionVisibility={toggleSectionVisibility}
-      handleReturnFeedback={handleReturnFeedback}
-      handleSetGradeMode={handleSetGradeMode}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      {refreshNotice}
+      <TeacherWorkInspector
+        data={data}
+        historyEntries={historyEntries}
+        historyLoading={historyLoading}
+        historyError={historyError}
+        previewEntry={previewEntry}
+        onEntryClick={handlePreviewLock}
+        onEntryHover={handlePreviewHover}
+        onHistoryMouseLeave={handleHistoryMouseLeave}
+        isPreviewLocked={isPreviewLocked}
+        onExitPreview={handleExitPreview}
+        scoreCompletion={scoreCompletion}
+        setScoreCompletion={setScoreCompletion}
+        scoreThinking={scoreThinking}
+        setScoreThinking={setScoreThinking}
+        scoreWorkflow={scoreWorkflow}
+        setScoreWorkflow={setScoreWorkflow}
+        totalPercent={totalPercent}
+        totalScore={totalScore}
+        feedbackEntries={feedbackEntries}
+        feedbackDraft={feedbackDraft}
+        hasFreshAIDraft={hasFreshAIDraft}
+        setFeedbackDraft={setFeedbackDraft}
+        onAIDraftAcknowledge={handleAIDraftAcknowledge}
+        gradeMode={gradeMode}
+        gradeError={gradeError}
+        feedbackReturning={feedbackReturning}
+        gradeSaving={gradeSaving}
+        mutationsDisabled={mutationsDisabled || !hasMatchingOwner}
+        writeActionsDisabled={writesPaused}
+        showDraftAutosavedNotice={showDraftAutosavedNotice}
+        highlightedSections={highlightedInspectorSections}
+        expandedSections={expandedSections}
+        visibleSections={visibleSections}
+        editMode={inspectorEditMode}
+        onToggleSection={toggleSection}
+        onToggleSectionVisibility={toggleSectionVisibility}
+        handleReturnFeedback={handleReturnFeedback}
+        handleSetGradeMode={handleSetGradeMode}
+      />
+    </div>
   )
 
   const workPane = (
@@ -506,29 +553,23 @@ export function TeacherStudentWorkPanel({
   )
 
   if (mode === 'overview') {
-    return inspector
+    return renderWorkRegion(inspector)
   }
 
   if (mode === 'workspace') {
     const primaryPane = splitPaneView === 'content-grading'
       ? workPane
       : classPane ?? workPane
-    const inspectorPane = splitPaneView === 'students-content'
-      ? workPane
-      : inspector
+    const inspectorPane = inspector
     const primaryHeader = splitPaneView === 'content-grading' ? studentHeader : undefined
-    const inspectorHeader = splitPaneView === 'students-content' ? studentHeader : undefined
     const primaryMinPx = splitPaneView === 'content-grading'
       ? ASSIGNMENT_GRADING_LAYOUT.detailsPrimaryMinPx
       : ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx
-    const dividerLabel =
-      splitPaneView === 'students-grading'
-        ? 'Resize students and grading panes'
-        : splitPaneView === 'content-grading'
-          ? 'Resize content and grading panes'
-          : 'Resize students and content panes'
+    const dividerLabel = splitPaneView === 'students-grading'
+      ? 'Resize students and grading panes'
+      : 'Resize content and grading panes'
 
-    return (
+    return renderWorkRegion(
       <TeacherWorkspaceSplit
         className="h-full flex-1"
         splitVariant="gapped"
@@ -560,7 +601,7 @@ export function TeacherStudentWorkPanel({
           </AssignmentWorkspacePaneFrame>
         )}
         inspector={
-          <AssignmentWorkspacePaneFrame header={inspectorHeader}>
+          <AssignmentWorkspacePaneFrame>
             {inspectorPane}
           </AssignmentWorkspacePaneFrame>
         }
@@ -568,7 +609,7 @@ export function TeacherStudentWorkPanel({
     )
   }
 
-  return (
+  return renderWorkRegion(
     <TeacherWorkspaceSplit
       className="flex-1"
       splitVariant="gapped"

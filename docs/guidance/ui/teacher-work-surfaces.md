@@ -361,6 +361,12 @@ summary, and summary does not reserve passive inspector space.
 - The assignment pane-toggle implementation is an experimental assignment-led
   pattern until promoted after visual and workflow review.
 
+- Classwork assignments keep the marking pane visible in both modes. The left
+  pane toggles between the student table (`Users`) and individual work (`User`).
+  Individual actions target only the displayed student and offer AI Grade with
+  that student's name and Return; copying grades/comments remains table-only.
+  Returning to the student table clears checkbox selection.
+
 ### Hard failures
 
 Treat these as family-level hard failures:

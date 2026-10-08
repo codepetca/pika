@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
+import { AssignmentWorkspaceViewToggle } from '@/components/assignment-workspace/AssignmentWorkspaceViewToggle'
+import type { AssignmentSplitPaneView } from '@/lib/assignment-grading-layout'
 import { DateNavigator } from '@/components/DateNavigator'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
@@ -17,6 +19,7 @@ type PreviewMode = 'overview' | 'details'
 export function TeacherPatterns() {
   const [date, setDate] = useState('2026-08-28')
   const [showRelativeDate, setShowRelativeDate] = useState(true)
+  const [classworkView, setClassworkView] = useState<AssignmentSplitPaneView>('students-grading')
   const [mode, setMode] = useState<PreviewMode>('overview')
   const [inspectedStudent, setInspectedStudent] = useState<string | null>(null)
   const [inspectorWidth, setInspectorWidth] = useState(50)
@@ -124,6 +127,29 @@ export function TeacherPatterns() {
           Only use modes after an item is selected and when they represent different work. Keep both
           panel targets mounted; the shared mode bar owns arrow-key navigation and selection.
         </p>
+      </Card>
+
+      <Card tone="panel" padding="md">
+        <h3 className="font-semibold">Classwork left pane</h3>
+        <div className="mt-3 flex items-center gap-2">
+          <AssignmentWorkspaceViewToggle view={classworkView} onChange={setClassworkView} />
+          <span className="text-sm text-text-muted">{classworkView === 'students-grading' ? 'Student table' : 'Individual student'}</span>
+        </div>
+        <div className="mt-3 h-52">
+          <TeacherWorkspaceSplit
+            className="h-full"
+            splitVariant="gapped"
+            inspectorCollapsed={false}
+            inspectorWidth={inspectorWidth}
+            onInspectorWidthChange={setInspectorWidth}
+            primaryClassName="rounded-lg bg-page p-3"
+            inspectorClassName="rounded-lg bg-page p-3"
+            primary={classworkView === 'students-grading'
+              ? <div className="text-sm">Alex Chen<br />Sam Patel</div>
+              : <div className="text-sm"><strong>Alex Chen</strong><p className="mt-2">Student work</p></div>}
+            inspector={<div className="text-sm">History · Grade · Comments</div>}
+          />
+        </div>
       </Card>
 
       <Card tone="panel" padding="md">

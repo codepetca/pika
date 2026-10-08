@@ -41,12 +41,12 @@ interface MenuButtonProps {
   menuClassName?: string
   children: (props: {
     ref: Ref<HTMLButtonElement>
-    id: string
+    id: string | undefined
     isOpen: boolean
     disabled: boolean
     onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void
     onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void
-    menuId: string
+    menuId: string | undefined
   }) => ReactNode
 }
 
