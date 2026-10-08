@@ -3548,6 +3548,32 @@ describe('TeacherTestsTab', () => {
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
   })
 
+  it('stops test AI polling on invalid status and shows reconnect guidance', async () => {
+    const activeRun = {
+      id: 'run-1', test_id: 'test-1', status: 'running', model: null,
+      prompt_guideline_override: null, requested_count: 1, eligible_student_count: 1,
+      queued_response_count: 1, processed_count: 0, completed_count: 0,
+      skipped_unanswered_count: 0, skipped_already_graded_count: 0, failed_count: 0,
+      pending_count: 1, next_retry_at: null, error_samples: [], started_at: null,
+      completed_at: null, created_at: '2026-10-08T12:00:00Z',
+    }
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === `/api/teacher/tests?classroom_id=${classroom.id}`) {
+        return Promise.resolve({ ok: true, json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }) })
+      }
+      if (url === '/api/teacher/tests/test-1/results') {
+        return Promise.resolve(makeResultsResponse({ activeRun }))
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ run: { ...activeRun, status: 'invalid' } }) })
+    })
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Grading status is unavailable. Reload this page to reconnect to the saved run.')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/tick'))).toBe(false)
+    expect(screen.queryByText(/Grading 0 of 1 students/)).not.toBeInTheDocument()
+  })
+
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
     const activeRun = {
       id: 'run-1',

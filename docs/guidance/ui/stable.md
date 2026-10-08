@@ -218,6 +218,11 @@ Source grounding:
 
 ### 5. Assignment surfaces expose status, due date, and save state clearly
 
+- Assessment In progress uses a static yellow two-thirds ring over a complete
+  grey ring, owned by `AssessmentStatusIcon`. This categorical symbol does not
+  measure completion; status labels and the separate late clock retain their
+  workflow meanings. Owner approved 2026-10-08; see
+  [the change brief](./changes/assessment-progress-icon.md).
 - Assignment list items should surface title, due date, and concise status without requiring expansion first.
 - Student editing surfaces must make autosave and submit state obvious.
 - Submission controls remain explicit primary actions rather than hidden behind menus.

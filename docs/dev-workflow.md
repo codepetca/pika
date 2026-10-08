@@ -208,8 +208,18 @@ each remediation batch, ready-for-CI, CI result, and merge. Provide active time
 and token components only when directly attributable; leave them unknown rather
 than estimating from PR wall time. Record CI queue/run duration separately and
 record correction/sync pushes without asserting they were avoidable. The tool
-records only PR number, timestamps, numeric metrics, stages, and quality outcome
-— never prompts, source content, secrets, identities, or environment values.
+also accepts review metadata: a unique `--review-id` (reviewer/turn identifier),
+`--head-sha`, `--model`, `--effort`, and `--coverage complete|partial`. Record one
+`independent-review` event per actual turn or failed launch, including partial
+coverage, rather than treating every stage receipt as a reviewer launch.
+Optional `--review-seconds`, `--accepted-findings`, `--rejected-findings` and
+`--cached-input-tokens` support efficiency checks. Use per-turn token deltas;
+cached input is part of input tokens and reasoning is part of output tokens.
+Omit unknown measurements. Summaries keep review elapsed time separate from CI
+waiting; partial measurements do not establish total PR effort or cost. A prior
+`merge-recording-correction` invalidates its referenced merge timestamp without
+rewriting the append-only log. Never record prompts, source, secrets, personal
+identifiers, or environment values.
 
 1. Run risk-matched local checks before publishing:
    ```bash

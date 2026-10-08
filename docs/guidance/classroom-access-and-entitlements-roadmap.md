@@ -387,6 +387,57 @@ independently once that contract is stable. Batch 4 remains dormant until batche
 batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
 a new per-feature rollout switch for each route family.
 
+### Execution checkpoint — 2026-10-08
+
+The owner requested orchestration of the remaining goal in this coordinator.
+Frozen main `47659857d` contains owner Test publication #1510 (`473a5de8a`) and
+the disabled Test-cap foundation #1524 (`50185559f`). Earlier pending-publication
+receipts below are historical, not the current PR state. Neither merge completes
+batch 2 or activates a classroom experience, database migration or quota.
+
+Owner reorder #1515 remains draft at `9b1da5ac7`, with a numbering collision
+against merged quota migration 253 and unresolved 10,000-Test capacity acceptance.
+Its original failure receipts, limits and review counters remain intact. An owner
+decision is pending between a smaller supported atomic reorder contract and a
+separately reviewed inherited-trigger redesign; do not substitute the new plan
+caps for grandfathered/unlimited or already-over-limit preservation evidence.
+
+One independent batch-2 slice has source preparation on
+`codex/contextual-test-member-list-read`: dormant member Test list GET. The app
+writer owns the route/helper/validation/tests; a separate proof worker prepares
+the finite installed-SDK fixture source. The coordinator owns guidance,
+integration, review, PR lifecycle and acceptance. Every payload/child/terminal
+page must bind current nonowner membership, active Classroom, Tests visibility
+and fixed Test controls; preserve the legacy student DTO and unmatched dispatch.
+Source preparation and mock tests are not actual SDK or phase-exit acceptance.
+Do not expose the Tests tab while detail, participation, materials/history and
+returned results remain incomplete.
+
+Member-list #1534 is draft: initial two reviews identified one CI catalog-profile
+defect, remediated with exact held248/post253 catalogs and no preservation
+exclusions. Targeted review/native checks remain pending. A readonly pre-run check
+found only local login-session/rate-limit drift from the prior private checkpoint;
+preserve it and reconcile activity before native acceptance. No fixture has run.
+
+Continue within batch 2: owner metadata/documents/participation/manual-grade and
+return boundaries; member list/detail/recovery/start/save/submit/focus/results;
+Surveys owner/member transactions; Gradebook/returned Grades; existing grading
+entrypoint/job authorization without AI or billing activation. Use existing
+transaction contracts where sufficient, rather than adding a switch per route.
+Batch 3 advances only for concretely independent lifecycle/service work; batch 4
+waits for complete batches 1–3; batch 5 rehearses the integrated experience before
+any controlled cutover. The separate billing task retains subscription ownership.
+
+Current owner restriction: quota counters, warnings, limit explanations and
+upgrade prompts belong only on upgrade pages/tier summaries, not classroom or
+Test/create surfaces. Friendly creation-error integration is deferred; this does
+not authorize hidden/generic failures or enforcement activation. Canonical local
+and production migrations 249 onward, production promotion, quota enforcement,
+admission/home/page/cohort/cutover activation and account/billing/provider/runner
+changes remain held. Routine in-scope work, independent review/extensions and
+normal reviewed main merges retain existing authority and cumulative receipts.
+The epic remains incomplete.
+
 Current2026-10-03 checkpoint: batch1 exited after actual metadata1450 squash
 `e86283f8` and all five exact-head CI37150788872 gates. Batch2's shared Assignment
 write bridge1451 actually merged as3b62de062 after all five exact-head

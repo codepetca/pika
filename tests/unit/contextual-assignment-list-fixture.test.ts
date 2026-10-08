@@ -171,6 +171,42 @@ describe('injected executable assignment-list lifecycle (no real commands)', () 
     expect(adapters.command).toHaveBeenCalledWith(expect.objectContaining({ args: ['start', '--workdir', input.workdir, '-x', 'analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'] }))
     expect(adapters.prepare).toHaveBeenCalledWith(expect.anything(), input.migrations)
   })
+  it.each(['baseline', 'prepare', 'start'] as const)('refuses new work after %s expires the budget while preserving final inspection', async phase => {
+    const { input, adapters, canonical } = harness(); let now = 0
+    adapters.checkWork = () => { if (now >= 900000) throw new Error('Budget') }
+    if (phase === 'baseline') adapters.canonicalSnapshot = vi.fn(async () => { now = 900001; return canonical })
+    if (phase === 'prepare') {
+      const original = adapters.prepare
+      adapters.prepare = vi.fn(async (...args) => { const result = await original(...args); now = 900001; return result })
+    }
+    if (phase === 'start') {
+      const original = adapters.command
+      adapters.command = vi.fn(async request => { const result = await original(request); if (request.args[0] === 'start') now = 900001; return result })
+    }
+    await expect(runAssignmentListEphemeralLifecycle(input, adapters)).rejects.toMatchObject({ cleanupFailures: [] })
+    expect(adapters.canonicalSnapshot).toHaveBeenCalledTimes(2)
+    expect(adapters.executeSql).not.toHaveBeenCalled(); expect(adapters.runCase).not.toHaveBeenCalled()
+    if (phase === 'baseline') { expect(adapters.inventory).not.toHaveBeenCalled(); expect(adapters.prepare).not.toHaveBeenCalled() }
+    if (phase === 'prepare') { expect(adapters.command).not.toHaveBeenCalled(); expect(adapters.removeWorkdir).toHaveBeenCalledTimes(1) }
+    if (phase === 'start') { expect(adapters.command).toHaveBeenCalledTimes(1); expect(adapters.teardown).toHaveBeenCalledTimes(1) }
+  })
+  it('restores and verifies the exact current plan after fake-clock expiry, then cleans and inspects canonical state', async () => {
+    const { input, adapters } = harness(); let now = 0
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    adapters.checkWork = () => { if (Date.now() >= 900000) throw new Error('Budget') }
+    adapters.runRevocation = vi.fn(async ({ plan, executeSql, verifyRestoration }) => {
+      try { await executeSql(plan.revokeSql); now = 900001; throw new Error('Budget') }
+      finally { await executeSql(plan.restoreSql); await verifyRestoration(plan) }
+    })
+    try {
+      await expect(runAssignmentListEphemeralLifecycle(input, adapters)).rejects.toMatchObject({ primary: { stage: 'revocations' }, cleanupFailures: [] })
+      const plan = assignmentListRevocationPlans(input.fixture)[0]
+      expect(adapters.executeSql).toHaveBeenCalledTimes(3)
+      expect(adapters.executeSql).toHaveBeenLastCalledWith(expect.objectContaining({ sql: plan.restoreSql }))
+      expect(adapters.verifyRestoration).toHaveBeenCalledTimes(1); expect(adapters.runRevocation).toHaveBeenCalledTimes(1)
+      expect(adapters.teardown).toHaveBeenCalledTimes(1); expect(adapters.canonicalSnapshot).toHaveBeenCalledTimes(2)
+    } finally { clock.mockRestore() }
+  })
   it.each(['short baseline', 'gap', 'changed hash', 'duplicate', 'out of order', 'invalid name'] as const)('rejects a %s before any adapter operation', async defect => {
     const { input, adapters } = harness(246)
     if (defect === 'short baseline') input.migrations.splice(242)

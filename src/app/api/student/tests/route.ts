@@ -12,6 +12,8 @@ import { getStudentTestStatus } from '@/lib/tests'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
+import { authorizeSharedStudentTestListReadActor, readContextualStudentTestList } from '@/lib/server/contextual-student-test-list-read'
+import { contextualStudentTestListQuerySchema } from '@/lib/validations/contextual-student-test-list-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -20,6 +22,11 @@ const STUDENT_TEST_LIST_COLUMNS = 'id, classroom_id, title, status, show_results
 
 // GET /api/student/tests?classroom_id=xxx - List tests for student
 export const GET = withErrorHandler('GetStudentTests', async (request, context) => {
+  const shared = await authorizeSharedStudentTestListReadActor()
+  if (shared.mode === 'shared') {
+    const input = contextualStudentTestListQuerySchema.parse({ classroomId: new URL(request.url).searchParams.get('classroom_id') })
+    return NextResponse.json(await readContextualStudentTestList({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId: input.classroomId }))
+  }
   const user = await requireRole('student')
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')

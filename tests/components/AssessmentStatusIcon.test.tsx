@@ -4,6 +4,24 @@ import { describe, expect, it } from 'vitest'
 import { AssessmentStatusIcon } from '@/components/AssessmentStatusIcon'
 
 describe('AssessmentStatusIcon', () => {
+  it('keeps the progress ring decorative and accepts compact consumer sizing', () => {
+    render(<AssessmentStatusIcon state="in_progress" className="!h-3.5 !w-3.5" />)
+
+    const icon = screen.getByTestId('assessment-status-icon-in_progress')
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(icon).toHaveClass('!h-3.5', '!w-3.5')
+    expect(icon.querySelectorAll('svg')).toHaveLength(2)
+  })
+
+  it('preserves the separate late clock alongside the partial progress ring', () => {
+    render(<AssessmentStatusIcon state="in_progress" late />)
+
+    const late = screen.getByTestId('assessment-status-icon-in_progress-late')
+    expect(late).toContainElement(screen.getByTestId('assessment-status-icon-in_progress'))
+    expect(late).toContainElement(screen.getByTestId('assessment-status-icon-late-clock'))
+    expect(screen.getByTestId('assessment-status-icon-in_progress').querySelectorAll('svg')).toHaveLength(2)
+  })
+
   it('renders submitted as the shared green circle status', () => {
     render(<AssessmentStatusIcon state="submitted" />)
 

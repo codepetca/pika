@@ -4,6 +4,7 @@ import { useState, useRef, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
 import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
 import { useAuthFormContinuity, useUppercaseAuthCode } from '@/hooks/useAuthFormContinuity'
 
 function ResetPasswordForm() {
@@ -44,13 +45,13 @@ function ResetPasswordForm() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/reset-password/verify', {
+      const response = await fetchAuthSubmit('/api/auth/reset-password/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
 
       if (!response.ok) {
         throw new Error(data.error || 'Invalid code')
@@ -79,13 +80,13 @@ function ResetPasswordForm() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/reset-password/confirm', {
+      const response = await fetchAuthSubmit('/api/auth/reset-password/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, passwordConfirmation, handoffToken }),
       })
 
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to reset password')

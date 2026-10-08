@@ -388,14 +388,16 @@ jobs:
       - name: Verify isolated contextual Test owner-detail SDK reads
         shell: bash
         run: |
+          proof_timings_dir="$(cd "$RUNNER_TEMP" && pwd -P)/pika-proof-timings"
+          mkdir -m 700 "$proof_timings_dir"
           test_owner_detail_head=$(git rev-parse HEAD)
           test_owner_detail_log=$(mktemp)
           chmod 600 "$test_owner_detail_log"
           trap 'rm -f -- "$test_owner_detail_log"' EXIT
-          pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head "$test_owner_detail_head" --mode normal
+          pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head "$test_owner_detail_head" --mode normal --timings-path "$proof_timings_dir/test-owner-detail-normal.json"
           for test_owner_detail_mode in after-fixture before-capture; do
             test_owner_detail_status=0
-            pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head "$test_owner_detail_head" --mode "$test_owner_detail_mode" > "$test_owner_detail_log" 2>&1 || test_owner_detail_status=$?
+            pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head "$test_owner_detail_head" --mode "$test_owner_detail_mode" --timings-path "$proof_timings_dir/test-owner-detail-$test_owner_detail_mode.json" > "$test_owner_detail_log" 2>&1 || test_owner_detail_status=$?
             [[ "$test_owner_detail_status" -eq 1 ]] || exit 1
             [[ "$(wc -l < "$test_owner_detail_log" | tr -d ' ')" -eq 2 ]] || exit 1
             grep -Fx "FAIL forced isolated test-owner-detail lifecycle: ${test_owner_detail_mode}." "$test_owner_detail_log"
@@ -405,18 +407,36 @@ jobs:
       - name: Verify isolated contextual Test owner-list SDK reads
         shell: bash
         run: |
+          proof_timings_dir="$(cd "$RUNNER_TEMP" && pwd -P)/pika-proof-timings"
           test_owner_list_head=$(git rev-parse HEAD)
           test_owner_list_log=$(mktemp)
           chmod 600 "$test_owner_list_log"
           trap 'rm -f -- "$test_owner_list_log"' EXIT
-          pnpm exec tsx scripts/check-contextual-test-owner-list-lifecycle.ts --reviewed-head "$test_owner_list_head" --mode normal
+          pnpm exec tsx scripts/check-contextual-test-owner-list-lifecycle.ts --reviewed-head "$test_owner_list_head" --mode normal --timings-path "$proof_timings_dir/test-owner-list-normal.json"
           for test_owner_list_mode in after-fixture before-capture; do
             test_owner_list_status=0
-            pnpm exec tsx scripts/check-contextual-test-owner-list-lifecycle.ts --reviewed-head "$test_owner_list_head" --mode "$test_owner_list_mode" > "$test_owner_list_log" 2>&1 || test_owner_list_status=$?
+            pnpm exec tsx scripts/check-contextual-test-owner-list-lifecycle.ts --reviewed-head "$test_owner_list_head" --mode "$test_owner_list_mode" --timings-path "$proof_timings_dir/test-owner-list-$test_owner_list_mode.json" > "$test_owner_list_log" 2>&1 || test_owner_list_status=$?
             [[ "$test_owner_list_status" -eq 1 ]] || exit 1
             [[ "$(wc -l < "$test_owner_list_log" | tr -d ' ')" -eq 2 ]] || exit 1
             grep -Fx "FAIL forced isolated test-owner-list lifecycle: ${test_owner_list_mode}." "$test_owner_list_log"
             grep -Fx 'PASS isolated test-owner-list exact teardown and unchanged canonical baseline.' "$test_owner_list_log"
+          done
+
+      - name: Verify isolated contextual Test member-list SDK reads
+        shell: bash
+        run: |
+          test_member_list_head=$(git rev-parse HEAD)
+          test_member_list_log=$(mktemp)
+          chmod 600 "$test_member_list_log"
+          trap 'rm -f -- "$test_member_list_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-member-list-lifecycle.ts --reviewed-head "$test_member_list_head" --mode normal
+          for test_member_list_mode in after-fixture before-capture; do
+            test_member_list_status=0
+            pnpm exec tsx scripts/check-contextual-test-member-list-lifecycle.ts --reviewed-head "$test_member_list_head" --mode "$test_member_list_mode" > "$test_member_list_log" 2>&1 || test_member_list_status=$?
+            [[ "$test_member_list_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_member_list_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-member-list lifecycle: ${test_member_list_mode}." "$test_member_list_log"
+            grep -Fx 'PASS isolated test-member-list exact teardown and unchanged canonical baseline.' "$test_member_list_log"
           done
 
       - name: Verify isolated contextual Test owner-draft GET transactions
@@ -1059,6 +1079,14 @@ jobs:
       - name: Stop ephemeral database
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
+
+      - name: Upload sanitized Test proof timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-proof-timings
+          path: ${{ runner.temp }}/pika-proof-timings/*.json
+          retention-days: 7
 
   test-and-build:
     name: Test & Build
