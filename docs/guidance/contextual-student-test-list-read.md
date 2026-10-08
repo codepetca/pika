@@ -101,3 +101,24 @@ Pre-run readonly checks found the earlier private canonical checkpoint differs
 only in login session/rate-limit tables. No member fixture or SDK run has started;
 the prior checkpoint is preserved, not overwritten, and no table is exempted.
 Reconcile local sign-in activity before accepting a verification checkpoint.
+
+## Native attempt and bounded diagnosis — 2026-10-08
+
+The catalog remediation received a clean targeted review at `2a5ed85bc`.
+A fresh component pre-run checkpoint was captured twice identically, preserving
+the historical checkpoint and its three auth-table differences. All 183 tables,
+including auth, and all five fields must remain unchanged during every run.
+This is not permission to replace a baseline after a failed fixture.
+
+The first actual normal attempt failed after completing the nine-member matrix
+(61 SDK requests; final HTTP200). Exact teardown and whole canonical preservation
+passed, with zero disposable resources remaining. Its overall duration exceeded
+the unchanged 900-second total bound. The inherited primary failure stage was
+not exposed, so its precise cause remains unknown; this is not native acceptance.
+
+A small source remediation adds fixed-enum inherited-stage/deadline diagnostics
+and checks the existing total budget before and after inherited native proof
+phases. Cleanup and canonical-after inspection remain unconditional and outside
+that work budget. No deadline, fixture, assertion, restoration policy or transport
+limit is relaxed. Independent targeted review and a fresh normal/two-forced run
+against the same preserved checkpoint remain required; the PR stays draft.

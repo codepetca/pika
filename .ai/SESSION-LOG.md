@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Assignment editor committed interaction ownership
-
-PR1521 initial23-path review found a genuine suspended-close Title-input loss.
-Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
-before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
-speculative legacy session generation remounted its visible requirement owner.
-Rollback-safe feature generation preserves abandoned-close drag continuity while
-external whole-object refresh still retires the drag and preserves Tiptap identity.
-Legacy initiated-command/session rules remain unchanged. Corrected-source local,
-visual, targeted independent review and exact-head CI remain required before merge.
-Broader17-family fluidity goal remains incomplete; no production promotion.
-
 ## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
 PR #1521 returned to draft after run37686387293: four inherited preview-helper
@@ -303,3 +291,17 @@ Targeted review remains pending. Readonly preflight found only local auth sessio
 rate-limit drift from the prior private checkpoint; preserved original and drift
 receipts, no fixture/SDK native run or baseline replacement. Owner sign-in context
 requested. No production, canonical DB, quota, UI or activation mutation.
+
+## 2026-10-08 — Member native failure retained; bounded diagnosis
+
+At reviewed2a5ed85, new component pre-run whole183/all5 checkpoint was captured
+twice identically, preserving historical auth-only drift receipts. Normal native
+failed after nine-case/61-request member matrix completion; exact teardown and
+all183/all5 canonical equality passed with zero remaining disposable resources.
+Overall elapsed exceeded unchanged900s; inherited primary cause remains unknown.
+TDD source remediation reports fixed-enum inherited stage/deadline and checks
+that same budget before/after inherited work, never around final cleanup/canonical
+inspection. No fixture, limit, guard or checkpoint replacement. Draft1534 remains
+blocked on targeted source review and all three actual modes. Reorder1515's
+independent1000-cap worker owns its source; root retains sole native runtime.
+Canonical249+/production/admission/UI/quota/billing/provider holds remain.

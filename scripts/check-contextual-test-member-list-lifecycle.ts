@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../src/types/database'
 import { ApiError } from '../src/lib/api-error'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from './contextual-assignment-list-proof-fixture'
-import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
+import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, assignmentListLifecycleDiagnostic, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
 import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources,
   assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
@@ -188,6 +188,18 @@ export function testMemberListForcedReceipt(mode: string, error: unknown, comple
     return { stdout: cleanupMarker, stderr: `FAIL forced isolated test-member-list lifecycle: ${mode}.\n`, exitCode: 1 }
   return null
 }
+/** Fixed enums only; never render private error messages, SQL, IDs or rows. */
+export function testMemberListLifecycleFailureDiagnostic(error: unknown, elapsedMs: number) {
+  const primary = error instanceof AssignmentListLifecycleError ? error.primary : undefined
+  const stages = ['canonical-before', 'preflight', 'prepare', 'pre-start', 'start', 'capture', 'status', 'fixture', 'cases', 'revocations', 'after-fixture', 'before-capture']
+  const stage = primary && stages.includes(primary.stage) ? primary.stage : 'unknown'
+  const deadline = Number.isFinite(elapsedMs) && elapsedMs >= 0 ? elapsedMs >= TEST_MEMBER_LIST_CAPS.totalMs ? 'expired' : 'within' : 'unknown'
+  return `DIAG test-member-list inherited stage=${stage} deadline=${deadline}${primary ? ` ${assignmentListLifecycleDiagnostic(primary)}` : ''}.\n`
+}
+/** Inherited proof work shares the existing total budget; cleanup never does. */
+export async function testMemberListBoundedPhase<T>(check: () => void, action: () => Promise<T>): Promise<T> {
+  check(); const result = await action(); check(); return result
+}
 
 export async function testMemberListLifecycleMain(args = process.argv.slice(2)) {
   const input = parseAssignmentListLifecycleArgs(args)
@@ -262,13 +274,16 @@ export async function testMemberListLifecycleMain(args = process.argv.slice(2)) 
         }
         return captured // All five original fields remain in the sealed lifecycle.
       },
-      async command(request) { const result = await native.command(request); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },
-      async executeSql(request) { await native.executeSql(request); if (request.sql === originalSetup) {
+      async command(request) { const result = await testMemberListBoundedPhase(check, () => native.command(request)); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },
+      async verifyEphemeral(request) { return testMemberListBoundedPhase(check, () => native.verifyEphemeral(request)) },
+      async executeSql(request) { await testMemberListBoundedPhase(check, () => native.executeSql(request)); if (request.sql === originalSetup) {
         assert(!session && target && expectedTables); session = { ...request }
         transport = createTestMemberListProofTransport(f, target, projectId, fetch, guard, charge)
         client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } }); await setup()
       } },
-      async runCase(request) { const result = await native.runCase(request); if (!matrixComplete) await matrix(); return result },
+      async runCase(request) { const result = await testMemberListBoundedPhase(check, () => native.runCase(request)); if (!matrixComplete) await matrix(); return result },
+      async runRevocation(request) { return testMemberListBoundedPhase(check, () => native.runRevocation(request)) },
+      async verifyRestoration(request) { return testMemberListBoundedPhase(check, () => native.verifyRestoration(request)) },
     })
     assert(complete && matrixComplete)
     process.stdout.write(`PASS isolated test-member-list nine actual SDK cases; no auth HTTP/browser/race/public-legacy claim.\n${cleanupMarker}`)
@@ -277,6 +292,7 @@ export async function testMemberListLifecycleMain(args = process.argv.slice(2)) 
     if (receipt) { process.stdout.write(receipt.stdout); process.stderr.write(receipt.stderr); process.exitCode = receipt.exitCode; return }
     const allowed = ['pending', 'setup-guard', 'setup-sql', 'setup-snapshot', 'setup-complete', 'matrix-before', 'matrix-denial', 'matrix-member', 'matrix-equality', 'matrix-evidence', 'matrix-complete']
     process.stderr.write(`DIAG isolated test-member-list step=${allowed.includes(step) ? step : 'unknown'} cleanup=${error instanceof AssignmentListLifecycleError ? error.cleanupFailures.length ? 'present' : 'none' : 'unknown'}.\n`)
+    process.stderr.write(testMemberListLifecycleFailureDiagnostic(error, Date.now() - started))
     if (transport) process.stderr.write(transport.diagnostic())
     throw new Error('Private member list lifecycle failed')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }

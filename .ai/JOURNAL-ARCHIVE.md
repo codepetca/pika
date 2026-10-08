@@ -42522,3 +42522,16 @@ naive lifetime REDs plus capture/sensor/fixture failures retained externally.
 Focused source/checks, independent review and final exact-head CI remain required
 before main landing. Broad17-family product goal remains incomplete. No dependency,
 schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
+
+<!-- pika-session-log-archive-batch:de7862fd3809779757fb598c3c93cbb5be44187204f8c9ee0f2038db5a10887c -->
+## 2026-10-07 — Assignment editor committed interaction ownership
+
+PR1521 initial23-path review found a genuine suspended-close Title-input loss.
+Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
+before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
+speculative legacy session generation remounted its visible requirement owner.
+Rollback-safe feature generation preserves abandoned-close drag continuity while
+external whole-object refresh still retires the drag and preserves Tiptap identity.
+Legacy initiated-command/session rules remain unchanged. Corrected-source local,
+visual, targeted independent review and exact-head CI remain required before merge.
+Broader17-family fluidity goal remains incomplete; no production promotion.
