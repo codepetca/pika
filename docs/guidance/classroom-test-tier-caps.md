@@ -99,6 +99,17 @@ execution, independent delta review, exact-head CI and friendly creation error
 integration remain distinct gates; passing the new metadata blocks alone is not
 whole-profile acceptance or authority to enable enforcement.
 
+The complete local create proof at77f9 failed before SDK execution because the
+canonical248 catalog has183 tables, while source253 adds the private quota
+settings table. Exact teardown and the same full183-table/five-field checkpoint
+passed. The proof now derives its isolated catalog externally from the unchanged
+canonical catalog plus that single required, migration-SHA-bound addition. It
+does not infer expected names from the observed fixture, omit any table or exempt
+quota fingerprints from rollback/restoration. Missing, extra and duplicate
+tables still fail closed. Normal/types and both forced modes for create,
+publication and discard, independent delta review and exact-head CI remain gates;
+the failed local run is retained and is not native acceptance.
+
 A loopback-bound, read-only query of `supabase_db_pika` on 2026-10-07 found
 the largest local classroom had 5 Test rows, with zero local classrooms above
 20, 50 or 100. This is development data, not production inventory. No classroom

@@ -29,6 +29,7 @@ import { createTestOwnerPublicationProofTransport, testOwnerPublicationRequestMa
 export { createTestOwnerPublicationProofTransport } from './contextual-test-publication-proof-transport'
 import { buildTestOwnerPublicationNativeContractsManifest, createTestOwnerPublicationNativeContracts } from './contextual-test-draft-save-native-contracts'
 import { generateTestDraftSaveTypes } from './generate-contextual-test-draft-save-types'
+import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
 
 const cleanupMarker = 'PASS isolated test-owner-publication exact teardown and unchanged canonical baseline.\n'
 const APP_CAPS = Object.freeze({ controls: 4000, actions: 200, totalMs: 900000, controlMs: 45000, totalBytes: 64 * 1024 * 1024 })
@@ -204,7 +205,7 @@ export async function testOwnerPublicationLifecycleMain(args = process.argv.slic
   const setupSql = testOwnerPublicationSetupSql(f, projectId), snapshotSql = testOwnerPublicationSnapshotSql(f), union = testOwnerPublicationUnionManifest(original, f, input.head, repository)
   const unionSha256 = testOwnerDigest(JSON.stringify(union))
   let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined, session: Session | undefined
-  let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined, expectedTables: readonly string[] | undefined, canonicalSha256: string | undefined
+  let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined, expectedTables: readonly string[] | undefined, canonicalTables: readonly string[] | undefined, canonicalSha256: string | undefined
   let transport: ReturnType<typeof createTestOwnerPublicationProofTransport> | undefined, client: ReturnType<typeof createClient<Database>> | undefined
   let sqlContracts: ReturnType<typeof createTestOwnerPublicationNativeContracts> | undefined, nativeReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['run']>> | undefined
   let committedReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['runCommittedTransitions']>> | undefined
@@ -312,7 +313,8 @@ export async function testOwnerPublicationLifecycleMain(args = process.argv.slic
       ...native,
       async canonicalSnapshot(request) {
         const captured = await native.canonicalSnapshot(request), catalog = testOwnerPublicationCanonicalTableCatalog(captured)
-        if (expectedTables) assert.deepEqual(catalog, expectedTables); else { expectedTables = catalog; canonicalSha256 = testOwnerDigest(JSON.stringify(captured)) }
+        if (canonicalTables) assert.deepEqual(catalog, canonicalTables)
+        else { canonicalTables = catalog; expectedTables = classroomTestQuotaProofCatalog(catalog, migrations); canonicalSha256 = testOwnerDigest(JSON.stringify(captured)) }
         return captured
       },
       async command(request) { const result = await native.command(request); if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result },
