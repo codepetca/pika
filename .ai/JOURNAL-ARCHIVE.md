@@ -42659,3 +42659,8 @@ Combine reviewed Grades5508 and Achievementsf10 in PR1522. Preserve exact runtim
 ## 2026-10-07 — Student experience predecessor integration
 
 Integrate consolidated Grades/Achievements delivery onto verified editor-exit PR1521 main8031d2b. Preserve reviewed runtime/test/fixture/helper bytes and both sets of history; combine disjoint experience-matrix registrations. Focused/static/audit and one final cumulative integration review precede ready CI.
+
+<!-- pika-session-log-archive-batch:c9c9696143e358cf664f7e413adab626e7c47fa2ce792c6115bc622b1e3a2029 -->
+## 2026-10-07 — Student continuity CI source-contract correction
+
+Combined student PR1522 reviewed bcd0a5e00 reached normal CI37702440970; coverage passed14616 tests with one failure from an older exact JSX source assertion that omitted the newly reviewed Grades read handle ref. Returned PR to draft before correction; browser lane cancelled on draft transition and is not counted as passing. Reproduced locally1FAIL/7PASS, then updated the existing source contract to require the ref, classroom and active-tab props with whitespace tolerance; all84 tests across three parent/Grades suites pass. All production and native contract bytes stay unchanged. Focused checks, test audit and a bounded independent correction review precede another stable ready transition. No gates, runners, timeouts, provider, schema or production changes.

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Student continuity CI source-contract correction
-
-Combined student PR1522 reviewed bcd0a5e00 reached normal CI37702440970; coverage passed14616 tests with one failure from an older exact JSX source assertion that omitted the newly reviewed Grades read handle ref. Returned PR to draft before correction; browser lane cancelled on draft transition and is not counted as passing. Reproduced locally1FAIL/7PASS, then updated the existing source contract to require the ref, classroom and active-tab props with whitespace tolerance; all84 tests across three parent/Grades suites pass. All production and native contract bytes stay unchanged. Focused checks, test audit and a bounded independent correction review precede another stable ready transition. No gates, runners, timeouts, provider, schema or production changes.
-
 ## 2026-10-07 — Scope existing formatted-help gallery test after CI timeout
 
 Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades source contract but coverage reports14616PASS/1FAIL/8SKIP: unchanged UiGallery formatted-help case exceeds its existing5000ms timeout. PR returned draft before correction; cancelled browser lane is not passing evidence. Original case passes isolated with coverage locally (1.35s test observation); Linux slowdown cause is unproven. Narrow only its Formatting help button lookup to the existing Core controls section, retaining clicks, tooltip content/accessibility/dismissal assertions, real tooltip portal, full gallery render and5000ms timeout. No production, dependency, runner/gate or clock changes. Same-case coverage observations and full gallery/focused checks, source parity and bounded independent correction review precede fresh stable exact-head CI.
@@ -301,3 +297,17 @@ both archive bodies and standardrollingtrim. Runtime/native-source byte equality
 incomingUI byte equality, focused and targetedbase/handoff review precede READY
 and eligible exactheadCI. Reorder1000/254 separate reviewclean/nativepending.
 Canonical249+/prod/admission/cohort/UI/quota/billing holds remain; no phase exit.
+
+## 2026-10-08 — Preserve contracted release receipts after member CI failure
+
+Exact48ffe536 member CI37781169804 coverage reports14889PASS/1FAIL/8SKIP:
+the existing Bara rollout contract requires the recorded attendance release and
+exact prior-control verification wording omitted by CURRENT compression. Returned
+PR1534 to draft before changes. Restore canonical main's receipt and wording;
+targeted4/4PASS, no test weakening or application/runtime/source changes. Complete
+focused/audit/history gates and bounded independent doc correction review before
+stable ready retry. Original failure/counters/clock and f6 native receipts retained.
+Owner205 normal1k proof separately running; direct user authorized a fresh initial
+checkpoint after external-auth-only preflight drift. Two captures identical; other
+180 tables/four fields unchanged, all183/auth/all5 frozen for normal/twoforced;
+old checkpoints/failed preflight preserved. No canonical migrations or activation.
