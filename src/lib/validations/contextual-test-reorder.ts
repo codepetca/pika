@@ -6,7 +6,7 @@ import { contextualTestDraftGetRpcEnvelopeSchema } from '@/lib/validations/conte
 export const TEST_REORDER_BODY_BYTES = 512 * 1024
 export const TEST_REORDER_WITNESS_BYTES = 512 * 1024
 export const TEST_REORDER_ENVELOPE_BYTES = 1024 * 1024
-export const TEST_REORDER_COLLECTION_LIMIT = 10000
+export const TEST_REORDER_COLLECTION_LIMIT = 1000
 export const TEST_REORDER_DEADLINE_MS = 20000
 const inputUuid = z.string().uuid().transform(value => value.toLowerCase())
 const uuid = z.string().uuid().refine(value => value === value.toLowerCase())

@@ -1,6 +1,6 @@
 /** Inert finite source: no import-time IO/SQL, native acceptance or cleanup authority.
  * Compact bulk projections attest complete immutable rows; root must independently
- * review/run their SQL and the 13 installed Test triggers in the isolated project. */
+ * review/run their SQL and the 14 installed Test triggers in the isolated project. */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
@@ -9,17 +9,18 @@ import { testOwnerDigest, testOwnerGuardSql } from './contextual-test-owner-deta
 import { TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES } from './contextual-test-publication-proof-fixture'
 import { contextualTestListTestSchema } from '../src/lib/validations/contextual-test-list-read'
 import { boundedAssignmentListJson } from '../src/lib/validations/contextual-assignment-list-read'
+import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
 
-// No parent/native platform cap changes. The sole >10,000-row array is the fixed
-// 21,002 lightweight bulk projections, not application rows or a public response.
+// Fixed 999/1,000/1,001 bulk sources exercise the supported boundary and refusal.
+// Full immutable-row digests preserve the complete over-limit Classroom.
 export const TEST_OWNER_REORDER_CAPS = Object.freeze({ sqlBytes: 524288, networkRequests: 24, rpcRequests: 24,
   storageRequests: 0, requestMs: 20000, bodyBytes: 524288, requestBytes: 524288, resultBytes: 524288,
   envelopeBytes: 1048576, operationBytes: 1048576, rowBytes: 2097152, snapshotBytes: 8388608,
   // New-feature proof-only aggregate for the reviewed <=24 contexts/48 captures;
   // SDK exchanges, native engine and each capture retain their original caps.
-  totalBytes: 67108864, snapshotTotalBytes: 268435456, snapshotRows: 100000, rowsPerTable: 10000, bulkProjectionRows: 21002,
-  fingerprintTables: 1024, witnessIds: 24, maxTestIds: 10000 })
-export const TEST_OWNER_REORDER_SNAPSHOT_TABLES = TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES
+  totalBytes: 67108864, snapshotTotalBytes: 268435456, snapshotRows: 100000, rowsPerTable: 10000, bulkProjectionRows: 3000,
+  fingerprintTables: 1024, witnessIds: 24, maxTestIds: 1000 })
+export const TEST_OWNER_REORDER_SNAPSHOT_TABLES = Object.freeze([...TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES, 'private.classroom_test_quota_settings'] as const)
 const q = (s: string) => `'${s.replaceAll("'", "''")}'`
 const uuid = z.string().uuid().refine(s => s === s.toLowerCase())
 const timestamp = z.string().datetime({ offset: true }).refine(s => Number.isFinite(Date.parse(s)))
@@ -41,10 +42,10 @@ export function newTestOwnerReorderFixture(original: AssignmentListProofFixture)
   const tag = `testownerreorder_${original.manifest.syntheticTag.slice(-12)}`; const now = original.manifest.now
   const id = (label: string) => uuidFromHash(testOwnerDigest(`${tag}:${label}`))
   const actors = (['teacher', 'student', 'student', 'teacher', 'teacher'] as const).map((role, i) => ({ id: id(`actor${i}`), role, email: `${tag}_${i}@example.invalid` }))
-  const classLabels = ['teacher-owner', 'student-owner', 'archived-owner', 'empty-owner', 'bulk-1001', 'bulk-10000', 'bulk-10001'] as const
+  const classLabels = ['teacher-owner', 'student-owner', 'archived-owner', 'empty-owner', 'bulk-999', 'bulk-1000', 'bulk-1001'] as const
   const classes = classLabels.map((label, i) => ({ id: id(`class:${label}`), label, owner: actors[i === 1 ? 1 : 0].id,
     title: `${tag} ${label}`, code: `${tag}_${i}`, archived: i === 2 }))
-  const bulkClasses = [1001, 10000, 10001].map((count, i) => ({ label: classes[i + 4].label, classroomId: classes[i + 4].id, count }))
+  const bulkClasses = [999, 1000, 1001].map((count, i) => ({ label: classes[i + 4].label, classroomId: classes[i + 4].id, count }))
   const tests = classes.slice(0, 3).flatMap(c => ['live', 'retired', 'started', 'closed'].map((label, i) => ({
     id: id(`test:${c.label}:${label}`), artifact_id: id(`artifact:${c.label}:${label}`), classroom_id: c.id,
     created_by: actors[4].id, title: `${tag} ${c.label} ${label}`, status: label === 'started' ? 'active' as const : label === 'closed' ? 'closed' as const : 'draft' as const,
@@ -93,13 +94,14 @@ export function newTestOwnerReorderFixture(original: AssignmentListProofFixture)
     label, actorId: actors[ai].id, classroomId: ci < 0 ? missingClassroomId : classes[ci].id, expectedHTTP, expectedRPCs: 1 as const, mode, bulkClassLabel })
   const cases = [makeCase('teacher-owner', 0, 0, 200, 'ascending'), makeCase('student-owner', 1, 1, 200, 'ascending'),
     makeCase('teacher-noop', 0, 0, 200, 'ascending'), makeCase('empty-owner', 0, 3, 200, 'ascending'),
-    ...bulkClasses.map((b, i) => makeCase(b.label, 0, i + 4, b.count > 10000 ? 503 : 200, b.count > 10000 ? 'source-limit' : 'ascending', b.label)),
+    ...bulkClasses.map((b, i) => makeCase(b.label, 0, i + 4, b.count > 1000 ? 503 : 200, b.count > 1000 ? 'source-limit' : 'ascending', b.label)),
+    makeCase('bulk-1001-noop', 0, 6, 503, 'source-noop', 'bulk-1001'),
     makeCase('member-denied', 2, 0, 403, 'ascending'), makeCase('teacher-member-denied', 3, 0, 403, 'ascending'),
     makeCase('historical-creator-denied', 4, 0, 403, 'ascending'), makeCase('unrelated-owner-denied', 1, 0, 403, 'ascending'),
     makeCase('archived-owner-denied', 0, 2, 403, 'ascending'), makeCase('missing-classroom', 0, -1, 404, 'ascending'),
     makeCase('partial-membership', 0, 0, 409, 'partial'), makeCase('foreign-membership', 0, 0, 409, 'foreign'),
     makeCase('superset-membership', 0, 0, 409, 'superset')]
-  const privilegeProbes = [{ ...makeCase('raw-42501-253', 0, 0, 503, 'ascending'), context: '253' as const, expectedCode: '42501' as const }]
+  const privilegeProbes = [{ ...makeCase('raw-42501-254', 0, 0, 503, 'ascending'), context: '254' as const, expectedCode: '42501' as const }]
   const allocatedIds = [...actors.map(a => a.id), ...classes.map(c => c.id), ...tests.flatMap(t => [t.id, t.artifact_id, String(t.documents[0].id)]),
     ...questions.flatMap(r => [r.id, r.artifact_id, ...(r.source_artifact_id ? [r.source_artifact_id] : [])]), ...drafts.map(d => d.id),
     ...enrollments.map(r => r.id), ...attempts.map(r => r.id), ...responses.map(r => r.id), ...availability.map(r => r.id),
@@ -111,9 +113,9 @@ export function newTestOwnerReorderFixture(original: AssignmentListProofFixture)
   assert(original.allocatedIds.every(value => !all.has(value))); assert(cases.length + privilegeProbes.length <= TEST_OWNER_REORDER_CAPS.witnessIds)
   const fixture = freeze({ version: 1 as const, tag, now, actors, classes, bulkClasses, tests, questions, drafts, enrollments, attempts, responses,
     availability, focusEvents, attemptHistory, provenance, cases, privilegeProbes, missingClassroomId, foreignTestId, allocatedIds,
-    inventory: { actors: 5, classes: 7, tests: 21014, smallTests: 12, bulkTests: 21002, questions: 24, drafts: 12, enrollments: 6,
+    inventory: { actors: 5, classes: 7, tests: 3012, smallTests: 12, bulkTests: 3000, questions: 24, drafts: 12, enrollments: 6,
       attempts: 3, responses: 3, availability: 3, focusEvents: 3, attemptHistory: 3, provenance: 3, triggerCategories: 21, archiveRevisionRows: 7,
-      cases: cases.length, privilegeProbes: 1, testTriggers: 13 }, nativeVerified: false as const,
+      cases: cases.length, privilegeProbes: 1, testTriggers: 14 }, nativeVerified: false as const,
     caveats: ['Bulk manifests use finite deterministic series, not full-row arrays or widened platform limits',
       'Started Test lock UPDATE naturally stamps updated_at; never suppress triggers or overwrite revisions',
       'Whole-project table catalog must come from the original canonical receipt',
@@ -142,6 +144,7 @@ export function testOwnerReorderRequest(f: TestOwnerReorderFixture, label: strin
   const b = f.bulkClasses.find(b => b.classroomId === c.classroomId)
   let ids = b ? Array.from({ length: b.count }, (_, i) => bulkId(f.tag, b.count, i)) : f.tests.filter(t => t.classroom_id === c.classroomId).map(t => t.id)
   if (c.mode === 'source-limit') ids = ids.slice(0, TEST_OWNER_REORDER_CAPS.maxTestIds)
+  if (c.mode === 'source-noop') ids = ids.slice(0, 1)
   if (c.mode === 'partial') ids = ids.slice(1)
   if (c.mode === 'foreign') ids = [...ids.slice(1), f.foreignTestId]
   if (c.mode === 'superset') ids = [...ids, f.foreignTestId]
@@ -223,6 +226,7 @@ export function testOwnerReorderSnapshotExpressionSql(f: TestOwnerReorderFixture
     ['public.classroom_guided_draft_provenance', `${test} or classroom_id in (${classes})`],
     ['public.gradebook_score_overrides', `classroom_id in (${classes}) or (assessment_type='test' and assessment_id in (${fixed}) or assessment_type='test' and assessment_id in (${source}))`],
     ['public.course_blueprints', 'false'], ['public.course_blueprint_versions', 'false'], ['public.managed_storage_settings', 'true'],
+    ['private.classroom_test_quota_settings', 'true'],
   ]
   assert.deepEqual(scopes.map(([t]) => t), TEST_OWNER_REORDER_SNAPSHOT_TABLES)
   const excludes: Record<string, string> = { 'public.classrooms': `where r.id not in (${classes})`,
@@ -248,15 +252,15 @@ export function testOwnerReorderSnapshotSql(f: TestOwnerReorderFixture) {
 const acceptedCatalogs = new WeakSet<object>(); const fixtureCatalogs = new WeakMap<object, readonly string[]>()
 const setupSnapshots = new WeakMap<object, string>()
 /** Input is the original canonical all-five-field receipt, never a guessed global list. */
-export function testOwnerReorderTableCatalogFromCanonical(value: unknown): readonly string[] {
+export function testOwnerReorderTableCatalogFromCanonical(value: unknown, migrations?: readonly { name: string; sql: string; sha256: string }[]): readonly string[] {
   assert(boundedAssignmentListJson(value, TEST_OWNER_REORDER_CAPS.snapshotBytes))
   const receipt = z.object({ rowDigests: z.string().min(1), guard168Metadata: z.string().min(1), settings: z.string().min(1),
     cronJobs: z.string().min(1), resources: z.string().min(1) }).strict().parse(value)
   const rows = z.record(z.string().regex(/^(public|private|storage)\.[a-z_0-9]+$/),
     z.object({ count: z.number().int().nonnegative().safe(), digest: z.string().regex(/^[a-f0-9]{32}$/) }).strict()).parse(JSON.parse(receipt.rowDigests))
   const tables = Object.keys(rows).sort(); assert(tables.length > 0 && tables.length <= TEST_OWNER_REORDER_CAPS.fingerprintTables)
-  for (const t of [...TEST_OWNER_REORDER_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets']) assert(tables.includes(t), 'Incomplete canonical catalog')
-  const result = freeze(tables); acceptedCatalogs.add(result); return result
+  for (const t of [...TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets']) assert(tables.includes(t), 'Incomplete canonical catalog')
+  const result = freeze(migrations ? classroomTestQuotaProofCatalog(tables, migrations) : tables); acceptedCatalogs.add(result); return result
 }
 function instant(v: unknown) {
   const s = timestamp.parse(v); const fraction = /(?:\.(\d+))?(?:Z|[+-]\d{2}:\d{2})$/.exec(s)?.[1] ?? ''
@@ -336,6 +340,7 @@ function setupBaseline(f: TestOwnerReorderFixture, s: TestOwnerReorderSnapshot) 
     assert(Number.isSafeInteger(revision.revision) && Number(revision.revision) >= 0); instant(revision.updated_at)
   }
   assert.equal(s['public.managed_storage_settings'].length, 1); assert.equal(s['public.managed_storage_settings'][0].singleton, true)
+  equal(s['private.classroom_test_quota_settings'], [{ singleton: true, enabled: false }])
   for (const t of ['public.managed_storage_objects', 'public.managed_storage_json_references', 'public.gradebook_score_overrides',
     'public.test_ai_grading_runs', 'public.test_ai_grading_run_items', 'public.course_blueprints', 'public.course_blueprint_versions']) assert.equal(s[t].length, 0)
 }

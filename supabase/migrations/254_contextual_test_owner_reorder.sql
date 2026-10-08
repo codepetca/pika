@@ -1,7 +1,7 @@
 -- Dormant current-Class-owner Test-list reorder. Admission is an HTTP gate.
 -- Complete membership includes Blueprint-retired and started Tests: position
 -- is presentation state; authored content, lineage and runtime remain read-only.
--- Catalog/native proof seals all 13 Test triggers and their reachable routines,
+-- Catalog/native proof seals all 14 Test triggers and their reachable routines,
 -- including update_tests_updated_at, and attests whole-project preservation.
 -- No product-runtime global fingerprint, child/queue write or managed sequence
 -- call is introduced. Clock checks fence permission to commit, not physical
@@ -46,7 +46,7 @@ begin
   -- SQL also validates the typed RPC boundary. An empty PostgreSQL array has
   -- no dimensions; every nonempty array must be one-dimensional and 1-based.
   if p_actor_id is null or p_classroom_id is null or p_test_ids is null
-    or pg_catalog.cardinality(p_test_ids) > 10000
+    or pg_catalog.cardinality(p_test_ids) > 1000
     or (pg_catalog.cardinality(p_test_ids) > 0 and (
       pg_catalog.array_ndims(p_test_ids) is distinct from 1
       or pg_catalog.array_lower(p_test_ids, 1) is distinct from 1))
@@ -130,9 +130,9 @@ begin
 
   -- The bound precedes all full Test row reads and aggregate allocation.
   select count(*) into v_count from (
-    select test.id from public.tests test where test.classroom_id = p_classroom_id limit 10001
+    select test.id from public.tests test where test.classroom_id = p_classroom_id limit 1001
   ) bounded;
-  if v_count > 10000 then
+  if v_count > 1000 then
     raise exception using errcode = 'PT503', message = 'test_reorder_source_limit';
   end if;
   if pg_catalog.clock_timestamp() >= v_phase_deadline then
@@ -251,9 +251,9 @@ begin
   -- survival, complete membership, unchanged peers or the final full rows.
   select count(*),coalesce(pg_catalog.array_agg(bounded.id order by bounded.id),array[]::uuid[])
   into v_count,v_current_ids from (
-    select test.id from public.tests test where test.classroom_id = p_classroom_id limit 10001
+    select test.id from public.tests test where test.classroom_id = p_classroom_id limit 1001
   ) bounded;
-  if v_count > 10000 or v_current_ids is distinct from v_requested_ids then
+  if v_count > 1000 or v_current_ids is distinct from v_requested_ids then
     raise exception using errcode = 'PT503', message = 'test_reorder_postcondition_failed';
   end if;
   select classroom.* into v_classroom_after from public.classrooms classroom where classroom.id = p_classroom_id;

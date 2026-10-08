@@ -26,11 +26,11 @@ function target(): DraftSaveTarget {
 describe('inert contextual Test reorder database contracts', () => {
   it('places fixed INFO progress only inside the existing bulk and verified calibration frames', () => {
     const marker = (code: string) => `raise info using errcode='${code}',message='Reorder proof checkpoint';`
-    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-10000')!.sql
+    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-1000')!.sql
     const calibration = manifest.contracts.find(batch => batch.expectedResult.checks.includes('deadline-reached'))!.sql
     for (const code of ['PRG01', 'PRG02', 'PRG03', 'PRG04']) {
       expect(bulk.split(marker(code))).toHaveLength(2)
-      expect(manifest.contracts.filter(batch => batch.sql.includes(marker(code))).map(batch => batch.name)).toEqual(['bulk-10000'])
+      expect(manifest.contracts.filter(batch => batch.sql.includes(marker(code))).map(batch => batch.name)).toEqual(['bulk-1000'])
     }
     expect(bulk.indexOf(marker('PRG01'))).toBeLessThan(bulk.indexOf('create temp table owner_reorder_checks'))
     expect(bulk).toContain(`${marker('PRG02')}r:=public.reorder_tests_for_owner_v1`)
@@ -48,7 +48,7 @@ describe('inert contextual Test reorder database contracts', () => {
       PRD07: 'test_reorder_result_limit',
     })
     expect(Object.isFrozen(TEST_OWNER_REORDER_BULK_FAILURE_CODES)).toBe(true)
-    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-10000')!
+    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-1000')!
     for (const [code, message] of Object.entries(TEST_OWNER_REORDER_BULK_FAILURE_CODES).filter(([code]) => code !== 'PRD01')) {
       expect(bulk.sql).toContain(`when '${message}' then raise exception using errcode='${code}',message='Reorder bulk-capacity proof failed';`)
     }
@@ -57,18 +57,18 @@ describe('inert contextual Test reorder database contracts', () => {
     expect(bulk.sql).toContain('Reorder exact witness differs')
     expect(bulk.sql).toContain('Reorder full effect graph differs')
     expect(bulk.sql).toContain("clock_timestamp()+interval '8 seconds'")
-    expect(manifest.contracts.filter(batch => batch.sql.includes('Reorder bulk-capacity proof failed')).map(batch => batch.name)).toEqual(['bulk-10000'])
+    expect(manifest.contracts.filter(batch => batch.sql.includes('Reorder bulk-capacity proof failed')).map(batch => batch.name)).toEqual(['bulk-1000'])
   })
   it('classifies only bounded first-frame deadline checkpoints and calibrates the unchanged expired-deadline probe', () => {
     expect(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES).toEqual({
       PRD11: 50, PRD12: 121, PRD13: 212, PRD14: 229, PRD15: 288, PRD16: 298,
     })
     expect(Object.isFrozen(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES)).toBe(true)
-    const source = readFileSync('supabase/migrations/253_contextual_test_owner_reorder.sql', 'utf8')
+    const source = readFileSync('supabase/migrations/254_contextual_test_owner_reorder.sql', 'utf8')
     const body = source.split('as $function$')[1].split('$function$')[0]
     expect(body.split('\n').flatMap((line, index) => line.includes("message = 'test_reorder_deadline'") ? [index+1] : []))
       .toEqual(Object.values(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES))
-    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-10000')!.sql
+    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-1000')!.sql
     expect(bulk).toContain('get stacked diagnostics deadline_context=pg_exception_context;')
     expect(bulk).toContain('pg_catalog.octet_length(deadline_context)<=8192')
     expect(bulk).toContain("pg_catalog.split_part(deadline_context,E'\\n',1)")
@@ -92,11 +92,11 @@ describe('inert contextual Test reorder database contracts', () => {
     expect(bulk).not.toMatch(/raise (?:notice|warning)|message\s*=\s*deadline_context|detail\s*=|hint\s*=/i)
   })
   it('pins the exact source and emits finite frozen rollback batches', () => {
-    expect(TEST_OWNER_REORDER_SOURCE_SHA256).toBe('71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006')
-    expect(digest(readFileSync('supabase/migrations/253_contextual_test_owner_reorder.sql', 'utf8'))).toBe(TEST_OWNER_REORDER_SOURCE_SHA256)
+    expect(TEST_OWNER_REORDER_SOURCE_SHA256).toBe('7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea')
+    expect(digest(readFileSync('supabase/migrations/254_contextual_test_owner_reorder.sql', 'utf8'))).toBe(TEST_OWNER_REORDER_SOURCE_SHA256)
     expect(TEST_OWNER_REORDER_DB_CAPS).toEqual({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000,
-      logicalGroups: 9, batches: 27, probesPerBatch: 2 })
-    expect(manifest.contracts).toHaveLength(27)
+      logicalGroups: 9, batches: 28, probesPerBatch: 2 })
+    expect(manifest.contracts).toHaveLength(28)
     for (const batch of manifest.contracts) {
       expect(Object.isFrozen(batch)).toBe(true)
       expect(Buffer.byteLength(batch.sql)).toBeLessThanOrEqual(262144)
@@ -106,13 +106,13 @@ describe('inert contextual Test reorder database contracts', () => {
       expect(batch.sql).not.toMatch(/\bcommit\s*;|setval\s*\(|truncate\s|reset\s+.*sequence/i)
     }
     expect(Object.isFrozen(manifest)).toBe(true)
-    expect(manifest.sourceFile).toBe('253_contextual_test_owner_reorder.sql')
+    expect(manifest.sourceFile).toBe('254_contextual_test_owner_reorder.sql')
   })
 
   it('splits all nine logical groups into complete sealed rollback frames without losing probes', () => {
     const expectedGroups = {
       catalog: 1, 'authority-effects': 13, 'input-membership': 6, bounds: 8,
-      'lifecycle-guards': 8, 'injected-faults': 9, 'bulk-1001': 2, 'bulk-10000': 1, 'bulk-10001': 2,
+      'lifecycle-guards': 8, 'injected-faults': 9, 'bulk-999': 2, 'bulk-1000': 1, 'bulk-1001': 3,
     }
     const labels: string[] = []
     for (const [group, count] of Object.entries(expectedGroups)) {
@@ -134,27 +134,32 @@ describe('inert contextual Test reorder database contracts', () => {
       })
       expect(probes).toBe(count)
     }
-    expect(labels).toHaveLength(50)
-    expect(new Set(labels).size).toBe(50)
+    expect(labels).toHaveLength(51)
+    expect(new Set(labels).size).toBe(51)
     expect(labels.sort()).toEqual([...manifest.checkLabels].sort())
   })
 
-  it('seals exact columns, all13 triggers, column qualifiers and reachable routine source', () => {
+  it('seals exact columns, all14 triggers, column qualifiers and reachable routine source', () => {
     expect(TEST_OWNER_REORDER_TEST_COLUMNS).toHaveLength(21)
     for (const token of ['prosecdef', 'search_path=""', 'lock_timeout=1s', 'pg_catalog.aclexplode',
       'update_tests_updated_at', 'tgattr', 'tgqual', 'tgargs', 'tgenabled', 'tgdeferrable', 'tginitdeferred',
-      'Exact13 Test trigger closure differs', 'Reachable routine source differs', 'pg_catalog.md5(proc.prosrc)',
+      'Exact14 Test trigger closure differs', 'Reachable routine source differs', 'pg_catalog.md5(proc.prosrc)',
       'resolve_classroom_archive_resource_classroom_id(text,uuid)', 'bump_classroom_archive_revision_from_resource()',
       'touch_classroom_blueprint_source_revision()', 'private.try_lock_classroom_membership_change(uuid,uuid)',
       'public.bump_classroom_blueprint_source_revision()', 'public.update_updated_at_column()',
     ]) expect(sql).toContain(token)
-    expect(manifest.reachableFunctions).toHaveLength(22)
+    expect(manifest.reachableFunctions).toHaveLength(23)
     expect(manifest.reachableFunctions.some(routine => routine.signature === 'public.create_archived_classroom_blueprint_atomic(uuid,uuid,text,uuid,bigint,jsonb)')).toBe(true)
     expect(manifest.reachableFunctions.every(routine=>routine.sourceSha256.length===64&&routine.prosrcMd5.length===32)).toBe(true)
     expect(sql).toContain("'gradebook_maximum_override'")
   })
 
   it('uses the trigger-aware deparser without converting failed qualified extraction to empty', () => {
+    const quota = manifest.reachableFunctions.find(r => r.signature === 'private.enforce_classroom_test_quota_v1()')!
+    expect(quota.sourceFile).toBe('253_classroom_test_tier_caps.sql')
+    expect(quota).toMatchObject({ language: 'plpgsql', securityDefiner: true, volatility: 'v', proconfig: ['search_path=""'] })
+    expect(sql).toContain("'enforce_classroom_test_quota','private','enforce_classroom_test_quota_v1',23,array['classroom_id']::text[]")
+    expect(sql).toContain('Dormant quota setting differs')
     const catalog = manifest.contracts[0]
     expect(catalog.name).toBe('catalog')
     expect(catalog.sql).not.toContain('pg_get_expr(t.tgqual')
@@ -200,7 +205,7 @@ describe('inert contextual Test reorder database contracts', () => {
     for (const label of ['teacher-owner', 'student-owner', 'teacher-noop', 'empty-owner',
       'member-denied', 'teacher-member-denied', 'historical-creator-denied', 'archived-owner-denied',
       'partial-membership', 'superset-membership', 'foreign-membership', 'duplicate-membership', 'null-array', 'null-member',
-      'bulk-1001', 'bulk-10000', 'source-10001-limit', 'full-10001-input', 'row-byte-limit', 'state-byte-limit',
+      'bulk-999', 'bulk-1000', 'source-1001-limit', 'source-1001-noop', 'full-1001-input', 'row-byte-limit', 'state-byte-limit',
       'class-byte-limit', 'revision-limit', 'archive-revision-limit', 'deadline-reached', 'deadline-nonfinite',
       'maintenance-restore', 'maintenance-compaction', 'identity-mapping', 'classroom-finalize', 'blueprint-finalize', 'student-finalize',
       'classroom-purge-fence', 'provider-cleanup-binding',
@@ -238,7 +243,7 @@ describe('inert contextual Test reorder database contracts', () => {
       }, rollbackAndClose: async timeout => { expect(timeout).toBe(12000); closed++ },
     }) }
     await expect(runTestOwnerReorderDbContracts(manifest, sealed, driver,Date.now()+315000)).resolves.toMatchObject({ kind: 'rollback-test-owner-reorder-contracts', checks: manifest.expectedResult.checks })
-    expect(calls).toBe(27); expect(closed).toBe(1)
+    expect(calls).toBe(28); expect(closed).toBe(1)
   })
 
   it('closes on execution, target drift, acknowledgement and session-name failures', async () => {

@@ -1,4 +1,4 @@
-/** Inert fixed253 adopter. Offline source/AST checks are not native acceptance.
+/** Inert fixed254 adopter. Offline source/AST checks are not native acceptance.
  * Actual execution requires independent review of this exact clean HEAD. */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -29,7 +29,7 @@ import { TEST_OWNER_REORDER_CAPS, TEST_OWNER_REORDER_SNAPSHOT_TABLES,
 import { createTestOwnerReorderProofTransport, testOwnerReorderRequestManifest } from './contextual-test-reorder-proof-transport'
 import { buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts,
   buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts } from './contextual-test-draft-save-native-contracts'
-import { validateTestOwnerReorderDiagnosticReceipt } from './contextual-test-reorder-diagnostic'
+import { assertTestOwnerReorderDiagnosticAvailable, validateTestOwnerReorderDiagnosticReceipt } from './contextual-test-reorder-diagnostic'
 import { generateTestDraftSaveTypes } from './generate-contextual-test-draft-save-types'
 
 const cleanupMarker = 'PASS isolated test-owner-reorder exact teardown and unchanged canonical baseline.\n'
@@ -252,6 +252,7 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
 
 /** Separate closed entrypoint; it cannot produce normal proof/type acceptance. */
 export async function testOwnerReorderDiagnosticLifecycleMain(args = process.argv.slice(2)) {
+  assertTestOwnerReorderDiagnosticAvailable()
   const receipt = await runTestOwnerReorderLifecycle(args, true)
   assert(receipt && 'diagnosticOnly' in receipt && receipt.diagnosticOnly === true)
   return receipt
@@ -286,7 +287,7 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
   assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['status', '--porcelain', '--untracked-files=all']), '')
   const repository = git(['rev-parse', '--show-toplevel']); assert.equal(repository, process.cwd())
   const migrations = loadAssignmentListReviewedMigrations(repository)
-  assert.equal(migrations.length, 253); assert.equal(migrations.at(-1)?.name, '253_contextual_test_owner_reorder.sql')
+  assert.equal(migrations.length, 254); assert.equal(migrations.at(-1)?.name, '254_contextual_test_owner_reorder.sql')
   const original = newAssignmentListProofFixture(), f = newTestOwnerReorderFixture(original), projectId = `pika_assignment_list_${f.tag.slice(-12)}`
   const native = createAssignmentListNativeAdapters(original), originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerReorderSetupSql(f, projectId), snapshotSql = testOwnerReorderSnapshotSql(f), union = testOwnerReorderUnionManifest(original, f, input.head, repository)
@@ -295,7 +296,7 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
   assert.equal(union.sql.capabilities.totalBytes, nativeByteReserve)
   const unionSha256 = testOwnerDigest(JSON.stringify(union))
   let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined, session: Session | undefined
-  let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined, expectedTables: readonly string[] | undefined, canonicalSha256: string | undefined
+  let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined, expectedTables: readonly string[] | undefined, canonicalTables: readonly string[] | undefined, canonicalSha256: string | undefined
   let canonicalRequest: Parameters<AssignmentListLifecycleAdapters['canonicalSnapshot']>[0] | undefined
   const inheritedCalls = { canonicalSnapshot: 0, inventory: 0, prepare: 0, command: 0, verifyEphemeral: 0, executeSql: 0,
     runCase: 0, runRevocation: 0, verifyRestoration: 0, teardown: 0, removeWorkdir: 0 }
@@ -338,7 +339,7 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
       boundary = 'git-root'; assert.equal(git(['rev-parse', '--show-toplevel']), repository)
       boundary = 'git-status'; assert.equal(git(['status', '--porcelain', '--untracked-files=all']), '')
       boundary = 'migration-manifest'; assert.equal(draftSaveMigrationManifestSha256(repository), union.sql.migrationManifestSha256)
-      boundary = 'migration-source'; assert.equal(testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/253_contextual_test_owner_reorder.sql'), 'utf8')), union.sql.sourceSha256)
+      boundary = 'migration-source'; assert.equal(testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/254_contextual_test_owner_reorder.sql'), 'utf8')), union.sql.sourceSha256)
       boundary = 'inventory'; const inventory = await draftSaveProofDockerInventory({ stat: bindSocket })
       boundary = 'resources'; closure = validateIntegratedGuardResources(inventory, projectId, session.containerId, closure)
       account(JSON.stringify(closure)); boundary = 'sql'; assert.equal(privateSql(testOwnerGuardSql(projectId)), 'ok')
@@ -445,7 +446,7 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
         for (const field of Object.values(captured)) assert(typeof field === 'string' && field.length > 0)
         if (after) { canonicalCleanup.bytes = Buffer.byteLength(JSON.stringify(captured)); assert(canonicalCleanup.bytes <= CANONICAL_AFTER_CAPS.bytes) }
         else account(JSON.stringify(captured))
-        if (expectedTables) assert.deepEqual(catalog, expectedTables); else { expectedTables = catalog; canonicalSha256 = testOwnerDigest(JSON.stringify(captured)) }
+        if (canonicalTables) assert.deepEqual(catalog, canonicalTables); else { canonicalTables = catalog; expectedTables = testOwnerReorderTableCatalogFromCanonical(captured, migrations); canonicalSha256 = testOwnerDigest(JSON.stringify(captured)) }
         return captured
       },
       async inventory(request) {

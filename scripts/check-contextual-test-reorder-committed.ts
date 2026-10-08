@@ -39,7 +39,7 @@ function committedGuard(projectId:string,side:Side) {
   return `begin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='30s';${inherited}
  if current_database()<>'postgres' or current_user<>'postgres'
  or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null
- then raise exception 'Migration253 disposable source differs';end if;
+ then raise exception 'Migration254 disposable source differs';end if;
 end;$guard$;`
 }
 
@@ -89,7 +89,7 @@ function functions() {
  return pg_temp.reorder_committed_bump(g,c,2,4);end;$create$;
  create or replace function pg_temp.reorder_committed_reorder(g jsonb,c uuid,u uuid,ids uuid[]) returns jsonb language plpgsql as $reorder$
  declare r jsonb;expected jsonb;changes bigint;n bigint:=cardinality(ids);begin
- if n>10000 or n<>(select count(*) from jsonb_array_elements(g->'public.tests') x where x->>'classroom_id'=c::text)
+ if n>1000 or n<>(select count(*) from jsonb_array_elements(g->'public.tests') x where x->>'classroom_id'=c::text)
  or n<>(select count(distinct id) from unnest(ids) d(id)) or exists(select 1 from unnest(ids) d(id) where not exists(select 1 from jsonb_array_elements(g->'public.tests') x where x->>'id'=d.id::text and x->>'classroom_id'=c::text))
  then raise exception 'Reorder request complete membership differs';end if;
  select count(*) into changes from jsonb_array_elements(g->'public.tests') x join unnest(ids) with ordinality d(id,ord) on x->>'id'=d.id::text where (x->>'position')::integer is distinct from (n-d.ord)::integer;
@@ -115,7 +115,7 @@ export function testOwnerReorderCommittedManifest(f: TestOwnerReorderFixture) {
   // identities/relationships actually consumed by this inert manifest; never
   // regenerate AssignmentList entropy or forge a partial original fixture.
   f.actors.forEach((a,i)=>{assert(Object.isFrozen(a));assert.equal(a.id,sourceId(f.tag,`actor${i}`));assert.equal(a.role,['teacher','student','student','teacher','teacher'][i])})
-  f.classes.forEach((c,i)=>{const label=['teacher-owner','student-owner','archived-owner','empty-owner','bulk-1001','bulk-10000','bulk-10001'][i];
+  f.classes.forEach((c,i)=>{const label=['teacher-owner','student-owner','archived-owner','empty-owner','bulk-999','bulk-1000','bulk-1001'][i];
     assert(Object.isFrozen(c));assert.equal(c.label,label);assert.equal(c.id,sourceId(f.tag,`class:${label}`));assert.equal(c.owner,f.actors[i===1?1:0].id)})
   f.tests.forEach((t,i)=>{const classroom=f.classes[Math.floor(i/4)],label=['live','retired','started','closed'][i%4];
     assert(Object.isFrozen(t));assert.equal(t.id,sourceId(f.tag,`test:${classroom.label}:${label}`));assert.equal(t.classroom_id,classroom.id)})
@@ -151,7 +151,7 @@ export function testOwnerReorderCommittedManifest(f: TestOwnerReorderFixture) {
   }
   function cache(label:string,cid:string,reverse=false,side:Side='holder') {
     step(`${label}:cache${side==='contender'?'-b':''}`,side,'cached',`select coalesce(array_agg(id order by id ${reverse?'desc':'asc'}),array[]::uuid[]),coalesce(max(position),-1)+1 into ids,pos from public.tests where classroom_id=${cid};
- if cardinality(ids)>10000 then raise exception 'Finite membership limit';end if;
+ if cardinality(ids)>1000 then raise exception 'Finite membership limit';end if;
  insert into reorder_committed_cache values(${q(label)},ids,pos,pg_temp.reorder_committed_sha(before_graph));`,'same')
   }
   function denial(label:string,cid:string,expected:string) {
@@ -214,7 +214,7 @@ export function testOwnerReorderCommittedManifest(f: TestOwnerReorderFixture) {
   step('legacy-max:post-commit','contender','persisted',`select to_jsonb(x) into strict t from public.tests x where classroom_id=${sc} and title=${q(legacyTitle)};
  if not exists(select 1 from public.tests where classroom_id=${sc} and id<>(t->>'id')::uuid and position=(t->>'position')::integer) then raise exception 'Legacy duplicate disappeared';end if;`,'same')
   assert.equal(steps.length,TEST_OWNER_REORDER_COMMITTED_CAPS.dispatches)
-  const manifest=freeze({version:1 as const,projectId,sourceFile:'253_contextual_test_owner_reorder.sql' as const,sourceSha256:TEST_OWNER_REORDER_SOURCE_SHA256,
+  const manifest=freeze({version:1 as const,projectId,sourceFile:'254_contextual_test_owner_reorder.sql' as const,sourceSha256:TEST_OWNER_REORDER_SOURCE_SHA256,
     sourceHashes:{'250_contextual_test_owner_create.sql':'58afc9d76d05f23166a76c59ae6d8b2e8b48aec49842671058ad57221ca0fbae',
       '251_contextual_test_pristine_owner_discard.sql':'3134f0d6bfdd7b80ee065c3f105a582aec8fa5105d81d3228089b3ca21cfdef0'},catalogSource:'Every public/private/storage ordinary or partitioned table' as const,caps:TEST_OWNER_REORDER_COMMITTED_CAPS,schedules:SCHEDULES,steps,
     limitations:['Source preparation and mocked receipts are not committed native acceptance.',
@@ -255,7 +255,7 @@ export async function runTestOwnerReorderCommittedTransitions(manifest:TestOwner
       assert.deepEqual(Object.keys(r).sort(),['label','outcome','before_sha256','after_sha256','cached_sha256','actor_id','classroom_id','test_ids','count','full_graph_verified'].sort())
       assert.equal(r.label,step.label);assert.equal(r.outcome,step.outcome);assert.equal(r.full_graph_verified,true)
       assert.match(String(r.before_sha256),/^[a-f0-9]{64}$/);assert.match(String(r.after_sha256),/^[a-f0-9]{64}$/);assert.equal(r.actor_id,step.actorId);assert.equal(r.classroom_id,step.classroomId)
-      assert(Array.isArray(r.test_ids)&&r.test_ids.length<=10000&&new Set(r.test_ids).size===r.test_ids.length);r.test_ids.forEach(id=>assert(typeof id==='string'&&UUID.test(id)))
+      assert(Array.isArray(r.test_ids)&&r.test_ids.length<=1000&&new Set(r.test_ids).size===r.test_ids.length);r.test_ids.forEach(id=>assert(typeof id==='string'&&UUID.test(id)))
       assert.equal(r.count,r.test_ids.length);if(prior!==undefined)assert.equal(r.before_sha256,prior,'Cross-session committed preimage chain differs')
       const schedule=step.label.split(':')[0]
       if(step.outcome==='cached') {assert.equal(r.cached_sha256,null);caches.set(`${schedule}:${step.side}`,String(r.before_sha256));cachedIds.set(`${schedule}:${step.side}`,r.test_ids)}

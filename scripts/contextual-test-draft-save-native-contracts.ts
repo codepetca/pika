@@ -35,7 +35,7 @@ import { TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_BULK_FAILURE_CODES
 import { testOwnerReorderConcurrencyManifest, validateTestOwnerReorderConcurrencySql, runTestOwnerReorderConcurrency } from './check-contextual-test-reorder-concurrency'
 import { testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql, runTestOwnerReorderCommittedTransitions } from './check-contextual-test-reorder-committed'
 import { captureTestOwnerReorderProgress, type TestOwnerReorderProgressCheckpoint, type TestOwnerReorderProgressScope } from './contextual-test-reorder-progress'
-import { buildTestOwnerReorderDiagnosticManifest, validateTestOwnerReorderDiagnosticSql,
+import { assertTestOwnerReorderDiagnosticAvailable, buildTestOwnerReorderDiagnosticManifest, validateTestOwnerReorderDiagnosticSql,
   runTestOwnerReorderDiagnostic, captureTestOwnerReorderTimings, validateTestOwnerReorderDiagnosticReceipt, type TestOwnerReorderTimings } from './contextual-test-reorder-diagnostic'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
@@ -448,7 +448,7 @@ export function validateTestOwnerPublicationNativeSql(manifest: PublicationManif
     || validateTestOwnerPublicationCommittedSql(manifest.committed, sql)
 }
 /** Durable installation belongs to the original lifecycle fixture hook. This
- * closed253 profile only checks presence and admits finite source-owned SQL.
+ * closed254 profile only checks presence and admits finite source-owned SQL.
  * It neither raises inherited engine caps nor attests native execution. */
 export function buildTestOwnerReorderNativeContractsManifest(original: AssignmentListProofFixture,
   fixture: TestOwnerReorderFixture, reviewedHead: string, repository: string) {
@@ -465,9 +465,11 @@ export function buildTestOwnerReorderNativeContractsManifest(original: Assignmen
 do $presence$ begin
  if current_database()<>'postgres' or current_user<>'postgres'
  or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)') is null
+ or (select count(*) from private.classroom_test_quota_settings)<>1
+ or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
  or (select count(*) from public.users where id=any(array[${actors}]) and email like ${q(fixture.tag + '%@example.invalid')})<>5
  or (select count(*) from public.classrooms where id=any(array[${classes}]))<>7
- or (select count(*) from public.tests where classroom_id=any(array[${classes}]))<>21014
+ or (select count(*) from public.tests where classroom_id=any(array[${classes}]))<>3012
  or (select count(*) from public.assessment_drafts where classroom_id=any(array[${classes}]))<>12
  or (select count(*) from public.test_questions where test_id in (${testIds}))<>24
  or (select count(*) from public.classroom_enrollments where classroom_id=any(array[${classes}]))<>6
@@ -479,14 +481,14 @@ do $presence$ begin
  or (select count(*) from public.test_focus_events where test_id in (${testIds}))<>3
  or (select count(*) from public.test_attempt_history where test_attempt_id in (select id from public.test_attempts where test_id in (${testIds})))<>3
  or (select count(*) from public.classroom_guided_draft_provenance where classroom_id=any(array[${classes}]))<>3
- then raise exception 'Migration253 fixture presence differs';end if;
+ then raise exception 'Migration254 fixture presence differs';end if;
 end;$presence$;rollback;`
   const contracts = testOwnerReorderDbContractsManifest(fixture, projectId, repository)
   const concurrency = testOwnerReorderConcurrencyManifest(fixture)
   const committed = testOwnerReorderCommittedManifest(fixture)
   const snapshot = testOwnerReorderSnapshotSql(fixture)
   for (const sql of [setup, snapshot, ...contracts.contracts.map(batch => batch.sql)]) assert(Buffer.byteLength(sql) <= DRAFT_SAVE_CAPS.sqlBytes)
-  const sourceSha256 = testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/253_contextual_test_owner_reorder.sql'), 'utf8'))
+  const sourceSha256 = testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/254_contextual_test_owner_reorder.sql'), 'utf8'))
   assert.equal(sourceSha256, TEST_OWNER_REORDER_SOURCE_SHA256)
   return freeze({ version: 1, reviewedHead, migrationManifestSha256: draftSaveMigrationManifestSha256(repository), sourceSha256,
     fixture, guard, setup, contracts, concurrency, committed, snapshot, bootstrap: boot, termination: draftSaveNativeTerminationSql(),
@@ -519,7 +521,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '253_contextual_test_owner_reorder.sql';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql';
   label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic';
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
@@ -628,9 +630,9 @@ export function createTestOwnerReorderNativeContracts(input: NativeOwnerInput & 
   const manifest = buildTestOwnerReorderNativeContractsManifest(input.original, input.fixture, input.reviewedHead, input.repository)
   const engine = createNativeOwnerContracts(input, {
     manifest, project: `pika_assignment_list_${manifest.fixture.tag.slice(-12)}`,
-    sourceFile: '253_contextual_test_owner_reorder.sql', label: 'test-owner-reorder',
+    sourceFile: '254_contextual_test_owner_reorder.sql', label: 'test-owner-reorder',
     absoluteDeadline, singleMs: 35000, committedOuterPrivilege: true,
-    reorderProgressSql: Object.freeze({ bulk: manifest.contracts.contracts.find(batch => batch.name === 'bulk-10000')!.sql,
+    reorderProgressSql: Object.freeze({ bulk: manifest.contracts.contracts.find(batch => batch.name === 'bulk-1000')!.sql,
       calibration: manifest.contracts.contracts.find(batch => batch.expectedResult.checks.includes('deadline-reached'))!.sql }),
     validateSql: sql => validateTestOwnerReorderNativeSql(manifest, sql),
     contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
@@ -647,6 +649,7 @@ export function createTestOwnerReorderNativeContracts(input: NativeOwnerInput & 
 /** Separate finite diagnostics. No ordinary proof/race/privilege entrypoints. */
 export function buildTestOwnerReorderDiagnosticNativeManifest(original: AssignmentListProofFixture,
   fixture: TestOwnerReorderFixture, reviewedHead: string, repository: string) {
+  assertTestOwnerReorderDiagnosticAvailable()
   const normal = buildTestOwnerReorderNativeContractsManifest(original, fixture, reviewedHead, repository)
   const { contracts: ordinary, concurrency: unusedRaces, committed: unusedCommitted, ...binding } = normal
   void unusedRaces; void unusedCommitted
@@ -654,11 +657,12 @@ export function buildTestOwnerReorderDiagnosticNativeManifest(original: Assignme
     contracts: buildTestOwnerReorderDiagnosticManifest(ordinary, repository), concurrency: { diagnosticOnly: true as const } })
 }
 export function createTestOwnerReorderDiagnosticNativeContracts(input: NativeOwnerInput & { fixture: TestOwnerReorderFixture; absoluteDeadline: number }) {
+  assertTestOwnerReorderDiagnosticAvailable()
   const now = Date.now()
   assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
   const manifest = buildTestOwnerReorderDiagnosticNativeManifest(input.original, input.fixture, input.reviewedHead, input.repository)
   const engine = createNativeOwnerContracts(input, { manifest, project: manifest.contracts.projectId,
-    sourceFile: '253_contextual_test_owner_reorder.sql', label: 'test-owner-reorder-diagnostic', absoluteDeadline: input.absoluteDeadline, singleMs: 35000,
+    sourceFile: '254_contextual_test_owner_reorder.sql', label: 'test-owner-reorder-diagnostic', absoluteDeadline: input.absoluteDeadline, singleMs: 35000,
     reorderDiagnosticSql: manifest.contracts.frames[1].sql,
     validateSql: sql => [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close].includes(sql)
       || validateTestOwnerReorderDiagnosticSql(manifest.contracts, sql),

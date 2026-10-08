@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const path = resolve(process.cwd(), 'supabase/migrations/253_contextual_test_owner_reorder.sql')
+const path = resolve(process.cwd(), 'supabase/migrations/254_contextual_test_owner_reorder.sql')
 const source = existsSync(path) ? readFileSync(path, 'utf8') : ''
 const code = source.replace(/--[^\n]*/g, '')
 
@@ -23,7 +23,7 @@ describe('contextual current-owner Test reorder SQL source contract', () => {
 
   it('rejects malformed arrays and nonfinite or remote deadlines before locking', () => {
     expect(code).toContain('p_test_ids is null')
-    expect(code).toContain('pg_catalog.cardinality(p_test_ids) > 10000')
+    expect(code).toContain('pg_catalog.cardinality(p_test_ids) > 1000')
     expect(code).toContain('pg_catalog.array_ndims(p_test_ids) is distinct from 1')
     expect(code).toContain('pg_catalog.array_lower(p_test_ids, 1) is distinct from 1')
     expect(code).toContain('requested.id is null')
@@ -71,8 +71,8 @@ describe('contextual current-owner Test reorder SQL source contract', () => {
   })
 
   it('requires complete membership including retired and started Tests before DML', () => {
-    expect(code).toContain('limit 10001')
-    expect(code).toContain('v_count > 10000')
+    expect(code).toContain('limit 1001')
+    expect(code).toContain('v_count > 1000')
     expect(code).toContain('v_current_ids is distinct from v_requested_ids')
     expect(code.indexOf('v_current_ids is distinct from v_requested_ids')).toBeLessThan(code.indexOf('update public.tests test'))
     expect(code).not.toMatch(/where[^;]*blueprint_archived_at\s+is\s+null/)
@@ -143,7 +143,7 @@ describe('contextual current-owner Test reorder SQL source contract', () => {
       expect(code).toContain(`pg_catalog.to_jsonb(v_${row}_after) is distinct from pg_catalog.to_jsonb(v_${row}_expected)`)
     }
     expect(code).toContain('pg_catalog.to_jsonb(v_settings_after) is distinct from pg_catalog.to_jsonb(v_settings_before)')
-    expect(source).toContain('13 Test triggers')
+    expect(source).toContain('14 Test triggers')
     expect(source).toContain('whole-project')
   })
 

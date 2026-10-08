@@ -49,6 +49,7 @@ function baseline(): Whole {
     ['public.test_student_availability', f.availability], ['public.test_focus_events', f.focusEvents],
     ['public.test_attempt_history', f.attemptHistory], ['public.classroom_guided_draft_provenance', f.provenance]] as const) s[table] = rows.map(r => structuredClone(r))
   s['public.managed_storage_settings'] = [{ singleton: true, active_version: 0, updated_at: f.now }]
+  s['private.classroom_test_quota_settings'] = [{ singleton: true, enabled: false }]
   for (const table of ['private.pal_membership_settings', 'private.pal_classroom_signal_settings', 'private.student_provider_cleanup_settings',
     'private.classroom_creation_entitlement_settings']) s[table] = [{ singleton: true, enabled: false }]
   s.__nontarget_fingerprints = tableNames.map(table => ({ table, fingerprint: 'unchanged' }))
@@ -236,7 +237,7 @@ describe('sealed reorder installed SDK transport', () => {
       expect(() => createTestOwnerReorderProofTransport(f, t, project, vi.fn(), async () => {})).toThrow()
     expect(() => createTestOwnerReorderProofTransport(f, target, 'production', vi.fn(), async () => {})).toThrow()
   })
-  it('completes only the exact offline matrix, observed raw denial, verified restoration and34 counted captures', async () => {
+  it('completes the 1k boundary matrix with raw denial, restored privilege and36 counted captures', async () => {
     let current = baseline(); let label = first.label; let next: ReturnType<typeof postimage> | undefined
     const h = harness(vi.fn(async () => {
       const c = [...f.cases, ...f.privilegeProbes].find(c => c.label === label)!
@@ -253,11 +254,12 @@ describe('sealed reorder installed SDK transport', () => {
       h.transport.verifyEffects(before, current, publicResult)
     }
     expect(h.transport.completion()).toEqual({ complete: true, verifiedContextLabels: [...f.privilegeProbes, ...f.cases].map(c => c.label) })
-    expect(h.transport.counts).toMatchObject({ network: 17, rpc: 17, storage: 0, snapshots: 34, snapshotBytes: serialized })
-    expect(serialized).toBeGreaterThan(64 * 1024 * 1024); expect(serialized).toBeLessThan(256 * 1024 * 1024)
+    expect(h.transport.counts).toMatchObject({ network: 18, rpc: 18, storage: 0, snapshots: 36, snapshotBytes: serialized })
+    expect(serialized).toBeLessThan(64 * 1024 * 1024)
+    expect(testOwnerReorderRequestManifest(f).caps.snapshotTotalBytes).toBe(256 * 1024 * 1024)
     expect(h.transport.counts.totalBytes).toBeLessThan(64 * 1024 * 1024)
-    expect(h.transport.evidence.rawPrivilegeContexts).toEqual(['253']); expect(h.transport.evidence.restoredPrivilegeContexts).toEqual(['253'])
-    expect(h.transport.getVerifiedLedger()).toHaveLength(17); expect(h.transport.getVerifiedLedger().every(w => w.state === 'verified')).toBe(true)
+    expect(h.transport.evidence.rawPrivilegeContexts).toEqual(['254']); expect(h.transport.evidence.restoredPrivilegeContexts).toEqual(['254'])
+    expect(h.transport.getVerifiedLedger()).toHaveLength(18); expect(h.transport.getVerifiedLedger().every(w => w.state === 'verified')).toBe(true)
     expect(h.transport.diagnostic()).not.toContain(key); expect(vi.getTimerCount()).toBe(0)
     process.stdout.write('Offline reorder transport byte receipt ' + JSON.stringify({ snapshots: h.transport.counts.snapshots,
       snapshotBytes: serialized, exchangeBytes: h.transport.counts.exchangeBytes, nativeVerified: false }) + '\n')

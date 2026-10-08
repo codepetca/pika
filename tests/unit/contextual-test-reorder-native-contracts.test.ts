@@ -18,7 +18,7 @@ const head = 'a'.repeat(40)
 const repository = process.cwd()
 
 describe('closed inert native reorder profile', () => {
-  it('exposes only the three fixed253 entrypoints and performs no native work during construction', () => {
+  it('exposes only the three fixed254 entrypoints and performs no native work during construction', () => {
     expect(typeof native.buildTestOwnerReorderNativeContractsManifest).toBe('function')
     expect(typeof native.validateTestOwnerReorderNativeSql).toBe('function')
     expect(typeof native.createTestOwnerReorderNativeContracts).toBe('function')
@@ -31,7 +31,7 @@ describe('closed inert native reorder profile', () => {
     expect(native).not.toHaveProperty('createNativeOwnerContracts')
     expect(native).not.toHaveProperty('snapshotPrivilegeSql')
   })
-  it('retains every runtime cap and presence-only setup with27batches/21rollback/7committed schedules', () => {
+  it('retains every runtime cap and presence-only setup with28batches/21rollback/7committed schedules', () => {
     const manifest = native.buildTestOwnerReorderNativeContractsManifest(original, fixture, head, repository)
     const older = [native.buildDraftSaveNativeContractsManifest(original, head, repository),
       native.buildTestOwnerCreateNativeContractsManifest(original, newTestOwnerCreateFixture(original), head, repository),
@@ -40,9 +40,9 @@ describe('closed inert native reorder profile', () => {
     for (const previous of older) expect(manifest.capabilities).toEqual(previous.capabilities)
     expect(manifest.capabilities).toMatchObject({ outputBytes: 8388608, totalBytes: 67108864, actionMs: 90000, totalMs: 900000 })
     expect(manifest.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
-    expect(manifest.setup).toContain('Migration253 fixture presence differs')
-    expect(manifest.setup).toContain('<>21014')
-    expect(manifest.contracts.contracts).toHaveLength(27)
+    expect(manifest.setup).toContain('Migration254 fixture presence differs')
+    expect(manifest.setup).toContain('<>3012')
+    expect(manifest.contracts.contracts).toHaveLength(28)
     expect(manifest.concurrency.schedules).toHaveLength(21)
     expect(manifest.concurrency.caps.dispatches).toBe(42)
     expect(manifest.concurrency.caps.totalMs).toBe(180000)
@@ -66,7 +66,7 @@ describe('closed inert native reorder profile', () => {
   })
   it('admits each literal fixed batch, rollback action and committed step with no substitutions or restoration dispatch', () => {
     const manifest = native.buildTestOwnerReorderNativeContractsManifest(original, fixture, head, repository)
-    expect(manifest.contracts.contracts).toHaveLength(27)
+    expect(manifest.contracts.contracts).toHaveLength(28)
     expect(native.validateTestOwnerReorderNativeSql(manifest,
       manifest.contracts.contracts[1].sql + manifest.contracts.contracts[2].sql)).toBe(false)
     const allowed = [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close, manifest.privilege.catalog, manifest.privilege.revoke,

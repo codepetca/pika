@@ -16,12 +16,12 @@ describe('bounded atomic Test reorder material', () => {
     expect(contextualTestReorderRequestSchema.parse({ classroom_id: testId, test_ids: [testId] })).toEqual({ classroom_id: testId.toLowerCase(), test_ids: [testId.toLowerCase()] })
     expect(contextualTestReorderIdentitySchema.parse({ actorId: testId })).toEqual({ actorId: testId.toLowerCase() })
   })
-  it.each([0, 1, 1001, 10000])('accepts complete membership of size %i', length => {
+  it.each([0, 1, 999, 1000])('accepts complete membership of size %i', length => {
     expect(contextualTestReorderRequestSchema.parse({ classroom_id: classroomId, test_ids: ids(length) }).test_ids).toHaveLength(length)
   })
   it.each([null, [], {}, { ...body, classroom_id: 'bad' }, { ...body, test_ids: null }, { ...body, test_ids: [null] },
     { ...body, test_ids: ['bad'] }, { ...body, actor_id: testId }, { ...body, deadline: 1 }, { ...body, positions: [0] },
-    { ...body, test_ids: [testId, testId.toLowerCase()] }, { ...body, test_ids: ids(10001) }])('rejects invalid or expanded request %#', value => {
+    { ...body, test_ids: [testId, testId.toLowerCase()] }, { ...body, test_ids: ids(1001) }, { ...body, test_ids: ids(10000) }])('rejects invalid or expanded request %#', value => {
     expect(contextualTestReorderRequestSchema.safeParse(value).success).toBe(false)
   })
   it('reads actual UTF8 bytes once', async () => {

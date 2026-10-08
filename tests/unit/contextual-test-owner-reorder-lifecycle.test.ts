@@ -57,7 +57,7 @@ describe('closed reorder lifecycle source contracts', () => {
     const args = ['--reviewed-head', 'a'.repeat(40), '--mode', 'normal']
     expect(main.testOwnerReorderDiagnosticLifecycleMain).toBeTypeOf('function')
     for (const rejected of [[...args, '--generate-types'], [...args.slice(0, 3), 'after-fixture'], [...args.slice(0, 3), 'before-capture']]) {
-      await expect(main.testOwnerReorderDiagnosticLifecycleMain(rejected)).rejects.toMatchObject({ code: 'ERR_ASSERTION', actual: false, expected: true })
+      await expect(main.testOwnerReorderDiagnosticLifecycleMain(rejected)).rejects.toThrow('10000-Test reorder diagnostic retired')
     }
     expect(() => parseTestOwnerReorderLifecycleArgs([...args, '--diagnose-bulk'])).toThrow()
   })
@@ -69,15 +69,15 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(testOwnerReorderForcedReceipt(mode, new AssignmentListLifecycleError(e.primary, [{ stage: 'teardown', error: Error('private') }]), true)).toBeNull()
     expect(testOwnerReorderForcedReceipt(mode, Error('Forced isolated lifecycle failure'), true)).toBeNull()
   })
-  it('freezes the complete253 union while distinguishing rollback proof from remaining gates', () => {
+  it('freezes the complete254 union while distinguishing rollback proof from remaining gates', () => {
     const union = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(Object.isFrozen(union.sql.concurrency.schedules)).toBe(true)
-    expect(union.sql.contracts.contracts).toHaveLength(27); expect(union.sql.concurrency.schedules).toHaveLength(21)
+    expect(union.sql.contracts.contracts).toHaveLength(28); expect(union.sql.concurrency.schedules).toHaveLength(21)
     const source = readFileSync('scripts/check-contextual-test-owner-reorder-lifecycle.ts', 'utf8')
     expect(source).toContain('${union.sql.contracts.contracts.length} rollback SQL batches')
     expect(source).not.toContain('nine rollback SQL batches')
     expect(union.applicationCapabilities).toEqual({ controls: 4000, actions: 200, totalMs: 900000, controlMs: 45000, totalBytes: 384 * 1024 * 1024 })
-    expect(union.inventory).toMatchObject({ sdkCases: 16, sdkReorders: 6, privilegeDriftProbes: 1, rpcRequests: 17, storageRequests: 0, rollbackSchedules: 21, committedTransitions: 7 })
+    expect(union.inventory).toMatchObject({ sdkCases: 17, sdkReorders: 6, privilegeDriftProbes: 1, rpcRequests: 18, storageRequests: 0, rollbackSchedules: 21, committedTransitions: 7 })
     expect(union.remainingGates).toEqual(['Successful Blueprint/proposal workflow', 'Enabled purge workflow activation'])
   })
   it('keeps failure diagnostics free of source, actor, SQL and credential details', () => {
@@ -260,7 +260,7 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
         },
         readFileSync: (...args: Parameters<typeof actual.readFileSync>) => {
           if (launched && fault === 'guard-migration-source' && typeof args[0] === 'string'
-            && args[0].endsWith('/253_contextual_test_owner_reorder.sql') && ++sourceReads === 2) throw Error('PRIVATE source credential')
+            && args[0].endsWith('/254_contextual_test_owner_reorder.sql') && ++sourceReads === 2) throw Error('PRIVATE source credential')
           return actual.readFileSync(...args)
         },
       }
@@ -369,6 +369,14 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
       })
     }
     const main = await import('../../scripts/check-contextual-test-owner-reorder-lifecycle')
+    if (fault.startsWith('diagnostic-')) {
+      await expect(main.testOwnerReorderDiagnosticLifecycleMain(['--reviewed-head', 'a'.repeat(40), '--mode', 'normal']))
+        .rejects.toThrow('10000-Test reorder diagnostic retired')
+      expect(events).toEqual([])
+      expect(resources).toEqual([])
+      expect(workdirExists).toBe(false)
+      return events
+    }
     const succeededDiagnostic = fault === 'diagnostic-complete' && !changedField
     const invocation = (fault.startsWith('diagnostic-') ? main.testOwnerReorderDiagnosticLifecycleMain : main.testOwnerReorderLifecycleMain)(['--reviewed-head', 'a'.repeat(40), '--mode', 'normal'])
     if (succeededDiagnostic) {
@@ -445,19 +453,19 @@ describe('reorder snapshot/completion admission', () => {
   function completionDouble() {
     const cases = [...fixture.privilegeProbes, ...fixture.cases]; const labels = cases.map(c => c.label)
     const ledger = Object.freeze(cases.map(c => ({ kind: c.expectedHTTP === 200 ? 'reorder' : 'denial', caseLabel: c.label, state: 'verified' })))
-    return { labels, value: { getVerifiedLedger: () => ledger, counts: { rpc: 17, network: 17, storage: 0, snapshots: 34 },
-      evidence: { rawPrivilegeFailures: 1, rawPrivilegeContexts: ['253'], restoredPrivilegeContexts: ['253'] },
+    return { labels, value: { getVerifiedLedger: () => ledger, counts: { rpc: 18, network: 18, storage: 0, snapshots: 36 },
+      evidence: { rawPrivilegeFailures: 1, rawPrivilegeContexts: ['254'], restoredPrivilegeContexts: ['254'] },
       completion: () => Object.freeze({ complete: true, verifiedContextLabels: labels }) } }
   }
   // These incomplete offline doubles test only supplemental completion checks.
   // The real adopter uses the sealed issued ledger and full-effect verifier.
   const complete = (value: unknown, labels: readonly string[]) => testOwnerReorderMatrixCompletion(fixture,
     value as Parameters<typeof testOwnerReorderMatrixCompletion>[1], labels)
-  it('requires all17 contexts,34 captures,6 successful reorders and restored actual privilege evidence', () => {
+  it('requires all18 contexts,36 captures,6 successful reorders and restored actual privilege evidence', () => {
     const { value, labels } = completionDouble()
-    expect(complete(value, labels)).toEqual({ sdkCases: 16, sdkReorders: 6, rpcRequests: 17, storageRequests: 0, verifiedEffects: 17 })
+    expect(complete(value, labels)).toEqual({ sdkCases: 17, sdkReorders: 6, rpcRequests: 18, storageRequests: 0, verifiedEffects: 18 })
     expect(() => complete(value, [...labels].reverse())).toThrow()
-    expect(() => complete({ ...value, counts: { ...value.counts, rpc: 18 } }, labels)).toThrow()
+    expect(() => complete({ ...value, counts: { ...value.counts, rpc: 19 } }, labels)).toThrow()
     expect(() => complete({ ...value, counts: { ...value.counts, snapshots: 33 } }, labels)).toThrow()
     expect(() => complete({ ...value, counts: { ...value.counts, storage: 1 } }, labels)).toThrow()
     expect(() => complete({ ...value, getVerifiedLedger: () => Object.freeze(value.getVerifiedLedger().slice(1)) }, labels)).toThrow()
@@ -481,7 +489,7 @@ describe('closed adopter AST/source wiring', () => {
   })
   it('pins one absolute deadline, exact schema/source/resource/socket guards and source-owned SQL', () => {
     expect(source).toContain('absoluteDeadline = started + APP_CAPS.totalMs')
-    expect(source).toContain('absoluteDeadline })'); expect(source).toContain("'253_contextual_test_owner_reorder.sql'")
+    expect(source).toContain('absoluteDeadline })'); expect(source).toContain("'254_contextual_test_owner_reorder.sql'")
     expect(source).toContain('union.sql.sourceSha256'); expect(source).toContain('union.sql.migrationManifestSha256')
     expect(source).toContain('validateIntegratedGuardResources'); expect(source).toContain('bindSocket')
     expect(source).toContain('[testOwnerGuardSql(projectId), snapshotSql].includes(sql)')

@@ -34,13 +34,19 @@ describe('single owner Test reorder RPC boundary', () => {
     expect(init?.method).toBe('POST'); expect(new Headers(init?.headers).get('apikey')).toBe('offline-service-key')
     expect(init?.signal?.aborted).toBe(true); expect(call.from).not.toHaveBeenCalled(); expect(call.storage).not.toHaveBeenCalled(); expect(vi.getTimerCount()).toBe(0)
   })
-  it.each([0, 1, 1001, 10000])('accepts acknowledgement of complete membership size %i', async length => {
+  it.each([0, 1, 999, 1000])('accepts acknowledgement of complete membership size %i', async length => {
     const test_ids = Array.from({ length }, (_, i) => `00000000-0000-4000-8000-${i.toString(16).padStart(12, '0')}`)
     result = { ...witness(), test_ids, positions: test_ids.map((_, i) => length - i - 1), count: length, changed_count: length }
     expect(await invoke({ input: { classroom_id: classroomId, test_ids } }).result).toEqual({ success: true })
   })
   it('accepts a no-op acknowledgement', async () => {
     result = { ...witness(), changed_count: 0 }; expect(await invoke().result).toEqual({ success: true })
+  })
+  it('rejects a forged 1001-row acknowledgement with exactly one RPC and no retry', async () => {
+    const test_ids = Array.from({ length: 1001 }, (_, i) => `00000000-0000-4000-8000-${i.toString(16).padStart(12, '0')}`)
+    result = { ...witness(), test_ids, positions: test_ids.map((_, i) => 1000 - i), count: 1001, changed_count: 1001 }
+    await expect(invoke().result).rejects.toMatchObject({ statusCode: 503 })
+    expect(network).toHaveBeenCalledOnce()
   })
   it.each([
     ['version', 2], ['actor_id', otherId], ['classroom_id', otherId], ['test_ids', [secondId, firstId]],

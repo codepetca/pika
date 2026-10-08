@@ -42,6 +42,14 @@ describe('dormant atomic Test-list reorder route', () => {
       deadline: Date.now() + 20000, bodyBytes: Buffer.byteLength(JSON.stringify({ ...body, test_ids: [testId] })), signal: req.signal })
     expect(requireRole).not.toHaveBeenCalled(); expect(vi.getTimerCount()).toBe(0)
   })
+  it.each([1000, 1001])('enforces the %i membership boundary before constructing a client', async length => {
+    admitted()
+    const test_ids = Array.from({ length }, (_, i) => `00000000-0000-4000-8000-${i.toString(16).padStart(12, '0')}`)
+    const response = await invoke(request({ classroom_id: classroomId, test_ids }))
+    expect(response.status).toBe(length === 1000 ? 200 : 400)
+    expect(getServiceRoleClient).toHaveBeenCalledTimes(length === 1000 ? 1 : 0)
+    expect(reorderContextualTests).toHaveBeenCalledTimes(length === 1000 ? 1 : 0)
+  })
   it('authenticates before body/client', async () => {
     admitted(); vi.mocked(requireAuth).mockRejectedValue(Object.assign(new Error('Authentication required'), { name: 'AuthenticationError' }))
     const req = request(); const reader = vi.spyOn(req.body!, 'getReader')

@@ -268,7 +268,7 @@ describe('native persistent-session transport with offline child mocks', () => {
           plan: [{ Plan: { 'Node Type': 'ModifyTable', 'Relation Name': 'PRIVATE synthetic relation', Plans: [{ 'Node Type': 'Function Scan' }] } }] })
         else if (sql === diagnosticManifest?.contracts.frames[1].sql) {
           response = JSON.stringify({ kind: diagnosticManifest.kind, outcome: 'returned', sqlstate: 'none', rolledBack: true,
-            checks: ['bulk-10000', 'final-fixture-equality'] })
+            checks: ['bulk-1000', 'final-fixture-equality'] })
           if (diagnosticMarkerFirst) {
             queueMicrotask(() => {
               child.stdout.write(`${response}\n${end}\n`)
@@ -286,8 +286,8 @@ describe('native persistent-session transport with offline child mocks', () => {
             child.stderr.write('psql:<stdin>:123: INFO:  PRG00\n')
             if (duplicateCalibration) child.stderr.write('INFO: PRG00\n')
           }
-          else if (contaminateOtherFrames && batch.name !== 'bulk-10000') child.stderr.write('INFO: PRG00\nINFO: PRG01\nINFO: PRG02\n')
-          if (batch.name === 'bulk-10000') {
+          else if (contaminateOtherFrames && batch.name !== 'bulk-1000') child.stderr.write('INFO: PRG00\nINFO: PRG01\nINFO: PRG02\n')
+          if (batch.name === 'bulk-1000') {
             for (const chunk of bulkChunks) child.stderr.write(chunk)
             bulkDispatched?.()
             if (bulkHang || bulkExit) { if (bulkExit) queueMicrotask(() => child.emit('close', 1)); done(); return }
@@ -332,67 +332,16 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
-  it('captures timings only from the exact diagnostic copy and retains them through later snapshots/cleanup', async () => {
-    diagnosticContamination = true
-    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000', '100\r\nINFO: PDT03 1000300\n']
-    const adapter = diagnosticFactory(); await adapter.setup(); const receipt = await adapter.runDiagnostic()
-    expect(receipt.measurement.timings).toEqual({ beforeWorkUs: 0, beforeUpdateUs: 100, afterUpdateUs: 300, valid: true })
-    expect(receipt.remainingSessions).toBe(0)
-    expect(receipt.measurement.fixedNodeCounts).toEqual({ ModifyTable: 1, 'Function Scan': 1 })
-    expect(JSON.stringify(receipt)).not.toMatch(/PRIVATE|synthetic relation|contamination/)
-    const diagnostic = adapter.diagnostic()
-    for (const child of children) child.stderr.emit('data', Buffer.from('INFO: PDT01 1\nINFO: PDT02 2\nINFO: PDT03 3\n'))
-    expect(adapter.diagnostic()).toBe(diagnostic)
-    for (const args of mocks.spawn.mock.calls.map(call => call[1] as string[])) {
-      const contracts = args.includes(`PGAPPNAME=${project}_draft_contracts`)
-      expect(args).toContain(contracts ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate')
-      expect(args).not.toContain(contracts ? 'VERBOSITY=sqlstate' : 'VERBOSITY=terse')
-    }
-    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
-  })
-  it('freezes partial diagnostic timings at first timeout or child exit despite late stderr and retries', async () => {
-    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000123\n']
-    const adapter = diagnosticFactory(); await adapter.setup(); vi.useFakeTimers(); diagnosticHang = true
-    const dispatched = new Promise<void>(resolve => { diagnosticDispatched = resolve })
-    const rejected = expect(adapter.runDiagnostic()).rejects.toThrow()
-    await dispatched; await vi.advanceTimersByTimeAsync(35001); await rejected
-    const diagnostic = adapter.diagnostic()
-    expect(diagnostic).toContain('phase=contracts failure=timeout role=contracts')
-    expect(diagnostic).toContain('beforeWorkUs=0 beforeUpdateUs=123 afterUpdateUs=unknown valid=true')
-    for (const child of children) child.stderr.emit('data', Buffer.from('INFO: PDT03 1000999\nPRIVATE late stderr\n'))
-    await expect(adapter.runDiagnostic()).rejects.toThrow()
-    expect(adapter.diagnostic()).toBe(diagnostic)
-    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
-    expect(terminations.length).toBe(children.length)
-    vi.useRealTimers(); diagnosticHang = false; diagnosticExit = true
-    const exited = diagnosticFactory(); await exited.setup(); await expect(exited.runDiagnostic()).rejects.toThrow()
-    expect(exited.diagnostic()).toContain('failure=child-exit role=contracts')
-    expect(exited.diagnostic()).toContain('beforeWorkUs=0 beforeUpdateUs=123 afterUpdateUs=unknown valid=true')
-  })
-  it('counts actual diagnostic SQL inputs and stderr while retaining the existing stderr byte cap', async () => {
-    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000100\nINFO: PDT03 1000300\n']
-    const first = diagnosticFactory(); await first.setup(); const before = await first.runDiagnostic()
-    const sqlBytes = diagnosticManifest!.contracts.frames.reduce((sum, frame) => sum + Buffer.byteLength(frame.sql), 0)
-    expect(before.exchangeBytes).toBeGreaterThanOrEqual(sqlBytes)
-    diagnosticNoise = 'INFO: unrelated bounded diagnostic\n'
-    const second = diagnosticFactory(); await second.setup(); const after = await second.runDiagnostic()
-    expect(after.exchangeBytes - before.exchangeBytes).toBe(Buffer.byteLength(diagnosticNoise))
-    diagnosticNoise = 'x'.repeat(65537)
-    const capped = diagnosticFactory(); await capped.setup(); await expect(capped.runDiagnostic()).rejects.toThrow()
-    expect(capped.diagnostic()).toContain('failure=protocol role=contracts')
-    expect(capped.diagnostic()).toContain('beforeWorkUs=0 beforeUpdateUs=100 afterUpdateUs=300')
-    expect(capped.diagnostic()).not.toMatch(/x{20}|PRIVATE/)
-  })
-  it('fails closed when the stdout end marker precedes timing stderr and cannot recover from late markers', async () => {
-    diagnosticMarkerFirst = true
-    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000100\nINFO: PDT03 1000300\n']
-    const adapter = diagnosticFactory(); await adapter.setup(); await expect(adapter.runDiagnostic()).rejects.toThrow()
-    const diagnostic = adapter.diagnostic()
-    expect(diagnostic).toContain('beforeWorkUs=unknown beforeUpdateUs=unknown afterUpdateUs=unknown')
-    for (const child of children) child.stderr.emit('data', Buffer.from(diagnosticChunks.join('')))
-    await expect(adapter.runDiagnostic()).rejects.toThrow()
-    expect(adapter.diagnostic()).toBe(diagnostic)
-    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
+  it.each(['ordinary', 'timeout', 'child-exit', 'late-stderr'])('retires historical 10k diagnostic before fake-child dispatch in %s scenario', scenario => {
+    diagnosticHang = scenario === 'timeout'; diagnosticExit = scenario === 'child-exit'
+    diagnosticMarkerFirst = scenario === 'late-stderr'
+    diagnosticChunks = ['INFO: PDT01 1000000\\nINFO: PDT02 1000100\\nINFO: PDT03 1000300\\n']
+    expect(() => diagnosticFactory()).toThrow('10000-Test reorder diagnostic retired')
+    expect(mocks.execFile).not.toHaveBeenCalled()
+    expect(mocks.spawn).not.toHaveBeenCalled()
+    expect(mocks.inventory).not.toHaveBeenCalled()
+    expect(children).toHaveLength(0)
+    expect(sqlControls).toHaveLength(0)
   })
   it.each([0, 1, 2, 3, 4])('freezes observed bulk progress at35s timeout after checkpoint %i', async count => {
     const adapter = reorderFactory(); await adapter.setup()

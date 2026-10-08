@@ -191,8 +191,8 @@ export function createTestOwnerReorderProofTransport(f: TestOwnerReorderFixture,
       accepted = completed; previousSnapshot = freeze(structuredClone(after)); verifiedContexts.push(context.label)
       // A subsequent successful execution plus complete effects proves service
       // EXECUTE was restored; caller flags cannot manufacture that evidence.
-      if (context.expectedHTTP === 200 && rawPrivilegeContexts.has('253')
-        && verifiedContexts.includes(f.privilegeProbes[0].label)) restoredPrivilegeContexts.add('253')
+      if (context.expectedHTTP === 200 && rawPrivilegeContexts.has('254')
+        && verifiedContexts.includes(f.privilegeProbes[0].label)) restoredPrivilegeContexts.add('254')
       pending = undefined; verified = true; phase = 'complete'; return accepted
     } catch { reject() }
   }

@@ -7,7 +7,7 @@ import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import { testOwnerReorderRequest, type TestOwnerReorderFixture } from './contextual-test-reorder-proof-fixture'
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 
-const SOURCE_SHA = '71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006'
+const SOURCE_SHA = '7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea'
 export const TEST_OWNER_REORDER_CONCURRENCY_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   requestMs: 12000, closeMs: 12000, totalMs: 180000, sessions: 2, dispatches: 42, rollbackSchedules: 21 })
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
@@ -31,7 +31,7 @@ function raceGuard(projectId: string) {
   return bounded(`begin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='180s';${inherited}
  if current_database()<>'postgres' or current_user<>'postgres'
  or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null
- then raise exception 'Migration253 disposable source differs';end if;
+ then raise exception 'Migration254 disposable source differs';end if;
 end;$guard$;`)
 }
 
@@ -105,7 +105,7 @@ export function testOwnerReorderConcurrencyManifest(fixture: TestOwnerReorderFix
       `public.guard_classroom_purge_lifecycle(${cid})`, '40001'),
   ]
   assert.equal(schedules.length, TEST_OWNER_REORDER_CONCURRENCY_CAPS.rollbackSchedules)
-  return freeze({ version: 1 as const, projectId, sourceFile: '253_contextual_test_owner_reorder.sql' as const,
+  return freeze({ version: 1 as const, projectId, sourceFile: '254_contextual_test_owner_reorder.sql' as const,
     sourceSha256: SOURCE_SHA, caps: TEST_OWNER_REORDER_CONCURRENCY_CAPS, schedules, limitations: [
       'Rollback contention is not a committed freshness or last-writer proof; committed schedules remain a separate gate.',
       'Declined active-Class Blueprint reuse and the actual purge lifecycle guard are covered; successful Blueprint/proposal and enabled purge workflows are not claimed covered.',

@@ -11,6 +11,12 @@ import type { DraftSaveDriver, DraftSaveTarget } from './check-contextual-test-d
 const q = (s: string) => `'${s.replaceAll("'", "''")}'`
 const issued = new WeakSet<object>()
 const kind = 'test-owner-reorder-diagnostic-not-acceptance' as const
+// Historical 10k diagnosis is retained below with its original source identity.
+// It cannot run against the owner-approved 1k operating contract.
+export const TEST_OWNER_REORDER_HISTORICAL_DIAGNOSTIC_SOURCE_SHA256 = '71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006' as const
+export function assertTestOwnerReorderDiagnosticAvailable() {
+  throw new Error('Historical 10000-Test reorder diagnostic retired after approval of the 1000-Test contract')
+}
 const codes = ['PT400', 'PT403', 'PT404', 'PT409', 'PT503', 'PRD01', 'PRD02', 'PRD03', 'PRD04', 'PRD05', 'PRD06', 'PRD07'] as const
 function freeze<T>(v: T): T { if (v && typeof v === 'object') { Object.values(v).forEach(freeze); Object.freeze(v) } return v }
 function once(source: string, marker: string, replacement: string) {
@@ -44,6 +50,7 @@ export function captureTestOwnerReorderTimings(enabled: boolean) {
 export type TestOwnerReorderTimings = ReturnType<ReturnType<typeof captureTestOwnerReorderTimings>['snapshot']>
 
 export function buildTestOwnerReorderDiagnosticManifest(normal: TestOwnerReorderDbContractsManifest, repository: string) {
+  assertTestOwnerReorderDiagnosticAvailable()
   assert(Object.isFrozen(normal) && normal.sourceSha256 === TEST_OWNER_REORDER_SOURCE_SHA256)
   assertIssuedTestOwnerReorderFixture(normal.fixture)
   const expected = testOwnerReorderDbContractsManifest(normal.fixture, normal.projectId, repository)

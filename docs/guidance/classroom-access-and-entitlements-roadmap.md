@@ -1333,6 +1333,17 @@ reviews completed; cleanup-verification and budget-evidence fixes are in progres
 Native/types, final independent review and exact-head CI remain pending. Canonical/prod249–253
 remain unapplied; see [reorder contract](contextual-test-reorder.md).
 
+Superseding2026-10-08: owner approved the 1,000-Test atomic operating ceiling.
+The new source rejects 1,001 request IDs and refuses a larger Classroom before
+mutation, including partial-list and would-be no-op attempts. All existing data
+is preserved; this is not quota enforcement, deletion or legacy UI adoption.
+Current-main synchronization keeps quota253 disabled and resequences the dormant
+reorder migration to254. Source-bound 999/1,000 success and 1,001 denial proofs
+retain unchanged time/byte/action/rollback limits; historical failed10,000 runs
+remain evidence, not new-cap acceptance. Independent source review, genuine CLI
+types, actual finite native modes and exact-head CI remain gates. Canonical249+
+and production/experience/billing/quota activation remain held; no batch exit.
+
 Historical source preparation below predates that actual merge receipt:
 [contextual owner Test draft GET](contextual-test-draft-get.md), including
 its hidden create/repair behavior. Source preparation on main7570 uses a two-phase

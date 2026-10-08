@@ -34,6 +34,7 @@ export function reorderBaseline() {
     ['public.test_student_availability', f.availability], ['public.test_focus_events', f.focusEvents],
     ['public.test_attempt_history', f.attemptHistory], ['public.classroom_guided_draft_provenance', f.provenance]] as const) s[t] = rows.map(r => structuredClone(r))
   s['public.managed_storage_settings'] = [{ singleton: true, active_version: 0, updated_at: f.now }]
+  s['private.classroom_test_quota_settings'] = [{ singleton: true, enabled: false }]
   for (const t of ['private.pal_membership_settings', 'private.pal_classroom_signal_settings', 'private.student_provider_cleanup_settings',
     'private.classroom_creation_entitlement_settings']) s[t] = [{ singleton: true, enabled: false }]
   s.__nontarget_fingerprints = tableNames.map(table => ({ table, fingerprint: 'unchanged' }))
@@ -70,8 +71,8 @@ describe('inert finite reorder fixture', () => {
     expect(newTestOwnerReorderFixture(original)).toEqual(f)
     expect(Object.isFrozen(f.questions[0])).toBe(true)
     expect(f.nativeVerified).toBe(false)
-    expect(f.inventory.tests).toBe(21014)
-    expect(f.bulkClasses.map(b => b.count)).toEqual([1001, 10000, 10001])
+    expect(f.inventory.tests).toBe(3012)
+    expect(f.bulkClasses.map(b => b.count)).toEqual([999, 1000, 1001])
     expect(f.tests.filter(t => t.questions_locked_at)).toHaveLength(3)
     expect(f.provenance).toHaveLength(3)
     expect(f.responses).toHaveLength(3)
@@ -80,12 +81,12 @@ describe('inert finite reorder fixture', () => {
   it('generates compact guarded SQL without changing global platform caps or disabling triggers', () => {
     const sql = testOwnerReorderSetupSql(f, `pika_assignment_list_${f.tag.slice(-12)}`)
     expect(Buffer.byteLength(sql)).toBeLessThan(TEST_OWNER_REORDER_CAPS.sqlBytes)
-    expect(sql).toContain('generate_series(0,10000)')
+    for (const last of [998, 999, 1000]) expect(sql.includes(`generate_series(0,${last})`)).toBe(true)
     expect(sql).not.toMatch(/disable trigger|session_replication_role|truncate|delete from|set blueprint_source_revision|set revision/i)
     expect(() => testOwnerReorderSetupSql(f, 'production')).toThrow()
-    expect(testOwnerReorderBulkOrderSql(f, 'bulk-10000')).toContain('order by position asc,id asc')
+    expect(testOwnerReorderBulkOrderSql(f, 'bulk-1000')).toContain('order by position asc,id asc')
     expect(testOwnerReorderSnapshotSql(f)).toContain("n.nspname in ('public','private','storage')")
-    expect(Buffer.byteLength(JSON.stringify(testOwnerReorderRequest(f, 'bulk-10000')))).toBeLessThan(TEST_OWNER_REORDER_CAPS.bodyBytes)
+    expect(Buffer.byteLength(JSON.stringify(testOwnerReorderRequest(f, 'bulk-1000')))).toBeLessThan(TEST_OWNER_REORDER_CAPS.bodyBytes)
   })
   it('binds to source-derived canonical table catalog including future tables', () => {
     const s = reorderBaseline()
@@ -96,16 +97,19 @@ describe('inert finite reorder fixture', () => {
     const wrong = structuredClone(s); wrong['public.tests'][0].extra = true
     expect(() => validateTestOwnerReorderSetupSnapshot(f, wrong, catalog)).toThrow()
   })
-  it('bounds the actual compact snapshot and complete 10,001-source request', () => {
+  it('preserves all 1001 source rows while refusing a capped subset and a would-be no-op', () => {
     const s = reorderBaseline()
     expect(Buffer.byteLength(JSON.stringify(s))).toBeLessThan(TEST_OWNER_REORDER_CAPS.snapshotBytes)
-    expect(testOwnerReorderRequest(f, 'bulk-10001').test_ids).toHaveLength(10000)
-    expect(f.cases.find(c => c.label === 'bulk-10001')).toMatchObject({ expectedHTTP: 503, expectedRPCs: 1 })
+    expect(testOwnerReorderRequest(f, 'bulk-1001').test_ids).toHaveLength(1000)
+    expect(f.cases.find(c => c.label === 'bulk-1001')).toMatchObject({ expectedHTTP: 503, expectedRPCs: 1 })
+    expect(testOwnerReorderRequest(f, 'bulk-1001-noop').test_ids).toHaveLength(1)
+    expect(f.cases.find(c => c.label === 'bulk-1001-noop')).toMatchObject({ expectedHTTP: 503, expectedRPCs: 1 })
+    expect(s.__bulk_tests.filter(row => row.classroom_id === f.bulkClasses[2].classroomId)).toHaveLength(1001)
   })
 })
 
 describe('strict complete reorder effect sink', () => {
-  it.each(['teacher-owner', 'student-owner', 'empty-owner', 'bulk-1001', 'bulk-10000'])('verifies the complete %s request/effect', label => {
+  it.each(['teacher-owner', 'student-owner', 'empty-owner', 'bulk-999', 'bulk-1000'])('verifies the complete %s request/effect', label => {
     const before = reorderBaseline(); const { after, envelope, publicResult } = reorderPostimage(before, label)
     const pending = registerTestOwnerReorderWitness(f, [], label, envelope, window)
     expect(pending[0].state).toBe('provisional')
@@ -119,7 +123,7 @@ describe('strict complete reorder effect sink', () => {
   })
   it.each(['public.test_questions', 'public.assessment_drafts', 'public.test_attempts', 'public.test_responses',
     'public.test_student_availability', 'public.test_focus_events', 'public.test_attempt_history', 'public.classroom_guided_draft_provenance',
-    'public.managed_storage_settings', '__nontarget_fingerprints'])('rejects any preserved %s row write', table => {
+    'public.managed_storage_settings', 'private.classroom_test_quota_settings', '__nontarget_fingerprints'])('rejects any preserved %s row write', table => {
     const before = reorderBaseline(); const p = reorderPostimage(before, 'teacher-owner'); p.after[table][0].drift = true
     const pending = registerTestOwnerReorderWitness(f, [], 'teacher-owner', p.envelope, window)
     expect(() => verifyTestOwnerReorderEffects(f, before, p.after, 'teacher-owner', pending, p.publicResult, stamp)).toThrow()
@@ -142,7 +146,7 @@ describe('strict complete reorder effect sink', () => {
     expect(() => verifyTestOwnerReorderEffects(f, before, before, 'member-denied', done)).toThrow()
     const drift = structuredClone(noOp.after); drift['public.users'][0].preserved = false
     expect(() => verifyTestOwnerReorderEffects(f, noOp.after, drift, 'member-denied', done)).toThrow()
-    // Complete21k-row snapshots and the two-effect ledger chain are intentionally
+    // Complete3k-row snapshots and the two-effect ledger chain are intentionally
     // retained under coverage. This unit-runner limit is not a product deadline.
   }, 15000)
   it('rejects revision drift, unchanged-row timestamps, incomplete membership and response leakage', () => {
@@ -156,16 +160,16 @@ describe('strict complete reorder effect sink', () => {
     expect(() => verifyTestOwnerReorderEffects(f, before, p.after, 'teacher-owner', pending, p.publicResult, '2026-10-07T04:00:00.123457Z')).toThrow()
   })
   it('verifies complete bulk immutable digests and the unchanged middle-row timestamp', () => {
-    const before = reorderBaseline(); const p = reorderPostimage(before, 'bulk-1001')
-    const pending = registerTestOwnerReorderWitness(f, [], 'bulk-1001', p.envelope, window)
+    const before = reorderBaseline(); const p = reorderPostimage(before, 'bulk-999')
+    const pending = registerTestOwnerReorderWitness(f, [], 'bulk-999', p.envelope, window)
     const digestDrift = structuredClone(p.after); digestDrift.__bulk_tests[0].immutable_sha256 = 'f'.repeat(64)
-    expect(() => verifyTestOwnerReorderEffects(f, before, digestDrift, 'bulk-1001', pending, p.publicResult, stamp)).toThrow()
-    const middle = testOwnerReorderBulkTest(f, 'bulk-1001', 500)
+    expect(() => verifyTestOwnerReorderEffects(f, before, digestDrift, 'bulk-999', pending, p.publicResult, stamp)).toThrow()
+    const middle = testOwnerReorderBulkTest(f, 'bulk-999', 499)
     const timeDrift = structuredClone(p.after); timeDrift.__bulk_tests.find(r => r.id === middle.id)!.updated_at = stamp
-    expect(() => verifyTestOwnerReorderEffects(f, before, timeDrift, 'bulk-1001', pending, p.publicResult, stamp)).toThrow()
+    expect(() => verifyTestOwnerReorderEffects(f, before, timeDrift, 'bulk-999', pending, p.publicResult, stamp)).toThrow()
     const changedCount = { ...p.envelope, changed_count: 999 }
-    const wrong = registerTestOwnerReorderWitness(f, [], 'bulk-1001', changedCount, window)
-    expect(() => verifyTestOwnerReorderEffects(f, before, p.after, 'bulk-1001', wrong, p.publicResult, stamp)).toThrow()
+    const wrong = registerTestOwnerReorderWitness(f, [], 'bulk-999', changedCount, window)
+    expect(() => verifyTestOwnerReorderEffects(f, before, p.after, 'bulk-999', wrong, p.publicResult, stamp)).toThrow()
   })
   it('rejects a transaction timestamp beyond the absolute request deadline at microsecond precision', () => {
     const before = reorderBaseline(); const p = reorderPostimage(before, 'teacher-owner')

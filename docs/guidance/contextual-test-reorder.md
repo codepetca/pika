@@ -1,6 +1,6 @@
 # Dormant contextual Test-list reorder
 
-Implementation contract, 2026-10-07; parent main `473a5de8a23c252eafc0f53572853cbf83b52724`.
+Implementation contract, 2026-10-08; main `47659857d`, synchronized by merge `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
 This is preparation, not native acceptance, migration application or rollout.
 
 ## Scope and compatibility
@@ -26,7 +26,7 @@ Use one absolute 20-second body-plus-RPC deadline, with caller cancellation and
 no retries, compensation or fallback. Bound actual UTF-8 body bytes to 512 KiB;
 reject duplicate JSON keys (including escaped equivalents), malformed UTF-8,
 deep JSON, locked/used bodies and oversized bodies. Require strict request keys,
-canonicalized UUIDs, unique IDs and at most 10,000 IDs.
+canonicalized UUIDs, unique IDs and at most 1,000 IDs.
 
 Exactly one `reorder_tests_for_owner_v1` service-only SECURITY DEFINER RPC:
 `p_actor_id uuid`, `p_classroom_id uuid`, `p_test_ids uuid[]`,
@@ -49,7 +49,7 @@ READ COMMITTED, finite deadline no farther than 20 seconds ahead; existing
 locks: managed settings SHARE (without writer-sequence advancement), Classroom
 purge-operation key, membership-change key, full Classroom UPDATE, archive
 revision UPDATE, actor KEY SHARE, every current Test UPDATE in ascending UUID
-order. Bound membership discovery to 10,001; above 10,000 fails closed.
+order. Bound membership discovery to 1,001; above 1,000 fails closed.
 
 Apply publication252 maintenance/finalization/purge/provider-cleanup guards.
 Compare the complete current membership before any mutation. Update only changed
@@ -64,7 +64,7 @@ position/updated_at; unchanged Tests identical; Classroom
 blueprint_source_revision +C and archive revision +2C, timestamps at
 transaction_timestamp() iff C > 0; all other fields unchanged. Settings unchanged
 and no operation-caused managed writer sequence calls. The current catalog has
-**13** Test triggers (including update_tests_updated_at); catalog reachability and
+**14** Test triggers (including update_tests_updated_at); catalog reachability and
 native full-Class/whole-project comparisons must attest no children, managed
 state or queue writes. This is not a product-runtime global fingerprint.
 
@@ -78,7 +78,7 @@ not an invented authorization success or fallback.
 TDD body/route/helper boundary checks; SQL source/catalog contracts; isolated
 native complete-chain replay and genuine CLI-generated types; role-neutral owner
 and denial checks; mixed live/retired/started Tests and populated preserved
-children; empty/no-op, 1,001/10,000 success and 10,001/byte/revision limits;
+children; empty/no-op, 999/1,000 success and 1,001 request/source/byte/revision limits;
 partial/superset/foreign/duplicate/null rejection; injected suppression,
 alteration, reparenting and revision drift rollback; real lock races with two
 reorders, ownership/archive, create250, discard251, save249/publication252,
@@ -98,10 +98,11 @@ commits, unchanged-membership last-writer semantics and the legacy MAX residual.
 They must compare complete graphs internally and return compact receipts without
 restoring committed changes or reusing the prior SDK effect ledger.
 
-The dedicated proof fixture represents 21,002 bulk rows using each row's full
+The dedicated proof fixture represents 3,000 bulk rows using each row's full
 immutable-postimage SHA256 plus identity/position/timestamp, while retaining raw
-small representative rows and populated children. Its measured offline snapshot
-is about 5.14 MiB; real native measurements remain required. Preserve the existing
+small representative rows and populated children. The fixed sources contain 999, 1,000 and 1,001 Tests. The 1,001-Test source
+retains every full immutable-row digest, including when a capped subset or a
+would-be no-op is refused. Fresh native measurements remain required. Preserve the existing
 8 MiB per-snapshot and 64 MiB native-engine limits. The new feature's fixed SDK
 matrix separately caps cumulative private before/after snapshots at 256 MiB
 (at most 24 contexts/48 snapshots) and actual SDK request/response exchange at
@@ -126,6 +127,39 @@ Independent risk-matched stable-SHA review, focused checks and final exact-head
 PR Gate remain required before normal main merge. Canonical local/production
 migrations249 onward, production promotion and all rollout/account/billing/
 provider controls remain held; no UI adopter or activation in this slice.
+
+## Approved capacity boundary — 2026-10-08
+
+The owner approved atomic reorder through 1,000 Tests. Classrooms with more Tests
+retain their complete data and existing reads; atomic reorder refuses them before
+any mutation, including capped subsets and requests that would otherwise change
+no position. Oversized requests fail PT400; a bounded request against an
+over-limit Classroom fails PT503. There is no deletion, truncation, retry or
+fallback. This changes the former 10,000-Test operating contract.
+
+Migration254 supersedes the pending owner-reorder253 filename after actual main
+added quota253. Its exact source SHA256 is
+`7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea`.
+That is a source identity, not evidence that any database adopted it.
+The proof catalog includes all14 Test triggers and exact reviewed quota function
+metadata. The quota setting remains OFF and its complete row is preserved.
+The isolated table catalog uses the unchanged reviewed quota-catalog helper;
+canonical183-table/five-field before/after equality remains separate and exact.
+
+The normal proof now has51 probes in28 complete rollback frames, retaining the
+35-second frame limit, two-probe partition, full graph/effect/rollback checks,
+8-second SQL phase and20-second HTTP deadline. Its fixed SDK matrix has18 contexts
+and36 snapshots, including raw privilege denial/restoration and over-limit
+subset/no-op refusal. Every action, snapshot and exchange remains counted under
+the existing limits.
+
+New execution of the historical 10,000-Test diagnostic is retired explicitly
+before fixture, network or SQL work. Its old implementation, original source
+SHA and numeric parser/history remain retained; it cannot supply passing normal
+evidence for the new1,000-Test contract. All historical failures below remain
+unaccepted at their original heads. Independent source review, complete normal
+native/type/forced-cleanup evidence and exact-head eligible CI remain pending.
+All canonical/production migrations249 onward and activation holds remain.
 
 ## CI bulk-capacity diagnosis — 2026-10-07
 

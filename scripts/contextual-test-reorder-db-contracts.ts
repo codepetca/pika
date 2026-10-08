@@ -11,8 +11,9 @@ import {
   type TestOwnerReorderFixture,
 } from './contextual-test-reorder-proof-fixture'
 import type { DraftSaveDriver, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
+import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
 
-export const TEST_OWNER_REORDER_SOURCE_SHA256 = '71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006' as const
+export const TEST_OWNER_REORDER_SOURCE_SHA256 = '7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea' as const
 // Proof-only SQLSTATEs: never print PostgreSQL messages, rows or query context.
 // Unknown PT503 messages propagate unchanged; every mapped failure still aborts.
 export const TEST_OWNER_REORDER_BULK_FAILURE_CODES = Object.freeze({
@@ -27,7 +28,7 @@ export const TEST_OWNER_REORDER_DEADLINE_PHASE_CODES = Object.freeze({
   PRD11: 50, PRD12: 121, PRD13: 212, PRD14: 229, PRD15: 288, PRD16: 298,
 } as const)
 export const TEST_OWNER_REORDER_DB_CAPS = Object.freeze({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000,
-  logicalGroups: 9, batches: 27, probesPerBatch: 2 })
+  logicalGroups: 9, batches: 28, probesPerBatch: 2 })
 export const TEST_OWNER_REORDER_TEST_COLUMNS = Object.freeze(['id','classroom_id','title','status','show_results','position',
   'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id','source_artifact_id',
   'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_maximum_override','gradebook_score_scale'] as const)
@@ -86,6 +87,7 @@ const triggers = [
   ['classroom_purge_fence_tests','public','reject_classroom_resource_change_during_purge',31,[],''],
   ['delete_test_gradebook_score_overrides','public','delete_gradebook_overrides_for_assessment',9,[],''],
   ['enqueue_obsolete_test_document_snapshots','public','enqueue_obsolete_test_document_snapshots',25,['documents'],"current_setting'pika.classroom_purge_finalize',trueisdistinctfrom'on'"],
+  ['enforce_classroom_test_quota','private','enforce_classroom_test_quota_v1',23,['classroom_id'],''],
   ['preserve_test_question_lock','private','preserve_test_question_lock',19,[],''],
   ['removed_academic_parent','private','guard_removed_academic_parent',27,['id','classroom_id'],''],
   ['tests_blueprint_purge_lineage_fence','public','guard_course_blueprint_version_lineage_write',31,['source_blueprint_version_id'],''],
@@ -116,6 +118,9 @@ const routineSignatures = [
 function reachableFunctions(repository: string) {
   const directory = resolve(repository, 'supabase/migrations')
   const names = readdirSync(directory).filter(name => /^\d{3}_.+\.sql$/.test(name)).sort()
+  const quotaName = '253_classroom_test_tier_caps.sql'
+  const quotaSql = readFileSync(resolve(directory, quotaName), 'utf8')
+  classroomTestQuotaProofCatalog(['public.tests'], [{ name: quotaName, sql: quotaSql, sha256: hash(quotaSql) }])
   const latest = new Map<string, { sourceFile: string; body: string; header:string; suffix:string }>()
   for (const name of names) {
     const sql = readFileSync(resolve(directory, name), 'utf8')
@@ -167,7 +172,10 @@ function catalogSql(routines: ReturnType<typeof reachableFunctions>) {
  if exists((${actualTriggers}) except (select * from (values ${expectedTriggers}) e(name,fn_schema,fn_name,tgtype,update_columns,qualifier,args)))
  or exists((select * from (values ${expectedTriggers}) e(name,fn_schema,fn_name,tgtype,update_columns,qualifier,args)) except (${actualTriggers}))
  or exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass and not t.tgisinternal and(t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred))
- then raise exception 'Exact13 Test trigger closure differs';end if;
+ then raise exception 'Exact14 Test trigger closure differs';end if;
+ if (select count(*) from private.classroom_test_quota_settings)<>1
+ or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
+ then raise exception 'Dormant quota setting differs';end if;
  ${routines.map(r => `if not exists(select 1 from pg_catalog.pg_proc proc where proc.oid=${q(r.signature)}::regprocedure and pg_catalog.md5(proc.prosrc)=${q(r.prosrcMd5)}
  and pg_catalog.pg_get_userbyid(proc.proowner)='postgres' and proc.prolang=(select oid from pg_catalog.pg_language where lanname=${q(r.language)})
  and proc.prosecdef=${r.securityDefiner} and proc.provolatile=${q(r.volatility)} and coalesce(proc.proconfig,array[]::text[]) is not distinct from array[${r.proconfig.map(q).join(',')}]::text[])
@@ -197,10 +205,10 @@ function denial(label: string, rpc: string, expected: string, setup = '') {
 function success(f: TestOwnerReorderFixture, label: string, noop = false) {
   const c = f.cases.find(c => c.label === label); assert(c)
   const input = inputSql(f,label)
-  return probe(label, `declare ids uuid[];r jsonb;operation_before jsonb;expected_graph jsonb;after_graph jsonb;expected_rows jsonb;table_name text;n bigint;c bigint;${label === 'bulk-10000' ? 'deadline_context text;deadline_code text;' : ''}begin
+  return probe(label, `declare ids uuid[];r jsonb;operation_before jsonb;expected_graph jsonb;after_graph jsonb;expected_rows jsonb;table_name text;n bigint;c bigint;${label === 'bulk-1000' ? 'deadline_context text;deadline_code text;' : ''}begin
  ids:=${input};n:=cardinality(ids);operation_before:=before_graph;${noop ? `perform ${call(c.actorId,c.classroomId,'ids')};operation_before:=pg_temp.owner_reorder_graph();` : ''}
  select count(*) into c from public.tests test join unnest(ids) with ordinality desired(id,ordinality) on desired.id=test.id where test.classroom_id=${q(c.classroomId)}::uuid and test.position is distinct from (n-desired.ordinality)::integer;
- ${label === 'bulk-10000' ? `begin raise info using errcode='PRG02',message='Reorder proof checkpoint';r:=${call(c.actorId,c.classroomId,'ids')};raise info using errcode='PRG03',message='Reorder proof checkpoint';
+ ${label === 'bulk-1000' ? `begin raise info using errcode='PRG02',message='Reorder proof checkpoint';r:=${call(c.actorId,c.classroomId,'ids')};raise info using errcode='PRG03',message='Reorder proof checkpoint';
  exception when sqlstate 'PT503' then case sqlerrm
  when 'test_reorder_deadline' then get stacked diagnostics deadline_context=pg_exception_context;
  deadline_code:=${deadlineCodeSql()};deadline_context:=null;raise exception using errcode=deadline_code,message='Reorder bulk-capacity proof failed';
@@ -234,7 +242,7 @@ function fault(f: TestOwnerReorderFixture, label: string, timing: 'before'|'afte
   expected = 'PT503', deadline = "pg_catalog.clock_timestamp()+interval '8 seconds'") {
   const c = f.cases.find(c => c.label === 'teacher-owner'); assert(c)
   const t = f.tests.find(t => t.classroom_id === c.classroomId); assert(t)
-  const name = `p253_${f.tag.slice(-12)}_${label.replaceAll('-','_')}`; assert(name.length < 60)
+  const name = `p254_${f.tag.slice(-12)}_${label.replaceAll('-','_')}`; assert(name.length < 60)
   const seq = `${name}_hit`
   return probe(label, `declare code text;succeeded boolean:=false;begin
  create temp sequence ${seq};create function private.${name}() returns trigger language plpgsql set search_path='' as $fault$
@@ -248,8 +256,8 @@ function fault(f: TestOwnerReorderFixture, label: string, timing: 'before'|'afte
 
 export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, projectId: string, repository = process.cwd()) {
   assert(Object.isFrozen(f));assert.equal(f.version,1);assert.equal(projectId,`pika_assignment_list_${f.tag.slice(-12)}`)
-  assert.equal(f.tests.length,12);assert.deepEqual(f.bulkClasses.map(c => c.count),[1001,10000,10001])
-  const source = readFileSync(resolve(repository,'supabase/migrations/253_contextual_test_owner_reorder.sql'),'utf8')
+  assert.equal(f.tests.length,12);assert.deepEqual(f.bulkClasses.map(c => c.count),[999,1000,1001])
+  const source = readFileSync(resolve(repository,'supabase/migrations/254_contextual_test_owner_reorder.sql'),'utf8')
   assert.equal(hash(source),TEST_OWNER_REORDER_SOURCE_SHA256)
   const body = source.split('as $function$')[1]?.split('$function$')[0];assert(body)
   assert.deepEqual(body.split('\n').flatMap((line,index) =>
@@ -324,8 +332,8 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
     fault(f,'unknown-55000','after',"raise exception using errcode='55000',message='reorder unknown probe';"),
     fault(f,'deadline-after-write','after','perform pg_catalog.pg_sleep(0.1);return new;','PT503',"clock_timestamp()+interval '50 milliseconds'"),
   ]
-  const b1001=f.bulkClasses[0];const b10001=f.bulkClasses[2]
-  const bulkSource=inputSql(f,'bulk-10001')
+  const b999=f.bulkClasses[0];const b1001=f.bulkClasses[2]
+  const bulkSource=inputSql(f,'bulk-1001')
   const groups: Array<{name:string;probes:Probe[]}>=[
     {name:'catalog',probes:[probe('catalog-function-columns-triggers-routines',catalogSql(routines))]},
     {name:'authority-effects',probes:cases},
@@ -333,11 +341,12 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
     {name:'bounds',probes:boundChecks},
     {name:'lifecycle-guards',probes:guards},
     {name:'injected-faults',probes:faults},
-    {name:'bulk-1001',probes:[success(f,'bulk-1001'),denial('state-byte-limit',call(teacher.actorId,b1001.classroomId,inputSql(f,'bulk-1001')),'PT503',
-      `update public.tests set title=repeat('x',1048576) where id in(select id from public.tests where classroom_id=${q(b1001.classroomId)}::uuid order by id limit 33);`)]},
-    {name:'bulk-10000',probes:[success(f,'bulk-10000')]},
-    {name:'bulk-10001',probes:[denial('source-10001-limit',call(teacher.actorId,b10001.classroomId,`(${bulkSource})[1:10000]`),'PT503'),
-      denial('full-10001-input',call(teacher.actorId,b10001.classroomId,bulkSource),'PT400')]},
+    {name:'bulk-999',probes:[success(f,'bulk-999'),denial('state-byte-limit',call(teacher.actorId,b999.classroomId,inputSql(f,'bulk-999')),'PT503',
+      `update public.tests set title=repeat('x',1048576) where id in(select id from public.tests where classroom_id=${q(b999.classroomId)}::uuid order by id limit 33);`)]},
+    {name:'bulk-1000',probes:[success(f,'bulk-1000')]},
+    {name:'bulk-1001',probes:[denial('source-1001-limit',call(teacher.actorId,b1001.classroomId,`(${bulkSource})[1:1000]`),'PT503'),
+      denial('source-1001-noop',call(teacher.actorId,b1001.classroomId,`(${bulkSource})[1:1]`),'PT503'),
+      denial('full-1001-input',call(teacher.actorId,b1001.classroomId,bulkSource),'PT400')]},
   ]
   assert.equal(groups.length,TEST_OWNER_REORDER_DB_CAPS.logicalGroups)
   const graph=testOwnerReorderSnapshotExpressionSql(f)
@@ -354,7 +363,7 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
     const expectedResult=freeze({version:1 as const,batch:name,checks:[...labels,'final-fixture-equality'].sort(),rolledBack:true as const})
     const sql=bounded(`begin;set local lock_timeout='1s';set local statement_timeout='35s';
  do $guard$ begin if current_setting('application_name')<>${q(projectId+'_draft_contracts')} or current_database()<>'postgres' or current_user<>'postgres'
- or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null then raise exception 'Migration253 disposable source differs';end if;${group.name==='bulk-10000' ? "raise info using errcode='PRG01',message='Reorder proof checkpoint';" : ''}end;$guard$;
+ or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null then raise exception 'Migration254 disposable source differs';end if;${group.name==='bulk-1000' ? "raise info using errcode='PRG01',message='Reorder proof checkpoint';" : ''}end;$guard$;
  create temp table owner_reorder_checks(label text not null unique) on commit drop;
  create function pg_temp.owner_reorder_graph() returns jsonb language sql stable set search_path='' as $snapshot$ select ${graph} $snapshot$;
  create temp table owner_reorder_baseline(value jsonb not null) on commit drop;insert into owner_reorder_baseline select pg_temp.owner_reorder_graph();
@@ -362,7 +371,7 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
  do $final$ declare baseline_graph jsonb;begin select value into strict baseline_graph from pg_temp.owner_reorder_baseline;
  if baseline_graph is distinct from pg_temp.owner_reorder_graph() then raise exception 'Reorder final fixture differs';end if;
  if(select count(*) from pg_temp.owner_reorder_checks)<>${labels.length} then raise exception 'Reorder check count differs';end if;
- insert into pg_temp.owner_reorder_checks values('final-fixture-equality');${group.name==='bulk-10000' ? "raise info using errcode='PRG04',message='Reorder proof checkpoint';" : ''}end;$final$;
+ insert into pg_temp.owner_reorder_checks values('final-fixture-equality');${group.name==='bulk-1000' ? "raise info using errcode='PRG04',message='Reorder proof checkpoint';" : ''}end;$final$;
  select jsonb_build_object('version',1,'batch',${q(name)},'checks',(select jsonb_agg(label order by label) from pg_temp.owner_reorder_checks),'rolledBack',true) as result;rollback;`)
     return freeze({name,logicalGroup:group.name,sql,expectedResult})
     })
@@ -371,7 +380,7 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
   assert.equal(new Set(contracts.map(batch=>batch.name)).size,contracts.length)
   const checkLabels=groups.flatMap(g=>g.probes.map(p=>p.label));assert.equal(new Set(checkLabels).size,checkLabels.length)
   const expectedResult=freeze({version:1 as const,checks:[...checkLabels].sort(),rolledBack:true as const})
-  const manifest=freeze({version:1 as const,fixture:f,projectId,sourceFile:'253_contextual_test_owner_reorder.sql' as const,
+  const manifest=freeze({version:1 as const,fixture:f,projectId,sourceFile:'254_contextual_test_owner_reorder.sql' as const,
     sourceSha256:TEST_OWNER_REORDER_SOURCE_SHA256,caps:TEST_OWNER_REORDER_DB_CAPS,contracts,checkLabels,expectedResult,
     reachableFunctions:routines,reservedIds,limitations:TEST_OWNER_REORDER_DB_LIMITATIONS})
   issued.add(manifest);return manifest
