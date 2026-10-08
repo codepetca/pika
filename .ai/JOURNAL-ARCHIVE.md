@@ -43126,6 +43126,7 @@ targeted review/focused/exactheadCI pending; original13:07:17 clock/20 launches
 retained/taskstopwaiver active/DeepSeek paused. Local/prod249–252 unapplied;
 no migration/promotion/cohort/account/provider/billing/rollout or phase exit.
 <!-- pika-session-log-archive-batch:6bc2e412819b6d8b71d3ad6e775abaa1f7a0cee982b90f27ceb02ee83a21b65d -->
+<!-- pika-session-log-archive-batch:fd1592768121a657400f21cbc8ff5b870b4d2ed0ebe469899fa23d102245f6b3 -->
 ## 2026-10-07 — Assignment editor passive dismissal and drag ownership
 
 Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
@@ -43152,6 +43153,7 @@ before main landing. Broad17-family product goal remains incomplete. No dependen
 schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
 
 <!-- pika-session-log-archive-batch:52c77d5a2e90a1ca669f0c632b6b72fa22427526e43b129783301907a8477aee -->
+<!-- pika-session-log-archive-batch:bdc36d47c4cd521a5bc111c69acb661f42af294c441637626a4b20dc15e8983b -->
 ## 2026-10-07 — Assignment editor committed interaction ownership
 
 PR1521 initial23-path review found a genuine suspended-close Title-input loss.
@@ -43206,6 +43208,7 @@ Legacy initiated-command/session rules remain unchanged. Corrected-source local,
 visual, targeted independent review and exact-head CI remain required before merge.
 Broader17-family fluidity goal remains incomplete; no production promotion.
 
+<!-- pika-session-log-archive-batch:f4d132dbe645cfa228c0d966ea29f2458256c9ef6495e723c67a558d81712838 -->
 ## 2026-10-07 UTC — Assignment editor exit CI contract correction
 
 PR #1521 returned to draft after run37686387293: four inherited preview-helper
