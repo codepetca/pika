@@ -102,6 +102,39 @@ and incomplete proof inventories still reject. Focused integration passed 244/24
 tests plus all prior static gates; audit and whitespace checks passed. One fix
 batch consumed, no further implementation scope added.
 
+Targeted review and the final cumulative review completed clean at
+`f7ebd67c63eca1e26aa10ad8d23944e2fd9621b7`: four actual review turns, one initial,
+one targeted and one final wave, one fix batch. Ready event started eligible
+[run 37877681068](https://github.com/codepetca/pika/actions/runs/37877681068).
+Four heavy jobs started together on distinct GitHub-hosted Ubuntu runners; extra
+canonical startup measured 87 seconds. Owner-detail normal/two forced modes passed.
+Full coverage tests then exposed six assertions that compared global step order
+across the now-independent jobs (15,754 tests passed, six failed, eight skipped).
+The focused inventory missed these disk-reading workflow tests. Coordinator
+cancelled remaining jobs, returned the PR to draft and retained attempt telemetry.
+No speedup or native acceptance is claimed from this incomplete attempt.
+
+CI correction batch two changes only workflow-contract test scoping and the
+canonical `check:workflow` test inventory. Preserve every command/receipt/safety
+assertion while expressing ordering inside the owning job; original native/type
+checks remain required in their original job, without cross-runner order. Add
+these tests to focused checks because filesystem reads are not import-graph
+dependencies. Targeted review of the correction will combine with unchanged
+final cumulative source coverage; no second full/final wave is planned. Existing
+review clock and counters remain running; native retry must use its new reviewed
+head, with main merge and all other holds unchanged.
+
+Second correction delivered and focused checks passed 532/532 across 53 files
+plus architecture, UI/design policy, TypeScript, lint, audit and whitespace gates.
+All 44 tests that literally read CI YAML are now in the canonical inventory; an
+offline regression detects omissions. A worker's broad check had one existing
+Tart subprocess scheduling failure, followed by isolated 51/51 success; coordinator
+whole focused check passed 532/532 without changing that test or infrastructure.
+Full offline coverage is running as additional validation of the CI-exposed gap.
+First incomplete attempt: 593 seconds workflow time, zero workflow queue seconds,
+2,148 observed job seconds including cancelled work; retain it in total effort.
+Actual classifier was full, selecting both database jobs, test/build and browser.
+
 ## Historical first pilot
 
 Coordinator: the existing architecture/development-workflow chat. User authorized

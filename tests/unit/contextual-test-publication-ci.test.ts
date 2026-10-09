@@ -4,9 +4,16 @@ import { describe, expect, it } from 'vitest'
 describe('publication isolated CI closure', () => {
   it('runs normal and both forced-cleanup modes serially with exact receipts and unchanged budgets', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
+    const job = workflow.split('  contextual-test-owner-sdk:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const database = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    expect(job).toBeDefined()
+    expect(database).toContain('run: pnpm run db:types:check')
+    expect(database).toContain('name: Rehearse the production-shaped Test identity migration')
+    expect(database).toContain('name: Verify contextual Daily Log save atomicity and privileges')
     const name = '      - name: Verify isolated contextual Test owner publication transactions'
     expect(workflow.split(name)).toHaveLength(2)
-    const step = workflow.split(name)[1].split('      - name:')[0]
+    expect(job!.split(name)).toHaveLength(2)
+    const step = job!.split(name)[1].split('      - name:')[0]
     expect(step).toContain('test_owner_publication_head=$(git rev-parse HEAD)')
     expect(step).toContain('pnpm exec tsx scripts/check-contextual-test-owner-publication-lifecycle.ts --reviewed-head "$test_owner_publication_head" --mode normal')
     expect(step).toContain('for test_owner_publication_mode in after-fixture before-capture; do')
@@ -18,8 +25,19 @@ describe('publication isolated CI closure', () => {
     expect(step).toContain('grep -Fx "FAIL forced isolated test-owner-publication lifecycle: ${test_owner_publication_mode}."')
     expect(step).toContain("grep -Fx 'PASS isolated test-owner-publication exact teardown and unchanged canonical baseline.'")
     expect(step).not.toMatch(/continue-on-error|--generate-types|wait |tee |\s&\s/)
-    expect(workflow.indexOf('      - name: Verify isolated contextual pristine Test draft discard transactions')).toBeLessThan(workflow.indexOf(name))
-    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
+    expect(job).toContain('id: ci-isolation')
+    expect(job).toContain('id: supabase-start')
+    expect(job).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
+    expect(job).toContain('name: Start ephemeral Supabase and replay migrations')
+    expect(job).toContain('name: Stop ephemeral database')
+    expect(job!.indexOf('id: ci-isolation')).toBeLessThan(job!.indexOf('id: supabase-start'))
+    expect(job!.indexOf('name: Start ephemeral Supabase and replay migrations')).toBeLessThan(job!.indexOf(name))
+    expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('name: Stop ephemeral database'))
+    expect(job).toContain('name: Verify isolated contextual pristine Test draft discard transactions')
+    expect(job).toContain('name: Stop ephemeral database')
+    expect(job!.indexOf('      - name: Verify isolated contextual pristine Test draft discard transactions')).toBeLessThan(job!.indexOf(name))
+    expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('      - name: Stop ephemeral database'))
+    expect(job!.match(/^    timeout-minutes: (\d+)/m)?.[1]).toBe('90')
     expect(workflow.match(/name: Architecture Database Contracts[\s\S]*?timeout-minutes: (\d+)/)?.[1]).toBe('90')
   })
 })
