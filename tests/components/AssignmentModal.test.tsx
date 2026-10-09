@@ -8,6 +8,12 @@ import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
 import { TooltipProvider } from '@/ui'
 
+const diagnostic = vi.hoisted(() => ({ start: vi.fn(), begin: vi.fn(), succeed: vi.fn(), fail: vi.fn() }))
+vi.mock('@/lib/analytics/workflow', () => ({ createAssignmentWorkflow: () => ({
+  start: diagnostic.start,
+  begin: (action: string) => { diagnostic.begin(action); return { succeed: diagnostic.succeed, fail: diagnostic.fail } },
+}) }))
+
 vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
   ClassroomBlueprintDraftSource: () => null,
 }))
@@ -38,6 +44,7 @@ describe('AssignmentModal', () => {
   }
 
   beforeEach(() => {
+    Object.values(diagnostic).forEach((mock) => mock.mockClear())
     vi.stubGlobal('fetch', vi.fn())
   })
 
@@ -48,6 +55,40 @@ describe('AssignmentModal', () => {
   })
 
   describe('edit mode', () => {
+    it.each([false, true])('does not report a wrong-record save as successful (reuse autosave: %s)', async (reuseAutosave) => {
+      let resolveSave!: (response: unknown) => void
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation(() => new Promise(resolve => { resolveSave = resolve }))
+      const onClose = vi.fn()
+      render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment} onClose={onClose} onSuccess={vi.fn()} />)
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated title' } })
+      if (reuseAutosave) await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce(), { timeout: 3000 })
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+      resolveSave({ ok: true, json: async () => ({ assignment: { ...baseAssignment, id: 'wrong-record', title: 'Updated title' } }) })
+      await waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(diagnostic.fail).toHaveBeenCalledWith('unexpected')
+      expect(diagnostic.succeed).not.toHaveBeenCalled()
+    })
+    it('starts one logical edit workflow without treating open as a successful save', () => {
+      const props = { isOpen: true, classroomId: 'classroom-1', assignment: baseAssignment, onClose: vi.fn(), onSuccess: vi.fn() }
+      const view = render(<AssignmentModal {...props} />)
+      view.rerender(<AssignmentModal {...props} />)
+      expect(diagnostic.start).toHaveBeenCalledOnce()
+      expect(diagnostic.begin).not.toHaveBeenCalled()
+      expect(diagnostic.succeed).not.toHaveBeenCalled()
+    })
+
+    it('records a deliberate Draft save, not a no-change autosave or editor open', async () => {
+      render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment} onClose={vi.fn()} onSuccess={vi.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+      await waitFor(() => expect(diagnostic.succeed).toHaveBeenCalledOnce())
+      expect(diagnostic.begin).toHaveBeenCalledWith('save')
+    })
     it('does not render the track writing authenticity toggle', () => {
       render(
         <AssignmentModal
@@ -647,6 +688,8 @@ describe('AssignmentModal', () => {
       expect(document.activeElement).toBe(titleInput)
       expect(screen.queryByText('Post assignment to students?')).not.toBeInTheDocument()
       expect(fetchMock).not.toHaveBeenCalled()
+      expect(diagnostic.begin).toHaveBeenCalledWith('post')
+      expect(diagnostic.fail).toHaveBeenCalledWith('validation')
     })
 
     it('requires a title before opening schedule flow for a draft assignment', async () => {

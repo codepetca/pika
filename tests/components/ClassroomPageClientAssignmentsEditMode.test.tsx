@@ -10,6 +10,8 @@ import {
 } from '@/lib/events'
 
 const realGradesOwner = vi.hoisted(() => ({ enabled: false }))
+const captureTeacherSignal = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/analytics/client', () => ({ captureTeacherEvent: captureTeacherSignal }))
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
@@ -505,6 +507,7 @@ function renderStudentClient(options?: {
 
 describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   beforeEach(() => {
+    captureTeacherSignal.mockClear()
     realGradesOwner.enabled = false
     window.localStorage.clear()
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=assignments')
@@ -903,6 +906,20 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(mockNavItemsProps.mock.lastCall?.[0]).toMatchObject({ role: 'student' })
     expect(screen.getByTestId('student-today-primary')).toBeInTheDocument()
     expect(screen.queryByTestId('teacher-daily')).not.toBeInTheDocument()
+    expect(captureTeacherSignal).not.toHaveBeenCalled()
+  })
+
+  it('records active teacher tab transitions without exposing resource fields', async () => {
+    renderClient()
+    expect(captureTeacherSignal).toHaveBeenCalledWith({ name: 'teacher_surface_viewed', properties: { surface: 'assignments' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Go Tests' }))
+    await waitFor(() => expect(captureTeacherSignal).toHaveBeenLastCalledWith({ name: 'teacher_surface_viewed', properties: { surface: 'tests' } }))
+    expect(captureTeacherSignal).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Go Classwork' }))
+    await waitFor(() => expect(captureTeacherSignal).toHaveBeenLastCalledWith({ name: 'teacher_surface_viewed', properties: { surface: 'assignments' } }))
+    expect(captureTeacherSignal).toHaveBeenCalledTimes(3)
+    expect(JSON.stringify(captureTeacherSignal.mock.calls)).not.toContain(classroom.id)
+    expect(JSON.stringify(captureTeacherSignal.mock.calls)).not.toContain('teacher@example.com')
   })
 
   it('removes mobile classroom navigation and blocks home exits during active student exam mode', async () => {

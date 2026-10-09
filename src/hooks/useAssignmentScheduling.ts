@@ -10,6 +10,7 @@ import {
 } from '@/lib/scheduling'
 import { isAssignmentLive, isAssignmentScheduledForFuture } from '@/lib/assignments'
 import type { Assignment } from '@/types'
+import type { createAssignmentWorkflow } from '@/lib/analytics/workflow'
 
 export type CreateSubmitAction = 'post' | 'schedule' | 'draft'
 
@@ -21,6 +22,7 @@ interface SplitOption {
 }
 
 interface UseAssignmentSchedulingOptions {
+  analyticsWorkflow?: ReturnType<typeof createAssignmentWorkflow>
   /** External editor lifetime; internal assignment updates retain this session. */
   editorSessionRef?: React.RefObject<number>
   currentAssignment: Assignment | null
@@ -94,6 +96,7 @@ export interface UseAssignmentSchedulingReturn {
  * ```
  */
 export function useAssignmentScheduling({
+  analyticsWorkflow,
   editorSessionRef,
   currentAssignment,
   isCreateMode,
@@ -201,6 +204,7 @@ export function useAssignmentScheduling({
       const session = schedulingSessionRef.current
       const editorSession = editorSessionRef?.current
 
+      const diagnosticOperation = analyticsWorkflow?.begin('post')
       onError('')
       setReleasing(true)
       try {
@@ -217,6 +221,10 @@ export function useAssignmentScheduling({
         if (!response.ok) throw new Error(data.error || 'Failed to post assignment')
 
         const updated = data.assignment as Assignment
+        if (updated?.id === assignmentToRelease.id && updated.is_draft === false
+          && (updated.released_at === null || (typeof updated.released_at === 'string' && Number.isFinite(Date.parse(updated.released_at))))
+          && isAssignmentLive(updated)) diagnosticOperation?.succeed()
+        else diagnosticOperation?.fail('unexpected')
         if (!ownsSession(session, editorSession)) {
           if (!isCreateMode || (options?.closeAfter ?? true)) onSuccess(updated, { closeModal: false })
           return
@@ -225,6 +233,7 @@ export function useAssignmentScheduling({
         if (!isCreateMode || (options?.closeAfter ?? true)) onSuccess(updated)
         if (options?.closeAfter ?? true) onClose()
       } catch (err: unknown) {
+        diagnosticOperation?.fail('persistence')
         if (ownsSession(session, editorSession)) onError(err instanceof Error ? err.message : 'Failed to post assignment')
       } finally {
         if (ownsSession(session, editorSession)) {
@@ -233,7 +242,7 @@ export function useAssignmentScheduling({
         }
       }
     },
-    [currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, onAssignmentChange, onClose, onError, onSuccess, ownsSession, releasing]
+    [analyticsWorkflow, currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, onAssignmentChange, onClose, onError, onSuccess, ownsSession, releasing]
   )
 
   const scheduleAssignmentRelease = useCallback(
@@ -246,8 +255,10 @@ export function useAssignmentScheduling({
       const session = schedulingSessionRef.current
       const editorSession = editorSessionRef?.current
 
+      const diagnosticOperation = analyticsWorkflow?.begin('schedule')
       const releaseIso = combineScheduleDateTimeToIso(scheduleDate, scheduleTime)
       if (!isScheduleIsoInFuture(releaseIso)) {
+        diagnosticOperation?.fail('validation')
         onError('Release time must be in the future')
         return
       }
@@ -272,6 +283,11 @@ export function useAssignmentScheduling({
         if (!response.ok) throw new Error(data.error || 'Failed to schedule assignment')
 
         const updated = data.assignment as Assignment
+        if (updated?.id === assignmentToSchedule.id && updated.is_draft === false
+          && typeof updated.released_at === 'string'
+          && Date.parse(updated.released_at) === Date.parse(releaseIso)
+          && isAssignmentScheduledForFuture(updated)) diagnosticOperation?.succeed()
+        else diagnosticOperation?.fail('unexpected')
         if (!ownsSession(session, editorSession)) {
           if (!isCreateMode) onSuccess(updated, { closeModal: false })
           return
@@ -282,12 +298,14 @@ export function useAssignmentScheduling({
         setPrimaryAction('schedule')
         if (options?.closeAfter) onClose()
       } catch (err: unknown) {
+        diagnosticOperation?.fail('persistence')
         if (ownsSession(session, editorSession)) onError(err instanceof Error ? err.message : 'Failed to schedule assignment')
       } finally {
         if (ownsSession(session, editorSession)) setReleasing(false)
       }
     },
     [
+      analyticsWorkflow,
       currentAssignment,
       editorSessionRef,
       flushPendingChanges,

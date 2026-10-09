@@ -45033,3 +45033,20 @@ Measured native student return links20px in24 baseline captures; native focus al
 ## 2026-10-08 — Classroom access draft integration
 
 Existing draft1529 combines reviewed teacher Settings copy feedback with narrow student attendance return targets. Preserve incoming N848/GuideCalendar602 sources and histories; eleven standalone feature/test/brief files remain byte-identical to preintegrationd1, matrix adds only the two independent registrations. Incoming main501 dormant Test caps remain preserved without application or activation. Base602 is prospective: ancestor actual-tree binding and exact-head CI remain required. Current-base focused checks, clipboard parent re-verification and independent cumulative14 review precede ready/main merge; original failed attempts and static40PNG/0video attendance evidence remain retained.
+
+<!-- pika-session-log-archive-batch:6531a0b78f37b25ad1448babe933dabe5a9764b722af56775a96b1b183b4712a -->
+## 2026-10-08 — Classroom access semantic navigation verification
+
+Focused initial14-path integration passed2350/202 and all static gates. Audit requested matching component accessibility coverage for the attendance owner; add meaningful loading-to-confirmed link identity, destination and keyboard focus regression, five existing-owner tests PASS, precommit11TS audit PASS. Production and native runtime inputs unchanged; new owned scope15 includes this component test. Final focused binding, current QR browser completion and independent cumulative15 review precede actualancestor binding, ready/exact CI and authorized main merge. Preserve prior failed native/audit/metadata attempts; no class-string mirror assertions, audit-rule changes, schema application or production promotion.
+
+<!-- pika-session-log-archive-batch:bb56020f5b5d87e4aafa2c5e2058f390519f1ae1848c54098c5e9a3448239ebd -->
+## 2026-10-08 — Public course section target adoption
+
+Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+<!-- pika-session-log-archive-batch:c2dd9fe9e95e98e7e65cefc969d69619226bf095206955917cb1f247ce200e78 -->
+## 2026-10-08 — Utility calendar minimum day targets
+
+- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
+- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
+- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
