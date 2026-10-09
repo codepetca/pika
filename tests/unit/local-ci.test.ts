@@ -7,6 +7,27 @@ import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment,
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 
+// Reconstruct the original three-job layout from the unchanged proof blocks,
+// without depending on Git history being available in a shallow CI checkout.
+function legacyWorkflow() {
+  const source = workflow()
+  const shard = source.match(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  test-and-build:\n)/m)![0]
+  const blocks = new Map([...shard.matchAll(/^      - name: ([^\n]+)\n[\s\S]*?(?=^      - name: |$(?![\s\S]))/gm)]
+    .map(match => [match[1], match[0]]))
+  const reads = ['Verify isolated contextual Test owner-detail SDK reads', 'Verify isolated contextual Test owner-list SDK reads']
+    .map(name => blocks.get(name)!).join('')
+  const writes = ['Verify isolated contextual Test owner-draft GET transactions', 'Verify isolated contextual Test owner-draft save transactions',
+    'Verify isolated contextual Test owner creation transactions', 'Verify isolated contextual pristine Test draft discard transactions',
+    'Verify isolated contextual Test owner publication transactions'].map(name => blocks.get(name)!).join('')
+  return source.replace(shard, '')
+    .replace('      - name: Verify isolated contextual Test member-list SDK reads\n', reads + '      - name: Verify isolated contextual Test member-list SDK reads\n')
+    .replace('      - name: Verify isolated contextual Test owner reorder transactions\n', writes + '      - name: Verify isolated contextual Test owner reorder transactions\n')
+    .replace('  test-and-build:\n', blocks.get('Upload sanitized Test proof timings')! + '  test-and-build:\n')
+    .replace('      - contextual-test-owner-sdk\n', '')
+    .replace('          TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}\n', '')
+    .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$TEST_OWNER_SDK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
+}
+
 describe('local canonical CI', () => {
   it.each([
     ['TERM-resistant shell', 'trap "" TERM; printf "READY\\n"; while :; do sleep 1; done'],
@@ -67,7 +88,59 @@ describe('local canonical CI', () => {
     const build = job.steps.find(step => step.name === 'Build production bundle')
     expect(build?.env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://placeholder.supabase.co')
     expect(shouldRun(build?.if, false)).toBe(true)
-    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'browser'])
+    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'test-owner-sdk', 'browser'])
+  })
+
+  it('keeps database selection complete and includes each canonical SDK command once locally', () => {
+    const jobs = extractWorkflow(workflow())
+    const database = selectPlan(jobs, 'database')
+    const all = selectPlan(jobs, 'all')
+    const sdk = selectPlan(jobs, 'test-owner-sdk')
+    expect(database.map(job => job.lane)).toEqual(['database', 'test-owner-sdk'])
+    expect(sdk.map(job => job.id)).toEqual(['contextual-test-owner-sdk'])
+    expect(new Set(all.map(job => job.id)).size).toBe(all.length)
+    for (const profile of ['detail', 'list', 'draft-get', 'draft-save', 'create', 'pristine-discard', 'publication']) {
+      const command = `scripts/check-contextual-test-owner-${profile}-lifecycle.ts`
+      const steps = (plan: typeof all) => plan.flatMap(job => job.steps).filter(step => step.run?.includes(command))
+      expect(steps(database)).toHaveLength(1)
+      expect(steps(all)).toHaveLength(1)
+      expect(steps(sdk)[0]).toEqual(steps(database)[0])
+    }
+    for (const job of database) {
+      expect(job.steps.find(step => step.id === 'ci-isolation')?.run).toBe(`node scripts/ci-runner-preflight.mjs --lane ${job.lane}`)
+      expect(job.steps.filter(step => step.id === 'supabase-start')).toHaveLength(1)
+      expect(job.steps.filter(step => step.run === 'supabase stop --no-backup')).toHaveLength(1)
+    }
+    expect(sdk[0].steps.find(step => step.name === 'Upload sanitized Test proof timings')?.uses).toBe('actions/upload-artifact@v7')
+    expect(sdk[0].steps.find(step => step.name === 'Summarize dependency setup evidence')?.run).not.toContain('${{')
+  })
+
+  it.each([
+    ['database', ['database']], ['all', ['test-build', 'database', 'browser']],
+    ['test-build', ['test-build']], ['browser', ['browser']],
+  ])('supports the complete historical workflow for %s without omitting its original proofs', (lane, expected) => {
+    const jobs = extractWorkflow(legacyWorkflow())
+    expect(selectPlan(jobs, lane).map(job => job.lane)).toEqual(expected)
+    expect(jobs['contextual-test-owner-sdk']).toBeUndefined()
+    const database = selectPlan(jobs, 'database')[0]
+    for (const profile of ['detail', 'list', 'draft-get', 'draft-save', 'create', 'pristine-discard', 'publication']) {
+      expect(database.steps.filter(step => step.run?.includes(`scripts/check-contextual-test-owner-${profile}-lifecycle.ts`))).toHaveLength(1)
+    }
+  })
+
+  it('clearly rejects an explicit SDK lane for a historical workflow', () => {
+    expect(() => selectPlan(extractWorkflow(legacyWorkflow()), 'test-owner-sdk')).toThrow('no separate test-owner-sdk lane')
+  })
+
+  it.each([
+    ['missing legacy proof', (text: string) => text.replaceAll('scripts/check-contextual-test-owner-publication-lifecycle.ts', 'scripts/omitted-proof.ts')],
+    ['legacy forced-mode drift', (text: string) => text.replace('for test_owner_detail_mode in after-fixture before-capture; do', 'for test_owner_detail_mode in after-fixture; do')],
+    ['duplicate legacy proof command', (text: string) => text.replace('pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head', 'pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --mode normal\n          pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head')],
+    ['legacy SDK gate dependency', (text: string) => text.replace('      - architecture-database-contracts\n', '      - architecture-database-contracts\n      - contextual-test-owner-sdk\n')],
+    ['legacy SDK result variable', (text: string) => text.replace('          DATABASE_RESULT:', '          TEST_OWNER_SDK_RESULT: omitted\n          DATABASE_RESULT:')],
+    ['incomplete original topology', (text: string) => text.replace('  browser-experience-matrix:\n', '  omitted-browser:\n')],
+  ])('refuses %s rather than accepting arbitrary historical partial workflows', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(legacyWorkflow()))).toThrow()
   })
 
   it.each([
@@ -82,6 +155,14 @@ describe('local canonical CI', () => {
     ['action behavior override', (text: string) => text.replaceAll("node-version: '24'", "node-version: '24'\n          run-install: true")],
     ['multiline startup drift', (text: string) => text.replace('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector', 'run: |\n          supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector\n          echo changed')],
     ['cleanup guard drift', (text: string) => text.replace("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", 'if: always()')],
+    ['SDK cleanup guard drift', (text: string) => {
+      const start = text.indexOf('  contextual-test-owner-sdk:\n')
+      return text.slice(0, start) + text.slice(start).replace("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", 'if: always()')
+    }],
+    ['missing SDK job', (text: string) => text.replace('  contextual-test-owner-sdk:\n', '  omitted-sdk-job:\n')],
+    ['deleted SDK job', (text: string) => text.replace(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  test-and-build:\n)/m, '')],
+    ['split proof inventory drift', (text: string) => text.replaceAll('scripts/check-contextual-test-owner-detail-lifecycle.ts', 'scripts/omitted-proof.ts')],
+    ['SDK preflight drift', (text: string) => text.replace('--lane test-owner-sdk', '--lane database')],
   ])('fails closed on %s', (_, mutate) => {
     expect(() => extractWorkflow(mutate(workflow()))).toThrow()
   })
@@ -113,6 +194,7 @@ describe('local canonical CI', () => {
     expect(parseArguments(['--lane', 'browser', '--ref', 'a'.repeat(40), '--dry-run'])).toMatchObject({ lane: 'browser', ref: 'a'.repeat(40), dryRun: true })
     expect(parseArguments(['--ack=DISPOSABLE_CI_DATABASE']).acknowledged).toBe(true)
     expect(parseArguments(['--ref', 'HEAD']).ref).toBe('HEAD')
+    expect(parseArguments(['--lane', 'test-owner-sdk', '--dry-run']).lane).toBe('test-owner-sdk')
     for (const args of [['--lane', 'unknown'], ['--ref', 'main'], ['--ack=YES'], ['--lane'], ['--unexpected']]) expect(() => parseArguments(args)).toThrow()
   })
 
@@ -129,15 +211,16 @@ describe('local canonical CI', () => {
     } finally { rmSync(directory, { recursive: true, force: true }) }
   })
 
-  it.each(['refusal', 'partial-start', 'exception', 'interrupted', 'cleanup-failure', 'unconfirmed-group'])(
-    'contains database cleanup during %s without executing Docker', async mode => {
+  it.each(['database', 'test-owner-sdk'].flatMap(lane =>
+    ['refusal', 'partial-start', 'exception', 'interrupted', 'cleanup-failure', 'unconfirmed-group'].map(mode => [lane, mode])))(
+    'contains %s cleanup during %s without executing Docker', async (lane, mode) => {
       const directory = mkdtempSync(join(tmpdir(), 'pika-ci-run-test-'))
       const calls: string[] = []
       let interrupted = false
       const log = vi.spyOn(console, 'log').mockImplementation(() => {})
       const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const job = { lane: 'database', env: {}, steps: [
-        { name: 'Verify isolated CI runner', id: 'ci-isolation', run: 'node scripts/ci-runner-preflight.mjs --lane database', env: {} },
+      const job = { lane, env: {}, steps: [
+        { name: 'Verify isolated CI runner', id: 'ci-isolation', run: `node scripts/ci-runner-preflight.mjs --lane ${lane}`, env: {} },
         { name: 'Start ephemeral Supabase and replay migrations', id: 'supabase-start', run: 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector', env: {} },
         { name: 'A database contract', run: 'do-not-execute-real-contract', env: {} },
         { name: 'Stop ephemeral database', if: "always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", run: 'supabase stop --no-backup', env: {} },
@@ -158,7 +241,7 @@ describe('local canonical CI', () => {
         if (mode === 'exception') await expect(run).rejects.toThrow('fake startup exception')
         else if (mode === 'unconfirmed-group') await expect(run).rejects.toThrow('CI process group did not stop')
         else expect(await run).toBe(['refusal', 'partial-start', 'cleanup-failure'].includes(mode))
-        if (mode === 'refusal') expect(calls).toEqual(['node scripts/ci-runner-preflight.mjs --lane database'])
+        if (mode === 'refusal') expect(calls).toEqual([`node scripts/ci-runner-preflight.mjs --lane ${lane}`])
         else if (mode === 'unconfirmed-group') expect(calls).not.toContain('supabase stop --no-backup')
         else expect(calls.at(-1)).toBe('supabase stop --no-backup')
         if (['refusal', 'partial-start', 'exception', 'interrupted'].includes(mode)) expect(calls).not.toContain('do-not-execute-real-contract')
