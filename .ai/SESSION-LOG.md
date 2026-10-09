@@ -11,6 +11,40 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-08 — Public course section target adoption
+
+Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+## 2026-10-08 — Utility calendar minimum day targets
+
+- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
+- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
+- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
+
+## 2026-10-08 — Utility calendar compact boundary refinement
+
+- Root visual iteration capped month growth: 1024 now two348px month cards with45.703125px day targets; 1440 capped384px cards/50.84375px targets. Day grid minimum320px prevents320px viewport overlap; month cards contain8/48px horizontal scrolling at360/320, rootoverflow0. No API/domain logic changed.
+- Final teacher17cases /2839 centered native hits pass, alltargets≥44×44/nooverlap, Tabright-edge focus auto-scroll, zero runtimeerrors, real finalJune-date scroll inallcases; fixedGETfixture all181states match baseline. Evidence: external product-fluidity/utility-calendar-targets/final-candidate and final-small-keyboard; rejected/failed attempts preserved.
+- Repeated targeted15 and focused203files/2354tests +TS/lint/architecture/UI/design/audit pass. No browser registration edits (coordinator owns consolidated teacher refinement registration/review/publication).
+
+## 2026-10-08 — Gradebook explicit-retry focus
+
+Teacher Gradebook now returns successful explicit retry focus to the visible owner: existing desktop Gradebook students region, or named compact Gradebook workspace when CSS hides the table. Inactive/current-classroom completion guards, preventScroll and the shared inset focus ring keep the handoff local. No read/cache/role/mutation or shared primitive change.
+
+Reference: accepted Roster recovery baseline and executable Pattern Lab page-states; brief in docs/guidance/ui/changes/gradebook-retry-focus.md. Teacher desktop/mobile light/dark normal/reduced native controlled45-student/zero-assessment helper is registered narrowly in experience-matrix. Component33 PASS, focused306 PASS, architecture/TypeScript/lint/UI/design policy PASS. Native final8 cases prove cold/warm/resize handoffs, desktop DOM/600px scroll continuity; no API mutation attempts. Evidence: external product-fluidity/gradebook-retry-focus. Coordinator owns final review/acceptance and combined PR; no production/schema/provider/dependency operations. Risk: workspace-state; requested Sol/medium, effective/usage unknown.
+
+## 2026-10-08 — Calendar targets and Gradebook retry integration
+
+Combined the two verified teacher refinements on prospective Settings/Public/Attendance base0052 (whole tree508609, equivalent to published494ec826 source). Calendar6299 preserves compact wrapping with44px day targets and contained320/360 scrolling; Gradebookb179 restores explicit retry focus to the visible owner and paints the mobile ring above children. Root accepted17Calendar cases/2839hits/59PNG plus8Gradebook actual normal/reduced cases/84PNG. Controlled read fixtures only; student n/a for these teacher owners. Preserved both history bodies while resolving one archival-marker conflict. Next: combined focused/audit checks, actual-main binding after1529, draft-first independent review and exact-head PR Gate; broader goal remains incomplete. No production, migration or dependency changes.
+
+## 2026-10-08 — Password reset continuity refinement
+
+Anonymous forgot/reset recovery preserves native uppercase insertion caret, eligible retry focus, drafts and stable opt-in FormField error space; generic acceptance is announced and old two-second continuation retires on Back/unmount. Canonical44px Back and Login Sign up targets preserve existing continuation contracts; default fields/hints unchanged. API/provider/security behavior unchanged. Worker focused205files/2380tests plus policy/types/lint/auditPASS; frozen9e7 native16/16 (8reset+8SignUp target) across both viewports/themes/actualmotion,112PNG/16naturalvideos. Root verified426artifacthashes and3566source/41781dependency/337binary/four execution inputs; reviewed finalPNGs and64video samples. No real identity/password persistence or complete signup-chain claim; teacher PatternLab existing warnings separately qualified. Sole-writer handoff complete/own3263 stopped. Rebased onto actual1530 main227eab768; preserved new teacher matrix/registry edits and canonical history. Auth runtime remains byte-equivalent to native source; final focused checks, draft independent review and exact-head CI precede authorized main landing. No production/schema/dependency operations; broad fluidity goal incomplete. RequestedSol/medium, effective/attributableusageunknown.
+
+## 2026-10-08 — Password reset reference snapshot correction
+
+Returned PR#1531 to draft after four Linux Pattern Lab contract snapshot mismatches. Inspected exact CI artifact expected/actual comparisons in all four projects before accepting the two new reserved-error-space examples and translated gallery content. Updated only the four matching Linux baselines and evidence/history; product source unchanged. Focused checks PASS205files/2386tests plus architecture, UI/design policy, TypeScript and lint; targeted independent delta review precedes fresh ready-head CI.
+
 ## 2026-10-08 Join retry focus continuity
 
 Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
@@ -294,3 +328,23 @@ User authorized SDK speed work after browser PR1554 landed. Split the unchanged 
 ## 2026-10-10 — Student test request reduction
 
 Risk: workspace-state/exam-mode. Stabilized the active exam availability callback so ordinary parent renders preserve draft debounce; coalesced focus/visible session-status events within 750ms, scoped to the classroom/selected test effect. True exit/final submit saves, no-store session reads, hidden skips, 30s polling and telemetry remain unchanged. Two failing-before regressions reproduced premature draft writes and redundant settled event reads. Affected suites73/73 and focused728/728 plus architecture/UI/design/TypeScript/lint PASS. Actual StudentTestsTab fixture browser matrix desktop1440x900/mobile390x844 light/dark PASS4/4 with intercepted synthetic APIs; one ordinary save and one burst check, later focus refresh, zero page errors/backend requests. Screenshots reviewed in output/playwright/request-coalescing. Teacher n/a: no rendered teacher surface changed. Existing real local lifecycle browser test failed before exam Start with Test unavailable; no DB/schema changes attempted. Draft-first independent review/exact-head CI pending. Production unchanged; savings unmeasured.
+## 2026-10-09 — Classroom goal completion strategy
+
+Owner requested updating the goal to keep the architecture and simplify delivery,
+then orchestrating remaining work. Roadmap's Oct9 strategy supersedes stale
+component labels: member list delivered1541, reorder1543; batches2–5 incomplete.
+One bounded read-only Sol/high worker maps the next coherent Test workflow on
+763edbb18; coordinator owns this branch, plan, integration and acceptance. Weekly
+remaining45%; effective worker model, attributable usage and active time unknown.
+No new audit, rollout switch or billing work. Existing249+/activation/production
+holds and review-counter waiver retained. Goal tool is status-only and still
+reports paused; no false completion/replacement or unsupported resume attempted.
+Worktree creation succeeded but attachment retry hit the existing100-item cap;
+continue at its returned path without deleting attachments or duplicating it.
+Accepted source map; same Sol/high worker now owns dormant Test metadata/material
+and selected-access implementation (no Git/PR/shared DB writes). Coordinator
+verified RPC110 metadata support and244 conflict-before-inner-check dependency.
+Docs focused541/54 and startup79 PASS; one five-character startup-budget overflow
+corrected, no contract weakening. Frozen dependency install reused existing683
+packages; no lockfile/dependency change. Source delivery/independent review/native
+acceptance and main merge remain pending; no phase-exit claim.

@@ -387,6 +387,86 @@ independently once that contract is stable. Batch 4 remains dormant until batche
 batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
 a new per-feature rollout switch for each route family.
 
+### Owner-approved completion strategy — 2026-10-09
+
+The owner approved keeping the existing architecture and simplifying delivery,
+then requested updating this goal and orchestrating the remaining work. This is
+the current execution plan; older checkpoint labels below remain historical.
+
+**Goal:** complete a production-safe classroom experience in which one signed-in
+person can teach Classroom A and join Classroom B. Classroom ownership/membership
+controls access; server-resolved subscription capabilities independently control
+creation and paid consumption. Free members can complete assigned work. Preserve
+existing classes, work, grading and privacy throughout the cutover. Keep the
+current server/session and service-role architecture; no auth/RLS rewrite.
+
+The target baseline is main `763edbb180f32a32c0584add894d79415bbb9945` (#1550).
+Batch 1's backend exit remains recorded. Member Test list preparation #1534 was
+delivered through #1541 (`1dd532581`); owner atomic Test reorder preparation #1515
+was delivered through #1543 (`e24d591ab`). Both original drafts are closed as
+delivered, not separately merged. #1543's merge tree equals reviewed head
+`e68198ede7409912dbccf7c574de2b1514c9160f`; its six finite native modes and
+exact-head CI `37865407019` passed. Do not repeat that accepted work. These are
+component receipts, not a batch-2 exit or feature activation.
+
+| Remaining batch | Deliver complete workflows | Acceptance before advancing |
+| --- | --- | --- |
+| 2 — Assessments and grades (current) | Finish Test owner authoring and learner participation/disclosure, then Surveys and Gradebook/returned Grades; integrate existing Assignment and grading-entrypoint authorization | Through existing screens, mixed-role accounts can author/release/start/save/submit/inspect/manual-grade/return/read results; nonmembers and cross-class substitutions are denied; current visibility, archive and revocation rules hold |
+| 3 — Lifecycle and attached services | Complete remaining archive/restore, reuse/blueprint, export/recovery/purge and attendance/Pal/Bara relationship boundaries | Preserve existing work and tenant isolation; creation/restore retain entitlement enforcement; jobs and services bind the actual classroom relationship |
+| 4 — Product entry and navigation | Connect the approved Teaching/Joined reference, classroom shell, shared menu, join/create, ordering and persisted hide/unhide | One account teaches A and joins B; owner archive differs from member hide; Hidden appears below Archived; teacher/student/mixed-role desktop/mobile light/dark verification passes |
+| 5 — Integrated release | Rehearse the whole reachable experience, verify a compatible recovery release, then prepare a controlled canary and expansion | Existing and mixed-role classes work end to end; concrete stop/recovery evidence and exact authorized migration/release/configuration receipts precede activation |
+
+Deliver coherent, reviewable workflow groups, not a new PR for every helper or
+endpoint. A complete workflow may still need more than one PR when its transaction
+or integration boundary justifies it. Reuse existing relationship/admission,
+transaction, validation and verification contracts; add schema only for a concrete
+missing atomic boundary or persistence requirement. Do not invent a parallel
+permission framework, per-route rollout flags or a new verification framework.
+Use focused regression checks during iteration and risk-matched independent
+review once per stable cumulative scope, followed by targeted remediation review.
+Reuse valid unchanged evidence; retain necessary real database/concurrency proof,
+visual verification, final-SHA CI and PR Gate. Do not weaken safety gates to gain
+speed. Integrate against a current frozen base before readiness, not repeatedly
+recheck stale candidates. This changes delivery strategy, not correctness criteria.
+
+The bounded Test workflow map is accepted against main `763edbb18`. One Sol/high
+implementation worker now owns the coherent dormant owner group: metadata edits,
+reference-document reservation/finalization/sync/readback/removal and selected
+learner open/close access. Reuse existing atomic document/lifecycle transactions
+and the migration-248 selected-access writer; no unlocked metadata-only write.
+The coordinator owns this roadmap, integration, verification and Git/PR operations
+on `codex/classroom-completion`; the worker owns only that subsystem's source/tests
+and necessary additive schema source. No live/shared database writes are delegated.
+Learner detail/start/save/submit/recovery/disclosure is the next dependent workflow;
+its revision-conflict returns must authorize membership/visibility before disclosure.
+Do not perform another architecture audit or revisit accepted reorder/list work.
+Only concretely independent batch-3 work may run beside batch 2; batch 4's live
+entry remains gated on completed batches 1–3. The coordinator owns integration,
+phase exits, independent-review acceptance and normal authorized main merges.
+
+Billing/subscription implementation remains separately owned and is not a reason
+to expand this cutover into billing, AI/provider activation, analytics or general
+infrastructure. Keep the approved tier/entitlement contracts and coordinate any
+concrete existing-work compatibility dependency. Quota explanations remain only
+on upgrade pages/tier summaries, never classroom/Test/create surfaces. Cold-archive
+retention/email/deletion and final obsolete-role cleanup remain future work.
+
+Existing exact-target migration and release holds are unchanged: canonical local
+and production migrations 249+, quota enforcement, account/plan/provider changes,
+admission/home/page/cohort/cutover activation and production promotion are not
+authorized merely by this plan update. Prior separately authorized production
+promotion #1549 does not activate the classroom experience. Routine in-scope
+implementation, independent review/extensions and normal protected main merges
+retain the owner's authority and cumulative clocks/counters. Preserve explicit
+holds, including prototype #1217 and the separate privacy-audit priority.
+
+The epic is complete only after all four remaining batch exits and the authorized
+integrated cutover are evidenced. Merged dormant components, a prototype, billing
+readiness or source-only tests alone are not goal completion. The stored app goal
+cannot be rewritten/resumed by the available status-only goal tool; this roadmap
+records the owner's superseding objective and execution strategy without replacing
+the unfinished goal or falsely marking it complete.
+
 ### Execution checkpoint — 2026-10-08
 
 The owner requested orchestration of the remaining goal in this coordinator.
