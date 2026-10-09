@@ -43,7 +43,9 @@ Migration 255 adds the return-to-draft and live focus-event service-role RPCs in
 recording fails closed. The live focus endpoint uses an atomic writer to prevent
 a request that observed earlier access from inserting after a return to draft.
 Historical archive/cleanup SQL remains unchanged. Publication, editing and
-student access continue through their current routes.
+student access continue through their current routes. Apply migration 255 before
+promoting this app code to production to preserve focus-telemetry continuity;
+there is no fallback to an insertion outside the lifecycle lock.
 This feature does not activate the dormant contextual publication endpoint or
 shared admission.
 
