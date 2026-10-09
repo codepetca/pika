@@ -19,6 +19,12 @@ for (const surface of ['classwork', 'tests'] as const) {
       stats: { total_students: 0, responded: 0, submitted: 0, late: 0, questions_count: 0 },
     }))
     const deleted: string[] = []
+    const reorderRequests: string[] = []
+    page.on('request', request => {
+      if (request.method() !== 'GET' && new URL(request.url()).pathname.endsWith('/reorder')) {
+        reorderRequests.push(request.url())
+      }
+    })
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     const api = surface === 'classwork' ? '/api/teacher/assignments' : '/api/teacher/tests'
@@ -74,6 +80,21 @@ for (const surface of ['classwork', 'tests'] as const) {
     await page.getByRole('button', { name: 'More actions', exact: true }).click()
     await expect(page.getByRole('menuitemcheckbox', { name: modeName })).toHaveAttribute('aria-checked', 'true')
     await page.getByRole('menuitemcheckbox', { name: modeName }).press('Escape')
+    const handle = surface === 'classwork'
+      ? page.getByRole('button', { name: 'Drag to reorder', exact: true }).first()
+      : page.getByRole('button', { name: 'Drag to reorder Practice 3', exact: true })
+    const orderBeforeDrag = await page.getByRole('button', { name: /^(Edit )?Practice [123]$/ }).allTextContents()
+    const box = (await handle.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2 + 20, { steps: 5 })
+    await expect(handle).toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await expect(handle).not.toHaveAttribute('aria-pressed', 'true')
+    await expect(deleteButton('Practice 3')).toBeVisible()
+    expect(reorderRequests).toEqual([])
+    expect(await page.getByRole('button', { name: /^(Edit )?Practice [123]$/ }).allTextContents()).toEqual(orderBeforeDrag)
     await page.keyboard.press('Escape')
     await expect(deleteButton('Practice 3')).toHaveCount(0)
     await page.screenshot({ path: info.outputPath(`${surface}-regular-after-escape.png`), animations: 'disabled' })

@@ -597,6 +597,7 @@ export function TeacherClassroomView({
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
+  const classworkDragActiveRef = useRef(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1364,8 +1365,19 @@ export function TeacherClassroomView({
       setAssignmentEditMode(false)
     }
 
+    // PointerSensor cancels at document without consuming Escape. Mark that
+    // event before sensor cancellation so it cannot also exit list editing.
+    function preserveModeDuringDragCancel(event: KeyboardEvent) {
+      if (event.key === 'Escape' && classworkDragActiveRef.current) event.preventDefault()
+    }
+
+    window.addEventListener('keydown', preserveModeDuringDragCancel, true)
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      classworkDragActiveRef.current = false
+      window.removeEventListener('keydown', preserveModeDuringDragCancel, true)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [assignmentEditMode])
 
   function handleCreateSuccess(created: Assignment) {
@@ -2732,7 +2744,12 @@ export function TeacherClassroomView({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
+        onDragStart={() => { classworkDragActiveRef.current = true }}
+        onDragCancel={() => { classworkDragActiveRef.current = false }}
+        onDragEnd={(event) => {
+          classworkDragActiveRef.current = false
+          void handleDragEnd(event)
+        }}
       >
         <SortableContext
           items={classworkItems.map((item) => item.id)}

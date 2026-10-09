@@ -426,6 +426,7 @@ export function TeacherTestsTab({
 
   const { showMessage } = useAppMessage()
   const [testEditMode, setTestEditMode] = useState(false)
+  const testDragActiveRef = useRef(false)
   const [isReorderingTests, setIsReorderingTests] = useState(false)
   const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
   const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
@@ -1099,8 +1100,19 @@ export function TeacherTestsTab({
       setTestEditMode(false)
     }
 
+    // PointerSensor cancels at document without consuming Escape. Mark that
+    // event before sensor cancellation so it cannot also exit list editing.
+    function preserveModeDuringDragCancel(event: KeyboardEvent) {
+      if (event.key === 'Escape' && testDragActiveRef.current) event.preventDefault()
+    }
+
+    window.addEventListener('keydown', preserveModeDuringDragCancel, true)
     window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
+    return () => {
+      testDragActiveRef.current = false
+      window.removeEventListener('keydown', preserveModeDuringDragCancel, true)
+      window.removeEventListener('keydown', handleEscape)
+    }
   }, [testEditMode])
 
   useEffect(() => {
@@ -2760,7 +2772,12 @@ export function TeacherTestsTab({
     <DndContext
       sensors={testSortSensors}
       collisionDetection={closestCenter}
-      onDragEnd={handleTestDragEnd}
+      onDragStart={() => { testDragActiveRef.current = true }}
+      onDragCancel={() => { testDragActiveRef.current = false }}
+      onDragEnd={(event) => {
+        testDragActiveRef.current = false
+        void handleTestDragEnd(event)
+      }}
     >
       <SortableContext
         items={visibleTests.map((test) => test.id)}
