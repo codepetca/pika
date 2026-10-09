@@ -7,7 +7,7 @@ export default async function StudentClassroomAttendanceFixturePage({
   searchParams,
 }: {
   searchParams?: Promise<{ role?: string; mode?: string }>
-} = {}) {
+}) {
   if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') {
     notFound()
   }
