@@ -92,12 +92,13 @@ describe('prepared owner publication route', () => {
   })
   it.each([
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
-    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', '1d334a7ad1fa67da9ac470add284cbab87dea8283888ed7afbc0e3fc3444be33'],
+    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', 'e298e0b115d42922e639038201052d3510a26769949189fe8efcea1513b59192'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
-    // PATCH remains the attested parent865d source. PR1540 independently reviewed
-    // the separate grading-only UI delta at ae458ec36; its full-file hash replaces
-    // the historical UI hash690d0dd8, retaining an exact byte guard. Publication,
-    // editing and student-access paths are unchanged. This test never executes Git.
+    // PATCH remains the attested parent865d source. PR1540 reviewed the grading
+    // delta at ae458ec36. PR1553 changes only the publish confirmation sentence
+    // to “Test will remain locked to students.” and refreshes the full-file guard.
+    // Publication behavior, editing and student access are unchanged; this still
+    // checks every UI byte and never executes Git.
     expect(createHash('sha256').update(readFileSync(path)).digest('hex')).toBe(hash)
   })
 })

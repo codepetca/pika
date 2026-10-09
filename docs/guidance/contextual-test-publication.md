@@ -245,6 +245,11 @@ file byte-for-byte. The PATCH fingerprint remains `d9947ed0` from parent865d.
 This scoped baseline update does not activate publication or satisfy its cutover
 and phase-exit obligations.
 
+PR1553 changes only the legacy publish confirmation sentence to “Test will remain
+locked to students.” Its UI fingerprint is `e298e0b115d42922e639038201052d3510a26769949189fe8efcea1513b59192`;
+the entire-file regression guard is retained. Publication behavior, editing,
+student access, the PATCH fingerprint, and contextual cutover remain unchanged.
+
 ## Intended transaction contract
 
 Use one absolute request deadline spanning params, bounded body, read-only draft
