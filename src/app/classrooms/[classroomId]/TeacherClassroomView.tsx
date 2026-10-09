@@ -1332,14 +1332,9 @@ export function TeacherClassroomView({
     }
   }, [onEditModeChange])
 
-  const assignmentEditModeResetKey =
-    selection.mode === 'assignment'
-      ? selection.assignmentId
-      : 'summary'
-
   useEffect(() => {
     setAssignmentEditMode(false)
-  }, [assignmentEditModeResetKey, classroom.id])
+  }, [classroom.id])
 
   useEffect(() => {
     if (isActive && !isReadOnly) return
@@ -1351,6 +1346,9 @@ export function TeacherClassroomView({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
+      const hasActiveOverlay = Array.from(document.querySelectorAll('[role="dialog"], [role="menu"]'))
+        .some((overlay) => !overlay.closest('[hidden], [inert], [aria-hidden="true"]'))
+      if (hasActiveOverlay) return
       const target = event.target
       if (
         target instanceof HTMLElement &&
@@ -1366,8 +1364,8 @@ export function TeacherClassroomView({
       setAssignmentEditMode(false)
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [assignmentEditMode])
 
   function handleCreateSuccess(created: Assignment) {
@@ -1408,7 +1406,6 @@ export function TeacherClassroomView({
     setAssignmentInstructionsMode('visual')
     setEditAssignment(null)
     setIsCreateModalOpen(false)
-    setAssignmentEditMode(false)
   }, [])
 
   const setSelectionAndPersist = useCallback((

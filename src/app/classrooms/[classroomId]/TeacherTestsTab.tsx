@@ -1077,6 +1077,33 @@ export function TeacherTestsTab({
   }, [clearBatchSelection, clearTestWorkspace, testsTabClickToken, workspaceState])
 
   useEffect(() => {
+    if (!testEditMode) return
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      const hasActiveOverlay = Array.from(document.querySelectorAll('[role="dialog"], [role="menu"]'))
+        .some((overlay) => !overlay.closest('[hidden], [inert], [aria-hidden="true"]'))
+      if (hasActiveOverlay) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      setTestEditMode(false)
+    }
+
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [testEditMode])
+
+  useEffect(() => {
     if (workspaceState !== 'selected' || selectedWorkspaceTab !== 'grading') {
       setSelectedStudentId(null)
       setGradingStudents([])
@@ -1430,7 +1457,6 @@ export function TeacherTestsTab({
   function handleTestCreated(test: TestAssessment) {
     const createdTest = withDefaultTestStats(test)
 
-    setTestEditMode(false)
     setHasPendingMarkdownImport(false)
     setSelectedTestDraftSummary(null)
     setNewlyCreatedTestId(createdTest.id)
@@ -1462,7 +1488,6 @@ export function TeacherTestsTab({
         clearTestWorkspace({ replace: true })
       }
       setPendingDeleteTest(null)
-      setTestEditMode(false)
       window.dispatchEvent(
         new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
       )
