@@ -9,8 +9,18 @@ import { fileURLToPath } from 'node:url'
 const jobsByLane = {
   'test-build': 'test-and-build',
   database: 'architecture-database-contracts',
+  'test-owner-sdk': 'contextual-test-owner-sdk',
   browser: 'browser-experience-matrix',
 }
+const ownerProofs = [
+  ['detail', 'Verify isolated contextual Test owner-detail SDK reads'],
+  ['list', 'Verify isolated contextual Test owner-list SDK reads'],
+  ['draft-get', 'Verify isolated contextual Test owner-draft GET transactions'],
+  ['draft-save', 'Verify isolated contextual Test owner-draft save transactions'],
+  ['create', 'Verify isolated contextual Test owner creation transactions'],
+  ['pristine-discard', 'Verify isolated contextual pristine Test draft discard transactions'],
+  ['publication', 'Verify isolated contextual Test owner publication transactions'],
+]
 const actions = new Set(['actions/checkout@v7', 'actions/setup-node@v6', 'pnpm/action-setup@v6',
   'supabase/setup-cli@v1', 'actions/cache@v6', 'actions/upload-artifact@v7'])
 const summaryNames = new Set(['Summarize dependency setup evidence', 'Summarize browser setup evidence'])
@@ -38,7 +48,7 @@ export function parseArguments(argv) {
     else if (value === '--ack=DISPOSABLE_CI_DATABASE') args.acknowledged = true
     else throw new Error(`Unknown argument: ${value}`)
   }
-  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|browser|all.')
+  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|test-owner-sdk|browser|all.')
   if (args.ref !== null && args.ref !== 'HEAD' && !/^[a-f0-9]{40}$/.test(args.ref ?? '')) throw new Error('--ref requires HEAD or a full lowercase 40-character commit SHA.')
   return args
 }
@@ -125,8 +135,13 @@ function parseStep(lines) {
 
 export function extractWorkflow(source) {
   const lines = source.split(/\r?\n/)
+  const split = lines.includes(`  ${jobsByLane['test-owner-sdk']}:`)
+  // Historical reviewed commits retain all seven proofs in the original job.
+  // A damaged split workflow must never silently become a legacy plan.
+  if (!split && /contextual-test-owner-sdk|TEST_OWNER_SDK_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK job in split workflow.')
   const jobs = {}
   for (const [lane, id] of Object.entries(jobsByLane)) {
+    if (!split && lane === 'test-owner-sdk') continue
     const starts = lines.map((line, index) => line === `  ${id}:` ? index : -1).filter(index => index !== -1)
     if (starts.length !== 1) throw new Error(`Missing or duplicate canonical job: ${id}`)
     const start = starts[0] + 1
@@ -155,11 +170,39 @@ export function extractWorkflow(source) {
     jobs[id] = { id, lane, env, steps }
     validateLaneSafety(jobs[id])
   }
+  const proofOwner = split ? jobsByLane['test-owner-sdk'] : jobsByLane.database
+  for (const [profile, name] of ownerProofs) {
+    const script = `scripts/check-contextual-test-owner-${profile}-lifecycle.ts`
+    const matches = Object.values(jobs).flatMap(job => job.steps
+      .filter(step => step.name === name || step.run?.includes(script)).map(step => ({ job, step })))
+    const variable = `test_owner_${profile.replaceAll('-', '_')}`
+    const step = matches[0]?.step
+    if (matches.length !== 1 || matches[0].job.id !== proofOwner || step.name !== name || step.if
+      || source.split(script).length !== 3 || step.run?.split(script).length !== 3
+      || !step.run?.includes(`${script} --reviewed-head "$${variable}_head" --mode normal`)
+      || !step.run.includes(`for ${variable}_mode in after-fixture before-capture; do`)
+      || !step.run.includes(`${script} --reviewed-head "$${variable}_head" --mode "$${variable}_mode"`)
+      || !step.run.includes(`[[ "$${variable}_status" -eq 1 ]] || exit 1`)
+      || !step.run.includes(`[[ "$(wc -l < "$${variable}_log" | tr -d ' ')" -eq 2 ]] || exit 1`)
+      || !step.run.includes(`grep -Fx "FAIL forced isolated test-owner-${profile} lifecycle: \${${variable}_mode}."`)
+      || !step.run.includes(`grep -Fx 'PASS isolated test-owner-${profile} exact teardown and unchanged canonical baseline.'`)) {
+      throw new Error(`Canonical ${split ? 'split' : 'legacy'} SDK proof inventory is incomplete or changed: ${profile}`)
+    }
+  }
+  if (split && jobs[proofOwner].steps.filter(step => step.run?.includes('--reviewed-head')).length !== ownerProofs.length) {
+    throw new Error('Canonical split SDK proof inventory has unexpected profiles.')
+  }
   return jobs
 }
 
 export function selectPlan(jobs, lane) {
-  return (lane === 'all' ? Object.keys(jobsByLane) : [lane]).map(value => jobs[jobsByLane[value]])
+  // Keep the existing database selection complete after moving its SDK proofs.
+  // All jobs run serially locally, each with its own guarded startup/cleanup.
+  const split = Boolean(jobs[jobsByLane['test-owner-sdk']])
+  if (lane === 'test-owner-sdk' && !split) throw new Error('The selected historical workflow has no separate test-owner-sdk lane; use --lane database.')
+  const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => split || value !== 'test-owner-sdk')
+    : lane === 'database' && split ? ['database', 'test-owner-sdk'] : [lane]
+  return lanes.map(value => jobs[jobsByLane[value]])
 }
 
 export function validateLaneSafety(job) {

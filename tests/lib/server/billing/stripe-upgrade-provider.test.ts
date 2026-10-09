@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { upgradeQuoteDigest, processUpgrade } from '@/lib/server/billing/upgrade-service'
 import type { UpgradeOperation, UpgradeClaim, UpgradeStore } from '@/lib/server/billing/upgrade-contracts'
 import { createStripeUpgradeProvider, UpgradeProviderContractError } from '@/lib/server/billing/stripe-upgrade-provider'
+import { synchronizeBillingSubscription, type BillingStore } from '@/lib/server/billing/synchronize'
 
 const start = '2026-10-01T00:00:00.000Z'
 const end = '2026-11-01T00:00:00.000Z'
@@ -352,5 +353,118 @@ describe('frozen Stripe upgrade invoice', () => {
     await f.provider.voidInvoice(f.write)
     expect(f.sdk.invoices.finalizeInvoice).toHaveBeenCalledTimes(1)
     expect(f.sdk.invoices.voidInvoice).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('read-only applied-upgrade cancellation observation', () => {
+  function appliedFixture() {
+    const f = fixture()
+    paid(f)
+    f.op.status = 'applied'; f.op.stage = 'applied'; f.op.payment_intent_id = 'pi_upgrade'
+    f.op.quote_digest = upgradeQuoteDigest(f.op.quote)
+    f.subscription.items.data[0].price = price(true)
+    f.subscription.latest_invoice = 'in_upgrade'
+    return f
+  }
+  function noWrites(f: Fixture) {
+    expect(f.sdk.subscriptions.update).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.create).not.toHaveBeenCalled()
+    expect(f.sdk.invoiceItems.create).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.finalizeInvoice).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.pay).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.voidInvoice).not.toHaveBeenCalled()
+  }
+  it('recognizes exact end-of-period cancellation while retaining the original paid term', async () => {
+    const f = appliedFixture()
+    Object.assign(f.subscription, { cancel_at: seconds(end), cancel_at_period_end: true })
+    await expect(f.provider.readAppliedEvidence(f.op)).resolves.toMatchObject({ kind: 'paid', targetApplied: true,
+      cancelAt: end, cancelAtPeriodEnd: true, terminalObligationsCleared: false,
+      evidence: { invoiceId: 'in_upgrade', paymentIntentId: 'pi_upgrade', providerStatus: 'active',
+        paidPeriodStart: start, paidThrough: end, amountPaid: 500 } })
+    noWrites(f)
+    await expect(f.provider.readEvidence(f.op)).resolves.toMatchObject({ kind: 'attention' })
+    noWrites(f)
+  })
+  it.each(['active', 'canceled'] as const)('reconciles the actual %s adapter result through the fenced cancellation writer contract', async status => {
+    const f = appliedFixture()
+    Object.assign(f.subscription, { status, cancel_at: seconds(end), cancel_at_period_end: true })
+    const store: BillingStore = {
+      claimSubscription: vi.fn().mockResolvedValue({ status: 'claimed', subscription_id: binding.subscription_id,
+        lease_token: binding.subscription_id, fencing_token: 7, lease_expires_at: end,
+        subscription_revision: 4, expected_account_plan_revision: 9,
+        binding: { ...binding, offering_version_id: target.offering_version_id, stripe_product_id: target.stripe_product_id,
+          stripe_price_id: target.stripe_price_id, unit_amount: target.unit_amount, plan_key: target.plan_key },
+        lifecycle: { paid_through: end, paid_period_start: start, last_paid_invoice_id: 'in_original',
+          access_ends_at: end, end_reason: 'renewal_pending', assignment_revision: 9, is_current: true } }),
+      getAppliedUpgrade: vi.fn().mockResolvedValue({ operation: f.op }), listWork: vi.fn(),
+      finishSubscription: vi.fn().mockResolvedValue({ status: 'applied', retry_scheduled: false }),
+    }
+    await expect(synchronizeBillingSubscription({ store,
+      provider: { retrieveSubscription: async () => null, retrieveAppliedUpgrade: f.provider.readAppliedEvidence },
+      subscriptionId: binding.subscription_id, eventInboxId: null, leaseSeconds: 120 })).resolves.toEqual({ kind: 'applied' })
+    expect(store.finishSubscription).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      outcome: 'canceled', provider_status: status, cancel_at_period_end: true, obligations_cleared: status === 'canceled',
+      invoice_id: null, period_start: null, period_end: null, fencing_token: 7,
+    }))
+    noWrites(f)
+  })
+  it('observes terminal cancellation at the cutoff only after complete empty unpaid-invoice enumeration', async () => {
+    const f = appliedFixture()
+    Object.assign(f.subscription, { status: 'canceled', cancel_at: seconds(end), cancel_at_period_end: true })
+    vi.setSystemTime(end)
+    await expect(f.provider.readAppliedEvidence(f.op)).resolves.toMatchObject({ kind: 'paid',
+      terminalObligationsCleared: true, evidence: { providerStatus: 'canceled', paidThrough: end } })
+    for (const status of ['draft', 'open', 'uncollectible']) {
+      expect(f.sdk.invoices.list).toHaveBeenCalledWith({ subscription: 'sub_fixture', status, limit: 1 })
+    }
+    noWrites(f)
+  })
+  it.each(['date_only', 'terminal'] as const)('recognizes %s cancellation even without the period-end flag', async kind => {
+    const f = appliedFixture()
+    Object.assign(f.subscription, kind === 'terminal' ? { status: 'canceled' } : { cancel_at: seconds(end) })
+    await expect(f.provider.readAppliedEvidence(f.op)).resolves.toMatchObject({ kind: 'paid', cancelAtPeriodEnd: false,
+      cancelAt: kind === 'terminal' ? null : end, evidence: { providerStatus: kind === 'terminal' ? 'canceled' : 'active' } })
+    noWrites(f)
+  })
+  it.each(['outstanding', 'paginated', 'malformed'] as const)('keeps terminal ownership when unpaid enumeration is %s', async kind => {
+    const f = appliedFixture()
+    Object.assign(f.subscription, { status: 'canceled', cancel_at_period_end: true })
+    f.sdk.invoices.list.mockResolvedValue(kind === 'malformed' ? {} : {
+      object: 'list', has_more: kind === 'paginated', data: kind === 'outstanding' ? [{ id: 'in_unpaid' }] : [],
+    })
+    await expect(f.provider.readAppliedEvidence(f.op)).resolves.toMatchObject({ kind: 'paid', terminalObligationsCleared: false })
+    noWrites(f)
+  })
+  const invalid: Array<[string, (f: Fixture) => void]> = [
+    ['wrong cancellation timestamp', f => { Object.assign(f.subscription, { cancel_at: seconds(end) - 1, cancel_at_period_end: true }) }],
+    ['foreign subscription', f => { f.subscription.id = 'sub_other' }],
+    ['foreign customer', f => { f.subscription.customer = 'cus_other' }],
+    ['live environment', f => { f.subscription.livemode = true }],
+    ['foreign account', f => { f.sdk.accounts.retrieve.mockResolvedValue({ id: 'acct_other' }) }],
+    ['unapproved provider schedule', f => { Object.assign(f.subscription, { schedule: 'sub_sched_other' }) }],
+    ['pending provider update', f => { Object.assign(f.subscription, { pending_update: {} }) }],
+    ['later renewal period', f => { f.subscription.items.data[0].current_period_end = seconds(end) + 1 }],
+    ['source item still active', f => { f.subscription.items.data[0].price = price() }],
+    ['wrong item identity', f => { f.subscription.items.data[0].id = 'si_other' }],
+    ['unapplied operation', f => { f.op.status = 'queued' }],
+    ['unapplied stage', f => { f.op.stage = 'quoted' }],
+    ['unconfirmed operation', f => { f.op.confirmed = false }],
+    ['wrong saved payment', f => { f.op.payment_intent_id = 'pi_other' }],
+    ['missing saved payment', f => { f.op.payment_intent_id = null }],
+    ['quote digest drift', f => { f.op.quote_digest = 'b'.repeat(64) }],
+    ['quote binding drift', f => { f.op.quote!.binding = { ...f.op.quote!.binding, stripe_customer_id: 'cus_other' } }],
+    ['decimal price drift', f => { f.subscription.items.data[0].price.unit_amount_decimal = '1901' }],
+    ['refunded charge', f => { f.charge.refunded = true }],
+    ['disputed charge', f => { f.charge.disputed = true }],
+    ['incomplete capture', f => { f.charge.amount_captured = 499 }],
+    ['unexpected latest invoice', f => { f.subscription.latest_invoice = 'in_other' }],
+    ['missing latest invoice', f => { Reflect.deleteProperty(f.subscription, 'latest_invoice') }],
+    ['malformed latest invoice', f => { Object.assign(f.subscription, { latest_invoice: {} }) }],
+  ]
+  it.each(invalid)('refuses %s without performing a provider write', async (_name, alter) => {
+    const f = appliedFixture(); alter(f)
+    await expect(f.provider.readAppliedEvidence(f.op)).resolves.toMatchObject({ kind: 'attention' })
+    noWrites(f)
   })
 })

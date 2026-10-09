@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StudentAttendanceCheckIn } from '@/app/attendance/check-in/[token]/StudentAttendanceCheckIn'
+import StudentClassroomAttendanceFixturePage from '@/app/e2e-fixtures/student-classroom-attendance/page'
 
 const attendanceClientMocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
@@ -185,4 +186,63 @@ describe('StudentAttendanceCheckIn', () => {
     expect(screen.queryByText('Ask your teacher for the current classroom attendance poster.'))
       .not.toBeInTheDocument()
   })
+  it.each(['classroom', 'occurrence'] as const)('keeps explicit retry focus through pending and confirmation in %s mode', async (mode) => {
+    let settle!: (response: Response) => void
+    const fetcher = vi.fn().mockRejectedValueOnce(new TypeError('network unavailable'))
+      .mockReturnValueOnce(new Promise<Response>(resolve => { settle = resolve }))
+    vi.stubGlobal('fetch', fetcher)
+    const user = userEvent.setup()
+    render(<StudentAttendanceCheckIn entryToken="synthetic-token" canCheckIn mode={mode} />)
+    const region = screen.getByRole('region', { name: 'Attendance check-in' })
+    expect(region).not.toHaveFocus()
+    const back = screen.getByRole('link', { name: 'Back to classrooms', exact: true })
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    await user.tab()
+    expect(retry).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('heading', { name: 'Checking you in…' })).toBeVisible()
+    expect(region).toHaveFocus()
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    await act(async () => settle(new Response(JSON.stringify({
+      state: 'checked_in', title: 'You are checked in', description: 'Recorded.',
+      classroomId: '20000000-0000-4000-8000-000000000001',
+    }), { status: 200 })))
+    expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Attendance check-in' })).toBe(region)
+    expect(region).toHaveFocus()
+    const confirmedBack = screen.getByRole('link', { name: 'Back to classroom', exact: true })
+    expect(confirmedBack).toBe(back)
+    await user.tab()
+    expect(confirmedBack).toHaveFocus()
+  })
+
+  it('keeps the retry region mounted and focused after another unavailable result', async () => {
+    let rejectRetry!: (reason: Error) => void
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new TypeError('first failure'))
+      .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectRetry = reject })))
+    const user = userEvent.setup()
+    render(<StudentAttendanceCheckIn entryToken="synthetic-token" canCheckIn />)
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    const region = screen.getByRole('region', { name: 'Attendance check-in' })
+    retry.focus()
+    await user.keyboard('{Enter}')
+    expect(region).toHaveFocus()
+    await act(async () => rejectRetry(new TypeError('retry failure')))
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Attendance check-in' })).toBe(region)
+    expect(region).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveFocus()
+  })
+
+  it('renders the guarded teacher fixture without autofocus or a check-in request', async () => {
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    render(await StudentClassroomAttendanceFixturePage({ searchParams: Promise.resolve({ role: 'teacher' }) }))
+    expect(screen.getByRole('heading', { name: 'This check-in is for students' })).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Attendance check-in' })).not.toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
 })

@@ -9,7 +9,8 @@ import {
   type BillingSynchronizationReason,
 } from '@/lib/server/billing/contracts'
 import { z } from 'zod'
-import { UpgradeOperationSchema, UpgradeProviderEvidenceSchema, type UpgradeOperation } from './upgrade-contracts'
+import { AppliedUpgradeProviderEvidenceSchema, UpgradeOperationSchema, type UpgradeOperation } from './upgrade-contracts'
+import { upgradeQuoteDigest } from './upgrade-service'
 
 export type BillingProvider = {
   /** Returns only the normalized snapshot, never an SDK object. */
@@ -287,7 +288,15 @@ async function observeAppliedUpgrade(args: { store: BillingStore; provider: Bill
   const operation = stored.data.operation
   const binding = claim.binding
   if (operation.status !== 'applied' || operation.stage !== 'applied' || !operation.confirmed || !operation.quote
+    || !operation.invoice_id || !operation.payment_intent_id || operation.quote_revision === null
+    || operation.quote_digest !== upgradeQuoteDigest(operation.quote)
+    || upgradeQuoteDigest(operation.quote.binding) !== upgradeQuoteDigest(operation.source_binding)
+    || upgradeQuoteDigest(operation.quote.target) !== upgradeQuoteDigest(operation.target)
+    || !equalTimestamp(operation.quote.paidPeriodStart, operation.paid_period_start)
+    || !equalTimestamp(operation.quote.paidThrough, operation.paid_through)
     || operation.subscription_id !== claim.subscription_id || operation.subject_user_id !== binding.subject_user_id
+    || operation.source_binding.subscription_id !== claim.subscription_id
+    || operation.source_binding.subject_user_id !== binding.subject_user_id
     || operation.source_binding.stripe_account !== binding.stripe_account
     || operation.source_binding.stripe_customer_id !== binding.stripe_customer_id
     || operation.source_binding.stripe_subscription_id !== binding.stripe_subscription_id
@@ -295,20 +304,24 @@ async function observeAppliedUpgrade(args: { store: BillingStore; provider: Bill
     || operation.target.stripe_price_id !== binding.stripe_price_id
     || operation.target.stripe_product_id !== binding.stripe_product_id || operation.target.unit_amount !== binding.unit_amount
     || operation.target.currency !== binding.currency || operation.target.interval !== binding.interval
+    || operation.target.stripe_account !== binding.stripe_account || operation.target.plan_key !== binding.plan_key
     || !claim.lifecycle.paid_through || !claim.lifecycle.paid_period_start
     || !equalTimestamp(operation.paid_through, claim.lifecycle.paid_through)
     || !equalTimestamp(operation.paid_period_start, claim.lifecycle.paid_period_start)
     || operation.last_paid_invoice_id !== claim.lifecycle.last_paid_invoice_id) return null
-  const result = UpgradeProviderEvidenceSchema.safeParse(await args.provider.retrieveAppliedUpgrade(operation))
+  const result = AppliedUpgradeProviderEvidenceSchema.safeParse(await args.provider.retrieveAppliedUpgrade(operation))
   if (!result.success || result.data.kind !== 'paid' || !result.data.targetApplied) return null
   const evidence = result.data.evidence
   if (evidence.invoiceId !== operation.invoice_id || evidence.paymentIntentId !== operation.payment_intent_id
     || evidence.subscriptionId !== binding.stripe_subscription_id || evidence.subscriptionItemId !== operation.quote.subscriptionItemId
     || evidence.targetPriceId !== binding.stripe_price_id || evidence.amountPaid !== operation.quote.amountDue
     || evidence.currency !== binding.currency || !equalTimestamp(evidence.paidThrough, operation.paid_through)
-    || !equalTimestamp(evidence.paidPeriodStart, operation.paid_period_start)) return null
-  return finish(args.store, claim, { outcome: 'observed', event_inbox_id: eventInboxId, invoice_id: null,
-    period_start: null, period_end: null, reason_code: null, provider_status: 'active', cancel_at_period_end: false })
+    || !equalTimestamp(evidence.paidPeriodStart, operation.paid_period_start)
+    || (result.data.cancelAt !== null && !equalTimestamp(result.data.cancelAt, operation.paid_through))) return null
+  const cancellation = result.data.cancelAt !== null || result.data.cancelAtPeriodEnd || evidence.providerStatus === 'canceled'
+  return finish(args.store, claim, { outcome: cancellation ? 'canceled' : 'observed', event_inbox_id: eventInboxId, invoice_id: null,
+    period_start: null, period_end: null, reason_code: null, provider_status: evidence.providerStatus,
+    cancel_at_period_end: result.data.cancelAtPeriodEnd, obligations_cleared: result.data.terminalObligationsCleared })
 }
 
 /**

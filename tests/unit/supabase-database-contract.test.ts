@@ -62,11 +62,15 @@ describe('generated Supabase database contract', () => {
 
   it('replays migrations in ephemeral CI before checking generated type drift', () => {
     const workflow = readRepoFile('.github/workflows/ci.yml')
-    const databaseStartIndex = workflow.indexOf('supabase start ')
-    const typeCheckIndex = workflow.indexOf('pnpm run db:types:check')
+    const database = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    expect(database).toBeDefined()
+    const databaseStartIndex = database!.indexOf('supabase start ')
+    const typeCheckIndex = database!.indexOf('pnpm run db:types:check')
 
-    expect(workflow).toContain('name: Architecture Database Contracts')
+    expect(database).toContain('name: Architecture Database Contracts')
+    expect(database).toContain('name: Stop ephemeral database')
     expect(databaseStartIndex).toBeGreaterThan(-1)
     expect(typeCheckIndex).toBeGreaterThan(databaseStartIndex)
+    expect(typeCheckIndex).toBeLessThan(database!.indexOf('name: Stop ephemeral database'))
   })
 })

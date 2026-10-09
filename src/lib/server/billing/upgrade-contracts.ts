@@ -66,6 +66,16 @@ export const UpgradeProviderEvidenceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('attention'), reason: z.string().regex(/^[a-z][a-z0-9._-]{0,99}$/) }).strict(),
 ])
 export type UpgradeProviderEvidence = z.infer<typeof UpgradeProviderEvidenceSchema>
+/** Read-only receipt observation is separate from evidence that can authorize an upgrade write. */
+export const AppliedUpgradeProviderEvidenceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('paid'), targetApplied: z.literal(true),
+    evidence: UpgradePaidEvidenceSchema.extend({ providerStatus: z.enum(['active', 'canceled']) }),
+    cancelAt: instant.nullable(), cancelAtPeriodEnd: z.boolean(), terminalObligationsCleared: z.boolean(),
+  }).strict().refine(value => value.evidence.providerStatus === 'canceled' || !value.terminalObligationsCleared,
+    { message: 'Active subscriptions cannot have cleared terminal obligations' }),
+  z.object({ kind: z.literal('attention'), reason: z.string().regex(/^[a-z][a-z0-9._-]{0,99}$/) }).strict(),
+])
+export type AppliedUpgradeProviderEvidence = z.infer<typeof AppliedUpgradeProviderEvidenceSchema>
 export type UpgradeMutation = { operation: UpgradeOperation; idempotencyKey: string; beforeMutation(): Promise<boolean> }
 export type UpgradeProvider = {
   /** Never accepts a browser quote or amount. The provider reconstructs the stored operation. */
@@ -77,6 +87,10 @@ export type UpgradeProvider = {
   payInvoice(input: UpgradeMutation): Promise<void>
   applyTarget(input: UpgradeMutation): Promise<void>
   voidInvoice(input: UpgradeMutation): Promise<void>
+}
+export type AppliedUpgradeProvider = UpgradeProvider & {
+  /** Observes only a durable, confirmed applied receipt; never authorizes a mutation. */
+  readAppliedEvidence(operation: UpgradeOperation): Promise<AppliedUpgradeProviderEvidence>
 }
 
 export class UpgradeEligibilityError extends Error {

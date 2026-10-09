@@ -48,7 +48,7 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
   const provider = createStripeBillingProvider(createStripeBillingReadPort(stripe))
   if (process.env.BILLING_UPGRADES_ENABLED === 'true') {
     const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
-    provider.retrieveAppliedUpgrade = operation => upgrades.readEvidence(operation)
+    provider.retrieveAppliedUpgrade = operation => upgrades.readAppliedEvidence(operation)
   }
 
   return {

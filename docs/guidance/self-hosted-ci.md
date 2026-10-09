@@ -1,7 +1,7 @@
 # Pika CI on your hardware
 
 Heavy CI can run on a dedicated Linux runner while GitHub runs change
-classification and the required `PR Gate`. All existing checks and risk selectors
+classification, the hosted Test owner SDK shard and the required `PR Gate`. All existing checks and risk selectors
 remain required. A successful local run does not replace the PR gate.
 
 ## Delivery plan and acceptance
@@ -19,6 +19,16 @@ remain required. A successful local run does not replace the PR gate.
 Preparation does not change visibility, register a runner, or enable the setting.
 Hardware activation remains pending until a host is chosen and a real self-hosted
 run passes.
+
+The `Contextual Test Owner SDK` job always uses `ubuntu-latest`, selected by the
+existing database flag. It moves seven established owner proofs to a separate
+hosted VM/daemon and starts an independent canonical stack. Every normal and
+forced proof still uses its own fresh disposable project and complete migration
+replay. Database-selected PRs require both database jobs to pass. The original
+database, test/build and browser jobs continue to follow the configured routing;
+`runner=self-hosted` therefore means mixed compute with this hosted shard. This
+does not activate a local runner. See the [proof optimization plan](../plans/ci-proof-setup-optimization.md)
+for observed timings and the comparative acceptance gate.
 
 The initial host choice is the existing Mac shared with HQ, using separate Linux
 templates and a cooperative exclusive lease. Pika's host driver below admits one
@@ -174,7 +184,7 @@ pnpm ci:local -- --lane all --ref HEAD --dry-run
 pnpm ci:local -- --lane test-build --ref HEAD
 ```
 
-The live command runs committed source, not uncommitted edits. Database/browser
+The live command runs committed source, not uncommitted edits. Database/SDK/browser
 lanes require the isolated Linux VM and empty daemon. Inspect dry-run output for
 the exact SHA, complete migration inventory and commands. Local migration replay
 retains the one-time exact-target authorization in the schema rollout checklist;
@@ -183,8 +193,17 @@ the runner also requires an explicit acknowledgement:
 ```bash
 pnpm ci:local -- --lane database --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane database --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
+pnpm ci:local -- --lane test-owner-sdk --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane browser --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
 ```
+
+`--lane database` runs the original database job followed by the SDK shard to
+preserve complete database coverage. `--lane test-owner-sdk` selects just that
+shard; live execution has the same isolation and migration-authorization gates.
+`--lane all` includes every job exactly once. Local jobs run sequentially with
+separate start/preflight/cleanup cycles. The host admission rehearsal still
+checks the three routable local lanes; it does not register or serve the hosted
+SDK shard.
 
 The temporary checkout retains `.git` for commit-bound rehearsals, excludes
 environment files and uses a restricted child environment. Commands come from

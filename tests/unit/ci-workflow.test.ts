@@ -1,11 +1,106 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+import { extractWorkflow } from '../../scripts/run-ci-local.mjs'
 
 const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
+const ownerProfiles = [
+  ['detail', 'Verify isolated contextual Test owner-detail SDK reads'],
+  ['list', 'Verify isolated contextual Test owner-list SDK reads'],
+  ['draft-get', 'Verify isolated contextual Test owner-draft GET transactions'],
+  ['draft-save', 'Verify isolated contextual Test owner-draft save transactions'],
+  ['create', 'Verify isolated contextual Test owner creation transactions'],
+  ['pristine-discard', 'Verify isolated contextual pristine Test draft discard transactions'],
+  ['publication', 'Verify isolated contextual Test owner publication transactions'],
+] as const
+
+function jobSource(workflow: string, id: string) {
+  return workflow.split(`  ${id}:\n`)[1]?.split(/\n  [a-z][a-z-]*:\n/)[0] ?? ''
+}
+
+function runGate(overrides: Record<string, string> = {}) {
+  const gate = jobSource(readFileSync(workflowPath, 'utf8'), 'pr-gate')
+  const script = gate.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n')
+  return spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script], {
+    encoding: 'utf8',
+    env: { PATH: process.env.PATH, CI_EVENT_ELIGIBLE: 'true', CLASSIFY_RESULT: 'success',
+      TEST_BUILD_RESULT: 'success', TEST_BUILD_REQUIRED: 'true', DATABASE_REQUIRED: 'true',
+      DATABASE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', BROWSER_REQUIRED: 'false',
+      BROWSER_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
+  })
+}
+
 describe('CI workflow', () => {
+  it('moves only the seven established owner profiles into a separately hosted database-selected shard', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const jobs = extractWorkflow(workflow)
+    const shard = jobs['contextual-test-owner-sdk']
+    const database = jobs['architecture-database-contracts']
+    const body = jobSource(workflow, shard.id)
+    expect(body).toContain('needs: classify-changes\n')
+    expect(body).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
+    expect(body).toContain('runs-on: ubuntu-latest')
+    expect(body).not.toContain('heavy_runner')
+    expect(shard.steps.filter(step => step.run?.includes('--reviewed-head')).map(step => step.name))
+      .toEqual(ownerProfiles.map(([, name]) => name))
+    for (const [profile, name] of ownerProfiles) {
+      expect(workflow.split(`      - name: ${name}\n`)).toHaveLength(2)
+      expect(database.steps.some(step => step.name === name)).toBe(false)
+      const step = shard.steps.find(step => step.name === name)!
+      const variable = `test_owner_${profile.replaceAll('-', '_')}`
+      expect(step.run).toContain(`${variable}_head=$(git rev-parse HEAD)`)
+      expect(step.run).toContain(`pnpm exec tsx scripts/check-contextual-test-owner-${profile}-lifecycle.ts --reviewed-head "$${variable}_head" --mode normal`)
+      expect(step.run).toContain(`for ${variable}_mode in after-fixture before-capture; do`)
+      expect(step.run).toContain(`--mode "$${variable}_mode"`)
+      expect(step.run).toContain(`[[ "$${variable}_status" -eq 1 ]] || exit 1`)
+      expect(step.run).toContain(`[[ "$(wc -l < "$${variable}_log" | tr -d ' ')" -eq 2 ]] || exit 1`)
+      expect(step.run).toContain(`grep -Fx "FAIL forced isolated test-owner-${profile} lifecycle: \${${variable}_mode}."`)
+      expect(step.run).toContain(`grep -Fx 'PASS isolated test-owner-${profile} exact teardown and unchanged canonical baseline.'`)
+      expect(step.if).toBeUndefined()
+      expect(step.run).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    }
+    for (const name of ['Verify isolated contextual Test member-list SDK reads', 'Verify isolated contextual Test owner reorder transactions']) {
+      expect(database.steps.filter(step => step.name === name)).toHaveLength(1)
+      expect(shard.steps.some(step => step.name === name)).toBe(false)
+    }
+    const upload = shard.steps.find(step => step.name === 'Upload sanitized Test proof timings')!
+    expect(database.steps.some(step => step.name === upload.name)).toBe(false)
+    expect(workflow.split('      - name: Upload sanitized Test proof timings\n')).toHaveLength(2)
+    expect(shard.steps.indexOf(upload)).toBeGreaterThan(shard.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
+    const gate = jobSource(workflow, 'pr-gate')
+    for (const dependency of ['classify-changes', 'architecture-database-contracts', 'contextual-test-owner-sdk', 'test-and-build', 'browser-experience-matrix']) {
+      expect(gate).toContain(`      - ${dependency}\n`)
+    }
+    expect(gate).toContain('TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}')
+    expect(gate).toContain('DATABASE_REQUIRED: ${{ needs.classify-changes.outputs.run_database }}')
+  })
+
+  it.each(['failure', 'cancelled', 'skipped', ''])('rejects a selected SDK shard ending %s in the actual aggregate gate', result => {
+    const gate = runGate({ TEST_OWNER_SDK_RESULT: result })
+    expect(gate.status).toBe(1)
+    expect(gate.stdout).toContain('Contextual Test Owner SDK was required but ended:')
+  })
+
+  it('accepts complete selected evidence and preserves documented unselected modes', () => {
+    expect(runGate().status).toBe(0)
+    for (const [mode, required] of [['docs-only', 'false'], ['production-promotion', 'true'], ['application-test-build', 'true']]) {
+      expect(runGate({ CI_MODE: mode, TEST_BUILD_REQUIRED: required, DATABASE_REQUIRED: 'false',
+        DATABASE_RESULT: 'skipped', TEST_OWNER_SDK_RESULT: 'skipped' }).status).toBe(0)
+    }
+    expect(runGate({ CI_MODE: 'full', BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success' }).status).toBe(0)
+  })
+
+  it.each(['CLASSIFY_RESULT', 'TEST_BUILD_RESULT', 'DATABASE_RESULT', 'BROWSER_RESULT', 'CI_EVENT_ELIGIBLE'])(
+    'retains aggregate rejection for %s after sharding', key => {
+      const gate = runGate({ CI_MODE: 'full', BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success',
+        [key]: key === 'CI_EVENT_ELIGIBLE' ? 'false' : 'failure' })
+      expect(gate.status).toBe(1)
+    },
+  )
+
   it('keeps all fresh Test pilot modes and failure receipts while collecting only sanitized timings', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     for (const profile of ['detail', 'list']) {
@@ -343,7 +438,7 @@ describe('CI workflow', () => {
     expect(workflow).toContain('Browser lane setup evidence')
     expect(workflow).toContain('(false means prefix restore or miss)')
     expect(workflow).toContain('Supabase remains a fresh ephemeral start and migration replay.')
-    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(2)
+    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(3)
   })
 
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {
