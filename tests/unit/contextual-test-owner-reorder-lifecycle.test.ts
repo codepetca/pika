@@ -69,7 +69,7 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(testOwnerReorderForcedReceipt(mode, new AssignmentListLifecycleError(e.primary, [{ stage: 'teardown', error: Error('private') }]), true)).toBeNull()
     expect(testOwnerReorderForcedReceipt(mode, Error('Forced isolated lifecycle failure'), true)).toBeNull()
   })
-  it('freezes the complete254 union while distinguishing rollback proof from remaining gates', () => {
+  it('freezes the complete255 union while distinguishing rollback proof from remaining gates', () => {
     const union = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(Object.isFrozen(union.sql.concurrency.schedules)).toBe(true)
     expect(union.sql.contracts.contracts).toHaveLength(28); expect(union.sql.concurrency.schedules).toHaveLength(21)

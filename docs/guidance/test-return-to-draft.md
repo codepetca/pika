@@ -62,3 +62,8 @@ and teacher/student desktop/mobile screenshots in light and dark themes.
 The native database harness accepts an explicit disposable target and refuses
 the canonical local Pika container. CI's fresh isolated container is admitted
 only with `CI=true` plus its explicit opt-in flag.
+
+Existing contextual Test proof source profiles admit the exact reviewed 255
+filename and SHA-256 while preserving their full migration-chain and table-catalog
+guards. They continue to reject future migrations and changed SQL bytes. This
+source compatibility extension does not activate or execute those dormant paths.
