@@ -104,6 +104,13 @@ describe('AI startup docs', () => {
     expect(totalChars).toBeLessThanOrEqual(17_000)
   })
 
+  it('retains the attendance release receipt when CURRENT is compacted', () => {
+    const current = readRepoFile('.ai/CURRENT.md')
+
+    expect(current).toContain('Recorded releases: attendance')
+    expect(current).toContain('`teacher_entitlements` smoke 4/4 on 2026-08-28')
+  })
+
   it('keeps journal reads out of the default startup flow', () => {
     const files = [
       '.ai/START-HERE.md',

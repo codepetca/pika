@@ -63,6 +63,17 @@ Changed-base review, focused verification and eligible exact-new-head CI remain
 required. No new local native/coverage, canonical schema, production, activation
 or phase-exit acceptance is inferred from these historical receipts.
 
+Superseding2026-10-07: changed-base Sol/high review24 and focused1304/44 passed
+at2f3e6d41. Its eligible CI37564268228 passed all five jobs, including publication
+normal/forced transactions and PR Gate (queue2s/run4166s). Fresh exact-head,
+main, full review/thread and authority checks passed; #1510 normally squash-merged
+473a5de8a at04:05:25UTC. Squash-tree equality and clean canonical main fast-forward
+passed, preserving all37 ordered stashes and dependent worktrees. SQL252 is unchanged.
+This accepts the dormant publication component only. Canonical/local/production
+249–252, production promotion, admission/home/page/cutover and billing remain held;
+legacy PATCH/UI are unchanged. Next source design is atomic Test-list reordering,
+not a Tests batch, phase or full-goal exit.
+
 ## Historical pre-type preparation
 
 The isolated proof implementation was ready for independent source review: one full-row fixture,

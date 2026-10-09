@@ -30,6 +30,13 @@ import { newTestOwnerPublicationFixture, testOwnerPublicationSnapshotSql, type T
 import { TEST_OWNER_PUBLICATION_DB_CHECK_LABELS, testOwnerPublicationDbContractsManifest, runTestOwnerPublicationDbContracts } from './contextual-test-publication-db-contracts'
 import { testOwnerPublicationConcurrencyManifest, validateTestOwnerPublicationConcurrencySql, runTestOwnerPublicationConcurrency,
   testOwnerPublicationCommittedManifest, validateTestOwnerPublicationCommittedSql, runTestOwnerPublicationCommittedTransitions } from './check-contextual-test-publication-concurrency'
+import { newTestOwnerReorderFixture, testOwnerReorderSnapshotSql, type TestOwnerReorderFixture } from './contextual-test-reorder-proof-fixture'
+import { TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_BULK_FAILURE_CODES, TEST_OWNER_REORDER_DEADLINE_PHASE_CODES, testOwnerReorderDbContractsManifest, runTestOwnerReorderDbContracts } from './contextual-test-reorder-db-contracts'
+import { testOwnerReorderConcurrencyManifest, validateTestOwnerReorderConcurrencySql, runTestOwnerReorderConcurrency } from './check-contextual-test-reorder-concurrency'
+import { testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql, runTestOwnerReorderCommittedTransitions } from './check-contextual-test-reorder-committed'
+import { captureTestOwnerReorderProgress, type TestOwnerReorderProgressCheckpoint, type TestOwnerReorderProgressScope } from './contextual-test-reorder-progress'
+import { assertTestOwnerReorderDiagnosticAvailable, buildTestOwnerReorderDiagnosticManifest, validateTestOwnerReorderDiagnosticSql,
+  runTestOwnerReorderDiagnostic, captureTestOwnerReorderTimings, validateTestOwnerReorderDiagnosticReceipt, type TestOwnerReorderTimings } from './contextual-test-reorder-diagnostic'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -38,7 +45,8 @@ const contextTemplate = '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .
 const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503', '42501', '55P03', '40P01', '40001', '57014',
   'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03', ...Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS), ...Object.keys(TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS),
   // The six catalog checks share P2501; only the later probes emit P2507–48.
-  'P2501', ...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.slice(6, -1).map((_, index) => `P25${String(index + 7).padStart(2, '0')}`)])
+  'P2501', ...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.slice(6, -1).map((_, index) => `P25${String(index + 7).padStart(2, '0')}`),
+  ...Object.keys(TEST_OWNER_REORDER_BULK_FAILURE_CODES), ...Object.keys(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES)])
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
@@ -78,11 +86,12 @@ function freeze<T>(value: T): T {
   return value
 }
 type PublicationPrivilegeKind = 'snapshot247' | 'publication252' | 'legacy139' | 'activation134'
-function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | PublicationPrivilegeKind = 'snapshot') {
+function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | PublicationPrivilegeKind = 'snapshot') {
   const signature = kind === 'snapshot' ? 'public.snapshot_test_draft_save_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'create' ? 'public.create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)'
     : kind === 'discard' ? 'public.discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)'
     : kind === 'discard-inner' ? 'public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)'
+    : kind === 'reorder' ? 'public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)'
     : kind === 'snapshot247' ? 'public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'publication252' ? 'public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)'
     : kind === 'legacy139' ? 'public.publish_test_from_draft_atomic(uuid,uuid,integer)'
@@ -438,6 +447,61 @@ export function validateTestOwnerPublicationNativeSql(manifest: PublicationManif
     || validateTestOwnerPublicationConcurrencySql(manifest.concurrency, sql)
     || validateTestOwnerPublicationCommittedSql(manifest.committed, sql)
 }
+/** Durable installation belongs to the original lifecycle fixture hook. This
+ * closed254 profile only checks presence and admits finite source-owned SQL.
+ * It neither raises inherited engine caps nor attests native execution. */
+export function buildTestOwnerReorderNativeContractsManifest(original: AssignmentListProofFixture,
+  fixture: TestOwnerReorderFixture, reviewedHead: string, repository: string) {
+  assert.match(reviewedHead, /^[a-f0-9]{40}$/)
+  assert(isDeepStrictEqual(fixture, newTestOwnerReorderFixture(original)), 'Test reorder fixture differs')
+  assert(Object.isFrozen(fixture))
+  const projectId = `pika_assignment_list_${fixture.tag.slice(-12)}`
+  const q = (s: string) => `'${s.replaceAll("'", "''")}'`
+  const classes = fixture.classes.map(c => `${q(c.id)}::uuid`).join(',')
+  const actors = fixture.actors.map(a => `${q(a.id)}::uuid`).join(',')
+  const testIds = `select id from public.tests where classroom_id=any(array[${classes}])`
+  const guard = testOwnerGuardSql(projectId)
+  const setup = `${guard}\nbegin read only;set local lock_timeout='1s';set local statement_timeout='8s';
+do $presence$ begin
+ if current_database()<>'postgres' or current_user<>'postgres'
+ or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)') is null
+ or (select count(*) from private.classroom_test_quota_settings)<>1
+ or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
+ or (select count(*) from public.users where id=any(array[${actors}]) and email like ${q(fixture.tag + '%@example.invalid')})<>5
+ or (select count(*) from public.classrooms where id=any(array[${classes}]))<>7
+ or (select count(*) from public.tests where classroom_id=any(array[${classes}]))<>3012
+ or (select count(*) from public.assessment_drafts where classroom_id=any(array[${classes}]))<>12
+ or (select count(*) from public.test_questions where test_id in (${testIds}))<>24
+ or (select count(*) from public.classroom_enrollments where classroom_id=any(array[${classes}]))<>6
+ or (select count(*) from public.gradebook_categories where classroom_id=any(array[${classes}]))<>21
+ or (select count(*) from public.classroom_archive_revisions where classroom_id=any(array[${classes}]))<>7
+ or (select count(*) from public.test_attempts where test_id in (${testIds}))<>3
+ or (select count(*) from public.test_responses where test_id in (${testIds}))<>3
+ or (select count(*) from public.test_student_availability where test_id in (${testIds}))<>3
+ or (select count(*) from public.test_focus_events where test_id in (${testIds}))<>3
+ or (select count(*) from public.test_attempt_history where test_attempt_id in (select id from public.test_attempts where test_id in (${testIds})))<>3
+ or (select count(*) from public.classroom_guided_draft_provenance where classroom_id=any(array[${classes}]))<>3
+ then raise exception 'Migration254 fixture presence differs';end if;
+end;$presence$;rollback;`
+  const contracts = testOwnerReorderDbContractsManifest(fixture, projectId, repository)
+  const concurrency = testOwnerReorderConcurrencyManifest(fixture)
+  const committed = testOwnerReorderCommittedManifest(fixture)
+  const snapshot = testOwnerReorderSnapshotSql(fixture)
+  for (const sql of [setup, snapshot, ...contracts.contracts.map(batch => batch.sql)]) assert(Buffer.byteLength(sql) <= DRAFT_SAVE_CAPS.sqlBytes)
+  const sourceSha256 = testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/254_contextual_test_owner_reorder.sql'), 'utf8'))
+  assert.equal(sourceSha256, TEST_OWNER_REORDER_SOURCE_SHA256)
+  return freeze({ version: 1, reviewedHead, migrationManifestSha256: draftSaveMigrationManifestSha256(repository), sourceSha256,
+    fixture, guard, setup, contracts, concurrency, committed, snapshot, bootstrap: boot, termination: draftSaveNativeTerminationSql(),
+    close: 'rollback;', capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('reorder') })
+}
+type ReorderManifest = ReturnType<typeof buildTestOwnerReorderNativeContractsManifest>
+export function validateTestOwnerReorderNativeSql(manifest: ReorderManifest, sql: string) {
+  if (typeof sql !== 'string' || Buffer.byteLength(sql) > DRAFT_SAVE_CAPS.sqlBytes) return false
+  return [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close, manifest.privilege.catalog, manifest.privilege.revoke,
+    ...manifest.contracts.contracts.map(batch => batch.sql)].includes(sql)
+    || validateTestOwnerReorderConcurrencySql(manifest.concurrency, sql)
+    || validateTestOwnerReorderCommittedSql(manifest.committed, sql)
+}
 type Backend = { pid: number; started: string; name: string; database: 'postgres'; user: 'postgres' }
 function backend(value: unknown, name: string): Backend {
   assert(value && typeof value === 'object' && !Array.isArray(value)); const row = value as Record<string, unknown>
@@ -453,17 +517,21 @@ type NativeOwnerInput = {
   capturedResources: readonly AssignmentListResource[]; containerId: string; acceptedManifestSha256: string;
 }
 type NativeManifestShape = Omit<Manifest, 'fixture' | 'contracts' | 'concurrency'> & { fixture: object }
-type NativeOwnerProfile<M extends NativeManifestShape, C, R> = Readonly<{
+type NativeOwnerProfile<M extends NativeManifestShape, C, R,
+  T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic';
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
   absoluteDeadline?: number;
   singleMs?: number;
   committedSha256?: string;
-  runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): ReturnType<typeof runTestOwnerPublicationCommittedTransitions>;
+  committedOuterPrivilege?: true;
+  reorderProgressSql?: Readonly<{ bulk: string; calibration: string }>;
+  reorderDiagnosticSql?: string;
+  runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
   racesSha256: string;
@@ -555,7 +623,60 @@ export function createTestOwnerPublicationNativeContracts(input: NativeOwnerInpu
   })
 }
 
-function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: NativeOwnerInput, profile: NativeOwnerProfile<M, C, R>) {
+/** One fixed service privilege and one source-sealed committed operation. */
+export function createTestOwnerReorderNativeContracts(input: NativeOwnerInput & { fixture: TestOwnerReorderFixture; absoluteDeadline: number }) {
+  const now = Date.now(); const absoluteDeadline = input.absoluteDeadline
+  assert(Number.isSafeInteger(absoluteDeadline) && absoluteDeadline > now && absoluteDeadline <= now + CAPS.totalMs)
+  const manifest = buildTestOwnerReorderNativeContractsManifest(input.original, input.fixture, input.reviewedHead, input.repository)
+  const engine = createNativeOwnerContracts(input, {
+    manifest, project: `pika_assignment_list_${manifest.fixture.tag.slice(-12)}`,
+    sourceFile: '254_contextual_test_owner_reorder.sql', label: 'test-owner-reorder',
+    absoluteDeadline, singleMs: 35000, committedOuterPrivilege: true,
+    reorderProgressSql: Object.freeze({ bulk: manifest.contracts.contracts.find(batch => batch.name === 'bulk-1000')!.sql,
+      calibration: manifest.contracts.contracts.find(batch => batch.expectedResult.checks.includes('deadline-reached'))!.sql }),
+    validateSql: sql => validateTestOwnerReorderNativeSql(manifest, sql),
+    contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    committedSha256: testOwnerDigest(JSON.stringify(manifest.committed)),
+    runContracts: (bound, d) => runTestOwnerReorderDbContracts(manifest.contracts, bound, d, absoluteDeadline),
+    runRaces: (bound, d) => runTestOwnerReorderConcurrency(manifest.concurrency, bound, d),
+    runCommitted: (bound, d) => runTestOwnerReorderCommittedTransitions(manifest.committed, bound, d, absoluteDeadline),
+  })
+  const { probeSnapshotPrivilegeDrift: probe, probeInnerPrivilegeDrift: innerOnly, probeFixedPrivilegeDrift: fixedOnly, ...facade } = engine
+  void innerOnly; void fixedOnly
+  return Object.freeze({ ...facade, probeReorderPrivilegeDrift: probe })
+}
+
+/** Separate finite diagnostics. No ordinary proof/race/privilege entrypoints. */
+export function buildTestOwnerReorderDiagnosticNativeManifest(original: AssignmentListProofFixture,
+  fixture: TestOwnerReorderFixture, reviewedHead: string, repository: string) {
+  assertTestOwnerReorderDiagnosticAvailable()
+  const normal = buildTestOwnerReorderNativeContractsManifest(original, fixture, reviewedHead, repository)
+  const { contracts: ordinary, concurrency: unusedRaces, committed: unusedCommitted, ...binding } = normal
+  void unusedRaces; void unusedCommitted
+  return freeze({ ...binding, kind: 'test-owner-reorder-diagnostic-not-acceptance' as const, diagnosticOnly: true as const,
+    contracts: buildTestOwnerReorderDiagnosticManifest(ordinary, repository), concurrency: { diagnosticOnly: true as const } })
+}
+export function createTestOwnerReorderDiagnosticNativeContracts(input: NativeOwnerInput & { fixture: TestOwnerReorderFixture; absoluteDeadline: number }) {
+  assertTestOwnerReorderDiagnosticAvailable()
+  const now = Date.now()
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
+  const manifest = buildTestOwnerReorderDiagnosticNativeManifest(input.original, input.fixture, input.reviewedHead, input.repository)
+  const engine = createNativeOwnerContracts(input, { manifest, project: manifest.contracts.projectId,
+    sourceFile: '254_contextual_test_owner_reorder.sql', label: 'test-owner-reorder-diagnostic', absoluteDeadline: input.absoluteDeadline, singleMs: 35000,
+    reorderDiagnosticSql: manifest.contracts.frames[1].sql,
+    validateSql: sql => [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close].includes(sql)
+      || validateTestOwnerReorderDiagnosticSql(manifest.contracts, sql),
+    contractsSha256: manifest.contracts.manifestSha256, racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    runContracts: (bound, d) => runTestOwnerReorderDiagnostic(manifest.contracts, bound, d, input.absoluteDeadline),
+    runRaces: async () => { throw failure() },
+  })
+  const { manifest: boundManifest, setup, verifyTarget, diagnostic, runDiagnostic } = engine
+  assert(runDiagnostic)
+  return Object.freeze({ manifest: boundManifest, setup, verifyTarget, diagnostic, runDiagnostic })
+}
+
+function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
+  T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>>(input: NativeOwnerInput, profile: NativeOwnerProfile<M, C, R, T>) {
   input = Object.freeze({ ...input })
   profile = Object.freeze({ ...profile })
   const manifest = profile.manifest
@@ -564,14 +685,18 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
   assert(isAbsolute(input.repository) && realpathSync(input.repository) === input.repository)
   const project = profile.project
   const closure = structuredClone(input.capturedResources)
-  const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let probing = false; let committedRan = false
+  const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
   const probed = new Set<'outer' | 'inner' | PublicationPrivilegeKind>()
+  const completedProbes = new Set<'outer' | 'inner' | PublicationPrivilegeKind>()
   // The rollback and committed publication schedules share one race clock.
   // Entering the second runner must not renew its 180-second phase budget.
   let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
   let phase: Phase = 'idle'
-  let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number }> | undefined
+  let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
+  let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
+  let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number;
+    progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified' }> | undefined
   function role(name: string): Role {
     if (name === `${project}_fixture`) return 'fixture'
     if (name === `${project}_draft_contracts`) return 'contracts'
@@ -580,7 +705,14 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
     return 'none'
   }
   function record(kind: Fault, ownedRole: Role = 'none', sqlstate = 'unknown') {
+    if (firstFault) return
+    if (profile.reorderDiagnosticSql) diagnosticTimings = [...sessions].find(session => session.diagnosticObservation().enabled)?.diagnosticObservation().snapshot ?? diagnosticTimings
+    const observations = [...sessions].map(session => session.progressObservation())
+    const activeBulk = observations.find(value => value.scope === 'bulk')
+    const activeCalibration = observations.find(value => value.scope === 'calibration')
     firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) ? sqlstate : 'unknown',
+      progress: activeBulk?.snapshot.checkpoint ?? bulkProgress,
+      calibration: progressCalibrated || activeCalibration?.snapshot.calibrated ? 'verified' : 'unverified',
       controls: Math.min(controls, CAPS.controlCalls + 1), actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) })
   }
   let endpoint: { host: string; identity: number[] } | undefined
@@ -598,13 +730,18 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
     assert([`${project}_fixture`, `${project}_draft_contracts`, `${project}_draft_holder`, `${project}_draft_contender`].includes(name))
     assert(endpoint)
     return ['--host', endpoint.host, 'exec', '-i', '-e', `PGAPPNAME=${name}`, input.containerId, 'psql', '-U', 'postgres', '-d', 'postgres',
-      '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=sqlstate', ...variables]
+      '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', profile.reorderDiagnosticSql && role(name) === 'contracts' ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate', ...variables]
   }
   function command(file: 'git' | 'docker', args: string[], sql?: string, timeout = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
     assert(++controls <= CAPS.controlCalls)
+    if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
     return new Promise((resolveResult, reject) => {
       let inputFailed = false
       const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes }, (error, stdout, stderr) => {
+        if (profile.reorderDiagnosticSql && typeof stderr === 'string') {
+          exchanged += Buffer.byteLength(stderr)
+          if (Buffer.byteLength(stderr) > CAPS.stderrBytes || exchanged > CAPS.totalBytes) { reject(failure()); return }
+        }
         if (error || inputFailed || Buffer.byteLength(stdout) > CAPS.outputBytes) {
           if (diagnosticRole !== undefined) {
             const state = captureSqlstate()
@@ -685,7 +822,13 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
     private partial = ''; private stderr = 0; private frame = 0; private closing?: Promise<void>
     private decoder = new StringDecoder('utf8')
     private sqlstate = captureSqlstate()
+    private progressScope: TestOwnerReorderProgressScope = 'none'
+    private progress = captureTestOwnerReorderProgress('none')
+    private diagnosticEnabled = false
+    private timing = captureTestOwnerReorderTimings(false)
     private cleaning = false
+    progressObservation() { return { scope: this.progressScope, snapshot: this.progress.snapshot() } }
+    diagnosticObservation() { return { enabled: this.diagnosticEnabled, snapshot: this.timing.snapshot() } }
     private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
     constructor(name: string) {
       this.name = name
@@ -713,18 +856,37 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
       })
       this.child.stderr.on('data', (chunk: Buffer) => {
         this.stderr += chunk.length
-        if (this.stderr > CAPS.stderrBytes) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
-        else this.sqlstate.push(chunk)
+        if (profile.reorderDiagnosticSql) exchanged += chunk.length
+        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        else {
+          this.sqlstate.push(chunk)
+          if (!this.cleaning && !firstFault && this.active) this.progress.push(chunk)
+          if (!this.cleaning && !firstFault && this.active && this.diagnosticEnabled) this.timing.push(chunk)
+        }
       })
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number): Promise<readonly { result?: unknown }[]> {
       assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= CAPS.actionMs)
+      if (profile.reorderDiagnosticSql) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
+      this.progressScope = !this.cleaning && !firstFault && profile.label === 'test-owner-reorder' && phase === 'contracts'
+        && role(this.name) === 'contracts' && profile.reorderProgressSql
+        ? sql === profile.reorderProgressSql.bulk ? 'bulk' : sql === profile.reorderProgressSql.calibration ? 'calibration' : 'none'
+        : 'none'
+      this.progress = captureTestOwnerReorderProgress(this.progressScope)
+      this.diagnosticEnabled = !this.cleaning && !firstFault && phase === 'contracts' && role(this.name) === 'contracts'
+        && profile.reorderDiagnosticSql === sql
+      this.timing = captureTestOwnerReorderTimings(this.diagnosticEnabled)
       const marker = `__draft_save_end_${++this.frame}__`
       return new Promise((resolveRows, reject) => {
         const timer = setTimeout(() => { this.fault('timeout'); this.reject(); void closeAll().catch(() => {}) }, timeoutMs)
         this.active = { timer, reject, end: marker, bytes: 0, lines: [], finish: () => {
           const active = this.active!; this.active = undefined; clearTimeout(timer)
+          if (!firstFault && !this.cleaning) {
+            if (this.diagnosticEnabled) diagnosticTimings = this.timing.snapshot()
+            if (this.progressScope === 'bulk') bulkProgress = this.progress.snapshot().checkpoint
+            if (this.progressScope === 'calibration') progressCalibrated = this.progress.snapshot().calibrated
+          }
           try { resolveRows(active.lines.map(line => {
             try { return { result: JSON.parse(line) as unknown } }
             catch { assert(/^[a-f0-9-]{36}$/.test(line) || /^-?[0-9]+$/.test(line) || line === 'ok'); return { result: line } }
@@ -830,6 +992,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
           } catch { failed = true; throw failure() }
         }
       }
+      completedProbes.add(kind)
       return Object.freeze({ privilegeRestored: true, fixtureUnchanged: true, snapshotAclSha256: testOwnerDigest(JSON.stringify(catalogBefore)) })
     } catch (error) { record('unknown'); throw error }
     finally { if (ownsProbe) probing = false }
@@ -841,8 +1004,10 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
     },
     diagnostic() {
       const d = firstFault ?? { phase, failure: 'none', role: 'none', sqlstate: 'unknown', controls: Math.min(controls, CAPS.controlCalls + 1),
-        actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) }
-      return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}.\n`
+        actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1),
+        progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
+      return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
+        + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
     },
     async setup() {
       phase = 'setup'
@@ -858,9 +1023,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
     async runCommittedTransitions() {
       phase = 'transitions'
       try {
-        assert(profile.publicationPrivileges && profile.runCommitted && profile.committedSha256)
-        assert(setupDone && ran && !committedRan && !probing && sessions.size === 0)
-        assert(Object.keys(profile.publicationPrivileges).every(k => probed.has(k as PublicationPrivilegeKind)))
+        assert(profile.runCommitted && profile.committedSha256)
+        assert(profile.publicationPrivileges || profile.committedOuterPrivilege)
+        assert(setupDone && ran && runDone && !committedRan && !probing && sessions.size === 0)
+        if (profile.publicationPrivileges) assert(Object.keys(profile.publicationPrivileges).every(k => probed.has(k as PublicationPrivilegeKind)))
+        if (profile.committedOuterPrivilege) assert(completedProbes.has('outer'))
         committedRan = true; check()
         const bound = target(profile.committedSha256)
         const transitions = await profile.runCommitted(bound, driver(bound))
@@ -872,9 +1039,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
     async run() {
       phase = 'snapshot'
       try {
+      assert(!profile.reorderDiagnosticSql)
       assert(setupDone && !ran && !probing)
       if (profile.innerPrivilege) assert(probed.has('outer') && probed.has('inner'))
       if (profile.publicationPrivileges) assert(Object.keys(profile.publicationPrivileges).every(k => probed.has(k as PublicationPrivilegeKind)))
+      if (profile.committedOuterPrivilege) assert(completedProbes.has('outer'))
       ran = true; check()
       const before = await single(manifest.snapshot)
       phase = 'contracts'
@@ -889,10 +1058,30 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
       phase = 'races-verify'
       assert.deepEqual(await single(manifest.snapshot), before, 'Rollback schedule whole-row equality differs')
       assert.equal(sessions.size, 0)
+      runDone = true
       phase = 'complete'
       return Object.freeze({ contracts, races, fixtureUnchanged: true, manifestSha256: input.acceptedManifestSha256,
         controls,actions,exchangeBytes:exchanged,remainingSessions:sessions.size })
       } catch (error) { record('unknown'); throw error }
     },
+    ...(profile.reorderDiagnosticSql ? { async runDiagnostic() {
+      phase = 'snapshot'
+      try {
+        assert(setupDone && !ran && !probing); ran = true; check()
+        const before = await single(manifest.snapshot)
+        phase = 'contracts'
+        const bound = target(profile.contractsSha256)
+        const measurement = await profile.runContracts(bound, driver(bound))
+        phase = 'contracts-verify'
+        assert.deepEqual(await single(manifest.snapshot), before, 'Diagnostic whole-row equality differs')
+        assert.equal(sessions.size, 0); assert(diagnosticTimings.valid && diagnosticTimings.beforeWorkUs === 0)
+        check(); phase = 'complete'
+        const receipt = freeze({ kind: 'test-owner-reorder-diagnostic-not-acceptance' as const, diagnosticOnly: true as const,
+          measurement: { ...measurement, timings: diagnosticTimings }, fixtureUnchanged: true as const,
+          manifestSha256: input.acceptedManifestSha256, controls, actions, exchangeBytes: exchanged, remainingSessions: 0 as const })
+        validateTestOwnerReorderDiagnosticReceipt(receipt, manifest)
+        return receipt
+      } catch (error) { record('unknown'); throw error }
+    } } : {}),
   })
 }

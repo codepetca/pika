@@ -117,6 +117,63 @@ describe('isolated assignment-list fixture source contracts', () => {
     expect(verifyRestoration).toHaveBeenCalledTimes(1)
     expect(calls.length).toBe(boundary === 'first' ? 3 : boundary === 'later' ? 4 : 5)
   })
+  it.each([
+    ['owner-transfer', 'first', false], ['owner-transfer', 'first', true],
+    ['member-remove', 'later', false], ['member-remove', 'later', true],
+  ] as const)('joins pending %s/%s revocation before restoration after deadline (reject=%s)', async (kind, boundary, reject) => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    let release!: () => void; let reached!: () => void
+    const pending = new Promise<void>(resolve => { release = resolve })
+    const started = new Promise<void>(resolve => { reached = resolve })
+    const events: string[] = []
+    try {
+      const f = newAssignmentListProofFixture(new Date('2026-10-03T12:00:00Z'))
+      const plan = assignmentListRevocationPlans(f).find(p => p.transition === kind && p.boundary === boundary)!
+      const originalFetch = vi.fn(async (request: RequestInfo | URL) => {
+        const url = new URL(String(request)); const select = url.searchParams.get('select') ?? ''
+        const root = { id: f.classes[0].id, teacher_id: f.classes[0].owner, archived_at: null }
+        const cursor = url.searchParams.get('assignments.id')?.slice(3) ?? ''
+        const assignments = f.assignments.filter(a => a.classroom === root.id && a.id > cursor && (plan.permission === 'owner' || (!a.isDraft && a.releasedAt === null)))
+          .sort((a, b) => a.id.localeCompare(b.id)).slice(0, 1000).map(a => ({ id: a.id, classroom_id: a.classroom, created_by: a.owner, title: a.title,
+            description: '', due_at: f.manifest.now, position: a.position, created_at: f.manifest.now, updated_at: f.manifest.now,
+            is_draft: a.isDraft, released_at: a.releasedAt, instructions_markdown: 'Synthetic', rich_instructions: null,
+            artifact_id: a.id, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
+            points_possible: 30, gradebook_category_id: null, gradebook_maximum_override: null, gradebook_score_scale: 1,
+            gradebook_weight: 1, include_in_final: true, track_authenticity: true }))
+        const body = select === 'id,teacher_id,archived_at' ? root : { ...root, feature_visibility: {},
+          ...(plan.permission === 'member' ? { membership: [{ classroom_id: root.id, student_id: plan.actorId }] } : {}),
+          ...(select.includes('assignments:') ? { assignments } : {}) }
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
+      }) as typeof fetch
+      const transition = vi.fn(async (sql: string) => {
+        if (sql === plan.revokeSql) {
+          events.push('revoke-start'); reached(); await pending; events.push('revoke-settled')
+          if (reject) throw new Error('private ambiguous transition response')
+        } else events.push('restore')
+      })
+      const verifyRestoration = vi.fn(async () => { events.push('verify') })
+      const secret = `header.${Buffer.from(JSON.stringify({ iss: 'supabase-demo', role: 'service_role' })).toString('base64url')}.signature`
+      const observation = observeAssignmentListRevocation({ fixture: f, plan,
+        target: { API_URL: 'http://127.0.0.1:54331', DB_URL: 'postgresql://postgres:private@127.0.0.1:54332/postgres', SERVICE_ROLE_KEY: secret },
+        originalFetch, transition, verifyRestoration }).then(() => undefined, error => error)
+      await started
+      await vi.advanceTimersByTimeAsync(20_000)
+      const prematureRestore = events.includes('restore')
+      release()
+      const error = await observation
+      expect(prematureRestore).toBe(false)
+      expect(error).toBeInstanceOf(AssertionError)
+      expect(error.actual).toBeInstanceOf(ApiError)
+      expect(error.actual.statusCode).toBe(503)
+      expect(assignmentListLifecycleDiagnostic({ stage: 'revocations', error, transition: kind, boundary })).toContain('read_abort=yes revoke=pending elapsed_ms=20000 transition_ms=20000')
+      expect(events).toEqual(['revoke-start', 'revoke-settled', 'restore', 'verify'])
+      expect(transition).toHaveBeenCalledTimes(2)
+      expect(verifyRestoration).toHaveBeenCalledTimes(1)
+    } finally {
+      release?.()
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('injected executable assignment-list lifecycle (no real commands)', () => {

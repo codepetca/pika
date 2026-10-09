@@ -44705,3 +44705,301 @@ Preserve originalOct7 05:04 clock,31reviews/27targeted and prior28fix-sync batch
 feature synchronization is batch29, this continuity-only commit is not another
 fix batch. Human workflow-stop/budget waiver remains task-scoped; correctness,
 checkpoint/migration/production/activation/provider/billing holds remain.
+
+## 2026-10-07 — Calendar native date reliability correction
+
+Bounded review remediation preserves b2da LessonCalendar/component-test/product bytes. Native helper seeds Oct5 Date with Playwright setFixedTime before goto; verified Toronto/ISO Date and live timeout/RAF/performance probe leave timers and animations advancing. External Nov3 context proves old helperRED (3s missing Oct5 opener), corrected same-contextGREEN passes. Full16 current matrix records console warnings/errors without suppression or clean-console assertion; new native-date-remediation evidence stays separate from original artifacts. Required focused/audit/current native proof and coordinator targeted rereview precede acceptance. No publication/PR state action from this worker.
+
+## 2026-10-07 — Teacher settings clipboard feedback
+- Copy success now requires a resolved clipboard write; rejected/unavailable writes warn with concise copy labels. Committed classroom/latest-request guards retire stale feedback without changing settings saves or copied bytes.
+- QR copy feedback belongs inside the active dialog, with a separate logical session across close/reopen. Existing global notice + unavailable QR clipboard accessibility defect reproduced and fixed within feature ownership; shared providers/modal owners unchanged.
+- Evidence: external product-fluidity/settings-copy-feedback (baseline false-success, QR accessibility reproduction, unit RED/GREEN, native matrix, focused/audit receipts). Final coordinator owns review/publication/integration; no hosted changes.
+
+## 2026-10-08 — Test cap native catalog corrections
+
+Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
+and PRGate failed. Actual isolated PG17 confirmed nested record/alias42702;
+three aliases corrected77f9 after3RED,490/28focused/static and Sol/high delta
+reviewPASS. Full local create then failed before SDK: canonical248 has183tables,
+but253 adds private quota settings. Exact own teardown/SAME183/all5 preservation
+PASS; failure retained. Separate source-SHA-bound isolated catalog now requires
+that exact addition without omitting inherited/unexpected table checks or quota
+fingerprints. Targeted79/5 and focused864/37/staticPASS. Native normal/types,
+both forced modes, targeted review and exact-head CI remain gates. Product SQL,
+limits and all249+/production/activation/account/billing holds unchanged.
+
+<!-- pika-session-log-archive-batch:8db577b6e058baf772137d02cca9d917e5237508756e8919b97f96ea79c53ed5 -->
+
+## 2026-10-06 — CI schema-copy diagnostic correction and local evidence
+
+PR1488 remains draft. At reviewed d19792dd, fresh targeted Assignment
+before-capture and native Test draft normal/after-fixture/before-capture all
+passed original expected statuses and exact receipts. Private evidence verified;
+all owned VMs disposed, dedicated daemons empty and shared HQ lease released.
+Complete Browser passed36.29hostminutes; TestBuild passed15.09minutes on earlier
+9602c92d. No full local database success: latest one approved canonical attempt
+failed Pal outbox schema-copy setup after6.19minutes with incomplete generated
+SQL; the stream boundary is unproven. Targeted success is not full-lane timing.
+
+Owner approved one schema-copy diagnostic batch and two reviews within60minutes.
+Keep the dump command/filter/imported SQL/fixtures/claims/guards/limits/cleanup
+unchanged; emit finite exporter/filter/importer statuses on failure and preserve
+pipefail's original exit before teardown. Offline mocks exercise the real shell
+harness, private-output suppression, rightmost failure and cleanup. No transport
+fix claim or retry. Review and focused verification pending at this entry.
+
+Rebased onto c88abe16b (classroom motion/Survey changes); native diagnostic
+source/test bytes unchanged, archived continuity bodies preserved. Public repo,
+unregistered/inactive Pika runner, unset opt-in, production/HQ/Mac Docker holds
+remain. No SQL/VM replay, hosted heavy CI or merge in this approved phase.
+Model recommendation: GPT5.6Sol/high targeted privacy/correctness; GPT6.1Sol/high
+cumulative integration (Terra unavailable). Risk: runtime-platform.
+
+<!-- pika-session-log-archive-batch:88b9887901ee45bdf7fb888eaf217afbb140d1ea27c0b3ea75e4f3860aaadeab -->
+
+## 2026-10-06 — Full local CI database evidence and current-main reconciliation
+
+Owner instructed “override approvals to continue goal”; current-task workflow
+approval/budget stops waived while correctness and public/runner-inactive,
+production/HQ holds remain. Earlier interrupted2325 attempt had7canonical PASS;
+final exit/time unknown, partial archive retained and owned VM disposed.
+Fresh isolated Linux ARM64/4CPU/12GiB full2325/001–248 database lane PASS:
+141canonical steps, Mac monotonic2543.246s(42.39min), guest2537.924s. Native GET
+normal1001-question/privilege-restoration/rollback/two-session and both forced
+modes passed; Assignment SDK and Pal concurrency passed; full recovery and
+shutdown passed. Private archive431members104642bytes, SHA256
+29d855236e1792cc117ae2aa7a96176b3ea8ffb728c2439db5f99a45e97a0078 verified;
+daemon containers/volumes/custom networks empty, owned VMdeleted/lease released.
+Read-only GPT6.1Sol/high main-compatibility analysis289.3s verified. Rebased onto
+865d837b740e781086f0209eb9c4d9c8dab78db3 with continuity-only conflict resolution,
+preserving incoming251-migration schema/new lifecycle checks and byte-identical
+reviewed diagnostic code. Preserve both histories by entry-body hash comparison;
+new integrated source still requires focused checks/review and exact251 replay.
+Historical2325 evidence is not relabeled as integrated251 acceptance. PR1488draft;
+public visibility and runner activation holds continue; no production changes.
+Integrated focused355tests/17files plus architecture/UI/design/TypeScript/lint
+PASS; coupled GET/schema/save-engine/new-CI tests90/6PASS; Bashsyntax/diffPASS.
+
+<!-- pika-session-log-archive-batch:065bc7da3b9567bdac6250a8c8e45384454b64c07ae5e2453f9213d1874cdcab -->
+
+## 2026-10-06 — Integrated local database proof and CI compute capacity
+
+Frozen reviewed0d72a0dd/001–251 canonical local database lane PASS144steps,
+including native GET/new save/create/discard normal+forced modes, Assignment SDK,
+Pal and Stripe concurrency, recovery and shutdown. Host monotonic3947.856seconds
+(65.80min), guest3941.969seconds. Private archive440members101395bytes SHA256
+8b92cb6e5e298315094199809b46bda7237ee93e3627b524cdf95084ecca5d18 verified
+against receipt and exact251inventory07000040bee5a5506614cc3db6b191634f08c057463deb07aa0e3acf6a7da505.
+Daemon containers/volumes/custom networks empty; owned VMdisposed and lease
+released; both templates stopped. Independent prior integratedreview had no blockers.
+Main3b83808d adds only Gradebook styling/test and continuity; preserve both
+histories and all completed database inputs byte-identically. Reuse database proof
+for unchanged relevant inputs; exact new reviewed SHA still requires eligible CI.
+Fresh seven-day cohortSep29–Oct6:687runs699attempts,3472jobrows independently
+verified; >=11588projectedprivatehostedminutes,heavy11090/light498(95.7%known
+heavy). Three unfinished durations unknown. Heavy179.58knownjobhours exceeds
+168serialhours before HQsharing; Mac24GiB/8logicalCPU cannot fit2x12GiB PikaVMs
+before macOS/apps/HQ. No forecast/billing-plan/cost assumptions. Detailed private
+report and raw receipts remain external artifacts. Human task override persists;
+review counters retained. Pika remains public, runner unregistered/inactive and
+opt-in unset; no production/HQ changes. PR1488stays draft through source sync and
+independent verification, then one stable-SHA eligible CI/PR Gate run.
+
+<!-- pika-session-log-archive-batch:09a7d6bbe609e5f53e34cf39737dee8c236d167ab96ffa265b4bdb5fd8390337 -->
+
+## 2026-10-06 15:22 [CODEX]
+
+PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
+
+<!-- pika-session-log-archive-batch:663984a26aca5cb869fe5f9c696d423a23a501915edd3fc64ace3af5be9fb200 -->
+
+## 2026-10-06 — Quiet-window native proof and catalogue alias diagnosis
+
+Owner yes authorized coordinating Clear sent comments and Make daily log summaries
+compact pauses plus fresh full checkpoint. Both confirmed quiet; readonly double
+B3 capture99a202 covers183/all5, exactauth3 drift only; B1/B2 retained. Review8
+custody clean except stale forced-wrapper label; one-line correction review9 CLEAN.
+Normalattempt3 isolateda2f67 applied001–252 then hit180s startup healthwait deadline.
+No explicitSQL/unhealthy/port/disk error; one controlled same-source retry4 isolated
+c4f435 passed startup/probes then failedcatalogueP2501. Both ownedteardowns and
+separate wholeB3 read-only checks PASS; both quiet windows explicitly released.
+Readonly anonymous catalogue-only PostgreSQL repro confirmedp alias/record collision
+42702 and distinctalias success; transactionREADONLY/ROLLBACK, no schema/data writes.
+Batch6 renames verification alias only; source regressionRED beforefix. API/252/
+caps/expectedcatalog unchanged; affected133/2PASS and ESLint2/diffPASS. Required
+audit/targetreview/native remain; no raw startup diagnostic or record output.
+Reviewclock13:07:17/9launches/7targets retained; humanstopoverride active. No types,
+PR/CI/merge or canonical/prod249–252 application/activation acceptance.
+
+<!-- pika-session-log-archive-batch:667249131107c93b84d99b0437881b668a4b253447199268e41f744685ac8159 -->
+
+## 2026-10-06 — Survey title only
+
+PR1511 copy follow-up: remove the redundant Results suffix from both survey
+headings, leaving the original survey title. Reuse existing title styling;
+update heading assertions and same eight-view visual script. Risk none.
+Previously reviewed implementation reused; coordinator checks the title-only
+delta and cumulative continuity. Required local checks/visual evidence in PR.
+
+<!-- pika-session-log-archive-batch:c9e31727498f8da9286164dbafb85716f89c52b781906b037fb6674eb2646bd5 -->
+
+## 2026-10-06 — Publication raw permission SQL/HTTP proof separation
+
+Review15 CLEAN93933a22; root43/3 andESLint2/audit2/diff/trimPASS. Normal9 passedcorrectedP2542 andlatermanaged/deadlineprobes, thenraw42501P2547. Exactownedresourceabsence andseparatewholeB4/all183/all5 PASS; quiet8releasedbothchats; HQ/finance stayedonline. Genericfaultprobe expectedSQLPT503, but252 preservesraw42501 andservermapsHTTP503; unknown55000 stillnormalizesSQLPT503. Setonlyrawprobeexpected42501; regressionRED first. Markers/denial/fullrollback/fourSDK503-raw42501cases/API/migration/caps unchanged. Originalreviewclock/counters/failedattempts retained; fullnative/types/review/PR/CI/merge andcanonical/prod249–252application remainunaccepted.
+
+<!-- pika-session-log-archive-batch:c1ce29aeedea2573595dbca6f3077c0b4308f0f320f3d90b9ac9e74a5cf7e38b -->
+
+## 2026-10-06 15:22 [CODEX]
+
+PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
+
+<!-- pika-session-log-archive-batch:d323f1b7dbbc5cefa5a299bfc6e0c684fa0e564d4662c41f9cec5a6e68ea28c6 -->
+
+## 2026-10-07 — Preview preference coverage correction
+
+PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
+
+<!-- pika-session-log-archive-batch:5e117f8ba91ddd75a2b8406d595ac403df5fde946e5860266c329122c3c3b2e5 -->
+
+## 2026-10-06 — Publication CI startup diagnostic containment
+
+Changed-base Sol20 review/focused777/30 passed006; CI37528258223 failed existing
+Assignment integrated startup in5s before Test publication. Build passed;
+returning PR1510 to draft caused concurrency replacement/browser cancellation;
+PRGate failed. Private600 job log06ddb685 retained; startup JSON not uploaded,
+cause unknown. Bounded readonly6.1Sol/high worker verified gap/closed literals,
+no operations; effective configuration/attributableusage unknown, weekly13%.
+Root32 RED precede closed command/exit/killed/observed-marker facts sealed in
+WeakMap; raw tails/path/credentials never emitted. Mock native wiring/private
+receipt and related lifecycle144/4 PASS; lint/audit PASS. Product/252/types,
+normal/forced output, authorities and caps unchanged. Source batch18/current
+targeted review/focused/exactheadCI pending; original13:07:17 clock/20 launches
+retained/taskstopwaiver active/DeepSeek paused. Local/prod249–252 unapplied;
+no migration/promotion/cohort/account/provider/billing/rollout or phase exit.
+<!-- pika-session-log-archive-batch:6bc2e412819b6d8b71d3ad6e775abaa1f7a0cee982b90f27ceb02ee83a21b65d -->
+<!-- pika-session-log-archive-batch:fd1592768121a657400f21cbc8ff5b870b4d2ed0ebe469899fa23d102245f6b3 -->
+
+## 2026-10-07 — Test reorder committed fixture correction
+
+Astra/high targeted session review clearedcc886. Normal attempt3 passed nine DB
+batches,21 rollback schedules/42dispatches and16 installed-SDK cases plus raw42501
+(17RPC/34captures), then failed committed delete-freshness step6 (P0001/action117).
+Exact disposal/all-five-field canonical preservation passed; no full proof/types.
+Root and original Sol/high fixture author independently identified the named
+create title violates156's pristine Untitled Test/draft fence. Corrected the fixed
+fixture title with source-derived dual-regex TDD; retained product discard policy,
+253SHA, clocks/caps/session guards unchanged. Remaining revision/default oracles
+source-checked without another concrete mismatch.103 affected checks/3files and
+lint/diff/audit PASS; startup-budget1PASS/77skipped. Targeted source review before
+fresh native acceptance; no blind retry, PR or phase-exit claim. All holds remain.
+
+<!-- pika-session-log-archive-batch:6ef26bff4d1d24b14d8373cbfe6be3d03cc4942beaf2b61945bc964289484276 -->
+
+## 2026-10-07 — Achievements local render recovery
+
+Main advanced to01e629d73 via Classwork creation placement1509 during draft e6
+publication. Clean rebase succeeded without conflicts; migration253 unchanged,
+no numbering collision. Incoming Classwork UI/helper/tests are retained; the
+reorder API/SQL/proof/runtime/config/type bytes remain identical to reviewed e6
+and native240e. Stashes were not touched. Keep60 official history trim retains
+all54 entries without duplicating already archived bodies; archive unchanged.
+Source-equivalent old native receipts stay labeled240e; changed-base review and
+fresh focused checks/new exact-head CI remain required. Original05:04 clock,
+11 launches/8 targeted/1 final/8 fixes and human stop waiver retained; one Sol/high
+changed-base review follows. Canonical/prod249–253, promotion and rollout held.
+
+<!-- pika-session-log-archive-batch:60dd4adbdc95e57bb60cd6c07921022533ec53df1c38b84df0981f52f9c3fba4 -->
+
+## 2026-10-07 — Confirmed reorder bulk deadline and scalar-byte candidate
+
+Sol/high current-main review CLEAN b3;833focused/static+87incoming checks PASS.
+Ready b3 CI37607651625 terminalFAIL:14878tests/coverage/build and browser PASS,
+reorder frame26 bulk10000 PRD01/39actions/524controls confirms exact product
+deadline, internal checkpoint unobserved. Setup complete/cleanupNONE; full SDK,
+race and committed proofs not reached. PR1515 returnedDRAFT before edits;
+watch19290exit1, no activeCI/watch/native. Private600 final receipt/SHA retained,
+queue3/run3581seconds; lifecycle29events/5sync pushes. No blindretry/cancel/bypass.
+Bounded Sol/high source analysis accepted: three scalar-only measured CTEs avoid
+duplicated SUM/MAX full-row serialization; no fullJSON materialization before
+guards. Root TDD2RED->11PASS, sourcehash updated to71ed9848; all original bounds,
+8s/20s/35s/900s clocks,10k workload, trigger/revision/full-postimage contracts stay.
+Actual performance benefit unmeasured. Fullfocused/review/new native+forced proofs
+and exactheadCI remain gates; old240e receipts not reused as newSQL acceptance.
+Original05:04clock/12reviews9targets1initial1final9fix-sync retained under waiver;
+this candidate is batch10, targeted independent review follows, no counterreset.
+Canonical/prod249–253 application, promotion and all rollout/account/billing held.
+
+<!-- pika-session-log-archive-batch:3c81b7f6d99802695428ec4063d01c912b1d5a0c513fa218448ac2133e391384 -->
+
+## 2026-10-08 — Classroom access draft integration
+
+Existing draft1529 combines reviewed teacher Settings copy feedback with narrow student attendance return targets. Preserve incoming N848/GuideCalendar602 sources and histories; eleven standalone feature/test/brief files remain byte-identical to preintegrationd1, matrix adds only the two independent registrations. Incoming main501 dormant Test caps remain preserved without application or activation. Base602 is prospective: ancestor actual-tree binding and exact-head CI remain required. Current-base focused checks, clipboard parent re-verification and independent cumulative14 review precede ready/main merge; original failed attempts and static40PNG/0video attendance evidence remain retained.
+
+<!-- pika-session-log-archive-batch:06a6fa59ebadd5d205ceb244670d53ffcf3b3baf3994088d9edf77bad38fbd5c -->
+
+## 2026-10-08 — Reorder proof stages complete but canonical preservation fails
+
+Exact205 normal first refused before fixture because canonical auth rows drifted.
+User authorized fresh initial capture: twiceequal8e792e7c, all183/all5 frozen, only
+3auth tables differed from prior16c; other180/fourfields matched. Preserve both old
+checkpoints and failed receipts. Actualretry865832ms: nativeSQL/SDK/committed stages
+complete (18RPCs/36snapshots/storage0); genuine CLI artifact d84c71ee byteequal to
+database.generated.ts. Finalcanonical comparison failed: only2auth rate-limit
+tables changed; other181/fourfields match, disposable resources0. No overall
+native/type receipt or forced acceptance, no limit relaxation or baseline reset.
+User authorized quiet-window coordination with Compare attendance scan outcomes;
+its3269 localserver is a candidate, not a proven writer. No unrelatedprocess stop,
+CI interruption or auth-row rollback. CURRENT restores the existing contracted
+prior-control wording and retains release/startup markers; doc-only review follows.
+Member1534 repaired its analogous CURRENT CI failure; review8 clean,1153/43static
+PASS, newexact2f1f82baa CI37783778326 running. Canonical249+/prod/activation held.
+
+<!-- pika-session-log-archive-batch:7b48590497349def20ea8613d1cf732adc9ab94b67a6dae833cc741f1fa9dc0c -->
+## 2026-10-08 — Test cap native acceptance and progress-UI synchronization
+
+Sol6.1/high diagnostic/base review CLEAN; exact651 focused875/38/static PASS.
+Publication and discard normal/types plus both forced modes PASS at65107317:
+49rollback/12races/5committed and56rollback/14races, actual10/18 SDKcases,
+20RPC each/zeroStorage; all sessions/resources disposed. Genuine437586-byte
+types match committedSHAcbed4142. SAME initialeab996183tables/all5 comparisons
+before/after every mode and final standalone PASS; historicalB5 unchanged.
+Create3 retains actual2e9367 identity; earlier failures retained, prior race
+cause unknown. No canonical writes. Rebased after native worker terminal onto
+a86a2093 (#1520 progress UI):24feature/27incoming nonhistory paths disjoint and
+byte-identical, exactmain archive prefix+completefeature suffix and80rolling
+bodies retained. Sole archive conflict;253 SHA unchanged,39stashes untouched.
+Fresh focused checks and narrow independent synchronization review precede
+one eligible exact-head CI/PRGate and authorized normal main squash merge.
+All canonical249+/production/promotion/quota/account/billing/cutover holds persist.
+
+## 2026-10-08 — Student landing and Announcement integration
+
+Student experience1522 exact02b CI37705734087 Test/Build, Browser and PR Gate PASS; squash merged a2d70efa8 with whole reviewed tree94bbe302 and sole8031 parent verified, clean hub fast-forwarded. Announcement integrated onto a2d70efa8 with exact worker2/helper bytes and incoming matrix/history retained. Stable focused300/17 plus static checks,4TS audit and both-role native8/136 settled PNGs PASS; all8 contacts accepted. One local matrix-conflict truncation corrected before publication, stable checks rerun; raw attempts retained. Draft/frozen independent review and normal exact-head CI precede authorized main merge. Course Guide accepted locally, delivered next. Broad UIUX goal remains open; no production/schema/dependency/provider changes.
+
+## 2026-10-08 — Announcement cancellation feedback remediation
+
+Independent complete Sol/high review1526 accepted R1: late POST/PATCH failure could reattach feedback after Cancel/reopen; R2 readonly runtime claim unsupported. Two local deferred regressions RED before fix, GREEN34/34 after separate create/edit feedback session fences. Request ids, optimistic rollback/cache settlement and finally saving cleanup unchanged; no automatic retry. Corrected native8 includes cancelled POST/PATCH and usable fresh controls;152 settled PNGs/8 recordings retained, all8 contacts accepted. Focused302/17 plus static checks PASS; scoped readonly guard evidence qualified as source-only. One batched correction requires targeted independent acceptance before Ready/exact CI/main merge. Broad UIUX goal remains open; no production/schema/dependency changes.
+
+## 2026-10-08 — Reorder proof stages complete but canonical preservation fails
+
+Exact205 normal first refused before fixture because canonical auth rows drifted.
+User authorized fresh initial capture: twiceequal8e792e7c, all183/all5 frozen, only
+3auth tables differed from prior16c; other180/fourfields matched. Preserve both old
+checkpoints and failed receipts. Actualretry865832ms: nativeSQL/SDK/committed stages
+complete (18RPCs/36snapshots/storage0); genuine CLI artifact d84c71ee byteequal to
+database.generated.ts. Finalcanonical comparison failed: only2auth rate-limit
+tables changed; other181/fourfields match, disposable resources0. No overall
+native/type receipt or forced acceptance, no limit relaxation or baseline reset.
+User authorized quiet-window coordination with Compare attendance scan outcomes;
+its3269 localserver is a candidate, not a proven writer. No unrelatedprocess stop,
+CI interruption or auth-row rollback. CURRENT restores the existing contracted
+prior-control wording and retains release/startup markers; doc-only review follows.
+Member1534 repaired its analogous CURRENT CI failure; review8 clean,1153/43static
+PASS, newexact2f1f82baa CI37783778326 running. Canonical249+/prod/activation held.
+
+## 2026-10-08 — Member profile official trim metadata
+
+<!-- pika-session-log-archive-batch:230de8215eb39e932d08c02814489a72ced7a9e8255e2e703c71fb51315963ed -->
+## 2026-10-08 — Announcement progress-owner integration
+
+Rebased reviewed Announcement feedback onto main a86a20930 (#1520 shared circular progress). Product, regression tests, browser helper and matrix registration remain byte-identical to accepted68ba5857c. Incoming main histories and shared progress owners are preserved. Prior CI37711933656 failed the unchanged Blueprint lifecycle on request/navigation timeouts; all8 Announcement cases passed. Required current-base focused/native verification, proportional independent integration review and a new exact-head CI gate remain pending; PR1526 stays draft. No production or family-completion claim.

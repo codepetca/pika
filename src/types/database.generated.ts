@@ -12782,6 +12782,15 @@ export type Database = {
         Args: { p_actor_id: string; p_classroom_id: string; p_items: Json }
         Returns: Json
       }
+      reorder_tests_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_test_ids: string[]
+        }
+        Returns: Json
+      }
       replace_assignment_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json }
         Returns: {
