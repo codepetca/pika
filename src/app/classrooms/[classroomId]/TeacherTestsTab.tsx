@@ -52,7 +52,7 @@ import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
 import { compareTestGradingStatusGroups, getTestGradingStatusGroup, type TestGradingStatusGroup, type TestGradingStatusSort } from '@/lib/test-grading-status-sort'
 import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import {
   readTeacherTestResultsFromPayload,
@@ -387,6 +387,30 @@ function withDefaultTestStats(test: TestAssessment): TestAssessmentWithStats {
   }
 }
 
+function readUnpublishAcknowledgement(
+  payload: unknown,
+  testId: string,
+  classroomId: string,
+): { test: TestAssessment; draftVersion: number } | null {
+  if (!payload || typeof payload !== 'object') return null
+  const record = payload as Record<string, unknown>
+  const test = record.test
+  if (!test || typeof test !== 'object') return null
+  const saved = test as Record<string, unknown>
+  if (
+    saved.id !== testId ||
+    saved.classroom_id !== classroomId ||
+    saved.assessment_type !== 'test' ||
+    saved.status !== 'draft' ||
+    typeof saved.title !== 'string' ||
+    typeof saved.show_results !== 'boolean' ||
+    typeof record.draft_version !== 'number' ||
+    !Number.isSafeInteger(record.draft_version) ||
+    record.draft_version < 1
+  ) return null
+  return { test: saved as unknown as TestAssessment, draftVersion: record.draft_version }
+}
+
 export function TeacherTestsTab({
   classroom,
   testsTabClickToken = 0,
@@ -419,6 +443,8 @@ export function TeacherTestsTab({
     counts: new Map(),
   })
   const latestCreateTestRequestIdRef = useRef(0)
+  const latestUnpublishRequestIdRef = useRef(0)
+  const unpublishMountedRef = useRef(true)
   const currentClassroomIdRef = useRef(classroom.id)
   const testsRegionRef = useRef<HTMLDivElement>(null)
   const previousClassroomIdRef = useRef(classroom.id)
@@ -553,7 +579,15 @@ export function TeacherTestsTab({
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [checkingPublication, setCheckingPublication] = useState(false)
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
+  const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false)
+  const [isUnpublishing, setIsUnpublishing] = useState(false)
+  const [unpublishError, setUnpublishError] = useState('')
   const [publicationDraftVersion, setPublicationDraftVersion] = useState<number | null>(null)
+
+  useEffect(() => {
+    unpublishMountedRef.current = true
+    return () => { unpublishMountedRef.current = false; latestUnpublishRequestIdRef.current += 1 }
+  }, [])
 
   const testSortSensors = useSensors(
     useSensor(PointerSensor, {
@@ -748,6 +782,7 @@ export function TeacherTestsTab({
     setTestEditorInitialView('edit')
     setShowMarkdownTestPicker(false)
     latestCreateTestRequestIdRef.current += 1
+    latestUnpublishRequestIdRef.current += 1
     latestGradingRequestIdRef.current += 1
     setTestEditMode(false)
     setIsReorderingTests(false)
@@ -787,6 +822,9 @@ export function TeacherTestsTab({
     setStatusUpdating(false)
     setCheckingPublication(false)
     setShowPublishConfirm(false)
+    setShowUnpublishConfirm(false)
+    setIsUnpublishing(false)
+    setUnpublishError('')
     clearBatchSelection()
     clearTestWorkspace({ replace: true })
   }, [classroom.id, clearBatchSelection, clearTestWorkspace])
@@ -1046,6 +1084,10 @@ export function TeacherTestsTab({
   }, [clearBatchSelection, clearTestWorkspace, hasTestsSnapshot, selectedTestId, visibleTests])
 
   useEffect(() => {
+    latestUnpublishRequestIdRef.current += 1
+    setShowUnpublishConfirm(false)
+    setIsUnpublishing(false)
+    setUnpublishError('')
     setSelectedTestDraftSummary(null)
     gradingExitCountsRef.current = { testId: selectedTestId, counts: new Map() }
     setUnreviewedExitCounts({})
@@ -1057,6 +1099,14 @@ export function TeacherTestsTab({
     setPendingCloseAccessStudentIds(null)
     setPendingDeleteStudentAttemptIds(null)
   }, [selectedTestId])
+
+  useEffect(() => {
+    if (selectedWorkspaceTab === 'grading') return
+    latestUnpublishRequestIdRef.current += 1
+    setShowUnpublishConfirm(false)
+    setIsUnpublishing(false)
+    setUnpublishError('')
+  }, [selectedWorkspaceTab])
 
   useEffect(() => {
     if (!exitAlertStudentId) return
@@ -1875,6 +1925,66 @@ export function TeacherTestsTab({
     await patchSelectedTest({ status: 'closed', draft_version: publicationDraftVersion })
   }
 
+  async function handleSelectedTestUnpublish() {
+    if (!selectedTestWorkspace || !canOfferUnpublish || isUnpublishing) return
+    const requestedTestId = selectedTestWorkspace.id
+    const requestedClassroomId = classroom.id
+    const requestId = ++latestUnpublishRequestIdRef.current
+    const isCurrentRequest = () => (
+      unpublishMountedRef.current &&
+      latestUnpublishRequestIdRef.current === requestId &&
+      currentClassroomIdRef.current === requestedClassroomId &&
+      gradingSelectionRef.current.workspaceState === 'selected' &&
+      gradingSelectionRef.current.selectedWorkspaceTab === 'grading' &&
+      gradingSelectionRef.current.selectedTestId === requestedTestId
+    )
+    setIsUnpublishing(true)
+    setUnpublishError('')
+    try {
+      const response = await fetch(`${apiBasePath}/${requestedTestId}/unpublish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      const data: unknown = await response.json().catch(() => ({}))
+      if (!isCurrentRequest()) return
+      if (!response.ok) {
+        const message = data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string'
+          ? (data as { error: string }).error
+          : 'Could not return this test to draft.'
+        throw new Error(message)
+      }
+      const acknowledgement = readUnpublishAcknowledgement(data, requestedTestId, requestedClassroomId)
+      if (!acknowledgement) throw new Error('Could not verify the saved test. Refresh and try again.')
+
+      setTests((previous) => previous.map((test) => test.id === requestedTestId
+        ? {
+            ...test,
+            ...acknowledgement.test,
+            stats: { ...test.stats, responded: 0, submitted: 0, open_access: 0 },
+          }
+        : test))
+      setSelectedTestDraftSummary(null)
+      setGradingServerTestStatus('draft')
+      setGradingServerTestId(requestedTestId)
+      setGradingStudents([])
+      setGradingQuestions([])
+      clearBatchSelection()
+      setSelectedStudentId(null)
+      setShowUnpublishConfirm(false)
+      setShowEditModal(false)
+      setStatusActionError('')
+      invalidateCachedJSON(`teacher-test-detail:${requestedTestId}`)
+      invalidateCachedJSON(`teacher-tests:${requestedClassroomId}`)
+      showMessage({ text: 'Test returned to draft', tone: 'success' })
+      window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: requestedClassroomId } }))
+    } catch (error) {
+      if (isCurrentRequest()) setUnpublishError(error instanceof Error ? error.message : 'Could not return this test to draft.')
+    } finally {
+      if (isCurrentRequest()) setIsUnpublishing(false)
+    }
+  }
+
   async function handleRequestSelectedTestPublish(): Promise<boolean> {
     if (!selectedTest || !selectedTestWorkspace || selectedTestWorkspace.status !== 'draft' || isReadOnly || statusUpdating || checkingPublication || hasPendingMarkdownImport) return false
 
@@ -2010,6 +2120,26 @@ export function TeacherTestsTab({
     isBatchUnsubmitting ||
     isBatchUpdatingAccess ||
     isDeletingStudentAttempt
+
+  const canOfferUnpublish = selectedTestWorkspace?.status === 'closed'
+  const isUnpublishUnavailable =
+    isReadOnly ||
+    isUnpublishing ||
+    statusUpdating ||
+    checkingPublication ||
+    isCombinedTestActionsBusy ||
+    loading ||
+    !hasTestsSnapshot ||
+    gradingLoading ||
+    gradingRefreshing ||
+    !!gradingError ||
+    gradingServerTestId !== selectedTestId ||
+    gradingServerTestStatus !== 'closed' ||
+    (selectedTestWorkspace?.stats.responded ?? 0) > 0 ||
+    (selectedTestWorkspace?.stats.open_access ?? 0) > 0 ||
+    sortedGradingStudents.some((student) => (
+      student.status !== 'not_started' || getEffectiveStudentAccess(student) === 'open'
+    ))
 
   const handleGradingTablePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -2458,6 +2588,13 @@ export function TeacherTestsTab({
       onSelect: () => openSelectedTestEditor('markdown'),
       disabled: isReadOnly,
     },
+    ...(canOfferUnpublish ? [{
+      id: 'return-test-to-draft',
+      label: 'Return to draft',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => { setUnpublishError(''); setShowUnpublishConfirm(true) },
+      disabled: isUnpublishUnavailable,
+    }] : []),
     deleteTestAction,
   ] : []
 
@@ -3078,6 +3215,19 @@ export function TeacherTestsTab({
           setShowPublishConfirm(false)
         }}
         onConfirm={() => handleSelectedTestPublish()}
+      />
+
+      <ConfirmDialog
+        isOpen={showUnpublishConfirm}
+        title="Return test to draft?"
+        description="Students will no longer see this test."
+        confirmLabel={isUnpublishing ? 'Returning…' : 'Return to draft'}
+        cancelLabel="Cancel"
+        errorMessage={unpublishError}
+        isConfirmDisabled={isUnpublishing}
+        isCancelDisabled={isUnpublishing}
+        onCancel={() => { if (!isUnpublishing) { setShowUnpublishConfirm(false); setUnpublishError('') } }}
+        onConfirm={handleSelectedTestUnpublish}
       />
 
       <ConfirmDialog

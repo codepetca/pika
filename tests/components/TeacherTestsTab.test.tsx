@@ -1438,6 +1438,152 @@ describe('TeacherTestsTab', () => {
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
+  it('offers Return to draft for a closed test with no known work and cancels without a request', async () => {
+    const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 1, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByRole('button', { name: 'Open All' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+    expect(dialog).toHaveTextContent('Students will no longer see this test.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog', { name: 'Return test to draft?' })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]: [string]) => String(url).endsWith('/unpublish'))).toBe(false)
+  })
+
+  it.each([
+    { title: 'Draft Test', status: 'draft' as const, responded: 0, openAccess: 0, offered: false },
+    { title: 'Active Test', status: 'active' as const, responded: 0, openAccess: 0, offered: false },
+    { title: 'Responded Test', status: 'closed' as const, responded: 1, openAccess: 0, offered: true },
+    { title: 'Open Test', status: 'closed' as const, responded: 0, openAccess: 1, offered: true },
+  ])('hides or disables Return to draft for $title', async ({ title, status, responded, openAccess, offered }) => {
+    const test = makeTest({
+      title, status,
+      stats: { total_students: 1, responded, questions_count: 1, open_access: openAccess },
+    })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: status, students: [] }))
+    renderTab({ selectedTestId: 'test-1', selectedTestMode: 'grading' })
+
+    await screen.findByRole('button', { name: `Edit ${title}` })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    if (offered) {
+      expect(screen.getByRole('menuitem', { name: 'Return to draft' })).toBeDisabled()
+    } else {
+      expect(screen.queryByRole('menuitem', { name: 'Return to draft' })).not.toBeInTheDocument()
+    }
+  })
+
+  it('returns a closed test to draft only after a matching acknowledgement', async () => {
+    const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ test: { ...test, title: 'Saved title', status: 'draft' }, draft_version: 8 }) })
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByRole('button', { name: 'Open All' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Return test to draft?' })).getByRole('button', { name: 'Return to draft' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1/unpublish', expect.objectContaining({ method: 'POST', body: '{}' })))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Edit Saved title' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Return test to draft?' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a conflict in the confirmation and permits retry', async () => {
+    const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ error: 'A student has started this test.' }) })
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ test: { ...test, status: 'draft' }, draft_version: 2 }) })
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByRole('button', { name: 'Open All' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A student has started this test.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument())
+  })
+
+  it.each(['wrong test identity', 'invalid draft version'])(
+    'does not repaint on a success acknowledgement with %s', async (problem) => {
+      const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+      mockTestsResponse([test])
+      fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          test: { ...test, id: problem === 'wrong test identity' ? 'other' : test.id, status: 'draft' },
+          draft_version: problem === 'invalid draft version' ? 0 : 4,
+        }),
+      })
+      renderTab()
+
+      fireEvent.click(await screen.findByText('Unit Test'))
+      await screen.findByRole('button', { name: 'Open All' })
+      fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+      const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not verify the saved test')
+      expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+    },
+  )
+
+  it('keeps confirmation open and Escape disabled while returning, then ignores a response after selection changes', async () => {
+    const first = makeTest({ id: 'test-1', title: 'First Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    const second = makeTest({ id: 'test-2', title: 'Second Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([first, second])
+    let resolveUnpublish!: (value: { ok: boolean; json: () => Promise<unknown> }) => void
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/teacher/tests/test-1/unpublish') {
+        return new Promise((resolve) => { resolveUnpublish = resolve })
+      }
+      if (url.endsWith('/results')) {
+        return Promise.resolve(makeResultsResponse({
+          testId: url.includes('/test-2/') ? 'test-2' : 'test-1',
+          testStatus: 'closed',
+          students: [],
+        }))
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${url}`))
+    })
+    const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'grading' })
+
+    await screen.findByRole('button', { name: 'Edit First Test' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+    expect(within(dialog).getByRole('button', { name: 'Returning…' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: 'Return test to draft?' })).toBeInTheDocument()
+
+    view.rerender(<TeacherTestsTab classroom={classroom} selectedTestId="test-2" selectedTestMode="grading" />)
+    await screen.findByRole('button', { name: 'Edit Second Test' })
+    await act(async () => {
+      resolveUnpublish({ ok: true, json: async () => ({ test: { ...first, status: 'draft' }, draft_version: 3 }) })
+    })
+    expect(screen.getByRole('button', { name: 'Edit Second Test' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+    view.rerender(<TeacherTestsTab classroom={classroom} selectedTestId="test-1" selectedTestMode="grading" />)
+    await screen.findByRole('button', { name: 'Edit First Test' })
+    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+  })
+
   it('publishes an unpublished test closed from the authoring dialog', async () => {
     fetchMock
       .mockResolvedValueOnce({

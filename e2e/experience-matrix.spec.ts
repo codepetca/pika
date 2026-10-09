@@ -1,3 +1,4 @@
+import { verifyTestUnpublication } from './helpers/test-unpublication'
 import { verifySignupOwnerContinuity } from './helpers/signup-owner-continuity'
 import { verifyLoginRecoveryContinuity } from './helpers/login-recovery-continuity'
 import { verifyJoinRetryContinuity } from './helpers/join-retry-continuity'
@@ -2617,6 +2618,12 @@ test('confirms assignment AI grading before sending selected students', async ({
   await expect.poll(() => gradingBodies).toEqual([{ student_ids: students.map((student) => student.student_id) }])
   await expect(confirmed).toHaveCount(0)
   expect(pageErrors).toEqual([])
+})
+
+test('returns an unused published test to draft', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await verifyTestUnpublication(page, testInfo)
+  await verifyProjectContract(page, testInfo)
 })
 
 test('shows publication language only at the publish transition', async ({ page }, testInfo) => {

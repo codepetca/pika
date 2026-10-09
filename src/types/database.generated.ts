@@ -13067,6 +13067,10 @@ export type Database = {
         }
         Returns: Json
       }
+      return_test_to_draft_atomic: {
+        Args: { p_teacher_id: string; p_test_id: string }
+        Returns: Json
+      }
       save_assignment_ai_grade_atomic: {
         Args: {
           p_ai_feedback_model: string
