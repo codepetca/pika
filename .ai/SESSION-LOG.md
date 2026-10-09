@@ -348,3 +348,11 @@ correction/pre-replay review planned; workflow review launches0 before dispatch,
 full-diff waves0/fix batches0 (native parser repair1). No type artifact/PR/CI/merge.
 One-time application permission consumed; fresh exact corrected-source approval
 required before another disposable replay. Existing holds/cumulative counters kept.
+
+Bounded independent Sol/high correction review completed at50016e316: CASE/CI
+delta, full256 structure and immediate dependencies covered; one acceptedP1 in
+rollback SQL49 (JSON extraction/subtraction precedence), no other structural
+blocker. Parenthesize extracted witness; second regression RED→GREEN6/6.
+Review ledger:1 completed bounded source turn/full-diff waves0/remediation1,
+native parser repair1 retained separately. Effective tokens/time unknown.
+Targeted delta review and fresh native approval remain; no full-PR acceptance.

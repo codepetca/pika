@@ -46,7 +46,7 @@ begin
     or result->>'classroom_id' <> class_id::text then raise exception 'Inspect changed authority or writer revision'; end if;
   result := public.test_owner_workflow_v1(owner_id,v_test_id,class_id,'update','{"title":"Renamed","show_results":true}',before_test,deadline);
   if result#>>'{test,title}' <> 'Renamed' or result#>>'{test,show_results}' <> 'true'
-    or result->'test' - array['title','show_results','updated_at'] is distinct from before_test - array['title','show_results','updated_at'] then
+    or (result->'test') - array['title','show_results','updated_at'] is distinct from before_test - array['title','show_results','updated_at'] then
     raise exception 'Atomic metadata edit changed unrelated Test fields';
   end if;
   begin

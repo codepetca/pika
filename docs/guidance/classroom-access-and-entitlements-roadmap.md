@@ -491,6 +491,11 @@ regression (5/5); the existing ephemeral Database Contract lane now invokes the
 same rollback SQL. This is a source correction, not a proven replay. The one-time
 permission was consumed; corrected-source native verification needs fresh exact
 approval. Shared local/prod, source readiness and activation holds remain intact.
+Bounded independent correction review of `50016e316` found one additional blocker
+in the rollback assertion, not an authorization change: JSON extraction must be
+parenthesized before subtracting metadata fields. Coordinator corrected it with
+a second RED→GREEN regression (6/6). Targeted correction review remains distinct
+from full PR review/native acceptance; no replay was retried.
 
 ### Execution checkpoint — 2026-10-08
 

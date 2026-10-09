@@ -38,4 +38,8 @@ describe('dormant owner Test workflow additive transaction', () => {
     // This is a guard for that known syntax trap, not a substitute for replay.
     expect(sql()).not.toMatch(/is distinct from\s+case\s+when/i)
   })
+  it('extracts the rollback witness before subtracting allowed metadata fields', () => {
+    const contract = readFileSync('scripts/check-contextual-test-owner-workflow.sql', 'utf8')
+    expect(contract).not.toMatch(/\bresult\s*->\s*'test'\s*-/)
+  })
 })
