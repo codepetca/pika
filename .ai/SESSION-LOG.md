@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Utility calendar minimum day targets
-
-- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
-- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
-- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
-
-## 2026-10-08 — Utility calendar compact boundary refinement
-
-- Root visual iteration capped month growth: 1024 now two348px month cards with45.703125px day targets; 1440 capped384px cards/50.84375px targets. Day grid minimum320px prevents320px viewport overlap; month cards contain8/48px horizontal scrolling at360/320, rootoverflow0. No API/domain logic changed.
-- Final teacher17cases /2839 centered native hits pass, alltargets≥44×44/nooverlap, Tabright-edge focus auto-scroll, zero runtimeerrors, real finalJune-date scroll inallcases; fixedGETfixture all181states match baseline. Evidence: external product-fluidity/utility-calendar-targets/final-candidate and final-small-keyboard; rejected/failed attempts preserved.
-- Repeated targeted15 and focused203files/2354tests +TS/lint/architecture/UI/design/audit pass. No browser registration edits (coordinator owns consolidated teacher refinement registration/review/publication).
-
 ## 2026-10-08 — Gradebook explicit-retry focus
 
 Teacher Gradebook now returns successful explicit retry focus to the visible owner: existing desktop Gradebook students region, or named compact Gradebook workspace when CSS hides the table. Inactive/current-classroom completion guards, preventScroll and the shared inset focus ring keep the handoff local. No read/cache/role/mutation or shared primitive change.
@@ -286,3 +274,13 @@ Production1549 separately merged approved e24d591 into d32b8bbdf; exact reviewed
 - Prior CI37944770780: browser PASS; coverage15801 passed/1 failed on the full TeacherTestsTab fingerprint guard. Inspected base-to-current source diff: sole change is description copy. Refresh exact UI fingerprint e298e0b115d42922e639038201052d3510a26769949189fe8efcea1513b59192 and document the scoped baseline; retain full-file guard and PATCH fingerprint. Pre-existing uncached grading-results audit finding remains outside diff.
 - Native GPT-6 Sol/medium read-only investigation and one targeted follow-up verified by coordinator. Current PATCH rejects closed→draft. Published tests already allow structure edits before irreversible first-Start lock (143); student GET can expose open questions without creating an attempt, so “never viewed” is unprovable. Recommend future atomic Return to draft guarded by no start/work/access/grading dependencies and lifecycle lock order244, preserving question/document identity and synchronizing/versioning retained draft from current published rows (legacy title/results PATCH may leave draft stale). Contextual owner252 is a separate dormant path. No unpublish implementation or migration application. Worker time/tokens and coordinator attribution unavailable; one focused follow-up corrected stale-draft assumption.
 - Logs: /tmp/pika-publish-followup-focused-final.log, /tmp/pika-publish-followup-visual.log; screenshots in ignored test-results. Targeted independent correction review and updated stable-SHA CI pending; no merge/promotion.
+
+## 2026-10-09 — Keep teacher list edit mode until explicit exit
+
+Task owns codex/persistent-list-edit-mode at main base763edbb18. Risk profile:none; teacher-only list interaction change. Reuse existing Classwork/Test cards, menus, confirmation/editor owners and Pattern Lab teacher work surfaces; extend feature-local mode lifetimes. Classwork selection/editor-close and Test create/delete no longer reset list edit mode. Escape exits with menu/dialog and input precedence; ignore hidden/inert closing overlays using the Attendance reference. Explicit navigation/classroom/access resets retained. No new visual pattern or shared-control change; student/motion n/a. Composite accessibility checklist reviewed; semantic mode and keyboard regressions cover the two owners.
+
+Component163 and final focused771 PASS; architecture/UI/design/TypeScript/lint PASS. Playwright8 PASS (teacher two lists,1440x900/390x844,light/dark; repeated deletion, Classwork editor dismissal, overlay precedence, edit then regular screenshots visually reviewed). Synthetic API interception at local3119, no hosted data changes. Artifacts:test-results and output/playwright; logs:/tmp/pika-list-edit-{tests,focused-final,browser-final}.log. Audit flags unchanged uncached no-store Test grading-results read at990, byte-identical to main; kept out of this fix. Pre-review local UI iteration corrected fixture selectors and hidden-ancestor overlay handling. Codex weekly44% remaining; DeepSeek pause honored. One independent Sol/medium fixed-SHA review follows draft publication; coordinator/worker tokens unknown. Merge authorization outstanding; no production promotion.
+
+## 2026-10-09 — Publish copy main synchronization
+
+PR1553 syncs origin/main48f27a987 without rewriting branch history. Incoming PR1552 list edit-mode/Escape product and tests retained; normalizing only the modal description reproduces current main TeacherTestsTab exactly. Preserve both histories and incoming fingerprint baseline before setting the combined full-file hash. Earlier ready transition briefly requested before discovering the merge conflict; returned to draft before sync, with no eligible new-head CI observed at that point. Current-base focused/visual checks and independent integration delta review precede stable ready CI.

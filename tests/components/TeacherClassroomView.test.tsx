@@ -1655,6 +1655,9 @@ describe('TeacherClassroomView', () => {
     expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
+    fireEvent.keyDown(screen.getByRole('menuitemcheckbox', { name: 'Edit classwork' }), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    render(<div aria-hidden="true"><div role="dialog">Closing dialog</div></div>)
     fireEvent.keyDown(document, { key: 'Escape' })
 
     await waitFor(() => {
@@ -1683,6 +1686,11 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
     expect(updateSearchParams).not.toHaveBeenCalled()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
   })
 
   it('renders materials and assignments in shared order and gives materials a drag handle in organize mode', async () => {
@@ -2075,7 +2083,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
   })
 
-  it('resets organize mode when the selected assignment workspace changes', async () => {
+  it('keeps organize mode when the selected assignment workspace changes', async () => {
     const onEditModeChange = vi.fn()
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
@@ -2127,7 +2135,7 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('assignment-summary-trailing-actions')).not.toBeInTheDocument()
     })
-    expect(onEditModeChange).toHaveBeenLastCalledWith(false)
+    expect(onEditModeChange).toHaveBeenLastCalledWith(true)
   })
 
   it('does not show a manual refresh button in the assignment workspace action bar', async () => {

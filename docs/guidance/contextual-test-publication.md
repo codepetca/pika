@@ -229,7 +229,8 @@ enrollment or subscription—will authorize the prepared operation.
 Use a dedicated, shared-admission-gated `POST /api/teacher/tests/[id]/publish`
 with the existing publication body `{ status: 'closed', draft_version }` and
 success envelope `{ test }`. Disabled or unmatched admission returns unavailable
-without data access. The existing Test PATCH route and UI remain byte-identical.
+without data access. The existing Test PATCH route remains byte-identical. Separately reviewed UI
+maintenance below does not adopt this publication endpoint.
 The overloaded PATCH also accepts document/title edits whose valid payloads can
 exceed a publication-specific bound. Classifying all those requests through a
 small publication reader would regress them; cloning or reading the body twice
@@ -245,10 +246,20 @@ file byte-for-byte. The PATCH fingerprint remains `d9947ed0` from parent865d.
 This scoped baseline update does not activate publication or satisfy its cutover
 and phase-exit obligations.
 
+PR1552 independently reviewed the teacher list edit-mode and Escape delta at
+`c063f9c20`. It retains edit mode through Test creation/deletion, prioritizes
+active overlays and drag cancellation, and does not change publication
+requests, draft persistence or student-access paths. Its complete UI fingerprint
+`559bff94` supersedes `1d334a7a`; the same full-file byte guard remains enforced.
+The PATCH fingerprint remains `d9947ed0`. No publication activation, cutover or
+phase exit is implied by this separate UI maintenance.
+
 PR1553 changes only the legacy publish confirmation sentence to “Test will remain
-locked to students.” Its UI fingerprint is `e298e0b115d42922e639038201052d3510a26769949189fe8efcea1513b59192`;
-the entire-file regression guard is retained. Publication behavior, editing,
-student access, the PATCH fingerprint, and contextual cutover remain unchanged.
+locked to students.” Combined with the preserved PR1552 UI maintenance, its
+complete UI fingerprint is `4f300e63c9def274ee0fcb3ca7ba9fb15fb1ce62aa86a0a8aedb2347fe7f905b`;
+the entire-file regression guard is retained. Publication behavior, draft
+persistence, student access, the PATCH fingerprint and contextual cutover remain
+unchanged.
 
 ## Intended transaction contract
 

@@ -92,13 +92,15 @@ describe('prepared owner publication route', () => {
   })
   it.each([
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
-    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', 'e298e0b115d42922e639038201052d3510a26769949189fe8efcea1513b59192'],
+    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', '4f300e63c9def274ee0fcb3ca7ba9fb15fb1ce62aa86a0a8aedb2347fe7f905b'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
-    // PATCH remains the attested parent865d source. PR1540 reviewed the grading
-    // delta at ae458ec36. PR1553 changes only the publish confirmation sentence
-    // to “Test will remain locked to students.” and refreshes the full-file guard.
-    // Publication behavior, editing and student access are unchanged; this still
-    // checks every UI byte and never executes Git.
+    // PATCH remains the attested parent865d source. PR1540 reviewed the
+    // grading-only delta at ae458ec36. PR1552 independently reviewed the
+    // list edit-mode/keyboard delta at c063f9c20; its hash supersedes 1d334a7a.
+    // PR1553 adds only the publish confirmation copy change; its combined
+    // fingerprint retains the incoming list edit-mode behavior byte-for-byte.
+    // Publication requests, draft persistence and student-access paths remain
+    // unchanged. Keep the exact full-file byte guard; this never executes Git.
     expect(createHash('sha256').update(readFileSync(path)).digest('hex')).toBe(hash)
   })
 })
