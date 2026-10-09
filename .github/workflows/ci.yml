@@ -899,6 +899,12 @@ jobs:
       - name: Verify atomic Test publication
         run: bash scripts/check-test-publication-atomicity.sh
 
+      - name: Verify guarded Test return to draft
+        env:
+          TEST_UNPUBLICATION_DB_CONTAINER: supabase_db_pika
+          TEST_UNPUBLICATION_ALLOW_CI_DATABASE: "1"
+        run: bash scripts/check-test-unpublication-database.sh
+
       - name: Verify atomic test grading
         run: bash scripts/check-atomic-test-grading.sh
 

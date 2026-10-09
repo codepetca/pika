@@ -1,6 +1,7 @@
 /** Inert fixed254 adopter. Offline source/AST checks are not native acceptance.
  * Actual execution requires independent review of this exact clean HEAD. */
 import assert from 'node:assert/strict'
+import { validateTestUnpublicationReviewedMigration } from './test-unpublication-reviewed-migration'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { isAbsolute, normalize, resolve } from 'node:path'
@@ -287,7 +288,9 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
   assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['status', '--porcelain', '--untracked-files=all']), '')
   const repository = git(['rev-parse', '--show-toplevel']); assert.equal(repository, process.cwd())
   const migrations = loadAssignmentListReviewedMigrations(repository)
-  assert.equal(migrations.length, 254); assert.equal(migrations.at(-1)?.name, '254_contextual_test_owner_reorder.sql')
+  assert(migrations.length === 254 || migrations.length === 255, 'Unreviewed reorder migration profile')
+  assert.equal(migrations[253]?.name, '254_contextual_test_owner_reorder.sql')
+  if (migrations.length === 255) validateTestUnpublicationReviewedMigration(migrations[254])
   const original = newAssignmentListProofFixture(), f = newTestOwnerReorderFixture(original), projectId = `pika_assignment_list_${f.tag.slice(-12)}`
   const native = createAssignmentListNativeAdapters(original), originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerReorderSetupSql(f, projectId), snapshotSql = testOwnerReorderSnapshotSql(f), union = testOwnerReorderUnionManifest(original, f, input.head, repository)

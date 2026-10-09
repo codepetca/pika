@@ -92,11 +92,13 @@ describe('prepared owner publication route', () => {
   })
   it.each([
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
-    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', '559bff94dfbf89566ebeea061e779c46e661b7e4d50d7f1ea802da1e0587dc61'],
+    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', 'e8653214921b5dbe9ab736fc70232f6d1427b69b97951b71fe23a1e734d9e7b0'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
     // PATCH remains the attested parent865d source. PR1540 reviewed the
     // grading-only delta at ae458ec36. PR1552 independently reviewed the
     // list edit-mode/keyboard delta at c063f9c20; its hash supersedes 1d334a7a.
+    // PR1553 adds only the publish confirmation copy change; its combined
+    // fingerprint retains the incoming list edit-mode behavior byte-for-byte.
     // Publication requests, draft persistence and student-access paths remain
     // unchanged. Keep the exact full-file byte guard; this never executes Git.
     expect(createHash('sha256').update(readFileSync(path)).digest('hex')).toBe(hash)

@@ -1,3 +1,4 @@
+import { verifyTestUnpublication } from './helpers/test-unpublication'
 import { verifySignupOwnerContinuity } from './helpers/signup-owner-continuity'
 import { verifyLoginRecoveryContinuity } from './helpers/login-recovery-continuity'
 import { verifyJoinRetryContinuity } from './helpers/join-retry-continuity'
@@ -2619,6 +2620,12 @@ test('confirms assignment AI grading before sending selected students', async ({
   expect(pageErrors).toEqual([])
 })
 
+test('returns an unused published test to draft', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await verifyTestUnpublication(page, testInfo)
+  await verifyProjectContract(page, testInfo)
+})
+
 test('shows publication language only at the publish transition', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)
@@ -2764,7 +2771,7 @@ test('shows publication language only at the publish transition', async ({ page 
 
   const publishDialog = page.getByRole('dialog', { name: 'Publish test?' })
   await expect(publishDialog).toBeVisible()
-  await expect(publishDialog).toContainText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')
+  await expect(publishDialog).toContainText('Test will remain locked to students.')
   await expect(publishDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
   await verifyProjectContract(page, testInfo)
   await page.screenshot({

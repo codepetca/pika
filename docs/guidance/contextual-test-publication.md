@@ -254,6 +254,16 @@ requests, draft persistence or student-access paths. Its complete UI fingerprint
 The PATCH fingerprint remains `d9947ed0`. No publication activation, cutover or
 phase exit is implied by this separate UI maintenance.
 
+PR1553 retains the legacy publish confirmation sentence “Test will remain
+locked to students.” and adds a separately guarded `POST /api/teacher/tests/[id]/unpublish`
+action for closed Tests with no started/work rows, irreversible question lock,
+or open learner availability. Migration255 reconstructs the retained draft from
+current published Test/question rows under the shared lifecycle locks. This is
+an active legacy teacher path; it does not adopt the contextual publication
+endpoint, change overloaded PATCH, or satisfy contextual cutover obligations.
+The complete UI fingerprint is `e8653214921b5dbe9ab736fc70232f6d1427b69b97951b71fe23a1e734d9e7b0`;
+the whole-file regression guard and PATCH fingerprint `d9947ed0` remain enforced.
+
 ## Intended transaction contract
 
 Use one absolute request deadline spanning params, bounded body, read-only draft
