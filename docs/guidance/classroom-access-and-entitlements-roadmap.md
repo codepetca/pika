@@ -467,6 +467,19 @@ cannot be rewritten/resumed by the available status-only goal tool; this roadmap
 records the owner's superseding objective and execution strategy without replacing
 the unfinished goal or falsely marking it complete.
 
+Owner Test workflow source delivery is prepared on `codex/classroom-completion`.
+The worker reported 167 affected checks; coordinator reran 93 across six affected
+files and 29 focused post-reconcile checks successfully. Architecture passes.
+Full source/type/native acceptance remains pending, not a phase exit. Main
+`ff3685d3e` (#1552/#1553) was reconciled without changing its list-edit behavior,
+return-to-draft transaction or UI byte guard. The original prepared migration 255
+was renamed to `256_contextual_test_owner_workflow.sql` because main allocated
+255 to return-to-draft; its SQL body is unchanged. Shared canonical local and
+production remain untouched. Genuine generation of the new service-only RPC
+signature requires a disposable full-chain replay through 256. The earlier
+disposable-through-255 question is superseded, not reusable approval. No PR is
+ready; independent review, actual native evidence and exact-head CI remain gates.
+
 ### Execution checkpoint — 2026-10-08
 
 The owner requested orchestration of the remaining goal in this coordinator.

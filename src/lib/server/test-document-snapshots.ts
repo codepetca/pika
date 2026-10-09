@@ -39,6 +39,10 @@ export async function syncExternalLinkTestDocument(options: {
   classroomId: string
   testId: string
   doc: TestDocument
+  managedStorage?: {
+    reserve: (input: Parameters<typeof reserveManagedStorageUpload>[0]) => ReturnType<typeof reserveManagedStorageUpload>
+    verify: (objectId: string) => ReturnType<typeof verifyManagedStorageUpload>
+  }
 }) {
   const { teacherId, classroomId, testId, doc } = options
   if (doc.source !== 'link' || !doc.url) {
@@ -65,7 +69,8 @@ export async function syncExternalLinkTestDocument(options: {
   const supabase = getServiceRoleClient()
   const managedObjectId = randomUUID()
   const snapshotPath = `link-docs/${teacherId}/${testId}/${doc.id}/snapshots/${managedObjectId}`
-  const reservation = await reserveManagedStorageUpload({
+  const reserve = options.managedStorage?.reserve ?? reserveManagedStorageUpload
+  const reservation = await reserve({
     supabase,
     objectId: managedObjectId,
     bucket: TEST_DOCUMENTS_BUCKET,
@@ -79,6 +84,9 @@ export async function syncExternalLinkTestDocument(options: {
     byteSize: body.byteLength,
     allowLegacyCompatibility: true,
   })
+  if (options.managedStorage && !reservation) {
+    throw new ApiError(503, 'Unable to verify test snapshot reservation')
+  }
   const cleanup = reservation ? null : await createProvisionalTestDocumentSnapshotCleanup({
     supabase,
     storagePath: snapshotPath,
@@ -98,7 +106,7 @@ export async function syncExternalLinkTestDocument(options: {
     })
 
   if (uploadError) {
-    if (reservation) {
+    if (reservation && !options.managedStorage) {
       await queueManagedStorageCleanupBestEffort({
         supabase,
         objectId: managedObjectId,
@@ -117,9 +125,10 @@ export async function syncExternalLinkTestDocument(options: {
 
   if (reservation) {
     try {
-      await verifyManagedStorageUpload({ supabase, objectId: managedObjectId })
+      if (options.managedStorage) await options.managedStorage.verify(managedObjectId)
+      else await verifyManagedStorageUpload({ supabase, objectId: managedObjectId })
     } catch (error) {
-      await queueManagedStorageCleanupBestEffort({
+      if (!options.managedStorage) await queueManagedStorageCleanupBestEffort({
         supabase,
         objectId: managedObjectId,
         errorCode: 'test_snapshot_verification_failed',
