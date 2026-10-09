@@ -74,13 +74,32 @@ checks remain required. Compare the native step durations against equivalent
 runner/migration checkpoints; a changed checkpoint or a small sample limits
 the speedup claim. See the [execution plan](../plans/ci-proof-setup-optimization.md).
 
+## Browser partition measurement
+
+The browser suite is partitioned by project theme across two independent jobs.
+Each runs the complete `e2e:ci` spec list with four explicit projects. The existing
+job covers light desktop/mobile and Pattern Lab; the hosted dark shard covers the
+four dark equivalents. Each retains two workers and serial tests within a file.
+[Playwright project selection](https://playwright.dev/docs/test-projects#test-filtering)
+also runs each selected project's setup dependency, so auth setup intentionally
+runs once per independent database. Test/project inventory must remain equal to
+the unsplit command after deduplicating these setup cases.
+
+Compare browser wall time (the slower partition), each partition's execution and
+setup time, summed runner consumption, flaky/retried cases and all selected
+lanes' time to PR Gate. Database contracts may remain the longest lane, limiting
+the workflow improvement even when browser execution falls substantially.
+Distinct diagnostics artifacts preserve evidence from both partitions. Use
+native exact-head receipts; projections and different-source runs do not establish
+an isolated speedup. See the [execution plan](../plans/ci-proof-setup-optimization.md).
+
 ## Acceptance targets
 
 - Draft review pushes launch no heavy jobs.
 - Documentation/AI-guidance PRs reach `PR Gate` in under two minutes at p50.
 - Full risk-matched PRs reach `PR Gate` in under eight minutes at p50.
-- Browser contracts retain all existing specs and artifacts while their test
-  phase uses two stable workers and one shared setup invocation.
+- Browser contracts retain all existing specs, projects and artifacts while each
+  isolated partition uses two stable workers and one setup invocation.
 - Cancelled workflow rate falls below 10% after at least 20 post-rollout runs.
 - No database or browser lane selected by the classifier may be skipped by the
   aggregate gate, and unknown paths must select full CI.

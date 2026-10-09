@@ -25,7 +25,7 @@ async function assertFreePort(port) {
 }
 
 export async function preflightCiRunner(lane) {
-  if (!['database', 'test-owner-sdk', 'browser', 'test-build'].includes(lane)) throw new Error('Unknown CI lane')
+  if (!['database', 'test-owner-sdk', 'browser', 'browser-dark', 'test-build'].includes(lane)) throw new Error('Unknown CI lane')
   validateCiWorkspace(readdirSync('.'))
   if (process.env.RUNNER_ENVIRONMENT === 'self-hosted' && process.platform !== 'linux') throw new Error('Self-hosted CI requires Linux')
   if (lane === 'test-build') return
@@ -45,7 +45,7 @@ export async function preflightCiRunner(lane) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    if (process.argv.length !== 4 || process.argv[2] !== '--lane') throw new Error('Usage: ci-runner-preflight.mjs --lane database|test-owner-sdk|browser|test-build')
+    if (process.argv.length !== 4 || process.argv[2] !== '--lane') throw new Error('Usage: ci-runner-preflight.mjs --lane database|test-owner-sdk|browser|browser-dark|test-build')
     await preflightCiRunner(process.argv[3])
     console.log('PASS isolated CI workspace and dedicated runner preflight')
   } catch (error) {

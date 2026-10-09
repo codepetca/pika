@@ -30,8 +30,8 @@ describe('SDK shard full runner preflight without Docker or sockets', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('requires the complete inventory and canonical/sibling port checks for the SDK lane', async () => {
-    await expect(preflightCiRunner('test-owner-sdk')).resolves.toBeUndefined()
+  it.each(['test-owner-sdk', 'browser-dark'])('requires the complete inventory and canonical/sibling port checks for %s', async lane => {
+    await expect(preflightCiRunner(lane)).resolves.toBeUndefined()
     expect(mocks.docker.mock.calls.map(([binary, args]) => [binary, args])).toEqual([
       ['docker', ['ps', '-aq']], ['docker', ['volume', 'ls', '-q']],
       ['docker', ['network', 'ls', '--filter', 'type=custom', '--format', '{{.ID}}']],
@@ -39,34 +39,35 @@ describe('SDK shard full runner preflight without Docker or sockets', () => {
     expect(mocks.ports).toEqual([3000, 54320, 54321, 54322, 54323, 54324, 54327, 54329, 54331, 54332, 54340])
   })
 
-  it('refuses credentials before inspecting the daemon', async () => {
+  it.each(['test-owner-sdk', 'browser-dark'])('refuses %s credentials before inspecting the daemon', async lane => {
     mocks.workspace.mockReturnValue(['.env.local'])
-    await expect(preflightCiRunner('test-owner-sdk')).rejects.toThrow('environment file')
+    await expect(preflightCiRunner(lane)).rejects.toThrow('environment file')
     expect(mocks.docker).not.toHaveBeenCalled()
   })
 
-  it.each([0, 1, 2])('refuses existing inventory kind %s without cleanup', async kind => {
+  it.each(['test-owner-sdk', 'browser-dark'].flatMap(lane => [0, 1, 2].map(kind => [lane, kind] as const)))('refuses %s existing inventory kind %s without cleanup', async (lane, kind) => {
     for (let index = 0; index < 3; index++) mocks.docker.mockReturnValueOnce(index === kind ? 'existing-resource' : '')
-    await expect(preflightCiRunner('test-owner-sdk')).rejects.toThrow('dedicated empty Docker daemon')
+    await expect(preflightCiRunner(lane)).rejects.toThrow('dedicated empty Docker daemon')
     expect(mocks.docker).toHaveBeenCalledTimes(3)
     expect(mocks.server).not.toHaveBeenCalled()
   })
 
-  it('refuses an uninspectable daemon without attempting cleanup', async () => {
+  it.each(['test-owner-sdk', 'browser-dark'])('refuses %s uninspectable daemon without attempting cleanup', async lane => {
     mocks.docker.mockImplementation(() => { throw new Error('private daemon diagnostic') })
-    await expect(preflightCiRunner('test-owner-sdk')).rejects.toThrow('no cleanup was attempted')
+    await expect(preflightCiRunner(lane)).rejects.toThrow('no cleanup was attempted')
     expect(mocks.docker).toHaveBeenCalledTimes(1)
     expect(mocks.server).not.toHaveBeenCalled()
   })
 
-  it('refuses a busy sibling proof port', async () => {
+  it.each(['test-owner-sdk', 'browser-dark'])('refuses %s busy sibling proof port', async lane => {
     mocks.blockedPort = 54331
-    await expect(preflightCiRunner('test-owner-sdk')).rejects.toThrow('unused loopback port 54331')
+    await expect(preflightCiRunner(lane)).rejects.toThrow('unused loopback port 54331')
   })
 
   it('requires Linux for SDK execution and rejects unknown lanes', async () => {
     vi.stubGlobal('process', { ...process, platform: 'darwin', env: {} })
     await expect(preflightCiRunner('test-owner-sdk')).rejects.toThrow('isolated Linux VM')
+    await expect(preflightCiRunner('browser-dark')).rejects.toThrow('isolated Linux VM')
     await expect(preflightCiRunner('unknown')).rejects.toThrow('Unknown CI lane')
     expect(mocks.docker).not.toHaveBeenCalled()
   })

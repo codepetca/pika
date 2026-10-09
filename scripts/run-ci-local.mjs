@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawn } from 'node:child_process'
-import { closeSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,6 +11,11 @@ const jobsByLane = {
   database: 'architecture-database-contracts',
   'test-owner-sdk': 'contextual-test-owner-sdk',
   browser: 'browser-experience-matrix',
+  'browser-dark': 'browser-experience-dark',
+}
+const browserCommands = {
+  browser: 'pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light',
+  'browser-dark': 'pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark',
 }
 const ownerProofs = [
   ['detail', 'Verify isolated contextual Test owner-detail SDK reads'],
@@ -48,7 +53,7 @@ export function parseArguments(argv) {
     else if (value === '--ack=DISPOSABLE_CI_DATABASE') args.acknowledged = true
     else throw new Error(`Unknown argument: ${value}`)
   }
-  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|test-owner-sdk|browser|all.')
+  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|test-owner-sdk|browser|browser-dark|all.')
   if (args.ref !== null && args.ref !== 'HEAD' && !/^[a-f0-9]{40}$/.test(args.ref ?? '')) throw new Error('--ref requires HEAD or a full lowercase 40-character commit SHA.')
   return args
 }
@@ -136,12 +141,15 @@ function parseStep(lines) {
 export function extractWorkflow(source) {
   const lines = source.split(/\r?\n/)
   const split = lines.includes(`  ${jobsByLane['test-owner-sdk']}:`)
+  const browserSplit = lines.includes(`  ${jobsByLane['browser-dark']}:`)
   // Historical reviewed commits retain all seven proofs in the original job.
   // A damaged split workflow must never silently become a legacy plan.
   if (!split && /contextual-test-owner-sdk|TEST_OWNER_SDK_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK job in split workflow.')
+  if (!browserSplit && /browser-experience-dark|BROWSER_DARK_RESULT|pnpm e2e:ci --project=/.test(source)) throw new Error('Missing or renamed canonical dark browser job in split workflow.')
   const jobs = {}
   for (const [lane, id] of Object.entries(jobsByLane)) {
     if (!split && lane === 'test-owner-sdk') continue
+    if (!browserSplit && lane === 'browser-dark') continue
     const starts = lines.map((line, index) => line === `  ${id}:` ? index : -1).filter(index => index !== -1)
     if (starts.length !== 1) throw new Error(`Missing or duplicate canonical job: ${id}`)
     const start = starts[0] + 1
@@ -192,6 +200,13 @@ export function extractWorkflow(source) {
   if (split && jobs[proofOwner].steps.filter(step => step.run?.includes('--reviewed-head')).length !== ownerProofs.length) {
     throw new Error('Canonical split SDK proof inventory has unexpected profiles.')
   }
+  // Never accept a partial partition as the historical combined browser lane.
+  for (const lane of browserSplit ? ['browser', 'browser-dark'] : ['browser']) {
+    const commands = jobs[jobsByLane[lane]].steps.filter(step => /\bpnpm e2e:ci\b/.test(step.run ?? ''))
+    if (commands.length !== 1 || commands[0].if || commands[0].run !== (browserSplit ? browserCommands[lane] : 'pnpm e2e:ci')) {
+      throw new Error(`Canonical ${lane} browser coverage command is missing or changed.`)
+    }
+  }
   return jobs
 }
 
@@ -199,9 +214,12 @@ export function selectPlan(jobs, lane) {
   // Keep the existing database selection complete after moving its SDK proofs.
   // All jobs run serially locally, each with its own guarded startup/cleanup.
   const split = Boolean(jobs[jobsByLane['test-owner-sdk']])
+  const browserSplit = Boolean(jobs[jobsByLane['browser-dark']])
   if (lane === 'test-owner-sdk' && !split) throw new Error('The selected historical workflow has no separate test-owner-sdk lane; use --lane database.')
-  const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => split || value !== 'test-owner-sdk')
-    : lane === 'database' && split ? ['database', 'test-owner-sdk'] : [lane]
+  if (lane === 'browser-dark' && !browserSplit) throw new Error('The selected historical workflow has no separate browser-dark lane; use --lane browser.')
+  const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => (split || value !== 'test-owner-sdk') && (browserSplit || value !== 'browser-dark'))
+    : lane === 'database' && split ? ['database', 'test-owner-sdk']
+      : lane === 'browser' && browserSplit ? ['browser', 'browser-dark'] : [lane]
   return lanes.map(value => jobs[jobsByLane[value]])
 }
 
@@ -337,11 +355,29 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
       console.error(`Local CI preflight refused ${job.lane}. Log: ${earlyLog}\n${readFileSync(earlyLog, 'utf8')}`)
       return true
     }
+    if (['browser', 'browser-dark'].includes(job.lane)) {
+      // A setup failure must not label the preceding lane's reports as its own.
+      // The runner uses a private disposable checkout; remove only browser output.
+      for (const directory of ['playwright-report', 'test-results']) rmSync(join(checkout, directory), { recursive: true, force: true })
+    }
     for (const [index, step] of job.steps.entries()) {
       if (interrupted() && step.run !== 'supabase stop --no-backup') { if (step.id) outcomes[step.id] = 'skipped'; continue }
       if (!shouldRun(step.if, laneFailed || interrupted(), outcomes)) { if (step.id) outcomes[step.id] = 'skipped'; continue }
       if (step.uses) {
         console.log(`Local setup override: ${step.name}`)
+        if (step.uses === 'actions/upload-artifact@v7' && ['browser', 'browser-dark'].includes(job.lane)) {
+          // The next serial partition overwrites Playwright's output directories.
+          // Retain only the canonical diagnostics; never copy .auth or symlinks.
+          const destination = join(temp, `${job.lane}-diagnostics`)
+          mkdirSync(destination, { recursive: true, mode: 0o700 })
+          for (const directory of ['playwright-report', 'test-results']) {
+            const source = join(checkout, directory)
+            if (existsSync(source)) cpSync(source, join(destination, directory), {
+              recursive: true, filter: path => !lstatSync(path).isSymbolicLink(),
+            })
+          }
+          console.log(`Local browser diagnostics: ${destination}`)
+        }
         if (step.id) outcomes[step.id] = 'success'
         continue
       }
