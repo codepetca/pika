@@ -156,14 +156,19 @@ Proposed event names are deliberately stable and independent of button copy:
 | `teacher_assignment_post_succeeded` | A Post operation successfully makes the assignment live, not merely a click |
 | `teacher_assignment_schedule_succeeded` | A successful response confirms the future schedule; not publication now |
 | `teacher_assignment_draft_kept` | An explicit keep/save-draft-and-close action succeeds; not automatic initialization or each autosave |
-| `teacher_assignment_validation_failed` | A reviewed, coarse validation category blocks an attempted operation |
-| `teacher_assignment_operation_failed` | A sanitized operation category fails; no raw exception/server response |
+| `teacher_assignment_validation_failed_<category>` | One finite, allowlisted event name identifies a coarse validation category that blocks an attempted operation |
+| `teacher_assignment_<intent>_failed_<category>` | One finite, allowlisted event name identifies sanitized intent and failure category; no raw exception/server response |
 
-Allowed tags: fixed workflow/surface names, `intent` (post/schedule/draft), finite
-error categories, `workflow_version`, release version, and teacher audience. Validate
-lengths/enums and overwrite context at each transition so stale session tags do not
-misattribute later events. Review vendor tag scope before using it for event-level metrics.
-No user/class/assignment IDs, titles, content, times/deadlines, join codes or query strings.
+Reserve Clarity custom tags for session-stable, finite values such as the approved
+workflow/surface, `workflow_version`, release version, and adult-teacher pilot audience.
+Do not use tags for mutable intent or error context: Microsoft's current
+[client API](https://learn.microsoft.com/en-us/clarity/setup-and-installation/clarity-api)
+and [custom-tag guidance](https://learn.microsoft.com/en-us/clarity/filters/custom-tags)
+describe session-scoped tags where repeated values can accumulate, with no documented
+overwrite/remove operation. Encode per-action intent and coarse error category in a
+small, typed allowlist of event names instead. Validate every tag and event against
+fixed enums and length bounds. No user/class/assignment IDs, titles, content,
+times/deadlines, join codes or query strings.
 
 - [ ] Put semantic hooks at existing success/error paths in `AssignmentModal` and
   `useAssignmentScheduling`; use the central adapter, never raw vendor calls throughout UI.
