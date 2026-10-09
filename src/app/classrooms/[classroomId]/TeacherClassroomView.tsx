@@ -597,6 +597,7 @@ export function TeacherClassroomView({
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
+  const classworkDragActiveRef = useRef(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1332,14 +1333,9 @@ export function TeacherClassroomView({
     }
   }, [onEditModeChange])
 
-  const assignmentEditModeResetKey =
-    selection.mode === 'assignment'
-      ? selection.assignmentId
-      : 'summary'
-
   useEffect(() => {
     setAssignmentEditMode(false)
-  }, [assignmentEditModeResetKey, classroom.id])
+  }, [classroom.id])
 
   useEffect(() => {
     if (isActive && !isReadOnly) return
@@ -1351,6 +1347,9 @@ export function TeacherClassroomView({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
+      const hasActiveOverlay = Array.from(document.querySelectorAll('[role="dialog"], [role="menu"]'))
+        .some((overlay) => !overlay.closest('[hidden], [inert], [aria-hidden="true"]'))
+      if (hasActiveOverlay) return
       const target = event.target
       if (
         target instanceof HTMLElement &&
@@ -1366,8 +1365,19 @@ export function TeacherClassroomView({
       setAssignmentEditMode(false)
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    // PointerSensor cancels at document without consuming Escape. Mark that
+    // event before sensor cancellation so it cannot also exit list editing.
+    function preserveModeDuringDragCancel(event: KeyboardEvent) {
+      if (event.key === 'Escape' && classworkDragActiveRef.current) event.preventDefault()
+    }
+
+    window.addEventListener('keydown', preserveModeDuringDragCancel, true)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      classworkDragActiveRef.current = false
+      window.removeEventListener('keydown', preserveModeDuringDragCancel, true)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [assignmentEditMode])
 
   function handleCreateSuccess(created: Assignment) {
@@ -1408,7 +1418,6 @@ export function TeacherClassroomView({
     setAssignmentInstructionsMode('visual')
     setEditAssignment(null)
     setIsCreateModalOpen(false)
-    setAssignmentEditMode(false)
   }, [])
 
   const setSelectionAndPersist = useCallback((
@@ -2735,7 +2744,12 @@ export function TeacherClassroomView({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
+        onDragStart={() => { classworkDragActiveRef.current = true }}
+        onDragCancel={() => { classworkDragActiveRef.current = false }}
+        onDragEnd={(event) => {
+          classworkDragActiveRef.current = false
+          void handleDragEnd(event)
+        }}
       >
         <SortableContext
           items={classworkItems.map((item) => item.id)}

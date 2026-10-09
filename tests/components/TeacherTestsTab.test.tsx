@@ -1799,6 +1799,49 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Delete Unit Test' })).not.toBeInTheDocument()
   })
 
+  it('exits list edit mode on Escape after the menu closes', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    renderTab()
+    await screen.findByText('Unit Test')
+    toggleTestListControls()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.keyDown(screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' }), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Unit Test' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
+
+    render(<div aria-hidden="true"><div role="dialog">Closing dialog</div></div>)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('button', { name: 'Delete Unit Test' })).not.toBeInTheDocument()
+  })
+
+  it('keeps list edit mode after deleting a test so another test can be deleted', async () => {
+    const first = makeTest({ id: 'test-1', title: 'Unit Test' })
+    const second = makeTest({ id: 'test-2', title: 'Second Test' })
+    mockTestsResponse([first, second])
+    renderTab()
+    await screen.findByText('Unit Test')
+    toggleTestListControls()
+
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: [second] }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Unit Test' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByText('Unit Test')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Second Test' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Delete test?')
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: [] }) })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-2', expect.objectContaining({ method: 'DELETE' })))
+  })
+
   it('shows whole-test delete in list settings mode', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     renderTab()
