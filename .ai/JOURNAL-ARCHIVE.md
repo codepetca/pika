@@ -45003,3 +45003,8 @@ PASS, newexact2f1f82baa CI37783778326 running. Canonical249+/prod/activation hel
 ## 2026-10-08 — Announcement progress-owner integration
 
 Rebased reviewed Announcement feedback onto main a86a20930 (#1520 shared circular progress). Product, regression tests, browser helper and matrix registration remain byte-identical to accepted68ba5857c. Incoming main histories and shared progress owners are preserved. Prior CI37711933656 failed the unchanged Blueprint lifecycle on request/navigation timeouts; all8 Announcement cases passed. Required current-base focused/native verification, proportional independent integration review and a new exact-head CI gate remain pending; PR1526 stays draft. No production or family-completion claim.
+
+<!-- pika-session-log-archive-batch:a9717a5529fc898a832c73388860a09cbe3a473478b8a6cfa8636ca1dd126e28 -->
+## 2026-10-08 — Announcement Test-cap main synchronization
+
+Exact reviewed3079933 CI37717844370 passed all selected lanes and PR Gate; concurrent main50185559 (#1524 dormant classroom Test caps) landed before merge and introduced history conflicts. Returned1526 to draft before synchronizing. Preserve every incoming Test-cap path and history body; all five Announcement feature files remain byte-identical to307. Focused checks and proportional integration review precede a new exact-head CI gate. No Test-cap activation, database application, production promotion or whole-family completion.

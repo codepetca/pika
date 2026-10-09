@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 const jobsByLane = {
   'test-build': 'test-and-build',
   database: 'architecture-database-contracts',
+  'test-owner-sdk': 'contextual-test-owner-sdk',
   browser: 'browser-experience-matrix',
 }
 const actions = new Set(['actions/checkout@v7', 'actions/setup-node@v6', 'pnpm/action-setup@v6',
@@ -38,7 +39,7 @@ export function parseArguments(argv) {
     else if (value === '--ack=DISPOSABLE_CI_DATABASE') args.acknowledged = true
     else throw new Error(`Unknown argument: ${value}`)
   }
-  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|browser|all.')
+  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|test-owner-sdk|browser|all.')
   if (args.ref !== null && args.ref !== 'HEAD' && !/^[a-f0-9]{40}$/.test(args.ref ?? '')) throw new Error('--ref requires HEAD or a full lowercase 40-character commit SHA.')
   return args
 }
@@ -159,7 +160,10 @@ export function extractWorkflow(source) {
 }
 
 export function selectPlan(jobs, lane) {
-  return (lane === 'all' ? Object.keys(jobsByLane) : [lane]).map(value => jobs[jobsByLane[value]])
+  // Keep the existing database selection complete after moving its SDK proofs.
+  // All jobs run serially locally, each with its own guarded startup/cleanup.
+  const lanes = lane === 'all' ? Object.keys(jobsByLane) : lane === 'database' ? ['database', 'test-owner-sdk'] : [lane]
+  return lanes.map(value => jobs[jobsByLane[value]])
 }
 
 export function validateLaneSafety(job) {

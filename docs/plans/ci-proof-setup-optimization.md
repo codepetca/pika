@@ -1,5 +1,87 @@
 # CI proof optimization execution plan
 
+## Current phase: hosted owner SDK shard
+
+The first pilot below was delivered through [PR 1541](https://github.com/codepetca/pika/pull/1541);
+original [PR 1538](https://github.com/codepetca/pika/pull/1538) was closed as delivered.
+The local-CI policy from [PR 1537](https://github.com/codepetca/pika/pull/1537) is also merged.
+Historical review receipts and counters below remain historical; this phase does
+not restart their budgets or claim that the pilot caused a measured speedup.
+
+Current branch: `codex/ci-sdk-proof-shard`, managed worktree `ci-sdk-proof-shard`,
+base `e24d591abb53713e01d75a5c95fc418cf57592eb`. Risk: `runtime-platform` because
+the required gate gains a job dependency. The integration coordinator has allocated
+the first exclusive remote CI slot: after focused checks and fixed-SHA independent
+review pass, mark ready for one fresh eligible hosted execution. Main merge stays
+pending the coordinator's integration order. Local canonical database mutation and
+local-runner
+activation remains held; this change requires no registration or new dependency.
+
+Move the seven established Test owner detail/list/draft-get/draft-save/create/
+pristine-discard/publication step blocks unchanged into `contextual-test-owner-sdk`.
+Keep member-list and reorder in the original database job. The new job uses the
+existing database selector and a fixed `ubuntu-latest` runner. Each hosted job
+has an independent VM and Docker daemon. The shard starts its own canonical
+stack; all 21 fresh disposable proof replays, forced modes, exact failure output,
+restoration, canonical comparisons and cleanup remain. No database state is shared
+or cached. PR Gate must require both database jobs whenever database coverage is
+selected. Manual self-hosted dispatch therefore becomes mixed compute; the shard
+stays hosted.
+
+Local `--lane database` retains complete coverage by executing original database
+then SDK jobs sequentially; `--lane all` executes each once. Explicit
+`--lane test-owner-sdk` uses the same full isolation preflight. Local rehearsal is
+not parallelism and does not replace reviewed-head PR CI.
+
+Observed successful hosted runs (seconds from actual job/step timestamps):
+
+| Run | Head | Database | Seven proofs | Browser |
+| --- | --- | ---: | ---: | ---: |
+| [37810321964](https://github.com/codepetca/pika/actions/runs/37810321964) | `ad19bee721` | 3849 | 1941 | 3579 |
+| [37831362311](https://github.com/codepetca/pika/actions/runs/37831362311) | `d9b22680a0` | 4338 | 2223 | 3911 |
+| [37865407019](https://github.com/codepetca/pika/actions/runs/37865407019) | `e68198ede7` | 4930 | 2244 | 3598 |
+
+Different heads include different proof/migration checkpoints. These are three
+observations, not p95 estimates or causal comparisons. Seven proofs account for
+32m21s–37m24s of the database job. If hosted capacity and runtimes remain similar,
+the browser job becomes the expected critical path: projected end-to-end saving
+is approximately 4m30s, 7m07s and 22m12s respectively. The additional canonical
+startup measured 82–92 seconds in these runs; setup/install overhead and queueing
+must also be included in the first shard result. No saving is accepted yet.
+Six sanitized pilot timing receipts per run confirm normal modes pass and forced
+modes fail, with 52 ephemeral checks per normal profile and one per forced mode.
+
+Acceptance before ready: source comparison shows every moved command block
+unchanged and present exactly once; offline tests execute the actual gate for
+failed/cancelled/skipped shard results and verify CLI expansion, full preflight
+and cleanup. Complete focused/static checks and fixed-SHA independent review.
+Acceptance after slot release: eligible final-head CI passes both database jobs,
+browser, test/build and PR Gate; runner telemetry confirms hosted separation and
+all moved modes execute. Compare queue, job, setup, seven-proof and whole-run
+durations against the observations above, including added runner consumption.
+Rollback restores the original job placement and gate dependency together.
+
+Delegation: one Sol/high worker first completed bounded read-only design, then
+owns workflow/driver/preflight/tests implementation. Coordinator owns this plan,
+documentation, acceptance and PR lifecycle. Weekly allowance at start: 54%
+remaining; DeepSeek paused. Effective worker configuration, tokens and active
+time are unknown. Startup passed after frozen-lockfile installation; no package
+changes. Separate high-risk review ledger for this new PR: two fresh Sol/high
+reviewers (correctness/isolation and architecture/compatibility), maximum seven
+launches, one initial wave, four targeted waves/fix batches, one final integration
+wave, 60 minutes total and 30 minutes per reviewer. No review launched yet.
+
+Implementation delivered without rework or edit conflicts. Seven code/test files
+changed; coordinator independently confirmed all seven original raw step blocks
+occur unchanged exactly once in the shard. Worker targeted tests passed 97/97;
+canonical workflow checks passed 231/231. Coordinator focused integration passed
+the same 231 workflow/affected tests plus architecture, UI policy, design policy,
+TypeScript and lint. Pre-commit Pika audit and whitespace checks passed. No native
+job has run for this phase yet. Durable PR lifecycle metadata and the PR body
+will bind review/CI receipts to their actual SHAs without rewriting this history.
+
+## Historical first pilot
+
 Coordinator: the existing architecture/development-workflow chat. User authorized
 planning and orchestration on 2026-10-08. Worktree: `ci-proof-setup-optimization`;
 branch: `codex/ci-proof-setup-optimization`; base: `d826a01a3`.
