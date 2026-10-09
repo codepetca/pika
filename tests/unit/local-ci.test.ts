@@ -7,6 +7,27 @@ import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment,
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 
+// Reconstruct the original three-job layout from the unchanged proof blocks,
+// without depending on Git history being available in a shallow CI checkout.
+function legacyWorkflow() {
+  const source = workflow()
+  const shard = source.match(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  test-and-build:\n)/m)![0]
+  const blocks = new Map([...shard.matchAll(/^      - name: ([^\n]+)\n[\s\S]*?(?=^      - name: |$(?![\s\S]))/gm)]
+    .map(match => [match[1], match[0]]))
+  const reads = ['Verify isolated contextual Test owner-detail SDK reads', 'Verify isolated contextual Test owner-list SDK reads']
+    .map(name => blocks.get(name)!).join('')
+  const writes = ['Verify isolated contextual Test owner-draft GET transactions', 'Verify isolated contextual Test owner-draft save transactions',
+    'Verify isolated contextual Test owner creation transactions', 'Verify isolated contextual pristine Test draft discard transactions',
+    'Verify isolated contextual Test owner publication transactions'].map(name => blocks.get(name)!).join('')
+  return source.replace(shard, '')
+    .replace('      - name: Verify isolated contextual Test member-list SDK reads\n', reads + '      - name: Verify isolated contextual Test member-list SDK reads\n')
+    .replace('      - name: Verify isolated contextual Test owner reorder transactions\n', writes + '      - name: Verify isolated contextual Test owner reorder transactions\n')
+    .replace('  test-and-build:\n', blocks.get('Upload sanitized Test proof timings')! + '  test-and-build:\n')
+    .replace('      - contextual-test-owner-sdk\n', '')
+    .replace('          TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}\n', '')
+    .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$TEST_OWNER_SDK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
+}
+
 describe('local canonical CI', () => {
   it.each([
     ['TERM-resistant shell', 'trap "" TERM; printf "READY\\n"; while :; do sleep 1; done'],
@@ -95,6 +116,34 @@ describe('local canonical CI', () => {
   })
 
   it.each([
+    ['database', ['database']], ['all', ['test-build', 'database', 'browser']],
+    ['test-build', ['test-build']], ['browser', ['browser']],
+  ])('supports the complete historical workflow for %s without omitting its original proofs', (lane, expected) => {
+    const jobs = extractWorkflow(legacyWorkflow())
+    expect(selectPlan(jobs, lane).map(job => job.lane)).toEqual(expected)
+    expect(jobs['contextual-test-owner-sdk']).toBeUndefined()
+    const database = selectPlan(jobs, 'database')[0]
+    for (const profile of ['detail', 'list', 'draft-get', 'draft-save', 'create', 'pristine-discard', 'publication']) {
+      expect(database.steps.filter(step => step.run?.includes(`scripts/check-contextual-test-owner-${profile}-lifecycle.ts`))).toHaveLength(1)
+    }
+  })
+
+  it('clearly rejects an explicit SDK lane for a historical workflow', () => {
+    expect(() => selectPlan(extractWorkflow(legacyWorkflow()), 'test-owner-sdk')).toThrow('no separate test-owner-sdk lane')
+  })
+
+  it.each([
+    ['missing legacy proof', (text: string) => text.replaceAll('scripts/check-contextual-test-owner-publication-lifecycle.ts', 'scripts/omitted-proof.ts')],
+    ['legacy forced-mode drift', (text: string) => text.replace('for test_owner_detail_mode in after-fixture before-capture; do', 'for test_owner_detail_mode in after-fixture; do')],
+    ['duplicate legacy proof command', (text: string) => text.replace('pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head', 'pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --mode normal\n          pnpm exec tsx scripts/check-contextual-test-owner-detail-lifecycle.ts --reviewed-head')],
+    ['legacy SDK gate dependency', (text: string) => text.replace('      - architecture-database-contracts\n', '      - architecture-database-contracts\n      - contextual-test-owner-sdk\n')],
+    ['legacy SDK result variable', (text: string) => text.replace('          DATABASE_RESULT:', '          TEST_OWNER_SDK_RESULT: omitted\n          DATABASE_RESULT:')],
+    ['incomplete original topology', (text: string) => text.replace('  browser-experience-matrix:\n', '  omitted-browser:\n')],
+  ])('refuses %s rather than accepting arbitrary historical partial workflows', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(legacyWorkflow()))).toThrow()
+  })
+
+  it.each([
     ['unknown action', (text: string) => text.replaceAll('uses: actions/checkout@v7', 'uses: example/run@v1')],
     ['unknown step property', (text: string) => text.replace('      - name: Check generated database types', '      - name: Check generated database types\n        continue-on-error: true')],
     ['unknown condition', (text: string) => text.replace("if: needs.classify-changes.outputs.run_test_build == 'true'", 'if: github.actor == \'someone\'')],
@@ -111,6 +160,8 @@ describe('local canonical CI', () => {
       return text.slice(0, start) + text.slice(start).replace("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", 'if: always()')
     }],
     ['missing SDK job', (text: string) => text.replace('  contextual-test-owner-sdk:\n', '  omitted-sdk-job:\n')],
+    ['deleted SDK job', (text: string) => text.replace(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  test-and-build:\n)/m, '')],
+    ['split proof inventory drift', (text: string) => text.replaceAll('scripts/check-contextual-test-owner-detail-lifecycle.ts', 'scripts/omitted-proof.ts')],
     ['SDK preflight drift', (text: string) => text.replace('--lane test-owner-sdk', '--lane database')],
   ])('fails closed on %s', (_, mutate) => {
     expect(() => extractWorkflow(mutate(workflow()))).toThrow()

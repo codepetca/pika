@@ -80,6 +80,28 @@ TypeScript and lint. Pre-commit Pika audit and whitespace checks passed. No nati
 job has run for this phase yet. Durable PR lifecycle metadata and the PR body
 will bind review/CI receipts to their actual SHAs without rewriting this history.
 
+Draft [PR 1546](https://github.com/codepetca/pika/pull/1546), initial head
+`af08e1113cec17b8b63bf094a359fbe673fe28de`: both independent initial reviews
+completed assigned scope and found the same P2 historical `--ref` regression.
+The new unconditional job inventory rejected earlier supported workflows, even
+though they retained every proof inside the original database job. Coordinator
+reproduced it. One batched fix will distinguish a complete legacy topology from
+a broken new split: legacy database/all coverage remains complete, explicit SDK
+selection rejects absent legacy lane, and missing/renamed modern SDK stays an
+error. No hosted-isolation, proof or aggregate-gate defect found. New-PR budget:
+two launches, one initial wave, one accepted issue after deduplication; first fix
+batch underway. Targeted compatibility review then final cumulative integration
+remain before ready. Reviewer active time/tokens unavailable; actual per-turn
+findings and SHA receipts recorded in the append-only lifecycle log.
+
+First batched correction delivered: complete legacy extraction and conditional
+plan expansion plus shallow-checkout-safe regressions. Actual base `e24d591`
+database dry-run changed from RED to GREEN; all/test-build/browser extraction and
+explicit legacy SDK refusal verified. New split missing/deleted/renamed shard
+and incomplete proof inventories still reject. Focused integration passed 244/244
+tests plus all prior static gates; audit and whitespace checks passed. One fix
+batch consumed, no further implementation scope added.
+
 ## Historical first pilot
 
 Coordinator: the existing architecture/development-workflow chat. User authorized
