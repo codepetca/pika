@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { captureTeacherEvent } from '@/lib/analytics/client'
-import { MAX_DURATION_MS, type TeacherSurface } from '@/lib/analytics/events'
+import { MAX_DURATION_MS, type TeacherSurface, type FailureCategory } from '@/lib/analytics/events'
 
 function now() {
   try { return performance.now() } catch { return 0 }
@@ -25,12 +25,12 @@ export function useTeacherSurfaceReadAnalytics({ surface, isActive, scope }: {
     const owner = document.visibilityState === 'visible' ? ownerRef.current : null
     const startedAt = now()
     let finished = false
-    const finish = (failed: boolean) => {
+    const finish = (failure?: FailureCategory) => {
       if (finished) return
       finished = true
       if (!owner || ownerRef.current !== owner || document.visibilityState !== 'visible') return
       try {
-        if (failed) captureTeacherEvent({ name: 'teacher_surface_failed', properties: { surface: owner.surface, failure_category: 'persistence' } })
+        if (failure) captureTeacherEvent({ name: 'teacher_surface_failed', properties: { surface: owner.surface, failure_category: failure } })
         else captureTeacherEvent({ name: 'teacher_surface_ready', properties: {
           surface: owner.surface, duration_ms: Math.min(MAX_DURATION_MS, Math.max(0, now() - startedAt)),
         } })
@@ -38,6 +38,6 @@ export function useTeacherSurfaceReadAnalytics({ surface, isActive, scope }: {
         // Diagnostic transport must not affect the teacher's usable snapshot.
       }
     }
-    return { ready: () => finish(false), failed: () => finish(true) }
+    return { ready: () => finish(), failed: (category: FailureCategory = 'persistence') => finish(category) }
   }, [])
 }

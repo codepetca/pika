@@ -13,11 +13,11 @@ The broader proposal/feature inventory is saved in the coordinator's external `p
 | Event | Current source / definition |
 | --- | --- |
 | `teacher_surface_viewed` | Active semantic teacher tab while the document is visible; contextual classroom experience, not account role or retained tab mount |
-| `teacher_surface_ready` | Active Classwork list read resolves successfully; monotonic read-resolution duration, including cache resolution—not DOM paint, full classroom readiness or backend query duration |
-| `teacher_surface_failed` | Active Classwork list read fails; finite persistence category; existing usable snapshot behavior remains unchanged |
+| `teacher_surface_ready` | Active Classwork list read resolves with explicit owner-scoped arrays; monotonic read-resolution duration, including cache resolution—not DOM paint, full classroom readiness or backend query duration |
+| `teacher_surface_failed` | Active Classwork list read fails or has malformed/unowned lists; finite persistence/unexpected category; existing usable snapshot behavior remains unchanged |
 | `teacher_workflow_started` | Logical Assignment editor opens; random per-editor token; create/edit mode; an open is not a completed authored assignment |
 | `teacher_action_attempted` | Explicit Save or confirmed Post/Schedule; blocked missing-title attempts and invalid schedule attempts also count; background autosaves excluded |
-| `teacher_action_succeeded` | Explicit Save returns a persisted/current unchanged record, Post returns the matching live record, Schedule returns the matching requested future release |
+| `teacher_action_succeeded` | Explicit Save returns an originating classroom/assignment-matching persisted/current unchanged record (including reused autosave), Post returns the matching live record, Schedule returns the matching requested future release |
 | `teacher_action_failed` | Bounded validation/persistence/unexpected category; no raw exceptions, server messages or input content |
 
 Schema version 1 is added by the runtime validator. Every event uses a closed property set; unknown keys, accessors, symbols, invalid enums, nonfinite/out-of-bounds durations and malformed random tokens are dropped as a whole. Actor/resource IDs, names, titles, grades, answers, attendance, free text, URLs/referrers and raw errors have no field. Classroom/assignment identities are only local effect/operation ownership dependencies, never emitted.

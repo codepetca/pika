@@ -22,6 +22,7 @@ import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAss
 import { getFutureScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
 import { isAssignmentScheduledForFuture } from '@/lib/assignments'
 import { createAssignmentWorkflow } from '@/lib/analytics/workflow'
+import { isConfirmedAssignmentSave } from '@/lib/analytics/outcomes'
 
 // This provider stays outside ModalLayer's outgoing presentation snapshot.
 // Retained body props remain visual snapshots; context retires live descendants.
@@ -809,8 +810,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   async function saveDraftAndClose() {
     if (saving || releasing) return
     const diagnosticOperation = analyticsWorkflow.begin('save')
+    const diagnosticOwner = { classroomId, assignmentId: currentAssignment?.id ?? null }
     const recordSaveResult = (saved: Assignment | null, values: AssignmentEditorValues) => {
-      if (saved) diagnosticOperation.succeed()
+      if (saved && isConfirmedAssignmentSave(saved, diagnosticOwner)) diagnosticOperation.succeed()
+      else if (saved) diagnosticOperation.fail('unexpected')
       else diagnosticOperation.fail(validateAssignmentEditorValues(values, currentAssignment) ? 'validation' : 'persistence')
     }
     try {
@@ -831,7 +834,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         const savedAssignment = await activeSave.promise
         if (!ownsSession(session)) {
           if (savedAssignment && areAssignmentEditorValuesEqual(activeSave.values, valuesToSave)) {
-            diagnosticOperation.succeed()
+            recordSaveResult(savedAssignment, activeSave.values)
             onSuccess(savedAssignment, { closeModal: false })
           } else {
             // A completed autosave may have persisted values the manual save reverted.
@@ -849,7 +852,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           && areAssignmentEditorValuesEqual(activeSave.values, latestValues)
         ) {
           pendingValuesRef.current = null
-          diagnosticOperation.succeed()
+          recordSaveResult(savedAssignment, activeSave.values)
           onSuccess(savedAssignment)
           onClose()
           setSaving(false)

@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Utility calendar minimum day targets
-
-- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
-- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
-- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
-
 ## 2026-10-08 — Utility calendar compact boundary refinement
 
 - Root visual iteration capped month growth: 1024 now two348px month cards with45.703125px day targets; 1440 capped384px cards/50.84375px targets. Day grid minimum320px prevents320px viewport overlap; month cards contain8/48px horizontal scrolling at360/320, rootoverflow0. No API/domain logic changed.
@@ -279,3 +273,7 @@ User explicitly approved posthog-js. Added exact1.438.5 and additive lockfile en
 ## 2026-10-09 — Inert teacher workflow analytics implementation
 
 On user Go, returned1551 to draft and added finite schema/inert singleton, synthetic cancellation/policy transport seam, random per-editor/operation helpers, contextual visible-tab signals, active Classwork read outcomes and explicit Assignment Save/Post/Schedule signals. No vendor transport/SDK load/activation, keys, CSP, browser persistence, replay, students, schema or hosted operations. Worker Sol/high owned five analytics files;44 synthetic tests PASS and root integrated242/11 regressions PASS before final additions. Initial focused864/69 and static gates PASS; later component navigation fixture assertion corrected because its transition mock unmounts inactive children, not claimed native retention. Audit reminder covered by actual component role/navigation and existing editor/session regressions; no rendered UI/semantics redesign. Final cumulative checks, independent privacy/compatibility reviews and exact-head CI remain next. Runtime/workspace risks and precise incomplete activation boundary documented in docs/plans/posthog-teacher-workflow-foundation.md; no provider/held1217/privacy-audit work. Dependency-only review CLEAN67c38be7 retained as earlier evidence, not full new-scope acceptance.
+
+## 2026-10-09 — Teacher diagnostics review remediation
+
+Expanded2f64630 focused865/69 and build PASS; static bundle search found no PostHog match (not browser network proof). Two independent Sol/high full reviews: privacy CLEAN, compatibility two accepted P2 signal correctness findings. One root remediation batch confirms Classwork owner-scoped list envelopes before ready and binds all explicit/reused Save acknowledgements to originating assignment/classroom; no business response handling changed. Added malformed/hostile payload unit tests plus actual null-list and direct/in-flight autosave wrong-record component regressions;135/3 targeted tests PASS. Full checks and targeted compatibility re-review remain pending. Coordination used one implementation worker and two reviewers, one remediation batch; per-worker tokens/time unknown, last weekly remaining44% is account-wide not task consumption. No SDK activation or merge authority inferred.

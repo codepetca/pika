@@ -1008,6 +1008,21 @@ describe('TeacherClassroomView', () => {
     expect(oldInspector.isConnected).toBe(false)
   })
 
+  it.each([null, { assignments: null }])('does not report malformed Classwork response as ready %#', async (payload) => {
+    captureDiagnostic.mockClear()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve(payload)
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key === `teacher-surveys:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      return fetcher()
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    await waitFor(() => expect(captureDiagnostic).toHaveBeenCalledWith({ name: 'teacher_surface_failed', properties: { surface: 'assignments', failure_category: 'unexpected' } }))
+    expect(captureDiagnostic.mock.calls.some(([event]) => event.name === 'teacher_surface_ready')).toBe(false)
+    consoleError.mockRestore()
+  })
+
   it('shows a classwork error and restores the list after retry', async () => {
     captureDiagnostic.mockClear()
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})

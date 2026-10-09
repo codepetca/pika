@@ -1,6 +1,7 @@
 'use client'
 
 import { useTeacherSurfaceReadAnalytics } from '@/hooks/useTeacherSurfaceReadAnalytics'
+import { isConfirmedClassworkRead } from '@/lib/analytics/outcomes'
 
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
 
@@ -726,7 +727,7 @@ export function TeacherClassroomView({
         }),
       ])
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
-      diagnosticRead.ready()
+      if (!isConfirmedClassworkRead(assignmentsData, materialsData, surveysData, classroom.id)) diagnosticRead.failed('unexpected')
       setAssignments(assignmentsData.assignments || [])
       setMaterials(materialsData.materials || [])
       setSurveys(surveysData.surveys || [])
@@ -739,6 +740,7 @@ export function TeacherClassroomView({
           detail: { classroomId: classroom.id },
         })
       )
+      diagnosticRead.ready()
     } catch (err) {
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
       diagnosticRead.failed()
