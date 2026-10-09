@@ -1399,13 +1399,130 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run combined browser contracts
-        run: pnpm e2e:ci
+        run: pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light
 
       - name: Upload browser diagnostics
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: browser-experience-matrix
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Stop ephemeral database
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
+        run: supabase stop --no-backup
+
+  browser-experience-dark:
+    name: Browser Experience Matrix Dark
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_browser == 'true'
+    # This partition needs its own VM and Docker daemon, including self-hosted dispatches.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SESSION_SECRET: ci-browser-session-secret-with-at-least-32-characters
+      ENABLE_MOCK_EMAIL: "true"
+      PIKA_E2E_LIFECYCLE_FIXTURES: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.103.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore pnpm store cache
+        id: browser-pnpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        id: browser-install
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane browser-dark
+
+      - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+
+      - name: Export local Supabase environment
+        shell: bash
+        run: |
+          eval "$(supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+            --override-name auth.service_role_key=SUPABASE_SECRET_KEY)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SUPABASE_SECRET_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Seed browser fixtures
+        run: pnpm seed
+
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Chromium and system dependencies
+        id: browser-install-chromium
+        shell: bash
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Summarize browser setup evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Browser lane setup evidence'
+            echo "- pnpm store exact-key hit: ${{ steps.browser-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
+            echo "- Playwright browser exact-key hit: ${{ steps.playwright-cache.outputs.cache-hit }}"
+            echo '- Chromium and its system dependencies are verified on every run.'
+            echo '- Supabase remains a fresh ephemeral start and migration replay.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run combined browser contracts
+        run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark
+
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-experience-dark
           path: |
             playwright-report/
             test-results/
@@ -1426,6 +1543,7 @@ jobs:
       - contextual-test-owner-sdk
       - test-and-build
       - browser-experience-matrix
+      - browser-experience-dark
     runs-on: ubuntu-latest
 
     steps:
@@ -1441,6 +1559,7 @@ jobs:
           TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}
           BROWSER_REQUIRED: ${{ needs.classify-changes.outputs.run_browser }}
           BROWSER_RESULT: ${{ needs.browser-experience-matrix.result }}
+          BROWSER_DARK_RESULT: ${{ needs.browser-experience-dark.result }}
           CI_MODE: ${{ needs.classify-changes.outputs.mode }}
         run: |
           [[ "$CI_EVENT_ELIGIBLE" == "true" ]] || {
@@ -1480,6 +1599,10 @@ jobs:
           fi
           if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_RESULT" != "success" ]]; then
             echo "Browser Experience Matrix was required but ended: $BROWSER_RESULT"
+            exit 1
+          fi
+          if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_DARK_RESULT" != "success" ]]; then
+            echo "Browser Experience Matrix Dark was required but ended: $BROWSER_DARK_RESULT"
             exit 1
           fi
           echo "All risk-matched checks passed."

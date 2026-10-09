@@ -1,6 +1,63 @@
 # CI proof optimization execution plan
 
-## Current phase: hosted owner SDK shard
+## Current phase: browser critical-path investigation
+
+User authorized the proposed browser investigation and bounded implementation on
+2026-10-09. Coordinator remains the existing architecture/development-workflow
+chat; branch `codex/ci-browser-optimization`, base `48f27a9870c7705187f0fd5708bec7ff5e89ed3e`.
+Risk: `runtime-platform`. One GPT-6.1 Sol/high read-only worker is auditing
+project partitioning and mutation isolation before implementation. No project,
+spec, role, retry or snapshot coverage may be removed; no new dependencies or
+application/schema changes. Local canonical database mutation, self-hosted
+activation/purchases, production and Clarity collection remain outside this phase.
+
+The existing hosted SDK slice was delivered unchanged through combined
+[PR 1550](https://github.com/codepetca/pika/pull/1550), main
+`763edbb180f32a32c0584add894d79415bbb9945`, reviewed merge tree
+`29c3a84404d8584be2ea81dc461907ce177bbac0`. All six jobs in
+[37913960793](https://github.com/codepetca/pika/actions/runs/37913960793) passed.
+Original PR 1546 was closed as delivered; its ready/merge instructions below are
+historical and retired. Earlier budgets, failed attempts and receipts remain.
+
+Browser native duration was 48m01s (test step 44m06s) in run 37913960793, versus
+58m36s in run 37879210697. Four serial experience-matrix project/file groups
+dominate the execution. The current canonical inventory is 573 test/project
+cases including two setup cases. Two independently isolated partitions were selected; retain serial file behavior
+and two workers per runner. The
+database lane ran 44m59s in the latest run, limiting whole-CI improvement there
+to roughly three minutes even if browser execution falls much further. The prior
+run permits roughly fourteen minutes. Neither projection is a measured saving.
+
+Acceptance: conserve the complete canonical inventory; independently seeded and
+cleaned ephemeral databases; fail-closed PR Gate and complete historical local-CI
+plans; focused/static contracts; fixed-SHA independent review; one eligible native
+CI run with every selected lane passing. Compare elapsed gate time and summed
+job consumption including failed attempts. No speed claim before native evidence.
+Weekly allowance at phase start: 39% remaining, account-wide; effective worker
+configuration, tokens and active time unknown. DeepSeek paused. Review counters
+for this new candidate start at zero; prior candidates remain unchanged.
+
+Design accepted: partition by theme. Light selects `chromium-desktop`,
+`chromium-mobile-light`, `pattern-lab-desktop-light` and
+`pattern-lab-mobile-light`; dark selects `chromium-desktop-dark`,
+`chromium-mobile-dark`, `pattern-lab-desktop-dark` and
+`pattern-lab-mobile-dark`. List-only collection gives 301 light and 274 dark
+cases: union 573, with only the two auth setup cases duplicated deliberately
+for independent databases. All eight spec filters and the Playwright config
+remain unchanged. Real database writes remain on their original desktop-light
+project; controlled/read cases can run dark only against its separate seeded
+stack. Independent timing analysis projects roughly 28–32 minute light and
+23–27 minute dark jobs, with extra startup/auth and runner consumption to be
+measured. These are projections, not acceptance evidence.
+
+Implementation owner: the same GPT-6.1 Sol/high worker, limited to workflow,
+local driver/preflight and offline regressions. Coordinator owns documentation,
+publication, independent review and native acceptance. The new hosted dark job
+must be a required browser dependency of PR Gate. Local `--lane browser` retains
+both partitions serially with separate receipts and diagnostics; historical
+combined lanes remain executable. No local database rehearsal is authorized.
+
+## Historical hosted owner SDK shard
 
 The first pilot below was delivered through [PR 1541](https://github.com/codepetca/pika/pull/1541);
 original [PR 1538](https://github.com/codepetca/pika/pull/1538) was closed as delivered.
@@ -270,3 +327,17 @@ Reviewer effective configurations, tokens and active elapsed time are unknown.
 Final cumulative review follows the corrective fixed SHA; no proof code changed
 in this remediation batch. Review budget consumed: two initial launches, one
 remediation batch; final integration wave pending.
+
+
+Browser implementation verification: targeted red/green regressions retained
+(23 expected pre-implementation failures; 143 final tests pass). Coordinator
+focused checks pass 575 tests in 54 files plus architecture, UI/design policy,
+TypeScript and lint. Four changed TypeScript test files pass Pika audit; script
+syntax and whitespace checks pass. Real list-only collection proves the exact
+573-case union and only the two setup cases repeated. Historical browser plans
+at current pre-split `48f27a9870c7705187f0fd5708bec7ff5e89ed3e` and older local-CI
+`b8169adaa7802e79e44ea8236021ce9297d61d2e` execute dry-run successfully. Separate
+local reports retain failure diagnostics without attributing preceding-lane
+reports to a setup-failed dark lane. No browser runtime or canonical database
+mutation was performed locally. Independent review and final hosted acceptance
+remain pending; the draft-first lifecycle binds their receipts to actual SHAs.

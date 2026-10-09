@@ -1,7 +1,7 @@
 # Pika CI on your hardware
 
 Heavy CI can run on a dedicated Linux runner while GitHub runs change
-classification, the hosted Test owner SDK shard and the required `PR Gate`. All existing checks and risk selectors
+classification, the hosted Test owner SDK and dark-browser shards, and the required `PR Gate`. All existing checks and risk selectors
 remain required. A successful local run does not replace the PR gate.
 
 ## Delivery plan and acceptance
@@ -26,9 +26,18 @@ hosted VM/daemon and starts an independent canonical stack. Every normal and
 forced proof still uses its own fresh disposable project and complete migration
 replay. Database-selected PRs require both database jobs to pass. The original
 database, test/build and browser jobs continue to follow the configured routing;
-`runner=self-hosted` therefore means mixed compute with this hosted shard. This
+`runner=self-hosted` therefore means mixed compute with hosted shards. This
 does not activate a local runner. See the [proof optimization plan](../plans/ci-proof-setup-optimization.md)
 for observed timings and the comparative acceptance gate.
+
+Browser-selected runs require both browser jobs. The original job runs the
+light desktop/mobile and light Pattern Lab projects using configured routing;
+`Browser Experience Matrix Dark` runs the corresponding four dark projects on
+`ubuntu-latest`. Both use the complete canonical `e2e:ci` spec list with explicit
+project filters and their own fresh startup, fixture seed, auth setup, artifacts
+and cleanup. Playwright serial-file behavior, two workers, retries and snapshots
+remain unchanged. The hosted dark shard never shares a database with the
+routable browser job or activates a local runner.
 
 The initial host choice is the existing Mac shared with HQ, using separate Linux
 templates and a cooperative exclusive lease. Pika's host driver below admits one
@@ -195,15 +204,19 @@ pnpm ci:local -- --lane database --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane database --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
 pnpm ci:local -- --lane test-owner-sdk --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane browser --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
+pnpm ci:local -- --lane browser-dark --ref <reviewed-sha> --dry-run
 ```
 
 `--lane database` runs the original database job followed by the SDK shard to
 preserve complete database coverage. `--lane test-owner-sdk` selects just that
 shard; live execution has the same isolation and migration-authorization gates.
+`--lane browser` runs both light and dark partitions sequentially;
+`--lane browser-dark` selects only the dark shard with the same isolation gates.
+Older reviewed commits retain their complete combined browser lane.
 `--lane all` includes every job exactly once. Local jobs run sequentially with
 separate start/preflight/cleanup cycles. The host admission rehearsal still
 checks the three routable local lanes; it does not register or serve the hosted
-SDK shard.
+SDK or dark-browser shards.
 
 The temporary checkout retains `.git` for commit-bound rehearsals, excludes
 environment files and uses a restricted child environment. Commands come from

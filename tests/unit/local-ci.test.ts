@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolve } from 'node:path'
@@ -7,10 +7,18 @@ import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment,
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 
+function combinedBrowserWorkflow(source = workflow()) {
+  return source.replace(/^  browser-experience-dark:\n[\s\S]*?(?=^  pr-gate:\n)/m, '')
+    .replace(/run: pnpm e2e:ci --project=[^\n]+/, 'run: pnpm e2e:ci')
+    .replace('      - browser-experience-dark\n', '')
+    .replace('          BROWSER_DARK_RESULT: ${{ needs.browser-experience-dark.result }}\n', '')
+    .replace(/          if \[\[ "\$BROWSER_REQUIRED" == "true" && "\$BROWSER_DARK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
+}
+
 // Reconstruct the original three-job layout from the unchanged proof blocks,
 // without depending on Git history being available in a shallow CI checkout.
 function legacyWorkflow() {
-  const source = workflow()
+  const source = combinedBrowserWorkflow()
   const shard = source.match(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  test-and-build:\n)/m)![0]
   const blocks = new Map([...shard.matchAll(/^      - name: ([^\n]+)\n[\s\S]*?(?=^      - name: |$(?![\s\S]))/gm)]
     .map(match => [match[1], match[0]]))
@@ -74,7 +82,7 @@ describe('local canonical CI', () => {
     expect(database.steps.filter(step => step.run).length).toBeGreaterThan(100)
     expect(browser.steps.find(step => step.name === 'Export local Supabase environment')?.run).toContain('>> "$GITHUB_ENV"')
     expect(browser.steps.find(step => step.name === 'Seed browser fixtures')?.run).toBe('pnpm seed')
-    expect(browser.steps.find(step => step.name === 'Run combined browser contracts')?.run).toBe('pnpm e2e:ci')
+    expect(browser.steps.find(step => step.name === 'Run combined browser contracts')?.run).toContain('pnpm e2e:ci --project=chromium-desktop ')
     expect(browser.steps.at(-1)?.run).toBe('supabase stop --no-backup')
   })
 
@@ -88,7 +96,7 @@ describe('local canonical CI', () => {
     const build = job.steps.find(step => step.name === 'Build production bundle')
     expect(build?.env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://placeholder.supabase.co')
     expect(shouldRun(build?.if, false)).toBe(true)
-    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'test-owner-sdk', 'browser'])
+    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'test-owner-sdk', 'browser', 'browser-dark'])
   })
 
   it('keeps database selection complete and includes each canonical SDK command once locally', () => {
@@ -130,6 +138,73 @@ describe('local canonical CI', () => {
 
   it('clearly rejects an explicit SDK lane for a historical workflow', () => {
     expect(() => selectPlan(extractWorkflow(legacyWorkflow()), 'test-owner-sdk')).toThrow('no separate test-owner-sdk lane')
+  })
+
+  it('runs both browser partitions serially and selects the explicit dark lane once', () => {
+    const jobs = extractWorkflow(workflow())
+    expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser', 'browser-dark'])
+    expect(selectPlan(jobs, 'browser-dark').map(job => job.id)).toEqual(['browser-experience-dark'])
+    const all = selectPlan(jobs, 'all')
+    expect(new Set(all.map(job => job.id)).size).toBe(all.length)
+  })
+
+  it('keeps the complete combined browser plan on historical refs with or without the SDK split', () => {
+    for (const source of [combinedBrowserWorkflow(), legacyWorkflow()]) {
+      const jobs = extractWorkflow(source)
+      expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser'])
+      expect(selectPlan(jobs, 'browser')[0].steps.find(step => step.name === 'Run combined browser contracts')?.run).toBe('pnpm e2e:ci')
+      expect(selectPlan(jobs, 'all').filter(job => job.lane.startsWith('browser'))).toHaveLength(1)
+      expect(() => selectPlan(jobs, 'browser-dark')).toThrow('no separate browser-dark lane')
+    }
+  })
+
+  it.each([
+    ['missing dark job', (text: string) => text.replace(/^  browser-experience-dark:\n[\s\S]*?(?=^  pr-gate:\n)/m, '')],
+    ['renamed dark job', (text: string) => text.replace('  browser-experience-dark:\n', '  renamed-browser-dark:\n')],
+    ['missing dark project', (text: string) => text.replace(' --project=chromium-mobile-dark', '')],
+    ['duplicate light project in dark', (text: string) => text.replace('--project=chromium-desktop-dark --project=chromium-mobile-dark', '--project=chromium-desktop --project=chromium-mobile-dark')],
+    ['dark preflight drift', (text: string) => text.replace('--lane browser-dark', '--lane browser')],
+  ])('refuses %s rather than treating a damaged split as historical', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(workflow()))).toThrow()
+  })
+
+  it.each(['success', 'setup-failure', 'browser-failure'])('retains current synthetic diagnostics without stale previous-lane reports during %s', async mode => {
+    const temp = mkdtempSync(join(tmpdir(), 'pika-ci-diagnostics-test-'))
+    const checkout = join(temp, 'source')
+    mkdirSync(checkout)
+    let lane = ''
+    const execute = vi.fn(async (script: string, _cwd: string, env: Record<string, string>, _onChild: unknown, log: string) => {
+      writeFileSync(log, '')
+      if (script.startsWith('node scripts/ci-runner-preflight.mjs')) lane = script.split(' ').at(-1)!
+      if (lane === 'browser-dark' && mode === 'setup-failure' && script === 'pnpm install --frozen-lockfile') return 1
+      if (script.startsWith('pnpm e2e:ci')) {
+        for (const directory of ['playwright-report', 'test-results']) {
+          rmSync(join(checkout, directory), { recursive: true, force: true })
+          mkdirSync(join(checkout, directory))
+          writeFileSync(join(checkout, directory, 'result.txt'), script)
+        }
+        mkdirSync(join(checkout, '.auth'), { recursive: true })
+        writeFileSync(join(checkout, '.auth', 'teacher.json'), 'private fixture auth')
+        symlinkSync(join(checkout, '.auth', 'teacher.json'), join(checkout, 'playwright-report', 'auth-link'))
+        if (lane === 'browser-dark' && mode === 'browser-failure') return 1
+      }
+      if (env.GITHUB_ENV) writeFileSync(env.GITHUB_ENV, '')
+      return 0
+    })
+    try {
+      const jobs = selectPlan(extractWorkflow(workflow()), 'browser')
+      for (const job of jobs) expect(await runLane(job, checkout, temp, {}, { execute })).toBe(job.lane === 'browser-dark' && mode !== 'success')
+      for (const job of jobs) {
+        const command = job.steps.find(step => step.run?.startsWith('pnpm e2e:ci'))!.run
+        for (const directory of ['playwright-report', 'test-results']) {
+          const report = join(temp, `${job.lane}-diagnostics`, directory, 'result.txt')
+          if (job.lane === 'browser-dark' && mode === 'setup-failure') expect(existsSync(report)).toBe(false)
+          else expect(readFileSync(report, 'utf8')).toBe(command)
+        }
+        expect(existsSync(join(temp, `${job.lane}-diagnostics`, 'playwright-report', 'auth-link'))).toBe(false)
+      }
+      expect(() => readFileSync(join(temp, 'browser-diagnostics', '.auth', 'teacher.json'))).toThrow()
+    } finally { rmSync(temp, { recursive: true, force: true }) }
   })
 
   it.each([
@@ -195,6 +270,7 @@ describe('local canonical CI', () => {
     expect(parseArguments(['--ack=DISPOSABLE_CI_DATABASE']).acknowledged).toBe(true)
     expect(parseArguments(['--ref', 'HEAD']).ref).toBe('HEAD')
     expect(parseArguments(['--lane', 'test-owner-sdk', '--dry-run']).lane).toBe('test-owner-sdk')
+    expect(parseArguments(['--lane', 'browser-dark', '--dry-run']).lane).toBe('browser-dark')
     for (const args of [['--lane', 'unknown'], ['--ref', 'main'], ['--ack=YES'], ['--lane'], ['--unexpected']]) expect(() => parseArguments(args)).toThrow()
   })
 
@@ -211,7 +287,7 @@ describe('local canonical CI', () => {
     } finally { rmSync(directory, { recursive: true, force: true }) }
   })
 
-  it.each(['database', 'test-owner-sdk'].flatMap(lane =>
+  it.each(['database', 'test-owner-sdk', 'browser', 'browser-dark'].flatMap(lane =>
     ['refusal', 'partial-start', 'exception', 'interrupted', 'cleanup-failure', 'unconfirmed-group'].map(mode => [lane, mode])))(
     'contains %s cleanup during %s without executing Docker', async (lane, mode) => {
       const directory = mkdtempSync(join(tmpdir(), 'pika-ci-run-test-'))
