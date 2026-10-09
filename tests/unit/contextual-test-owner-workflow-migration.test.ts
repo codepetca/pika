@@ -33,4 +33,9 @@ describe('dormant owner Test workflow additive transaction', () => {
     expect(sql()).toContain("p_operation = 'sync' and (pg_catalog.to_jsonb(v_after)")
     expect(sql()).toContain('else document end order by ordinal')
   })
+  it('parenthesizes CASE comparison operands so PL/pgSQL IF parsing reaches its actual THEN', () => {
+    // Native replay rejected the document-purpose condition at the CASE's THEN.
+    // This is a guard for that known syntax trap, not a substitute for replay.
+    expect(sql()).not.toMatch(/is distinct from\s+case\s+when/i)
+  })
 })

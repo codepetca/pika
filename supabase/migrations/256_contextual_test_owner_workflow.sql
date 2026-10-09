@@ -230,7 +230,7 @@ begin
       and (v_object_id is null or id = v_object_id) for share nowait;
     if not found or v_object.status <> 'ready' or v_object.classroom_id is distinct from v_classroom_id
       or v_object.provisional_owner_id is not null or v_object.course_blueprint_id is not null
-      or v_object.purpose is distinct from case when p_payload->>'source' = 'upload' then 'teacher_test_material' else 'test_execution_snapshot' end
+      or v_object.purpose is distinct from (case when p_payload->>'source' = 'upload' then 'teacher_test_material' else 'test_execution_snapshot' end)
       or not exists(select 1 from public.managed_storage_json_references reference
         where reference.test_id = p_test_id and reference.managed_object_id = v_object.id
           and reference.storage_bucket = 'test-documents' and reference.storage_path = v_path) then
@@ -257,9 +257,9 @@ begin
   if not found or not exists(select 1 from public.classrooms where id = v_classroom_id and teacher_id = p_actor_id)
     or (p_operation = 'update' and pg_catalog.to_jsonb(v_after) - array['title','show_results','documents','updated_at']
       is distinct from pg_catalog.to_jsonb(v_test) - array['title','show_results','documents','updated_at'])
-    or (p_operation = 'update' and (v_after.title is distinct from case when p_payload ? 'title' then p_payload->>'title' else v_test.title end
-      or v_after.show_results is distinct from case when p_payload ? 'show_results' then (p_payload->>'show_results')::boolean else v_test.show_results end
-      or v_after.documents is distinct from case when p_payload ? 'documents' then p_payload->'documents' else v_test.documents end))
+    or (p_operation = 'update' and (v_after.title is distinct from (case when p_payload ? 'title' then p_payload->>'title' else v_test.title end)
+      or v_after.show_results is distinct from (case when p_payload ? 'show_results' then (p_payload->>'show_results')::boolean else v_test.show_results end)
+      or v_after.documents is distinct from (case when p_payload ? 'documents' then p_payload->'documents' else v_test.documents end)))
     or (p_operation = 'sync' and (pg_catalog.to_jsonb(v_after) - array['documents','updated_at']
       is distinct from pg_catalog.to_jsonb(v_test) - array['documents','updated_at']
       or v_after.documents is distinct from (

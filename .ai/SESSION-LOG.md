@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Password reset reference snapshot correction
-
-Returned PR#1531 to draft after four Linux Pattern Lab contract snapshot mismatches. Inspected exact CI artifact expected/actual comparisons in all four projects before accepting the two new reserved-error-space examples and translated gallery content. Updated only the four matching Linux baselines and evidence/history; product source unchanged. Focused checks PASS205files/2386tests plus architecture, UI/design policy, TypeScript and lint; targeted independent delta review precedes fresh ready-head CI.
-
 ## 2026-10-08 Join retry focus continuity
 
 Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
@@ -333,3 +329,22 @@ Exact disposable001–256 replay permission is required; earlier255 question is
 superseded. Shared249+/production/activation holds intact, no PR readiness or merge.
 Weekly remaining39%; review launches0 for this workflow, counters not reset from
 other delivered scopes. Runtime/effective model and task tokens unknown.
+
+## 2026-10-09 — Owner Test workflow disposable replay failure
+
+Direct owner approval covered one fresh isolated001–256 replay from1dc0891e7.
+Sol/high native worker used reviewed existing platform/type helpers and a private
+runner; coordinator corrected a fixture document-ID mismatch before dispatch.
+The single replay failed at256 with SQLSTATE42601 (unparenthesized CASE in IF,
+inner THEN).21.251s; no SQL fixture/SDK/type-generation result accepted. Exact
+owned Docker teardown/full global741-resource closure/canonical complete
+row+control+cron baseline/source/port checks PASS; shared local/prod untouched.
+Receipts:/private/tmp/pika-owner-workflow-proof.ylCUiF/result.json. Native worker
+usage/effective config unknown, requestedGPT-6.1Sol/high; weekly37% reused.
+Coordinator parentheses-only SQL repair and explicit regression RED→GREEN5/5;
+same rollback contract registered in existing ephemeral Database Contract lane.
+Workflow541/54, audit and diff checks PASS. One bounded Sol/high independent
+correction/pre-replay review planned; workflow review launches0 before dispatch,
+full-diff waves0/fix batches0 (native parser repair1). No type artifact/PR/CI/merge.
+One-time application permission consumed; fresh exact corrected-source approval
+required before another disposable replay. Existing holds/cumulative counters kept.

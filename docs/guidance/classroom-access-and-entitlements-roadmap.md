@@ -480,6 +480,18 @@ signature requires a disposable full-chain replay through 256. The earlier
 disposable-through-255 question is superseded, not reusable approval. No PR is
 ready; independent review, actual native evidence and exact-head CI remain gates.
 
+The owner approved one isolated replay of 001–256 from `1dc0891e7`. That attempt
+failed at 256 with SQLSTATE 42601: an unparenthesized CASE operand in an IF
+comparison was interpreted at its inner THEN. No new SQL contract, SDK or type
+artifact was accepted. Exact disposable-resource teardown, full global Docker
+closure and canonical row/control/cron baseline equality passed (21.251 seconds).
+Private receipt: `/private/tmp/pika-owner-workflow-proof.ylCUiF/result.json`.
+The coordinator parenthesized the CASE operands and added a failing-then-passing
+regression (5/5); the existing ephemeral Database Contract lane now invokes the
+same rollback SQL. This is a source correction, not a proven replay. The one-time
+permission was consumed; corrected-source native verification needs fresh exact
+approval. Shared local/prod, source readiness and activation holds remain intact.
+
 ### Execution checkpoint — 2026-10-08
 
 The owner requested orchestration of the remaining goal in this coordinator.
