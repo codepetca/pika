@@ -45033,3 +45033,8 @@ Measured native student return links20px in24 baseline captures; native focus al
 ## 2026-10-08 — Classroom access draft integration
 
 Existing draft1529 combines reviewed teacher Settings copy feedback with narrow student attendance return targets. Preserve incoming N848/GuideCalendar602 sources and histories; eleven standalone feature/test/brief files remain byte-identical to preintegrationd1, matrix adds only the two independent registrations. Incoming main501 dormant Test caps remain preserved without application or activation. Base602 is prospective: ancestor actual-tree binding and exact-head CI remain required. Current-base focused checks, clipboard parent re-verification and independent cumulative14 review precede ready/main merge; original failed attempts and static40PNG/0video attendance evidence remain retained.
+
+<!-- pika-session-log-archive-batch:83fdb8bc9b734569f4635e1900e8b11aa1618fae7771ad36bcb2fed72d8d09ed -->
+## 2026-10-08 — Classroom access semantic navigation verification
+
+Focused initial14-path integration passed2350/202 and all static gates. Audit requested matching component accessibility coverage for the attendance owner; add meaningful loading-to-confirmed link identity, destination and keyboard focus regression, five existing-owner tests PASS, precommit11TS audit PASS. Production and native runtime inputs unchanged; new owned scope15 includes this component test. Final focused binding, current QR browser completion and independent cumulative15 review precede actualancestor binding, ready/exact CI and authorized main merge. Preserve prior failed native/audit/metadata attempts; no class-string mirror assertions, audit-rule changes, schema application or production promotion.

@@ -3026,7 +3026,7 @@ export function TeacherTestsTab({
       <ConfirmDialog
         isOpen={showPublishConfirm}
         title="Publish test?"
-        description="Publishing is permanent. Students will see this test, but it will stay closed until you open access."
+        description="Publishing is permanent. Test will remain locked."
         confirmLabel={statusUpdating ? 'Publishing...' : 'Publish'}
         cancelLabel="Cancel"
         isConfirmDisabled={statusUpdating}

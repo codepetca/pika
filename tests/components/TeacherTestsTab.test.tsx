@@ -1410,7 +1410,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
 
     expect(await screen.findByText('Publish test?')).toBeInTheDocument()
-    expect(screen.getByText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')).toBeInTheDocument()
+    expect(screen.getByText('Publishing is permanent. Test will remain locked.')).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Publish test?' })).getByRole('button', { name: 'Publish' }))
 
     await waitFor(() => {
@@ -1474,7 +1474,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' }))
 
     expect(await screen.findByText('Publish test?')).toBeInTheDocument()
-    expect(screen.getByText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')).toBeInTheDocument()
+    expect(screen.getByText('Publishing is permanent. Test will remain locked.')).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Publish test?' })).getByRole('button', { name: 'Publish' }))
 
     await waitFor(() => {

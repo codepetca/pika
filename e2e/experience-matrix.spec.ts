@@ -2764,7 +2764,7 @@ test('shows publication language only at the publish transition', async ({ page 
 
   const publishDialog = page.getByRole('dialog', { name: 'Publish test?' })
   await expect(publishDialog).toBeVisible()
-  await expect(publishDialog).toContainText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')
+  await expect(publishDialog).toContainText('Publishing is permanent. Test will remain locked.')
   await expect(publishDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
