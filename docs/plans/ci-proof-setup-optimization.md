@@ -135,6 +135,20 @@ First incomplete attempt: 593 seconds workflow time, zero workflow queue seconds
 2,148 observed job seconds including cancelled work; retain it in total effort.
 Actual classifier was full, selecting both database jobs, test/build and browser.
 
+CI-correction review at `009d63748c7f62afa1cd1452f05f867fd8600843` found one
+additional P2: the inventory covered 44 unit readers but omitted the architecture
+Vitest reader. Coordinator accepted and directly corrected this small third
+batch: include `tests/architecture/atomic-test-grading-contract.test.ts`, scan
+all test directories in the omission regression, and retain the same source and
+runtime coverage. Total literal CI-YAML readers is 45. Five review turns and
+three fix batches consumed; the next targeted turn must validate only this delta
+and combine with unchanged cumulative coverage. Original review clock/budget
+remain unchanged. Full offline CI coverage at `009d63748` passed 15,761 tests,
+eight existing skips and all thresholds (85.5% statements, 77.74% branches,
+91.67% functions, 87.48% lines); production/proof sources remain unchanged.
+Third-batch focused checks passed 541/541 across 54 files and every static/audit
+gate. Native acceptance still requires one eligible run at the final reviewed SHA.
+
 ## Historical first pilot
 
 Coordinator: the existing architecture/development-workflow chat. User authorized

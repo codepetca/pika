@@ -11,10 +11,16 @@ describe('required Test lifecycle verification', () => {
   it('includes every file-backed CI workflow contract in the canonical focused inventory', () => {
     const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> }
     const inventory = pkg.scripts['check:workflow'].split(/\s+/)
-    for (const name of readdirSync(resolve(process.cwd(), 'tests/unit')).filter(name => name.endsWith('.test.ts'))) {
-      const path = `tests/unit/${name}`
-      if (read(path).includes('.github/workflows/ci.yml')) expect(inventory, path).toContain(path)
+    function visit(directory: string) {
+      for (const entry of readdirSync(resolve(process.cwd(), directory), { withFileTypes: true })) {
+        const path = `${directory}/${entry.name}`
+        if (entry.isDirectory()) visit(path)
+        else if (/\.(?:test|spec)\.[jt]sx?$/.test(entry.name) && read(path).includes('.github/workflows/ci.yml')) {
+          expect(inventory, path).toContain(path)
+        }
+      }
     }
+    visit('tests')
   })
 
   it('selects the real isolated desktop lifecycle cases in the required browser command', () => {
