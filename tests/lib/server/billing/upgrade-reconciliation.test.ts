@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { synchronizeBillingSubscription, type BillingStore, type BillingProvider } from '@/lib/server/billing/synchronize'
 import { UpgradeOperationSchema } from '@/lib/server/billing/upgrade-contracts'
+import { upgradeQuoteDigest } from '@/lib/server/billing/upgrade-service'
 
 const id = '11111111-1111-4111-8111-111111111111'
 const subject = '22222222-2222-4222-8222-222222222222'
@@ -19,7 +20,7 @@ const quote = { binding: source, target, subscriptionItemId: 'si_test', proratio
     quantity: 1, periodStart: now, periodEnd: end }] }
 const operation = UpgradeOperationSchema.parse({ operation_id: id, subject_user_id: subject, subscription_id: id,
   source_binding: source, target, stage: 'applied', status: 'applied', revision: 8, paid_period_start: start, paid_through: end,
-  last_paid_invoice_id: 'in_source', expires_at: quote.expiresAt, quote, quote_digest: 'a'.repeat(64), quote_revision: 4,
+  last_paid_invoice_id: 'in_source', expires_at: quote.expiresAt, quote, quote_digest: upgradeQuoteDigest(quote), quote_revision: 4,
   invoice_id: 'in_upgrade', payment_intent_id: 'pi_upgrade', confirmed: true })
 function fixture() {
   const claim = { status: 'claimed', subscription_id: id, lease_token: id, fencing_token: 2, lease_expires_at: end,
@@ -31,7 +32,8 @@ function fixture() {
     finishSubscription: vi.fn().mockResolvedValue({ status: 'applied', retry_scheduled: false }),
     getAppliedUpgrade: vi.fn().mockResolvedValue({ operation }) }
   const provider: BillingProvider = { retrieveSubscription: vi.fn().mockResolvedValue(null),
-    retrieveAppliedUpgrade: vi.fn().mockResolvedValue({ kind: 'paid', targetApplied: true, evidence: {
+    retrieveAppliedUpgrade: vi.fn().mockResolvedValue({ kind: 'paid', targetApplied: true,
+      cancelAt: null, cancelAtPeriodEnd: false, terminalObligationsCleared: false, evidence: {
       invoiceId: 'in_upgrade', paymentIntentId: 'pi_upgrade', subscriptionId: 'sub_test', paymentState: 'paid', providerStatus: 'active',
       amountPaid: 500, currency: 'usd', subscriptionItemId: 'si_test', targetPriceId: 'price_new', paidPeriodStart: start, paidThrough: end } }) }
   const run = () => synchronizeBillingSubscription({ store, provider, subscriptionId: id, eventInboxId: null, leaseSeconds: 120 })
@@ -59,6 +61,34 @@ describe('approved upgrade receipt reconciliation', () => {
   it('requires the exact stored captured payment identity', async () => {
     const f = fixture()
     vi.mocked(f.store.getAppliedUpgrade!).mockResolvedValue({ operation: { ...operation, payment_intent_id: 'pi_other' } })
+    expect(await f.run()).toEqual({ kind: 'exception', reason: 'provider_snapshot_invalid', retryable: false })
+  })
+  it.each(['active', 'canceled'] as const)('records verified %s cancellation without converting the upgrade payment into a renewal', async status => {
+    const f = fixture()
+    const evidence = await f.provider.retrieveAppliedUpgrade!(operation) as { evidence: Record<string, unknown> }
+    vi.mocked(f.provider.retrieveAppliedUpgrade!).mockResolvedValue({ ...evidence,
+      cancelAt: end, cancelAtPeriodEnd: true, terminalObligationsCleared: status === 'canceled',
+      evidence: { ...evidence.evidence, providerStatus: status } })
+    expect(await f.run()).toEqual({ kind: 'applied' })
+    expect(f.store.finishSubscription).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: 'canceled', provider_status: status, cancel_at_period_end: true,
+      obligations_cleared: status === 'canceled', invoice_id: null, period_start: null, period_end: null,
+      expected_account_plan_revision: 9, expected_subscription_revision: 4, fencing_token: 2,
+    }))
+  })
+  it('rejects a cancellation timestamp that does not match the purchased term', async () => {
+    const f = fixture()
+    const evidence = await f.provider.retrieveAppliedUpgrade!(operation) as Record<string, unknown>
+    vi.mocked(f.provider.retrieveAppliedUpgrade!).mockResolvedValue({ ...evidence,
+      cancelAt: '2026-10-15T00:00:00.000Z', cancelAtPeriodEnd: true })
+    expect(await f.run()).toEqual({ kind: 'exception', reason: 'provider_snapshot_invalid', retryable: false })
+    expect(f.store.finishSubscription).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: 'canceled' }))
+  })
+  it('does not mark an active subscription as having cleared terminal obligations', async () => {
+    const f = fixture()
+    const evidence = await f.provider.retrieveAppliedUpgrade!(operation) as Record<string, unknown>
+    vi.mocked(f.provider.retrieveAppliedUpgrade!).mockResolvedValue({ ...evidence,
+      cancelAtPeriodEnd: true, terminalObligationsCleared: true })
     expect(await f.run()).toEqual({ kind: 'exception', reason: 'provider_snapshot_invalid', retryable: false })
   })
 })

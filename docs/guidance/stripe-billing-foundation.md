@@ -201,7 +201,7 @@ requires the exact target-and-migration approval in the schema checklist.
 | 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
 | 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Merged #1368; local sandbox first-purchase rehearsal passed; customer return UI pending |
 | 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Lifecycle #1377 and renewal closeout #1429 merged; local228 applied and rollback contracts passed |
-| 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Plan-change architecture in progress; classroom/access integration remains pending |
+| 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | First prorated-upgrade backend #1435 merged; scheduling and classroom/access integration remain pending |
 | 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
 | 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | First-purchase rehearsal completed; full lifecycle blocked by phases 2–4 and remaining policy contracts |
 
@@ -221,7 +221,7 @@ Existing closeout review extensions and application permissions are consumed.
 The amount-confirmation design below implements SUB-04; deployment and payment
 activation remain separate gates.
 
-### Phase 3: first prorated upgrade candidate (2026-10-02)
+### Phase 3: first prorated upgrade review history (2026-10-02)
 
 The dormant first-upgrade backend uses migrations230 and231. Both were applied
 locally once, with existing records retained; production remains through225.
@@ -314,6 +314,52 @@ rehearsal also need launch evidence. A payment captured before an unfulfillable
 term/override race stays an actionable exception; compensation is not invented.
 No migration, production change, live charge, email or activation is authorized
 by this candidate or its tests.
+
+### Phase 3 continuation — 2026-10-08
+
+PR1435 merged as `efe4eb3fcbb88cd2b24d53122a77ed1f70b85cc8` on October 3,
+after all exact-head CI37112129981 gates passed at reviewed `0de5d0ea`.
+The candidate, migration and local-database descriptions above are dated review
+history, not current environment claims. Continuation starts from main
+`e24d591abb53713e01d75a5c95fc418cf57592eb`; billing remains disabled.
+
+The next bounded correction observes cancellation after an applied upgrade.
+The ordinary verifier correctly refuses to treat its manual proration invoice
+as a full-cycle renewal. Its existing receipt fallback rejects cancellation,
+so it cannot deliver the verified cutoff to the existing cancellation writer.
+A separate read-only observation must verify the captured upgrade payment,
+exact target item and original paid term, then use the existing fenced
+`canceled` completion with null invoice/period fields. Strict upgrade mutation
+schemas remain unchanged. No new migration or provider mutation is needed.
+Undo-cancellation after upgrade and later renewal/receipt chaining remain
+separate acceptance gates; an `observed` completion does not clear the access
+row's cancellation reason.
+
+Scheduled execution cannot be implemented by merely accepting a changed Stripe
+price. The existing binding represents both the billed version and effective
+access version; both ordinary verifiers reject unapproved schedules and changed
+prices. The future contract must record the confirmed target separately from
+the version whose paid capabilities are currently in effect, with one pending
+change, atomic replacement and verified boundary/payment recovery.
+
+The owner question about failed renewal at a scheduled downgrade is pending.
+Neither option below is approved by this continuation:
+
+| Option | During the exact seven-day failed-payment grace | Capacity/archive transition |
+| --- | --- | --- |
+| Retain the previously paid offering (recommended) | Keep source-version capabilities; the target price remains the renewal billing target | Apply target capacity after verified target payment; unpaid grace ends with Free restrictions |
+| Apply the lower offering at renewal | Use target-version capabilities while its renewal invoice is unpaid | Apply target capacity at the renewal timestamp, including classroom selection/archive protections |
+
+Acceptance must distinguish target invoice/price verification from source access,
+cover payment recovery before/at/after the 168-hour cutoff, missed and repeated
+events, and an in-flight upgrade/cancellation/replacement. Do not infer an
+answer from silence, a provider default or a fixture. Deterministic classroom
+activity ranking and archive/access integration remain separate unresolved
+implementation prerequisites.
+
+The [fixture and provider rehearsal plan](billing-test-rehearsal.md) separates
+implemented paths from pending ones and preserves shared execution, exact-target
+migration and activation gates.
 
 The following first-lifecycle review evidence is historical; #1377 subsequently
 passed required CI and merged. Its earlier application permissions are consumed.
