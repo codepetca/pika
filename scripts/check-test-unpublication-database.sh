@@ -32,6 +32,14 @@ begin
   if to_regprocedure('public.return_test_to_draft_atomic(uuid,uuid)') is null then
     raise exception 'Migration 255 is missing from the explicit target';
   end if;
+  if to_regprocedure('public.record_test_focus_event_atomic(uuid,uuid,text,text,jsonb)') is null then
+    raise exception 'Migration 255 focus recording RPC is missing from the explicit target';
+  end if;
+  if has_function_privilege('anon','public.record_test_focus_event_atomic(uuid,uuid,text,text,jsonb)','execute')
+    or has_function_privilege('authenticated','public.record_test_focus_event_atomic(uuid,uuid,text,text,jsonb)','execute')
+    or not has_function_privilege('service_role','public.record_test_focus_event_atomic(uuid,uuid,text,text,jsonb)','execute') then
+    raise exception 'Focus recording RPC privileges differ';
+  end if;
   if has_function_privilege('anon','public.return_test_to_draft_atomic(uuid,uuid)','execute')
     or has_function_privilege('authenticated','public.return_test_to_draft_atomic(uuid,uuid)','execute')
     or not has_function_privilege('service_role','public.return_test_to_draft_atomic(uuid,uuid)','execute') then
@@ -207,9 +215,12 @@ begin
   perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_has_work','response');
   delete from public.test_responses where test_responses.test_id=scenario.test_id;
 
+  insert into public.test_student_availability(test_id,student_id,state,updated_by) values(test_id,student_id,'open',owner_id);
   insert into public.test_focus_events(test_id,student_id,session_id,event_type) values(test_id,student_id,'b255-fixture','away_start');
+  update public.test_student_availability set state='closed' where test_student_availability.test_id=scenario.test_id;
   perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_has_work','focus event');
   delete from public.test_focus_events where test_focus_events.test_id=scenario.test_id;
+  delete from public.test_student_availability where test_student_availability.test_id=scenario.test_id;
 
   insert into public.test_ai_grading_runs(id,test_id,triggered_by,selection_hash,status)
     values('b2550000-0000-4000-8000-000000000401',test_id,owner_id,'b255-fixture','completed');
@@ -276,17 +287,35 @@ begin
     or not exists(select 1 from public.classrooms where id='c2550000-0000-4000-8000-000000000010'
       and teacher_id='c2550000-0000-4000-8000-000000000001' and title='Test unpublication race fixture' and class_code='C255T1')
     or not exists(select 1 from public.tests where id='c2550000-0000-4000-8000-000000000011'
-      and classroom_id='c2550000-0000-4000-8000-000000000010' and status='closed'
+      and classroom_id='c2550000-0000-4000-8000-000000000010' and status in ('closed','draft')
       and title='Race Test' and questions_locked_at is null)
     or not exists(select 1 from public.classroom_enrollments where classroom_id='c2550000-0000-4000-8000-000000000010'
       and student_id='c2550000-0000-4000-8000-000000000002')
-    or exists(select 1 from public.assessment_drafts where assessment_type='test' and assessment_id='c2550000-0000-4000-8000-000000000011')
-    or exists(select 1 from public.test_student_availability where test_id='c2550000-0000-4000-8000-000000000011')
+    or exists(select 1 from public.assessment_drafts where assessment_type='test'
+      and assessment_id='c2550000-0000-4000-8000-000000000011'
+      and (classroom_id <> 'c2550000-0000-4000-8000-000000000010' or version <> 1
+        or created_by <> 'c2550000-0000-4000-8000-000000000001'
+        or updated_by <> 'c2550000-0000-4000-8000-000000000001'))
+    or exists(select 1 from public.test_student_availability where test_id='c2550000-0000-4000-8000-000000000011'
+      and (student_id <> 'c2550000-0000-4000-8000-000000000002'
+        or updated_by <> 'c2550000-0000-4000-8000-000000000001'
+        or state not in ('open','closed')))
+    or exists(select 1 from public.test_focus_events where test_id='c2550000-0000-4000-8000-000000000011'
+      and (student_id <> 'c2550000-0000-4000-8000-000000000002'
+        or session_id <> 'c255-focus-race' or event_type <> 'away_start'
+        or metadata is distinct from '{"synthetic":"c255-focus-race"}'::jsonb))
+    or (select count(*) from public.assessment_drafts where assessment_type='test'
+      and assessment_id='c2550000-0000-4000-8000-000000000011') > 1
+    or (select count(*) from public.test_student_availability where test_id='c2550000-0000-4000-8000-000000000011') > 1
+    or (select count(*) from public.test_focus_events where test_id='c2550000-0000-4000-8000-000000000011') > 1
     or exists(select 1 from public.test_attempts where test_id='c2550000-0000-4000-8000-000000000011') then
     raise exception 'Race fixture differs from exact owned postimage; refusing teardown';
   end if;
 end;
 $owned$;
+delete from public.test_focus_events where test_id='c2550000-0000-4000-8000-000000000011';
+delete from public.test_student_availability where test_id='c2550000-0000-4000-8000-000000000011';
+delete from public.assessment_drafts where assessment_type='test' and assessment_id='c2550000-0000-4000-8000-000000000011';
 delete from public.tests where id='c2550000-0000-4000-8000-000000000011';
 delete from public.classrooms where id='c2550000-0000-4000-8000-000000000010';
 delete from public.users where id in ('c2550000-0000-4000-8000-000000000001','c2550000-0000-4000-8000-000000000002');
@@ -434,3 +463,187 @@ end;
 $post$;
 RACE_POST
 echo 'Test unpublication versus 244 access: both lock orders PASS'
+
+# Focus events are the other student-side writer. Give the closed Test an
+# explicit open grant, then record the event through the production RPC.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >"$RACE_DIR/focus-open.log" 2>&1 <<'FOCUS_OPEN'
+set role service_role;
+select public.update_test_student_access_atomic(
+ 'c2550000-0000-4000-8000-000000000011',
+ array['c2550000-0000-4000-8000-000000000002'::uuid],
+ 'open','c2550000-0000-4000-8000-000000000001');
+FOCUS_OPEN
+
+# Session A records valid focus telemetry and closes its grant before commit;
+# the event alone will remain as the unpublication blocker. Session B must
+# observe the occupied lifecycle lock, not a partially written event.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -A -t -v ON_ERROR_STOP=1 >"$RACE_DIR/focus-holder.log" 2>&1 <<'HOLD_FOCUS' &
+begin;
+set local idle_in_transaction_session_timeout='12s';
+set local role service_role;
+select public.record_test_focus_event_atomic(
+ 'c2550000-0000-4000-8000-000000000011','c2550000-0000-4000-8000-000000000002',
+ 'c255-focus-race','away_start','{"synthetic":"c255-focus-race"}'::jsonb);
+update public.test_student_availability set state='closed'
+ where test_id='c2550000-0000-4000-8000-000000000011'
+   and student_id='c2550000-0000-4000-8000-000000000002';
+select 'HOLD_READY';
+select pg_sleep(5);
+commit;
+HOLD_FOCUS
+FOCUS_HOLDER_PID=$!
+wait_for_race_holder "$FOCUS_HOLDER_PID" "$RACE_DIR/focus-holder.log"
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >"$RACE_DIR/focus-first-contender.log" 2>&1 <<'CONTEND_FOCUS_FIRST'
+set role service_role;
+do $probe$
+declare code text; message text;
+begin
+  begin
+    perform public.return_test_to_draft_atomic(
+      'c2550000-0000-4000-8000-000000000001','c2550000-0000-4000-8000-000000000011');
+    raise exception 'Unpublication succeeded during focus transaction';
+  exception when others then
+    get stacked diagnostics code=returned_sqlstate,message=message_text;
+    if code <> 'PT409' or message <> 'test_unpublish_busy' then
+      raise exception 'Focus-first contention result: % %',code,message;
+    end if;
+  end;
+end;
+$probe$;
+CONTEND_FOCUS_FIRST
+wait "$FOCUS_HOLDER_PID"
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >"$RACE_DIR/focus-first-post.log" 2>&1 <<'FOCUS_FIRST_POST'
+set role service_role;
+do $post$
+declare code text; message text;
+begin
+  if not exists(select 1 from public.test_focus_events
+      where test_id='c2550000-0000-4000-8000-000000000011'
+        and session_id='c255-focus-race' and metadata='{"synthetic":"c255-focus-race"}'::jsonb)
+    or not exists(select 1 from public.test_student_availability
+      where test_id='c2550000-0000-4000-8000-000000000011' and state='closed') then
+    raise exception 'Focus-first holder did not commit its expected postimage';
+  end if;
+  begin
+    perform public.return_test_to_draft_atomic(
+      'c2550000-0000-4000-8000-000000000001','c2550000-0000-4000-8000-000000000011');
+    raise exception 'Committed focus event was ignored';
+  exception when others then
+    get stacked diagnostics code=returned_sqlstate,message=message_text;
+    if code <> 'PT409' or message <> 'test_unpublish_has_work' then
+      raise exception 'Committed focus rejection result: % %',code,message;
+    end if;
+  end;
+end;
+$post$;
+FOCUS_FIRST_POST
+
+# Remove only the committed focus fixture rows. The second race begins with a
+# pristine closed Test so unpublication can commit while a late insert waits.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >"$RACE_DIR/focus-reset.log" 2>&1 <<'FOCUS_RESET'
+begin;
+delete from public.test_focus_events where test_id='c2550000-0000-4000-8000-000000000011'
+ and session_id='c255-focus-race';
+delete from public.test_student_availability where test_id='c2550000-0000-4000-8000-000000000011'
+ and student_id='c2550000-0000-4000-8000-000000000002';
+do $post$
+begin
+  if exists(select 1 from public.test_focus_events where test_id='c2550000-0000-4000-8000-000000000011')
+    or exists(select 1 from public.test_student_availability where test_id='c2550000-0000-4000-8000-000000000011')
+    or not exists(select 1 from public.tests where id='c2550000-0000-4000-8000-000000000011' and status='closed') then
+    raise exception 'Focus race reset differs';
+  end if;
+end;
+$post$;
+commit;
+FOCUS_RESET
+
+# Session A commits unpublication after holding its lifecycle lock. Session B
+# starts a focus RPC while A is still in its transaction; after the wait, the
+# writer must reject the newly drafted Test without an event.
+mkfifo "$RACE_DIR/unpublish-focus.input"
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -A -t -v ON_ERROR_STOP=1 <"$RACE_DIR/unpublish-focus.input" >"$RACE_DIR/unpublish-focus-holder.log" 2>&1 &
+UNPUBLISH_FOCUS_HOLDER_PID=$!
+exec 3>"$RACE_DIR/unpublish-focus.input"
+printf '%s\n' \
+  'begin;' \
+  "set local idle_in_transaction_session_timeout='12s';" \
+  'set local role service_role;' \
+  "select public.return_test_to_draft_atomic('c2550000-0000-4000-8000-000000000001','c2550000-0000-4000-8000-000000000011') is not null;" \
+  "select 'HOLD_READY';" >&3
+wait_for_race_holder "$UNPUBLISH_FOCUS_HOLDER_PID" "$RACE_DIR/unpublish-focus-holder.log"
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >"$RACE_DIR/late-focus-contender.log" 2>&1 <<'CONTEND_LATE_FOCUS' &
+set application_name='pika-unpublish-late-focus';
+set role service_role;
+set statement_timeout='9s';
+do $probe$
+declare code text; message text;
+begin
+  begin
+    perform public.record_test_focus_event_atomic(
+      'c2550000-0000-4000-8000-000000000011','c2550000-0000-4000-8000-000000000002',
+      'c255-focus-race','away_start','{"synthetic":"c255-focus-race"}'::jsonb);
+    raise exception 'Late focus RPC succeeded';
+  exception when others then
+    get stacked diagnostics code=returned_sqlstate,message=message_text;
+    if code <> 'PT409' or message <> 'test_focus_event_access_changed' then
+      raise exception 'Late focus result or lock wait differed: % %',code,message;
+    end if;
+  end;
+end;
+$probe$;
+CONTEND_LATE_FOCUS
+LATE_FOCUS_CONTENDER_PID=$!
+FOCUS_WAITER_SEEN=0
+for ((i=0; i<12; i++)); do
+  if [[ "$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -A -t -c \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name='pika-unpublish-late-focus' and wait_event_type='Lock'" 2>/dev/null)" == '1' ]]; then
+    FOCUS_WAITER_SEEN=1
+    break
+  fi
+  sleep 0.05
+done
+if [[ "$FOCUS_WAITER_SEEN" != '1' ]]; then
+  printf '%s\n' 'rollback;' >&3
+  exec 3>&-
+  wait "$UNPUBLISH_FOCUS_HOLDER_PID" || true
+  wait "$LATE_FOCUS_CONTENDER_PID" || true
+  echo "Focus contender never waited on the unpublication lock; logs: $RACE_DIR" >&2
+  exit 1
+fi
+printf '%s\n' 'commit;' >&3
+exec 3>&-
+wait "$UNPUBLISH_FOCUS_HOLDER_PID"
+wait "$LATE_FOCUS_CONTENDER_PID"
+
+# A fresh focus RPC after the committed return must fail too. This rules out
+# a writer that only handles overlapping transactions.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >"$RACE_DIR/late-focus-post.log" 2>&1 <<'LATE_FOCUS_POST'
+set role service_role;
+do $post$
+declare code text; message text;
+begin
+  if not exists(select 1 from public.tests where id='c2550000-0000-4000-8000-000000000011' and status='draft')
+    or not exists(select 1 from public.assessment_drafts where assessment_type='test'
+      and assessment_id='c2550000-0000-4000-8000-000000000011' and version=1)
+    or exists(select 1 from public.test_focus_events where test_id='c2550000-0000-4000-8000-000000000011') then
+    raise exception 'Committed return or late focus postimage differs';
+  end if;
+  begin
+    perform public.record_test_focus_event_atomic(
+      'c2550000-0000-4000-8000-000000000011','c2550000-0000-4000-8000-000000000002',
+      'c255-focus-race','away_start','{"synthetic":"c255-focus-race"}'::jsonb);
+    raise exception 'Direct late focus RPC succeeded';
+  exception when others then
+    get stacked diagnostics code=returned_sqlstate,message=message_text;
+    if code <> 'PT409' or message <> 'test_focus_event_access_changed' then
+      raise exception 'Direct late focus RPC result: % %',code,message;
+    end if;
+  end;
+  if exists(select 1 from public.test_focus_events where test_id='c2550000-0000-4000-8000-000000000011') then
+    raise exception 'Rejected direct late focus RPC persisted';
+  end if;
+end;
+$post$;
+LATE_FOCUS_POST
+echo 'Test unpublication versus focus RPC: both lock orders and late retry PASS'

@@ -37,10 +37,13 @@ the mutation is pending.
 
 ## Rollout and evidence
 
-The only new schema object is the service-role RPC in
+Migration 255 adds the return-to-draft and live focus-event service-role RPCs in
 `255_return_test_to_draft_atomic.sql`; its dependencies are present in the full
-001–254 chain. Without 255, the new mutation fails closed with 503. Existing
-publication, editing and student access continue through their current routes.
+001–254 chain. Without 255, return to draft fails closed with 503 and focus-event
+recording fails closed. The live focus endpoint uses an atomic writer to prevent
+a request that observed earlier access from inserting after a return to draft.
+Historical archive/cleanup SQL remains unchanged. Publication, editing and
+student access continue through their current routes.
 This feature does not activate the dormant contextual publication endpoint or
 shared admission.
 

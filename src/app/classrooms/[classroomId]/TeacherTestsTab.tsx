@@ -1947,8 +1947,8 @@ export function TeacherTestsTab({
         body: '{}',
       })
       const data: unknown = await response.json().catch(() => ({}))
-      if (!isCurrentRequest()) return
       if (!response.ok) {
+        if (!isCurrentRequest()) return
         const message = data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string'
           ? (data as { error: string }).error
           : 'Could not return this test to draft.'
@@ -1956,6 +1956,12 @@ export function TeacherTestsTab({
       }
       const acknowledgement = readUnpublishAcknowledgement(data, requestedTestId, requestedClassroomId)
       if (!acknowledgement) throw new Error('Could not verify the saved test. Refresh and try again.')
+
+      invalidateCachedJSON(`teacher-test-detail:${requestedTestId}`)
+      invalidateCachedJSON(`teacher-tests:${requestedClassroomId}`)
+      invalidateGradebookForClassroom(requestedClassroomId)
+      window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: requestedClassroomId } }))
+      if (!isCurrentRequest()) return
 
       setTests((previous) => previous.map((test) => test.id === requestedTestId
         ? {
@@ -1974,10 +1980,7 @@ export function TeacherTestsTab({
       setShowUnpublishConfirm(false)
       setShowEditModal(false)
       setStatusActionError('')
-      invalidateCachedJSON(`teacher-test-detail:${requestedTestId}`)
-      invalidateCachedJSON(`teacher-tests:${requestedClassroomId}`)
       showMessage({ text: 'Test returned to draft', tone: 'success' })
-      window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: requestedClassroomId } }))
     } catch (error) {
       if (isCurrentRequest()) setUnpublishError(error instanceof Error ? error.message : 'Could not return this test to draft.')
     } finally {

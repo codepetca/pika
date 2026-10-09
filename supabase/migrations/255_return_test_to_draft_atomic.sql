@@ -187,4 +187,85 @@ revoke all on function public.return_test_to_draft_atomic(uuid,uuid)
 grant execute on function public.return_test_to_draft_atomic(uuid,uuid)
   to service_role;
 
+-- The live focus writer shares the Test lifecycle lock with access changes and
+-- return-to-draft. Historical direct INSERT/restore behavior is unchanged.
+create function public.record_test_focus_event_atomic(
+  p_test_id uuid, p_student_id uuid, p_session_id text,
+  p_event_type text, p_metadata jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+set lock_timeout = '1s'
+set statement_timeout = '10s'
+as $function$
+declare
+  v_test public.tests%rowtype;
+  v_state text;
+  v_event_id uuid;
+begin
+  if p_test_id is null or p_student_id is null
+    or p_session_id is null or pg_catalog.length(p_session_id) < 1
+    or pg_catalog.length(p_session_id) > 120
+    or p_event_type is null
+    or p_event_type not in ('away_start','away_end','route_exit_attempt','window_unmaximize_attempt')
+    or (p_metadata is not null and pg_catalog.jsonb_typeof(p_metadata) <> 'object')
+    or (p_metadata is not null and pg_catalog.octet_length(p_metadata::text) > 32768) then
+    raise exception using errcode = 'PT400', message = 'test_focus_event_invalid_input';
+  end if;
+
+  begin
+    v_test := private.lock_test_lifecycle(p_test_id);
+  exception when no_data_found then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_source_changed';
+  end;
+  if v_test.status = 'draft' then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_access_changed';
+  end if;
+  perform 1 from public.classrooms classroom
+    where classroom.id = v_test.classroom_id and classroom.archived_at is null;
+  if not found then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_access_changed';
+  end if;
+  perform 1 from public.users student
+    where student.id = p_student_id and student.role = 'student'
+    for key share nowait;
+  if not found then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_participant_changed';
+  end if;
+  perform 1 from public.classroom_enrollments enrollment
+    where enrollment.classroom_id = v_test.classroom_id
+      and enrollment.student_id = p_student_id
+    for key share nowait;
+  if not found then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_participant_changed';
+  end if;
+  select state into v_state from public.test_student_availability
+    where test_id = p_test_id and student_id = p_student_id;
+  if coalesce(v_state, case when v_test.status = 'active' then 'open' else 'closed' end) <> 'open' then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_access_changed';
+  end if;
+  if exists(select 1 from public.test_attempts attempt
+    where attempt.test_id = p_test_id and attempt.student_id = p_student_id
+      and attempt.is_submitted) then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_attempt_changed';
+  end if;
+
+  insert into public.test_focus_events
+    (test_id, student_id, session_id, event_type, metadata)
+  values (p_test_id, p_student_id, p_session_id, p_event_type, p_metadata)
+  returning id into v_event_id;
+  return v_event_id;
+exception
+  when lock_not_available or deadlock_detected or serialization_failure then
+    raise exception using errcode = 'PT409', message = 'test_focus_event_busy';
+end;
+$function$;
+
+revoke all on function public.record_test_focus_event_atomic(uuid,uuid,text,text,jsonb)
+  from public, anon, authenticated;
+grant execute on function public.record_test_focus_event_atomic(uuid,uuid,text,text,jsonb)
+  to service_role;
+
 commit;

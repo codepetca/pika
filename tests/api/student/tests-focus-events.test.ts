@@ -29,7 +29,7 @@ vi.mock('@/lib/server/tests', async () => {
   }
 })
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 const activeTest = {
   id: 'test-1',
   classroom_id: 'classroom-1',
@@ -57,6 +57,9 @@ function buildRequest(body: unknown) {
 describe('POST /api/student/tests/[id]/focus-events', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: '11111111-1111-4111-8111-111111111111', error: null, status: 200,
+    })
     serverTestsMocks.assertStudentCanAccessTest.mockResolvedValue({
       ok: true,
       test: activeTest,
@@ -175,6 +178,31 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
+  })
+
+  it.each(['PT409', '55P03', '40P01', '40001'])('returns a private 409 when insertion loses the access race (%s)', async code => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { code, message: 'private database detail' }, status: 409 })
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return { select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'attempt-1', is_submitted: false }, error: null }),
+        })) }
+      }
+      if (table === 'test_responses') {
+        return { select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+        })) }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(buildRequest({ event_type: 'away_start', session_id: 's1' }), {
+      params: Promise.resolve({ id: 'test-1' }),
+    })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'Test access changed before the focus event was saved' })
   })
 
   it('rejects logging after the student has already submitted', async () => {
@@ -447,7 +475,7 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
   })
 
   it('persists versioned incident metadata and returns an incident-deduped summary', async () => {
-    const insert = vi.fn().mockResolvedValue({ error: null })
+    const largeUnicodeMetadata = '😀'.repeat(2000)
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
         return {
@@ -470,7 +498,6 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
       }
       if (table === 'test_focus_events') {
         return {
-          insert,
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             order: vi.fn().mockResolvedValue({
@@ -513,17 +540,18 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
         incident_id: 'incident-1',
         client_event_id: 'event-1',
         client_occurred_at: '2026-02-24T12:00:00.000Z',
-        metadata: { source: 'visibility' },
+        metadata: { source: 'visibility', note: largeUnicodeMetadata },
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
-      session_id: 'session-1',
-      metadata: {
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('record_test_focus_event_atomic', expect.objectContaining({
+      p_session_id: 'session-1',
+      p_metadata: {
         source: 'visibility',
+        note: largeUnicodeMetadata,
         detector_version: 2,
         incident_id: 'incident-1',
         client_event_id: 'event-1',

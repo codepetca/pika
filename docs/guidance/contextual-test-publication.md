@@ -261,7 +261,7 @@ or open learner availability. Migration255 reconstructs the retained draft from
 current published Test/question rows under the shared lifecycle locks. This is
 an active legacy teacher path; it does not adopt the contextual publication
 endpoint, change overloaded PATCH, or satisfy contextual cutover obligations.
-The complete UI fingerprint is `263f0dd166fbac6ceb69f91061fd143aa5d6a3a7716f25cf6bb877f63315443c`;
+The complete UI fingerprint is `e8653214921b5dbe9ab736fc70232f6d1427b69b97951b71fe23a1e734d9e7b0`;
 the whole-file regression guard and PATCH fingerprint `d9947ed0` remain enforced.
 
 ## Intended transaction contract

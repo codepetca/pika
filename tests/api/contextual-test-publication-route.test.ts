@@ -92,7 +92,7 @@ describe('prepared owner publication route', () => {
   })
   it.each([
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
-    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', '263f0dd166fbac6ceb69f91061fd143aa5d6a3a7716f25cf6bb877f63315443c'],
+    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', 'e8653214921b5dbe9ab736fc70232f6d1427b69b97951b71fe23a1e734d9e7b0'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
     // PATCH remains the attested parent865d source. PR1540 reviewed the
     // grading-only delta at ae458ec36. PR1552 independently reviewed the

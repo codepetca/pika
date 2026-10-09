@@ -6,7 +6,7 @@ import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockTest } from '../helpers/mocks'
-import { invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import type { Classroom, TestAssessmentWithStats } from '@/types'
 
 vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
@@ -359,6 +359,7 @@ describe('TeacherTestsTab', () => {
   beforeEach(() => {
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON('teacher-test-detail:test-1')
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     setOpenMock.mockReset()
@@ -370,6 +371,7 @@ describe('TeacherTestsTab', () => {
     window.localStorage.clear()
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON('teacher-test-detail:test-1')
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -1496,6 +1498,8 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Edit Saved title' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Return test to draft?' })).not.toBeInTheDocument()
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledOnce()
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledWith(classroom.id)
   })
 
   it('keeps a conflict in the confirmation and permits retry', async () => {
@@ -1510,9 +1514,15 @@ describe('TeacherTestsTab', () => {
     await screen.findByRole('button', { name: 'Open All' })
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
     const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('A student has started this test.')
+    expect(mockInvalidateGradebookForClassroom).not.toHaveBeenCalled()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+    const conflictCacheReload = vi.fn(async () => ({ stamp: 'fresh' }))
+    expect(await fetchJSONWithCache('teacher-test-detail:test-1', conflictCacheReload)).toEqual({ stamp: 'stale' })
+    expect(conflictCacheReload).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument())
   })
@@ -1535,10 +1545,16 @@ describe('TeacherTestsTab', () => {
       await screen.findByRole('button', { name: 'Open All' })
       fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+      await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
       const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not verify the saved test')
       expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+      expect(mockInvalidateGradebookForClassroom).not.toHaveBeenCalled()
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
+      const malformedCacheReload = vi.fn(async () => ({ stamp: 'fresh' }))
+      expect(await fetchJSONWithCache('teacher-test-detail:test-1', malformedCacheReload)).toEqual({ stamp: 'stale' })
+      expect(malformedCacheReload).not.toHaveBeenCalled()
     },
   )
 
@@ -1546,15 +1562,19 @@ describe('TeacherTestsTab', () => {
     const first = makeTest({ id: 'test-1', title: 'First Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
     const second = makeTest({ id: 'test-2', title: 'Second Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
     mockTestsResponse([first, second])
+    let firstServerStatus: 'closed' | 'draft' = 'closed'
     let resolveUnpublish!: (value: { ok: boolean; json: () => Promise<unknown> }) => void
     fetchMock.mockImplementation((url: string) => {
       if (url === '/api/teacher/tests/test-1/unpublish') {
         return new Promise((resolve) => { resolveUnpublish = resolve })
       }
+      if (url.includes('/api/teacher/tests?classroom_id=')) {
+        return Promise.resolve({ ok: true, json: async () => ({ tests: [{ ...first, status: 'draft' }, second] }) })
+      }
       if (url.endsWith('/results')) {
         return Promise.resolve(makeResultsResponse({
           testId: url.includes('/test-2/') ? 'test-2' : 'test-1',
-          testStatus: 'closed',
+          testStatus: url.includes('/test-2/') ? 'closed' : firstServerStatus,
           students: [],
         }))
       }
@@ -1574,14 +1594,23 @@ describe('TeacherTestsTab', () => {
 
     view.rerender(<TeacherTestsTab classroom={classroom} selectedTestId="test-2" selectedTestMode="grading" />)
     await screen.findByRole('button', { name: 'Edit Second Test' })
+    await fetchJSONWithCache(`teacher-tests:${classroom.id}`, async () => ({ tests: [first, second] }), 60_000)
+    await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
     await act(async () => {
+      firstServerStatus = 'draft'
       resolveUnpublish({ ok: true, json: async () => ({ test: { ...first, status: 'draft' }, draft_version: 3 }) })
     })
+    await waitFor(() => expect(listFetchCalls(fetchMock)).toHaveLength(2))
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledOnce()
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledWith(classroom.id)
+    const staleCacheReload = vi.fn(async () => ({ stamp: 'fresh' }))
+    expect(await fetchJSONWithCache('teacher-test-detail:test-1', staleCacheReload)).toEqual({ stamp: 'fresh' })
+    expect(staleCacheReload).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Edit Second Test' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
     view.rerender(<TeacherTestsTab classroom={classroom} selectedTestId="test-1" selectedTestMode="grading" />)
     await screen.findByRole('button', { name: 'Edit First Test' })
-    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument()
   })
 
   it('publishes an unpublished test closed from the authoring dialog', async () => {
