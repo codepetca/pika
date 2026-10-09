@@ -11,6 +11,7 @@ import type { Classroom } from '@/types'
 import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 const push = vi.hoisted(() => vi.fn())
+const refresh = vi.hoisted(() => vi.fn())
 const createClassroomModalProps = vi.hoisted(() => ({ current: null as any }))
 const archiveOperationId = vi.hoisted(() => vi.fn())
 
@@ -32,7 +33,7 @@ vi.mock('@/components/CreateClassroomModal', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, refresh }),
   usePathname: () => '/classrooms',
 }))
 
@@ -105,6 +106,52 @@ describe('TeacherClassroomsIndex', () => {
     const pageFrame = screen.getByTestId('classroom-card').closest('.max-w-reading')
     expect(pageFrame).toHaveClass('mx-auto', 'w-full', 'max-w-reading')
     expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
+  })
+
+  it('shows first-read error instead of create, then recovers to the list', () => {
+    const { rerender } = render(<TooltipProvider><TeacherClassroomsIndex initialClassrooms={[]} initialReadError /></TooltipProvider>)
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load classrooms')
+    expect(screen.queryByText('Create your first classroom')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try loading classrooms again' }))
+    expect(refresh).toHaveBeenCalledOnce()
+    rerender(<TooltipProvider><TeacherClassroomsIndex initialClassrooms={[createMockClassroom({ title: 'Recovered' })]} /></TooltipProvider>)
+    expect(screen.getByText('Recovered')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Classrooms' })).toHaveFocus()
+  })
+
+  it('suppresses the empty invitation during repeated failed reads while retaining an open dialog', () => {
+    const view = (initialReadError: boolean) => <TooltipProvider><TeacherClassroomsIndex initialClassrooms={[]} initialReadError={initialReadError} /></TooltipProvider>
+    const { rerender } = render(view(false))
+    expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
+    selectClassroomAction('New Classroom')
+    const dialog = screen.getByRole('dialog')
+    for (let attempt = 0; attempt < 2; attempt++) {
+      rerender(view(true))
+      expect(screen.getByRole('alert')).toHaveTextContent('Could not load classrooms')
+      expect(screen.queryByText('Create your first classroom')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Create classroom' })).not.toBeInTheDocument()
+      expect(screen.getByRole('dialog')).toBe(dialog)
+    }
+    rerender(view(false))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBe(dialog)
+  })
+
+  it('retains warm classrooms and an open create dialog through read failure', () => {
+    const initialClassrooms = [createMockClassroom({ title: 'Retained' })]
+    const { rerender } = render(<TooltipProvider><TeacherClassroomsIndex initialClassrooms={initialClassrooms} /></TooltipProvider>)
+    selectClassroomAction('New Classroom')
+    const dialog = screen.getByRole('dialog')
+    rerender(<TooltipProvider><TeacherClassroomsIndex initialClassrooms={[]} initialReadError /></TooltipProvider>)
+    expect(screen.getByText('Retained')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBe(dialog)
+    rerender(<TooltipProvider><TeacherClassroomsIndex initialClassrooms={[createMockClassroom({ title: 'Fresh server result' })]} /></TooltipProvider>)
+    expect(screen.getByText('Fresh server result')).toBeInTheDocument()
+    expect(screen.queryByText('Retained')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBe(dialog)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('does not refetch classrooms on initial mount (#302)', async () => {

@@ -1,6 +1,7 @@
 import { act, render, waitFor, cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthSessionWatcher } from '@/components/AuthSessionWatcher'
+import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 
 const redirectToLoginForReauthMock = vi.hoisted(() => vi.fn())
 
@@ -23,10 +24,12 @@ function mockResponse(status: number, body: unknown) {
 describe('AuthSessionWatcher', () => {
   beforeEach(() => {
     redirectToLoginForReauthMock.mockClear()
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true)
   })
 
   afterEach(() => {
     cleanup()
+    invalidateTeacherClassrooms()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     vi.useRealTimers()
@@ -184,6 +187,136 @@ describe('AuthSessionWatcher', () => {
     act(() => { document.dispatchEvent(new Event('visibilitychange')) })
     expect(fetchMock).toHaveBeenCalledTimes(2)
 
+    finishFirst(await mockResponse(401, {}))
+    await act(async () => { await Promise.resolve() })
+    expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps the default 60-second cadence while visible and focused', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn(() => mockResponse(200, { user: { id: 'teacher-1', role: 'teacher' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('pauses checks in a visible unfocused window and validates immediately on focus', async () => {
+    vi.useFakeTimers()
+    let focused = true
+    vi.mocked(document.hasFocus).mockImplementation(() => focused)
+    const fetchMock = vi.fn(() => mockResponse(200, { user: { id: 'teacher-1', role: 'teacher' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    await act(async () => { await Promise.resolve() })
+
+    focused = false
+    act(() => { window.dispatchEvent(new Event('blur')) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // The focus event itself authorizes the immediate check even if hasFocus
+    // has not caught up yet in the browser.
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/auth/me', { cache: 'no-store' })
+  })
+
+  it('waits for focus when mounted in a visible unfocused window', async () => {
+    vi.mocked(document.hasFocus).mockReturnValue(false)
+    const fetchMock = vi.fn(() => mockResponse(200, { user: { id: 'teacher-1', role: 'teacher' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    expect(fetchMock).not.toHaveBeenCalled()
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { status: 401, body: {}, reason: undefined },
+    { status: 200, body: { user: { id: 'teacher-2', role: 'teacher' } }, reason: 'session-changed' },
+  ])('validates the resumed session after blur (status $status)', async ({ status, body, reason }) => {
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => mockResponse(200, { user: { id: 'teacher-1', role: 'teacher' } }))
+      .mockImplementation(() => mockResponse(status, body))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    await act(async () => { await Promise.resolve() })
+    act(() => {
+      window.dispatchEvent(new Event('blur'))
+      window.dispatchEvent(new Event('focus'))
+    })
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    if (reason) {
+      expect(redirectToLoginForReauthMock).toHaveBeenCalledWith(undefined, reason)
+    } else {
+      expect(redirectToLoginForReauthMock).toHaveBeenCalledWith()
+    }
+  })
+
+  it('ignores a late pre-blur response while a fresh focus check runs', async () => {
+    let finishFirst!: (response: Awaited<ReturnType<typeof mockResponse>>) => void
+    const first = new Promise<Awaited<ReturnType<typeof mockResponse>>>(
+      (resolve) => { finishFirst = resolve },
+    )
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(first)
+      .mockImplementation(() => mockResponse(200, { user: { id: 'teacher-1', role: 'teacher' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    act(() => {
+      window.dispatchEvent(new Event('blur'))
+      window.dispatchEvent(new Event('focus'))
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    finishFirst(await mockResponse(401, {}))
+    await act(async () => { await Promise.resolve() })
+    expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps watcher checks independent of a pending list identity batch', async () => {
+    let finishIdentity!: (response: Response) => void
+    const listIdentity = new Promise<Response>((resolve) => { finishIdentity = resolve })
+    const fetchMock = vi.fn((url: string) => {
+      if (url === '/api/auth/me') {
+        return mockResponse(200, { user: { id: 'teacher-1', role: 'teacher' } })
+      }
+      return mockResponse(200, { classrooms: [] })
+    }).mockReturnValueOnce(listIdentity)
+    vi.stubGlobal('fetch', fetchMock)
+
+    const list = fetchTeacherClassrooms()
+    const view = render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    act(() => {
+      window.dispatchEvent(new Event('blur'))
+      window.dispatchEvent(new Event('focus'))
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    view.unmount()
+    finishIdentity(await mockResponse(200, { user: { id: 'teacher-1', role: 'teacher' } }))
+    await expect(list).resolves.toEqual([])
+    expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
+  })
+
+  it('ignores the previous expected actor response after switching the mounted actor', async () => {
+    let finishFirst!: (response: Awaited<ReturnType<typeof mockResponse>>) => void
+    const first = new Promise<Awaited<ReturnType<typeof mockResponse>>>(
+      (resolve) => { finishFirst = resolve },
+    )
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(first)
+      .mockImplementation(() => mockResponse(200, { user: { id: 'teacher-2', role: 'teacher' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    const view = render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    view.rerender(<AuthSessionWatcher expectedUserId="teacher-2" expectedRole="teacher" />)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     finishFirst(await mockResponse(401, {}))
     await act(async () => { await Promise.resolve() })
     expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()

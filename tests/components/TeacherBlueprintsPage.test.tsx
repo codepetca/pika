@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render as renderComponent, screen, waitFor } from '@testing-library/react'
+import { TooltipProvider } from '@/ui'
 import TeacherBlueprintsPage from '@/app/teacher/blueprints/page'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+
+const render: typeof renderComponent = (ui, options) => renderComponent(ui, {
+  wrapper: ({ children }) => <TooltipProvider>{children}</TooltipProvider>,
+  ...options,
+})
 
 const mockPush = vi.fn()
 let searchParamsMap = new Map<string, string>()
@@ -265,6 +271,216 @@ describe('TeacherBlueprintsPage', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     cleanup()
+  })
+
+  it('recovers a failed cold list without presenting empty or selection onboarding', async () => {
+    searchParamsMap.clear()
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let reads = 0
+    let resolveRetry!: (response: Response) => void
+    const pendingRetry = new Promise<Response>((resolve) => { resolveRetry = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input) === '/api/teacher/course-blueprints') {
+        reads += 1
+        return reads === 1 ? Promise.resolve(jsonResponse({ error: 'private database exception' }, false)) : pendingRetry
+      }
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    const retry = await screen.findByRole('button', { name: 'Retry course blueprint list' })
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load course blueprints')
+    expect(screen.queryByText('private database exception')).toBeNull()
+    expect(screen.queryByText('No course blueprints yet.')).toBeNull()
+    expect(screen.queryByText('Select a course blueprint to edit its course package.')).toBeNull()
+    retry.focus()
+    act(() => {
+      fireEvent.click(retry)
+      fireEvent.click(retry)
+    })
+    expect(screen.getByRole('region', { name: 'Course blueprint list' })).toHaveFocus()
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true')
+    await waitFor(() => expect(reads).toBe(2))
+    expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-blueprints:')
+    await act(async () => resolveRetry(jsonResponse({ blueprints: blueprintList })))
+    expect(await screen.findByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
+    expect(reads).toBe(2)
+  })
+
+  it('shows empty onboarding only after a successful empty list', async () => {
+    searchParamsMap.clear()
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints'
+      ? Promise.resolve(jsonResponse({ blueprints: [] })) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    expect(await screen.findByText('No course blueprints yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry course blueprint list' })).toBeNull()
+  })
+
+  it('retries the selected missing detail and keeps the independent list error', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let detailReads = 0
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints') return Promise.resolve(jsonResponse({ error: 'list unavailable' }, false))
+      if (url === '/api/teacher/course-blueprints/b-2') {
+        detailReads += 1
+        return detailReads === 1 ? Promise.reject(new Error('private detail error')) : defaultFetch(input, init)
+      }
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    const retry = await screen.findByRole('button', { name: 'Retry selected course blueprint' })
+    expect(screen.queryByText('Select a course blueprint to edit its course package.')).toBeNull()
+    expect(screen.queryByText('private detail error')).toBeNull()
+    retry.focus()
+    act(() => {
+      fireEvent.click(retry)
+      fireEvent.click(retry)
+    })
+    expect(screen.getByRole('region', { name: 'Selected course blueprint' })).toHaveFocus()
+    expect(await screen.findByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry course blueprint list' })).toBeInTheDocument()
+    expect(detailReads).toBe(2)
+  })
+
+  it('keeps the selected-detail error when retrying its failed list', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let listReads = 0
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints') {
+        listReads += 1
+        if (listReads === 1) return Promise.resolve(jsonResponse({}, false))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2') return Promise.resolve(jsonResponse({}, false))
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('button', { name: 'Retry selected course blueprint' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry course blueprint list' }))
+    expect(await screen.findByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry selected course blueprint' })).toBeInTheDocument()
+    expect(screen.queryByText('Select a course blueprint to edit its course package.')).toBeNull()
+  })
+
+  it('keeps a successful preferred detail available when its list read fails', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints'
+      ? Promise.reject(new Error('list unavailable')) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    expect(await screen.findByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry course blueprint list' })).toBeInTheDocument()
+    expect(screen.queryByText('No course blueprints yet.')).toBeNull()
+  })
+
+  it('retains operation feedback, rows, editor DOM, dirty sections and tab during warm list recovery', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let listReads = 0
+    let detailReads = 0
+    let resolveRetry!: (response: Response) => void
+    const pendingRetry = new Promise<Response>((resolve) => { resolveRetry = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints/b-2/export') return Promise.resolve(jsonResponse({ error: 'Blueprint Two export failed' }, false))
+      if (url === '/api/teacher/course-blueprints/b-2') detailReads += 1
+      if (url === '/api/teacher/course-blueprints') {
+        listReads += 1
+        if (listReads === 2) return Promise.reject(new Error('warm list unavailable'))
+        if (listReads === 3) return pendingRetry
+      }
+      return defaultFetch(input, init)
+    })
+    const view = render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    fireEvent.click(screen.getByRole('button', { name: 'Export Course Package' }))
+    expect(await screen.findByText('Blueprint Two export failed')).toBeInTheDocument()
+    openSection('Content', 'Outline')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Outline Markdown' }), { target: { value: 'Unsaved outline' } })
+    openSection('Settings', 'Course Details')
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Unsaved title' } })
+    searchParamsMap.delete('blueprint')
+    view.rerender(<TeacherBlueprintsPage />)
+    const retry = await screen.findByRole('button', { name: 'Retry course blueprint list' })
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    fireEvent.click(retry)
+    await waitFor(() => expect(listReads).toBe(3))
+    expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBe(title)
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    expect(title).toHaveValue('Unsaved title')
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+    await act(async () => resolveRetry(jsonResponse({}, false)))
+    expect(screen.getByRole('button', { name: 'Retry course blueprint list' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBe(title)
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry course blueprint list' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry course blueprint list' })).toBeNull())
+    expect(listReads).toBe(4)
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBe(title)
+    expect(screen.getByText('Blueprint Two export failed')).toBeInTheDocument()
+    expect(detailReads).toBe(1)
+    openSection('Content', 'Outline')
+    expect(screen.getByRole('textbox', { name: 'Outline Markdown' })).toHaveValue('Unsaved outline')
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
+  })
+
+  it.each(['success', 'failure'] as const)('ignores late selected-detail retry %s and finalization after selecting another Blueprint', async (outcome) => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let aReads = 0
+    let settleA!: (response: Response) => void
+    let settleB!: (response: Response) => void
+    const delayedA = new Promise<Response>((resolve) => { settleA = resolve })
+    const delayedB = new Promise<Response>((resolve) => { settleB = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      if (String(input) === '/api/teacher/course-blueprints/b-2') {
+        aReads += 1
+        return aReads === 1 ? Promise.resolve(jsonResponse({}, false)) : delayedA
+      }
+      if (String(input) === '/api/teacher/course-blueprints/b-1') return delayedB
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry selected course blueprint' }))
+    await waitFor(() => expect(aReads).toBe(2))
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await act(async () => settleA(outcome === 'success' ? jsonResponse({ blueprint: blueprintDetail }) : jsonResponse({}, false)))
+    expect(screen.getByText('Loading course blueprint')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry selected course blueprint' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Blueprint Two' })).toBeNull()
+    await act(async () => settleB(jsonResponse({ blueprint: blueprintOneDetail })))
+    expect(await screen.findByRole('heading', { name: 'Blueprint One' })).toBeInTheDocument()
+  })
+
+  it('clears previous Blueprint operation feedback when selecting a different Blueprint', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints/b-2/export'
+      ? Promise.resolve(jsonResponse({ error: 'Blueprint Two export failed' }, false)) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    fireEvent.click(screen.getByRole('button', { name: 'Export Course Package' }))
+    expect(await screen.findByText('Blueprint Two export failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await screen.findByRole('heading', { name: 'Blueprint One' })
+    expect(screen.queryByText('Blueprint Two export failed')).toBeNull()
+  })
+
+
+  it('clears previous Blueprint operation feedback from a failed save when selecting a different Blueprint', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints/b-2' && init?.method === 'PATCH'
+      ? Promise.resolve(jsonResponse({ error: 'Blueprint Two save failed' }, false)) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    openSection('Settings', 'Course Details')
+    fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
+    expect(await screen.findByText('Blueprint Two save failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await screen.findByRole('heading', { name: 'Blueprint One' })
+    expect(screen.queryByText('Blueprint Two save failed')).toBeNull()
   })
 
   it('selects the blueprint from the query param and shows workflow-oriented package actions', async () => {

@@ -1,9 +1,10 @@
 'use client'
 
+import { CircularProgress } from '@/ui'
 import type { ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Archive, GripVertical, LoaderCircle } from 'lucide-react'
+import { Archive, GripVertical } from 'lucide-react'
 import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import type { Classroom } from '@/types'
@@ -72,7 +73,7 @@ function ClassroomRowFrame({
         </div>
         {isOpening && (
           <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-            <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            <CircularProgress className="h-3.5 w-3.5" />
             Opening classroom...
           </div>
         )}

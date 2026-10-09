@@ -104,6 +104,13 @@ describe('AI startup docs', () => {
     expect(totalChars).toBeLessThanOrEqual(17_000)
   })
 
+  it('retains the attendance release receipt when CURRENT is compacted', () => {
+    const current = readRepoFile('.ai/CURRENT.md')
+
+    expect(current).toContain('Recorded releases: attendance')
+    expect(current).toContain('`teacher_entitlements` smoke 4/4 on 2026-08-28')
+  })
+
   it('keeps journal reads out of the default startup flow', () => {
     const files = [
       '.ai/START-HERE.md',
@@ -1322,6 +1329,32 @@ describe('AI startup docs', () => {
 
       expect(result.status).toBe(0)
       expect(`${result.stdout}\n${result.stderr}`).not.toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['exact import', '@/app/teacher/dashboard/page', 0],
+    ['prefix collision', '@/app/teacher/dashboard/page-extra', 1],
+  ] as const)('audits large changed semantic suites with %s', (_name, importedPage, expectedStatus) => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+    mkdirSync(join(repoRoot, 'src/app/teacher/dashboard'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/components'), { recursive: true })
+    const pagePath = join(repoRoot, 'src/app/teacher/dashboard/page.tsx')
+    const testPath = join(repoRoot, 'tests/components/TeacherDashboardPage.test.tsx')
+    writeFileSync(pagePath, 'export default function TeacherDashboardPage() { return <button aria-expanded="false">Open</button> }\n')
+    writeFileSync(testPath, "import { it } from 'vitest'\n")
+    commitAll(repoRoot, 'add page and test')
+    writeFileSync(pagePath, 'export default function TeacherDashboardPage() { return <button aria-expanded="true">Open</button> }\n')
+    // Exceed the pipe buffer after an early matching import, as a real growing suite does.
+    writeFileSync(testPath, `import TeacherDashboardPage from '${importedPage}'\n${'// semantic suite padding\n'.repeat(30_000)}`)
+    try {
+      const result = spawnSync('bash', [scriptPath], { cwd: repoRoot, encoding: 'utf8' })
+      expect(result.status).toBe(expectedStatus)
+      if (expectedStatus === 0) expect(`${result.stdout}\n${result.stderr}`).not.toContain('missing-a11y-tests')
+      else expect(`${result.stdout}\n${result.stderr}`).toContain('missing-a11y-tests')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

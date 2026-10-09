@@ -161,6 +161,8 @@ export interface PageHeadingProps {
   description?: ReactNode
   level?: 'h1' | 'h2' | 'h3'
   size?: 'page' | 'section'
+  /** Let reading titles expose their full identity; other headings keep truncation. */
+  wrap?: boolean
   className?: string
   headingRef?: Ref<HTMLHeadingElement>
   tabIndex?: number
@@ -171,6 +173,7 @@ export function PageHeading({
   description,
   level = 'h1',
   size = 'page',
+  wrap = false,
   className,
   headingRef,
   tabIndex,
@@ -183,7 +186,8 @@ export function PageHeading({
         ref={headingRef}
         tabIndex={tabIndex}
         className={cn(
-          'truncate text-text-default',
+          'text-text-default',
+          wrap ? 'whitespace-normal' : 'truncate',
           size === 'page'
             ? 'text-2xl font-semibold leading-8'
             : 'text-sm font-semibold leading-5',

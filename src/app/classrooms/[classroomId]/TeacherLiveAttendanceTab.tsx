@@ -32,6 +32,7 @@ import type {
 } from '@/lib/teacher-attendance'
 import type { Classroom } from '@/types'
 import {
+  CircularProgress,
   Button,
   ContentDialog,
   DataTable,
@@ -479,7 +480,7 @@ export function TeacherLiveAttendanceTab({
                 disabled={loading || refreshing || Boolean(activeCommand)}
                 onClick={() => void loadView(true)}
               >
-                <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden="true" />
+                {refreshing ? <CircularProgress /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </Tooltip>
           </div>

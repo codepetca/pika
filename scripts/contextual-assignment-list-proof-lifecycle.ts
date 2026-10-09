@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { isAbsolute } from 'node:path'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { assignmentListFixtureSetupSql, type AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
-import { assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
+import { assignmentListRevocationDiagnostic, assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
 
 export function validateAssignmentListEphemeralIdentity(input: { projectId: string; workdir: string }) {
@@ -111,7 +111,8 @@ export function assignmentListLifecycleDiagnostic(failure: Failure) {
   const assertion = failure.error instanceof AssertionError ? failure.error : undefined
   const actual = assertion?.actual instanceof ApiError ? assertion.actual : failure.error instanceof ApiError ? failure.error : undefined
   const status = actual && Number.isInteger(actual.statusCode) && actual.statusCode >= 100 && actual.statusCode <= 599 ? actual.statusCode : 'none'
-  return `transition=${closed(failure.transition, ['owner-transfer', 'member-remove', 'archive', 'visibility', 'grade-withdraw', 'feedback-withdraw'])} boundary=${closed(failure.boundary, ['first', 'later', 'terminal', 'returned-grade', 'released-feedback'])} operator=${closed(assertion?.operator, ['==', 'strictEqual', 'deepStrictEqual', 'rejects'])} status=${status} checkpoint=${closed(assertion?.message, ['restoration-scope', 'restoration-nontarget', 'restoration-owner', 'restoration-archive', 'restoration-visibility', 'restoration-member'])}`
+  const revocation = assignmentListRevocationDiagnostic(failure.error)
+  return `transition=${closed(failure.transition, ['owner-transfer', 'member-remove', 'archive', 'visibility', 'grade-withdraw', 'feedback-withdraw'])} boundary=${closed(failure.boundary, ['first', 'later', 'terminal', 'returned-grade', 'released-feedback'])} operator=${closed(assertion?.operator, ['==', 'strictEqual', 'deepStrictEqual', 'rejects'])} status=${status} checkpoint=${closed(assertion?.message, ['restoration-scope', 'restoration-nontarget', 'restoration-owner', 'restoration-archive', 'restoration-visibility', 'restoration-member'])}${revocation === undefined ? '' : ` ${revocation}`}`
 }
 export type AssignmentListLifecycleInput = {
   fixture: AssignmentListProofFixture; projectId: string; workdir: string; migrations: Migration[];
@@ -120,6 +121,9 @@ export type AssignmentListLifecycleInput = {
   restorationPolicies: { transition: AssignmentListRevocationPlan['transition']; boundary: AssignmentListRevocationPlan['boundary']; allowedCells: Cell[] }[];
 }
 export type AssignmentListLifecycleAdapters = {
+  // Optional work-admission budget. Never gates exact-plan restoration or the
+  // finally discovery/removal/canonical inspection; primitive caps still apply.
+  checkWork?(): void;
   // This hook must include full168 functions/triggers/RLS/ACL/index metadata,
   // full settings and cron rows/command hashes, and canonical resource identities.
   canonicalSnapshot(request: { projectId: 'pika'; dbPort: 54322; applicationName: string; readOnly: true }): Promise<Canonical>;
@@ -194,6 +198,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   let prepareAttempted = false; let startAttempted = false; let stage = 'canonical-before'; let primary: Failure | undefined
   let currentRevocation: AssignmentListRevocationPlan | undefined
   const cleanupFailures: Failure[] = []; const captured = new Map<string, AssignmentListResource>()
+  const checkWork = () => adapters.checkWork?.()
   const validateCanonical = (snapshot: Canonical) => { for (const k of ['rowDigests', 'guard168Metadata', 'settings', 'cronJobs', 'resources'] as const) assert(typeof snapshot[k] === 'string' && snapshot[k].length > 0) }
   const inspectFresh = async () => {
     assert(before)
@@ -217,45 +222,58 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     for (const r of result.selected) captured.set(r.id, structuredClone(r))
     return result
   }
-  const session = async (): Promise<Session> => {
+  const session = async (restoration = false): Promise<Session> => {
+    const checkSessionWork = () => { if (!restoration) checkWork() }
+    checkSessionWork()
     assert(target && before)
     const { selected } = await inspectFresh(); assert.equal(selected.length, expected.size)
     const db = selected.find(r => r.kind === 'container' && r.name === `supabase_db_${identity.projectId}`)!
     const kong = selected.find(r => r.kind === 'container' && r.name === `supabase_kong_${identity.projectId}`)!
     assert.deepEqual(db.ports, [54332]); assert.deepEqual(kong.ports, [54331])
+    checkSessionWork()
     const s = await adapters.verifyEphemeral({ projectId: identity.projectId, dbPort: 54332, applicationName: `${identity.projectId}_fixture`, target })
+    checkSessionWork()
     assert.equal(s.projectId, identity.projectId); assert.equal(s.dbPort, 54332); assert.equal(s.applicationName, `${identity.projectId}_fixture`)
     assert.equal(s.containerId, db.id); assert(s.guard168Enabled && s.persistedGatesOff && s.activeNetworkCronAbsent)
     return { projectId: s.projectId, containerId: s.containerId, dbPort: s.dbPort, applicationName: s.applicationName }
   }
   const approvedSql = new Set([assignmentListFixtureSetupSql(fixture, identity.projectId), ...revocations.flatMap(p => [p.revokeSql, p.restoreSql])])
-  const executeSql = async (sql: string) => { assert(approvedSql.has(sql)); await adapters.executeSql({ ...await session(), sql }) }
+  const executeSql = async (sql: string) => {
+    assert(approvedSql.has(sql))
+    // The observer's finally may restore only the exact current plan. This
+    // exception does not admit other SQL or another revocation after expiry.
+    const restoration = currentRevocation?.restoreSql === sql
+    if (!restoration) checkWork()
+    await adapters.executeSql({ ...await session(restoration), sql })
+    if (!restoration) checkWork()
+  }
   try {
     baseline = structuredClone(await adapters.canonicalSnapshot(canonicalRequest)); validateCanonical(baseline)
-    stage = 'preflight'; before = structuredClone(await adapters.inventory(identity))
+    stage = 'preflight'; checkWork(); before = structuredClone(await adapters.inventory(identity))
     assert(!before.workdirExists && !before.occupiedPorts.some(port => [54340, 54331, 54332].includes(port)))
     assert(!before.resources.some(r => isProjectResource(r, identity.projectId)))
-    stage = 'prepare'; prepareAttempted = true; prepared = await adapters.prepare(plan, migrations)
+    stage = 'prepare'; checkWork(); prepareAttempted = true; prepared = await adapters.prepare(plan, migrations)
     assert(prepared.created); assert.equal(prepared.workdir, identity.workdir); assert.equal(prepared.realpath, identity.workdir)
     assert.equal(prepared.configSha256, sha(plan.config)); assert.deepEqual(prepared.migrations, migrations.map(({ name, sha256 }) => ({ name, sha256 })))
     assert.deepEqual(prepared.envFiles, []); assert.deepEqual(prepared.symlinks, [])
     // Recheck global resources and port ownership immediately before launching.
-    stage = 'pre-start'; const fresh = await adapters.inventory(identity)
+    stage = 'pre-start'; checkWork(); const fresh = await adapters.inventory(identity)
     assert(!fresh.occupiedPorts.some(port => [54340, 54331, 54332].includes(port))); assert(!fresh.resources.some(r => isProjectResource(r, identity.projectId)))
     before.resources = structuredClone(fresh.resources)
-    stage = 'start'; startAttempted = true
+    stage = 'start'; checkWork(); startAttempted = true
     await adapters.command({ args: ['start', '--workdir', identity.workdir, '-x', 'analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'], workdir: identity.workdir, timeoutMs: 180000 })
-    if (input.mode !== 'before-capture') { stage = 'capture'; await capture() }
-    stage = 'status'; target = validateAssignmentListProofTarget(await adapters.command({ args: ['status', '--workdir', identity.workdir, '-o', 'json'], workdir: identity.workdir, timeoutMs: 15000 }), identity.projectId)
-    stage = 'fixture'; await executeSql(assignmentListFixtureSetupSql(fixture, identity.projectId))
+    if (input.mode !== 'before-capture') { stage = 'capture'; checkWork(); await capture() }
+    stage = 'status'; checkWork(); target = validateAssignmentListProofTarget(await adapters.command({ args: ['status', '--workdir', identity.workdir, '-o', 'json'], workdir: identity.workdir, timeoutMs: 15000 }), identity.projectId)
+    stage = 'fixture'; checkWork(); await executeSql(assignmentListFixtureSetupSql(fixture, identity.projectId))
     if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
     stage = 'cases'
     for (const proofCase of manifest.cases) {
-      await session(); const result = await adapters.runCase({ fixture, proofCase, target })
+      checkWork(); await session(); checkWork(); const result = await adapters.runCase({ fixture, proofCase, target }); checkWork()
       assert.deepEqual(result, { actorId: proofCase.actorId, classroomId: proofCase.classroomId, status: proofCase.expectedStatus })
     }
     stage = 'revocations'
     for (const p of revocations) {
+      checkWork()
       currentRevocation = p
       const policy = input.restorationPolicies.find(x => x.transition === p.transition && x.boundary === p.boundary)!
       let restored = false
@@ -269,7 +287,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
         restored = true
       }
       const scopedSql = async (sql: string) => { assert(sql === p.revokeSql || sql === p.restoreSql); await executeSql(sql) }
-      await session(); const result = await adapters.runRevocation({ fixture, plan: p, target, executeSql: scopedSql, verifyRestoration })
+      await session(); checkWork(); const result = await adapters.runRevocation({ fixture, plan: p, target, executeSql: scopedSql, verifyRestoration }); checkWork()
       assert(restored); assert.deepEqual(result, { transition: p.transition, boundary: p.boundary, expectedStatus: p.expectedStatus })
     }
   } catch (error) { primary = { stage, error, ...(currentRevocation ? { transition: currentRevocation.transition, boundary: currentRevocation.boundary } : {}) } }

@@ -25,14 +25,20 @@ vi.mock('../../scripts/contextual-test-draft-save-proof-inventory', () => ({ dra
 import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, validateDraftSaveNativeSql, draftSaveNativeTerminationSql,
   buildTestOwnerCreateNativeContractsManifest, validateTestOwnerCreateNativeSql, createTestOwnerCreateNativeContracts,
   validateTestOwnerCreateAllocatorPlan, buildTestOwnerPristineDiscardNativeContractsManifest,
-  createTestOwnerPristineDiscardNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+  createTestOwnerPristineDiscardNativeContracts, buildTestOwnerPublicationNativeContractsManifest,
+  createTestOwnerPublicationNativeContracts, buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts,
+  buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../../src/lib/validations/contextual-test-create'
 import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
 import { newTestOwnerPristineDiscardFixture } from '../../scripts/contextual-test-pristine-discard-proof-fixture'
+import { newTestOwnerPublicationFixture } from '../../scripts/contextual-test-publication-proof-fixture'
+import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { DRAFT_SAVE_CAPS } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { assignmentListExpectedResources } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
+import * as publicationContracts from '../../scripts/contextual-test-publication-db-contracts'
+import * as publicationRaces from '../../scripts/check-contextual-test-publication-concurrency'
 
 describe('inert native Test draft save contracts', () => {
   const original = newAssignmentListProofFixture()
@@ -150,6 +156,16 @@ describe('native persistent-session transport with offline child mocks', () => {
   let setupExit = false; let malformedSetup = false; let stderrChunks: string[] = []
   let createManifest: ReturnType<typeof buildTestOwnerCreateNativeContractsManifest> | undefined
   let discardManifest: ReturnType<typeof buildTestOwnerPristineDiscardNativeContractsManifest> | undefined
+  let publicationManifest: ReturnType<typeof buildTestOwnerPublicationNativeContractsManifest> | undefined
+  let reorderManifest: ReturnType<typeof buildTestOwnerReorderNativeContractsManifest> | undefined
+  let bulkChunks: string[] = []; let bulkHang = false; let bulkExit = false; let emitCalibration = true
+  let bulkDispatched: (() => void) | undefined
+  let contaminateOtherFrames = false; let duplicateCalibration = false
+  let diagnosticManifest: ReturnType<typeof buildTestOwnerReorderDiagnosticNativeManifest> | undefined
+  let diagnosticChunks: string[] = []; let diagnosticNoise = ''; let diagnosticHang = false; let diagnosticExit = false
+  let diagnosticMarkerFirst = false; let diagnosticContamination = false; let diagnosticDispatched: (() => void) | undefined
+  const publicationSql = (sql: string, key: 'catalog' | 'revoke' | 'restore') => publicationManifest
+    && Object.values(publicationManifest.publicationPrivileges).some(capability => sql === capability[key])
   let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
   const catalog = () => ({ owner: 'postgres', definition: catalogChanged ? 'changed function' : 'reviewed function',
     acl: [{ grantor: 'postgres', grantee: 'postgres', privilege_type: 'EXECUTE', is_grantable: false },
@@ -169,11 +185,37 @@ describe('native persistent-session transport with offline child mocks', () => {
       capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(discardManifest)) })
   }
+  const publicationFactory = (absoluteDeadline = Date.now() + 900000) => {
+    publicationManifest = buildTestOwnerPublicationNativeContractsManifest(original, newTestOwnerPublicationFixture(original), head, repository)
+    return createTestOwnerPublicationNativeContracts({ repository, reviewedHead: head, original, fixture: publicationManifest.fixture,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(publicationManifest)), absoluteDeadline })
+  }
+  const reorderFactory = () => {
+    reorderManifest = buildTestOwnerReorderNativeContractsManifest(original, newTestOwnerReorderFixture(original), head, repository)
+    return createTestOwnerReorderNativeContracts({ repository, reviewedHead: head, original, fixture: reorderManifest.fixture,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(reorderManifest)), absoluteDeadline: Date.now() + 900000 })
+  }
+  const diagnosticFactory = () => {
+    // Presence/bootstrap/snapshot SQL is shared with the ordinary reorder
+    // profile, while only the two diagnostic frame replies are new here.
+    reorderManifest = buildTestOwnerReorderNativeContractsManifest(original, newTestOwnerReorderFixture(original), head, repository)
+    diagnosticManifest = buildTestOwnerReorderDiagnosticNativeManifest(original, reorderManifest.fixture, head, repository)
+    return createTestOwnerReorderDiagnosticNativeContracts({ repository, reviewedHead: head, original, fixture: reorderManifest.fixture,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(diagnosticManifest)), absoluteDeadline: Date.now() + 900000 })
+  }
   beforeEach(() => {
     mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
-    setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined
+    setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined; publicationManifest = undefined
+    reorderManifest = undefined; bulkChunks = []; bulkHang = false; bulkExit = false; emitCalibration = true
+    bulkDispatched = undefined
+    contaminateOtherFrames = false; duplicateCalibration = false
+    diagnosticManifest = undefined; diagnosticChunks = []; diagnosticNoise = ''; diagnosticHang = false; diagnosticExit = false
+    diagnosticMarkerFirst = false; diagnosticContamination = false; diagnosticDispatched = undefined
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
       const child = new EventEmitter() as EventEmitter & { stdin: Writable; kill: ReturnType<typeof vi.fn> }
@@ -186,13 +228,13 @@ describe('native persistent-session transport with offline child mocks', () => {
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
           else if (input === manifest.privilege.restore || input === createManifest?.privilege.restore
-            || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore) {
+            || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore || input === reorderManifest?.privilege.restore || publicationSql(input, 'restore')) {
             if (restorationFails) callback(Error('private grant restore failure'), '')
             else { serviceExecute = true; callback(null, '') }
           }
           else if (input === manifest.privilege.catalog || input === createManifest?.privilege.catalog
-            || input === discardManifest?.privilege.catalog || input === discardManifest?.innerPrivilege.catalog) callback(null, JSON.stringify(catalog()))
-          else if (input === manifest.snapshot || input === createManifest?.snapshot || input === discardManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
+            || input === discardManifest?.privilege.catalog || input === discardManifest?.innerPrivilege.catalog || input === reorderManifest?.privilege.catalog || publicationSql(input, 'catalog')) callback(null, JSON.stringify(catalog()))
+          else if (input === manifest.snapshot || input === createManifest?.snapshot || input === discardManifest?.snapshot || input === publicationManifest?.snapshot || input === reorderManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
           else callback(null, 'ok')
         }); done()
       } })
@@ -208,19 +250,54 @@ describe('native persistent-session transport with offline child mocks', () => {
         const text = String(chunk); const end = text.match(/\\echo (__draft_save_end_[0-9]+__)/)![1]
         const sql = text.slice(0, text.indexOf('\n\\echo'))
         let response = ''
-        if (sql === manifest.bootstrap) response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
+        if (diagnosticManifest && diagnosticContamination && sql !== diagnosticManifest.contracts.frames[1].sql)
+          child.stderr.write('INFO: PDT01 1\nINFO: PDT02 2\nINFO: PDT03 3 private contamination\n')
+        if (sql === manifest.bootstrap) {
+          if (contaminateOtherFrames) child.stderr.write('INFO: PRG00\nINFO: PRG01\nINFO: PRG02\n')
+          response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
+        }
         else if (sql === manifest.setup && hangingSetup) { done(); return }
-        else if ((sql === manifest.setup || sql === createManifest?.setup || sql === discardManifest?.setup) && setupExit) {
+        else if ((sql === manifest.setup || sql === createManifest?.setup || sql === discardManifest?.setup || sql === publicationManifest?.setup || sql === reorderManifest?.setup) && setupExit) {
           for (const chunk of stderrChunks) child.stderr.write(chunk)
           queueMicrotask(() => child.emit('close', 1)); done(); return
         }
         else if (sql === manifest.setup && malformedSetup) response = 'PRIVATE malformed row'
         else if (sql === manifest.concurrency.observe) response = JSON.stringify({ held:true,transaction:true })
-        else if (sql === manifest.snapshot || sql === createManifest?.snapshot || sql === discardManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === manifest.snapshot || sql === createManifest?.snapshot || sql === discardManifest?.snapshot || sql === publicationManifest?.snapshot || sql === reorderManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === diagnosticManifest?.contracts.frames[0].sql) response = JSON.stringify({ kind: diagnosticManifest.kind,
+          plan: [{ Plan: { 'Node Type': 'ModifyTable', 'Relation Name': 'PRIVATE synthetic relation', Plans: [{ 'Node Type': 'Function Scan' }] } }] })
+        else if (sql === diagnosticManifest?.contracts.frames[1].sql) {
+          response = JSON.stringify({ kind: diagnosticManifest.kind, outcome: 'returned', sqlstate: 'none', rolledBack: true,
+            checks: ['bulk-1000', 'final-fixture-equality'] })
+          if (diagnosticMarkerFirst) {
+            queueMicrotask(() => {
+              child.stdout.write(`${response}\n${end}\n`)
+              for (const chunk of diagnosticChunks) child.stderr.write(chunk)
+            }); done(); return
+          }
+          for (const chunk of diagnosticChunks) child.stderr.write(chunk)
+          if (diagnosticNoise) child.stderr.write(diagnosticNoise)
+          diagnosticDispatched?.()
+          if (diagnosticHang || diagnosticExit) { if (diagnosticExit) queueMicrotask(() => child.emit('close', 1)); done(); return }
+        }
+        else if (reorderManifest?.contracts.contracts.some(batch => batch.sql === sql)) {
+          const batch = reorderManifest.contracts.contracts.find(batch => batch.sql === sql)!
+          if (batch.expectedResult.checks.includes('deadline-reached') && emitCalibration) {
+            child.stderr.write('psql:<stdin>:123: INFO:  PRG00\n')
+            if (duplicateCalibration) child.stderr.write('INFO: PRG00\n')
+          }
+          else if (contaminateOtherFrames && batch.name !== 'bulk-1000') child.stderr.write('INFO: PRG00\nINFO: PRG01\nINFO: PRG02\n')
+          if (batch.name === 'bulk-1000') {
+            for (const chunk of bulkChunks) child.stderr.write(chunk)
+            bulkDispatched?.()
+            if (bulkHang || bulkExit) { if (bulkExit) queueMicrotask(() => child.emit('close', 1)); done(); return }
+          }
+          response = JSON.stringify(batch.expectedResult)
+        }
         else if (sql === manifest.privilege.catalog || sql === createManifest?.privilege.catalog
-          || sql === discardManifest?.privilege.catalog || sql === discardManifest?.innerPrivilege.catalog) response = JSON.stringify(catalog())
+          || sql === discardManifest?.privilege.catalog || sql === discardManifest?.innerPrivilege.catalog || sql === reorderManifest?.privilege.catalog || publicationSql(sql, 'catalog')) response = JSON.stringify(catalog())
         else if (sql === manifest.privilege.revoke || sql === createManifest?.privilege.revoke
-          || sql === discardManifest?.privilege.revoke || sql === discardManifest?.innerPrivilege.revoke) serviceExecute = false
+          || sql === discardManifest?.privilege.revoke || sql === discardManifest?.innerPrivilege.revoke || sql === reorderManifest?.privilege.revoke || publicationSql(sql, 'revoke')) serviceExecute = false
         else if (sql.includes('select public.snapshot_test_draft_save_for_owner_v1')) {
           const testId = sql.match(/_v1\('[a-f0-9-]+','([a-f0-9-]+)'/)![1]
           response = JSON.stringify({ version: 1, actor_id: manifest.fixture.owner, classroom: { id: manifest.fixture.classroom, teacher_id: manifest.fixture.owner },
@@ -255,6 +332,72 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  it.each(['ordinary', 'timeout', 'child-exit', 'late-stderr'])('retires historical 10k diagnostic before fake-child dispatch in %s scenario', scenario => {
+    diagnosticHang = scenario === 'timeout'; diagnosticExit = scenario === 'child-exit'
+    diagnosticMarkerFirst = scenario === 'late-stderr'
+    diagnosticChunks = ['INFO: PDT01 1000000\\nINFO: PDT02 1000100\\nINFO: PDT03 1000300\\n']
+    expect(() => diagnosticFactory()).toThrow('10000-Test reorder diagnostic retired')
+    expect(mocks.execFile).not.toHaveBeenCalled()
+    expect(mocks.spawn).not.toHaveBeenCalled()
+    expect(mocks.inventory).not.toHaveBeenCalled()
+    expect(children).toHaveLength(0)
+    expect(sqlControls).toHaveLength(0)
+  })
+  it.each([0, 1, 2, 3, 4])('freezes observed bulk progress at35s timeout after checkpoint %i', async count => {
+    const adapter = reorderFactory(); await adapter.setup()
+    await adapter.probeReorderPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    vi.useFakeTimers()
+    bulkHang = true; bulkChunks = Array.from({ length: count }, (_, i) => `INFO: PRG0${i+1}\n`)
+    const dispatched = new Promise<void>(resolve => { bulkDispatched = resolve })
+    const rejected = expect(adapter.run()).rejects.toThrow()
+    await dispatched
+    await vi.advanceTimersByTimeAsync(35001); await rejected
+    const diagnostic = adapter.diagnostic()
+    expect(diagnostic).toContain(`phase=contracts failure=timeout role=contracts sqlstate=unknown`)
+    expect(diagnostic).toContain(`progress=${count ? `PRG0${count}` : 'none'} calibration=verified`)
+    for (const child of children) child.stderr.emit('data', Buffer.from('INFO: PRG04\nINFO: PRG00\nERROR: PRD14\nPRIVATE secret\n'))
+    await expect(adapter.run()).rejects.toThrow()
+    expect(adapter.diagnostic()).toBe(diagnostic)
+  })
+  it.each([['PRD14', 'PRD14'], ['57014', '57014'], ['ZZ999', 'unknown']])('retains separate bulk progress and failure SQLSTATE %s', async (code, expected) => {
+    contaminateOtherFrames = true
+    const adapter = reorderFactory(); await adapter.setup()
+    await adapter.probeReorderPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    bulkExit = true; bulkChunks = ['INFO: PR', `G01\r\nINFO: PRG02\nERROR: ${code}\n`]
+    await expect(adapter.run()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).toContain('progress=PRG02 calibration=verified')
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret/)
+  })
+  it.each(['INFO: PRG01\nINFO: PRG01\n', 'INFO: PRG02\n', 'INFO: PRG01 private data\n', `${'x'.repeat(129)}INFO: PRG01\n`])(
+    'invalidates malformed bulk observation through the actual native adapter', async chunks => {
+      const adapter = reorderFactory(); await adapter.setup()
+      await adapter.probeReorderPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+      bulkExit = true; bulkChunks = [chunks, 'INFO: PRG01\nERROR: PRD14\n']
+      await expect(adapter.run()).rejects.toThrow()
+      expect(adapter.diagnostic()).toContain('progress=invalid calibration=verified')
+      expect(adapter.diagnostic()).toContain('sqlstate=PRD14')
+      expect(adapter.diagnostic()).not.toContain('private')
+    })
+  it('leaves duplicate calibration unverified in the actual native adapter', async () => {
+    const adapter = reorderFactory(); await adapter.setup()
+    await adapter.probeReorderPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    duplicateCalibration = true; bulkExit = true; bulkChunks = ['INFO: PRG01\nERROR: PRD14\n']
+    await expect(adapter.run()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain('progress=PRG01 calibration=unverified')
+  })
+  it('does not verify missing calibration or accept markers from fixture setup', async () => {
+    const setup = reorderFactory(); setupExit = true; stderrChunks = ['INFO: PRG00\nINFO: PRG01\nERROR: PRG02\n']
+    await expect(setup.setup()).rejects.toThrow()
+    expect(setup.diagnostic()).toContain('progress=none calibration=unverified')
+    expect(setup.diagnostic()).toContain('sqlstate=unknown')
+    setupExit = false
+    const adapter = reorderFactory(); await adapter.setup()
+    await adapter.probeReorderPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    emitCalibration = false; bulkExit = true; bulkChunks = ['INFO: PRG01\nERROR: PRD14\n']
+    await expect(adapter.run()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain('progress=PRG01 calibration=unverified')
+  })
   it('exposes only a read-only target verifier without opening a persistent SQL session', async () => {
     const adapter = factory()
     const target = await adapter.verifyTarget()
@@ -329,11 +472,99 @@ describe('native persistent-session transport with offline child mocks', () => {
     await expect(adapter.run()).rejects.toThrow()
     expect(children).toHaveLength(before)
   })
+  it('withdraws/restores all four fixed252 capabilities with one unchanged ledger', async () => {
+    const adapter = publicationFactory(); await adapter.setup()
+    const one = async () => { expect(serviceExecute).toBe(false); return { status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const } }
+    const two = async () => { expect(serviceExecute).toBe(false); return { status: 503 as const, rpcCalls: 2 as const, rawCode: '42501' as const } }
+    for (const operation of [() => adapter.probePublicationSnapshotPrivilegeDrift(one), () => adapter.probePublicationPrivilegeDrift(two),
+      () => adapter.probeLegacyPublicationPrivilegeDrift(two), () => adapter.probeActivationPrivilegeDrift(two)]) {
+      expect(await operation()).toMatchObject({ privilegeRestored: true, fixtureUnchanged: true, snapshotAclSha256: expect.stringMatching(/^[a-f0-9]{64}$/) })
+      expect(serviceExecute).toBe(true)
+    }
+    for (const capability of Object.values(publicationManifest!.publicationPrivileges)) {
+      expect(sqlControls.filter(c => c.sql === capability.restore)).toHaveLength(1)
+    }
+    await expect(adapter.probePublicationPrivilegeDrift(two)).rejects.toThrow()
+    expect(adapter).not.toHaveProperty('probeFixedPrivilegeDrift')
+  })
+  it.each(['snapshot247', 'publication252', 'legacy139', 'activation134'] as const)('restores fixed252 %s even after ambiguous SDK failure', async kind => {
+    const adapter = publicationFactory(); await adapter.setup()
+    const callback = async () => { throw Error('PRIVATE acknowledgement') }
+    const operations = { snapshot247: () => adapter.probePublicationSnapshotPrivilegeDrift(callback), publication252: () => adapter.probePublicationPrivilegeDrift(callback),
+      legacy139: () => adapter.probeLegacyPublicationPrivilegeDrift(callback), activation134: () => adapter.probeActivationPrivilegeDrift(callback) }
+    await expect(operations[kind]()).rejects.toThrow()
+    expect(serviceExecute).toBe(true)
+    expect(sqlControls.filter(c => c.sql === publicationManifest!.publicationPrivileges[kind].restore)).toHaveLength(1)
+    expect(adapter.diagnostic()).not.toContain('PRIVATE')
+  })
+  it('requires all252 capabilities before rollback and keeps committed work separate', async () => {
+    const adapter = publicationFactory(); await adapter.setup()
+    await adapter.probePublicationSnapshotPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    const before = children.length
+    await expect(adapter.run()).rejects.toThrow()
+    await expect(adapter.runCommittedTransitions()).rejects.toThrow()
+    expect(children).toHaveLength(before)
+  })
+  it('expires at the original adopter deadline without opening a new252 phase', async () => {
+    vi.useFakeTimers()
+    const adapter = publicationFactory(Date.now() + 1000); await adapter.setup()
+    await adapter.probePublicationSnapshotPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    const before = children.length
+    await vi.advanceTimersByTimeAsync(1000)
+    await expect(adapter.probePublicationPrivilegeDrift(async () => ({ status: 503, rpcCalls: 2, rawCode: '42501' }))).rejects.toThrow()
+    expect(children).toHaveLength(before)
+    expect(adapter.diagnostic()).toContain('failure=timeout')
+  })
+  it('does not renew the252 race clock between rollback and committed runners', async () => {
+    vi.useFakeTimers()
+    const adapter = publicationFactory(); await adapter.setup()
+    await adapter.probePublicationSnapshotPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    for (const probe of [adapter.probePublicationPrivilegeDrift, adapter.probeLegacyPublicationPrivilegeDrift, adapter.probeActivationPrivilegeDrift]) {
+      await probe(async () => ({ status: 503, rpcCalls: 2, rawCode: '42501' }))
+    }
+    // Offline driver doubles isolate the private clock. They do not claim SQL
+    // or race acceptance, which requires the actual disposable lifecycle.
+    const contracts = vi.spyOn(publicationContracts, 'runTestOwnerPublicationDbContracts').mockResolvedValue(Object.freeze({
+      kind: 'rollback-test-owner-publication-contracts', sourceSha256: publicationManifest!.sourceSha256,
+      manifestSha256: testOwnerDigest(JSON.stringify(publicationManifest!.contracts)), checks: publicationManifest!.contracts.expectedResult.checks,
+    }))
+    const races = vi.spyOn(publicationRaces, 'runTestOwnerPublicationConcurrency').mockResolvedValue(Object.freeze({
+      kind: 'rollback-publication-contention', sourceSha256: publicationManifest!.sourceSha256,
+      manifestSha256: testOwnerDigest(JSON.stringify(publicationManifest!.concurrency)),
+      schedules: publicationManifest!.concurrency.schedules.map(s => s.label), dispatches: 24, elapsedMs: 0,
+    }))
+    try {
+      await adapter.run()
+      const before = children.length
+      vi.setSystemTime(Date.now() + 180000)
+      await expect(adapter.runCommittedTransitions()).rejects.toThrow('Publication race deadline exhausted')
+      expect(children).toHaveLength(before)
+      expect(adapter.diagnostic()).toContain('phase=transitions failure=timeout')
+    } finally { contracts.mockRestore(); races.mockRestore() }
+  })
   it.each([['PCD01', 'PCD01'], ['PCD99', 'unknown']])('keeps finite251 diagnostics without rendering source rows %s', async (code, expected) => {
     const adapter = discardFactory(); setupExit = true; stderrChunks = [`PRIVATE row\nERROR: ${code}\n`]
     await expect(adapter.setup()).rejects.toThrow()
     expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
     expect(adapter.diagnostic()).not.toContain('PRIVATE')
+  })
+  it.each(Array.from({ length: 49 }, (_, index) => {
+    const number = index + 1, code = `P25${String(number).padStart(2, '0')}`
+    return [code, number === 1 || (number >= 7 && number <= 48) ? code : 'unknown']
+  }))('keeps only emitted252 contract diagnostics without rendering source rows %s', async (code, expected) => {
+    const adapter = publicationFactory(); setupExit = true; stderrChunks = [`PRIVATE secret row\nERROR: ${code}\n`]
+    await expect(adapter.setup()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
+  })
+  it.each(Array.from({ length: 18 }, (_, index) => {
+    const number = index + 1, code = `PRD${String(number).padStart(2, '0')}`
+    return [code, number <= 7 || (number >= 11 && number <= 16) ? code : 'unknown']
+  }))('keeps only emitted253 bulk failure codes without rendering source rows %s', async (code, expected) => {
+    const adapter = publicationFactory(); setupExit = true; stderrChunks = [`PRIVATE secret row\nERROR: ${code}\n`]
+    await expect(adapter.setup()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
   })
   it('rejects changed250 bytes before SDK guard or native work dispatch', async () => {
     const adapter = createFactory(); await adapter.setup()
@@ -370,6 +601,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     [['PRIVATE secret\nERR', 'OR:  57', '014\n'], '57014'],
     [['FAT', 'AL: PT409\nPRIVATE secret\n'], 'PT409'],
     [['ERROR: ZZ999\nPRIVATE secret\n'], 'unknown'],
+    [['PRIVATE row\nERR', 'OR: PR', 'D14\nPRIVATE context\n'], 'PRD14'],
     [['PRIVATE token ERROR: 42501 extra secret\n'], 'unknown'],
   ] as const)('reports only allowlisted SQLSTATE after split stderr and child exit %s', async (chunks, code) => {
     const adapter = factory(); setupExit = true; stderrChunks = [...chunks]

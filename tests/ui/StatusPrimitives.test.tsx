@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { AppMessageProvider, RefreshingIndicator, TabContentTransition } from '@/ui'
@@ -41,8 +41,7 @@ describe('status primitives', () => {
     expect(panel?.className).toContain('opacity-100')
     expect(panel?.className).toContain('flex')
     expect(panel?.className).toContain('grow')
-    expect(panel?.className).toContain('duration-fast')
-    expect(panel?.className).toContain('motion-reduce:transition-none')
+    expect(panel?.className).toContain('workspace-entry')
   })
 
   it('hides inactive tab content while keeping the children mounted', () => {
@@ -56,5 +55,20 @@ describe('status primitives', () => {
     expect(panel).toHaveAttribute('aria-hidden', 'true')
     expect(panel?.className).toContain('hidden')
     expect(panel?.className).toContain('opacity-0')
+    expect(panel).toHaveAttribute('inert')
+  })
+
+  it('preserves the same draft control through tab deactivation and reactivation', () => {
+    const content = <textarea aria-label="Retained draft" defaultValue="Initial" />
+    const { rerender } = render(<TabContentTransition isActive>{content}</TabContentTransition>)
+    const draft = screen.getByRole('textbox', { name: 'Retained draft' })
+    fireEvent.change(draft, { target: { value: 'Unsaved draft' } })
+    rerender(<TabContentTransition isActive={false}>{content}</TabContentTransition>)
+    expect(screen.queryByRole('textbox', { name: 'Retained draft' })).not.toBeInTheDocument()
+    expect(draft.parentElement).toHaveAttribute('inert')
+    rerender(<TabContentTransition isActive>{content}</TabContentTransition>)
+    expect(screen.getByRole('textbox', { name: 'Retained draft' })).toBe(draft)
+    expect(draft).toHaveValue('Unsaved draft')
+    expect(draft.parentElement).not.toHaveAttribute('inert')
   })
 })

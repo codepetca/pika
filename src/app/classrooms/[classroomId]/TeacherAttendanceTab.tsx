@@ -74,6 +74,7 @@ import {
   AttendanceMarkButton,
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
+  STICKY_ATTENDANCE_OFFSETS,
 } from './TeacherAttendanceControls'
 import {
   formatTeacherAttendanceTime,
@@ -99,11 +100,6 @@ const COLUMN_LIMITS: Record<ResizableColumn, { defaultWidth: number; min: number
 }
 
 const getAttendanceStudentRowId = (studentId: string) => `attendance-student-row-${studentId}`
-const STICKY_ATTENDANCE_OFFSETS: Record<TeacherAttendanceMark, string> = {
-  present: 'right-attendance-three',
-  late: 'right-attendance-two',
-  absent: 'right-attendance-one',
-}
 
 function manualAttendanceTimeDate(time: string) {
   const [hours, minutes] = time.split(':').map(Number)

@@ -12464,6 +12464,18 @@ export type Database = {
         }
         Returns: Json
       }
+      publish_test_from_draft_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_expected_authoring_sha256: string
+          p_expected_draft_version: number
+          p_test_id: string
+          p_validated_content: Json
+        }
+        Returns: Json
+      }
       queue_managed_storage_cleanup: {
         Args: { p_error_code?: string; p_object_id: string }
         Returns: boolean
@@ -12768,6 +12780,15 @@ export type Database = {
       }
       reorder_classwork_items_for_owner_v1: {
         Args: { p_actor_id: string; p_classroom_id: string; p_items: Json }
+        Returns: Json
+      }
+      reorder_tests_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_test_ids: string[]
+        }
         Returns: Json
       }
       replace_assignment_submission_requirements_atomic: {

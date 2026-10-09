@@ -109,7 +109,7 @@ describe('ClassDaysProvider', () => {
     )
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith('/api/classrooms/classroom-1/class-days')
+    expect(fetchMock).toHaveBeenCalledWith('/api/classrooms/classroom-1/class-days', undefined)
 
     await act(async () => {
       load.resolve({ class_days: [classDay('2026-05-01')] })

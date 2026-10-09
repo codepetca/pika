@@ -73,9 +73,9 @@ describe('PatternLabPage guard', () => {
 
     const page = (await PatternLabPage({
       searchParams: Promise.resolve({ role: 'student' }),
-    })) as ReactElement<{ role: string }>
+    })) as ReactElement<{ children: ReactElement<{ role: string }> }>
 
-    expect(page.props.role).toBe('student')
+    expect(page.props.children.props.role).toBe('student')
     expect(mocks.getCurrentUser).not.toHaveBeenCalled()
   })
 
@@ -87,9 +87,9 @@ describe('PatternLabPage guard', () => {
 
     const page = (await PatternLabPage({
       searchParams: Promise.resolve({ role: 'student' }),
-    })) as ReactElement<{ role: string }>
+    })) as ReactElement<{ children: ReactElement<{ role: string }> }>
 
-    expect(page.props.role).toBe('student')
+    expect(page.props.children.props.role).toBe('student')
     expect(mocks.getCurrentUser).toHaveBeenCalledOnce()
   })
 

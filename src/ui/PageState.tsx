@@ -1,5 +1,6 @@
 import type { ElementType, ReactNode } from 'react'
-import { CircleAlert, Inbox, LoaderCircle, LockKeyhole } from 'lucide-react'
+import { CircleAlert, Inbox, LockKeyhole } from 'lucide-react'
+import { CircularProgress } from './CircularProgress'
 import { cn } from './utils'
 
 export type PageStateKind = 'loading' | 'error' | 'empty' | 'forbidden'
@@ -15,7 +16,7 @@ export interface PageStateProps {
 }
 
 const stateStyles: Record<PageStateKind, { icon: ElementType; iconClassName: string }> = {
-  loading: { icon: LoaderCircle, iconClassName: 'animate-spin text-primary' },
+  loading: { icon: CircularProgress, iconClassName: 'text-primary' },
   error: { icon: CircleAlert, iconClassName: 'text-danger' },
   empty: { icon: Inbox, iconClassName: 'text-text-muted' },
   forbidden: { icon: LockKeyhole, iconClassName: 'text-warning' },
@@ -48,7 +49,10 @@ export function PageState({
         className,
       )}
     >
-      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-surface-2">
+      <div className={cn(
+        'flex h-11 w-11 items-center justify-center',
+        !isLoading && 'rounded-md border border-border bg-surface-2',
+      )}>
         <Icon className={cn('h-5 w-5', stateStyle.iconClassName)} aria-hidden="true" />
       </div>
       <div className="mt-4 max-w-xl">

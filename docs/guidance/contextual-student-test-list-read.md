@@ -1,0 +1,192 @@
+# Dormant contextual member Test list read
+
+Source preparation on `codex/contextual-test-member-list-read`, main base
+`51f1a3b99`. This is an independent batch-2 component, not production acceptance,
+phase exit, cohort admission or product rollout. Owner reorder #1515's separate
+capacity decision does not block this read-only boundary.
+
+## Boundary and compatibility
+
+Only GET `/api/student/tests?classroom_id=...` receives dormant shared admission.
+Absent/nonadmitted configuration preserves its legacy role guard, queries, DTO
+and missing-schema compatibility. A present configuration is authenticated and
+strictly decoded before parameters or service-client construction; malformed
+configuration fails closed. Use the existing single admission contract, not a
+new per-route switch.
+
+The actual active Classroom's current nonowner member may read the published
+Test list regardless of global account role or subscription plan. Self-enrolled
+owners remain owners, not learners. Archived Classrooms, removed membership and
+hidden Tests deny member access. Creation quotas are not learner authorization.
+
+A single metadata-only preflight may read exact Classroom `id,teacher_id,
+archived_at` to retain missing-Class and owner/archive refusal behavior. It grants
+no payload authority. Every subsequent control, payload, child, terminal-empty
+and final statement independently binds the exact Classroom/current owner,
+nonowner actor, active archive state, named-FK `!inner` membership and Tests
+visibility. Capture the feature JSON and require the same fingerprint thereafter.
+Child pages also bind Test id/Class/status/updated timestamp and the actor's own
+rows; no roster-wide participant data is fetched.
+
+Preserve the legacy thirteen Test fields, active-before-closed position ordering,
+normalized documents and student/effective-access status calculation. Draft Tests
+never enter the read. Blueprint-retired published rows retain legacy visibility.
+Submitted/returned/closed-for-grading attempt controls, meaningful option zero,
+repeated responses and availability overrides retain their existing semantics.
+Documents are empty unless effective access allows start/continue or viewing
+submitted work. Question/answer content, raw responses, grades, feedback and
+private child identities are not returned.
+
+## Completeness, privacy and limits
+
+Use complete bounded keyset pages and parent batches, strict identity/cardinality
+checks, an abortable deadline and bounded decoded/cumulative output. Reuse the
+existing Test-list limits: 1,000 root page, 50 parent batch, 100 child page,
+10,000 per collection, 100,000 aggregate rows, 1,024 statements, 20 seconds,
+8 MiB per decoded DTO/final response and 64 MiB cumulative decoded output.
+Verification reads count against these limits; never silently truncate or
+substitute zeroed status on missing/error data.
+
+Re-read the complete Test set and own attempt/response/availability collections,
+then final parent and Classroom controls before returning. Failure or drift is
+unavailable, not permissive fallback. This is statement-bound authorization and
+bounded revalidation, not a transaction snapshot or protection against a change
+after the last guard. Transport-origin errors cannot supply public status/text.
+
+## Acceptance and exclusions
+
+Require role-neutral member and owner-precedence cases, current archive/visibility
+and revocation binding, publication/document/status compatibility, child parent
+and actor validation, uneven/terminal pages, cardinality/completeness, malformed
+results and every size/action/time limit. Route tests must prove auth/config
+ordering and unchanged unmatched legacy dispatch. Mock tests alone are not
+actual installed-SDK or database evidence.
+
+Prepare an independently frozen finite disposable-local SDK fixture and request
+manifest, retaining the inherited lifecycle/platform guards, restoration policies,
+full five-field canonical preservation, exact resource teardown and both fully
+set-up forced-failure modes. Current source replays through disabled quota253;
+its isolated catalog addition must be externally migration-SHA-bound, not inferred
+from the fixture or used to exempt any canonical table/state. Independent fixed
+source review and explicit coordinator manifest acceptance precede execution.
+Focused checks and exact reviewed-head CI/PR Gate precede normal main merge.
+
+No member detail/start/save/submit/history/material/results, owner mutations,
+grading, UI adopter, new migration/type contract, Storage/provider or billing
+change is included. Do not expose the Tests tab until its complete reachable
+member workflow is integrated. Quota messages belong only on upgrade/tier
+summaries. All canonical migration249+, production promotion, enforcement,
+admission/home/page/cohort/cutover and account/provider/billing holds remain.
+
+## Source checkpoint — 2026-10-08
+
+App source and inert proof-source preparation are complete: 49 helper, 12 route,
+28 proof-source and one CI-contract checks pass (90 total). The independently
+enumerated proof contains five actors, five Classrooms, eight Tests, seven live
+memberships plus one removed generation, four attempts, five responses, three
+availability rows and nine SDK cases. Natural trigger categories/revisions are
+statically asserted. Every case requires full before/after table fingerprints;
+normal and both forced modes require inherited cleanup and unchanged canonical
+state. No native execution, independent review, PR or acceptance is claimed yet.
+
+Draft #1534's initial source07718606b received complete fresh security/privacy and
+architecture/compatibility reviews. Both found the same CI canonical-profile
+blocker, not an app authorization defect. One remediation accepts only the exact
+schema-only183-table held248 and184-table post253 catalogs, preserving every
+canonical field/table and the externally SHA-bound idempotent253 union. Its
+regression rejects missing, extra, substituted and duplicated table names and
+changed migration bytes/digest. Targeted review and native execution remain gates.
+
+Pre-run readonly checks found the earlier private canonical checkpoint differs
+only in login session/rate-limit tables. No member fixture or SDK run has started;
+the prior checkpoint is preserved, not overwritten, and no table is exempted.
+Reconcile local sign-in activity before accepting a verification checkpoint.
+
+## Native attempt and bounded diagnosis — 2026-10-08
+
+The catalog remediation received a clean targeted review at `2a5ed85bc`.
+A fresh component pre-run checkpoint was captured twice identically, preserving
+the historical checkpoint and its three auth-table differences. All 183 tables,
+including auth, and all five fields must remain unchanged during every run.
+This is not permission to replace a baseline after a failed fixture.
+
+The first actual normal attempt failed after completing the nine-member matrix
+(61 SDK requests; final HTTP200). Exact teardown and whole canonical preservation
+passed, with zero disposable resources remaining. Its overall duration exceeded
+the unchanged 900-second total bound. The inherited primary failure stage was
+not exposed, so its precise cause remains unknown; this is not native acceptance.
+
+A small source remediation adds fixed-enum inherited-stage/deadline diagnostics
+and checks the existing total budget before and after inherited native proof
+phases. Cleanup and canonical-after inspection remain unconditional and outside
+that work budget. No deadline, fixture, assertion, restoration policy or transport
+limit is relaxed. Independent targeted review and a fresh normal/two-forced run
+against the same preserved checkpoint remain required; the PR stays draft.
+
+The targeted review rejected that first budget correction: it could prevent
+exact-plan restoration after expiry and did not guard preparation/resource
+discovery on work paths. The next batch uses an optional inherited work-admission
+hook, checked before each new work phase and before accepting case/revocation
+results. Only the exact current plan's restoration/verification and finally
+cleanup remain independent of work eligibility, with all existing identity,
+SQL-allowlist, resource and primitive-timeout checks intact. Fake-clock tests
+refuse preparation after an expired baseline, clean expired prepared/started
+projects, and prove restoration/verification plus canonical inspection still run
+after a revoke crosses the deadline. This is an admission/acceptance deadline,
+not a promise of physical termination at exactly 900 seconds; an already admitted
+primitive retains its existing finite timeout. Targeted re-review remains pending.
+
+## Accepted local modes and current-main reconciliation — 2026-10-08
+
+The complete targeted six-file review at `f6fdc63fb` closed both corrections,
+including all 13 inherited adopters. Focused 1,153 checks/43 files and static
+gates passed. Actual normal proof passed in 448,901ms; fully set-up forced
+after-fixture/before-capture modes passed in 62,220/63,718ms with their exact
+original two-line core receipts. Every run preserved all 183 canonical tables
+and all five fields against the same pre-run checkpoint, removed exact disposable
+resources and left zero resources. The prior failed attempt remains failed.
+
+These are actual `f6fdc63fb` receipts, not reheaded evidence. Main then advanced
+to `d826a01a3` through UI-only #1532; no API or migration change. Resolve archival
+conflicts preserving both histories, verify all runtime source bytes and incoming
+UI bytes, and obtain targeted current-base/handoff review plus focused checks
+before readiness. Eligible exact-final-head CI/PR Gate still precede merge.
+No public auth/browser/UI or production/admission rollout is established here.
+
+## Current-base handoff — 2026-10-08
+
+Merged main `b778a6851` (#1535) onto previously reviewed `2f1f82baa`: its 23
+nonhistory UI paths are byte-identical to main, and the member backend/tests,
+proof source, configuration and schema remain byte-identical to `2f1f82baa`.
+Both complete history bodies are retained across the rolling log and archive;
+the official default trim keeps the latest 40 entries. Prior native evidence
+remains bound to `f6fdc63fb`; no new native execution is claimed. Prior exact
+`2f1f82baa` CI37783778326 passed Test & Build while browser/database lanes were
+pending when the coordinator returned #1534 to draft for this base sync.
+Current-base focused 1,153 tests/43 files, architecture/UI/design policy,
+TypeScript/lint and documentation audit/history gates passed. Targeted independent
+handoff review, then eligible exact-final-head CI/PR Gate, remain required before
+main merge.
+All existing rollout, canonical249+, production, plan, billing and activation
+holds remain; this documentation reconciliation records no phase exit.
+
+## Attendance-base reconciliation — 2026-10-08
+
+Main advanced to `51f1a3b99` (#1533) during readiness for `24337ada1`.
+The coordinator returned #1534 to draft before another push; exact-243 CI
+37790410987 is obsolete and cancellation was planned, with no passing claim.
+Ordinary base sync imports all 17 nonhistory attendance paths byte-identically,
+including attendance display-context helpers. Member API/helper/validation,
+proof source, member tests, configuration and schema bytes remain unchanged
+from `24337ada1`; the incoming attendance files receive no member-task edits.
+Preserve complete 243/main history bodies and apply the official 40-entry trim.
+The original `f6fdc63fb` native receipts remain bound to their actual execution;
+base interaction review remains required before reuse. Current-base focused
+1,338 tests/60 files, architecture/UI/design policy, TypeScript/lint, 17-file
+audit and history/diff gates passed. Incoming attendance imports do not intersect
+the member imports; shared auth/Supabase/admission/proof dependencies are unchanged.
+Prior review9/targeted7/fix-sync8 counters and clocks remain; this ordinary merge
+is sync batch9 and documentation reconciliation batch10. No new native, phase
+exit or release of existing rollout/canonical249+/production/plan/billing/
+activation holds. Independent interaction/handoff review and exact-final-head
+CI/PR Gate remain coordinator-owned merge gates.

@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
 import { Input, Button, FormField } from '@/ui'
 import { buildAuthContinuationPath } from '@/lib/auth-redirect'
+import { fetchAuthSubmit, readAuthSubmitResponse } from '@/lib/auth-submit-response'
+import { useAuthFormContinuity } from '@/hooks/useAuthFormContinuity'
 import { getSafeInternalPath } from '@/lib/navigation-safety'
 
 export function SignupClient({
@@ -20,6 +22,7 @@ export function SignupClient({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const continuity = useAuthFormContinuity(loading)
   const nextPath = getSafeInternalPath(searchParams.get('next'))
 
   useEffect(() => {
@@ -29,23 +32,29 @@ export function SignupClient({
 
   async function handleSubmit(event: React.FormEvent): Promise<void> {
     event.preventDefault()
+    const request = continuity.begin(event.currentTarget as HTMLFormElement)
+    if (request === null) return
     setError('')
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetchAuthSubmit('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await response.json()
+      const data = await readAuthSubmitResponse(response)
+      if (!continuity.isCurrent(request)) return
       if (!response.ok) throw new Error(data.error || 'Failed to send verification code')
 
+      continuity.release(request)
       setSuccess(true)
-      setTimeout(() => {
+      continuity.continueAfter(request, () => {
         router.push(buildAuthContinuationPath('/verify-signup', { email, next: nextPath }))
       }, 1000)
     } catch (caught) {
+      if (!continuity.isCurrent(request)) return
+      continuity.finish(request)
       setError(caught instanceof Error ? caught.message : 'An error occurred')
       setLoading(false)
     }
@@ -71,12 +80,12 @@ export function SignupClient({
             nextPath={nextPath}
           />
         ) : success ? (
-          <div className="bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
+          <div role="status" aria-live="polite" className="bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
             Verification code sent! Redirecting...
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <FormField label="School Email" error={error} required>
+          <form onSubmit={handleSubmit} aria-busy={loading}>
+            <FormField label="School Email" error={error} required reserveErrorSpace>
               <Input
                 type="email"
                 placeholder="email@gapps.yrdsb.ca"
@@ -99,8 +108,10 @@ export function SignupClient({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => router.push(buildAuthContinuationPath('/login', { next: nextPath }))}
-              className="min-h-0 p-0 text-primary hover:bg-transparent hover:underline"
+              onClick={() => {
+                continuity.retire()
+                router.push(buildAuthContinuationPath('/login', { next: nextPath }))
+              }}
             >
               Login
             </Button>

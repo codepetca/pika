@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
 import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
@@ -21,6 +21,62 @@ import { DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getT
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
 import { getFutureScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
 import { isAssignmentScheduledForFuture } from '@/lib/assignments'
+
+// This provider stays outside ModalLayer's outgoing presentation snapshot.
+// Retained body props remain visual snapshots; context retires live descendants.
+const AssignmentInteractionContext = createContext({ active: false, requirementsOwner: 0, publishInputOwner: () => () => {} })
+
+type AssignmentEditorBodyProps = ComponentProps<typeof AssignmentForm> & {
+  sourceClassroomId: string
+  sourceArtifactId: string | undefined
+  requirements: AssignmentSubmissionRequirementDraft[]
+  onRequirementsChange: (next: AssignmentSubmissionRequirementDraft[]) => void
+  requirementsDisabled: boolean
+}
+
+function AssignmentEditorBody({
+  sourceClassroomId,
+  sourceArtifactId,
+  requirements,
+  onRequirementsChange,
+  requirementsDisabled,
+  ...formProps
+}: AssignmentEditorBodyProps) {
+  const { active, requirementsOwner, publishInputOwner } = useContext(AssignmentInteractionContext)
+  // Publish from inside the retained body: its insertion phase precedes the
+  // ancestor ModalLayer's layout cleanup/focus return, even on physical removal.
+  useInsertionEffect(publishInputOwner, [publishInputOwner])
+  return (
+    <AssignmentForm
+      {...formProps}
+      interactionActive={active}
+      extraFields={(
+        <div className="space-y-3">
+          <ClassroomBlueprintDraftSource
+            classroomId={sourceClassroomId}
+            target="assignments"
+            artifactId={sourceArtifactId}
+            isOpen={active}
+            retainOnClose
+          />
+          {/* External owner refresh retires its drag without remounting Tiptap. */}
+          <AssignmentSubmissionRequirementsEditor
+            key={requirementsOwner}
+            requirements={requirements}
+            onChange={onRequirementsChange}
+            disabled={requirementsDisabled}
+            interactionActive={active}
+          />
+        </div>
+      )}
+    />
+  )
+}
+
+function AssignmentActionButton(props: ComponentProps<typeof SplitButton>) {
+  const { active } = useContext(AssignmentInteractionContext)
+  return <SplitButton {...props} interactionActive={active} />
+}
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -129,7 +185,59 @@ interface AssignmentModalProps {
 }
 
 export function AssignmentModal({ isOpen, classroomId, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
+  // Only a new logical open retires the old body's local editor/menu/history state.
+  const [bodyLifetime, setBodyLifetime] = useState({ open: isOpen, key: 0 })
+  if (bodyLifetime.open !== isOpen) {
+    // Own-component derived state rolls back with an abandoned concurrent render.
+    setBodyLifetime({ open: isOpen, key: bodyLifetime.key + (isOpen ? 1 : 0) })
+  }
+  const [requirementsOwner, setRequirementsOwner] = useState({ classroomId, assignment, generation: 0 })
+  if (requirementsOwner.classroomId !== classroomId || requirementsOwner.assignment !== assignment) {
+    // External refresh retires only its requirements owner. Abandoned renders
+    // must not turn the legacy business session counter into a physical remount.
+    setRequirementsOwner({ classroomId, assignment, generation: requirementsOwner.generation + 1 })
+  }
+  const committedInputOwnerRef = useRef({ isOpen, classroomId, assignment, lifetime: bodyLifetime.key })
+  const publishInputOwner = useCallback(() => {
+    const owner = { isOpen, classroomId, assignment, lifetime: bodyLifetime.key }
+    committedInputOwnerRef.current = owner
+    return () => {
+      if (committedInputOwnerRef.current === owner) {
+        committedInputOwnerRef.current = { ...owner, isOpen: false }
+      }
+    }
+  }, [isOpen, classroomId, assignment, bodyLifetime.key])
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const titleFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editorSessionRef = useRef(0)
+  const editorOwnerRef = useRef({ isOpen, classroomId, assignment })
+  if (editorOwnerRef.current.isOpen !== isOpen
+    || editorOwnerRef.current.classroomId !== classroomId
+    || editorOwnerRef.current.assignment !== assignment) {
+    editorOwnerRef.current = { isOpen, classroomId, assignment }
+    editorSessionRef.current += 1
+  }
+  const ownsSession = useCallback((session: number) => editorSessionRef.current === session, [])
+  const createStartedSessionRef = useRef<number | null>(null)
+  const titleFocusAllowedRef = useRef(false)
+
+  const cancelTitleFocus = useCallback(() => {
+    if (titleFocusTimeoutRef.current !== null) {
+      clearTimeout(titleFocusTimeoutRef.current)
+      titleFocusTimeoutRef.current = null
+    }
+  }, [])
+
+  const scheduleTitleFocus = useCallback((session: number, select: boolean) => {
+    if (editorSessionRef.current !== session || !titleFocusAllowedRef.current) return
+    cancelTitleFocus()
+    titleFocusTimeoutRef.current = setTimeout(() => {
+      if (editorSessionRef.current !== session || !titleFocusAllowedRef.current) return
+      titleFocusTimeoutRef.current = null
+      titleInputRef.current?.focus()
+      if (select) titleInputRef.current?.select()
+    }, 100)
+  }, [cancelTitleFocus])
 
   // The current assignment being edited (created on first save in create mode)
   const [currentAssignment, setCurrentAssignment] = useState<Assignment | null>(null)
@@ -141,6 +249,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const [creating, setCreating] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
+  titleFocusAllowedRef.current = isOpen && !showInstructionsPreview
   const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
   const defaultDueAt = addDaysToDateString(getTodayInToronto(), 1)
@@ -155,7 +264,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const pendingValuesRef = useRef<AssignmentEditorValues | null>(null)
   const initialCreateValuesRef = useRef<AssignmentEditorValues | null>(null)
   const activeSaveRef = useRef<{
+    session: number
     values: AssignmentEditorValues
+    savedValues: AssignmentEditorValues | null
     promise: Promise<Assignment | null>
   } | null>(null)
 
@@ -170,6 +281,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   }), [dueAt, instructionsMarkdown, submissionRequirements, title])
 
   const scheduling = useAssignmentScheduling({
+    editorSessionRef,
     currentAssignment,
     isCreateMode,
     creating,
@@ -200,14 +312,22 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   } = scheduling
 
   useEffect(() => {
+    const session = ++editorSessionRef.current
+    cancelTitleFocus()
+    setShowInstructionsPreview(false)
+    setSaving(false)
+    setCreating(false)
+    setDiscarding(false)
+    activeSaveRef.current = null
+    pendingValuesRef.current = null
+    lastSaveAtRef.current = 0
+    resetForAssignment(assignment)
     if (!isOpen) {
-      setShowInstructionsPreview(false)
       return
     }
 
     // Reset state when modal opens
     setError('')
-    resetForAssignment(assignment)
 
     if (assignment) {
       // Edit mode: populate from existing assignment
@@ -271,15 +391,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     pendingValuesRef.current = null
 
     // Focus the title input when modal opens
-    setTimeout(() => {
-      titleInputRef.current?.focus()
-      if (assignment) {
-        titleInputRef.current?.select()
-      }
-    }, 100)
+    scheduleTitleFocus(session, !!assignment)
 
     // Cleanup timeouts on close/change
     return () => {
+      if (editorSessionRef.current === session) editorSessionRef.current += 1
+      cancelTitleFocus()
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = null
@@ -291,9 +408,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
   }, [
     assignment,
+    classroomId,
+    cancelTitleFocus,
     defaultDueAt,
     isOpen,
     resetForAssignment,
+    scheduleTitleFocus,
     setDueAt,
     setError,
     setPrimaryAction,
@@ -302,8 +422,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   ])
 
   // Get only the fields that changed compared to last saved values
-  const getChangedFields = useCallback((values: AssignmentEditorValues) => {
-    const saved = lastSavedValuesRef.current
+  const getChangedFields = useCallback((values: AssignmentEditorValues, saved = lastSavedValuesRef.current) => {
     if (!saved) return null
 
     const changes: Record<string, unknown> = {}
@@ -321,7 +440,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   // Create a new assignment
   const createAssignment = useCallback(async (
-    values: AssignmentEditorValues
+    values: AssignmentEditorValues,
+    session: number
   ): Promise<Assignment | null> => {
     try {
       const response = await fetch('/api/teacher/assignments', {
@@ -347,18 +467,22 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
       return data.assignment
     } catch (err: any) {
-      setError(err.message || 'Failed to create assignment')
+      if (ownsSession(session)) setError(err.message || 'Failed to create assignment')
       return null
     }
-  }, [classroomId, setError])
+  }, [classroomId, ownsSession, setError])
 
   // Automatically create draft when modal opens in create mode
   useEffect(() => {
-    if (!creating) return
+    if (!isOpen || assignment || !creating) return
+    const session = editorSessionRef.current
+    if (createStartedSessionRef.current === session) return
+    createStartedSessionRef.current = session
 
     const createDraft = async () => {
       const initialValues = { title: '', instructionsMarkdown: '', dueAt: defaultDueAt, submissionRequirements: [] }
-      const newAssignment = await createAssignment(initialValues)
+      const newAssignment = await createAssignment(initialValues, session)
+      if (!ownsSession(session)) return
       setCreating(false)
 
       if (newAssignment) {
@@ -391,10 +515,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         setSaveStatus('saved')
 
         // Focus and select title after creation
-        setTimeout(() => {
-          titleInputRef.current?.focus()
-          titleInputRef.current?.select()
-        }, 100)
+        scheduleTitleFocus(session, true)
       } else {
         // Creation failed - close modal (error is already set by createAssignment)
         onClose()
@@ -402,29 +523,39 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
 
     void createDraft()
-  }, [creating, createAssignment, defaultDueAt, onClose, setDueAt])
+  }, [assignment, classroomId, creating, createAssignment, defaultDueAt, isOpen, onClose, ownsSession, scheduleTitleFocus, setDueAt])
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
     values: AssignmentEditorValues,
-    options?: { closeAfter?: boolean }
+    options?: { closeAfter?: boolean },
+    owner?: { session: number; savedValues: AssignmentEditorValues | null }
   ): Promise<Assignment | null> => {
+    const session = owner?.session ?? editorSessionRef.current
     const validationError = validateAssignmentEditorValues(values, currentAssignment)
     if (validationError) {
-      setError(validationError)
-      setSaveStatus('unsaved')
+      if (ownsSession(session)) {
+        setError(validationError)
+        setSaveStatus('unsaved')
+      }
       return null
     }
 
-    setSaveStatus('saving')
-    lastSaveAtRef.current = Date.now()
+    if (ownsSession(session)) {
+      setSaveStatus('saving')
+      lastSaveAtRef.current = Date.now()
+    }
 
     try {
       let savedAssignment: Assignment | null = currentAssignment
 
       if (!currentAssignment) {
         // Create mode: create the assignment first
-        savedAssignment = await createAssignment(values)
+        savedAssignment = await createAssignment(values, session)
+        if (!ownsSession(session)) {
+          if (savedAssignment && options?.closeAfter) onSuccess(savedAssignment, { closeModal: false })
+          return savedAssignment
+        }
         if (!savedAssignment) {
           setSaveStatus('unsaved')
           return null
@@ -433,12 +564,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         lastSavedValuesRef.current = { ...values }
       } else {
         // Edit mode: update existing assignment
-        const changedFields = getChangedFields(values)
+        const changedFields = owner ? getChangedFields(values, owner.savedValues) : getChangedFields(values)
         if (!changedFields) {
-          setSaveStatus('saved')
+          if (ownsSession(session)) setSaveStatus('saved')
           if (options?.closeAfter) {
-            onSuccess(currentAssignment)
-            onClose()
+            if (ownsSession(session)) {
+              onSuccess(currentAssignment)
+              onClose()
+            } else {
+              onSuccess(currentAssignment, { closeModal: false })
+            }
           }
           return currentAssignment
         }
@@ -459,6 +594,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
         const updatedAssignment = data.assignment as Assignment
         savedAssignment = updatedAssignment
+        if (!ownsSession(session)) {
+          if (options?.closeAfter) onSuccess(updatedAssignment, { closeModal: false })
+          return updatedAssignment
+        }
         const latestPendingValues = pendingValuesRef.current
         if (latestPendingValues && !areAssignmentEditorValuesEqual(latestPendingValues, values)) {
           return savedAssignment
@@ -492,18 +631,29 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       }
       return savedAssignment
     } catch (err: any) {
-      setError(err.message || 'Failed to save assignment')
-      setSaveStatus('unsaved')
+      if (ownsSession(session)) {
+        setError(err.message || 'Failed to save assignment')
+        setSaveStatus('unsaved')
+      }
       return null
     }
-  }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, setError])
+  }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, ownsSession, setError])
 
   const startSaveChanges = useCallback((
     values: AssignmentEditorValues,
-    options?: { closeAfter?: boolean }
+    options?: { closeAfter?: boolean },
+    savedValues: AssignmentEditorValues | null = lastSavedValuesRef.current
   ) => {
-    const promise = saveChanges(values, options)
-    const activeSave = { values, promise }
+    const session = editorSessionRef.current
+    const previousSave = activeSaveRef.current
+    // Blur flushes must account for the write already in flight, including reverts.
+    const promise: Promise<Assignment | null> = previousSave?.session === session
+      ? previousSave.promise.then((savedAssignment) => {
+          activeSave.savedValues = savedAssignment ? previousSave.values : previousSave.savedValues
+          return saveChanges(values, options, { session, savedValues: activeSave.savedValues })
+        })
+      : saveChanges(values, options, { session, savedValues })
+    const activeSave = { session, values, savedValues, promise }
     activeSaveRef.current = activeSave
     void promise.finally(() => {
       if (activeSaveRef.current === activeSave) {
@@ -517,6 +667,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     values: AssignmentEditorValues,
     options?: { force?: boolean }
   ) => {
+    const session = editorSessionRef.current
     pendingValuesRef.current = values
 
     if (throttledSaveTimeoutRef.current) {
@@ -534,15 +685,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
     const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastSave
     throttledSaveTimeoutRef.current = setTimeout(() => {
+      if (!ownsSession(session)) return
       throttledSaveTimeoutRef.current = null
       const latest = pendingValuesRef.current
       if (latest) {
         void startSaveChanges(latest)
       }
     }, waitMs)
-  }, [startSaveChanges])
+  }, [ownsSession, startSaveChanges])
 
   const scheduleAutosave = useCallback((values: AssignmentEditorValues) => {
+    const session = editorSessionRef.current
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -551,9 +704,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
 
     saveTimeoutRef.current = setTimeout(() => {
+      if (!ownsSession(session)) return
+      saveTimeoutRef.current = null
       scheduleSave(values)
     }, AUTOSAVE_DEBOUNCE_MS)
-  }, [scheduleSave])
+  }, [ownsSession, scheduleSave])
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
@@ -597,6 +752,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   // Helper to clear pending timeouts and save any unsaved changes
   async function flushPendingChanges(): Promise<void> {
+    const session = editorSessionRef.current
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -627,6 +783,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           const data = await response.json()
           throw new Error(data.error || 'Failed to save changes')
         }
+        if (!ownsSession(session)) return
+        const latestPendingValues = pendingValuesRef.current
+        if (latestPendingValues && !areAssignmentEditorValuesEqual(latestPendingValues, valuesToSave)) return
         lastSavedValuesRef.current = { ...valuesToSave }
       }
       pendingValuesRef.current = null
@@ -636,6 +795,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   async function saveDraftAndClose() {
     if (saving || releasing) return
+    const session = editorSessionRef.current
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -645,10 +805,23 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       throttledSaveTimeoutRef.current = null
     }
     setSaving(true)
-    const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
+    let valuesToSave = pendingValuesRef.current ?? buildEditorValues()
+    let savedValues = lastSavedValuesRef.current
     const activeSave = activeSaveRef.current
-    if (activeSave) {
+    if (activeSave && activeSave.session === session) {
       const savedAssignment = await activeSave.promise
+      if (!ownsSession(session)) {
+        if (savedAssignment && areAssignmentEditorValuesEqual(activeSave.values, valuesToSave)) {
+          onSuccess(savedAssignment, { closeModal: false })
+        } else {
+          // A completed autosave may have persisted values the manual save reverted.
+          await saveChanges(valuesToSave, { closeAfter: true }, {
+            session,
+            savedValues: savedAssignment ? activeSave.values : activeSave.savedValues,
+          })
+        }
+        return
+      }
       const latestValues = pendingValuesRef.current ?? buildEditorValues()
       if (
         savedAssignment
@@ -660,11 +833,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         setSaving(false)
         return
       }
+      // The response may leave newer input untouched, so carry its persisted baseline.
+      savedValues = savedAssignment ? activeSave.values : activeSave.savedValues
+      valuesToSave = latestValues
     }
 
     pendingValuesRef.current = null
-    await startSaveChanges(valuesToSave, { closeAfter: true })
-    setSaving(false)
+    await startSaveChanges(valuesToSave, { closeAfter: true }, savedValues)
+    if (ownsSession(session)) setSaving(false)
   }
 
   function ensureTitleBeforeRelease(): boolean {
@@ -698,6 +874,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   async function handleClose() {
     if (creating || saving || releasing || discarding) return
+    const session = editorSessionRef.current
 
     setShowInstructionsPreview(false)
 
@@ -730,16 +907,20 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           throw new Error(data.error || 'Failed to discard empty assignment')
         }
         if (data.discarded) {
-          onClose()
+          if (ownsSession(session)) onClose()
         } else {
           const preservedAssignment = data.assignment ?? currentAssignment
-          onSuccess(preservedAssignment)
-          onClose()
+          if (ownsSession(session)) {
+            onSuccess(preservedAssignment)
+            onClose()
+          } else {
+            onSuccess(preservedAssignment, { closeModal: false })
+          }
         }
       } catch (closeError: any) {
-        setError(closeError?.message || 'Failed to discard empty assignment')
+        if (ownsSession(session)) setError(closeError?.message || 'Failed to discard empty assignment')
       } finally {
-        setDiscarding(false)
+        if (ownsSession(session)) setDiscarding(false)
       }
       return
     }
@@ -752,6 +933,18 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         onSuccess(currentAssignment)
       }
       onClose()
+    }
+  }
+
+  // Guard captured inputs against the committed body, not speculative renders.
+  // Initiated save/release/discard continuations keep their existing ownership rules.
+  const inputLifetime = bodyLifetime.key
+  function activeInput<Args extends unknown[]>(callback: (...args: Args) => void) {
+    return (...args: Args) => {
+      const owner = committedInputOwnerRef.current
+      if (!owner.isOpen || owner.classroomId !== classroomId || owner.assignment !== assignment
+        || owner.lifetime !== inputLifetime) return
+      callback(...args)
     }
   }
 
@@ -776,9 +969,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const previewSubtitle = isLive ? title.trim() || undefined : undefined
 
   return (
-    <>
+    <AssignmentInteractionContext.Provider value={{ active: isOpen, requirementsOwner: requirementsOwner.generation, publishInputOwner }}>
       <CreationModalShell
         isOpen={isOpen}
+        exitMotion="opacity"
         onClose={() => {
           if (showInstructionsPreview) {
             setShowInstructionsPreview(false)
@@ -796,7 +990,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         tall
         contentClassName="!overflow-hidden !p-0"
       >
-        <AssignmentForm
+        <AssignmentEditorBody
+          key={bodyLifetime.key}
+          sourceClassroomId={classroomId}
+          sourceArtifactId={assignment?.id}
+          requirements={submissionRequirements}
+          onRequirementsChange={activeInput(handleSubmissionRequirementsChange)}
+          requirementsDisabled={saving || releasing || creating}
           fillHeight
           desktopSplit
           title={title}
@@ -804,11 +1004,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           instructionsMode={instructionsMode}
           dueAt={dueAt}
           classDays={classDays}
-          onTitleChange={handleTitleChange}
-          onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
-          onInstructionsConversionWarningChange={setMarkdownWarning}
-          onDueAtChange={handleDueAtChange}
-          onPreviewInstructions={() => setShowInstructionsPreview(true)}
+          onTitleChange={activeInput(handleTitleChange)}
+          onInstructionsMarkdownChange={activeInput(handleInstructionsMarkdownChange)}
+          onInstructionsConversionWarningChange={activeInput(setMarkdownWarning)}
+          onDueAtChange={activeInput(handleDueAtChange)}
+          onPreviewInstructions={activeInput(() => {
+            cancelTitleFocus()
+            setShowInstructionsPreview(true)
+          })}
           titleAccessory={(
             <div className="flex items-center gap-1">
               <SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
@@ -829,23 +1032,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           disabled={saving || releasing || creating}
           error={error}
           titleInputRef={titleInputRef}
-          onBlur={flushAutosave}
+          onBlur={activeInput(flushAutosave)}
           markdownWarning={markdownWarning}
-          extraFields={(
-            <div className="space-y-3">
-              <ClassroomBlueprintDraftSource
-                classroomId={classroomId}
-                target="assignments"
-                artifactId={assignment?.id}
-                isOpen={isOpen}
-              />
-              <AssignmentSubmissionRequirementsEditor
-                requirements={submissionRequirements}
-                onChange={handleSubmissionRequirementsChange}
-                disabled={saving || releasing || creating}
-              />
-            </div>
-          )}
           statusContent={currentAssignment && isScheduled && currentAssignment.released_at ? (
             <span className="text-xs font-medium text-warning">
               {formatReleaseDate(currentAssignment.released_at)}
@@ -854,7 +1042,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           topRowActions={
             currentAssignment && !isLive ? (
               <div className="flex w-full items-end">
-                <SplitButton
+                <AssignmentActionButton
                   label={primaryLabel}
                   onPrimaryClick={() => {
                     void handleTriggerPrimaryAction()
@@ -864,7 +1052,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
                   disabled={creating || releasing || saving || !currentAssignment}
                   className="w-full shadow-sm"
                   toggleAriaLabel="Choose assignment action"
-                  menuPlacement="down"
+                  menuPlacement="up"
                   primaryButtonProps={{
                     className: 'flex-1 justify-center font-semibold',
                   }}
@@ -881,6 +1069,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
       <ContentDialog
         isOpen={isOpen && showInstructionsPreview}
+        exitMotion="opacity"
         onClose={() => setShowInstructionsPreview(false)}
         title="Instructions"
         subtitle={previewSubtitle}
@@ -894,7 +1083,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       </ContentDialog>
 
       <DialogPanel
-        isOpen={showCreateScheduleModal}
+        isOpen={isOpen && showCreateScheduleModal}
         onClose={() => {
           if (releasing) return
           setShowCreateScheduleModal(false)
@@ -939,7 +1128,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       </DialogPanel>
 
       <ConfirmDialog
-        isOpen={showPostNowConfirm}
+        isOpen={isOpen && showPostNowConfirm}
         title="Post assignment to students?"
         description="Students will be able to access this assignment immediately. Once live, it cannot be reverted to draft."
         confirmLabel={releasing ? 'Posting...' : 'Post'}
@@ -954,7 +1143,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       />
 
       <ConfirmDialog
-        isOpen={showRevertToDraftConfirm}
+        isOpen={isOpen && showRevertToDraftConfirm}
         title="Revert to draft?"
         description="Students will no longer be able to see this assignment until you post or schedule it again."
         confirmLabel={releasing ? 'Reverting...' : 'Revert'}
@@ -964,6 +1153,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         onCancel={() => setShowRevertToDraftConfirm(false)}
         onConfirm={revertAssignmentToDraft}
       />
-    </>
+    </AssignmentInteractionContext.Provider>
   )
 }

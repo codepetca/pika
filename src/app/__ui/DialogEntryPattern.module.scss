@@ -1,0 +1,19 @@
+.quietEntry {
+  animation: dialogEntry var(--motion-duration-standard) var(--motion-easing-standard) both;
+}
+
+// Freeze an in-flight entry while its passive root fades, avoiding a brighter close.
+:global([data-modal-state='closing']) .quietEntry {
+  animation-play-state: paused;
+}
+
+@keyframes dialogEntry {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quietEntry {
+    animation: none;
+  }
+}

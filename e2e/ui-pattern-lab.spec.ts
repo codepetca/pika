@@ -1,6 +1,18 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility'
 
 test.setTimeout(90_000)
+test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('selected tab visibility', () => {
+  for (const role of ['teacher', 'student'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${role} keeps selection visible with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyTabSelectionVisibility(page, testInfo, role, reducedMotion)
+      })
+    }
+  }
+})
 
 test('prototypes survey editing with accessible split panes and local authoring actions', async ({ page }, testInfo) => {
   const writes: string[] = []
@@ -144,6 +156,53 @@ test('prototypes survey editing with accessible split panes and local authoring 
   expect(writes).toEqual([])
   expect(pageErrors).toEqual([])
 })
+for (const role of ['teacher', 'student'] as const) {
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`${role} shared interaction continuity with ${motion} motion`, async ({ page }, testInfo) => {
+      await page.emulateMedia({ reducedMotion: motion })
+      await openPatternLab(page, testInfo, role)
+      const saving = page.getByRole('button', { name: 'Saving', exact: true })
+      await expect(saving).toHaveAttribute('aria-busy', 'true')
+      await expect(saving).toBeDisabled()
+      expect(await saving.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe(
+        motion === 'reduce' ? '0s' : '0.15s',
+      )
+      expect(await saving.locator('svg').evaluate((element) => getComputedStyle(element).animationName)).toBe(
+        motion === 'reduce' ? 'none' : 'spin',
+      )
+      const draft = page.getByTestId('tab-entry-extension').getByRole('textbox', { name: 'Example draft', exact: true })
+      await draft.fill('Unsaved example')
+      const node = await draft.elementHandle()
+      await page.getByRole('tab', { name: 'Activity', exact: true }).click()
+      await expect(page.locator('#fluid-draft-panel').locator('..')).toHaveAttribute('inert', '')
+      await expect(draft).toBeHidden()
+      await page.getByRole('tab', { name: 'Draft', exact: true }).click()
+      expect(await draft.evaluate((element, original) => element === original, node)).toBe(true)
+      await expect(draft).toHaveValue('Unsaved example')
+      const animation = await page.locator('#fluid-draft-panel').locator('..').evaluate((element) => ({
+        name: getComputedStyle(element).animationName,
+        duration: getComputedStyle(element).animationDuration,
+      }))
+      expect(animation.name).toBe('workspace-entry')
+      expect(animation.duration).toBe(motion === 'reduce' ? '0s' : '0.2s')
+
+      const trigger = page.getByRole('button', { name: 'User menu', exact: true }).first()
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      const menu = page.getByRole('menu')
+      await expect(menu).toBeVisible()
+      expect(await menu.getByRole('menuitem').evaluateAll((elements) => elements.map((element) => (element as HTMLElement).tabIndex))).toEqual([0, -1, -1])
+      await page.keyboard.press('End')
+      await expect(page.getByRole('menuitem', { name: 'Logout', exact: true })).toBeFocused()
+      await page.getByRole('menuitem', { name: 'Send Feedback', exact: true }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(trigger).toBeFocused()
+      await expect(page.locator(`[id="${await trigger.getAttribute('aria-controls')}"]`)).toHaveAttribute('inert', '')
+      await expect(page.getByRole('menu')).toHaveCount(0)
+    })
+  }
+}
 
 test('teacher continuous inspector keeps controls and details usable in the bounded reference', async ({ page }, testInfo) => {
   await openPatternLab(page, testInfo, 'teacher')
@@ -1272,10 +1331,11 @@ test.describe('teacher Pattern Lab', () => {
     await expect(date).not.toHaveAttribute('aria-describedby')
     expect((await date.boundingBox())!.height).toBe(dateHeightWithSubtitle)
 
-    await page.getByRole('tab', { name: 'Overview', exact: true }).focus()
+    const workspace = examples.getByTestId('attached-shell-example')
+    await workspace.getByRole('tab', { name: 'Overview', exact: true }).focus()
     await page.keyboard.press('ArrowRight')
-    await expect(page.getByRole('tab', { name: 'Work details' })).toBeFocused()
-    await expect(page.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
+    await expect(workspace.getByRole('tab', { name: 'Work details' })).toBeFocused()
+    await expect(workspace.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
     await testInfo.attach('teacher-family-future-and-selected', {
       body: await examples.screenshot({ path: testInfo.outputPath('teacher-family-future-and-selected.png'), animations: 'disabled' }), contentType: 'image/png',
     })

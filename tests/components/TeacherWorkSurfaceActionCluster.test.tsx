@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EllipsisVertical, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -12,6 +13,33 @@ import {
 import { ModalLayer, TooltipProvider } from '@/ui'
 
 describe('TeacherWorkSurfaceActionCluster', () => {
+  it('attaches closed-menu relationships only after hydration and preserves unique keyboard owners', () => {
+    const menus = <>
+      <TeacherWorkSurfaceMenuButton label="First actions" items={[{ id: 'first', label: 'First item', onSelect: vi.fn() }]} />
+      <TeacherWorkSurfaceMenuButton label="Second actions" items={[{ id: 'second', label: 'Second item', onSelect: vi.fn() }]} />
+    </>
+    const server = document.createElement('div')
+    server.innerHTML = renderToString(menus)
+    for (const trigger of server.querySelectorAll('button')) {
+      expect(trigger).not.toHaveAttribute('id')
+      expect(trigger).not.toHaveAttribute('aria-controls')
+      expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    }
+    render(menus)
+    const first = screen.getByRole('button', { name: 'First actions' })
+    const second = screen.getByRole('button', { name: 'Second actions' })
+    expect(first.id).not.toBe('')
+    expect(second.id).not.toBe(first.id)
+    fireEvent.keyDown(second, { key: 'ArrowDown' })
+    const menu = screen.getByRole('menu')
+    expect(second).toHaveAttribute('aria-controls', menu.id)
+    expect(menu).toHaveAttribute('aria-labelledby', second.id)
+    expect(screen.getByRole('menuitem', { name: 'Second item' })).toHaveFocus()
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(second).toHaveFocus()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
   it('separates primary chooser actions from direct contextual toggles', () => {
     const addAssignment = vi.fn()
     const toggleControls = vi.fn()

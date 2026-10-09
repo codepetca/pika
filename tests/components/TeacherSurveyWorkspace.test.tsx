@@ -665,7 +665,8 @@ describe('TeacherSurveyWorkspace', () => {
     selectQuestion(2)
     expect(await screen.findByDisplayValue('Explain your choice')).toBeInTheDocument()
     expect(screen.queryByDisplayValue('Choose a project')).not.toBeInTheDocument()
-    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+    // The selected editor commits before the number draft's passive-effect update.
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2))
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 

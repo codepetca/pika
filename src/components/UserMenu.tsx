@@ -121,7 +121,7 @@ export function UserMenu({ user }: UserMenuProps) {
         ref={triggerRef}
         onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition-all hover:ring-2 hover:ring-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition-shadow duration-fast ease-standard motion-reduce:transition-none hover:ring-2 hover:ring-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="menu"
@@ -139,7 +139,7 @@ export function UserMenu({ user }: UserMenuProps) {
       {/* Dropdown menu with animation */}
       <div
         id={menuId}
-        className={`absolute right-0 z-50 mt-2 w-64 rounded-lg border border-border bg-surface py-1 shadow-lg transition-all duration-200 ${
+        className={`absolute right-0 z-50 mt-2 w-64 rounded-lg border border-border bg-surface py-1 shadow-lg transition-[opacity,transform] duration-standard ease-standard motion-reduce:transition-none motion-reduce:transform-none ${
           isOpen
             ? 'translate-y-0 opacity-100'
             : 'pointer-events-none -translate-y-1 opacity-0'
@@ -147,6 +147,7 @@ export function UserMenu({ user }: UserMenuProps) {
         role="menu"
         aria-labelledby={triggerId}
         aria-hidden={!isOpen}
+        ref={(element) => { element?.toggleAttribute('inert', !isOpen) }}
       >
         {/* User info section */}
         <div className="px-4 py-3 border-b border-border">
@@ -181,13 +182,13 @@ export function UserMenu({ user }: UserMenuProps) {
           onClick={handleThemeToggle}
           onMouseEnter={() => setFocusedIndex(0)}
           onKeyDown={handleItemKeyDown}
-          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
+          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors duration-fast ease-standard motion-reduce:transition-none focus:outline-none ${
             focusedIndex === 0
               ? 'bg-surface-2'
               : 'hover:bg-surface-hover'
           }`}
           role="menuitem"
-          tabIndex={isOpen ? 0 : -1}
+          tabIndex={isOpen && focusedIndex === 0 ? 0 : -1}
         >
           <span className="w-4 h-4 flex items-center justify-center">
             {mounted && (theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />)}
@@ -199,16 +200,21 @@ export function UserMenu({ user }: UserMenuProps) {
         <button
           id={getItemId(1)}
           ref={(el) => { itemRefs.current[1] = el }}
-          onClick={() => { setIsOpen(false); setShowFeedback(true) }}
+          onClick={() => {
+            setIsOpen(false)
+            setFocusedIndex(-1)
+            triggerRef.current?.focus()
+            setShowFeedback(true)
+          }}
           onMouseEnter={() => setFocusedIndex(1)}
           onKeyDown={handleItemKeyDown}
-          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
+          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors duration-fast ease-standard motion-reduce:transition-none focus:outline-none ${
             focusedIndex === 1
               ? 'bg-surface-2'
               : 'hover:bg-surface-hover'
           }`}
           role="menuitem"
-          tabIndex={isOpen ? 0 : -1}
+          tabIndex={isOpen && focusedIndex === 1 ? 0 : -1}
         >
           <Bug className="w-4 h-4" />
           Send Feedback
@@ -231,7 +237,7 @@ export function UserMenu({ user }: UserMenuProps) {
                 : 'hover:bg-surface-hover'
             }`}
             role="menuitem"
-            tabIndex={isOpen ? 0 : -1}
+            tabIndex={isOpen && focusedIndex === 2 ? 0 : -1}
           >
             <LogOut className="w-4 h-4" />
             Logout

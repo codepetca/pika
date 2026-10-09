@@ -155,50 +155,12 @@
       ]
     },
     {
-      "file": "src/app/forgot-password/page.tsx",
-      "reviewBy": "phase-6-auth-verification",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
-      "file": "src/app/join/page.tsx",
-      "reviewBy": "phase-6-auth-verification",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        },
-        {
-          "kind": "input:text",
-          "count": 1,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/app/login/LoginClient.tsx",
       "reviewBy": "phase-6-auth-verification",
       "controls": [
         {
           "kind": "button",
-          "count": 5,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
-      "file": "src/app/reset-password/page.tsx",
-      "reviewBy": "phase-6-auth-verification",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 2,
+          "count": 4,
           "reason": "legacy-form-control"
         }
       ]
@@ -273,7 +235,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 6,
+          "count": 5,
           "reason": "legacy-form-control"
         },
         {
@@ -284,28 +246,6 @@
         {
           "kind": "select",
           "count": 2,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
-      "file": "src/app/teacher/dashboard/page.tsx",
-      "reviewBy": "phase-3-dashboard-roster",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 2,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
-      "file": "src/app/verify-signup/page.tsx",
-      "reviewBy": "phase-6-auth-verification",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
           "reason": "legacy-form-control"
         }
       ]
@@ -473,7 +413,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 2,
+          "count": 1,
           "reason": "composite-widget"
         }
       ]
@@ -484,7 +424,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 4,
+          "count": 2,
           "reason": "composite-widget"
         }
       ]
@@ -566,7 +506,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 4,
+          "count": 2,
           "reason": "legacy-form-control"
         }
       ]

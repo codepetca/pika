@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
@@ -198,6 +198,8 @@ export interface RichTextEditorProps {
   placeholder?: string
   disabled?: boolean
   editable?: boolean
+  /** Retain content and toolbar footprint while retiring editing controls. */
+  interactionActive?: boolean
   autoFocus?: boolean
   /**
    * Governs the amount of formatting UI shown for this authoring task.
@@ -339,6 +341,7 @@ export function RichTextEditor({
   placeholder = 'Write your response here...',
   disabled = false,
   editable = true,
+  interactionActive = true,
   autoFocus = false,
   toolbarPreset = 'document',
   showToolbar = true,
@@ -358,6 +361,11 @@ export function RichTextEditor({
   historyPreviewChange = null,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
+  const interactionRef = useRef(interactionActive)
+  useInsertionEffect(() => {
+    interactionRef.current = interactionActive
+    return () => { interactionRef.current = false }
+  }, [interactionActive])
   const resolvedToolbarPreset: RichTextToolbarPreset =
     showToolbar === false ? 'none' : toolbarPreset
   const visibleToolbarPreset =
@@ -473,11 +481,12 @@ export function RichTextEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
-    editable: canEdit,
+    editable: canEdit && interactionActive,
     editorProps: {
       attributes: editorAttributes,
       handleDOMEvents: {
         paste: (_view, event) => {
+          if (!interactionRef.current) return true
           // Track text paste for authenticity
           if (onPaste) {
             const text = event.clipboardData?.getData('text/plain') ?? ''
@@ -487,6 +496,7 @@ export function RichTextEditor({
           return false
         },
         keydown: (_view, event) => {
+          if (!interactionRef.current) return true
           if (event.key === 'Escape' && onEscape) {
             event.preventDefault()
             onEscape()
@@ -499,6 +509,7 @@ export function RichTextEditor({
           return false
         },
         click: (view, event) => {
+          if (!interactionRef.current) return true
           const target = event.target as HTMLElement
           const link = target.closest('a[href]')
           if (!link) return false
@@ -526,7 +537,7 @@ export function RichTextEditor({
     extensions,
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getJSON() as TiptapContent)
+      if (interactionRef.current) onChange(editor.getJSON() as TiptapContent)
     },
   }, [extensions])
 
@@ -568,6 +579,7 @@ export function RichTextEditor({
       if (imageUploadGenerationRef.current !== generation
         || !currentContext.mounted
         || !currentContext.canEdit
+        || !interactionRef.current
         || currentContext.assignmentDocId !== uploadAssignmentDocId
         || !editor.isEditable) {
         if (managedObjectId) {
@@ -659,21 +671,21 @@ export function RichTextEditor({
     }
   }, [content, editor])
 
-  // Sync editable state
-  useEffect(() => {
+  // Retire editing before layout-driven focus return can fire editor callbacks.
+  useLayoutEffect(() => {
     if (editor) {
       // Enabling/disabling the surface is parent-controlled state, not a content
       // edit. Suppress TipTap's update event so autosave consumers do not treat
       // a loading or saving transition as user-authored content.
-      editor.setEditable(canEdit, false)
+      editor.setEditable(canEdit && interactionActive, false)
     }
-  }, [canEdit, editor])
+  }, [canEdit, editor, interactionActive])
 
   useEffect(() => {
-    if (editor && canEdit && autoFocus) {
+    if (editor && canEdit && interactionActive && autoFocus) {
       editor.commands.focus('end')
     }
-  }, [autoFocus, canEdit, editor])
+  }, [autoFocus, canEdit, editor, interactionActive])
 
   useEffect(() => {
     if (!editor) return
@@ -694,7 +706,7 @@ export function RichTextEditor({
 
   // Handle image paste and drag-drop when enabled
   useEffect(() => {
-    if (!editor || !canEdit || !enableImageUpload) return
+    if (!editor || !canEdit || !interactionActive || !enableImageUpload) return
 
     const handlePaste = (event: ClipboardEvent) => {
       const files = event.clipboardData?.files
@@ -737,7 +749,7 @@ export function RichTextEditor({
       editorElement.removeEventListener('drop', handleDrop)
       editorElement.removeEventListener('dragover', handleDragOver)
     }
-  }, [canEdit, editor, enableImageUpload, startImageUpload])
+  }, [canEdit, editor, enableImageUpload, interactionActive, startImageUpload])
 
   if (!editor) {
     return null
@@ -748,14 +760,14 @@ export function RichTextEditor({
       ref={containerRef}
       className={`simple-editor-wrapper ${className}`}
       onBlurCapture={(event) => {
-        if (!onBlur) return
+        if (!interactionRef.current || !onBlur) return
         const relatedTarget = event.relatedTarget as Node | null
         if (relatedTarget && containerRef.current?.contains(relatedTarget)) return
         onBlur()
       }}
     >
       <EditorContext.Provider value={{ editor }}>
-        {canEdit && visibleToolbarPreset && (
+        {canEdit && visibleToolbarPreset && (interactionActive ? (
           <Toolbar
             ref={toolbarRef}
             aria-label="Formatting options"
@@ -774,7 +786,9 @@ export function RichTextEditor({
               <MobileToolbarContent onBack={() => setMobileView('main')} />
             )}
           </Toolbar>
-        )}
+        ) : (
+          <div className="tiptap-toolbar" data-variant="fixed" aria-hidden="true" />
+        ))}
 
         {canEdit && enableImageUpload ? (
           <AppInput

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StudentAttendanceCheckIn } from '@/app/attendance/check-in/[token]/StudentAttendanceCheckIn'
 
@@ -29,6 +30,7 @@ describe('StudentAttendanceCheckIn', () => {
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
       classroomId: '20000000-0000-4000-8000-000000000001',
+      classroomName: 'PPZ3C — Health for Life',
       studentId,
       occurrenceBinding,
     }), { status: 200 }))
@@ -37,7 +39,11 @@ describe('StudentAttendanceCheckIn', () => {
     render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
 
     expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeInTheDocument()
-    expect(screen.getByText('Your attendance was recorded.')).toBeInTheDocument()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
+    expect(screen.getByText('9:01 AM')).toBeInTheDocument()
+    expect(screen.queryByText('Pika attendance')).not.toBeInTheDocument()
+    expect(screen.queryByText('Your attendance was recorded.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Confirmed|EDT|EST/)).not.toBeInTheDocument()
     expect(fetcher).toHaveBeenCalledWith('/api/student/attendance/check-in', expect.objectContaining({
       method: 'POST',
     }))
@@ -58,6 +64,45 @@ describe('StudentAttendanceCheckIn', () => {
     expect(attendanceClientMocks.invalidate).toHaveBeenCalledWith(studentId)
   })
 
+  it('shows a classroom name longer than 200 characters without losing the confirmation', async () => {
+    const classroomName = 'Health and Wellness '.repeat(20).trim()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      state: 'checked_in', title: 'You are checked in',
+      description: 'Your attendance was recorded.', classroomName,
+      recordedAt: '2026-10-08T13:06:00.000Z',
+    }), { status: 200 })))
+    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
+    expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeVisible()
+    expect(screen.getByText(classroomName)).toBeVisible()
+    expect(screen.getByText('9:06 AM')).toBeVisible()
+  })
+
+  it('retains keyboard focus on the semantic return link as confirmation updates its destination', async () => {
+    let resolveCheckIn!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>(resolve => {
+      resolveCheckIn = resolve
+    })))
+    const user = userEvent.setup()
+    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
+
+    const loadingReturn = screen.getByRole('link', { name: 'Back to classrooms', exact: true })
+    expect(loadingReturn).toHaveAttribute('href', '/classrooms')
+    await user.tab()
+    expect(loadingReturn).toHaveFocus()
+
+    await act(async () => resolveCheckIn(new Response(JSON.stringify({
+      state: 'checked_in',
+      title: 'You are checked in',
+      description: 'Your attendance was recorded.',
+      classroomId: '20000000-0000-4000-8000-000000000001',
+    }), { status: 200 })))
+
+    const confirmedReturn = await screen.findByRole('link', { name: 'Back to classroom', exact: true })
+    expect(confirmedReturn).toBe(loadingReturn)
+    expect(confirmedReturn).toHaveFocus()
+    expect(confirmedReturn).toHaveAttribute('href', '/classrooms/20000000-0000-4000-8000-000000000001?tab=today')
+  })
+
   it('never claims success for an uncertain response and allows an explicit retry', async () => {
     const fetcher = vi.fn()
       .mockRejectedValueOnce(new Error('network unavailable'))
@@ -67,18 +112,25 @@ describe('StudentAttendanceCheckIn', () => {
         description: 'No additional attendance record was created.',
         attendanceStatus: 'present',
         classroomId: '20000000-0000-4000-8000-000000000001',
+        classroomName: 'PPZ3C — Health for Life',
+        recordedAt: '2026-01-08T14:06:00.000Z',
       }), { status: 200 }))
     vi.stubGlobal('fetch', fetcher)
 
-    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
-    expect(await screen.findByRole('heading', { name: 'We could not confirm check-in' }))
+    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn classroomName="PPZ3C — Health for Life" />)
+    expect(await screen.findByRole('heading', { name: 'Not checked-in' }))
       .toBeInTheDocument()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
+    expect(screen.queryByText(/It is safe to retry/)).not.toBeInTheDocument()
     expect(screen.queryByText('You are checked in')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: 'You are already checked in' }))
       .toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to classroom' })).toBeInTheDocument()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
+    expect(screen.getByText('9:06 AM')).toBeInTheDocument()
+    expect(screen.queryByText('No additional attendance record was created.')).not.toBeInTheDocument()
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
     const firstBody = JSON.parse(fetcher.mock.calls[0][1].body)
     const retryBody = JSON.parse(fetcher.mock.calls[1][1].body)
@@ -98,10 +150,12 @@ describe('StudentAttendanceCheckIn', () => {
         entryToken={'a'.repeat(43)}
         canCheckIn
         mode="classroom"
+        classroomName="PPZ3C — Health for Life"
       />,
     )
 
     expect(await screen.findByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
+    expect(screen.getByText('PPZ3C — Health for Life')).toBeVisible()
     expect(screen.getByText('This classroom poster works when your teacher opens attendance.'))
       .toBeVisible()
     expect(fetcher).toHaveBeenCalledWith(

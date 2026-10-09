@@ -4,6 +4,7 @@ import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-vi
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { Classroom } from '@/types'
 import { LayoutInitialStateProvider } from '@/components/layout'
+import { CourseGuideContinuityFixture } from './course-guide-continuity'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,10 +30,20 @@ export default async function TeacherStudentTablesFixture({
   if (process.env.NODE_ENV === 'production' || process.env.PIKA_E2E_FIXTURES !== 'true') notFound()
   const query = await searchParams
   const role = query.role === 'student' ? 'student' : 'teacher'
+  if (query.guideContinuity === 'true') {
+    return (
+      <LayoutInitialStateProvider leftSidebarExpanded>
+        <CourseGuideContinuityFixture classroom={classroom} initialRole={role} query={query} />
+      </LayoutInitialStateProvider>
+    )
+  }
+  const fixtureClassroom = role === 'student' && query.grades === 'true'
+    ? { ...classroom, feature_visibility: { ...classroom.feature_visibility, student_grades: true } }
+    : classroom
   return (
     <LayoutInitialStateProvider leftSidebarExpanded>
-      <ClassroomPageClient
-        classroom={classroom}
+      <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
+        classroom={fixtureClassroom}
         user={{ id: role === 'teacher' ? classroom.teacher_id : '30000000-0000-4000-8000-000000000015',
           email: `${role}@example.invalid`, role, first_name: 'Fixture', last_name: role }}
         classroomRole={role}

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { renderToString } from 'react-dom/server'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { UserMenu } from '@/components/UserMenu'
 
@@ -12,6 +13,21 @@ function renderUserMenu() {
 }
 
 describe('UserMenu', () => {
+  it('keeps the server account menu hidden before client-only relationships attach', () => {
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(
+      <ThemeProvider><UserMenu user={{ email: 'teacher@example.com', role: 'teacher' }} /></ThemeProvider>,
+    )
+    const trigger = container.querySelector('[aria-label="User menu"]')!
+    const menu = container.querySelector('[role="menu"]')!
+    expect(trigger).not.toHaveAttribute('id')
+    expect(trigger).not.toHaveAttribute('aria-controls')
+    expect(menu).not.toHaveAttribute('id')
+    expect(menu).not.toHaveAttribute('aria-labelledby')
+    expect(menu).toHaveAttribute('aria-hidden', 'true')
+    expect(menu).toHaveClass('pointer-events-none', 'opacity-0')
+  })
+
   it('keeps the closed account menu out of the accessibility tree', () => {
     renderUserMenu()
 
@@ -19,6 +35,7 @@ describe('UserMenu', () => {
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(document.getElementById(trigger.getAttribute('aria-controls') ?? '')).toHaveAttribute('aria-hidden', 'true')
+    expect(document.getElementById(trigger.getAttribute('aria-controls') ?? '')).toHaveAttribute('inert')
   })
 
   it('keeps display preferences out of the account menu', async () => {
@@ -76,5 +93,32 @@ describe('UserMenu', () => {
 
     expect(outsideTarget).toHaveFocus()
     expect(screen.getByRole('button', { name: 'User menu' })).not.toHaveFocus()
+  })
+
+  it('keeps only the keyboard-selected menu item in the Tab order', () => {
+    renderUserMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }))
+    const items = screen.getAllByRole('menuitem')
+    expect(items.map((item) => item.tabIndex)).toEqual([0, -1, -1])
+    fireEvent.keyDown(items[0], { key: 'End' })
+    expect(items[2]).toHaveFocus()
+    expect(items.map((item) => item.tabIndex)).toEqual([-1, -1, 0])
+    fireEvent.keyDown(items[2], { key: 'Home' })
+    expect(items[0]).toHaveFocus()
+    expect(items.map((item) => item.tabIndex)).toEqual([0, -1, -1])
+  })
+
+  it('returns feedback dialog focus to the visible account trigger', () => {
+    renderUserMenu()
+    const trigger = screen.getByRole('button', { name: 'User menu' })
+    fireEvent.click(trigger)
+    const feedback = screen.getByRole('menuitem', { name: 'Send Feedback' })
+    feedback.focus()
+    fireEvent.click(feedback)
+    const dialog = screen.getByRole('dialog')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
   })
 })

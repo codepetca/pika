@@ -3,7 +3,8 @@ import { TeacherSettingsTab } from '@/app/classrooms/[classroomId]/TeacherSettin
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { Classroom } from '@/types'
-import { AppMessageProvider, PageDensityProvider } from '@/ui'
+import { PageDensityProvider } from '@/ui'
+import { TeacherClassroomAccessCopyFixture } from './TeacherClassroomAccessCopyFixture'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,16 +34,20 @@ const classroom: Classroom = {
   updated_at: '2026-09-10T12:00:00.000Z',
 }
 
-export default function TeacherClassroomAccessFixturePage() {
+export default async function TeacherClassroomAccessFixturePage({ searchParams }: {
+  searchParams: Promise<{ copyOwner?: string }>
+}) {
   if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') {
     notFound()
   }
 
+  const copyOwner = (await searchParams).copyOwner === 'true'
+
   return (
     <PageDensityProvider density="teacher">
-      <AppMessageProvider>
-        <TeacherSettingsTab classroom={classroom} sectionParam="access" />
-      </AppMessageProvider>
+      {copyOwner
+        ? <TeacherClassroomAccessCopyFixture classroom={classroom} />
+        : <TeacherSettingsTab classroom={classroom} sectionParam="access" />}
     </PageDensityProvider>
   )
 }

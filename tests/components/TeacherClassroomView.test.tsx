@@ -6,6 +6,7 @@ import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_GRADE_UPDATED_EVENT } from
 import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 import { TooltipProvider } from '@/ui'
 
+const mockAssignmentModalRender = vi.fn()
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
 const mockInvalidateGradebookForClassroom = vi.fn()
@@ -23,6 +24,8 @@ const mockStudentSelectionState = {
   allSelected: false,
   selectedCount: 0,
 }
+let mockWorkReadPaused = false
+let mockDeferredWorkPanelStudentId: string | null = null
 const mockWorkPanelGradePersistenceState = {
   hasPendingChanges: false,
   isSaving: false,
@@ -197,8 +200,10 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/AssignmentModal', () => ({
-  AssignmentModal: ({ isOpen, assignment, instructionsMode = 'visual', onClose }: any) => (
-    isOpen ? (
+  AssignmentModal: (props: any) => {
+    mockAssignmentModalRender(props)
+    const { isOpen, assignment, instructionsMode = 'visual', onClose } = props
+    return isOpen ? (
       <div role="dialog" data-instructions-mode={instructionsMode}>
         {assignment ? `Editing ${assignment.title}` : 'New Assignment'}
         <button type="button" onClick={onClose}>
@@ -206,7 +211,7 @@ vi.mock('@/components/AssignmentModal', () => ({
         </button>
       </div>
     ) : null
-  ),
+  },
 }))
 
 vi.mock('@/components/SortableAssignmentCard', () => ({
@@ -263,6 +268,7 @@ vi.mock('@/components/AssignmentArtifactsCell', () => ({
 
 vi.mock('@/components/TeacherStudentWorkPanel', () => ({
   TeacherStudentWorkPanel: ({
+    classroomId,
     assignmentId,
     studentId,
     mode,
@@ -276,8 +282,12 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     onDetailsMetaChange,
     onGradeTemplateChange,
     onGradePersistenceStateChange,
+    onWorkReadStateChange,
     highlightedInspectorSections = [],
   }: any) => {
+    useEffect(() => {
+      onWorkReadStateChange?.({ classroomId, assignmentId, studentId, writesPaused: mockWorkReadPaused || studentId === mockDeferredWorkPanelStudentId })
+    }, [classroomId, assignmentId, studentId, onWorkReadStateChange, mockWorkReadPaused, mockDeferredWorkPanelStudentId])
     const [controllerDraft, setControllerDraft] = useState('Initial comment')
     useEffect(() => {
       onDetailsMetaChange?.(
@@ -289,8 +299,9 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
 
     useEffect(() => {
       onGradeTemplateChange?.(
-        mode === 'overview' || (mode === 'workspace' && splitPaneView !== 'students-content')
+        (mode === 'overview' || mode === 'workspace') && studentId !== mockDeferredWorkPanelStudentId
           ? {
+              assignmentId,
               studentId,
               scoreCompletion: '7',
               scoreThinking: '8',
@@ -300,7 +311,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
             }
           : null,
       )
-    }, [mode, onGradeTemplateChange, splitPaneView, studentId])
+    }, [assignmentId, mode, onGradeTemplateChange, splitPaneView, studentId, mockDeferredWorkPanelStudentId])
 
     useEffect(() => {
       onGradePersistenceStateChange?.(mockWorkPanelGradePersistenceState)
@@ -335,15 +346,8 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
             )}
           </div>
           <div data-testid="assignment-right-pane">
-            <textarea aria-label="Teacher comment draft" defaultValue="" />
-            {splitPaneView === 'students-content' ? (
-              <>
-                {studentHeader}
-                <div>{`work:${assignmentId}:${studentId}`}</div>
-              </>
-            ) : (
-              <div>{`grading:${assignmentId}:${studentId}`}</div>
-            )}
+            <textarea aria-label="Leave a comment..." defaultValue="" />
+            <div>{`grading:${assignmentId}:${studentId}`}</div>
           </div>
         </div>
       )
@@ -420,6 +424,12 @@ vi.mock('@/lib/scheduling', () => ({
 }))
 
 vi.mock('@/lib/request-cache', () => ({
+  fetchJSON: async (input: RequestInfo | URL, options?: { init?: RequestInit }) => {
+    const response = await fetch(input, options?.init)
+    const payload = await response.json()
+    if (!response.ok) throw new Error(payload?.error || 'Request failed')
+    return payload
+  },
   fetchCachedJSON: (key: string, input: RequestInfo | URL, options?: { ttlMs?: number; errorMessage?: string }) =>
     mockFetchJSONWithCache(
       key,
@@ -653,6 +663,7 @@ function getSelectedStudentAction(
     | 'Copy grade to 1 selected'
     | 'Copy grade to 2 selected'
     | 'Copy comment to 2 selected'
+    | `AI Grade ${string}`
     | 'Return',
 ) {
   const toolbar = screen.getByRole('toolbar', { name: 'Assignment grading actions' })
@@ -663,6 +674,7 @@ function getSelectedStudentAction(
 // Assignment table scroll containment is covered in the experience matrix browser suite.
 describe('TeacherClassroomView', () => {
   beforeEach(() => {
+    mockAssignmentModalRender.mockReset()
     vi.stubGlobal('fetch', vi.fn())
     vi.stubGlobal('ResizeObserver', class {
       observe() {}
@@ -681,6 +693,8 @@ describe('TeacherClassroomView', () => {
     mockStudentSelectionState.selectedIds = new Set<string>()
     mockStudentSelectionState.allSelected = false
     mockStudentSelectionState.selectedCount = 0
+    mockWorkReadPaused = false
+    mockDeferredWorkPanelStudentId = null
     mockWorkPanelGradePersistenceState.hasPendingChanges = false
     mockWorkPanelGradePersistenceState.isSaving = false
     window.sessionStorage.clear()
@@ -717,6 +731,57 @@ describe('TeacherClassroomView', () => {
     window.sessionStorage.clear()
     clearSelectionCookie()
     clearAssignmentWorkspaceStudentCookie()
+  })
+
+  it('keeps a late assignment create publication out of a replacement classroom list', async () => {
+    const replacement = { ...classroom, id: 'classroom-session-B', title: 'Replacement classroom' }
+    const createdA = makeAssignmentSummary('late-created-A', 'Late assignment from A')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve({ assignments: [makeAssignmentSummary('assignment-1', 'Assignment One')] })
+      if (key === `teacher-assignments:${replacement.id}`) return Promise.resolve({ assignments: [makeAssignmentSummary('assignment-B', 'Assignment B', { classroom_id: replacement.id })] })
+      if (key.startsWith('teacher-materials:')) return Promise.resolve({ materials: [] })
+      if (key.startsWith('teacher-surveys:')) return Promise.resolve({ surveys: [] })
+      throw new Error(`Unexpected cached request ${key}`)
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Assignment', exact: true }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('New Assignment')
+    const originalSuccess = mockAssignmentModalRender.mock.calls.at(-1)![0].onSuccess
+    view.rerender(<TeacherClassroomView classroom={replacement} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment B' })
+    await act(async () => { originalSuccess(createdA, { closeModal: false }) })
+    expect(screen.queryByRole('button', { name: 'Late assignment from A' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Assignment B' })).toBeInTheDocument()
+    // Successful A publication may invalidate A's resource, never B's list.
+    expect(mockInvalidateCachedJSON).not.toHaveBeenCalledWith(`teacher-assignments:${replacement.id}`)
+  })
+
+  it('does not let a late assignment edit publication supersede the replacement classroom read', async () => {
+    const replacement = { ...classroom, id: 'classroom-session-B', title: 'Replacement classroom' }
+    const pendingB = createDeferred<{ assignments: ReturnType<typeof makeAssignmentSummary>[] }>()
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve({ assignments: [makeAssignmentSummary('assignment-1', 'Assignment One')] })
+      if (key === `teacher-assignments:${replacement.id}`) return pendingB.promise
+      if (key.startsWith('teacher-materials:')) return Promise.resolve({ materials: [] })
+      if (key.startsWith('teacher-surveys:')) return Promise.resolve({ surveys: [] })
+      throw new Error(`Unexpected cached request ${key}`)
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment One' })
+    toggleClassworkOrganize()
+    fireEvent.click(screen.getByRole('button', { name: 'Assignment One' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
+    const originalSuccess = mockAssignmentModalRender.mock.calls.at(-1)![0].onSuccess
+    const readsBefore = mockFetchJSONWithCache.mock.calls.filter(([key]) => key === `teacher-assignments:${classroom.id}`).length
+    view.rerender(<TeacherClassroomView classroom={replacement} selectedAssignmentId={null} />)
+    await waitFor(() => expect(mockFetchJSONWithCache).toHaveBeenCalledWith(`teacher-assignments:${replacement.id}`, expect.any(Function), expect.anything()))
+    await act(async () => { originalSuccess(makeAssignmentSummary('assignment-1', 'Saved A'), { closeModal: false }) })
+    await act(async () => { pendingB.resolve({ assignments: [makeAssignmentSummary('assignment-B', 'Assignment B', { classroom_id: replacement.id })] }); await pendingB.promise })
+    expect.soft(mockFetchJSONWithCache.mock.calls.filter(([key]) => key === `teacher-assignments:${classroom.id}`).length).toBe(readsBefore)
+    expect(screen.queryByRole('button', { name: 'Assignment B' })).toBeInTheDocument()
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-assignments:${classroom.id}`)
   })
 
   it.each([false, true])('retains a successful classwork snapshot (empty=%s) through pending, failed Retry, and recovery', async (empty) => {
@@ -778,7 +843,7 @@ describe('TeacherClassroomView', () => {
     const props = { classroom, selectedAssignmentId: 'assignment-1', selectedAssignmentStudentId: 'student-1' }
     const view = render(<TeacherClassroomView {...props} />)
     const inspector = await screen.findByTestId('teacher-work-panel')
-    const draft = screen.getByRole('textbox', { name: 'Teacher comment draft' })
+    const draft = screen.getByRole('textbox', { name: 'Leave a comment...' })
     fireEvent.change(draft, { target: { value: 'Keep my local draft' } })
     draft.textContent = 'Retry'
     draft.focus()
@@ -819,7 +884,7 @@ describe('TeacherClassroomView', () => {
     const props = { classroom, selectedAssignmentId: 'assignment-1', selectedAssignmentStudentId: 'student-1' }
     const view = render(<TeacherClassroomView {...props} />)
     const inspector = await screen.findByTestId('teacher-work-panel')
-    const draft = screen.getByRole('textbox', { name: 'Teacher comment draft' })
+    const draft = screen.getByRole('textbox', { name: 'Leave a comment...' })
     fireEvent.change(draft, { target: { value: 'Keep my local teacher draft' } })
     draft.textContent = 'Retry'
     draft.focus()
@@ -1818,6 +1883,38 @@ describe('TeacherClassroomView', () => {
     })
   })
 
+  it('keeps a created survey and warns if saving its placement conflicts', async () => {
+    const createdSurvey = makeSurveySummary('survey-new', 'New survey', { position: 2 })
+    let created = false
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('assignments') ? { assignments: [
+        makeAssignmentSummary('released', 'Released', { position: 0 }),
+        makeAssignmentSummary('draft', 'Draft', { position: 1, is_draft: true }),
+      ] } : key.includes('materials') ? { materials: [] }
+        : key.includes('surveys') ? { surveys: created ? [createdSurvey] : [] } : { class_days: [] },
+    ))
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/teacher/surveys') {
+        created = true
+        return Promise.resolve({ ok: true, json: async () => ({ survey: createdSurvey }) })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({ error: 'Classwork list changed' }) })
+    })
+    render(<TeacherClassroomView classroom={classroom} />)
+    await screen.findByRole('button', { name: 'Released' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Survey' }))
+    await waitFor(() => expect(mockShowMessage).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Classwork was created'), tone: 'warning',
+    })))
+    expect(screen.getByRole('dialog')).toHaveTextContent('survey-new')
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/teacher/surveys')).toHaveLength(1)
+    expect(JSON.parse(fetchMock.mock.calls.find(([url]) => url.endsWith('/reorder'))![1].body)).toEqual({ items: [
+      { type: 'assignment', id: 'released' }, { type: 'survey', id: 'survey-new' }, { type: 'assignment', id: 'draft' },
+    ] })
+  })
+
   it('creates a draft survey from the New classwork menu and opens visual editing', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
@@ -2422,11 +2519,11 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    expect(screen.getByRole('button', { name: 'Change assignment layout: Students + grading' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Content + grading' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Student table' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Individual student' })).not.toBeInTheDocument()
     expectAssignmentSplitPaneIndicator({
       panes: 'students-grading',
-      iconClasses: ['lucide-menu', 'lucide-percent'],
+      iconClasses: ['lucide-users'],
     })
     expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
     expect(screen.queryByRole('group', { name: 'Left pane view' })).not.toBeInTheDocument()
@@ -2879,14 +2976,14 @@ describe('TeacherClassroomView', () => {
       inspectorCollapsed: false,
       inspectorWidth: 61,
     })
-    expect(screen.getByRole('button', { name: 'Change assignment layout: Content + grading' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Individual student' })).toBeInTheDocument()
     expectAssignmentSplitPaneIndicator({
       panes: 'content-grading',
-      iconClasses: ['lucide-square-menu', 'lucide-percent'],
+      iconClasses: ['lucide-user'],
     })
-    expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Student actions for student-1 Student' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /Send/i })).not.toBeInTheDocument()
-    expect(screen.getByText('student-1 Student')).toBeInTheDocument()
+    expect(screen.getAllByText('student-1 Student').length).toBeGreaterThan(0)
     await waitFor(() => {
       expect(screen.getByText('17 chars')).toBeInTheDocument()
     })
@@ -2894,7 +2991,89 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Next student' })).toBeInTheDocument()
   })
 
-  it('cycles through all three requested split-pane views', async () => {
+  it.each(['AI Grade', 'Return'] as const)('targets only the displayed student for individual %s actions', async (action) => {
+    const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    details.students.push(makeStudentSubmissionRow('student-2'))
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+    const bodies: unknown[] = []
+    const endpoint = action === 'AI Grade' ? 'auto-grade' : 'return'
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({ ok: true, json: async () => ({ class_days: [] }) })
+      }
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({ ok: true, json: async () => details })
+      }
+      if (url === `/api/teacher/assignments/assignment-1/${endpoint}` && init?.method === 'POST') {
+        bodies.push(JSON.parse(String(init.body)))
+        return Promise.resolve({ ok: true, json: async () => ({
+          graded_count: 1, returned_count: 1, returned_student_ids: ['student-2'],
+        }) })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({ error: `Unhandled fetch: ${url}` }) })
+    })
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    const { rerender } = render(<TeacherClassroomView classroom={classroom} />)
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1'))
+    clickAssignmentLayoutToggle()
+    expect(mockSetSelection).toHaveBeenLastCalledWith(new Set(['student-1']))
+    getSelectedStudentAction('AI Grade student-1 Student')
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
+    expect(screen.queryByRole('menuitem', { name: /Copy/ })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menu', { name: 'Selected student assignment actions' }), { key: 'Escape' })
+    mockDeferredWorkPanelStudentId = 'student-2'
+    fireEvent.click(screen.getByRole('button', { name: 'Next student' }))
+    expect(screen.getByRole('button', { name: 'Student actions for student-2 Student' })).toBeDisabled()
+    expect(bodies).toEqual([])
+    mockDeferredWorkPanelStudentId = null
+    rerender(<TeacherClassroomView classroom={classroom} />)
+    expect(screen.getByRole('button', { name: 'Student actions for student-2 Student' })).toBeEnabled()
+    expect(mockSetSelection).toHaveBeenLastCalledWith(new Set(['student-2']))
+    fireEvent.click(getSelectedStudentAction(action === 'AI Grade' ? 'AI Grade student-2 Student' : 'Return'))
+    const dialog = screen.getByRole('dialog', { name: action === 'AI Grade'
+      ? 'AI grade student-2 Student?' : 'Return work to student-2 Student?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: action === 'AI Grade' ? 'AI grade' : 'Return', exact: true }))
+    await waitFor(() => expect(bodies).toEqual([{ student_ids: ['student-2'] }]))
+    const clearsBeforeToggle = mockClearSelection.mock.calls.length
+    clickAssignmentLayoutToggle()
+    expect(mockClearSelection).toHaveBeenCalledTimes(clearsBeforeToggle + 1)
+    expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
+  })
+
+  it.each(['table', 'individual'] as const)('pauses parent AI and Return confirmations when the current work read pauses in %s view', async (view) => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1'])
+    mockStudentSelectionState.selectedCount = 1
+    const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/teacher/assignments/assignment-1') return Promise.resolve({ ok: true, json: async () => details })
+      return Promise.resolve({ ok: true, json: async () => ({ class_days: [] }) })
+    })
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    const { rerender } = render(<TeacherClassroomView classroom={classroom} />)
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1'))
+    if (view === 'individual') clickAssignmentLayoutToggle()
+    fireEvent.click(getSelectedStudentAction(view === 'individual' ? 'AI Grade student-1 Student' : 'AI Grade'))
+    const aiDialog = screen.getByRole('dialog', { name: /AI grade/ })
+    mockWorkReadPaused = true
+    rerender(<TeacherClassroomView classroom={classroom} />)
+    expect(within(aiDialog).getByRole('button', { name: 'AI grade', exact: true })).toBeDisabled()
+    fireEvent.click(within(aiDialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: /Student actions for/ })).toBeDisabled()
+    mockWorkReadPaused = false
+    rerender(<TeacherClassroomView classroom={classroom} />)
+    fireEvent.click(getSelectedStudentAction('Return'))
+    const returnDialog = screen.getByRole('dialog', { name: /Return work/ })
+    mockWorkReadPaused = true
+    rerender(<TeacherClassroomView classroom={classroom} />)
+    expect(within(returnDialog).getByRole('button', { name: 'Return', exact: true })).toBeDisabled()
+    fireEvent.click(within(returnDialog).getByRole('button', { name: 'Return', exact: true }))
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([, init]) => init?.method === 'POST')).toEqual([])
+  })
+
+  it('toggles table and individual views while preserving the marking controller', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -2941,7 +3120,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
       expectAssignmentSplitPaneIndicator({
         panes: 'content-grading',
-        iconClasses: ['lucide-square-menu', 'lucide-percent'],
+        iconClasses: ['lucide-user'],
       })
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
@@ -2954,27 +3133,10 @@ describe('TeacherClassroomView', () => {
       expect(originalPanel.closest('.workspace-entry')).toBe(workspaceFrame)
       expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
       expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
-      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
-      expectAssignmentSplitPaneIndicator({
-        panes: 'students-content',
-        iconClasses: ['lucide-menu', 'lucide-square-menu'],
-      })
-      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveTextContent('student-1')
-      expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
-      expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
-    })
-
-    clickAssignmentLayoutToggle()
-
-    await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toBe(originalPanel)
-      expect(originalPanel.closest('.workspace-entry')).toBe(workspaceFrame)
-      expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
-      expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
       expectAssignmentSplitPaneIndicator({
         panes: 'students-grading',
-        iconClasses: ['lucide-menu', 'lucide-percent'],
+        iconClasses: ['lucide-users'],
       })
       expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveTextContent('student-1')
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('grading:assignment-1:student-1')
@@ -3009,22 +3171,22 @@ describe('TeacherClassroomView', () => {
     document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
     window.sessionStorage.setItem(
       `pika_assignment_split_pane_view:${classroom.id}:assignment-1`,
-      JSON.stringify('students-content'),
+      JSON.stringify('content-grading'),
     )
 
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
+      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
       expectAssignmentSplitPaneIndicator({
-        panes: 'students-content',
-        iconClasses: ['lucide-menu', 'lucide-square-menu'],
+        panes: 'content-grading',
+        iconClasses: ['lucide-user'],
       })
       expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveTextContent('student-1')
-      expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
-      expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
+      expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('work:assignment-1:student-1')
+      expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('grading:assignment-1:student-1')
     })
-    expect(screen.getByRole('button', { name: 'Change assignment layout: Students + content' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Individual student' })).toBeInTheDocument()
   })
 
   it('keeps the students and grading view active when clicking a student row', async () => {
@@ -3090,7 +3252,7 @@ describe('TeacherClassroomView', () => {
     })
 
     expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
-    expect(screen.getByRole('button', { name: 'Change assignment layout: Students + grading' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Student table' })).toBeInTheDocument()
   })
 
   it('restores the class-pane scroll position after selecting a lower student row', async () => {
@@ -3183,6 +3345,36 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
     expect(screen.getByText('student-1')).toBeInTheDocument()
+  })
+
+  it.each([401, 403, 404])('never advances assignment AI grading after status HTTP %i', async (status) => {
+    const initialRun = {
+      id: 'run-1', assignment_id: 'assignment-1', status: 'running', model: null,
+      requested_count: 1, gradable_count: 1, processed_count: 0, completed_count: 0,
+      skipped_missing_count: 0, skipped_empty_count: 0, failed_count: 0, pending_count: 1,
+      next_retry_at: null, error_samples: [], started_at: null, completed_at: null,
+      created_at: '2026-10-08T12:00:00Z',
+    }
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({ ok: true, json: async () => ({ class_days: [] }) })
+      }
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({ ok: true, json: async () => makeAssignmentDetails(
+          'assignment-1', 'Assignment One', 'student-1', initialRun,
+        ) })
+      }
+      return Promise.resolve({ ok: false, status, json: async () => ({ error: 'Unavailable' }) })
+    })
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    render(<TeacherClassroomView classroom={classroom} />)
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/auto-grade-runs/run-1'))).toBe(true))
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/tick'))).toBe(false)
+    expect(screen.getByText('Grading status is unavailable. Reload this page to reconnect to the saved run.')).toBeInTheDocument()
+    expect(mockUseOverlayMessage).toHaveBeenLastCalledWith(false, '', { tone: 'loading' })
   })
 
   it('resumes an active assignment AI grading run and reports the final counts', async () => {

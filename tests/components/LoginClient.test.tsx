@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, waitFor, cleanup, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LoginClient } from '@/app/login/LoginClient'
 import { SESSION_CHANGED_MESSAGE, SESSION_EXPIRED_MESSAGE } from '@/lib/client-auth'
@@ -177,10 +177,16 @@ describe('LoginClient', () => {
     const user = userEvent.setup()
 
     render(<LoginClient />)
-    await user.click(screen.getByRole('button', { name: 'Sign up' }))
+    await user.type(screen.getByLabelText('School Email'), 'reset@example.invalid')
+    screen.getByRole('button', { name: 'Forgot password?' }).focus()
+    await user.tab()
+    const signup = screen.getByRole('button', { name: 'Sign up' })
+    expect(signup).toHaveFocus()
+    expect(signup).toHaveClass('min-h-control', 'min-w-control', 'focus-visible:ring-focus')
+    await user.keyboard('{Enter}')
 
     expect(mockPush).toHaveBeenCalledWith(
-      '/signup?next=%2Fattendance%2Fclassroom%2Fqr-token',
+      '/signup?email=reset%40example.invalid&next=%2Fattendance%2Fclassroom%2Fqr-token',
     )
   })
 
@@ -283,5 +289,60 @@ describe('LoginClient', () => {
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalled()
     })
+  })
+})
+
+
+describe('LoginClient request ownership', () => {
+  beforeEach(() => { vi.stubGlobal('fetch', vi.fn()); mockPush.mockClear(); mockNavigateTo.mockClear(); mockGet.mockReturnValue(null) })
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+  async function heldLogin() {
+    let resolve!: (value: unknown) => void
+    vi.mocked(fetch).mockReturnValueOnce(new Promise<Response>(done => { resolve = done as typeof resolve }))
+    const view = render(<LoginClient />)
+    const email = screen.getByLabelText('School Email') as HTMLInputElement
+    const password = screen.getByLabelText(/Password/) as HTMLInputElement
+    fireEvent.change(email, { target: { value: 'retry@example.invalid' } })
+    fireEvent.change(password, { target: { value: 'SyntheticLogin123!' } })
+    password.focus(); password.setSelectionRange(4, 4)
+    const form = password.closest('form')!
+    fireEvent.submit(form)
+    return { ...view, email, password, form, resolve }
+  }
+  it.each(['401', '500', 'malformed'])('retains fields and semantic feedback through %s and retry', async kind => {
+    const { email, password, form, resolve } = await heldLogin()
+    expect(form).toHaveAttribute('aria-busy', 'true')
+    expect(password).toBeDisabled()
+    expect(form.querySelector('.mt-1.min-h-5')).not.toHaveTextContent(/./)
+    password.blur()
+    await act(async () => resolve({ ok: false, json: async () => { if (kind === 'malformed') throw new SyntaxError('Malformed synthetic JSON'); return { error: 'Synthetic rejected' } } }))
+    expect(password).toHaveFocus()
+    expect(password.selectionStart).toBe(4)
+    expect(screen.getByLabelText(/Password/)).toBe(password)
+    expect(screen.getByLabelText('School Email')).toBe(email)
+    expect(password.value).toBe('SyntheticLogin123!')
+    expect(email.value).toBe('retry@example.invalid')
+    expect(form).toHaveAttribute('aria-busy', 'false')
+    expect(screen.getByRole('alert')).toBeVisible()
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ redirectUrl: '/dashboard' }) } as Response)
+    fireEvent.submit(form)
+    await waitFor(() => expect(mockNavigateTo).toHaveBeenCalledWith('/dashboard'))
+  })
+  it.each(['pointer', 'focused'])('does not steal focus after deliberate %s movement', async kind => {
+    const { password, resolve } = await heldLogin()
+    password.blur()
+    if (kind === 'pointer') fireEvent.pointerDown(document.body)
+    else screen.getByRole('button', { name: 'Forgot password?' }).focus()
+    const active = document.activeElement
+    await act(async () => resolve({ ok: false, json: async () => ({ error: 'Rejected' }) }))
+    expect(document.activeElement).toBe(active)
+  })
+  it.each(['Forgot password?', 'Sign up', 'unmount'])('suppresses obsolete held success after %s departure', async departure => {
+    const { resolve, unmount } = await heldLogin()
+    if (departure === 'unmount') unmount()
+    else fireEvent.click(screen.getByRole('button', { name: departure }))
+    await act(async () => resolve({ ok: true, json: async () => ({ redirectUrl: '/obsolete' }) }))
+    expect(mockNavigateTo).not.toHaveBeenCalled()
+    if (departure !== 'unmount') expect(mockPush).toHaveBeenCalledTimes(1)
   })
 })

@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { ReactNode } from 'react'
 import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
+import { TeacherSurveyResultsView } from '@/components/surveys/TeacherSurveyWorkspace'
 import type { SurveyWithStats } from '@/types'
 
 function makeSurvey(overrides: Partial<SurveyWithStats> = {}): SurveyWithStats {
@@ -57,6 +58,22 @@ function createMountedRoot() {
 }
 
 describe('TeacherSurveyResultsPane', () => {
+  it('preserves a formatted question and original option order in the shared results view', () => {
+    render(<TeacherSurveyResultsView payload={{
+      stats: { total_students: 20, responded: 20 },
+      results: [{
+        question_id: 'question-1', question_type: 'multiple_choice',
+        question_text: '**Choose** an activity', options: ['Discussion', 'Practice', 'Other'],
+        counts: [7, 13, 0], responses: [], total_responses: 20,
+      }],
+    }} />)
+    expect(screen.getByText('Q1')).toBeVisible()
+    expect(screen.getByText('Choose', { selector: 'strong' })).toBeVisible()
+    expect(screen.getAllByRole('group').map((group) => group.getAttribute('aria-label'))).toEqual([
+      'Discussion: 7 responses, 35%', 'Practice: 13 responses, 65%', 'Other: 0 responses, 0%',
+    ])
+  })
+
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()

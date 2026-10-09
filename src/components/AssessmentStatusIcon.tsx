@@ -35,6 +35,23 @@ export function AssessmentStatusIcon({
 }: AssessmentStatusIconProps) {
   const meta = STATUS_ICON_META[state]
   const Icon = meta.icon
+  const iconClassName = [ICON_CLASS, !late && meta.className, !late && className].filter(Boolean).join(' ')
+  const statusIcon = state === 'in_progress' ? (
+    <span
+      className={`relative inline-flex shrink-0 ${iconClassName}`}
+      aria-hidden="true"
+      data-testid="assessment-status-icon-in_progress"
+    >
+      <Circle className="absolute inset-0 h-full w-full text-text-muted" aria-hidden="true" />
+      {/* Lucide Circle has radius 10: 40π/3 draws exactly 240° of its ring. */}
+      <Circle
+        className="absolute inset-0 h-full w-full -rotate-90 text-assessment-progress [&_circle]:[stroke-dasharray:41.887902_20.943951] [&_circle]:[stroke-linecap:butt]"
+        aria-hidden="true"
+      />
+    </span>
+  ) : (
+    <Icon className={iconClassName} aria-hidden="true" data-testid={`assessment-status-icon-${state}`} />
+  )
 
   if (late) {
     return (
@@ -42,17 +59,11 @@ export function AssessmentStatusIcon({
         className={['inline-flex items-center gap-0.5', meta.className, className].filter(Boolean).join(' ')}
         data-testid={`assessment-status-icon-${state}-late`}
       >
-        <Icon className={ICON_CLASS} aria-hidden="true" data-testid={`assessment-status-icon-${state}`} />
+        {statusIcon}
         <Clock className={LATE_CLOCK_CLASS} aria-hidden="true" data-testid="assessment-status-icon-late-clock" />
       </span>
     )
   }
 
-  return (
-    <Icon
-      className={[ICON_CLASS, meta.className, className].filter(Boolean).join(' ')}
-      aria-hidden="true"
-      data-testid={`assessment-status-icon-${state}`}
-    />
-  )
+  return statusIcon
 }

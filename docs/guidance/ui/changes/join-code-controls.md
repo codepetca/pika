@@ -1,0 +1,17 @@
+# Canonical join-code controls
+
+Surface: the public `/join` code-entry form. Approved executable reference: `/pattern-lab#controls` Buttons and Form fields, plus the existing shell-light authentication forms. Keep the current centered page/card, heading, copy and navigation owner. The actual eight-case baseline measures a 42px input and 36px Join button; keyboard Tab and uppercase/space preservation already work.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Join code label and text input | FormField and Input from `@/ui` | reuse | Approved label association, semantic tokens, focus styling and 44px input geometry. |
+| Primary Join action | Button from `@/ui`, primary/fullWidth | reuse | Approved focus/disabled styling and at least 44px target; same ordinary form submit. |
+| Code entry and destination | Existing feature-owned state and submit handler | reuse | Preserve uppercasing while editing, trim only on submit, exact encoded `/join/<code>` destination and blank guard. |
+
+Roles: shared public entry before role-specific enrollment; teacher/student-specific state n/a for this form. Matrix: desktop1440×900/mobile390×844, light/dark, normal/reduced motion. States: empty/disabled, partial code, input/button keyboard focus, whitespace-only guard and Enter submit with a synthetic destination response. Primary signal: one existing primary Join action. Composite-widget checklist n/a (ordinary native form); label, focus, tab order and submit semantics remain required.
+
+Scope: adopt the canonical controls and remove only this file's migrated native-control registry entry. No new primitive/abstraction, page-layout or pattern promotion, animation, dependency, API/provider/schema/policy/enrollment change. Preserve autoCapitalize/autoCorrect/spellCheck and entered text, including spaces until submit. Keep nearby auth auxiliary controls outside this change.
+
+Acceptance: meaningful component checks for accessible label, blank submit guard, controlled uppercase/whitespace, keyboard Enter and exact trim/encoding, plus existing join-destination tests. Verify actual public entry at all eight viewport/theme/motion combinations, input/button at least44px, keyboard focus, no overflow and canonical reference parity. A synthetic destination response may establish the unchanged route handoff; it cannot establish actual enrollment/backend writes. Inspect screenshots and natural recordings. Then required focused checks/audit and draft-first independent stable-SHA review/CI. Merge and production authority remain separate. Full join-family coverage stays incomplete beyond this entry form.
+
+Verification: 14 component tests (three new plus 11 existing destination tests) pass; final actual-public browser matrix has eight direct passes, no retries/skips/unexpected errors, 40 screenshots and eight natural recordings inspected. Input/button are both44px. All attempted destination requests are intercepted (16 development StrictMode POST attempts, zero persisted writes). The existing shared ThemeProvider hydration race is separately evidenced on unchanged baseline and candidate: dark briefly becomes light before returning to dark, before typing. The root layout/theme provider are unchanged; retain this limitation and address through the shared-theme continuity follow-up. This entry-form migration does not establish full enrollment or product-wide coverage.

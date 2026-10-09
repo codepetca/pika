@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { CourseGuideOptionsDialog } from '@/components/CourseGuideOptionsDialog'
 import { CourseGuideImportDialog } from '@/components/CourseGuideImportDialog'
@@ -11,7 +11,7 @@ import {
   normalizeActualCourseSiteConfig,
   slugifyCourseSiteValue,
 } from '@/lib/course-site-publishing'
-import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import {
   ACTIONBAR_BUTTON_SECONDARY_CLASSNAME,
   Button,
@@ -25,6 +25,7 @@ import {
   useAppMessage,
 } from '@/ui'
 import type { ActualCourseSiteConfig, Classroom } from '@/types'
+import type { MouseEvent } from 'react'
 
 type CourseGuidePanelProps = {
   classroom: Classroom
@@ -35,6 +36,18 @@ type CourseGuidePanelProps = {
 type CourseGuideResponse = {
   guide: CourseGuideData
 }
+
+class CourseGuideReadError extends Error {
+  constructor(readonly status: number) {
+    super('The course guide could not be loaded.')
+  }
+}
+
+type GuideReadState = { owner: string } & (
+  | { status: 'loading'; denied?: boolean }
+  | { status: 'ready'; guide: CourseGuideData; refreshing: boolean; refreshError: boolean }
+  | { status: 'error'; denied: boolean }
+)
 
 type SavedGuideOptions = {
   published: boolean
@@ -62,18 +75,21 @@ export function CourseGuidePanel({
   onClassroomUpdated,
 }: CourseGuidePanelProps) {
   const { showMessage } = useAppMessage()
+  const owner = `${role}:${classroom.id}`
+  const committedOwnerRef = useRef({ key: owner })
+  const committedClassroomRef = useRef(classroom)
   const currentClassroomIdRef = useRef(classroom.id)
-  const resetClassroomIdRef = useRef(classroom.id)
-  currentClassroomIdRef.current = classroom.id
+  const readRequestRef = useRef(0)
+  const readPendingRef = useRef(false)
+  const guideRegionRef = useRef<HTMLDivElement>(null)
   const [attempt, setAttempt] = useState(0)
-  const [state, setState] = useState<
-    | { status: 'loading' }
-    | { status: 'ready'; guide: CourseGuideData }
-    | { status: 'error' }
-  >({ status: 'loading' })
+  const [readState, setState] = useState<GuideReadState>({ owner, status: 'loading' })
+  // A changed owner cannot render the previous owner's snapshot before effects run.
+  const state: GuideReadState = readState.owner === owner
+    ? readState
+    : { owner, status: 'loading' }
   const [editorMode, setEditorMode] = useState<EditorMode | null>(null)
   const editorModeRef = useRef<EditorMode | null>(null)
-  editorModeRef.current = editorMode
   const [overviewDraft, setOverviewDraft] = useState(classroom.course_overview_markdown || '')
   const [overviewSavedValue, setOverviewSavedValue] = useState(classroom.course_overview_markdown || '')
   const [overviewSaving, setOverviewSaving] = useState(false)
@@ -85,35 +101,12 @@ export function CourseGuidePanel({
   const [optionsError, setOptionsError] = useState('')
   const [importOpen, setImportOpen] = useState(false)
 
-  useEffect(() => {
-    let current = true
-    setState({ status: 'loading' })
-
-    void fetchCachedJSON<CourseGuideResponse>(
-      getCacheKey(classroom.id),
-      `/api/classrooms/${encodeURIComponent(classroom.id)}/course-guide`,
-      {
-        errorMessage: 'The course guide could not be loaded.',
-        ttlMs: 0,
-      },
-    ).then((response) => {
-      if (current) setState({ status: 'ready', guide: response.guide })
-    }).catch(() => {
-      if (current) setState({ status: 'error' })
-    })
-
-    return () => {
-      current = false
-    }
-  }, [attempt, classroom.id, classroom.updated_at])
-
-  useEffect(() => {
-    if (resetClassroomIdRef.current === classroom.id) return
-    resetClassroomIdRef.current = classroom.id
-    const nextOptions = optionsFromClassroom(classroom)
+  const resetOwnerWork = useCallback(() => {
+    const committedClassroom = committedClassroomRef.current
+    const nextOptions = optionsFromClassroom(committedClassroom)
     setEditorMode(null)
-    setOverviewDraft(classroom.course_overview_markdown || '')
-    setOverviewSavedValue(classroom.course_overview_markdown || '')
+    setOverviewDraft(committedClassroom.course_overview_markdown || '')
+    setOverviewSavedValue(committedClassroom.course_overview_markdown || '')
     setOverviewSaving(false)
     setOverviewError('')
     setOptionsOpen(false)
@@ -122,7 +115,76 @@ export function CourseGuidePanel({
     setOptionsSaving(false)
     setOptionsError('')
     setImportOpen(false)
+  }, [])
+
+  useLayoutEffect(() => {
+    committedClassroomRef.current = classroom
   }, [classroom])
+
+  useLayoutEffect(() => {
+    // Only committed renders may retire live read/write authority. A suspended
+    // render for another owner must not invalidate the still-visible owner.
+    if (committedOwnerRef.current.key !== owner) {
+      committedOwnerRef.current = { key: owner }
+      currentClassroomIdRef.current = classroom.id
+      setState({ owner, status: 'loading' })
+      resetOwnerWork()
+    }
+    readRequestRef.current += 1
+    readPendingRef.current = true
+  }, [owner, classroom.id, classroom.updated_at, attempt, resetOwnerWork])
+
+  useLayoutEffect(() => {
+    editorModeRef.current = editorMode
+  }, [editorMode])
+
+  useLayoutEffect(() => () => {
+    readRequestRef.current += 1
+    committedOwnerRef.current = { key: committedOwnerRef.current.key }
+  }, [])
+
+  useEffect(() => {
+    let current = true
+    const committedOwner = committedOwnerRef.current
+    const requestId = readRequestRef.current
+    const cacheKey = getCacheKey(classroom.id)
+    const isCurrent = () => current && committedOwnerRef.current === committedOwner &&
+      readRequestRef.current === requestId
+
+    setState((previous) => previous.owner === owner && previous.status === 'ready'
+      ? { ...previous, refreshing: true, refreshError: false }
+      : { owner, status: 'loading', denied: previous.owner === owner && previous.status !== 'ready' && previous.denied })
+
+    // A newer logical read must not attach to an obsolete classroom-key pending
+    // request. Keep governed caching without changing the shared cache helper.
+    invalidateCachedJSON(cacheKey)
+    void fetchJSONWithCache<CourseGuideResponse>(cacheKey, async () => {
+      const response = await fetch(`/api/classrooms/${encodeURIComponent(classroom.id)}/course-guide`, undefined)
+      if (!response.ok) throw new CourseGuideReadError(response.status)
+      return await response.json() as CourseGuideResponse
+    }, 0).then((response) => {
+      if (!isCurrent()) return
+      readPendingRef.current = false
+      setState({ owner, status: 'ready', guide: response.guide, refreshing: false, refreshError: false })
+    }).catch((error: unknown) => {
+      if (!isCurrent()) return
+      readPendingRef.current = false
+      const denied = error instanceof CourseGuideReadError && [401, 403, 404].includes(error.status)
+      if (denied) {
+        invalidateCachedJSON(cacheKey)
+        // Retire writes too: a late response cannot revive denied editor data.
+        committedOwnerRef.current = { key: owner }
+        resetOwnerWork()
+      }
+      setState((previous) => !denied && previous.owner === owner && previous.status === 'ready'
+        ? { ...previous, refreshing: false, refreshError: true }
+        : { owner, status: 'error', denied: denied || (previous.owner === owner && previous.status !== 'ready' && !!previous.denied) })
+    })
+
+    return () => {
+      current = false
+    }
+  }, [attempt, owner, classroom.id, classroom.updated_at, resetOwnerWork])
 
   useEffect(() => {
     const nextOverview = classroom.course_overview_markdown || ''
@@ -132,15 +194,17 @@ export function CourseGuidePanel({
     }
   }, [classroom.course_overview_markdown])
 
-  const publicGuideAvailable = savedOptions.published && !!savedOptions.slug
+  const currentOwnerWork = readState.owner === owner && !(state.status !== 'ready' && state.denied)
+  const renderedOwner = committedOwnerRef.current
+  const publicGuideAvailable = currentOwnerWork && savedOptions.published && !!savedOptions.slug
   const siteHref = publicGuideAvailable ? `/actual/${savedOptions.slug}` : ''
   const isArchived = !!classroom.archived_at
   const overviewDirty = overviewDraft !== overviewSavedValue
 
   function updateReadyGuide(update: (guide: CourseGuideData) => CourseGuideData) {
     setState((current) => (
-      current.status === 'ready'
-        ? { status: 'ready', guide: update(current.guide) }
+      current.owner === owner && current.status === 'ready'
+        ? { ...current, guide: update(current.guide) }
         : current
     ))
   }
@@ -165,6 +229,7 @@ export function CourseGuidePanel({
   async function saveOverview() {
     if (isArchived || overviewSaving) return
     const classroomId = classroom.id
+    const committedOwner = committedOwnerRef.current
     const nextOverview = overviewDraft
     setOverviewSaving(true)
     setOverviewError('')
@@ -176,7 +241,7 @@ export function CourseGuidePanel({
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to save the course guide')
-      if (currentClassroomIdRef.current !== classroomId) return
+      if (currentClassroomIdRef.current !== classroomId || committedOwnerRef.current !== committedOwner) return
 
       invalidateCachedJSON(getCacheKey(classroomId))
       if (savedOptions.slug) invalidateCachedJSON(`public-course-guide:${savedOptions.slug}`)
@@ -186,16 +251,17 @@ export function CourseGuidePanel({
       setEditorMode(null)
       showMessage({ text: 'Course guide saved', tone: 'success' })
     } catch (error) {
-      if (currentClassroomIdRef.current !== classroomId) return
+      if (currentClassroomIdRef.current !== classroomId || committedOwnerRef.current !== committedOwner) return
       setOverviewError(error instanceof Error ? error.message : 'Failed to save the course guide')
     } finally {
-      if (currentClassroomIdRef.current === classroomId) setOverviewSaving(false)
+      if (currentClassroomIdRef.current === classroomId && committedOwnerRef.current === committedOwner) setOverviewSaving(false)
     }
   }
 
   async function saveOptions() {
     if (isArchived || optionsSaving) return
     const classroomId = classroom.id
+    const committedOwner = committedOwnerRef.current
     const nextOptions = {
       ...draftOptions,
       slug: slugifyCourseSiteValue(draftOptions.slug),
@@ -215,7 +281,7 @@ export function CourseGuidePanel({
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to save guide options')
-      if (currentClassroomIdRef.current !== classroomId) return
+      if (currentClassroomIdRef.current !== classroomId || committedOwnerRef.current !== committedOwner) return
 
       invalidateCachedJSON(getCacheKey(classroomId))
       if (savedOptions.slug) invalidateCachedJSON(`public-course-guide:${savedOptions.slug}`)
@@ -231,10 +297,10 @@ export function CourseGuidePanel({
       setOptionsOpen(false)
       showMessage({ text: 'Guide options saved', tone: 'success' })
     } catch (error) {
-      if (currentClassroomIdRef.current !== classroomId) return
+      if (currentClassroomIdRef.current !== classroomId || committedOwnerRef.current !== committedOwner) return
       setOptionsError(error instanceof Error ? error.message : 'Failed to save guide options')
     } finally {
-      if (currentClassroomIdRef.current === classroomId) setOptionsSaving(false)
+      if (currentClassroomIdRef.current === classroomId && committedOwnerRef.current === committedOwner) setOptionsSaving(false)
     }
   }
 
@@ -308,6 +374,17 @@ export function CourseGuidePanel({
     },
   ]
 
+  function retryRead(event: MouseEvent<HTMLButtonElement>) {
+    if (readPendingRef.current) return
+    if (document.activeElement === event.currentTarget) {
+      guideRegionRef.current?.focus({ preventScroll: true })
+    }
+    readPendingRef.current = true
+    readRequestRef.current += 1
+    invalidateCachedJSON(getCacheKey(classroom.id))
+    setAttempt((value) => value + 1)
+  }
+
   return (
     <PageLayout
       width="full"
@@ -332,11 +409,11 @@ export function CourseGuidePanel({
         />
       ) : null}
 
-      {role === 'teacher' && !isArchived ? (
+      {role === 'teacher' && !isArchived && currentOwnerWork ? (
         <PageActionBar primary={null} actions={teacherActions} />
       ) : null}
 
-      {role === 'teacher' && isArchived ? (
+      {role === 'teacher' && isArchived && currentOwnerWork ? (
         <PageActionBar
           primary={<p className="py-2 text-sm text-text-muted">Archived classroom · Course Guide is read-only.</p>}
           trailing={publicGuideAvailable ? (
@@ -348,47 +425,65 @@ export function CourseGuidePanel({
         />
       ) : null}
 
-      {state.status === 'loading' ? (
-        <PageContent>
-          <PageState kind="loading" title="Loading course guide" />
-        </PageContent>
-      ) : null}
+      <div
+        ref={guideRegionRef}
+        role="region"
+        aria-label="Course guide workspace"
+        tabIndex={-1}
+        className="min-w-0 outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+      >
+        {state.status === 'loading' ? (
+          <PageContent>
+            <PageState kind="loading" title="Loading course guide" />
+          </PageContent>
+        ) : null}
 
-      {state.status === 'error' ? (
-        <PageContent>
-          <PageState
-            kind="error"
-            title="Course guide unavailable"
-            description="The course guide could not be loaded."
-            action={(
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  invalidateCachedJSON(getCacheKey(classroom.id))
-                  setAttempt((value) => value + 1)
-                }}
-              >
-                Retry
-              </Button>
-            )}
-          />
-        </PageContent>
-      ) : null}
+        {state.status === 'error' ? (
+          <PageContent>
+            <PageState
+              kind={state.denied ? 'forbidden' : 'error'}
+              title="Course guide unavailable"
+              description="The course guide could not be loaded."
+              action={(
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={retryRead}
+                >
+                  Retry
+                </Button>
+              )}
+            />
+          </PageContent>
+        ) : null}
 
-      {state.status === 'ready' ? (
-        <div>
-          <CourseGuideView
-            guide={state.guide}
-            embedded
-            editMode={role === 'teacher' && editorMode !== null && !isArchived}
-            overviewEditor={guideEditor}
-          />
-        </div>
-      ) : null}
+        {state.status === 'ready' ? (
+          <div>
+            <CourseGuideView
+              guide={state.guide}
+              embedded
+              editMode={role === 'teacher' && editorMode !== null && !isArchived}
+              overviewEditor={guideEditor}
+            />
+          </div>
+        ) : null}
+
+        {state.status === 'ready' && state.refreshing ? (
+          <span role="status" className="sr-only">Refreshing course guide</span>
+        ) : null}
+
+        {state.status === 'ready' && state.refreshError ? (
+          <PageContent>
+            <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              <span>Course guide could not be refreshed. Showing the last loaded course guide.</span>
+              <Button type="button" variant="secondary" size="sm" onClick={retryRead}>Retry</Button>
+            </div>
+          </PageContent>
+        ) : null}
+      </div>
 
       <CourseGuideOptionsDialog
-        isOpen={optionsOpen}
+        isOpen={optionsOpen && currentOwnerWork}
         saving={optionsSaving}
         error={optionsError}
         published={draftOptions.published}
@@ -431,9 +526,11 @@ export function CourseGuidePanel({
       />
 
       <CourseGuideImportDialog
-        isOpen={importOpen}
+        key={owner}
+        isOpen={importOpen && currentOwnerWork}
         classroom={{ ...classroom, course_overview_markdown: overviewSavedValue }}
         onApplied={(updatedClassroom) => {
+          if (committedOwnerRef.current !== renderedOwner || currentClassroomIdRef.current !== classroom.id) return
           invalidateCachedJSON(getCacheKey(classroom.id))
           if (savedOptions.slug) invalidateCachedJSON(`public-course-guide:${savedOptions.slug}`)
           updateReadyGuide((guide) => ({

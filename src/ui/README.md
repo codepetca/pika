@@ -45,6 +45,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 ```
 
+### CircularProgress
+
+Use `CircularProgress` for circular loading indicators. It renders the Lucide
+`LoaderCircle` with no background, border tile, or muted track, inherits the
+owning surface's text color, and stops spinning for reduced motion. Set size
+and semantic color through `className`; the default is 16px.
+
+The indicator is decorative. Its owning control or status supplies the loading
+label and busy semantics. `Button`, `IconButton`, `PageState`, and the legacy
+`Spinner` wrapper all use this owner. Do not recreate a loading SVG or add a
+background around the indicator.
+
 ### IconButton
 
 Use `IconButton` for icon-only actions. Pass a Lucide `icon` and contextual `label`;
@@ -86,12 +98,15 @@ interface FormFieldProps {
   htmlFor?: string
   error?: string
   hint?: string
+  reserveErrorSpace?: boolean
   required?: boolean
   children: ReactElement  // Exactly one Input, Select, Textarea, etc.
 }
 ```
 
 `FormField` preserves a control-provided `id` unless an explicit `htmlFor` override is supplied, associates the label, propagates native `required` plus ARIA required/invalid state, and merges existing descriptions with hint and error ids. Hints remain available when an error is present. Pass exactly one form control as its child.
+
+`reserveErrorSpace` is an opt-in for forms whose inline request error must not move the controls during pending/retry. It reserves one text line plus the existing error gap. Longer errors grow naturally without clipping; an empty slot has no alert, placeholder text, error ID or invalid semantics. Hints remain independently visible. Default field behavior is unchanged.
 
 ### AlertDialog
 
@@ -104,6 +119,7 @@ interface AlertDialogProps {
   variant?: 'default' | 'success' | 'error'
   buttonLabel?: string
   autoDismiss?: boolean
+  exitMotion?: 'none' | 'opacity'
 }
 ```
 
@@ -123,12 +139,22 @@ interface ConfirmDialogProps {
   confirmVariant?: 'primary' | 'danger'
   isCancelDisabled?: boolean
   isConfirmDisabled?: boolean
+  exitMotion?: 'none' | 'opacity'
 }
 ```
 
 ### ModalLayer
 
 `ModalLayer` is the behavioral foundation for canonical dialogs and mobile drawers. Prefer `AlertDialog`, `ConfirmDialog`, `ContentDialog`, or `DialogPanel` for normal product work. Use `ModalLayer` directly only for a custom modal surface such as a navigation or inspector drawer.
+
+The primitive portals to `document.body`, focuses the requested initial control, contains Tab focus, restores the opener, makes background roots inert, locks page scroll, and ensures only the top nested layer handles Escape. Callers provide the panel layout and accessible label; they must not add separate global Escape or scroll-lock effects.
+
+`exitMotion="opacity"` briefly fades the existing root using the standard semantic duration and easing. Logical dismissal remains immediate: the closed root is inert, hidden from accessibility APIs and unable to receive commands; focus, modal-stack membership and page scroll restore before the visual exit completes. Reduced motion skips retention. Reopening cancels the obsolete exit and makes the layer active immediately.
+
+`ModalLayer`, `ContentDialog` and `DialogPanel` default to `exitMotion="none"`. `AlertDialog` and `ConfirmDialog` default to opacity because their descendants are static text and controls; pass `none` when immediate physical removal is required. All four dialog owners forward the opt-in.
+
+An opacity exit retains the last committed open presentation, including its React descendants, until visual removal. Inertness does not stop child effects, requests, timers or editor instances. Audit a generic dialog's descendants before opting in, preserve its parent close/request invalidation immediately, and leave rich editors, live widgets and arbitrary drawers on the immediate default until their lifetime is reviewed. An owner removed by a conditional parent cannot animate after that unmount. See the [bounded dismissal brief](../../docs/guidance/ui/changes/softer-modal-dismissal.md) and [experimental adoption guidance](../../docs/guidance/ui/experimental/softer-modal-dismissal.md).
+
 
 ### QrCode
 
@@ -139,7 +165,6 @@ feature-local QR with theme-dependent foreground/background colors. Use
 to let the SVG fill that surface; retain a clear light quiet zone around every
 code.
 
-The primitive portals to `document.body`, focuses the requested initial control, contains Tab focus, restores the opener, makes background roots inert, locks page scroll, and ensures only the top nested layer handles Escape. Callers provide the panel layout and accessible label; they must not add separate global Escape or scroll-lock effects.
 
 ### Card
 
@@ -175,6 +200,8 @@ wrappers:
   standard content rhythm. The default remains compact for compatibility while callers migrate.
 - `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
   sizes.
+  Pass `wrap` for a reading title that must expose its complete identity; the default stays truncated.
+  CourseGuideView is the scoped adopter, demonstrated in Pattern Lab Page actions.
   For intentional focus after in-page navigation, pass `headingRef` and `tabIndex={-1}`;
   callers own when focus moves, and default headings remain outside the Tab order.
 - Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
@@ -222,7 +249,9 @@ base controls and shell styling follow the `@/ui` contracts.
 
 - Use `Tabs` plus `TabPanel` for panel-switching navigation. The tab list owns roving focus,
   automatic activation, arrow keys, `Home`/`End`, disabled-item skipping, narrow-width scrolling,
-  and 44px targets. Panels with interactive descendants are not additional tab stops.
+  and 44px targets. Initial/retained selection and layout changes reveal the selected tab within
+  its own scroller, without stealing focus or moving ancestor scroll. Manual tab browsing survives
+  unrelated renders. Panels with interactive descendants are not additional tab stops.
 - Use `SegmentedControl` for a small selected group that does not own tabpanels. It exposes pressed
   state and the same roving arrow/first/last keyboard behavior. Options may provide semantic
   `className`, `activeClassName`, and `inactiveClassName` overrides when the feature's established
@@ -434,6 +463,18 @@ responsibility belongs to feature composition.
 The motion duration variables resolve to `0ms` under
 `prefers-reduced-motion: reduce`. A feature-owned animation that does not use
 them must provide an equivalent path.
+
+Shared color-response owners use the fast duration and standard easing, with
+immediate reduced-motion response. Button and PageState loading indicators remain
+static under reduced motion while their labels and busy semantics remain present.
+
+`TabContentTransition` retains its children while inactive and hides/inerts the
+wrapper immediately. Its proposed active-only opacity entry reuses the existing
+workspace-entry utility; the broader tab adoption is an experimental extension
+demonstrated in Pattern Lab Quiet tab entry. It does not delay activation,
+rekey editors, or add a close timer. See the
+[change brief](../../docs/guidance/ui/changes/shared-interaction-fluidity.md) for
+the review and acceptance scope; it is not yet promoted into stable guidance.
 
 The approved classroom `.workspace-entry` utility in `src/app/globals.scss`
 uses the standard duration and easing for opacity-only entry. Apply it to the

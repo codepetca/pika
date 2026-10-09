@@ -150,6 +150,113 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     vi.restoreAllMocks()
   })
 
+  it('retries a failed initial read with stable focus and preserves local recovery', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    let resolveRetry!: (response: any) => void
+    let reads = 0
+    const recoveryKey = 'assignment-draft:student-1:assignment-1'
+    const recovery = JSON.stringify({ content: latestDraft, base_revision: makeDoc().updated_at, saved_at: new Date().toISOString() })
+    window.localStorage.setItem(recoveryKey, recovery)
+    window.sessionStorage.setItem(recoveryKey, recovery)
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      if (String(input).endsWith('/history')) return Promise.resolve({ ok: true, json: async () => ({ history: [] }) })
+      reads += 1
+      if (reads === 1) return Promise.resolve({ ok: false, status: 503, json: async () => ({ error: 'Private server detail' }) })
+      return new Promise((resolve) => { resolveRetry = resolve })
+    })
+    const onExit = vi.fn()
+    render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" onExit={onExit} />)
+    await screen.findByRole('heading', { name: "Assignment couldn't load" })
+    expect(screen.queryByText('Private server detail')).not.toBeInTheDocument()
+    expect(window.localStorage.getItem(recoveryKey)).toBe(recovery)
+    expect(window.sessionStorage.getItem(recoveryKey)).toBe(recovery)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+    const region = screen.getByRole('region', { name: 'Assignment work' })
+    expect(region).toHaveFocus()
+    expect(region).toHaveAttribute('aria-busy', 'true')
+    expect(within(region).getByRole('status')).toHaveTextContent('Loading assignment')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(reads).toBe(2)
+    expect(fetchMock.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true)
+    await act(async () => { resolveRetry({ ok: true, json: async () => ({ assignment: makeAssignment(), doc: makeDoc() }) }) })
+    expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
+    expect(screen.getByTestId('assignment-save-status')).toHaveTextContent('Unsaved')
+    expect(region).toHaveFocus()
+    expect(region).not.toHaveAttribute('aria-busy', 'true')
+    expect(window.localStorage.getItem(recoveryKey)).toBe(recovery)
+    expect(reads).toBe(2)
+  })
+
+  it('allows another user-initiated read after a repeated failure without writes', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => String(input).endsWith('/history')
+      ? { ok: true, json: async () => ({ history: [] }) }
+      : { ok: false, status: 500, json: async () => ({ error: 'Private server detail' }) })
+    const onExit = vi.fn()
+    render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" onExit={onExit} />)
+    await screen.findByRole('button', { name: 'Try again' })
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+    await screen.findByRole('button', { name: 'Try again' })
+    expect(fetchMock.mock.calls.filter(([url]) => !String(url).endsWith('/history'))).toHaveLength(2)
+    expect(fetchMock.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Back to assignments' }))
+    expect(onExit).toHaveBeenCalledOnce()
+  })
+
+  it('offers recovery for a network read failure in standalone mode', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      throw new TypeError('Failed to fetch')
+    })
+    render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" />)
+    await screen.findByRole('button', { name: 'Try again' })
+    expect(screen.getByRole('button', { name: 'Go back' })).toBeInTheDocument()
+    expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument()
+  })
+
+  it.each([401, 403, 404].flatMap((status) => [true, false].map((validJson) => ({ status, validJson }))))(
+    'keeps protected $status responses unavailable (valid JSON: $validJson)',
+    async ({ status, validJson }) => {
+      const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => String(input).endsWith('/history')
+        ? { ok: true, json: async () => ({ history: [] }) }
+        : { ok: false, status, json: async () => {
+            if (!validJson) throw new SyntaxError('Private server detail')
+            return { error: 'Private server detail' }
+          } })
+      render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
+      await screen.findByRole('heading', { name: 'Assignment unavailable' })
+      expect(screen.getByRole('alert')).toHaveTextContent('This assignment is unavailable.')
+      expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+      expect(screen.queryByText('Private server detail')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Back to assignments' })).toBeInTheDocument()
+    },
+  )
+
+  it('ignores a retry response after the standalone assignment identity changes', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    let resolveStale!: (response: any) => void
+    let firstReads = 0
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return Promise.resolve({ ok: true, json: async () => ({ history: [] }) })
+      if (url.endsWith('/assignment-2')) return Promise.resolve({ ok: true, json: async () => ({ assignment: { ...makeAssignment(), id: 'assignment-2', title: 'Second assignment' }, doc: null }) })
+      firstReads += 1
+      if (firstReads === 1) return Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+      return new Promise((resolve) => { resolveStale = resolve })
+    })
+    const { rerender } = render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" />)
+    await screen.findByRole('button', { name: 'Try again' })
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+    rerender(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-2" />)
+    await screen.findAllByText('Second assignment')
+    await act(async () => { resolveStale({ ok: true, json: async () => ({ assignment: makeAssignment(), doc: makeDoc() }) }) })
+    expect(screen.getAllByText('Second assignment')).toHaveLength(2)
+    expect(screen.queryByText('Assignment Title')).not.toBeInTheDocument()
+    expect(screen.getByTestId('editor-content')).not.toHaveTextContent('Older saved answer')
+  })
+
   it('keeps the current draft unsubmitted when its pre-submit save fails', async () => {
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>
     let saveAttempts = 0

@@ -2,7 +2,6 @@ export type AssignmentWorkspaceMode = 'overview' | 'details'
 export type AssignmentSplitPaneView =
   | 'students-grading'
   | 'content-grading'
-  | 'students-content'
 
 export interface AssignmentWorkspacePaneLayout {
   inspectorCollapsed: boolean
@@ -28,7 +27,6 @@ export const ASSIGNMENT_GRADING_LAYOUT = {
 export const ASSIGNMENT_SPLIT_PANE_VIEW_SEQUENCE: readonly AssignmentSplitPaneView[] = [
   'students-grading',
   'content-grading',
-  'students-content',
 ] as const
 
 const DEFAULT_PANE_LAYOUT: AssignmentWorkspacePaneLayout = {

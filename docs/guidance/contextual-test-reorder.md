@@ -1,0 +1,453 @@
+# Dormant contextual Test-list reorder
+
+Implementation contract, 2026-10-08; main `51f1a3b99`; earlier main sync `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
+This is preparation, not native acceptance, migration application or rollout.
+
+## UI completion main synchronization — 2026-10-08
+
+Completion1543 includes actual main83087cc4 (UI1542), preserving the
+independently accepted70aa exact-plan restoration correction and all incoming
+UI behavior/history. Product API/SQL/types and proof runtime remain unchanged
+from70aa. This is source sync batch31, with original clocks/counters retained.
+Final delta review and specifically authorized fresh immutable183/all5 checkpoint
+and finite quiet window precede actual normal/types/two-forced proof acceptance
+and exact-head CI. No runtime evidence, rollout or activation is claimed here.
+
+## Current-main source synchronization — 2026-10-08
+
+The source-only completion candidate imports the reviewed7d feature delta onto
+main1dd532581, preserving member1534 reads/proofs, public-runner policy, proof
+timings, recovery UI and both main/feature documentation. Shared Assignment
+lifecycle work-admission/exact-plan restoration rules and reorder settlement
+joining/closed diagnostics coexist. Migration254 and product route/helper/
+validator source remain byte-identical to7d. This creates no new native/type,
+forced-cleanup, CI or rollout acceptance. Preserve31 reviews/27 targeted/
+28 fix-sync batches, original Oct7 05:04 clock and human workflow-stop waiver;
+this source synchronization is batch29, with independent review still pending.
+A new immutable pre-run checkpoint and fresh finite quiet-window authority
+remain required before actual native execution. No historical receipt is reheaded.
+
+The approved 1,000-cap source at `a8f2bc935` passed two complete targeted
+transaction/security and proof/schema compatibility reviews. Focused977/36 plus
+static/audit/history checks passed; independent compatibility45/4 passed.
+Main then advanced through UI-only1532/d826, without API or migration changes.
+Preserve both histories, verify unchanged feature/runtime and incoming-main UI
+bytes, and complete the targeted base/handoff review before actual finite native
+normal/genuine types/two-forced execution. No old10k failure is new-cap acceptance.
+
+## Exact restoration through adopter expiry — 2026-10-08
+
+Independent architecture review of e351 accepted one blocking P2: the reorder
+adapter reapplied ordinary admission to the parent's exact current-plan restore
+session, SQL and verification after900s expiry. Source correction batch30 binds
+only the executing source-issued plan, fixture, target and original session
+privately across the native observer's scoped callbacks. Restoration follows a
+single finite session/SQL/verification sequence after transition settlement;
+authority closes in finally. Existing inherited call ceilings and native
+primitive caps still apply. Ordinary work never resumes and the absolute clock
+is never renewed. Original failure and restoration-verification failure remain
+failures; exact disposable teardown and all five canonical comparisons remain.
+
+Pure composition regressions use the real adopter, parent and installed-SDK
+revocation observer with platform stubs, exercising fulfillment and ambiguous
+rejection after work expiry, expiry during the restoration session and after
+restore SQL, scoped identity/SQL rejection, one restoration and verification,
+no new work, disposal and each canonical-field mismatch. These regressions fail
+against e351 and pass the corrected source. Unrelated reorder setup/matrix
+proof evidence is stubbed; this is no actual native/type/forced/CI acceptance.
+Preserve31 original reviews/27 targeted reviews/29 preceding fix-sync batches;
+this source remediation is batch30. Fresh targeted independent review remains
+required. All database/checkpoint/Docker/native/type/provider/billing/activation/
+production and canonical migration operations remain held.
+
+## Inherited revocation proof correction — 2026-10-08
+
+The coordinated quiet-window normal proof at c7a01e3 failed after624524ms:
+inherited Assignment-list member-remove/later expected403 but received503.
+Native reorder contracts and SDK matrix completed; all183 canonical tables and
+all five preservation fields stayed exact, teardown left no disposable resources.
+No whole-normal/type/forced-proof acceptance is claimed, and earlier failures
+remain retained. The cause of this503 is not yet observed.
+
+Offline fake-clock regressions reproduce a separate observer race: an in-flight
+revocation could outlive the20-second read and race the scoped restoration.
+The observer now joins that transition's settlement before exact restoration,
+including ambiguous rejection; the original assertion and any restoration error
+remain failures. Proof-only diagnostics add read-abort state, finite transition
+state and bounded integer timings, keyed to the original error without raw text,
+identities, SQL or response content. Product access rules, required403,20-second
+read deadline, mutation admission, budgets and preservation gates are unchanged.
+Fresh targeted source review and actual normal/forced/CI evidence remain required.
+
+The correction at6b83528e received complete targeted Sol6.1/high review; focused
+1,558 tests/51 files and all static/audit/history checks pass. The direct reorder
+transition now settles before restoration. Two pre-existing student-detail and
+learner-open nested wrappers can settle before their inner SQL; that separate
+inherited limitation is not claimed closed here.
+Read-only pre-run verification of immutable5aed stopped before any fixture:
+only two auth-rate-limit tables differ, while other181 tables/allfour remaining
+fields and183-table catalog match. No reset, exemption or replacement occurred;
+fresh checkpoint authority is needed before a corrected actual runtime proof.
+Main then advanced51f through reviewed attendance1533; retain its exact17
+nonhistory paths and both histories. Current-base checks/review remain required;
+source/native/type/forced evidence is not reheaded or promoted.
+
+## Scope and compatibility
+
+Prepare `POST /api/teacher/tests/reorder/atomic` with the legacy request
+`{ classroom_id, test_ids }` and response `{ success: true }`. Leave the existing
+reorder endpoint, UI and dispatch unchanged. Shared classroom-experience
+admission must precede body reads and service-client construction. SQL authorizes
+the current active Classroom owner, independent of global account role or plan.
+Admission, classroom authority and subscription entitlements remain separate.
+
+The input must contain the complete current Classroom Test membership, including
+Blueprint-retired rows. The current list reader retains those rows, and the
+legacy UI permits their presentation reordering. Only `position` and inherited
+`updated_at` may change; authored content, lifecycle, lineage and runtime stay
+read-only. An empty list succeeds only for an empty active owned Classroom.
+Reject stale/partial/foreign membership with 409. Unchanged membership is not an
+order-version CAS: concurrent reorders retain ordinary last-writer semantics.
+
+## Fixed HTTP and RPC contract
+
+Use one absolute 20-second body-plus-RPC deadline, with caller cancellation and
+no retries, compensation or fallback. Bound actual UTF-8 body bytes to 512 KiB;
+reject duplicate JSON keys (including escaped equivalents), malformed UTF-8,
+deep JSON, locked/used bodies and oversized bodies. Require strict request keys,
+canonicalized UUIDs, unique IDs and at most 1,000 IDs.
+
+Exactly one `reorder_tests_for_owner_v1` service-only SECURITY DEFINER RPC:
+`p_actor_id uuid`, `p_classroom_id uuid`, `p_test_ids uuid[]`,
+`p_deadline timestamptz`. Empty search path, PostgreSQL owner, revoke PUBLIC,
+anon and authenticated EXECUTE; grant service_role only. No table, Storage or
+provider calls from HTTP. Never hand-edit generated database types or cast an
+unregistered RPC around their contract.
+
+Private strict acknowledgement keys: `version` (1), `actor_id`, `classroom_id`,
+`test_ids` (requested order), `positions` (`N-1` through `0`), `count`,
+`changed_count`. Bind identity, order, every position and count to the request.
+Bound acknowledgement/envelope to 512 KiB/1 MiB. Release only `{ success: true }`.
+Missing or malformed acknowledgement, transport failure or lost commit response
+means 503; it never permits an automatic second write.
+
+## Transaction and preservation
+
+READ COMMITTED, finite deadline no farther than 20 seconds ahead; existing
+8-second SQL phase budget capped by that same absolute deadline. Try/NOWAIT
+locks: managed settings SHARE (without writer-sequence advancement), Classroom
+purge-operation key, membership-change key, full Classroom UPDATE, archive
+revision UPDATE, actor KEY SHARE, every current Test UPDATE in ascending UUID
+order. Bound membership discovery to 1,001; above 1,000 fails closed.
+
+Apply publication252 maintenance/finalization/purge/provider-cleanup guards.
+Compare the complete current membership before any mutation. Update only changed
+positions, retaining both Test ID and fixed Classroom predicates. Verify affected
+count, complete membership and full row postimages after all immediate triggers.
+Bound each Test row to 2 MiB and cumulative pre/post state to 64 MiB. Bound and
+check Class/archive/settings state too. Overflow and deadline checks precede
+mutation and postcondition acknowledgement.
+
+With C changed-position Tests, exact expected deltas are: each changed Test only
+position/updated_at; unchanged Tests identical; Classroom
+blueprint_source_revision +C and archive revision +2C, timestamps at
+transaction_timestamp() iff C > 0; all other fields unchanged. Settings unchanged
+and no operation-caused managed writer sequence calls. The current catalog has
+**14** Test triggers (including update_tests_updated_at); catalog reachability and
+native full-Class/whole-project comparisons must attest no children, managed
+state or queue writes. This is not a product-runtime global fingerprint.
+
+Map named SQL errors: PT400 invalid input, PT403 forbidden/fenced, PT404 missing
+Classroom, PT409 membership/busy/serialization, PT503 bounds/deadline/source/
+postcondition failure. Raw permission failures and unknown 55000 are unavailable,
+not an invented authorization success or fallback.
+
+## Required evidence before acceptance
+
+TDD body/route/helper boundary checks; SQL source/catalog contracts; isolated
+native complete-chain replay and genuine CLI-generated types; role-neutral owner
+and denial checks; mixed live/retired/started Tests and populated preserved
+children; empty/no-op, 999/1,000 success and 1,001 request/source/byte/revision limits;
+partial/superset/foreign/duplicate/null rejection; injected suppression,
+alteration, reparenting and revision drift rollback; real lock races with two
+reorders, ownership/archive, create250, discard251, save249/publication252,
+legacy writers and Blueprint/purge operations; installed SDK transport;
+forced-cleanup and canonical whole-project preservation receipts. Proof execution
+requires a reviewed finite fixture/manifest, not an unbounded ad hoc runner.
+
+The fixed rollback schedules include the actual migration114 archived-Class
+Blueprint reuse entrypoint, which locks an active Class before declining with
+`source_classroom_not_archived`, and both directions of contention with
+migration122's actual purge lifecycle guard. These do not claim successful
+Blueprint creation/proposal coverage or an enabled purge workflow. Enabled purge
+execution remains held; persisted purge/provider fences are checked separately.
+Committed schedules must run after the SDK matrix and attest stale membership
+after create/delete/reparent commits, revoked authority after owner/archive
+commits, unchanged-membership last-writer semantics and the legacy MAX residual.
+They must compare complete graphs internally and return compact receipts without
+restoring committed changes or reusing the prior SDK effect ledger.
+
+The dedicated proof fixture represents 3,000 bulk rows using each row's full
+immutable-postimage SHA256 plus identity/position/timestamp, while retaining raw
+small representative rows and populated children. The fixed sources contain 999, 1,000 and 1,001 Tests. The 1,001-Test source
+retains every full immutable-row digest, including when a capped subset or a
+would-be no-op is refused. Fresh native measurements remain required. Preserve the existing
+8 MiB per-snapshot and 64 MiB native-engine limits. The new feature's fixed SDK
+matrix separately caps cumulative private before/after snapshots at 256 MiB
+(at most 24 contexts/48 snapshots) and actual SDK request/response exchange at
+64 MiB. The dedicated lifecycle adopter caps its counted snapshot/control/SDK
+exchange at 384 MiB, reserving the complete 64 MiB native-engine allowance.
+Its application layer and native engine each retain a 200-action cap (400
+counted actions combined), rather than a single shared 200-action allowance.
+Inherited lifecycle adapter calls are reported separately; these counters do
+not claim to measure opaque CLI traffic or every internal SQL statement.
+Ordinary execution retains one absolute 900-second deadline. A bounded,
+one-time canonical-after verification reserve remains available during cleanup
+after execution-budget exhaustion; it cannot resume ordinary work. These are
+isolated-proof scale budgets, not wider application limits or changes to earlier
+proof profiles. Every captured feature snapshot is counted.
+
+Legacy creation can read MAX(position) before this transaction and insert that
+previously computed position after commit (migration250's existing residual).
+Do not claim this slice closes that race, disabled-trigger maintenance writes or
+nonconforming direct writers after commit. Demonstrate the residual honestly.
+
+Independent risk-matched stable-SHA review, focused checks and final exact-head
+PR Gate remain required before normal main merge. Canonical local/production
+migrations249 onward, production promotion and all rollout/account/billing/
+provider controls remain held; no UI adopter or activation in this slice.
+
+## Approved capacity boundary — 2026-10-08
+
+The owner approved atomic reorder through 1,000 Tests. Classrooms with more Tests
+retain their complete data and existing reads; atomic reorder refuses them before
+any mutation, including capped subsets and requests that would otherwise change
+no position. Oversized requests fail PT400; a bounded request against an
+over-limit Classroom fails PT503. There is no deletion, truncation, retry or
+fallback. This changes the former 10,000-Test operating contract.
+
+Migration254 supersedes the pending owner-reorder253 filename after actual main
+added quota253. Its exact source SHA256 is
+`7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea`.
+That is a source identity, not evidence that any database adopted it.
+The proof catalog includes all14 Test triggers and exact reviewed quota function
+metadata. The quota setting remains OFF and its complete row is preserved.
+The isolated table catalog uses the unchanged reviewed quota-catalog helper;
+canonical183-table/five-field before/after equality remains separate and exact.
+
+The normal proof now has51 probes in28 complete rollback frames, retaining the
+35-second frame limit, two-probe partition, full graph/effect/rollback checks,
+8-second SQL phase and20-second HTTP deadline. Its fixed SDK matrix has18 contexts
+and36 snapshots, including raw privilege denial/restoration and over-limit
+subset/no-op refusal. Every action, snapshot and exchange remains counted under
+the existing limits.
+
+New execution of the historical 10,000-Test diagnostic is retired explicitly
+before fixture, network or SQL work. Its old implementation, original source
+SHA and numeric parser/history remain retained; it cannot supply passing normal
+evidence for the new1,000-Test contract. All historical failures below remain
+unaccepted at their original heads. Independent source review, complete normal
+native/type/forced-cleanup evidence and exact-head eligible CI remain pending.
+All canonical/production migrations249 onward and activation holds remain.
+
+## CI bulk-capacity diagnosis — 2026-10-07
+
+PR1515's reviewedb668 CI37584113261 passed14857 tests (8 skipped), build and
+browser checks, but the reorder normal proof failed with PT503 at the
+bulk10000 success dispatch (21 actions/308 controls). Earlier accepted local
+proofs remain historical evidence; they do not substitute for this failed CI.
+The underlying PT503 reason is not yet observed. The dense fixture changes all
+10000 positions and inherits10000 Classroom and20000 archive-revision writes.
+
+The proof now maps only seven exact known PT503 messages to fixed PRD01–07
+SQLSTATEs for this dispatch: deadline, source limit, catalog drift, invalid
+source, revision limit, postcondition and result limit respectively. Unknown
+messages retain PT503; every mapped error still aborts. This exposes no raw
+PostgreSQL message, query, row or context. The product RPC, workload,8s/20s
+deadlines, byte/action caps, one-update and sealed trigger contracts are unchanged.
+No capacity/performance relaxation or native/CI acceptance is implied.
+
+CI37593268925 on3531 passed build and browser checks, but failed earlier:
+the native35s frame timer expired in authority-effects (15 actions/236controls,
+unknown SQLSTATE), before bulk execution. Its13 probes perform33 complete graph
+computations within one frame. This is not evidence of a product RPC deadline
+failure, and the previous bulk PT503 remains independently unresolved.
+
+The rollback manifest retains all50 unique probes in9 logical groups, now
+partitioned into27 exact source-owned executions, at most2 probes each. Every
+execution has its own BEGIN/ROLLBACK, full baseline, unchanged probe bodies and
+full effect/rollback assertions, final fixture equality and exact compact receipt.
+The existing native validator admits these exact issued SQL strings only.
+Native/application action, control, byte and900s lifetime caps remain unchanged;
+35s per-frame and8s/20s product deadlines are not extended. The additional18
+dispatches and compact receipts remain counted. Fresh source review, native
+normal/forced-cleanup proofs and exact-head CI are required; this rebatching is
+not acceptance or a fix for the separate bulk-capacity failure.
+
+CI37607651625 on reviewedb3 passed14878 tests (8 skipped), build and browser,
+but frame26 bulk10000 failed with PRD01 (39actions/524controls). This confirms
+`test_reorder_deadline`, not which internal deadline check or execution phase.
+The PR returned to draft; exact cleanup passed, but the remaining reorder SDK,
+race and committed evidence was not reached. Earlier local receipts stay labeled
+with their original heads and cannot substitute for this failed CI.
+
+The next bounded candidate replaces three duplicate SUM/MAX full-row byte
+expressions with scalar-only `MATERIALIZED` measurements, preserving each
+statement's original rows, predicates, JSON representation and guard ordering.
+Only integer byte counts are materialized before guards; complete JSON aggregates
+still follow them. Empty counts remain zero. All8s/20s/35s deadlines,10k dense
+workload, triggers, revision deltas, full postimages and proof limits remain fixed.
+This removes avoidable expression evaluation; its performance benefit and CI
+capacity outcome are unmeasured. New independent review, full native/cleanup
+evidence and exact-head CI are required. See [PostgreSQL17 materialization](https://www.postgresql.org/docs/17/queries-with.html#QUERIES-WITH-CTE-MATERIALIZATION).
+
+CI37621234779 on b8f45fba passed test/build and browser, but again failed at
+bulk10000 with PRD01 (39actions/524controls). The scalar-byte optimization did
+not resolve CI capacity. Exact teardown and full canonical preservation passed;
+the remaining SDK/race/committed matrix was not reached. Fresh local b8 native
+normal/types and both forced-cleanup receipts passed but do not replace this CI.
+An earlier same-head CI failed an unchanged UI test's5s timer; targeted/full-gallery
+checks and this retry passed without source or timeout changes.
+
+The next candidate changes proof diagnostics only, leaving migration253 SHA
+71ed9848, all limits and the production function unchanged. Exact PT503 deadline
+failures in bulk10000 inspect bounded private stacked context in PostgreSQL.
+Only the first exact sealed RPC frame, its RAISE action and six source-bound
+body lines map to PRD11–16; unfamiliar/oversized context keeps PRD01. PRD02–07
+and unknown PT503 propagation remain unchanged. No raw context, query or row is
+rendered. The existing expired-deadline probe calibrates actual PG17 first-frame
+format and executes fixed positive/rejection cases within its unchanged rollback
+frame. All50 probes/27 frames/full effect and rollback assertions remain.
+
+PRD11/12/13/14/15/16 identify cumulative exhaustion after input validation,
+Class locks/bounded discovery, pre-update validation/expected image, sole UPDATE
+and immediate triggers, full postconditions/fences, and result construction,
+respectively. They are not per-query timings: PRD14 does not attribute the cost
+to UPDATE alone. Later checkpoints remain unobserved until actually reached.
+See [PG17 stacked diagnostics](https://www.postgresql.org/docs/17/plpgsql-control-structures.html#PLPGSQL-EXCEPTION-DIAGNOSTICS).
+
+Fresh39c74de8 local normal reached complete native reorder/calibration, SDK,
+committed and genuine CLI types phases, but failed a later inherited revocation
+assertion. Native3121controls/162actions/zero sessions; transport17RPC/34 captures.
+Exact cleanup and complete canonical five-field preservation passed. No whole
+normal acceptance, forced-check completion or resolved CI capacity is claimed.
+The assertion site and cause remain unobserved; elapsed time is not a timeout
+diagnosis. Type bytes437800/d84c71 remain genuine and byte-exact checked-in.
+
+The wrapper now reuses the existing closed Assignment-list lifecycle diagnostic
+for transition/boundary/operator/status/restoration checkpoint. It additionally
+emits only the first non-Node assertion frame's allowlisted script basename and
+bounded numeric line/column from a stack capped8192 bytes; unfamiliar/malformed
+or oversized context reports unknown. No raw stack, path, message or assertion
+values are rendered. This reports the propagated assertion location, not an
+earlier fault that restoration might replace or a compound guard's specific
+condition. Source-only checks are not runtime diagnosis; product and proof
+execution, limits and acceptance gates remain unchanged.
+
+The reviewedcfb normal proof failed earlier, during initial app-guard/fixture,
+with a non-assertion cause and no usable source location. Transport stayed idle;
+no reorder contracts, SDK exchanges or type generation were reached. Cleanup
+reported none; whole acceptance remains false. A later read-only inventory PASS
+does not establish this earlier failure's cause.
+
+A caller-side guard checkpoint now distinguishes admission, each Git read,
+migration manifest/source reads, inventory collection, resource validation,
+private guard SQL and final admission. Only fixed labels are emitted, and only
+when the captured rejected error is the lifecycle's same primary error. A
+successful guard or replacement error reports none; unfamiliar labels report
+unknown. This adds no error-property/message classifier or transport changes.
+The checkpoint names the rejecting operation, not its underlying reason.
+Offline actual-main faults cover private Git/file/inventory/SQL failures,
+resource assertion, replaced failure and successful-guard/later failure while
+retaining exact teardown, all five canonical fields and failed results. Fresh
+independent review and native/forced/CI acceptance are still required.
+The offline action-saturation test alone has a15s runner allowance after a
+parallel focused5s timeout; its isolated original5s run passed in2.86s. Its200+
+fresh-source guards,199 private SQL observations, assertions and actual proof
+caps remain unchanged. No suite-wide or native/application deadline extension.
+
+Reviewed700b native normal completed setup but hit the whole35s frame timeout
+at densebulk10000 (39actions/524controls); no inner RPC deadline code or cost
+attribution was observed. Exact teardown and full canonical five-field equality
+passed; no types, whole normal acceptance or forced checks were reached. PR1515
+remains draft; seventh eligible CI capacity failure remains unresolved.
+
+The next proof-only diagnostic uses four fixed INFO progress codes: frame entry,
+RPC dispatch, normal RPC return, and final full assertions. A calibration code
+in the existing expired-deadline probe verifies notice delivery. Parsing must be
+bounded, monotonic and scoped to exact source-owned SQL/profile/role/phase, with
+the first fault freezing the last observation. Missing calibration is unverified;
+missing or last-seen signals cannot establish query cost or the operation still
+running. No raw messages, IDs, SQL, values or timing are emitted. All50 probes,
+27 complete rollback frames, five bulk graph computations and original deadlines,
+workload, assertions, caps, product SQL and rollout holds remain unchanged.
+
+Reviewed5e1f40ec normal failed after356716ms, starting2026-10-07T16:41:30.687Z.
+Setup completed; native contracts child-exit PRD14,524controls/39actions, last
+progress PRG02 and notice calibration verified. The cumulative8s check after the
+UPDATE, immediate triggers and affected-count validation rejected. This does not
+measure UPDATE alone or establish a leaked session. Exact teardown, workdir
+absence and complete five-field canonical before/after equality passed. Fresh
+read-only inventory found no disposable resources; no current-head types artifact
+or whole normal/forced/eligible CI acceptance exists.
+
+Bounded source analysis found no substantial removable algorithmic cost inside253
+that preserves the sealed inherited routines. For10000 changed Tests, the current
+trigger path requires10000 Classroom and20000 archive-revision updates, in addition
+to Test updates. These counts are source evidence, not measured cost attribution.
+Another unmeasured constant-factor fix or unchanged native retry is not selected.
+
+The next deliverable is a separately reviewed, finite **diagnostic-only** profile:
+one nonexecuting EXPLAIN of the exact UPDATE shape/bound inputs, and one disposable
+temporary copy of the source-pinned RPC with scalar observations before work and
+immediately before/after UPDATE. Retain all guards, triggers, workload, deadlines,
+assertions, action/byte limits, rollback/full-graph comparison, exact teardown and
+canonical preservation. Exact SQL admission must remain closed; normal profiles
+must never admit diagnostic SQL. Emit only bounded numeric timings and a plan
+digest/fixed node counts, never raw plan/query/error/row content.
+
+The EXPLAIN plan is a candidate, not necessarily the real function's cached SPI
+plan. The temporary copy has different compilation/cache history and instrumentation
+overhead. Its result guides investigation only: it cannot establish normal/types/
+forced/CI acceptance, resolve capacity or authorize readiness, merge or rollout.
+Product migration253 and canonical/production/activation holds remain unchanged.
+Timings begin after declarations; the post-update observation follows the unchanged
+ROW_COUNT capture and includes that scalar overhead. The diagnostic fixture also
+has different preceding execution history from the complete normal proof.
+
+The diagnostic CLI is implemented separately as
+`scripts/check-contextual-test-owner-reorder-diagnostic-lifecycle.ts`. It accepts
+only a reviewed head in normal mode without type generation. Its explicit
+`diagnostic-not-acceptance` receipt cannot satisfy the ordinary proof gates.
+Offline lifecycle, numeric-parser and real NativeSession fake-child regressions
+are passing; fixed-head independent review and actual diagnostic execution are
+still pending for the corrected revision. Late cross-pipe timing messages cannot
+recover a returned-copy receipt; failed-copy nullable observations make no phase
+or cost claim. Initial diagnostic review found and corrected an outer-catcher
+issue: only fixed RPC denial codes can produce failure measurements; witness,
+effect-graph, rollback and unexpected errors must abort diagnostic completion.
+
+### Diagnostic observation and remaining decision (2026-10-07)
+
+Corrected a0bdde4d on main7357 passed945 focused checks and static gates; targeted
+independent review closed the catcher finding. Its sole diagnostic run failed
+after196932ms, starting18:05:02.113Z. Fixed backend observations were0/445023/
+11238707µs: the update/trigger interval was10793684µs, including original ROW_COUNT
+capture, instrumentation and the temporary copy's different cache/history. This
+exceeded8s but is not isolated original production UPDATE cost or a complete
+diagnostic receipt. Child exit remained SQLSTATEunknown; no source-returned
+measurement, normal/type/forced/eligible CI acceptance exists.
+
+Exact teardown/workdir/full five-field canonical preservation passed; fresh
+source-owned inventory found zero disposable resources. Source analysis confirms
+copy deadline context falls back to PRD01 and is caught, as is PRD06 postcondition
+failure. No missing catch defect was proved. The later error is unresolved because
+raw terse stderr was discarded; do not infer assertion failure or recover evidence
+that was not retained. No unchanged rerun or control relaxation is selected.
+
+The full-scale capacity gate remains unresolved. The next substantive choice is
+a smaller supported atomic reorder ceiling (for example1000 Tests, independently
+verified), or keeping10000 with a separately reviewed redesign of inherited
+metadata-trigger work. Both change the agreed operating contract and require an
+explicit product/architecture decision before implementation. Legacy behavior and
+all canonical/production/activation holds remain unchanged.

@@ -14,6 +14,12 @@ export type AssignmentListRevocationPlan = {
   transition: Transition; boundary: Boundary; actorId: string; classroomId: string; permission: 'owner' | 'member';
   expectedStatus: 403 | 503; revokeSql: string; restoreSql: string; permittedFixtureEffects: string[];
 }
+// Proof-only metadata, keyed by the original failure; never copy error text,
+// request/response bodies, identities or SQL into lifecycle diagnostics.
+const failureDiagnostics = new WeakMap<object, string>()
+export function assignmentListRevocationDiagnostic(error: unknown): string | undefined {
+  return error !== null && typeof error === 'object' ? failureDiagnostics.get(error) : undefined
+}
 export function assignmentListRevocationPlans(f: AssignmentListProofFixture): AssignmentListRevocationPlan[] {
   const classroom = f.classes[0]; const member = f.manifest.actors[2]; const returned = f.docs.find(d => d.returned)!
   const project = `pika_assignment_list_${f.manifest.syntheticTag.slice(-12)}`
@@ -91,8 +97,14 @@ export async function observeAssignmentListRevocation(input: {
   const all = fixture.assignments.filter(a => a.classroom === plan.classroomId && (plan.permission === 'owner' || (!a.isDraft && a.releasedAt === null))).map(a => a.id).sort()
   const safeFetch = containedAssignmentListProofFetch(input.originalFetch, project)
   let fired = false; let attempted = false
+  const startedAt = Date.now()
+  let readSignal: AbortSignal | null | undefined
+  let pendingRevocation: Promise<void> | undefined
+  let revokeStartedAt: number | undefined; let revokeSettledAt: number | undefined
+  let revokeState: 'none' | 'pending' | 'settled' | 'failed' = 'none'
   const client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: {
     fetch: async (request, init) => {
+      readSignal = init?.signal ?? (request instanceof Request ? request.signal : undefined)
       const url = new URL(request instanceof Request ? request.url : String(request)); const select = url.searchParams.get('select') ?? ''
       assert.equal(url.pathname, '/rest/v1/classrooms'); assert.equal(url.searchParams.get('id'), `eq.${plan.classroomId}`)
       const list = select.includes('assignments:') && select.includes('instructions_markdown')
@@ -102,7 +114,16 @@ export async function observeAssignmentListRevocation(input: {
         : plan.boundary === 'terminal' ? list && cursor === all.at(-1)
         : plan.boundary === 'returned-grade' ? select.includes('score_completion')
         : select.includes(',feedback)')
-      if (!fired && boundary) { attempted = true; await input.transition(plan.revokeSql); fired = true }
+      if (!fired && boundary) {
+        attempted = true; revokeStartedAt = Date.now(); revokeState = 'pending'
+        // Capture even a synchronous throw as a settled rejection. The read's
+        // abort race must not let finally restore ahead of this mutation.
+        pendingRevocation = Promise.resolve().then(() => input.transition(plan.revokeSql)).then(
+          () => { revokeState = 'settled'; revokeSettledAt = Date.now() },
+          error => { revokeState = 'failed'; revokeSettledAt = Date.now(); throw error },
+        )
+        await pendingRevocation; fired = true
+      }
       return safeFetch(request, init)
     },
   } })
@@ -110,11 +131,23 @@ export async function observeAssignmentListRevocation(input: {
     await assert.rejects(() => readContextualAssignmentList({ supabase: client, actorId: plan.actorId, classroomId: plan.classroomId,
       permission: plan.permission, now: new Date(fixture.manifest.now) }), error => error instanceof ApiError && error.statusCode === plan.expectedStatus)
     assert(fired, 'Required live revocation boundary not reached')
+  } catch (error) {
+    if (error !== null && typeof error === 'object') {
+      const elapsed = (from: number, to = Date.now()) => Math.min(900_000, Math.max(0, Math.floor(to - from)))
+      failureDiagnostics.set(error, `read_abort=${readSignal?.aborted ? 'yes' : 'no'} revoke=${revokeState} elapsed_ms=${elapsed(startedAt)} transition_ms=${revokeStartedAt === undefined ? 0 : elapsed(revokeStartedAt, revokeSettledAt)}`)
+    }
+    throw error
   } finally {
     // An ambiguous COMMIT response still causes a scoped restore attempt. Root
     // restoration executor must reconcile exact expected state, never retry a
     // mutation blindly or suppress restoration errors.
-    if (attempted) { await input.transition(plan.restoreSql); await input.verifyRestoration(plan) }
+    if (attempted) {
+      // Join settlement, including an ambiguous failed response, before the
+      // exact restore. The original assertion remains failed; this is not a
+      // retry or a suppression of restoration/verification errors.
+      await pendingRevocation?.catch(() => undefined)
+      await input.transition(plan.restoreSql); await input.verifyRestoration(plan)
+    }
   }
   return { transition: plan.transition, boundary: plan.boundary, expectedStatus: plan.expectedStatus }
 }

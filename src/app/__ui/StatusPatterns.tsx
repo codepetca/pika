@@ -33,6 +33,7 @@ const SAMPLE_ROWS: SampleRow[] = [
 const ASSIGNMENT_STATES = [
   { status: 'not_started', meaning: 'No work started.' },
   { status: 'in_progress', meaning: 'Work started but not submitted.' },
+  { status: 'in_progress_late', meaning: 'Unsubmitted work past its due date.' },
   { status: 'submitted_on_time', meaning: 'Student submitted work.' },
   { status: 'graded', meaning: 'Graded but not yet returned.' },
   { status: 'returned', meaning: 'Results released to the student.' },
@@ -118,7 +119,7 @@ export function StatusPatterns() {
         </Card>
         <Card tone="panel" padding="md">
           <h4 className="text-sm font-semibold">Classwork &amp; Tests</h4>
-          <p className="mt-1 text-xs text-text-muted">Existing status colors and labels; each workflow keeps its meaning.</p>
+          <p className="mt-1 text-xs text-text-muted">In progress uses a yellow two-thirds ring over grey. Each workflow keeps its meaning.</p>
           <h5 className="mt-4 text-xs font-semibold text-text-muted">Classwork</h5>
           <dl className="mt-2 divide-y divide-border">
             {ASSIGNMENT_STATES.map(({ status, meaning }) => {

@@ -131,7 +131,7 @@ function AdminPrototypeFrame({ children, screen, onNavigate }: { children: React
   const { openLeft } = useMobileDrawer()
   const activeSection: Section = screen === 'account' ? 'accounts' : screen === 'exception' ? 'exceptions' : screen
 
-  return <AppShell
+  return <AppShell initialNow={Date.parse('2026-10-05T16:00:00Z')}
     pageTitle={<span className="text-sm font-semibold">Administration</span>}
     onOpenSidebar={openLeft}
     sidebarTriggerLabel="Open admin navigation"

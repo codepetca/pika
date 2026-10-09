@@ -57,14 +57,19 @@ async function sampleClick(trigger: Locator, selector: string, waitForInspector 
 export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
   surface: 'assignment' | 'test' | 'student', reducedMotion: 'reduce' | 'no-preference') {
   const { theme, viewport } = testInfo.project.metadata as { theme: string; viewport: string }
+  const workspaceSelector = surface === 'student'
+    ? '[role="region"][aria-label="Classwork"].workspace-entry'
+    : `[role="region"][aria-label="${surface === 'test' ? 'Tests' : 'Classwork'}"] .workspace-entry`
   await page.emulateMedia({ reducedMotion })
-  await page.addInitScript(theme => {
+  await page.addInitScript(({ theme, workspaceSelector }) => {
     localStorage.setItem('theme', theme)
     ;(window as any).workspaceEntries = 0
     document.addEventListener('animationstart', event => {
-      if (event.animationName === 'workspace-entry') (window as any).workspaceEntries += 1
+      if (event.animationName === 'workspace-entry' && event.target instanceof Element && event.target.matches(workspaceSelector)) {
+        ;(window as any).workspaceEntries += 1
+      }
     })
-  }, theme)
+  }, { theme, workspaceSelector })
   let studentWorkReads = 0
   page.on('request', request => {
     if (request.method() === 'GET' && new URL(request.url()).pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) studentWorkReads += 1
@@ -95,10 +100,15 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
   const artifact = (state: string) => artifactDir
     ? path.join(artifactDir, `${surface}-${viewport}-${theme}-${reducedMotion}-${state}.png`)
     : testInfo.outputPath(`${surface}-${state}.png`)
+  const frame = page.locator(workspaceSelector)
+  await expect(frame).toHaveCount(0)
   await page.screenshot({ animations: 'disabled', path: artifact('summary') })
-  const entry = await sampleClick(trigger, '.workspace-entry', surface === 'assignment')
-  const frame = page.locator('.workspace-entry').first()
+  const entry = await sampleClick(trigger, workspaceSelector, surface === 'assignment')
+  await expect(frame).toHaveCount(1)
   await expect(frame).toBeVisible()
+  await testInfo.attach('selected-workspace-entry', {
+    body: JSON.stringify({ workspaceSelector, entry }, null, 2), contentType: 'application/json',
+  })
   expect(await frame.evaluate(element => getComputedStyle(element).animationDuration)).toBe(reducedMotion === 'reduce' ? '0s' : '0.2s')
   if (reducedMotion === 'no-preference') expect(entry.some(sample => sample.opacity > 0 && sample.opacity < 1)).toBe(true)
   const frameHandle = await frame.elementHandle()
@@ -165,7 +175,7 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
       await expect(separator).toBeFocused()
     }
     if (surface === 'assignment') {
-      const comment = inspector.getByRole('textbox', { name: 'Teacher comment draft' })
+      const comment = inspector.getByRole('textbox', { name: 'Leave a comment...' })
       await expect(comment).toBeVisible()
       await comment.fill('Unsaved layout comment')
       const commentHandle = await comment.elementHandle()
@@ -176,9 +186,15 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
       const gradingScrollTop = await gradingScroller.evaluate(element => element.scrollTop)
       const readsBeforeLayout = studentWorkReads
       const layout = page.getByRole('button', { name: /^Change assignment layout:/ })
-      await layout.click()
-      await expect(layout).toHaveAccessibleName('Change assignment layout: Content + grading')
-      await expect(inspector.getByRole('textbox', { name: 'Teacher comment draft' })).toHaveValue('Unsaved layout comment')
+      const layoutBounds = await layout.boundingBox()
+      expect(layoutBounds!.width).toBeGreaterThanOrEqual(44)
+      expect(layoutBounds!.height).toBeGreaterThanOrEqual(44)
+      await layout.focus()
+      await page.keyboard.press('Enter')
+      await expect(layout).toBeFocused()
+      await expect(layout).toHaveAccessibleName('Change assignment layout: Individual student')
+      await expect.poll(() => scroll.evaluate(element => !!element.closest('[inert]'))).toBe(true)
+      await expect(inspector.getByRole('textbox', { name: 'Leave a comment...' })).toHaveValue('Unsaved layout comment')
       expect(await comment.evaluate((element, original) => element === original, commentHandle)).toBe(true)
       expect(await gradingScroller.evaluate((element, original) => element === original, gradingScrollerHandle)).toBe(true)
       expect(await comment.evaluate((element: HTMLTextAreaElement) => [element.selectionStart, element.selectionEnd])).toEqual([2, 8])
@@ -190,11 +206,12 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
       await comment.click()
       await expect(comment).toBeFocused()
       await page.screenshot({ animations: 'disabled', path: artifact('content-grading') })
-      await layout.click()
-      await expect(layout).toHaveAccessibleName('Change assignment layout: Students + content')
-      await layout.click()
-      await expect(layout).toHaveAccessibleName('Change assignment layout: Students + grading')
-      await expect(inspector.getByRole('textbox', { name: 'Teacher comment draft' })).toHaveValue('Unsaved layout comment')
+      await layout.focus()
+      await page.keyboard.press('Enter')
+      await expect(layout).toBeFocused()
+      await expect(layout).toHaveAccessibleName('Change assignment layout: Student table')
+      await expect.poll(() => scroll.evaluate(element => !!element.closest('[inert]'))).toBe(false)
+      await expect(inspector.getByRole('textbox', { name: 'Leave a comment...' })).toHaveValue('Unsaved layout comment')
       expect(await scroll.evaluate((element, original) => element === original, scrollHandle)).toBe(true)
       expect(studentWorkReads).toBe(readsBeforeLayout)
       measurements.layoutReads = { before: readsBeforeLayout, after: studentWorkReads }

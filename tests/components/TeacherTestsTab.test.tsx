@@ -1202,10 +1202,11 @@ describe('TeacherTestsTab', () => {
   })
 
   it('creates a draft test directly and opens visual editing', async () => {
-    mockTestsResponse([])
-    renderTab()
+    const existingTests = [makeTest({ id: 'existing-released', title: 'Existing released test', status: 'open' }), makeTest({ id: 'existing-draft', title: 'Existing draft test', status: 'draft' })]
+    mockTestsResponse(existingTests)
+    const view = renderTab({ testsTabClickToken: 0 })
 
-    expect(await screen.findByText('No tests yet')).toBeInTheDocument()
+    expect(await screen.findByText('Existing released test')).toBeInTheDocument()
 
     const createdTest = makeTest({ id: 'created-test-id', title: 'Untitled 2026-05-14 10:45:00' })
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
@@ -1218,7 +1219,7 @@ describe('TeacherTestsTab', () => {
       if (typeof url === 'string' && url.includes('/api/teacher/tests?classroom_id=')) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ tests: [createdTest] }),
+          json: async () => ({ tests: [createdTest, ...existingTests] }),
         })
       }
       if (url === '/api/teacher/tests/created-test-id/results') {
@@ -1246,6 +1247,10 @@ describe('TeacherTestsTab', () => {
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    view.rerender(<TeacherTestsTab classroom={classroom} testsTabClickToken={1} />)
+    const newest = await screen.findByRole('button', { name: createdTest.title, exact: true })
+    const existing = screen.getByRole('button', { name: 'Existing released test', exact: true })
+    expect(newest.compareDocumentPosition(existing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('discards a newly created untouched Test when the authoring dialog closes', async () => {
@@ -3541,6 +3546,32 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Failed to delete selected student test work')).toBeInTheDocument()
     expect(screen.getByText('Delete 2 selected test work items?')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('stops test AI polling on invalid status and shows reconnect guidance', async () => {
+    const activeRun = {
+      id: 'run-1', test_id: 'test-1', status: 'running', model: null,
+      prompt_guideline_override: null, requested_count: 1, eligible_student_count: 1,
+      queued_response_count: 1, processed_count: 0, completed_count: 0,
+      skipped_unanswered_count: 0, skipped_already_graded_count: 0, failed_count: 0,
+      pending_count: 1, next_retry_at: null, error_samples: [], started_at: null,
+      completed_at: null, created_at: '2026-10-08T12:00:00Z',
+    }
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === `/api/teacher/tests?classroom_id=${classroom.id}`) {
+        return Promise.resolve({ ok: true, json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }) })
+      }
+      if (url === '/api/teacher/tests/test-1/results') {
+        return Promise.resolve(makeResultsResponse({ activeRun }))
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ run: { ...activeRun, status: 'invalid' } }) })
+    })
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Grading status is unavailable. Reload this page to reconnect to the saved run.')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/tick'))).toBe(false)
+    expect(screen.queryByText(/Grading 0 of 1 students/)).not.toBeInTheDocument()
   })
 
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {

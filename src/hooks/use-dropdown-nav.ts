@@ -15,9 +15,9 @@ interface UseDropdownNavReturn {
   setIsOpen: (open: boolean) => void
   focusedIndex: number
   setFocusedIndex: (index: number) => void
-  triggerId: string
-  menuId: string
-  getItemId: (index: number) => string
+  triggerId: string | undefined
+  menuId: string | undefined
+  getItemId: (index: number) => string | undefined
   handleTriggerKeyDown: (e: React.KeyboardEvent) => void
   handleItemKeyDown: (e: React.KeyboardEvent) => void
   handleTriggerClick: () => void
@@ -43,11 +43,14 @@ export function useDropdownNav({
   const triggerRef = useRef<HTMLButtonElement>(null!)
   const itemRefs = useRef<(HTMLElement | null)[]>([])
 
-  // Generate unique IDs for ARIA relationships
+  // Attach client-owned relationships after hydration. Streamed trees may
+  // assign different useId paths; closed server menus need no relationships.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
   const baseId = useId()
-  const triggerId = `${baseId}-trigger`
-  const menuId = `${baseId}-menu`
-  const getItemId = (index: number) => `${baseId}-item-${index}`
+  const triggerId = mounted ? `${baseId}-trigger` : undefined
+  const menuId = mounted ? `${baseId}-menu` : undefined
+  const getItemId = (index: number) => mounted ? `${baseId}-item-${index}` : undefined
 
   const getNextEnabledIndex = useCallback((startIndex: number, direction: 1 | -1 = 1) => {
     if (itemCount <= 0) return -1

@@ -1,5 +1,7 @@
 'use client'
 
+import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
+
 import { useCallback, useMemo, useState, useEffect, useId, useRef, type MouseEvent } from 'react'
 import {
   DndContext,
@@ -27,22 +29,19 @@ import {
   Copy,
   EllipsisVertical,
   GripVertical,
-  LoaderCircle,
   Lock,
-  Menu,
   MessageSquare,
   Paperclip,
-  Percent,
   Pencil,
   Plus,
   Reply,
   Sparkles,
-  SquareMenu,
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { CircularProgress, Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
+import { AssignmentWorkspaceViewToggle } from '@/components/assignment-workspace/AssignmentWorkspaceViewToggle'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -60,6 +59,7 @@ import {
 import {
   TeacherStudentWorkPanel,
   type TeacherAssignmentGradePersistenceState,
+  type TeacherAssignmentWorkReadState,
   type TeacherAssignmentGradeTemplate,
 } from '@/components/TeacherStudentWorkPanel'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
@@ -95,6 +95,7 @@ import {
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
+import { invalidateClassworkLists, saveCreatedClassworkPlacement } from '@/lib/created-classwork-placement'
 import type {
   Classroom,
   Assignment,
@@ -157,26 +158,6 @@ export type AssignmentViewMode = 'summary' | 'assignment'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
-const ASSIGNMENT_SPLIT_PANE_VIEW_LABELS: Record<AssignmentSplitPaneView, string> = {
-  'students-grading': 'Students + grading',
-  'content-grading': 'Content + grading',
-  'students-content': 'Students + content',
-}
-
-const ASSIGNMENT_SPLIT_PANE_VIEW_ORDER: AssignmentSplitPaneView[] = [
-  'students-grading',
-  'content-grading',
-  'students-content',
-]
-
-const ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS: Record<
-  AssignmentSplitPaneView,
-  { panes: ['students' | 'grading' | 'content', 'students' | 'grading' | 'content'] }
-> = {
-  'students-grading': { panes: ['students', 'grading'] },
-  'content-grading': { panes: ['content', 'grading'] },
-  'students-content': { panes: ['students', 'content'] },
-}
 
 interface Props {
   classroom: Classroom
@@ -207,22 +188,6 @@ function MetricBar({ value }: { value: number }) {
       />
     </div>
   )
-}
-
-function AssignmentSplitPaneIcon({
-  pane,
-}: {
-  pane: 'students' | 'grading' | 'content'
-}) {
-  if (pane === 'students') {
-    return <Menu className="h-4 w-4" aria-hidden="true" />
-  }
-
-  if (pane === 'grading') {
-    return <Percent className="h-4 w-4" aria-hidden="true" />
-  }
-
-  return <SquareMenu className="h-4 w-4" aria-hidden="true" />
 }
 
 function TeacherMaterialCard({
@@ -458,20 +423,6 @@ function isAssignmentAiGradingRunActive(run: AssignmentAiGradingRunSummary | nul
   return !!run && (run.status === 'queued' || run.status === 'running')
 }
 
-function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null): number {
-  if (!run || !isAssignmentAiGradingRunActive(run) || !run.next_retry_at) {
-    return 2000
-  }
-
-  const retryAt = new Date(run.next_retry_at).getTime()
-  if (!Number.isFinite(retryAt)) {
-    return 2000
-  }
-
-  const delay = retryAt - Date.now() + 250
-  return Math.min(Math.max(delay, 1000), 10_000)
-}
-
 function isGradeSelectedScoreValueValid(value: string, allowBlank: boolean): boolean {
   const trimmed = value.trim()
   if (allowBlank && !trimmed) return true
@@ -662,6 +613,7 @@ export function TeacherClassroomView({
     assignment: Assignment
     students: StudentSubmissionRow[]
   } | null>(null)
+  const [unavailableAssignmentAiPollKey, setUnavailableAssignmentAiPollKey] = useState<string | null>(null)
   const [assignmentAiGradingRun, setAssignmentAiGradingRun] = useState<AssignmentAiGradingRunSummary | null>(null)
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
   const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
@@ -710,6 +662,7 @@ export function TeacherClassroomView({
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
   const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
+  const [workspaceWorkReadState, setWorkspaceWorkReadState] = useState<TeacherAssignmentWorkReadState | null>(null)
   const [workspaceGradePersistence, setWorkspaceGradePersistence] =
     useState<TeacherAssignmentGradePersistenceState>({ hasPendingChanges: false, isSaving: false })
   const [classPaneRestoreCounter, setClassPaneRestoreCounter] = useState(0)
@@ -831,6 +784,26 @@ export function TeacherClassroomView({
     void loadAssignments()
   }, [classroom.id, loadAssignments])
 
+  const positionedCreationKeysRef = useRef(new Set<string>())
+  const positionCreatedClasswork = useCallback(async (type: 'assignment' | 'material' | 'survey', id: string) => {
+    const key = `${classroom.id}:${type}:${id}`
+    if (positionedCreationKeysRef.current.has(key)) {
+      invalidateClassworkLists(classroom.id)
+      if (currentClassroomIdRef.current === classroom.id) void loadAssignments()
+      return
+    }
+    positionedCreationKeysRef.current.add(key)
+    try {
+      await saveCreatedClassworkPlacement(classroom.id, { type, id })
+    } catch {
+      if (currentClassroomIdRef.current === classroom.id) {
+        showMessage({ text: 'Classwork was created, but its position could not be saved. Drag it into place.', tone: 'warning' })
+      }
+    } finally {
+      if (currentClassroomIdRef.current === classroom.id) void loadAssignments()
+    }
+  }, [classroom.id, loadAssignments, showMessage])
+
   const handleMaterialSaved = useCallback((material: ClassworkMaterial) => {
     invalidateCachedJSON(`teacher-materials:${classroom.id}`)
     invalidateCachedJSON(`student-materials:${classroom.id}`)
@@ -842,7 +815,10 @@ export function TeacherClassroomView({
     })
     setEditMaterial(null)
     setIsMaterialModalOpen(false)
-  }, [classroom.id])
+    if (!editMaterial) {
+      void positionCreatedClasswork('material', material.id)
+    }
+  }, [classroom.id, editMaterial, positionCreatedClasswork])
 
   const handleSurveySaved = useCallback((
     survey: Survey,
@@ -877,8 +853,8 @@ export function TeacherClassroomView({
       params.delete('surveyId')
       params.delete('assignmentStudentId')
     }, { replace: true })
-    void loadAssignments()
-  }, [classroom.id, loadAssignments, updateSearchParams])
+    void positionCreatedClasswork('survey', survey.id)
+  }, [classroom.id, positionCreatedClasswork, updateSearchParams])
 
   const createSurveyDraft = async () => {
     if (isReadOnly || surveyCreationPendingRef.current) return
@@ -1395,14 +1371,24 @@ export function TeacherClassroomView({
   }, [assignmentEditMode])
 
   function handleCreateSuccess(created: Assignment) {
+    if (currentClassroomIdRef.current !== classroom.id) {
+      invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+      void positionCreatedClasswork('assignment', created.id)
+      return
+    }
     // Optimistically add the new assignment to the list
-    setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
-    // Reload to get accurate stats from server
-    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
-    loadAssignments()
+    setAssignments((prev) => {
+      const existing = prev.find((item) => item.id === created.id)
+      return existing
+        ? prev.map((item) => item.id === created.id ? { ...item, ...created } : item)
+        : [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }]
+    })
+    void positionCreatedClasswork('assignment', created.id)
   }
 
   function handleEditSuccess(updated: Assignment) {
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+    if (currentClassroomIdRef.current !== classroom.id) return
     // Optimistically update the assignment in the list
     setAssignments((prev) =>
       prev.map((assignment) =>
@@ -1415,7 +1401,6 @@ export function TeacherClassroomView({
       return { ...prev, assignment: updated }
     })
     // Reload to ensure consistency
-    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     loadAssignments()
   }
 
@@ -1521,16 +1506,51 @@ export function TeacherClassroomView({
   )
   const selectedAssignmentKey =
     selection.mode === 'assignment' ? selection.assignmentId : null
+  const selectedStudentIndex = useMemo(() => {
+    if (!selectedStudentId) return -1
+    return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
+  }, [currentStudentRows, selectedStudentId])
+
+  const canGoPrevStudent = selectedStudentIndex > 0
+  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < currentStudentRows.length - 1
+  const selectedStudentRow = useMemo(() => {
+    if (!selectedStudentId) return null
+    return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
+  }, [currentStudentRows, selectedStudentId])
+  const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
+  const selectedAssignmentId = selectedAssignmentBelongsToCurrentClassroom ? selection.assignmentId : null
+  const splitPaneViewSessionKey = selectedAssignmentId
+    ? getAssignmentSplitPaneViewSessionKey(classroom.id, selectedAssignmentId)
+    : null
+  const splitPaneView = splitPaneViewState.key === splitPaneViewSessionKey
+    ? splitPaneViewState.view
+    : getDefaultAssignmentSplitPaneView()
+
+  const isIndividualStudentView = splitPaneView === 'content-grading'
   const {
-    selectedIds: batchSelectedIds,
+    selectedIds: tableSelectedIds,
     toggleSelect: batchToggleSelect,
     toggleSelectAll: batchToggleSelectAll,
     allSelected: batchAllSelected,
     someSelected: batchSomeSelected,
     clearSelection: batchClearSelection,
     setSelection: batchSetSelection,
-    selectedCount: batchSelectedCount,
   } = useTableSelection(studentRowIds)
+  const batchSelectedIds = useMemo(
+    () => isIndividualStudentView
+      ? new Set(activeSelectedStudentId ? [activeSelectedStudentId] : [])
+      : tableSelectedIds,
+    [activeSelectedStudentId, isIndividualStudentView, tableSelectedIds],
+  )
+  const batchSelectedCount = batchSelectedIds.size
+
+  useEffect(() => {
+    if (!isIndividualStudentView) return
+    if (tableSelectedIds.size === batchSelectedIds.size &&
+      [...batchSelectedIds].every((studentId) => tableSelectedIds.has(studentId))) return
+    batchSetSelection(batchSelectedIds)
+  }, [batchSelectedIds, batchSetSelection, isIndividualStudentView, tableSelectedIds])
+
   const handleGradeTemplateChange = useCallback((template: TeacherAssignmentGradeTemplate | null) => {
     setGradeSelectedTemplate(template)
   }, [])
@@ -1583,69 +1603,20 @@ export function TeacherClassroomView({
   useEffect(() => {
     if (!selectedAssignmentKey || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
 
-    let isCancelled = false
-    let timeoutId: number | undefined
-
-    const syncRun = async () => {
-      const assignmentId = selectedAssignmentKey
-      const runId = activeAssignmentAiRunId
-      let shouldContinue = true
-      let nextDelayMs = 2000
-
-      try {
-        const statusResponse = await fetch(
-          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}`,
-        )
-        const statusData = await statusResponse.json().catch(() => ({}))
-        if (!isCancelled && statusResponse.ok && statusData.run) {
-          const nextRun = statusData.run as AssignmentAiGradingRunSummary
-          setAssignmentAiGradingRun(nextRun)
-          if (!isAssignmentAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-            return
-          }
-
-          const statusDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
-          nextDelayMs = statusDelayMs
-          if (statusDelayMs > 2500) {
-            return
-          }
-        }
-
-        const tickResponse = await fetch(
-          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}/tick`,
-          {
-            method: 'POST',
-          },
-        )
-        const tickData = await tickResponse.json().catch(() => ({}))
-        if (!isCancelled && tickResponse.ok && tickData.run) {
-          const nextRun = tickData.run as AssignmentAiGradingRunSummary
-          setAssignmentAiGradingRun(nextRun)
-          if (!isAssignmentAiGradingRunActive(nextRun)) {
-            shouldContinue = false
-          } else {
-            nextDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
-          }
-        }
-      } catch {
-        // Keep the run state visible; the next poll cycle can recover.
-      } finally {
-        if (!isCancelled && shouldContinue) {
-          timeoutId = window.setTimeout(syncRun, nextDelayMs)
-        }
-      }
-    }
-
-    void syncRun()
-
-    return () => {
-      isCancelled = true
-      if (timeoutId) {
-        window.clearTimeout(timeoutId)
-      }
-    }
-  }, [activeAssignmentAiRunId, hasActiveAssignmentAiRun, selectedAssignmentKey])
+    setUnavailableAssignmentAiPollKey(null)
+    const pollKey = `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
+    return startAiGradingRunPolling({
+      resource: 'assignment',
+      resourceId: selectedAssignmentKey,
+      runId: activeAssignmentAiRunId,
+      statusUrl: `/api/teacher/assignments/${selectedAssignmentKey}/auto-grade-runs/${activeAssignmentAiRunId}`,
+      onRun: setAssignmentAiGradingRun,
+      onUnavailable: () => {
+        setUnavailableAssignmentAiPollKey(pollKey)
+        setError('Grading status is unavailable. Reload this page to reconnect to the saved run.')
+      },
+    })
+  }, [activeAssignmentAiRunId, classroom.id, hasActiveAssignmentAiRun, selectedAssignmentKey])
 
   useEffect(() => {
     if (!activeAssignmentAiRun || hasActiveAssignmentAiRun) return
@@ -1671,7 +1642,7 @@ export function TeacherClassroomView({
   }, [activeAssignmentAiRun, batchClearSelection, hasActiveAssignmentAiRun, selectedStudentId])
 
   async function handleBatchAutoGrade() {
-    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    if (!selectedAssignmentData || batchSelectedCount === 0 || selectedStudentActionsBusy) return
     setBatchProgressCount(batchSelectedCount)
     setIsAutoGrading(true)
     setError('')
@@ -1714,7 +1685,7 @@ export function TeacherClassroomView({
   }
 
   async function handleBatchReturn() {
-    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    if (!selectedAssignmentData || batchSelectedCount === 0 || selectedStudentActionsBusy) return
     if (workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving) {
       setError('Wait for the current grade to finish saving before returning work')
       return
@@ -1881,25 +1852,6 @@ export function TeacherClassroomView({
     }
   }
 
-  const selectedStudentIndex = useMemo(() => {
-    if (!selectedStudentId) return -1
-    return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
-  }, [currentStudentRows, selectedStudentId])
-
-  const canGoPrevStudent = selectedStudentIndex > 0
-  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < currentStudentRows.length - 1
-  const selectedStudentRow = useMemo(() => {
-    if (!selectedStudentId) return null
-    return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
-  }, [currentStudentRows, selectedStudentId])
-  const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
-  const selectedAssignmentId = selectedAssignmentBelongsToCurrentClassroom ? selection.assignmentId : null
-  const splitPaneViewSessionKey = selectedAssignmentId
-    ? getAssignmentSplitPaneViewSessionKey(classroom.id, selectedAssignmentId)
-    : null
-  const splitPaneView = splitPaneViewState.key === splitPaneViewSessionKey
-    ? splitPaneViewState.view
-    : getDefaultAssignmentSplitPaneView()
 
   useEffect(() => {
     const nextView = splitPaneViewSessionKey
@@ -2078,8 +2030,10 @@ export function TeacherClassroomView({
       setSelectedStudentAndNavigate(nextStudentId, { replace: true })
     }
 
+    if (nextView === 'students-grading') batchClearSelection()
     setPersistedSplitPaneView(nextView)
   }, [
+    batchClearSelection,
     resolveDetailsStudentId,
     setPersistedSplitPaneView,
     setSelectedStudentAndNavigate,
@@ -2187,7 +2141,7 @@ export function TeacherClassroomView({
   const canEditAssignment =
     selection.mode === 'assignment' && !!activeSelectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
   const selectedStudentDisplayName =
-    individualHeaderMeta?.studentName ?? getStudentDisplayName(selectedStudentRow)
+    getStudentDisplayName(selectedStudentRow) ?? individualHeaderMeta?.studentName
   const individualCharacterCountLabel =
     selectedStudentDisplayName
       ? individualHeaderMeta
@@ -2207,7 +2161,18 @@ export function TeacherClassroomView({
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
   const workspaceGradeBusy = workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving
+  const individualActionsReady = !workspaceLoading &&
+    gradeSelectedTemplate?.assignmentId === selectedAssignmentId &&
+    gradeSelectedTemplate?.studentId === activeSelectedStudentId
+  const workspaceWorkReadPaused = !!activeSelectedStudentId && (
+    workspaceWorkReadState?.classroomId !== classroom.id ||
+    workspaceWorkReadState?.assignmentId !== selectedAssignmentId ||
+    workspaceWorkReadState?.studentId !== activeSelectedStudentId ||
+    workspaceWorkReadState.writesPaused
+  )
   const selectedStudentActionsBusy =
+    workspaceWorkReadPaused ||
+    (isIndividualStudentView && !individualActionsReady) ||
     isAutoGrading ||
     isGradeSelectedSaving ||
     hasActiveAssignmentAiRun ||
@@ -2217,9 +2182,10 @@ export function TeacherClassroomView({
   const hasReturnableSelection =
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
-    isReturning || isGradeSelectedSaving || workspaceGradeBusy || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+    workspaceWorkReadPaused || isReturning || isGradeSelectedSaving || workspaceGradeBusy || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
   const activeGradeSelectedTemplate =
-    gradeSelectedTemplate?.studentId === activeSelectedStudentId &&
+    gradeSelectedTemplate?.assignmentId === selectedAssignmentId &&
+    gradeSelectedTemplate.studentId === activeSelectedStudentId &&
     gradeSelectedTemplate.studentId === selectedStudentId
       ? gradeSelectedTemplate
       : null
@@ -2249,7 +2215,8 @@ export function TeacherClassroomView({
       : gradeSelectedConfirmTarget === 'comments'
         ? isApplyCommentsSelectedDisabled
         : true
-  const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
+  const assignmentAiPollUnavailable = unavailableAssignmentAiPollKey === `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
+  const showAssignmentAiRunOverlay = isAutoGrading || (hasActiveAssignmentAiRun && !assignmentAiPollUnavailable)
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
@@ -2306,8 +2273,6 @@ export function TeacherClassroomView({
     </div>
   )
 
-  const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
-
   const openSelectedAssignmentEditor = (mode: 'visual' | 'markdown' = 'visual') => {
     if (activeSelectedAssignmentData && canEditAssignment) {
       setAssignmentInstructionsMode(mode)
@@ -2315,57 +2280,29 @@ export function TeacherClassroomView({
     }
   }
 
-  const nextSplitPaneView =
-    ASSIGNMENT_SPLIT_PANE_VIEW_ORDER[
-      (ASSIGNMENT_SPLIT_PANE_VIEW_ORDER.indexOf(splitPaneView) + 1) % ASSIGNMENT_SPLIT_PANE_VIEW_ORDER.length
-    ]
-
-  const layoutToggleLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[splitPaneView]
-
   const assignmentLayoutToggle = (
-    <Tooltip content="Toggle Layout">
-      <span className="inline-flex">
-        <Button
-          type="button"
-          variant="surface"
-          size="sm"
-          aria-label={`Change assignment layout: ${layoutToggleLabel}`}
-          onClick={() => handleSelectSplitPaneView(nextSplitPaneView)}
-          disabled={!canCycleSplitPaneView}
-          className="h-9 px-2.5"
-        >
-          <span
-            className="inline-flex items-center gap-1.5"
-            data-testid="assignment-split-pane-indicator"
-            data-view-panes={splitPaneViewIndicator.panes.join('-')}
-            aria-hidden="true"
-          >
-            <span className="inline-flex items-center gap-1" data-testid="assignment-split-pane-icons">
-              {splitPaneViewIndicator.panes.map((pane) => (
-                <span key={pane} className="inline-flex" data-pane={pane}>
-                  <AssignmentSplitPaneIcon pane={pane} />
-                </span>
-              ))}
-            </span>
-          </span>
-        </Button>
-      </span>
-    </Tooltip>
+    <AssignmentWorkspaceViewToggle
+      view={splitPaneView}
+      onChange={handleSelectSplitPaneView}
+      disabled={!canCycleSplitPaneView}
+    />
   )
 
   const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'ai-grade-selected',
-      label: `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
+      label: isIndividualStudentView
+        ? `AI Grade ${selectedStudentDisplayName ?? 'student'}`
+        : `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => setShowBatchAutoGradeConfirm(true),
       disabled: selectedStudentActionsBusy,
     },
-    {
+    ...(isIndividualStudentView ? [] : [{
       id: 'grade-selected',
       label: `Copy grade to ${batchSelectedCount} selected`,
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+      onHoverChange: (active: boolean) => setHighlightedApplyTarget(active ? 'grade' : null),
       onSelect: () => {
         setHighlightedApplyTarget(null)
         setGradeSelectedConfirmTarget('grade')
@@ -2376,13 +2313,13 @@ export function TeacherClassroomView({
       id: 'comments-selected',
       label: `Copy comment to ${batchSelectedCount} selected`,
       icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
-      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+      onHoverChange: (active: boolean) => setHighlightedApplyTarget(active ? 'comments' : null),
       onSelect: () => {
         setHighlightedApplyTarget(null)
         setGradeSelectedConfirmTarget('comments')
       },
       disabled: isApplyCommentsSelectedDisabled,
-    },
+    }]),
     {
       id: 'return-selected',
       label: 'Return',
@@ -2460,7 +2397,7 @@ export function TeacherClassroomView({
 
   const workspaceStatus = workspaceLoading ? (
     <div aria-live="polite" className="inline-flex items-center text-text-muted">
-      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <CircularProgress className="h-4 w-4" />
       <span className="sr-only">Updating assignment workspace</span>
     </div>
   ) : null
@@ -2477,7 +2414,9 @@ export function TeacherClassroomView({
         <TeacherWorkSurfaceMenuButton
           label={(
             <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span>{batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
+              <span>{isIndividualStudentView
+                ? selectedStudentDisplayName ?? 'Student actions'
+                : batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
               <ChevronDown className="h-4 w-4" aria-hidden="true" />
             </span>
           )}
@@ -2489,7 +2428,9 @@ export function TeacherClassroomView({
           menuAlign="center"
           menuAriaLabel="Selected student assignment actions"
           buttonProps={{
-            'aria-label': batchSelectedCount > 0
+            'aria-label': isIndividualStudentView && selectedStudentDisplayName
+              ? `Student actions for ${selectedStudentDisplayName}`
+              : batchSelectedCount > 0
               ? `Student actions for ${batchSelectedCount} selected`
               : 'Student actions (select students to enable)',
           }}
@@ -2876,6 +2817,7 @@ export function TeacherClassroomView({
       totalWidth={workspaceWidth}
       onLayoutChange={(next) => updateModeLayout(activeWorkspaceMode, next)}
       onLoadingStateChange={setWorkspaceLoading}
+      onWorkReadStateChange={setWorkspaceWorkReadState}
       inspectorEditMode={assignmentEditMode}
       onDetailsMetaChange={setIndividualHeaderMeta}
       onGradeTemplateChange={handleGradeTemplateChange}
@@ -2913,9 +2855,7 @@ export function TeacherClassroomView({
       minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
       primaryClassName="min-h-0 rounded-lg bg-surface"
       inspectorClassName="min-h-0 rounded-lg bg-surface"
-      dividerLabel={splitPaneView === 'students-content'
-        ? 'Resize students and content panes'
-        : 'Resize students and grading panes'}
+      dividerLabel="Resize students and grading panes"
     />
   )
 
@@ -2938,7 +2878,9 @@ export function TeacherClassroomView({
 
       <ConfirmDialog
         isOpen={showBatchAutoGradeConfirm}
-        title={`AI grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`}
+        title={isIndividualStudentView
+          ? `AI grade ${selectedStudentDisplayName ?? 'student'}?`
+          : `AI grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`}
         description="This will overwrite existing grade, comments and teacher edits."
         confirmLabel="AI grade"
         confirmVariant="danger"
@@ -3041,11 +2983,13 @@ export function TeacherClassroomView({
 
       <ConfirmDialog
         isOpen={showReturnConfirm}
-        title={`Return work to ${batchSelectedCount} selected student(s)?`}
+        title={isIndividualStudentView
+          ? `Return work to ${selectedStudentDisplayName ?? 'student'}?`
+          : `Return work to ${batchSelectedCount} selected student(s)?`}
         description={`Returning will mark ${batchSelectedReturnSummary.returnableCount} existing student document(s) as returned now, even if the work was never submitted. ${batchSelectedReturnSummary.missingCount > 0 ? `${batchSelectedReturnSummary.missingCount} selected student(s) have no work yet; Pika will create returned 0/0/0 documents for them without marking them submitted. ` : ''}${batchSelectedReturnSummary.alreadyReturnedCount > 0 ? `${batchSelectedReturnSummary.alreadyReturnedCount} selected student(s) were already returned and will be skipped. ` : ''}${batchSelectedReturnSummary.blockedCount > 0 ? `${batchSelectedReturnSummary.blockedCount} selected student(s) have partial rubric drafts and must be completed or cleared before return.` : ''}`.trim()}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
-        isConfirmDisabled={isReturning || workspaceGradeBusy}
+        isConfirmDisabled={isReturnDisabled}
         isCancelDisabled={isReturning}
         onCancel={() => (isReturning ? null : setShowReturnConfirm(false))}
         onConfirm={handleBatchReturn}
@@ -3064,7 +3008,7 @@ export function TeacherClassroomView({
           } else {
             handleCreateSuccess(assignment)
           }
-          if (options?.closeModal === false) {
+          if (options?.closeModal === false || currentClassroomIdRef.current !== classroom.id) {
             return
           }
           closeAssignmentModal()

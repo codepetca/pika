@@ -65,12 +65,20 @@ not Max's new launch limit of 12. Legacy `plus` maps to the new Pro product.
 A future version-aware implementation must apply the new terms without rewriting
 historical migrations or existing purchases:
 
-| Account plan | Active owned classrooms | Other agreed direction |
-| --- | ---: | --- |
-| Free | 0 | May join classrooms |
-| Basic | 2 | Core teaching tools; no included AI grading |
-| Pro | 5 | Candidate 300 AI grading runs/month; validate costs |
-| Max | 12 | Candidate 1,000 AI grading runs/month; validate costs |
+| Account plan | Active owned classrooms | Tests per classroom | Other agreed direction |
+| --- | ---: | ---: | --- |
+| Free | 0 | 0 new | May join classrooms; preserve existing work |
+| Basic | 2 | 20 | Core teaching tools; no included AI grading |
+| Pro | 5 | 50 | Candidate 300 AI grading runs/month; validate costs |
+| Max | 12 | 100 | Candidate 1,000 AI grading runs/month; validate costs |
+
+The owner approved Test limits on 2026-10-07. SUB-16 in the subscription policy
+defines counting, over-limit preservation and immutable paid-offering terms.
+These numbers are not yet live. Implement a disabled database insertion/movement
+guard first, verify exact-boundary and concurrency behavior, then integrate
+creation/import error handling and the contextual proof catalog before activation.
+Do not treat a smaller Test allowance as proof that grandfathered over-limit
+classrooms satisfy the pending atomic reorder capacity gate.
 
 Applying migration 206 alone does not classify existing accounts, change their
 effective grants, activate strict enforcement, charge anyone, or enable AI
@@ -378,6 +386,57 @@ independently once that contract is stable. Batch 4 remains dormant until batche
 1–3 are complete. Batch 5 verifies their integrated result. Each implementation
 batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
 a new per-feature rollout switch for each route family.
+
+### Execution checkpoint — 2026-10-08
+
+The owner requested orchestration of the remaining goal in this coordinator.
+Frozen main `47659857d` contains owner Test publication #1510 (`473a5de8a`) and
+the disabled Test-cap foundation #1524 (`50185559f`). Earlier pending-publication
+receipts below are historical, not the current PR state. Neither merge completes
+batch 2 or activates a classroom experience, database migration or quota.
+
+Owner reorder #1515 remains draft at `9b1da5ac7`, with a numbering collision
+against merged quota migration 253 and unresolved 10,000-Test capacity acceptance.
+Its original failure receipts, limits and review counters remain intact. An owner
+decision is pending between a smaller supported atomic reorder contract and a
+separately reviewed inherited-trigger redesign; do not substitute the new plan
+caps for grandfathered/unlimited or already-over-limit preservation evidence.
+
+One independent batch-2 slice has source preparation on
+`codex/contextual-test-member-list-read`: dormant member Test list GET. The app
+writer owns the route/helper/validation/tests; a separate proof worker prepares
+the finite installed-SDK fixture source. The coordinator owns guidance,
+integration, review, PR lifecycle and acceptance. Every payload/child/terminal
+page must bind current nonowner membership, active Classroom, Tests visibility
+and fixed Test controls; preserve the legacy student DTO and unmatched dispatch.
+Source preparation and mock tests are not actual SDK or phase-exit acceptance.
+Do not expose the Tests tab while detail, participation, materials/history and
+returned results remain incomplete.
+
+Member-list #1534 is draft: initial two reviews identified one CI catalog-profile
+defect, remediated with exact held248/post253 catalogs and no preservation
+exclusions. Targeted review/native checks remain pending. A readonly pre-run check
+found only local login-session/rate-limit drift from the prior private checkpoint;
+preserve it and reconcile activity before native acceptance. No fixture has run.
+
+Continue within batch 2: owner metadata/documents/participation/manual-grade and
+return boundaries; member list/detail/recovery/start/save/submit/focus/results;
+Surveys owner/member transactions; Gradebook/returned Grades; existing grading
+entrypoint/job authorization without AI or billing activation. Use existing
+transaction contracts where sufficient, rather than adding a switch per route.
+Batch 3 advances only for concretely independent lifecycle/service work; batch 4
+waits for complete batches 1–3; batch 5 rehearses the integrated experience before
+any controlled cutover. The separate billing task retains subscription ownership.
+
+Current owner restriction: quota counters, warnings, limit explanations and
+upgrade prompts belong only on upgrade pages/tier summaries, not classroom or
+Test/create surfaces. Friendly creation-error integration is deferred; this does
+not authorize hidden/generic failures or enforcement activation. Canonical local
+and production migrations 249 onward, production promotion, quota enforcement,
+admission/home/page/cohort/cutover activation and account/billing/provider/runner
+changes remain held. Routine in-scope work, independent review/extensions and
+normal reviewed main merges retain existing authority and cumulative receipts.
+The epic remains incomplete.
 
 Current2026-10-03 checkpoint: batch1 exited after actual metadata1450 squash
 `e86283f8` and all five exact-head CI37150788872 gates. Batch2's shared Assignment
@@ -1279,6 +1338,62 @@ forced cleanup modes and SAME whole canonical equality passed. Final local
 checks, independent integration review and reviewed-head PR Gate remain pending.
 Canonical249–251 and all experience/billing activation remain held; real lifecycle
 state profiles and other owner/learner operations still prevent phase closure.
+
+Superseding2026-10-06: discard#1503 normally squash-merged865d837b7 after
+reviewed9c39132d passed all five CI37435496517 checks, including the serial
+normal/forced251 database profile and PR Gate. Canonical main cleanFF and36
+ordered unrelated stashes were verified unchanged. Next is
+[owner Test publication](contextual-test-publication.md): a dedicated dormant
+POST publishes the current saved draft to closed, retaining the legacy PATCH
+and UI byte-for-byte. HTTP/reader/SQL source-contract TDD186/4 passed. Native
+fixture/SDK/SQL-race source was initially integrated with one existing engine, four
+capability probes, unchanged budgets and separate committed-transition effects;
+all author deliveries are frozen and root offline integration296/6 and109/3
+checks pass, plus the additive shared180s race-clock test (native77/1).
+At that historical pre-type checkpoint, SerialCI3 source checks passed, but genuine252
+RPC generation, native proof, independent review and exact-head CI were unaccepted.
+That sourcefreeze was not PR readiness.
+
+Superseding2026-10-06: publication normal proof at735d6ab passed isolated001–252
+replay,49 rollback contracts,12 held-lock schedules,five committed transitions and
+ten actual installed-SDK cases (three exact closed publications,four restored
+raw42501 probes,20 RPC/0 Storage). Genuine CLI types added only the seven-argument
+252 declaration. Exact owned cleanup and a separate whole183-table/five-field B5
+check passed; B1–B4 were retained without exemptions. Current-owner publication,
+proof/migration/CI source bytes are unchanged after rebase onto2d89088cd.
+Cumulative code/SQL/security review at9dcf0d2 was clean apart from stale pre-type
+documentation. Combined focused777/30+policies/TypeScript/lint and fullcoverage
+14229/8SKIP passed at9dc with unchanged thresholds. Serialforced cleanup,
+documentation-correction review, stable exact-head CI/PR Gate and main merge
+remain required; this is draft PR#1510, not rollout. Canonical249–252,
+production promotion, admission/home/page/cutover and billing remain held.
+No component receipt constitutes the Tests batch or access phase exit.
+
+Superseding2026-10-07: publication#1510 merged473a5de8a after reviewed2f3e6d41
+passed changed-base review, focused1304/44 and all five CI37564268228 jobs/PRGate.
+Publication normal/forced transactions passed; squash-tree equality and clean
+canonical main fast-forward preserved all37 ordered stashes. Canonical/local/prod
+249–252 and all experience/billing activation remain held. Next bounded source
+design is atomic current-owner Test-list reorder: preserve complete descending
+presentation, including Blueprint-retired Test positions without content edits;
+reject stale/incomplete current lists. Verify existing trigger/lifecycle policy
+before implementation. No legacy reorder/UI adopter or phase exit is implied.
+Source implementation is now prepared in the dedicated reorder checkout;
+21 rollback and seven committed proof schedules are source-only. Initial source
+reviews completed; cleanup-verification and budget-evidence fixes are in progress.
+Native/types, final independent review and exact-head CI remain pending. Canonical/prod249–253
+remain unapplied; see [reorder contract](contextual-test-reorder.md).
+
+Superseding2026-10-08: owner approved the 1,000-Test atomic operating ceiling.
+The new source rejects 1,001 request IDs and refuses a larger Classroom before
+mutation, including partial-list and would-be no-op attempts. All existing data
+is preserved; this is not quota enforcement, deletion or legacy UI adoption.
+Current-main synchronization keeps quota253 disabled and resequences the dormant
+reorder migration to254. Source-bound 999/1,000 success and 1,001 denial proofs
+retain unchanged time/byte/action/rollback limits; historical failed10,000 runs
+remain evidence, not new-cap acceptance. Independent source review, genuine CLI
+types, actual finite native modes and exact-head CI remain gates. Canonical249+
+and production/experience/billing/quota activation remain held; no batch exit.
 
 Historical source preparation below predates that actual merge receipt:
 [contextual owner Test draft GET](contextual-test-draft-get.md), including
