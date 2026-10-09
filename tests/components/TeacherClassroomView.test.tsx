@@ -5,6 +5,8 @@ import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClas
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 import { TooltipProvider } from '@/ui'
+const captureDiagnostic = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/analytics/client', () => ({ captureTeacherEvent: captureDiagnostic }))
 
 const mockAssignmentModalRender = vi.fn()
 const mockFetchJSONWithCache = vi.fn()
@@ -1007,6 +1009,7 @@ describe('TeacherClassroomView', () => {
   })
 
   it('shows a classwork error and restores the list after retry', async () => {
+    captureDiagnostic.mockClear()
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     let assignmentsShouldFail = true
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
@@ -1030,12 +1033,15 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(captureDiagnostic).toHaveBeenCalledWith({ name: 'teacher_surface_failed', properties: { surface: 'assignments', failure_category: 'persistence' } })
     expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
 
     assignmentsShouldFail = false
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
     expect(await screen.findByRole('button', { name: 'Restored assignment' })).toBeInTheDocument()
+    expect(captureDiagnostic).toHaveBeenCalledWith({ name: 'teacher_surface_ready', properties: { surface: 'assignments', duration_ms: expect.any(Number) } })
+    expect(JSON.stringify(captureDiagnostic.mock.calls)).not.toContain(classroom.id)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-assignments:${classroom.id}`)
     expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-materials:${classroom.id}`)

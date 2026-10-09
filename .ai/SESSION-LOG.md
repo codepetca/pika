@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Public course section target adoption
-
-Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
-
 ## 2026-10-08 — Utility calendar minimum day targets
 
 - Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
@@ -279,3 +275,7 @@ Production1549 separately merged approved e24d591 into d32b8bbdf; exact reviewed
 ## 2026-10-09 — PostHog dependency foundation
 
 User explicitly approved posthog-js. Added exact1.438.5 and additive lockfile entries in codex/posthog-foundation from763edbb18. Startup initially lacked node_modules; frozen install then environment verification PASS. No SDK imports/initialization, keys, CSP/config changes, collection, replay, migrations or production activation. Default-off teacher event foundation and Assignment/navigation hooks remain the next agreed milestone; implementation plan is the external posthog-implementation-plan-20261009 artifact. Focused checks and draft-first review/publication pending at this checkpoint. New transitive core-js install script remains blocked by pnpm policy; no approve-builds operation.
+
+## 2026-10-09 — Inert teacher workflow analytics implementation
+
+On user Go, returned1551 to draft and added finite schema/inert singleton, synthetic cancellation/policy transport seam, random per-editor/operation helpers, contextual visible-tab signals, active Classwork read outcomes and explicit Assignment Save/Post/Schedule signals. No vendor transport/SDK load/activation, keys, CSP, browser persistence, replay, students, schema or hosted operations. Worker Sol/high owned five analytics files;44 synthetic tests PASS and root integrated242/11 regressions PASS before final additions. Initial focused864/69 and static gates PASS; later component navigation fixture assertion corrected because its transition mock unmounts inactive children, not claimed native retention. Audit reminder covered by actual component role/navigation and existing editor/session regressions; no rendered UI/semantics redesign. Final cumulative checks, independent privacy/compatibility reviews and exact-head CI remain next. Runtime/workspace risks and precise incomplete activation boundary documented in docs/plans/posthog-teacher-workflow-foundation.md; no provider/held1217/privacy-audit work. Dependency-only review CLEAN67c38be7 retained as earlier evidence, not full new-scope acceptance.

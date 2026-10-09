@@ -66,6 +66,7 @@ import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/
 import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getTodayInToronto } from '@/lib/timezone'
 import { useTorontoToday } from '@/hooks/use-toronto-today'
+import { useTeacherSurfaceAnalytics } from '@/hooks/useTeacherSurfaceAnalytics'
 import type {
   Classroom,
   LessonPlan,
@@ -306,6 +307,7 @@ export function ClassroomPageClient({
 
   // Determine route key for layout config
   const routeKey = getRouteKeyFromTab(activeTab, experienceRole)
+  useTeacherSurfaceAnalytics({ role: experienceRole, surface: activeTab, scope: effectiveClassroom.id })
 
   const classroomPage = (
     <ThreePanelProvider

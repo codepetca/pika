@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
+import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, useMemo, type ComponentProps } from 'react'
 import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
@@ -21,6 +21,7 @@ import { DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getT
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
 import { getFutureScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
 import { isAssignmentScheduledForFuture } from '@/lib/assignments'
+import { createAssignmentWorkflow } from '@/lib/analytics/workflow'
 
 // This provider stays outside ModalLayer's outgoing presentation snapshot.
 // Retained body props remain visual snapshots; context retires live descendants.
@@ -271,6 +272,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   } | null>(null)
 
   const isCreateMode = !assignment
+  // Record identity is only an editor-lifetime dependency, never a telemetry field.
+  const analyticsWorkflow = useMemo(
+    () => createAssignmentWorkflow(isCreateMode ? 'create' : 'edit'),
+    // Internal autosaves do not replace this external editor owner.
+    // Owner dependencies intentionally determine memo lifetime, not payload values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bodyLifetime.key, classroomId, assignment?.id, isCreateMode],
+  )
+  useEffect(() => {
+    if (isOpen) analyticsWorkflow.start()
+  }, [isOpen, analyticsWorkflow])
 
   const buildEditorValues = useCallback((overrides?: Partial<AssignmentEditorValues>): AssignmentEditorValues => ({
     title,
@@ -281,6 +293,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   }), [dueAt, instructionsMarkdown, submissionRequirements, title])
 
   const scheduling = useAssignmentScheduling({
+    analyticsWorkflow,
     editorSessionRef,
     currentAssignment,
     isCreateMode,
@@ -795,57 +808,72 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   async function saveDraftAndClose() {
     if (saving || releasing) return
-    const session = editorSessionRef.current
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-      saveTimeoutRef.current = null
+    const diagnosticOperation = analyticsWorkflow.begin('save')
+    const recordSaveResult = (saved: Assignment | null, values: AssignmentEditorValues) => {
+      if (saved) diagnosticOperation.succeed()
+      else diagnosticOperation.fail(validateAssignmentEditorValues(values, currentAssignment) ? 'validation' : 'persistence')
     }
-    if (throttledSaveTimeoutRef.current) {
-      clearTimeout(throttledSaveTimeoutRef.current)
-      throttledSaveTimeoutRef.current = null
-    }
-    setSaving(true)
-    let valuesToSave = pendingValuesRef.current ?? buildEditorValues()
-    let savedValues = lastSavedValuesRef.current
-    const activeSave = activeSaveRef.current
-    if (activeSave && activeSave.session === session) {
-      const savedAssignment = await activeSave.promise
-      if (!ownsSession(session)) {
-        if (savedAssignment && areAssignmentEditorValuesEqual(activeSave.values, valuesToSave)) {
-          onSuccess(savedAssignment, { closeModal: false })
-        } else {
-          // A completed autosave may have persisted values the manual save reverted.
-          await saveChanges(valuesToSave, { closeAfter: true }, {
-            session,
-            savedValues: savedAssignment ? activeSave.values : activeSave.savedValues,
-          })
+    try {
+      const session = editorSessionRef.current
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
+        throttledSaveTimeoutRef.current = null
+      }
+      setSaving(true)
+      let valuesToSave = pendingValuesRef.current ?? buildEditorValues()
+      let savedValues = lastSavedValuesRef.current
+      const activeSave = activeSaveRef.current
+      if (activeSave && activeSave.session === session) {
+        const savedAssignment = await activeSave.promise
+        if (!ownsSession(session)) {
+          if (savedAssignment && areAssignmentEditorValuesEqual(activeSave.values, valuesToSave)) {
+            diagnosticOperation.succeed()
+            onSuccess(savedAssignment, { closeModal: false })
+          } else {
+            // A completed autosave may have persisted values the manual save reverted.
+            const saved = await saveChanges(valuesToSave, { closeAfter: true }, {
+              session,
+              savedValues: savedAssignment ? activeSave.values : activeSave.savedValues,
+            })
+            recordSaveResult(saved, valuesToSave)
+          }
+          return
         }
-        return
+        const latestValues = pendingValuesRef.current ?? buildEditorValues()
+        if (
+          savedAssignment
+          && areAssignmentEditorValuesEqual(activeSave.values, latestValues)
+        ) {
+          pendingValuesRef.current = null
+          diagnosticOperation.succeed()
+          onSuccess(savedAssignment)
+          onClose()
+          setSaving(false)
+          return
+        }
+        // The response may leave newer input untouched, so carry its persisted baseline.
+        savedValues = savedAssignment ? activeSave.values : activeSave.savedValues
+        valuesToSave = latestValues
       }
-      const latestValues = pendingValuesRef.current ?? buildEditorValues()
-      if (
-        savedAssignment
-        && areAssignmentEditorValuesEqual(activeSave.values, latestValues)
-      ) {
-        pendingValuesRef.current = null
-        onSuccess(savedAssignment)
-        onClose()
-        setSaving(false)
-        return
-      }
-      // The response may leave newer input untouched, so carry its persisted baseline.
-      savedValues = savedAssignment ? activeSave.values : activeSave.savedValues
-      valuesToSave = latestValues
-    }
 
-    pendingValuesRef.current = null
-    await startSaveChanges(valuesToSave, { closeAfter: true }, savedValues)
-    if (ownsSession(session)) setSaving(false)
+      pendingValuesRef.current = null
+      const saved = await startSaveChanges(valuesToSave, { closeAfter: true }, savedValues)
+      recordSaveResult(saved, valuesToSave)
+      if (ownsSession(session)) setSaving(false)
+    } finally {
+      // A terminal success/validation result fences this fallback failure.
+      diagnosticOperation.fail('persistence')
+    }
   }
 
-  function ensureTitleBeforeRelease(): boolean {
+  function ensureTitleBeforeRelease(action: 'post' | 'schedule'): boolean {
     if (title.trim()) return true
 
+    analyticsWorkflow.begin(action).fail('validation')
     setError(RELEASE_TITLE_ERROR)
     titleInputRef.current?.focus()
     return false
@@ -858,7 +886,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       return
     }
 
-    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease()) {
+    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease(action)) {
       return
     }
 
@@ -866,7 +894,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   }
 
   function handleSplitActionSelection(action: CreateSubmitAction) {
-    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease()) {
+    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease(action)) {
       return
     }
     handleActionSelection(action)
@@ -1111,7 +1139,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
               : undefined
           }
           onConfirm={() => {
-            if (!ensureTitleBeforeRelease()) return
+            if (!ensureTitleBeforeRelease('schedule')) return
             void scheduleAssignmentRelease({ closeAfter: isScheduled })
           }}
           confirmLabel={releasing ? 'Scheduling...' : isScheduled ? 'Save schedule' : 'Schedule'}
@@ -1137,7 +1165,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         isCancelDisabled={releasing}
         onCancel={() => setShowPostNowConfirm(false)}
         onConfirm={() => {
-          if (!ensureTitleBeforeRelease()) return
+          if (!ensureTitleBeforeRelease('post')) return
           void postAssignmentNow()
         }}
       />

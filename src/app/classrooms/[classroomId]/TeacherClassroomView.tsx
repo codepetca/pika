@@ -1,5 +1,7 @@
 'use client'
 
+import { useTeacherSurfaceReadAnalytics } from '@/hooks/useTeacherSurfaceReadAnalytics'
+
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
 
 import { useCallback, useMemo, useState, useEffect, useId, useRef, type MouseEvent } from 'react'
@@ -694,7 +696,9 @@ export function TeacherClassroomView({
     updateModeLayout,
   } = useAssignmentGradingLayout(classroom.id, workspaceWidth)
 
+  const beginClassworkRead = useTeacherSurfaceReadAnalytics({ surface: 'assignments', isActive, scope: classroom.id })
   const loadAssignments = useCallback(async () => {
+    const diagnosticRead = beginClassworkRead()
     const requestId = loadRequestIdRef.current + 1
     loadRequestIdRef.current = requestId
     setLoading(true)
@@ -722,6 +726,7 @@ export function TeacherClassroomView({
         }),
       ])
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
+      diagnosticRead.ready()
       setAssignments(assignmentsData.assignments || [])
       setMaterials(materialsData.materials || [])
       setSurveys(surveysData.surveys || [])
@@ -736,6 +741,7 @@ export function TeacherClassroomView({
       )
     } catch (err) {
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
+      diagnosticRead.failed()
       // A failed read cannot replace the last successful snapshot, including an empty list.
       setHasLoadedOnce(true)
       setClassworkLoadError(true)
@@ -745,7 +751,7 @@ export function TeacherClassroomView({
         setLoading(false)
       }
     }
-  }, [classroom.id])
+  }, [beginClassworkRead, classroom.id])
 
   useEffect(() => {
     loadRequestIdRef.current += 1
