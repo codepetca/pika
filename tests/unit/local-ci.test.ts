@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolve } from 'node:path'
@@ -20,7 +20,18 @@ function combinedDatabaseWorkflow(source = workflow()) {
     .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$DATABASE_LIFECYCLE_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
 }
 
-function combinedBrowserWorkflow(source = workflow()) {
+// Preserve the reviewed two-job browser generation separately from the family split.
+function combinedDarkWorkflow(source = workflow()) {
+  return source.replace(/^  browser-pattern-lab-dark:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m, '')
+    .replace('run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark\n',
+      'run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark\n')
+    .replace('      - browser-pattern-lab-dark\n', '')
+    .replace('          BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-pattern-lab-dark.result }}\n', '')
+    .replace(/          if \[\[ "\$BROWSER_REQUIRED" == "true" && "\$BROWSER_PATTERN_DARK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
+}
+
+function combinedBrowserWorkflow(input = workflow()) {
+  const source = combinedDarkWorkflow(input)
   return source.replace(/^  browser-experience-dark:\n[\s\S]*?(?=^  pr-gate:\n)/m, '')
     .replace(/run: pnpm e2e:ci --project=[^\n]+/, 'run: pnpm e2e:ci')
     .replace('      - browser-experience-dark\n', '')
@@ -185,7 +196,7 @@ describe('local canonical CI', () => {
     const build = job.steps.find(step => step.name === 'Build production bundle')
     expect(build?.env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://placeholder.supabase.co')
     expect(shouldRun(build?.if, false)).toBe(true)
-    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'database-lifecycle', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark'])
+    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'database-lifecycle', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark', 'browser-pattern-dark'])
   })
 
   it('keeps database selection complete and includes each canonical SDK command once locally', () => {
@@ -231,7 +242,7 @@ describe('local canonical CI', () => {
     expect(selectPlan(jobs, 'database').map(job => job.lane)).toEqual(['database', 'test-owner-sdk'])
     expect(selectPlan(jobs, 'test-owner-sdk').map(job => job.lane)).toEqual(['test-owner-sdk'])
     expect(selectPlan(jobs, 'all').map(job => job.lane)).toEqual(browserSplit
-      ? ['test-build', 'database', 'test-owner-sdk', 'browser', 'browser-dark']
+      ? ['test-build', 'database', 'test-owner-sdk', 'browser', 'browser-dark', 'browser-pattern-dark']
       : ['test-build', 'database', 'test-owner-sdk', 'browser'])
     expect(() => selectPlan(jobs, 'test-owner-sdk-lifecycle')).toThrow('no separate test-owner-sdk-lifecycle lane')
     const sdk = selectPlan(jobs, 'test-owner-sdk')[0]
@@ -259,9 +270,9 @@ describe('local canonical CI', () => {
 
   it('retains pre-SDK proof coverage on refs with the current browser split', () => {
     const jobs = extractWorkflow(legacyWorkflow(workflow(), true))
-    expect(selectPlan(jobs, 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'browser', 'browser-dark'])
+    expect(selectPlan(jobs, 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'browser', 'browser-dark', 'browser-pattern-dark'])
     expect(selectPlan(jobs, 'database')[0].steps.filter(step => /scripts\/check-contextual-test-owner-(?:detail|list|draft-get|draft-save|create|pristine-discard|publication)-lifecycle\.ts/.test(step.run ?? ''))).toHaveLength(7)
-    expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser', 'browser-dark'])
+    expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser', 'browser-dark', 'browser-pattern-dark'])
   })
 
   it('selects the new explicit partition once and rejects it on pre-SDK refs', () => {
@@ -307,12 +318,51 @@ describe('local canonical CI', () => {
     expect(() => selectPlan(extractWorkflow(legacyWorkflow()), 'test-owner-sdk')).toThrow('no separate test-owner-sdk lane')
   })
 
-  it('runs both browser partitions serially and selects the explicit dark lane once', () => {
+  it('selects complete three-job browser and two-job dark aliases with the explicit Pattern Lab lane once', () => {
     const jobs = extractWorkflow(workflow())
-    expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser', 'browser-dark'])
-    expect(selectPlan(jobs, 'browser-dark').map(job => job.id)).toEqual(['browser-experience-dark'])
+    expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser', 'browser-dark', 'browser-pattern-dark'])
+    expect(selectPlan(jobs, 'browser-dark').map(job => job.id)).toEqual(['browser-experience-dark', 'browser-pattern-lab-dark'])
+    expect(selectPlan(jobs, 'browser-pattern-dark').map(job => job.id)).toEqual(['browser-pattern-lab-dark'])
+    expect(parseArguments(['--lane', 'browser-pattern-dark']).lane).toBe('browser-pattern-dark')
     const all = selectPlan(jobs, 'all')
     expect(new Set(all.map(job => job.id)).size).toBe(all.length)
+  })
+
+
+  it('retains the original four-project dark command and aliases in historical two-job browser generations', () => {
+    for (const source of [combinedDarkWorkflow(), combinedSdkWorkflow(combinedDarkWorkflow()), legacyWorkflow(combinedDarkWorkflow(), true)]) {
+      const jobs = extractWorkflow(source)
+      expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser', 'browser-dark'])
+      expect(selectPlan(jobs, 'browser-dark').map(job => job.lane)).toEqual(['browser-dark'])
+      expect(selectPlan(jobs, 'browser-dark')[0].steps.find(step => step.run?.startsWith('pnpm e2e:ci'))?.run)
+        .toBe('pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark')
+      expect(() => selectPlan(jobs, 'browser-pattern-dark')).toThrow('no separate browser-pattern-dark lane')
+    }
+  })
+
+  const mutatePattern = (source: string, mutate: (body: string) => string) => source.replace(
+    /^  browser-pattern-lab-dark:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m, mutate)
+  it.each([
+    ['missing Pattern Lab job', (s: string) => mutatePattern(s, () => '')],
+    ['renamed Pattern Lab job', (s: string) => s.replace('  browser-pattern-lab-dark:\n', '  renamed-pattern-dark:\n')],
+    ['duplicate Pattern Lab job', (s: string) => mutatePattern(s, body => body + body)],
+    ['omitted Pattern Lab project', (s: string) => mutatePattern(s, body => body.replace(' --project=pattern-lab-mobile-dark', ''))],
+    ['duplicate selected project', (s: string) => mutatePattern(s, body => body.replace('pattern-lab-mobile-dark', 'pattern-lab-desktop-dark'))],
+    ['conditional coverage', (s: string) => mutatePattern(s, body => body.replace('        run: pnpm e2e:ci', '        if: success()\n        run: pnpm e2e:ci'))],
+    ['Pattern Lab selector drift', (s: string) => mutatePattern(s, body => body.replace('outputs.run_browser', 'outputs.run_database'))],
+    ['Pattern Lab dependency drift', (s: string) => mutatePattern(s, body => body.replace('needs: classify-changes', 'needs: browser-experience-dark'))],
+    ['Pattern Lab runner drift', (s: string) => mutatePattern(s, body => body.replace('runs-on: ubuntu-latest', 'runs-on: self-hosted'))],
+    ['Pattern Lab preflight drift', (s: string) => mutatePattern(s, body => body.replace('--lane browser-pattern-dark', '--lane browser-dark'))],
+    ['Pattern Lab cleanup guard drift', (s: string) => mutatePattern(s, body => body.replace("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", 'if: always()'))],
+    ['missing gate dependency', (s: string) => s.replace('      - browser-pattern-lab-dark\n', '')],
+    ['missing gate result', (s: string) => s.replace('          BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-pattern-lab-dark.result }}\n', '')],
+    ['gate result wrong owner', (s: string) => s.replace('BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-pattern-lab-dark.result }}', 'BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-experience-dark.result }}')],
+    ['skip-success gate drift', (s: string) => s.replace('"$BROWSER_PATTERN_DARK_RESULT" != "success"', '"$BROWSER_PATTERN_DARK_RESULT" == "failure"')],
+    ['missing gate failure exit', (s: string) => s.replace(/(if \[\[ "\$BROWSER_REQUIRED" == "true" && "\$BROWSER_PATTERN_DARK_RESULT" != "success" \]\]; then\n[\s\S]*?)            exit 1\n/, '$1')],
+    ['missing gate guard terminator', (s: string) => s.replace(/(if \[\[ "\$BROWSER_REQUIRED" == "true" && "\$BROWSER_PATTERN_DARK_RESULT" != "success" \]\]; then\n[\s\S]*?)          fi\n/, '$1')],
+    ['gate disabled', (s: string) => s.replace('    name: PR Gate\n    if: >-', '    name: PR Gate\n    if: false\n    disabled: >-')],
+  ])('rejects damaged family browser partitions: %s', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(workflow()))).toThrow()
   })
 
   it('keeps the complete combined browser plan on historical refs with or without the SDK split', () => {
@@ -335,15 +385,22 @@ describe('local canonical CI', () => {
     expect(() => extractWorkflow(mutate(workflow()))).toThrow()
   })
 
-  it.each(['success', 'setup-failure', 'browser-failure'])('retains current synthetic diagnostics without stale previous-lane reports during %s', async mode => {
+  it.each(['browser-dark', 'browser-pattern-dark'].flatMap(lane => ['success', 'setup-failure', 'browser-failure'].map(mode => [lane, mode])))('retains private separate %s diagnostics without stale previous-lane reports during %s', async (failureLane, mode) => {
     const temp = mkdtempSync(join(tmpdir(), 'pika-ci-diagnostics-test-'))
     const checkout = join(temp, 'source')
     mkdirSync(checkout)
     let lane = ''
+    let active: string | null = null
     const execute = vi.fn(async (script: string, _cwd: string, env: Record<string, string>, _onChild: unknown, log: string) => {
       writeFileSync(log, '')
-      if (script.startsWith('node scripts/ci-runner-preflight.mjs')) lane = script.split(' ').at(-1)!
-      if (lane === 'browser-dark' && mode === 'setup-failure' && script === 'pnpm install --frozen-lockfile') return 1
+      if (script.startsWith('node scripts/ci-runner-preflight.mjs')) {
+        expect(active).toBeNull()
+        expect(env.NEXT_PUBLIC_SUPABASE_URL).toBeUndefined()
+        lane = script.split(' ').at(-1)!
+      }
+      if (script.startsWith('supabase start ')) { expect(active).toBeNull(); active = lane }
+      if (script === 'supabase stop --no-backup') { expect(active).toBe(lane); active = null }
+      if (lane === failureLane && mode === 'setup-failure' && script === 'pnpm install --frozen-lockfile') return 1
       if (script.startsWith('pnpm e2e:ci')) {
         for (const directory of ['playwright-report', 'test-results']) {
           rmSync(join(checkout, directory), { recursive: true, force: true })
@@ -353,19 +410,22 @@ describe('local canonical CI', () => {
         mkdirSync(join(checkout, '.auth'), { recursive: true })
         writeFileSync(join(checkout, '.auth', 'teacher.json'), 'private fixture auth')
         symlinkSync(join(checkout, '.auth', 'teacher.json'), join(checkout, 'playwright-report', 'auth-link'))
-        if (lane === 'browser-dark' && mode === 'browser-failure') return 1
+        if (lane === failureLane && mode === 'browser-failure') return 1
       }
       if (env.GITHUB_ENV) writeFileSync(env.GITHUB_ENV, '')
       return 0
     })
     try {
       const jobs = selectPlan(extractWorkflow(workflow()), 'browser')
-      for (const job of jobs) expect(await runLane(job, checkout, temp, {}, { execute })).toBe(job.lane === 'browser-dark' && mode !== 'success')
+      for (const job of jobs) expect(await runLane(job, checkout, temp, {}, { execute })).toBe(job.lane === failureLane && mode !== 'success')
+      expect(active).toBeNull()
       for (const job of jobs) {
+        expect(statSync(join(temp, `${job.lane}-diagnostics`)).mode & 0o777).toBe(0o700)
+        expect(existsSync(join(temp, `${job.lane}-diagnostics`, '.auth'))).toBe(false)
         const command = job.steps.find(step => step.run?.startsWith('pnpm e2e:ci'))!.run
         for (const directory of ['playwright-report', 'test-results']) {
           const report = join(temp, `${job.lane}-diagnostics`, directory, 'result.txt')
-          if (job.lane === 'browser-dark' && mode === 'setup-failure') expect(existsSync(report)).toBe(false)
+          if (job.lane === failureLane && mode === 'setup-failure') expect(existsSync(report)).toBe(false)
           else expect(readFileSync(report, 'utf8')).toBe(command)
         }
         expect(existsSync(join(temp, `${job.lane}-diagnostics`, 'playwright-report', 'auth-link'))).toBe(false)
