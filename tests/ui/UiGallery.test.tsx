@@ -26,6 +26,31 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('previews shared menu retirement and dialog focus handoff for %s', role => {
+    renderGallery(role)
+    const example = within(screen.getByTestId('page-action-icons-example'))
+    const trigger = example.getByRole('button', { name: 'More actions' })
+    fireEvent.click(trigger)
+    const menu = example.getByRole('menu')
+    menu.style.setProperty('--motion-duration-fast', '150ms')
+    const command = within(menu).getByRole('menuitem', { name: 'Export assignments' })
+    expect(within(menu).getByRole('menuitem', { name: 'Archive selected' })).toBeDisabled()
+    fireEvent.keyDown(command, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(menu).toHaveAttribute('aria-hidden', 'true')
+    expect(menu.inert).toBe(true)
+    fireEvent.click(command)
+    expect(screen.queryByRole('alertdialog', { name: 'Pattern confirmed' })).not.toBeInTheDocument()
+    fireEvent.click(trigger)
+    fireEvent.click(example.getByRole('menuitem', { name: 'Export assignments' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Pattern confirmed' })
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    expect(menu).not.toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+  })
+
   it.each(['teacher', 'student'] as const)('shows default and opt-in FormField semantics independently for %s', role => {
     renderGallery(role)
     const controls = within(screen.getByTestId('pattern-section-controls'))

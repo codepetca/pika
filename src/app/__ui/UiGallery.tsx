@@ -386,6 +386,7 @@ export function UiGallery({ role }: Props) {
                   />
                 </PageLayout>
                 <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.{role === 'student' ? ' Student density adds space above the controls.' : null}</p>
+                <p className="mt-2 text-xs text-text-muted">Dismiss More actions to preview the shared fast fade. Focus returns immediately; reduced motion and changes to the available actions remove the menu immediately.</p>
                 <div data-testid="wrapping-course-heading-example" className="mt-4">
                   <PageHeading
                     title="Environmental science and community inquiry through evidence, reflection and practical investigation — distinctive course identity"
