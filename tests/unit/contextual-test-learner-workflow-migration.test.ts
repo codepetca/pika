@@ -26,6 +26,17 @@ describe('contextual learner Test concrete locked boundary', () => {
     expect(lifecycleFence).toBeLessThan(sql.indexOf('public.save_test_attempt_revision_atomic'))
     expect(sql).not.toMatch(/student\.role\s*=\s*'student'/)
   })
+  it('requires exact-old-tuple collapse refusal and unchanged history/answers/revision in the rollback contract', () => {
+    const fixture = readFileSync('scripts/check-contextual-test-learner-workflow.sql', 'utf8')
+    const expiry = fixture.slice(fixture.indexOf('-- Expiry is distinct'), fixture.indexOf("'focus','"))
+    expect(expiry).toContain("clock_timestamp()-interval '11 seconds'")
+    expect(expiry).toContain("'expected_last',plan#>'{result,last_history}','collapse',true")
+    expect(expiry).toContain("exception when sqlstate 'PT409'")
+    expect(expiry).toContain('is distinct from old_history')
+    expect(expiry).toContain('is distinct from answers')
+    expect(expiry).toContain('is distinct from revision')
+    expect(source()).toContain("v_history.created_at<=pg_catalog.clock_timestamp()-interval '10 seconds'")
+  })
   it('keeps legacy functions intact, pins privilege, limits and protected history revision', () => {
     const sql = source(); expect(sql).not.toMatch(/create or replace function/)
     expect(sql).toContain("set search_path = ''"); expect(sql).toContain("set statement_timeout = '8s'")

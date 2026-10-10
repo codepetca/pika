@@ -37,7 +37,7 @@ declare
  test_id uuid := 'a2570000-0000-4000-8000-000000000011';
  closed_id uuid := 'a2570000-0000-4000-8000-000000000012';
  question_id uuid := 'a2570000-0000-4000-8000-000000000101';
- result jsonb; plan jsonb; saved jsonb; answers jsonb; revision bigint; attempt_id uuid;
+ result jsonb; plan jsonb; saved jsonb; answers jsonb; old_history jsonb; revision bigint; attempt_id uuid;
  history_id uuid; signature text := 'public.test_learner_workflow_v1(uuid,uuid,uuid,text,jsonb,timestamptz)';
 begin
  if has_function_privilege('anon',signature,'execute') or has_function_privilege('authenticated',signature,'execute')
@@ -98,6 +98,21 @@ begin
    perform public.test_learner_workflow_v1(member_id,test_id,class_id,'history-plan',jsonb_build_object('attempt_id',attempt_id,'draft_revision',revision-1),clock_timestamp()+interval '25 seconds');
    raise exception 'Stale history revision accepted';
  exception when sqlstate 'PT409' then null; end;
+ -- Expiry is distinct from last-entry CAS: pass the exact current old tuple,
+ -- retain the production10s cutoff, and require a refusal without any mutation.
+ update public.test_attempt_history set created_at=clock_timestamp()-interval '11 seconds' where test_attempt_id=attempt_id;
+ select jsonb_agg(to_jsonb(history) order by history.id) into old_history from public.test_attempt_history history where history.test_attempt_id=attempt_id;
+ plan := public.test_learner_workflow_v1(member_id,test_id,class_id,'history-plan',jsonb_build_object('attempt_id',attempt_id,'draft_revision',revision),clock_timestamp()+interval '25 seconds');
+ if (plan#>>'{result,last_history,created_at}')::timestamptz>clock_timestamp()-interval '10 seconds' then raise exception 'Expired collapse fixture was not old'; end if;
+ begin
+   perform public.test_learner_workflow_v1(member_id,test_id,class_id,'history-write',jsonb_build_object(
+     'attempt_id',attempt_id,'draft_revision',revision,'expected_last',plan#>'{result,last_history}','collapse',true,
+     'patch',null,'snapshot',answers,'trigger','autosave','word_count',1,'char_count',96,'paste_word_count',0,'keystroke_count',1),clock_timestamp()+interval '25 seconds');
+   raise exception 'Expired history collapse accepted';
+ exception when sqlstate 'PT409' then null; end;
+ if (select jsonb_agg(to_jsonb(history) order by history.id) from public.test_attempt_history history where history.test_attempt_id=attempt_id) is distinct from old_history
+   or (select responses from public.test_attempts where id=attempt_id) is distinct from answers
+   or (select draft_revision from public.test_attempts where id=attempt_id) is distinct from revision then raise exception 'Expired history collapse changed saved work'; end if;
  result := public.test_learner_workflow_v1(member_id,test_id,class_id,'focus','{"event_type":"away_start","session_id":"role-neutral","metadata":null}',clock_timestamp()+interval '25 seconds');
  if result#>>'{result,event_id}' is null or jsonb_array_length(result#>'{result,focus_events}') <> 1 then raise exception 'Teacher-role member focus event missing'; end if;
 

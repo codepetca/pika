@@ -12,7 +12,10 @@ import { testLearnerWorkflowRequest, testLearnerWorkflowCase, validateTestLearne
   type TestLearnerWorkflowFixture, type TestLearnerObservedAttempt } from './contextual-test-learner-proof-fixture'
 
 const origin = 'http://127.0.0.1:54331', path = '/rest/v1/rpc/test_learner_workflow_v1'
-const failure = () => new Error('Learner verification transport refused; native acceptance not established')
+type RefusalStage = 'preflight'|'request'|'guard-before'|'exchange'|'reply'|'witness'|'history-profile'|'guard-after'
+const failure = (stage?: RefusalStage,context?: { label: string; phase: string; profile?: HistoryProfile }) =>
+  new Error('Learner verification transport refused; native acceptance not established' +
+    (stage ? `; stage=${stage}; case=${context?.label??'unset'}; phase=${context?.phase??'unset'}; profile=${context?.profile??'default'}` : ''))
 type HistoryProfile = 'baseline'|'collapse'|'patch'|'no-op'|'submit'
 const errorSchema = z.object({ code: z.enum(['PT400','PT403','PT404','PT409','PT503','42501','57014']),
   message: z.string().max(16384), details: z.string().max(16384).nullable().optional(), hint: z.string().max(16384).nullable().optional() }).strict()
@@ -51,13 +54,14 @@ export function createTestLearnerProofTransport(f: TestLearnerWorkflowFixture, r
   }
   function historyWriteRequest() { assert(context?.profile && (context.phase==='history-write'||context.phase==='complete') && context.historyWrite!==undefined);return context.historyWrite===null?null:structuredClone(context.historyWrite) }
   const safeFetch: typeof fetch = async (resource, init) => {
+    let stage: RefusalStage = 'preflight'
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined, response: Response | undefined
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined
     const caller = init?.signal, abort = () => controller.abort()
     const check = () => assert(!failed && !controller.signal.aborted && !caller?.aborted && context && Date.now() < Date.parse(context.deadline))
     try {
       check(); assert(!inFlight && context && context.phase !== 'complete'); inFlight = true
-      assert(!(resource instanceof Request)); assert(typeof resource === 'string' || resource instanceof URL)
+      stage = 'request';assert(!(resource instanceof Request)); assert(typeof resource === 'string' || resource instanceof URL)
       assert.equal(String(resource), origin + path)
       assert(init && init.method === 'POST' && typeof init.body === 'string')
       assert(Object.keys(init).every(key => ['method','headers','body','signal','redirect'].includes(key)))
@@ -91,9 +95,10 @@ export function createTestLearnerProofTransport(f: TestLearnerWorkflowFixture, r
       const aborted = new Promise<never>((_,reject) => { rejectAbort = reject })
       controller.signal.addEventListener('abort', () => rejectAbort(failure()), { once: true })
       const bounded = async <T>(work: () => Promise<T>): Promise<T> => { check(); const value = await Promise.race([Promise.resolve().then(work),aborted]); check(); return value }
-      await bounded(guard); check(); assert(++calls <= TEST_LEARNER_RPC_LIMIT)
+      stage = 'guard-before';await bounded(guard); check(); assert(++calls <= TEST_LEARNER_RPC_LIMIT)
       bytes += Buffer.byteLength(rawBody); assert(bytes <= TEST_LEARNER_TOTAL_BYTES)
-      response = await bounded(() => originalFetch(origin+path,{ method: 'POST', headers, body: rawBody, redirect: 'error', signal: controller.signal }))
+      stage = 'exchange';response = await bounded(() => originalFetch(origin+path,{ method: 'POST', headers, body: rawBody, redirect: 'error', signal: controller.signal }))
+      stage = 'reply'
       assert(response instanceof Response && !response.redirected && !response.headers.has('location') && response.body)
       assert(!response.url || response.url === origin+path); assert(response.headers.get('content-type')?.startsWith('application/json'))
       const length = response.headers.get('content-length'); assert(length === null || /^\d+$/.test(length) && Number(length) <= TEST_LEARNER_REPLY_BYTES)
@@ -106,7 +111,7 @@ export function createTestLearnerProofTransport(f: TestLearnerWorkflowFixture, r
       }
       output += decoder.decode(); const decoded = parseJson(output)
       let nextObserved = observed
-      if (response.ok) {
+      stage = 'witness';if (response.ok) {
         if (inspect) {
           const w = testLearnerWitnessSchema.parse(decoded); assert.equal(w.operation,'inspect')
           assert.equal(w.actor_id,expected.p_actor_id); assert.equal(w.subject_id,f.actors[c.subject].id)
@@ -116,6 +121,7 @@ export function createTestLearnerProofTransport(f: TestLearnerWorkflowFixture, r
           const result = accepted.result
           if(context.profile&&context.phase==='operation')context.saved=result
           if(context.profile&&context.phase==='history-plan'){
+            stage = 'history-profile'
             const plan=testLearnerResultSchemas['history-plan'].parse(result),saved=context.saved
             assert(saved&&typeof saved==='object'&&!Array.isArray(saved));const row=saved as Record<string,unknown>
             const next=normalizeTestResponses({[f.questions[0].id]:{question_type:'open_response',response_text:'x'.repeat(1800)},[f.questions[1].id]:{question_type:'multiple_choice',selected_option:context.profile==='collapse'?1:0}})
@@ -144,14 +150,14 @@ export function createTestLearnerProofTransport(f: TestLearnerWorkflowFixture, r
         const statuses: Record<string,number> = { PT400: 400,PT403: 403,PT404: 404,PT409: 409,PT503: 503,'42501': 403,'57014': 500 }
         assert.equal(response.status,statuses[error.code]); assert(c.expected === 'denial' || history)
       }
-      await bounded(guard); check()
+      stage = 'guard-after';await bounded(guard); check()
       observed = nextObserved
       context.phase = !response.ok ? 'complete' : inspect && c.operation !== 'inspect' ? 'operation'
         : context.phase === 'operation' && c.expected === 'success' && (c.operation === 'save' || c.operation === 'submit') ? 'history-plan'
         : context.phase === 'history-plan' ? context.profile&&context.historyWrite===null?'complete':'history-write'
         : context.phase === 'operation' && c.operation === 'document' ? 'document-recheck' : 'complete'
       return new Response(output,{ status: response.status, headers: { 'content-type': 'application/json' } })
-    } catch { failed = true; controller.abort(); void reader?.cancel().catch(() => {}); void response?.body?.cancel().catch(() => {}); throw failure() }
+    } catch { failed = true; controller.abort(); void reader?.cancel().catch(() => {}); void response?.body?.cancel().catch(() => {}); throw failure(stage,context) }
     finally { clearTimeout(timer); caller?.removeEventListener('abort',abort); inFlight = false }
   }
   return Object.freeze({ safeFetch, readContext, historyWriteRequest, report: () => Object.freeze({ calls, bytes, failed,

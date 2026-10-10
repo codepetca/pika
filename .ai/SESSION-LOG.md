@@ -11,6 +11,46 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-08 — Public local CI policy main synchronization
+
+Owner authorized rebasing and completing PR1537 after main advanced. Rebase onto b778a6851 preserves both session histories; all seven policy/workflow/host/test/documentation paths match approved1d06b8e27 byte-for-byte. Original exact-head hosted CI37780533276 all five checks PASS in62m15s. Final focused checks, one bounded independent integration review, and new exact-head CI precede the approved squash merge. Local runner registration/activation and production operations remain separate.
+
+## 2026-10-08 — Near-complete PR batch handoff
+
+Coordinator chat01a11c28 takes ownership from idle chats of PR1525,1538,1505,1536,1540,1534,1263,1539 for ordered main completion. Owner explicitly approved merge work and all budget extensions after reviewing each PR summary. Prepare fixed candidates in that order, reusing prior feature reviews/checks only where source and interactions remain covered; require bounded independent integration review, focused checks and exact-head PR Gate before each squash merge. Shared continuity reconciles all prior/main history bodies and multiplicities, retaining failed receipts, holds and original review counters. Production promotion, canonical/hosted migrations, rollout activation, provider and runner changes are excluded.
+
+Orchestration: GPT-6.1 Sol/medium older-PR triage delivered 13 exact-head records and conflict/dependency evidence; coordinator verified shortlisted overlaps. Worker tokens/attributable active time unknown; no measured savings claim. Weekly remaining64%; automatic DeepSeek pause through2026-12-31 retained. Current phase: candidate preparation/review/CI pending; no batch merge or whole-goal completion claimed. External handoff and immutable original inputs: ~/.codex/artifacts/pika/pr-completion-20261008.
+
+## 2026-10-08 — Reviewed completion batch prepared
+
+Strict latest-main rules prevent retaining stacked CI after individual squash merges. Coordinator prepares one completion PR containing the eight previously reviewed changes in order1525,1538,1505,1536,1540,1534,1263,1539; originals stay open until the batch is verified merged, then close as delivered with its reference. Shared student-Classroom client composes1505 payload validation and1540 fresh identity imports; existing34 targeted client/identity tests PASS, with no threshold/behavior expansion. All other auto-combined source deltas retain each original feature and incoming main behavior. Canonical/hosted migrations, production, dormant switches, account/provider/runner changes remain held.
+
+Prior clean fixed-SHA integration reviews:1525 at43bb,1538 atd9d,1505 at1081 and1536 at293e. Original native/local/visual evidence stays tied to its actual executed SHA. Initial overbroad default run had five unchanged failures under host load;1538 two-worker retry passes1014/38 and static gates;1505 two-worker run had three unchanged5-second timeouts, retained as failed. Final cumulative single-worker focused gate, teacher/student visual matrix and high-risk independent backend/security plus architecture/UI/CI reviews are pending on the final batch. Exact-head CI/PR Gate remains mandatory; no readiness/merge/whole-goal completion claimed. Original counters and owner-approved budget extensions are retained; weeklyremaining63%, task/worker tokens unknown. External handoff/evidence in ~/.codex/artifacts/pika/pr-completion-20261008.
+
+## 2026-10-08 — Completion batch review and recovery correction
+
+Fixed batch0f6737b has2239 tests/109files and TypeScript/lint/architecture/UI/design PASS. Two independent GPT-6.1 Sol/high cumulative reviewers completed backend/security and architecture/compatibility scopes; compatibility CLEAN, security accepted oneP2: body transport or timeout errors bypassed grading polling retry budget. One correction batch distinguishes SyntaxError from transient body failures, retaining finite failure/deadline limits, status-before-tick ownership and cancellation. Three regression cases cover real broken Response streams, body timeout and repeated transport exhaustion; polling28 PASS and changed-file audit PASS. Targeted independent delta review and corrected-head focused checks precede readiness. Ledger:2 initial cumulative reviewer turns,1 wave,1 accepted finding,1 fix batch; prior per-PR counters preserved. Reported review intervals123/253seconds are elapsed estimates, active time/tokens unknown.
+
+Fresh fixture-only visual evidence at0f6737b:8 teacher/student×desktop/mobile×light/dark captures PASS and4 unchanged Darwin contract comparisons PASS; synthetic API interception/empty storage, zero custom-capture API requests, no authenticated-app or canonical-data claim. Normal/late16px ring and12px late clock verified; compact fixture is14px submitted, no dedicated compact-progress fixture. Original compact-progress evidence remains tied to its executed source. Two original ready-event runs intentionally cancelled by returning1525/1538 to draft for batch strategy; no product failure inferred. Exact corrected-head CI/PRGate and merge still pending. Evidence/handoff:~/.codex/artifacts/pika/pr-completion-20261008; all production/migration/activation/provider/runner holds retained.
+
+## 2026-10-08 — Reorder source-only main completion candidate
+
+Synced dormant PR1515 from7d5dff8 onto fixed main1dd5325 in owned completion
+worktree; feature commitbb731336 retains32/38 exact feature blobs and combines
+six shared proof/CI/guidance paths without product expansion. Route/helper,
+validator/migration254 remain exact7d; incoming91 nonhistory paths preserved.
+Final focused1613/54, architecture/UI/design/TypeScript/lint and33TS audit PASS;
+first unchanged run had four5s timeouts, exact targeted rerun and final gate
+passed without changing assertions or limits. All historical1515/main entry
+bodies and multiplicities retained by append-only union and official trim.
+Private inert verifier awaits exact final-H review, specific fresh immutable
+canonical183/all5 checkpoint authority and a new finite quiet window; no native,
+DB/checkpoint/CI/push/PR operation, proof acceptance or epic completion claimed.
+Preserve originalOct7 05:04 clock,31reviews/27targeted and prior28fix-sync batches;
+feature synchronization is batch29, this continuity-only commit is not another
+fix batch. Human workflow-stop/budget waiver remains task-scoped; correctness,
+checkpoint/migration/production/activation/provider/billing holds remain.
+
 ## 2026-10-08 — Reorder exact restoration composition correction (batch30)
 
 Fixed the accepted e351 compatibility P2 by privately binding the current source-issued revocation plan across its exact restoration session, SQL and verification. The900s ordinary gate remains sticky; scoped restoration retains finite inherited/native caps, primary failures, exact teardown and all five canonical comparisons. Real adopter/parent/SDK-observer regressions with pure platform stubs fail10/10 against e351 and pass the correction; unrelated setup/matrix evidence is stubbed, with no native/type/forced/CI acceptance. Preserve31 original reviews/27 targeted/29 preceding fix-sync batches; this source correction is batch30, distinct from the root's private-wrapper artifact correction. Targeted final review and all actual native evidence remain pending; all runtime/database/checkpoint/production/rollout holds remain.
@@ -529,3 +569,24 @@ changing the limit. Corrected required focused run follows before publication.
 Ledger5launches/initial1/targeted2/fix2/final1; original13:16:45clock/task waiver
 and absolute12/8/8 caps retained. Source correction review and newly approved
 rehearsal/types/CI remain; all rollout/account/production holds persist.
+
+## 2026-10-10 — Second learner rehearsal failure and proof correction
+
+ONE fresh owner-approved8ca rehearsal passed full001–257 replay, rollback/ACL
+contracts and genuine CLI types, then failed inside finite learner verification.
+Exact owned teardown/global/canonical/source preservation PASS; cleanupFailures
+empty. Approval consumed and runner disabled/unbound. No retained JS exception
+identifies the historical cause; generated438731-byte artifact remains private.
+Independent Sol/high source diagnosis accepted a P2 timing-sensitive collapse
+fixture. A controlled exact-last-row positive fixture, real10s refusal mocks,
+before-plan/between-plan latency regressions and expired-collapse rollback SQL
+contract preserve product257/guards/CAS. New private all-exception0600 diagnostics
+are bounded/cleanup-safe; transport exposes only fixed non-sensitive refusal
+stage/case/profile metadata. Private26pure,73finite/168requests/336guards and tsc
+PASS; scoped transport/migration95 PASS. New rollback contract not yet executed.
+Continuity-only rebase onto3fd887953 preserved main's independently applied
+prod001–256 release receipts and both histories; no product/migration drift.
+Ledger7launches/initial1/targeted4/fix3in progress/final1; original13:16:45clock,
+task review waiver and hard12/8/8 caps retained. Correction review/fresh native/
+types/finalCI remain. Sharedlocal249+/prod257+/activation/account/billing holds
+persist; no phase or goal exit.

@@ -440,7 +440,7 @@ sync receipts; no repeated full review or administrator bypass. No batch2 exit.
 The next coherent dormant
 [learner Test group](contextual-test-learner-workflow.md) on
 `codex/learner-test-workflow` is draft PR #1561, reconciled onto current main
-`3b7ae978e` after the owner merge and database CI partition:
+`3fd887953` after the owner merge, database CI partition and continuity-only sync:
 detail/start/save/submit/recovery/session/focus/history/results/material delivery.
 Product source is delivered; initial security/compatibility reviews and the
 targeted historical HTML MIME correction review are complete. Source/static
@@ -450,9 +450,20 @@ the rollback contract, before SDK/Storage/types. Cleanup and shared/global
 preservation passed. Source diagnosis found a zero-point Test fixture violating
 the retained positive-points constraint; correction changes only the fixture,
 with a RED-to-GREEN regression. Private failure diagnostics are bounded and
-never printed. Correction review, a freshly authorized exact-source disposable
-rehearsal, genuine types and final-head CI/PR Gate remain pending. The failed
-attempt consumed its approval; this checkpoint grants no retry or activation.
+never printed. The correction review completed clean on `8ca1f7381`; a second
+explicitly approved one-off rehearsal passed001–257 replay, rollback/ACL contracts
+and genuine type generation, then failed inside learner verification. Exact
+cleanup/global/canonical preservation passed. Its JavaScript exception was not
+retained, so the historical cause is unknown; the private artifact is not installed
+centrally while whole acceptance is incomplete. Independent bounded diagnosis
+found a timing-sensitive collapse proof fixture, not a proven product defect.
+The next source correction positions only the observed attempt's selected history
+row for a controlled positive branch, retains the product10s cutoff/guards/CAS,
+adds expired-collapse refusal/unchanged-state proof and private bounded exception
+diagnostics. Offline latency regressions are not native evidence. Correction
+review, a newly authorized exact-source disposable rehearsal, accepted genuine
+types and final-head CI/PR Gate remain pending. Both failed attempts consumed
+their separate approvals; this checkpoint grants no retry or activation.
 No batch-2 exit.
 Keep existing URLs/envelopes, shared admission and legacy OFF/unmatched behavior.
 Current nonowner membership/visibility must authorize before revision-conflict

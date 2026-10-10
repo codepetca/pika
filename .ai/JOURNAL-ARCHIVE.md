@@ -45325,6 +45325,7 @@ Focused checks PASS376tests plus architecture/UI/design/TypeScript/lint. Native 
 
 Audit heuristic flagged missing changed accessibility tests because it scans existing role/status markup. This delta changes only two typography classes; existing keyboard-focus regression and final 376 tests pass. No composite semantics changed, no mirrored CSS test or audit-rule weakening; independent reviewer will verify this classification.
 
+<!-- pika-session-log-archive-batch:4c760838359b1b5bde36959fc3dae59b4315a1de402d7ef3e5250c078a48617b -->
 ## 2026-10-08 — Attendance failure heading
 
 Owner requests exact failure heading “Not checked-in” in place of “We could not confirm check-in.” Reuse existing student scan card and Pattern Lab status/Card; no new pattern/interaction. Preserve classroom name,20px typography and Try again. Update existing semantic heading assertions in component and native QR/return-focus coverage. Teacher n/a; student desktop/mobile light/dark, normal/reduced motion for return navigation.

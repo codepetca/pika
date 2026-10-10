@@ -193,6 +193,19 @@ describe('exact learner installed-SDK source transport (offline, no native accep
     await expect(s.transport.safeFetch(url,s.init)).rejects.toThrow(); expect(s.fetcher).toHaveBeenCalledTimes(1)
     expect(s.transport.report().failed).toBe(true)
   })
+  it.each(['guard-before','guard-after'] as const)('retains only fixed refusal context for %s, not the underlying private error', async stage => {
+    const s = setup(), privateMessage = `synthetic private context ${key}`
+    if (stage === 'guard-after') s.guard.mockResolvedValueOnce(undefined)
+    s.guard.mockRejectedValueOnce(new Error(privateMessage))
+    const error: unknown = await s.transport.safeFetch(url,s.init).then(() => null,error => error)
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toContain(`stage=${stage}`)
+    expect((error as Error).message).toContain('case=recover-member-teacher')
+    expect((error as Error).message).not.toContain(privateMessage)
+    expect((error as Error).message).not.toContain(key)
+    expect(s.fetcher).toHaveBeenCalledTimes(stage === 'guard-before' ? 0 : 1)
+    expect(s.transport.report().failed).toBe(true)
+  })
   it.each(['wrong-witness','redirect','oversize','malformed-utf8'])('fails closed on %s replies', async kind => {
     const s = setup(async () => {
       if (kind === 'redirect') return new Response(null,{ status: 302,headers: { location: 'https://example.invalid' } })
@@ -208,30 +221,48 @@ describe('exact learner installed-SDK source transport (offline, no native accep
     expect(() => t.readContext('recover-member-teacher',new Date(Date.now()-1).toISOString())).toThrow()
     expect(s.fetcher).not.toHaveBeenCalled()
   })
-  it.each(['baseline','collapse','patch','no-op','submit'] as const)('derives exact fixed application history %s plan', async profile => {
-    const deadline=new Date(Date.now()+10000).toISOString(),next={ [f.questions[0].id]:{question_type:'open_response',response_text:'x'.repeat(1800)},
+  it.each([
+    ...(['baseline','collapse','patch','no-op','submit'] as const).map(profile=>({name:profile,profile,guardDelay:0,offset:profile==='collapse'?-1000:-11000,expiry:'none'})),
+    {name:'controlled collapse with slow full guards',profile:'collapse' as const,guardDelay:2000,offset:45000,expiry:'none'},
+    {name:'natural collapse expires before plan',profile:'collapse' as const,guardDelay:2000,offset:-1000,expiry:'before-plan'},
+    {name:'natural collapse expires between plan and write',profile:'collapse' as const,guardDelay:0,offset:-1000,expiry:'before-write'},
+  ])('derives or refuses exact fixed application history $name', async ({profile,guardDelay,offset,expiry}) => {
+    let now=Date.now(),guards=0;const initial=now,clock=vi.spyOn(Date,'now').mockImplementation(()=>now)
+    try {
+    const deadline=new Date(initial+30000).toISOString(),next={ [f.questions[0].id]:{question_type:'open_response',response_text:'x'.repeat(1800)},
       [f.questions[1].id]:{question_type:'multiple_choice',selected_option:profile==='collapse'?1:0} }
     const previous=profile==='baseline'?{}:profile==='no-op'?next:{...next,[f.questions[1].id]:{question_type:'multiple_choice',selected_option:profile==='collapse'?0:1}}
     const current={...attempt,responses:next,draft_revision:2},last=profile==='baseline'?null:{id:f.materials[0].objectId,test_attempt_id:f.attemptId,
-      patch:null,snapshot:previous,word_count:1,char_count:1900,paste_word_count:3,keystroke_count:5,trigger:'baseline',created_at:new Date(Date.now()-(profile==='collapse'?1000:11000)).toISOString()}
+      patch:null,snapshot:previous,word_count:1,char_count:1900,paste_word_count:3,keystroke_count:5,trigger:'baseline',created_at:new Date(initial+offset).toISOString()}
     const fetcher=vi.fn<typeof fetch>(async (_resource,init)=>{const body=JSON.parse(String(init?.body)),op=body.p_operation
+      if(op==='history-write'&&body.p_payload.collapse&&last&&now-Date.parse(last.created_at)>=10000)
+        return new Response(JSON.stringify({code:'PT409',message:'test_learner_history_changed',details:null,hint:null}),{status:409,headers:{'content-type':'application/json'}})
       const result=op==='inspect'?{access_mode:'member'}:op==='save'?{created:profile==='baseline',previous_responses:previous,attempt:current}
         :op==='submit'?{attempt_id:f.attemptId,submitted_at:f.now,inserted_responses:2,draft_revision:2}
         :op==='history-plan'?{attempt:current,last_history:last}:{historyEntry:null}
       return new Response(JSON.stringify({...witness(op),result}),{headers:{'content-type':'application/json'}})})
-    const transport=createTestLearnerProofTransport(f,target,`pika_assignment_list_${f.tag.slice(-12)}`,fetcher,async()=>{})
+    const guard=vi.fn(async()=>{now+=guardDelay;if(++guards===6&&expiry==='before-write')now+=11000})
+    const transport=createTestLearnerProofTransport(f,target,`pika_assignment_list_${f.tag.slice(-12)}`,fetcher,guard)
     const label=profile==='submit'?'submit-member-teacher':'save-member-teacher'
     transport.readContext(label,deadline,profile)
     const client=createClient(target.API_URL,key,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:transport.safeFetch}})
     const flow=createContextualTestLearnerWorkflow({supabase:client as unknown as TestLearnerRpcClient,actorId:f.actors[1].id,testId:f.testId,deadline:Date.parse(deadline)})
     await flow.inspect();await flow.run(profile==='submit'?'submit':'save',{responses:next,expected_revision:1,...(profile==='submit'?{}:{trigger:'autosave',paste_word_count:0,keystroke_count:1})})
+    if(expiry==='before-plan'){
+      await expect(flow.run('history-plan',{attempt_id:f.attemptId,draft_revision:2})).rejects.toThrow()
+      expect(transport.report().failed).toBe(true);expect(fetcher).toHaveBeenCalledTimes(3);return
+    }
     await flow.run('history-plan',{attempt_id:f.attemptId,draft_revision:2})
     const body=transport.historyWriteRequest()
     if(profile==='no-op'){expect(body).toBeNull();expect(fetcher).toHaveBeenCalledTimes(3)}
     else {expect(body).toMatchObject({attempt_id:f.attemptId,draft_revision:2,expected_last:last,collapse:profile==='collapse',trigger:profile==='submit'?'submit':profile==='baseline'?'baseline':'autosave'})
       if(profile==='patch'){expect(body?.snapshot).toBeNull();expect(body?.patch).toHaveLength(1)}else expect(body?.snapshot).toEqual(next)
       if(profile==='collapse')expect(body).toMatchObject({paste_word_count:3,keystroke_count:6})
-      await flow.run('history-write',body as never);expect(fetcher).toHaveBeenCalledTimes(4)}
+      if(expiry==='before-write')await expect(flow.run('history-write',body as never)).rejects.toMatchObject({statusCode:409})
+      else await flow.run('history-write',body as never)
+      expect(fetcher).toHaveBeenCalledTimes(4)}
     expect(transport.report()).toMatchObject({complete:true,failed:false,nativeVerified:false})
+    expect(guard).toHaveBeenCalledTimes(profile==='no-op'?6:8)
+    } finally {clock.mockRestore()}
   })
 })
