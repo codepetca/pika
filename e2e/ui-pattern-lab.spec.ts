@@ -218,11 +218,13 @@ test('teacher continuous inspector keeps controls and details usable in the boun
   await expect(inspector.getByText('Alex Chen', { exact: true })).toBeVisible()
   await sam.click()
   await expect(inspector.getByText('Sam Patel', { exact: true })).toBeVisible()
-  const bounds = (await example.boundingBox())!
-  const details = (await inspector.boundingBox())!
-  expect(details.height).toBeGreaterThan(100)
-  expect(details.y).toBeGreaterThanOrEqual(bounds.y)
-  expect(details.y + details.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1)
+  // Visible text precedes the mobile flex transition settling. Sample both
+  // rectangles together until the original usable, bounded geometry is present.
+  await expect.poll(async () => {
+    const [bounds, details] = await Promise.all([example.boundingBox(), inspector.boundingBox()])
+    return Boolean(bounds && details && details.height > 100 && details.y >= bounds.y &&
+      details.y + details.height <= bounds.y + bounds.height + 1)
+  }).toBe(true)
   await testInfo.attach('continuous-inspector', {
     body: await example.screenshot({ path: testInfo.outputPath('continuous-inspector.png'), animations: 'disabled' }),
     contentType: 'image/png',
@@ -1115,9 +1117,15 @@ test.describe('teacher Pattern Lab', () => {
     await expect(preview).toBeFocused()
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false)
 
+    // Closing the full preview remounts the editor. Wait for its restored
+    // document and then the parent validation state before navigating away.
+    await expect(editor).toContainText('Updated wetland question.')
     await editor.fill('')
+    await expect(detailsPane.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
+    await expect(detailsPane.getByText('Check question 1.')).toBeVisible()
     await questionNumber.fill('2')
     await questionNumber.press('Enter')
+    await expect(questionNumber).toHaveValue('2')
     await expect(detailsPane.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
     await expect(detailsPane.getByText('Check question 1.')).toBeVisible()
     await questionNumber.fill('1')

@@ -15,11 +15,15 @@ const jobsByLane = {
   'test-owner-sdk-lifecycle': 'contextual-test-owner-sdk-lifecycle',
   browser: 'browser-experience-matrix',
   'browser-dark': 'browser-experience-dark',
+  'browser-pattern-dark': 'browser-pattern-lab-dark',
 }
 const browserCommands = {
   browser: 'pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light',
-  'browser-dark': 'pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark',
+  'browser-dark': 'pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark',
+  'browser-pattern-dark': 'pnpm e2e:ci --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark',
 }
+const historicalDarkCommand = browserCommands['browser-dark'] + ' --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark'
+const isBrowserLane = lane => ['browser', 'browser-dark', 'browser-pattern-dark'].includes(lane)
 const ownerProofs = [
   ['detail', 'Verify isolated contextual Test owner-detail SDK reads'],
   ['list', 'Verify isolated contextual Test owner-list SDK reads'],
@@ -57,7 +61,7 @@ export function parseArguments(argv) {
     else if (value === '--ack=DISPOSABLE_CI_DATABASE') args.acknowledged = true
     else throw new Error(`Unknown argument: ${value}`)
   }
-  if (!Object.hasOwn(jobsByLane, args.lane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|database-lifecycle|test-owner-sdk|test-owner-sdk-lifecycle|browser|browser-dark|all.')
+  if (!Object.hasOwn(jobsByLane, args.lane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|database-lifecycle|test-owner-sdk|test-owner-sdk-lifecycle|browser|browser-dark|browser-pattern-dark|all.')
   if (args.ref !== null && args.ref !== 'HEAD' && !/^[a-f0-9]{40}$/.test(args.ref ?? '')) throw new Error('--ref requires HEAD or a full lowercase 40-character commit SHA.')
   return args
 }
@@ -203,18 +207,22 @@ export function extractWorkflow(source) {
   const databaseSplit = lines.includes(`  ${jobsByLane['database-lifecycle']}:`)
   if (!databaseSplit && /architecture-database-contracts-lifecycle|DATABASE_LIFECYCLE_RESULT|--lane database-lifecycle/.test(source)) throw new Error('Missing or renamed canonical database lifecycle job in partitioned workflow.')
   const browserSplit = lines.includes(`  ${jobsByLane['browser-dark']}:`)
+  const browserPatternSplit = lines.includes(`  ${jobsByLane['browser-pattern-dark']}:`)
   // Historical reviewed commits retain all seven proofs in the original job.
   // A damaged split workflow must never silently become a legacy plan.
   if (!split && /contextual-test-owner-sdk|TEST_OWNER_SDK_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK job in split workflow.')
   if (!sdkPartitioned && /contextual-test-owner-sdk-lifecycle|TEST_OWNER_SDK_LIFECYCLE_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK lifecycle job in partitioned workflow.')
   if (sdkPartitioned && !split) throw new Error('Missing canonical primary SDK job in partitioned workflow.')
   if (!browserSplit && /browser-experience-dark|BROWSER_DARK_RESULT|pnpm e2e:ci --project=/.test(source)) throw new Error('Missing or renamed canonical dark browser job in split workflow.')
+  if (!browserPatternSplit && /browser-pattern-lab-dark|BROWSER_PATTERN_DARK_RESULT|--lane browser-pattern-dark/.test(source)) throw new Error('Missing or renamed canonical Pattern Lab dark browser job in family-partitioned workflow.')
+  if (browserPatternSplit && !browserSplit) throw new Error('Missing canonical Experience dark browser job in family-partitioned workflow.')
   const jobs = {}
   for (const [lane, id] of Object.entries(jobsByLane)) {
     if (!databaseSplit && lane === 'database-lifecycle') continue
     if (!split && lane === 'test-owner-sdk') continue
     if (!sdkPartitioned && lane === 'test-owner-sdk-lifecycle') continue
     if (!browserSplit && lane === 'browser-dark') continue
+    if (!browserPatternSplit && lane === 'browser-pattern-dark') continue
     const starts = lines.map((line, index) => line === `  ${id}:` ? index : -1).filter(index => index !== -1)
     if (starts.length !== 1) throw new Error(`Missing or duplicate canonical job: ${id}`)
     const start = starts[0] + 1
@@ -232,6 +240,12 @@ export function extractWorkflow(source) {
       const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_database == 'true'", '    timeout-minutes: 90',
         lane === 'database-lifecycle' ? '    runs-on: ubuntu-latest' : '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}']
       if (required.some(line => header.filter(value => value === line).length !== 1) || header.includes('    env:')) throw new Error(`Canonical ${lane} database job topology changed.`)
+    }
+    if (isBrowserLane(lane)) {
+      const header = body.slice(0, stepsIndex)
+      const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_browser == 'true'", '    timeout-minutes: 90',
+        lane === 'browser' ? '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}' : '    runs-on: ubuntu-latest']
+      if (required.some(line => header.filter(value => value === line).length !== 1)) throw new Error(`Canonical ${lane} browser job topology changed.`)
     }
     const envIndex = body.slice(0, stepsIndex).findIndex(line => line === '    env:')
     const env = envIndex === -1 ? {} : literalEnvironment(body.slice(envIndex + 1, stepsIndex), 6)
@@ -288,11 +302,31 @@ export function extractWorkflow(source) {
     }
   }
   // Never accept a partial partition as the historical combined browser lane.
-  for (const lane of browserSplit ? ['browser', 'browser-dark'] : ['browser']) {
+  const browserLanes = ['browser', ...(browserSplit ? ['browser-dark'] : []), ...(browserPatternSplit ? ['browser-pattern-dark'] : [])]
+  for (const lane of browserLanes) {
     const commands = jobs[jobsByLane[lane]].steps.filter(step => /\bpnpm e2e:ci\b/.test(step.run ?? ''))
-    if (commands.length !== 1 || commands[0].if || commands[0].run !== (browserSplit ? browserCommands[lane] : 'pnpm e2e:ci')) {
+    const expected = !browserSplit ? 'pnpm e2e:ci'
+      : lane === 'browser-dark' && !browserPatternSplit ? historicalDarkCommand : browserCommands[lane]
+    if (commands.length !== 1 || commands[0].if || commands[0].run !== expected) {
       throw new Error(`Canonical ${lane} browser coverage command is missing or changed.`)
     }
+  }
+  // Every supported browser generation retains its exact selected-evidence gate.
+  const gate = source.split('  pr-gate:\n')[1] ?? ''
+  for (const line of ['    name: PR Gate', '    if: >-', '      always() &&',
+    "      (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)", '    runs-on: ubuntu-latest']) {
+    if (gate.split('\n').filter(value => value === line).length !== 1) throw new Error('Canonical browser PR gate routing changed.')
+  }
+  for (const lane of browserLanes) {
+    const id = jobsByLane[lane]
+    const variable = { browser: 'BROWSER_RESULT', 'browser-dark': 'BROWSER_DARK_RESULT', 'browser-pattern-dark': 'BROWSER_PATTERN_DARK_RESULT' }[lane]
+    const guard = `          if [[ "$BROWSER_REQUIRED" == "true" && "$${variable}" != "success" ]]; then`
+    for (const line of [`      - ${id}`, `          ${variable}: \${{ needs.${id}.result }}`, guard]) {
+      if (gate.split('\n').filter(value => value === line).length !== 1) throw new Error(`Canonical ${lane} browser gate closure changed.`)
+    }
+    const label = { browser: 'Browser Experience Matrix', 'browser-dark': 'Browser Experience Matrix Dark', 'browser-pattern-dark': 'Browser Pattern Lab Dark' }[lane]
+    const failureBlock = `${guard}\n            echo "${label} was required but ended: $${variable}"\n            exit 1\n          fi\n`
+    if (gate.split(failureBlock).length !== 2) throw new Error(`Canonical ${lane} browser gate failure block changed.`)
   }
   return jobs
 }
@@ -307,14 +341,17 @@ export function selectPlan(jobs, lane) {
   const split = Boolean(jobs[jobsByLane['test-owner-sdk']])
   const sdkPartitioned = Boolean(jobs[jobsByLane['test-owner-sdk-lifecycle']])
   const browserSplit = Boolean(jobs[jobsByLane['browser-dark']])
+  const browserPatternSplit = Boolean(jobs[jobsByLane['browser-pattern-dark']])
   if (lane === 'test-owner-sdk' && !split) throw new Error('The selected historical workflow has no separate test-owner-sdk lane; use --lane database.')
   if (lane === 'test-owner-sdk-lifecycle' && !sdkPartitioned) throw new Error('The selected historical workflow has no separate test-owner-sdk-lifecycle lane; use --lane test-owner-sdk or database.')
   if (lane === 'browser-dark' && !browserSplit) throw new Error('The selected historical workflow has no separate browser-dark lane; use --lane browser.')
+  if (lane === 'browser-pattern-dark' && !browserPatternSplit) throw new Error('The selected historical workflow has no separate browser-pattern-dark lane; use --lane browser-dark or browser.')
   const sdkLanes = split ? ['test-owner-sdk', ...(sdkPartitioned ? ['test-owner-sdk-lifecycle'] : [])] : []
   const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => jobs[jobsByLane[value]])
     : lane === 'database' ? ['database', ...(databaseSplit ? ['database-lifecycle'] : []), ...sdkLanes]
       : lane === 'test-owner-sdk' ? sdkLanes
-        : lane === 'browser' && browserSplit ? ['browser', 'browser-dark'] : [lane]
+        : lane === 'browser' && browserSplit ? ['browser', 'browser-dark', ...(browserPatternSplit ? ['browser-pattern-dark'] : [])]
+          : lane === 'browser-dark' && browserPatternSplit ? ['browser-dark', 'browser-pattern-dark'] : [lane]
   const plan = lanes.map(value => jobs[jobsByLane[value]])
   if (plan.some((job, index) => !job || job.id !== jobsByLane[lanes[index]] || job.lane !== lanes[index]) || new Set(plan.map(job => job.id)).size !== plan.length) throw new Error('Incomplete or duplicate canonical local CI plan.')
   return plan
@@ -452,7 +489,7 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
       console.error(`Local CI preflight refused ${job.lane}. Log: ${earlyLog}\n${readFileSync(earlyLog, 'utf8')}`)
       return true
     }
-    if (['browser', 'browser-dark'].includes(job.lane)) {
+    if (isBrowserLane(job.lane)) {
       // A setup failure must not label the preceding lane's reports as its own.
       // The runner uses a private disposable checkout; remove only browser output.
       for (const directory of ['playwright-report', 'test-results']) rmSync(join(checkout, directory), { recursive: true, force: true })
@@ -462,7 +499,7 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
       if (!shouldRun(step.if, laneFailed || interrupted(), outcomes)) { if (step.id) outcomes[step.id] = 'skipped'; continue }
       if (step.uses) {
         console.log(`Local setup override: ${step.name}`)
-        if (step.uses === 'actions/upload-artifact@v7' && ['browser', 'browser-dark'].includes(job.lane)) {
+        if (step.uses === 'actions/upload-artifact@v7' && isBrowserLane(job.lane)) {
           // The next serial partition overwrites Playwright's output directories.
           // Retain only the canonical diagnostics; never copy .auth or symlinks.
           const destination = join(temp, `${job.lane}-diagnostics`)
