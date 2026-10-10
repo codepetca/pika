@@ -1,9 +1,35 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi, afterEach } from 'vitest'
+import { fireEvent, render, screen, cleanup } from '@testing-library/react'
 import { CourseGuideOptionsDialog } from '@/components/CourseGuideOptionsDialog'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 
 describe('CourseGuideOptionsDialog', () => {
+  afterEach(() => { cleanup(); vi.restoreAllMocks() })
+
+  it('forwards the parent exit policy and removes a retained draft immediately when authority ends', () => {
+    const computedStyle = window.getComputedStyle.bind(window)
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+      const style = computedStyle(element)
+      style.setProperty('--motion-duration-standard', '200ms')
+      return style
+    })
+    const props = {
+      saving: false, error: 'Outgoing error', published: true, slug: 'private-draft',
+      config: DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
+      onPublishedChange: vi.fn(), onSlugChange: vi.fn(), onConfigChange: vi.fn(),
+      onGenerateSlug: vi.fn(), onOpenPublicGuide: vi.fn(), onImportCurriculum: vi.fn(),
+      onSave: vi.fn(), onClose: vi.fn(),
+    }
+    const view = render(<CourseGuideOptionsDialog {...props} isOpen exitMotion="opacity" />)
+    const dialog = screen.getByRole('dialog', { name: 'Guide options' })
+    view.rerender(<CourseGuideOptionsDialog {...props} isOpen={false} exitMotion="opacity" slug="" error="" />)
+    expect(dialog).toBeInTheDocument()
+    expect(screen.getByText('Outgoing error')).toBeInTheDocument()
+    expect(screen.getByLabelText('Public page address')).toHaveValue('private-draft')
+    view.rerender(<CourseGuideOptionsDialog {...props} isOpen={false} exitMotion="none" slug="" error="" />)
+    expect(dialog).not.toBeInTheDocument()
+    expect(screen.queryByText('Outgoing error')).toBeNull()
+  })
   it('exposes the curriculum import action and semantic visibility toggles', () => {
     const onImportCurriculum = vi.fn()
     const onConfigChange = vi.fn()

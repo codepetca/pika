@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Public-repository local CI policy
-
-Owner explicitly removed the private-repository prerequisite. Same-repository public/private PRs and explicit diagnostics may use the opt-in isolated runner; forks retain hosted routing. Host admission retains exact Pika identity, consistent visibility metadata and queued same-repository demand checks before registration. Independent security review found post-job diagnostics resent the registration token to the guest; move redaction exclusively to the host, with RED1 proving the resend. Renamed acknowledgement to PIKA_ONE_JOB_RUNNER; disposable VM, credential separation, host lease, one-job bounds and verified teardown remain required. No runner registration or routing activation performed.
-
-Evidence: targeted runner/routing/local-CI/preflight tests84 PASS; focused workflow/static verification and draft-first independent security/compatibility review follow. Existing hosted timing sample verified by GPT-6.1-sol medium: full CI60–69min, DB critical path; tiny queue; local preparation receipts were unregistered rehearsals. Coordinator weekly remaining69%; worker tokens unknown, no rework; native delivery verified against three run JSONs.
-
-## 2026-10-08 — Public local CI policy main synchronization
-
-Owner authorized rebasing and completing PR1537 after main advanced. Rebase onto b778a6851 preserves both session histories; all seven policy/workflow/host/test/documentation paths match approved1d06b8e27 byte-for-byte. Original exact-head hosted CI37780533276 all five checks PASS in62m15s. Final focused checks, one bounded independent integration review, and new exact-head CI precede the approved squash merge. Local runner registration/activation and production operations remain separate.
-
-## 2026-10-08 — Near-complete PR batch handoff
-
-Coordinator chat01a11c28 takes ownership from idle chats of PR1525,1538,1505,1536,1540,1534,1263,1539 for ordered main completion. Owner explicitly approved merge work and all budget extensions after reviewing each PR summary. Prepare fixed candidates in that order, reusing prior feature reviews/checks only where source and interactions remain covered; require bounded independent integration review, focused checks and exact-head PR Gate before each squash merge. Shared continuity reconciles all prior/main history bodies and multiplicities, retaining failed receipts, holds and original review counters. Production promotion, canonical/hosted migrations, rollout activation, provider and runner changes are excluded.
-
-Orchestration: GPT-6.1 Sol/medium older-PR triage delivered 13 exact-head records and conflict/dependency evidence; coordinator verified shortlisted overlaps. Worker tokens/attributable active time unknown; no measured savings claim. Weekly remaining64%; automatic DeepSeek pause through2026-12-31 retained. Current phase: candidate preparation/review/CI pending; no batch merge or whole-goal completion claimed. External handoff and immutable original inputs: ~/.codex/artifacts/pika/pr-completion-20261008.
-
 ## 2026-10-08 — Reviewed completion batch prepared
 
 Strict latest-main rules prevent retaining stacked CI after individual squash merges. Coordinator prepares one completion PR containing the eight previously reviewed changes in order1525,1538,1505,1536,1540,1534,1263,1539; originals stay open until the batch is verified merged, then close as delivered with its reference. Shared student-Classroom client composes1505 payload validation and1540 fresh identity imports; existing34 targeted client/identity tests PASS, with no threshold/behavior expansion. All other auto-combined source deltas retain each original feature and incoming main behavior. Canonical/hosted migrations, production, dormant switches, account/provider/runner changes remain held.
@@ -461,3 +445,17 @@ PR1557 original reviewed8f8f43baf passed all selected CI and PR Gate (3804671494
 ## 2026-10-10 — Modal closing CI documentation-contract repair
 
 PR1557 Test & Build run38076231987 reproduced the main-inherited attendance rollout documentation parser failure: CURRENT now uses `Prod DB001–256` and a dated quota-control receipt. Accept those explicit receipt formats while retaining migration floor160, attendance smoke and all rollout-preflight assertions. Focused red/green4tests and audit pass; no product or deployment changes. Parent publication remains draft until this delta is independently reviewed and exact-head CI passes.
+
+## 2026-10-10 — Form dialog closing consistency
+
+Adopted existing ModalLayer opacity exit for teacher Guide options and Save Classroom as Course Blueprint only. Parent currentOwnerWork/formStateReady gates preserve immediate physical removal on denied access or context replacement; synchronous draft/error/operation resets, busy dismissal guards, import replacement and success navigation remain unchanged. No shared-default, dependency, backend or migration changes. Brief and shared-owner README document the audited lifetimes.
+
+Focused affected semantic tests: 90/90 PASS. Native matrix: 8 teacher contexts/16 affected interactions plus 8 student teacher-control absence guards; desktop/mobile, light/dark, normal/reduced motion. Source/media-bound 48 screenshots, 16 videos and 4 same-viewport Pattern Lab references visually inspected. Preserved all interrupted capture attempts; reused only complete passed teacher cases after exact source/media hash checks, recaptured student reads. Existing ActionBarMenu streamed aria-controls mismatch reproduced on unchanged parent #1557 code (1/12 baseline,0/12 changed paired loads); open separate accessibility follow-up, production reproduction unproven. Requested Sol6.1/medium implementation and bounded read-only investigation accepted after coordinator source/evidence verification; effective config and tokens unknown. Parent #1557 landing, final focused checks and independent stable-head review remain publication gates. Broad fluidity goal remains incomplete; held privacy/calendar and production work untouched.
+
+## 2026-10-10 — Form closing prospective-main synchronization
+
+Integrated current modal/drawer parent a5960643f with reviewed main3fd887953 into the frozen Guide options/Blueprint follow-on. Product/adopter/native dependency hashes remain unchanged from the completed local matrix and initial independent review f1e492aa1. Reconciled the duplicate Entry recovery archive body while preserving both parent histories and all receipts; imported upstream source and CI unchanged. Updated prospective-parent checks and proportional integration review follow. Publication remains behind PR1557 actual main landing; exact final SHA requires normal ready CI. The pre-existing shared-menu streamed-ID mismatch remains a separate open accessibility follow-up, not an owner-approved goal deferral. No migration application, backend write, new dependency or production work.
+
+## 2026-10-10 — Form closing actual-main publication
+
+PR1557 merged to main3675a8a01 with all selected CI/PR Gate PASS; parent squash tree exactly matches reviewed b6eccc99a. Replayed only the Guide options/Blueprint form adoption onto actual main, preserved both source histories and owned synchronization notes, and retained all upstream implementation/test/dependency files. Eight own nonhistory files and ten native bindings remain unchanged from the accepted initial review/matrix. Canonical focused checks, draft publication and proportional actual-main integration review precede ready CI; no phase exit or production promotion claimed. Shared ActionBarMenu hydration follow-up remains open.
