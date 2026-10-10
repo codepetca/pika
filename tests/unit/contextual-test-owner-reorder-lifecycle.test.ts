@@ -13,6 +13,7 @@ import {
   parseTestOwnerReorderLifecycleArgs, testOwnerReorderForcedReceipt, validateTestOwnerReorderGeneratedTypes,
   testOwnerReorderUnionManifest, testOwnerReorderMatrixCompletion, validateTestOwnerReorderSnapshotCatalog,
   testOwnerReorderSetupDiagnostic, testOwnerReorderCommittedCompletion, testOwnerReorderAccountingReceipt,
+  validateTestOwnerReorderReviewedMigrations,
 } from '../../scripts/check-contextual-test-owner-reorder-lifecycle'
 
 const generated = `export type Json = unknown;
@@ -28,6 +29,22 @@ const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: names.map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle source contracts', () => {
+  it.each([254, 255, 256])('admits exact complete reviewed migration profile %i', count => {
+    expect(() => validateTestOwnerReorderReviewedMigrations(loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count))).not.toThrow()
+  })
+  it.each(['future257', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(m => ({ ...m }))
+    const addition = migrations[255]
+    if (defect === 'future257') migrations.push({ name: '257_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    if (defect === 'bad256name') addition.name = '256_unknown.sql'
+    if (defect === 'bad256digest') addition.sha256 = 'f'.repeat(64)
+    if (defect === 'bad256bytes' || defect === 'self-hashed256bytes') addition.sql += '\n'
+    if (defect === 'self-hashed256bytes') addition.sha256 = testOwnerDigest(addition.sql)
+    if (defect === 'bad255bytes') { migrations[254].sql += '\n'; migrations[254].sha256 = testOwnerDigest(migrations[254].sql) }
+    if (defect === 'gap') migrations.splice(100, 1)
+    if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
+    expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
+  })
   it('validates four required RPC arguments and Json return as supplemental AST evidence', () => {
     expect(validateTestOwnerReorderGeneratedTypes(generated, testOwnerDigest(generated))).toBe(true)
     expect(() => validateTestOwnerReorderGeneratedTypes(generated, '0'.repeat(64))).toThrow()
@@ -69,7 +86,7 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(testOwnerReorderForcedReceipt(mode, new AssignmentListLifecycleError(e.primary, [{ stage: 'teardown', error: Error('private') }]), true)).toBeNull()
     expect(testOwnerReorderForcedReceipt(mode, Error('Forced isolated lifecycle failure'), true)).toBeNull()
   })
-  it('freezes the complete254 union while distinguishing rollback proof from remaining gates', () => {
+  it('freezes the complete255 union while distinguishing rollback proof from remaining gates', () => {
     const union = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(Object.isFrozen(union.sql.concurrency.schedules)).toBe(true)
     expect(union.sql.contracts.contracts).toHaveLength(28); expect(union.sql.concurrency.schedules).toHaveLength(21)

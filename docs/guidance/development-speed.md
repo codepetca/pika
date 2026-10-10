@@ -74,13 +74,67 @@ checks remain required. Compare the native step durations against equivalent
 runner/migration checkpoints; a changed checkpoint or a small sample limits
 the speedup claim. See the [execution plan](../plans/ci-proof-setup-optimization.md).
 
+## SDK partition measurement
+
+The seven owner SDK proofs run across two independent hosted jobs, selected by
+the existing database flag. Detail/list/draft-save/create remain in the first;
+draft-get/pristine-discard/publication run in the second. All 21 fresh-project
+modes remain serial within their job, with full migration replay and exact cleanup
+checks. [Hosted Ubuntu jobs use separate VMs](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+Keep the existing detail/list sanitized timing artifact with their job; use native
+step/job telemetry for the remaining profiles.
+
+Compare the slower SDK partition, summed SDK runner consumption, setup and cleanup,
+all selected jobs through PR Gate and failed attempts. Splitting a lane can reduce
+its elapsed time while increasing total compute. Database contracts may then bound
+full CI. Preserve historical `ci:local --ref` completeness and measure the exact
+reviewed source tree; a different-source single-run comparison cannot establish
+sustained or isolated speedup. See the [execution plan](../plans/ci-proof-setup-optimization.md).
+
+## Database partition measurement
+
+The database contract suite runs in two independent jobs. The original job keeps
+51 proof blocks through Test member-list; the hosted lifecycle job starts at
+owner reorder and keeps the remaining 85. All 136 current-main proof blocks remain
+present exactly once, with unchanged commands, environments and within-job order.
+Each job starts its own canonical ephemeral stack with complete reviewed
+migrations and retains guarded teardown. Two earlier native candidates confirmed fresh-start coverage; final-head CI
+remains required after inheriting main’s additional owner workflow proof.
+
+Compare the slower database partition, summed database runtime, setup/cleanup,
+queue time and creation-to-PR-Gate duration. Preserve every normal, forced-failure
+and exact-cleanup proof, including the original migration rehearsal. Compare
+actual reviewed/native source trees and all required jobs; the browser or SDK
+lanes may become the critical path. Added setup can increase compute while
+shortening feedback. Use the [execution plan](../plans/ci-proof-setup-optimization.md)
+for the observed baseline and pending native acceptance.
+
+## Browser partition measurement
+
+The browser suite is partitioned by project theme across two independent jobs.
+Each runs the complete `e2e:ci` spec list with four explicit projects. The existing
+job covers light desktop/mobile and Pattern Lab; the hosted dark shard covers the
+four dark equivalents. Each retains two workers and serial tests within a file.
+[Playwright project selection](https://playwright.dev/docs/test-projects#test-filtering)
+also runs each selected project's setup dependency, so auth setup intentionally
+runs once per independent database. Test/project inventory must remain equal to
+the unsplit command after deduplicating these setup cases.
+
+Compare browser wall time (the slower partition), each partition's execution and
+setup time, summed runner consumption, flaky/retried cases and all selected
+lanes' time to PR Gate. Database contracts may remain the longest lane, limiting
+the workflow improvement even when browser execution falls substantially.
+Distinct diagnostics artifacts preserve evidence from both partitions. Use
+native exact-head receipts; projections and different-source runs do not establish
+an isolated speedup. See the [execution plan](../plans/ci-proof-setup-optimization.md).
+
 ## Acceptance targets
 
 - Draft review pushes launch no heavy jobs.
 - Documentation/AI-guidance PRs reach `PR Gate` in under two minutes at p50.
 - Full risk-matched PRs reach `PR Gate` in under eight minutes at p50.
-- Browser contracts retain all existing specs and artifacts while their test
-  phase uses two stable workers and one shared setup invocation.
+- Browser contracts retain all existing specs, projects and artifacts while each
+  isolated partition uses two stable workers and one setup invocation.
 - Cancelled workflow rate falls below 10% after at least 20 post-rollout runs.
 - No database or browser lane selected by the classifier may be skipped by the
   aggregate gate, and unknown paths must select full CI.

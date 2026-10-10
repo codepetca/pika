@@ -1,11 +1,13 @@
 import Stripe from 'stripe'
 import { z } from 'zod'
-import { UpgradeOperationSchema, UpgradeProviderContractError, type UpgradeMutation, type UpgradeOperation, type UpgradeProvider,
+import { UpgradeOperationSchema, UpgradeProviderContractError, type AppliedUpgradeProvider, type AppliedUpgradeProviderEvidence,
+  type UpgradeMutation, type UpgradeOperation,
   type UpgradeProviderEvidence } from './upgrade-contracts'
 import { type UpgradeQuoteFacts } from './upgrade-quote-contracts'
 import { createStripeUpgradeQuotePort, createStripeUpgradeQuoteProvider, type StripeUpgradeQuotePort } from './stripe-upgrade-quote-provider'
 import { createStripeBillingProvider } from './stripe-provider'
 import { verifyPaidSubscriptionSnapshot } from './synchronize'
+import { upgradeQuoteDigest } from './upgrade-service'
 
 type PostOptions = { idempotencyKey: string }
 /** Only the gated runtime supplies the pinned SDK; this seam also accepts deterministic fixtures. */
@@ -48,6 +50,8 @@ const priceSchema = z.object({ id: ref, product: ref, livemode: z.literal(false)
   billing_scheme: z.literal('per_unit'), type: z.literal('recurring'), custom_unit_amount: z.null(), transform_quantity: z.null(),
   tax_behavior: z.enum(['exclusive', 'unspecified']).nullable(),
   recurring: z.object({ interval: z.enum(['month', 'year']), interval_count: z.literal(1), usage_type: z.literal('licensed') }) })
+const appliedPriceSchema = priceSchema.extend({ unit_amount_decimal: z.string().regex(/^\d+(?:\.0+)?$/) })
+  .refine(price => Number(price.unit_amount_decimal) === price.unit_amount)
 const subscriptionSchema = z.object({ id: ref, customer: ref, livemode: z.literal(false), status: z.literal('active'),
   pending_update: z.null(), cancel_at: z.null(), cancel_at_period_end: z.literal(false), pause_collection: z.null(), schedule: z.null(),
   collection_method: z.literal('charge_automatically'), automatic_tax: z.object({ enabled: z.literal(false) }),
@@ -55,6 +59,14 @@ const subscriptionSchema = z.object({ id: ref, customer: ref, livemode: z.litera
   items: z.object({ has_more: z.literal(false), data: z.array(z.object({ id: ref, quantity: z.literal(1),
     current_period_start: timestamp, current_period_end: timestamp, price: priceSchema,
     discounts: empty, tax_rates: empty.nullable(), billing_thresholds: z.null() })).length(1) }) })
+// This read-only shape retains all item/financial restrictions while allowing
+// cancellation of an already applied receipt. Mutation reads remain unchanged.
+const appliedSubscriptionSchema = subscriptionSchema.extend({ status: z.enum(['active', 'canceled']),
+  cancel_at: timestamp.nullable(), cancel_at_period_end: z.boolean(), latest_invoice: ref,
+  items: subscriptionSchema.shape.items.extend({ data: z.array(subscriptionSchema.shape.items.shape.data.element
+    .extend({ price: appliedPriceSchema })).length(1) }),
+})
+const emptyInvoiceListSchema = z.object({ object: z.literal('list'), has_more: z.literal(false), data: empty })
 const invoiceLineSchema = z.object({ id: ref, livemode: z.literal(false), amount: integer, subtotal: integer,
   currency: z.string(), quantity: z.literal(1), quantity_decimal: z.string().regex(/^1(?:\.0+)?$/),
   discounts: empty, discount_amounts: empty.nullable(), taxes: empty.nullable(), pretax_credit_amounts: empty.nullable(),
@@ -133,7 +145,7 @@ function validateLines(invoice: Invoice, operation: QuotedOperation, partial = f
     && invoice.amount_due === operation.quote.amountDue && (invoice.ending_balance === 0 || (invoice.status === 'draft' && invoice.ending_balance === null)), 'quote_mismatch')
 }
 
-export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradeProvider {
+export function createStripeUpgradeProvider(port: StripeUpgradePort): AppliedUpgradeProvider {
   const quoteProvider = createStripeUpgradeQuoteProvider(port)
   async function accountIdentity(operation: QuotedOperation) {
     const account = decode(z.object({ id: ref }), await port.accounts.retrieve())
@@ -261,14 +273,61 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
       throw error
     }
   }
+  async function readAppliedEvidence(candidate: UpgradeOperation): Promise<AppliedUpgradeProviderEvidence> {
+    try {
+      const operation = quoted(candidate)
+      requireFact(operation.status === 'applied' && operation.stage === 'applied' && operation.confirmed
+        && operation.invoice_id !== null && operation.payment_intent_id !== null && operation.quote_revision !== null
+        && operation.quote_digest === upgradeQuoteDigest(operation.quote), 'applied_receipt_unverified')
+      await accountIdentity(operation)
+      const binding = operation.source_binding
+      const subscription = decode(appliedSubscriptionSchema, await port.subscriptions.retrieve(binding.stripe_subscription_id))
+      const item = subscription.items.data[0]
+      requireFact(subscription.id === binding.stripe_subscription_id && subscription.customer === binding.stripe_customer_id
+        && item.id === operation.quote.subscriptionItemId, 'identity_mismatch')
+      requireFact(item.current_period_start * 1000 === Date.parse(operation.paid_period_start)
+        && item.current_period_end * 1000 === Date.parse(operation.paid_through), 'renewal_boundary_crossed')
+      requireFact(subscription.cancel_at === null || subscription.cancel_at * 1000 === Date.parse(operation.paid_through),
+        'cancellation_boundary_unverified')
+      requireFact(subscription.latest_invoice === operation.last_paid_invoice_id || subscription.latest_invoice === operation.invoice_id,
+        'latest_invoice_unverified')
+      for (const price of [item.price, decode(appliedPriceSchema, await port.prices.retrieve(operation.target.stripe_price_id))]) {
+        requireFact(price.id === operation.target.stripe_price_id && price.product === operation.target.stripe_product_id
+          && price.unit_amount === operation.target.unit_amount && price.currency === operation.target.currency
+          && price.recurring.interval === operation.target.interval, 'identity_mismatch')
+      }
+      const invoice = await readInvoice(operation, operation.invoice_id)
+      const payment = await paymentEvidence(invoice, operation)
+      requireFact(invoice.status === 'paid' && payment === operation.payment_intent_id, 'applied_payment_unverified')
+      let terminalObligationsCleared = false
+      if (subscription.status === 'canceled') {
+        terminalObligationsCleared = true
+        for (const status of ['draft', 'open', 'uncollectible'] as const) {
+          const result = emptyInvoiceListSchema.safeParse(await port.invoices.list({ subscription: binding.stripe_subscription_id, status, limit: 1 }))
+          if (!result.success) terminalObligationsCleared = false
+        }
+      }
+      return { kind: 'paid', targetApplied: true,
+        cancelAt: subscription.cancel_at === null ? null : new Date(subscription.cancel_at * 1000).toISOString(),
+        cancelAtPeriodEnd: subscription.cancel_at_period_end, terminalObligationsCleared,
+        evidence: { invoiceId: invoice.id, paymentIntentId: operation.payment_intent_id, subscriptionId: binding.stripe_subscription_id,
+          paymentState: 'paid', providerStatus: subscription.status, amountPaid: operation.quote.amountDue, currency: operation.quote.currency,
+          subscriptionItemId: item.id, targetPriceId: operation.target.stripe_price_id,
+          paidPeriodStart: operation.paid_period_start, paidThrough: operation.paid_through } }
+    } catch (error) {
+      if (error instanceof UpgradeProviderContractError) return { kind: 'attention', reason: error.reason }
+      if (error instanceof z.ZodError) return { kind: 'attention', reason: 'incomplete_evidence' }
+      throw error
+    }
+  }
   async function guard(input: UpgradeMutation) {
     requireFact(typeof input.idempotencyKey === 'string' && input.idempotencyKey.length > 0 && input.idempotencyKey.length <= 220)
     return await input.beforeMutation() === true
   }
-  const provider: UpgradeProvider = {
+  const provider: AppliedUpgradeProvider = {
     prepareQuote: (operation, now) => quoteProvider.prepareQuote({ binding: operation.source_binding, target: operation.target,
       lifecycle: { paidPeriodStart: operation.paid_period_start, paidThrough: operation.paid_through, lastPaidInvoiceId: operation.last_paid_invoice_id }, now }),
-    readEvidence,
+    readEvidence, readAppliedEvidence,
     async createInvoice(input) {
       const operation = quoted(input.operation)
       requireFact(operation.stage === 'invoice_requested', 'invoice_intent_missing')

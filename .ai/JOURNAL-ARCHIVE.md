@@ -45003,3 +45003,190 @@ PASS, newexact2f1f82baa CI37783778326 running. Canonical249+/prod/activation hel
 ## 2026-10-08 — Announcement progress-owner integration
 
 Rebased reviewed Announcement feedback onto main a86a20930 (#1520 shared circular progress). Product, regression tests, browser helper and matrix registration remain byte-identical to accepted68ba5857c. Incoming main histories and shared progress owners are preserved. Prior CI37711933656 failed the unchanged Blueprint lifecycle on request/navigation timeouts; all8 Announcement cases passed. Required current-base focused/native verification, proportional independent integration review and a new exact-head CI gate remain pending; PR1526 stays draft. No production or family-completion claim.
+
+<!-- pika-session-log-archive-batch:2a0a6ccfe73e43e07ef0ce107892a535cc02205478a042b935169ba28975ca94 -->
+## 2026-10-08 — Announcement Test-cap main synchronization
+
+Exact reviewed3079933 CI37717844370 passed all selected lanes and PR Gate; concurrent main50185559 (#1524 dormant classroom Test caps) landed before merge and introduced history conflicts. Returned1526 to draft before synchronizing. Preserve every incoming Test-cap path and history body; all five Announcement feature files remain byte-identical to307. Focused checks and proportional integration review precede a new exact-head CI gate. No Test-cap activation, database application, production promotion or whole-family completion.
+
+## 2026-10-08 — Course Guide refresh continuity local acceptance
+
+Retain current-owner document/editor during warm reads and recoverable failures; explicit Retry hands focus from its disappearing button to the stable workspace region without scrolling. Latest/committed-owner fences retire old reads and writes; current401/403/404 clears content/editor and keeps denial latched until valid success.31 feature and4 gated-fixture tests PASS, required focused283/18 plus static checks and7TS audit PASS. Both-role native8/200 settled PNGs with actual normal/reduced media accepted;4 same-source recordings retained. Desktop pane/mobile window scroll and native Markdown/visual draft/caret/focus preserved. Long-document feedback follows the guide and can be outside the viewport; no always-visible, authenticated persistence or whole-family claim. Local delivery follows Announcement main after student1522. No server/schema/dependency/production change.
+
+## 2026-10-08 — Course Guide student-main integration
+
+Rebased accepted Course Guide onto student1522 main a2d70efa8; feature2/controller/helper bytes retained, incoming student Grades fixture preserved. Archive conflict rebuilt from complete main plus own entry before trim. Focused290/18 and static checks,7TS audit PASS. Both-role/theme/viewport/motion native8 PASS with200 settled PNGs and8 retained recordings; all8 contacts accepted. Metadata wrong-key and empty grep selections retained as tooling rework, not test successes. Initial frozen draft review may proceed while Announcement delivery runs; Course Guide final new-base acceptance, ready CI and merge remain after Announcement main. No production/server/schema/dependency changes or whole-family completion.
+
+## 2026-10-08 — Course Guide and Calendar combined preparation
+
+Prepared existing Course Guide branch against prospective Announcement3079933c6, preserving exact accepted Course Guide d058 and Calendar025 product/test/helper/brief bytes. Whole incoming matrix survives removal of both independent registrations; full incoming archive and dated bodies plus own Course Guide2/Calendar2 entries preserved through normal trim. Current native Course Guide8/200PNG and Calendar16/48PNG PASS with24 recordings, verified media and Date-only live timer/RAF Calendar clock; all24 contact sheets inspected. Runtime1360-file source bookends match. Serial focused424/27 plus architecture/UI/design/TypeScript/lint and10TS temporary-index audit PASS; earlier unchanged gallery2 timeout failures retained, no assertion/timeout changes. Own3250 server stopped. External combined-preparation receipt retains hashes, references, clock proof and qualifications; synthetic Next Issue badges remain unclassified and no global console-clean claim. Long-guide feedback can be outside viewport; no authentication persistence, hardware or whole-family completion claim. Root must verify actual Announcement landing, rebind exact main, independently review cumulative14 paths, and own draft publication/ready/CI/merge. No production/schema/dependency/provider changes.
+
+## 2026-10-08 — Combined Course Guide Calendar Test-cap synchronization
+
+Synchronized accepted combined124f63640 onto prospective Announcement84841f24 after concurrent dormant Test-cap main50185559 landed. All12 nonhistory candidate files and all1360 native effective-input hashes remain byte-identical; reuse accepted24 native cases/248PNG/24videos with original qualifications, no new browser/server. Complete incoming archive/dates and five own prior entries preserved through full-byte reconstruction and normal trim; stripping both registrations yields whole incoming848 matrix. Current-base focused424/27 and architecture/UI/design/TypeScript/lint plus10TS temporary-base-index audit PASS; no continuation failures or source/assertion/timeout changes. Original124 proof/ref and reports remain retained. Root verifies actual Announcement landing, rebinds main, then owns proportional cumulative14 review/publication/CI/merge. No Test-cap activation, database application, production/provider/dependency changes or broad family completion claim.
+
+## 2026-10-08 — Attendance return target adoption
+
+Measured native student return links20px in24 baseline captures; native focus alreadyvisible. Reuse unchanged ghost/sm buttonVariants via narrow public UI export for44px targets/rings, preserving href/labels/all attendance request and retry logic. Eight new controlled browser variants pass40 loading/success/already/closed/unavailable target/focus measurements; same uncertain retry attempt retained. Root visually inspected40PNG; staticproof has0videos, no elapsed animation or authenticated/backend claim. Initial missing-public-export HTTP500 and malformed fixture description failures retained, corrected without assertion/timeout weakening; type-safe view fixture added. Included in existing draft1529 alongside unchanged reviewed Settings copy handling; current-base checks, clipboard parent recheck, proportional independent review and stable exact-head CI remain before main merge.
+
+<!-- pika-session-log-archive-batch:e67a6ad5bfc9485bb907cba5998116d738e2a3599026c8d8133be7e49fad7163 -->
+## 2026-10-08 — Classroom access draft integration
+
+Existing draft1529 combines reviewed teacher Settings copy feedback with narrow student attendance return targets. Preserve incoming N848/GuideCalendar602 sources and histories; eleven standalone feature/test/brief files remain byte-identical to preintegrationd1, matrix adds only the two independent registrations. Incoming main501 dormant Test caps remain preserved without application or activation. Base602 is prospective: ancestor actual-tree binding and exact-head CI remain required. Current-base focused checks, clipboard parent re-verification and independent cumulative14 review precede ready/main merge; original failed attempts and static40PNG/0video attendance evidence remain retained.
+
+<!-- pika-session-log-archive-batch:89cd32ed6e228490b766619adcd808b04ba5531105aaf8daf0e3b26a0b67a22e -->
+## 2026-10-08 — Classroom access semantic navigation verification
+
+Focused initial14-path integration passed2350/202 and all static gates. Audit requested matching component accessibility coverage for the attendance owner; add meaningful loading-to-confirmed link identity, destination and keyboard focus regression, five existing-owner tests PASS, precommit11TS audit PASS. Production and native runtime inputs unchanged; new owned scope15 includes this component test. Final focused binding, current QR browser completion and independent cumulative15 review precede actualancestor binding, ready/exact CI and authorized main merge. Preserve prior failed native/audit/metadata attempts; no class-string mirror assertions, audit-rule changes, schema application or production promotion.
+
+<!-- pika-session-log-archive-batch:daefcf96591653c9a804c63645177f5f312ede9fe705212eb0a7583baebd2df8 -->
+## 2026-10-08 — Public course section target adoption
+
+Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+<!-- pika-session-log-archive-batch:5f1c6a3a22a093969be9e51abb034cabf013b6d8481300a732e91d3a7bae5358 -->
+## 2026-10-08 — Public course section target adoption
+
+Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+## 2026-10-08 — Utility calendar minimum day targets
+
+- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
+- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
+- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
+
+## 2026-10-08 — Utility calendar compact boundary refinement
+
+- Root visual iteration capped month growth: 1024 now two348px month cards with45.703125px day targets; 1440 capped384px cards/50.84375px targets. Day grid minimum320px prevents320px viewport overlap; month cards contain8/48px horizontal scrolling at360/320, rootoverflow0. No API/domain logic changed.
+- Final teacher17cases /2839 centered native hits pass, alltargets≥44×44/nooverlap, Tabright-edge focus auto-scroll, zero runtimeerrors, real finalJune-date scroll inallcases; fixedGETfixture all181states match baseline. Evidence: external product-fluidity/utility-calendar-targets/final-candidate and final-small-keyboard; rejected/failed attempts preserved.
+- Repeated targeted15 and focused203files/2354tests +TS/lint/architecture/UI/design/audit pass. No browser registration edits (coordinator owns consolidated teacher refinement registration/review/publication).
+
+<!-- pika-session-log-archive-batch:121ff6c783d1b042c744a0f8171bad0b5ecfe190f9f6a3981b259433cbc75194 -->
+## 2026-10-08 — Gradebook explicit-retry focus
+
+Teacher Gradebook now returns successful explicit retry focus to the visible owner: existing desktop Gradebook students region, or named compact Gradebook workspace when CSS hides the table. Inactive/current-classroom completion guards, preventScroll and the shared inset focus ring keep the handoff local. No read/cache/role/mutation or shared primitive change.
+
+Reference: accepted Roster recovery baseline and executable Pattern Lab page-states; brief in docs/guidance/ui/changes/gradebook-retry-focus.md. Teacher desktop/mobile light/dark normal/reduced native controlled45-student/zero-assessment helper is registered narrowly in experience-matrix. Component33 PASS, focused306 PASS, architecture/TypeScript/lint/UI/design policy PASS. Native final8 cases prove cold/warm/resize handoffs, desktop DOM/600px scroll continuity; no API mutation attempts. Evidence: external product-fluidity/gradebook-retry-focus. Coordinator owns final review/acceptance and combined PR; no production/schema/provider/dependency operations. Risk: workspace-state; requested Sol/medium, effective/usage unknown.
+
+<!-- pika-session-log-archive-batch:936652b4827a8abf5c43cc6ff20c79bac9074624cf4ab28212b9361357b008ed -->
+<!-- pika-session-log-archive-batch:9a1e8a2fc468c7f3b2a63f519dcbc1ea459a90dd895391d00e713d7dfccf964d -->
+## 2026-10-08 — Public course section target adoption
+
+Root measured all six native Planned header links20px high at390px; Tests35.25px wide. Extend existing native anchors with canonical44px minimum target tokens, retaining labels/hash semantics, focus, section visibility, reading layout and server/publication boundaries. Eight actual local public production-route variants pass48 saved target/hit/nonoverlap,48 keyboardfocus and48 nativeEnter/hash/heading checks; root inspected24PNG,0videos. Earlier baseline numeric exporter omission retained and replaced by a bounded root single-case measurement, not fabricated eight-case dimensions. Two new scenario preflight corrections retained; assertions/timeouts and production logic unchanged. Include this disjoint target-only correction in existing Settings/attendance draft1529 after delta review and final current-base checks; no hosted/schema/dependency/shared-control change. Announcement1526 merged to main after exact-head gates; combined Guide/Calendar1527 CI is separately running.
+
+## 2026-10-08 — Utility calendar minimum day targets
+
+- Scoped teacher utility Calendar refinement on initial source 0052d874b: reused canonical Button, wrapped month cards by available content width, preserved domain colors/date ownership and all API logic; native-control registry count 6→5.
+- Governed brief: docs/guidance/ui/changes/utility-calendar-targets.md. Teacher-only 8-case theme/motion/viewport matrix +5 boundaries; 167 enabled dates/case, 2171 centered hit checks, no overlap/overflow, visible Tab focus, real final-month scroll. Baseline exact36.5625 desktop/43.140625 mobile; candidate60/47.140625, narrow375=45. Numeric/source/media evidence external product-fluidity/utility-calendar-targets.
+- 15 targeted tests and focused203files/2354tests pass; TS/lint/architecture/UI/design/audit pass. Two harness/reference corrections retained (gallery flag disabled); no persistence writes. Root handles visual acceptance, integration, independent review and publication; no PR/push/merge performed here.
+
+## 2026-10-08 — Utility calendar compact boundary refinement
+
+- Root visual iteration capped month growth: 1024 now two348px month cards with45.703125px day targets; 1440 capped384px cards/50.84375px targets. Day grid minimum320px prevents320px viewport overlap; month cards contain8/48px horizontal scrolling at360/320, rootoverflow0. No API/domain logic changed.
+- Final teacher17cases /2839 centered native hits pass, alltargets≥44×44/nooverlap, Tabright-edge focus auto-scroll, zero runtimeerrors, real finalJune-date scroll inallcases; fixedGETfixture all181states match baseline. Evidence: external product-fluidity/utility-calendar-targets/final-candidate and final-small-keyboard; rejected/failed attempts preserved.
+- Repeated targeted15 and focused203files/2354tests +TS/lint/architecture/UI/design/audit pass. No browser registration edits (coordinator owns consolidated teacher refinement registration/review/publication).
+
+## 2026-10-08 — Gradebook explicit-retry focus
+
+Teacher Gradebook now returns successful explicit retry focus to the visible owner: existing desktop Gradebook students region, or named compact Gradebook workspace when CSS hides the table. Inactive/current-classroom completion guards, preventScroll and the shared inset focus ring keep the handoff local. No read/cache/role/mutation or shared primitive change.
+
+Reference: accepted Roster recovery baseline and executable Pattern Lab page-states; brief in docs/guidance/ui/changes/gradebook-retry-focus.md. Teacher desktop/mobile light/dark normal/reduced native controlled45-student/zero-assessment helper is registered narrowly in experience-matrix. Component33 PASS, focused306 PASS, architecture/TypeScript/lint/UI/design policy PASS. Native final8 cases prove cold/warm/resize handoffs, desktop DOM/600px scroll continuity; no API mutation attempts. Evidence: external product-fluidity/gradebook-retry-focus. Coordinator owns final review/acceptance and combined PR; no production/schema/provider/dependency operations. Risk: workspace-state; requested Sol/medium, effective/usage unknown.
+
+## 2026-10-08 — Calendar targets and Gradebook retry integration
+
+Combined the two verified teacher refinements on prospective Settings/Public/Attendance base0052 (whole tree508609, equivalent to published494ec826 source). Calendar6299 preserves compact wrapping with44px day targets and contained320/360 scrolling; Gradebookb179 restores explicit retry focus to the visible owner and paints the mobile ring above children. Root accepted17Calendar cases/2839hits/59PNG plus8Gradebook actual normal/reduced cases/84PNG. Controlled read fixtures only; student n/a for these teacher owners. Preserved both history bodies while resolving one archival-marker conflict. Next: combined focused/audit checks, actual-main binding after1529, draft-first independent review and exact-head PR Gate; broader goal remains incomplete. No production, migration or dependency changes.
+
+<!-- pika-session-log-archive-batch:5cac53402af6c43c1ea8d816dcf4837b65176786af735f6d923d2c0c3686a45f -->
+## 2026-10-08 — Password reset continuity refinement
+
+Anonymous forgot/reset recovery preserves native uppercase insertion caret, eligible retry focus, drafts and stable opt-in FormField error space; generic acceptance is announced and old two-second continuation retires on Back/unmount. Canonical44px Back and Login Sign up targets preserve existing continuation contracts; default fields/hints unchanged. API/provider/security behavior unchanged. Worker focused205files/2380tests plus policy/types/lint/auditPASS; frozen9e7 native16/16 (8reset+8SignUp target) across both viewports/themes/actualmotion,112PNG/16naturalvideos. Root verified426artifacthashes and3566source/41781dependency/337binary/four execution inputs; reviewed finalPNGs and64video samples. No real identity/password persistence or complete signup-chain claim; teacher PatternLab existing warnings separately qualified. Sole-writer handoff complete/own3263 stopped. Rebased onto actual1530 main227eab768; preserved new teacher matrix/registry edits and canonical history. Auth runtime remains byte-equivalent to native source; final focused checks, draft independent review and exact-head CI precede authorized main landing. No production/schema/dependency operations; broad fluidity goal incomplete. RequestedSol/medium, effective/attributableusageunknown.
+
+<!-- pika-session-log-archive-batch:a802150bf1200b5c7e7a8f9d89234d1e954c3c27facb110d5be4e80fee1b15fd -->
+<!-- pika-session-log-archive-batch:61871ed0a6c5beeca8dc012b8a74b6b2c174f18fbe1d06aa7c3af9f7d18f0ade -->
+## 2026-10-08 — Password reset reference snapshot correction
+
+Returned PR#1531 to draft after four Linux Pattern Lab contract snapshot mismatches. Inspected exact CI artifact expected/actual comparisons in all four projects before accepting the two new reserved-error-space examples and translated gallery content. Updated only the four matching Linux baselines and evidence/history; product source unchanged. Focused checks PASS205files/2386tests plus architecture, UI/design policy, TypeScript and lint; targeted independent delta review precedes fresh ready-head CI.
+
+<!-- pika-session-log-archive-batch:16435fd7475951d5ebb172dc7f13ac65ec1ee0ee40fd2f862dfceb97a2e2c832 -->
+## 2026-10-08 Join retry focus continuity
+
+Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
+
+## 2026-10-08 — Entry recovery continuity
+
+Classic Login native held401 baseline lost activation to BODY, omitted busy state and shifted error geometry. Reused existing reserved FormField slot and renamed the unchanged reset feature request owner to useAuthFormContinuity for genuine third Login adoption. Failed requests preserve nodes/drafts/caret and eligible focus; explicit Forgot/Sign up or unmount retires obsolete results. Signup footer Login now canonical ghost/sm44px, retaining continuation. Existing Magic/session-reason/WorkOS/dev branches and accepted Join source untouched. Focused semantic and selected native regression added; representative desktop/mobile native smoke passed before full combined32case verification. Coordinator owns actual-main binding/review/CI, no worker push/PR. External final execution receipt binds source/dependencies/headless shell/ffmpeg and natural media.
+
+<!-- pika-session-log-archive-batch:db79f551cdf8db02f02419ca238c55f473189a6ed55cd8ec5462ea20c73a4ade -->
+## 2026-10-08 — Signup owner continuity
+
+Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
+
+<!-- pika-session-log-archive-batch:82083b38306b00f0555270a58ced1e612753d2d059bb685645262b7d5ea4432f -->
+## 2026-10-08 — Dashboard recovery refinement
+
+Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
+
+## 2026-10-08 — Public reading stress fixture
+
+- Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
+- Native 56-case 320/390 light/dark normal/reduced witness: no document overflow, final content reachable; Actual title clipping measured and left for coordinator acceptance. Artifacts: product-fluidity/public-reading-stress-fixture under the Oct5 visualization workspace.
+- Focused semantic gate/parity/sparse coverage and architecture/UI/design/audit pass. Coordinator owns review/PR and family acceptance; no tracker promotion.
+
+<!-- pika-session-log-archive-batch:737ef125c90cbc0f060e40433a6727d317d64bb70805eba64fc0de72eb89d9db -->
+## 2026-10-08 — Course Guide full title identity
+
+- Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
+- Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
+- Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.
+
+<!-- pika-session-log-archive-batch:ec8df82fea7e0da7179854e8911ba56abca10c713678338ad33ebcd0ff7349a5 -->
+## 2026-10-08 — Course Guide reading and platform snapshot acceptance
+
+Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
+
+## 2026-10-08 — Student attendance confirmation
+
+Owner: current task; branch codex/attendance-success-classroom, base 47659857d. Success and duplicate scans show the confirmed classroom title and plain America/Toronto time beneath the success heading; explanatory subtitles are hidden only for positive results. Classroom metadata is read before the attendance command and returned only on success. No migrations, dependencies, permission or attendance-recording rules changed.
+UI brief: reuse StudentAttendanceCheckIn card/green Lucide check/return link; extend attendance result with optional classroomName. Reference: existing scan screen plus executable Pattern Lab statuses/Card. Student desktop1440×900/mobile390×844, light/dark, loading/success/duplicate/closed/error; teacher n/a (student-only route). No new shared pattern or composite interaction; no promotion required.
+Evidence: output/playwright/attendance-success-mobile.png (9:06 AM), Pattern Lab status reference, controlled native experience-matrix captures. Component/server/API43 PASS; local classroom-title query PASS; focused362 and UI/design/architecture/TypeScript/lint PASS on implementation tree. Final test-only checks passed. Initial independent Sol/medium full-diff review (4233451f6) found one accepted P2: the new 200-character title limit rejected valid saved classroom names. Remediation removes new naming constraints and adds >200-character and whitespace-compatible server coverage plus long-name component coverage; final focused checks and targeted re-review pending. Review budget: launches1/waves1/fix batches1, reviewer elapsed estimated5min, exact timing/tokens unknown. Weekly usage remaining72%; direct implementation, review model/effort to be recorded in PR receipt; coordinator tokens/active time unknown. One browser fixture placement corrected before final capture, no source rework.
+
+<!-- pika-session-log-archive-batch:e7e53fc11fb7d34555ca4e8a2bba6ad0af5206ce92f34f4a507eef05e54fab35 -->
+## 2026-10-08 — Entry recovery continuity
+
+Classic Login native held401 baseline lost activation to BODY, omitted busy state and shifted error geometry. Reused existing reserved FormField slot and renamed the unchanged reset feature request owner to useAuthFormContinuity for genuine third Login adoption. Failed requests preserve nodes/drafts/caret and eligible focus; explicit Forgot/Sign up or unmount retires obsolete results. Signup footer Login now canonical ghost/sm44px, retaining continuation. Existing Magic/session-reason/WorkOS/dev branches and accepted Join source untouched. Focused semantic and selected native regression added; representative desktop/mobile native smoke passed before full combined32case verification. Coordinator owns actual-main binding/review/CI, no worker push/PR. External final execution receipt binds source/dependencies/headless shell/ffmpeg and natural media.
+
+## 2026-10-08 — Signup owner continuity
+
+Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
+
+## 2026-10-08 — Dashboard recovery refinement
+
+Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
+
+## 2026-10-08 — Public reading stress fixture
+
+- Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
+- Native 56-case 320/390 light/dark normal/reduced witness: no document overflow, final content reachable; Actual title clipping measured and left for coordinator acceptance. Artifacts: product-fluidity/public-reading-stress-fixture under the Oct5 visualization workspace.
+- Focused semantic gate/parity/sparse coverage and architecture/UI/design/audit pass. Coordinator owns review/PR and family acceptance; no tracker promotion.
+
+## 2026-10-08 — Course Guide full title identity
+
+- Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
+- Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
+- Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.
+
+## 2026-10-08 — Course Guide reading and platform snapshot acceptance
+
+Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
+
+## 2026-10-08 — Student attendance confirmation
+
+Owner: current task; branch codex/attendance-success-classroom, base 47659857d. Success and duplicate scans show the confirmed classroom title and plain America/Toronto time beneath the success heading; explanatory subtitles are hidden only for positive results. Classroom metadata is read before the attendance command and returned only on success. No migrations, dependencies, permission or attendance-recording rules changed.
+UI brief: reuse StudentAttendanceCheckIn card/green Lucide check/return link; extend attendance result with optional classroomName. Reference: existing scan screen plus executable Pattern Lab statuses/Card. Student desktop1440×900/mobile390×844, light/dark, loading/success/duplicate/closed/error; teacher n/a (student-only route). No new shared pattern or composite interaction; no promotion required.
+Evidence: output/playwright/attendance-success-mobile.png (9:06 AM), Pattern Lab status reference, controlled native experience-matrix captures. Component/server/API43 PASS; local classroom-title query PASS; focused362 and UI/design/architecture/TypeScript/lint PASS on implementation tree. Final test-only checks passed. Initial independent Sol/medium full-diff review (4233451f6) found one accepted P2: the new 200-character title limit rejected valid saved classroom names. Remediation removes new naming constraints and adds >200-character and whitespace-compatible server coverage plus long-name component coverage; final focused checks and targeted re-review pending. Review budget: launches1/waves1/fix batches1, reviewer elapsed estimated5min, exact timing/tokens unknown. Weekly usage remaining72%; direct implementation, review model/effort to be recorded in PR receipt; coordinator tokens/active time unknown. One browser fixture placement corrected before final capture, no source rework.
+
+## 2026-10-08 — Attendance failure classroom context
+
+Owner request extends PR1533: failure header shows the classroom name and omits the generic retry paragraph; retain failure heading/Try again and domain-specific recovery explanations. Reuse the existing scan card and Pattern Lab status/Card reference; extend the server-page/client contract with optional initial classroomName. Student-only (teacher n/a), desktop1440×900/mobile390×844, light/dark; loading/success/duplicate/closed/error. No new shared pattern, composite interaction or experimental promotion.
+Optional server display context authenticates the QR, requires the signed-in student's enrollment, and checks unchanged membership generation before/after reading the name. Expired occurrence tokens can supply display context only; attendance-command expiry is unchanged. Missing/invalid/revoked/unavailable context returns no name and does not block check-in. No API, schema, mutation, dependency or permission-rule changes.
+Focused component/page/helper/QR32 PASS and native browser4 PASS. Local enrolled-title join and focused final checks pending. Review budget carried forward: 2 prior reviewer turns, 1 accepted/fixed P2; follow-up scope delta will receive independent review before ready. Prior candidate CI started while ready; PR returned to draft before scope extension. Current local server3269; screenshots in test-results and output/playwright. Risk none; direct implementation, bounded general-tier reviewer planned. Usage72% weekly remaining reused; attributable tokens/active time unknown.

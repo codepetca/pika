@@ -99,23 +99,21 @@ describe('database lint warning resolution migration', () => {
   })
 
   it('gates warning-level lint and the runtime lock contract in CI', () => {
-    const databaseJobStart = workflow.indexOf(
-      '\n  architecture-database-contracts:\n',
-    )
-    const databaseJobEnd = workflow.indexOf(
-      '\n  test-and-build:\n',
-      databaseJobStart + 1,
-    )
-
-    expect(databaseJobStart).toBeGreaterThan(-1)
-    expect(databaseJobEnd).toBeGreaterThan(databaseJobStart)
-
-    const databaseJob = workflow.slice(databaseJobStart, databaseJobEnd)
+    const databaseJob = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const lifecycleJob = workflow.split('  architecture-database-contracts-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    expect(databaseJob).toBeDefined()
+    expect(lifecycleJob).toBeDefined()
+    for (const job of [databaseJob, lifecycleJob]) {
+      expect(job).toContain('name: Start ephemeral Supabase and replay migrations')
+      expect(job).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
+      expect(job).toContain('run: supabase stop --no-backup')
+    }
+    expect(lifecycleJob).toContain('node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
 
     expect(databaseJob).toMatch(
       /^      - name: Require warning-free database functions\n        run: supabase db lint --local --level warning --fail-on warning$/m,
     )
-    expect(databaseJob).toMatch(
+    expect(lifecycleJob).toMatch(
       /^      - name: Verify database lint warning behavior and lock interactions\n        run: bash scripts\/check-database-lint-warning-resolutions\.sh$/m,
     )
     expect(databaseJob).toMatch(

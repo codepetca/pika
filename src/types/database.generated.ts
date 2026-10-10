@@ -12584,6 +12584,16 @@ export type Database = {
         }
         Returns: Json
       }
+      record_test_focus_event_atomic: {
+        Args: {
+          p_event_type: string
+          p_metadata: Json
+          p_session_id: string
+          p_student_id: string
+          p_test_id: string
+        }
+        Returns: string
+      }
       recover_managed_storage_blueprint_copy_owner: {
         Args: {
           p_confirm_no_live_worker: boolean
@@ -13065,6 +13075,10 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
         }
+        Returns: Json
+      }
+      return_test_to_draft_atomic: {
+        Args: { p_teacher_id: string; p_test_id: string }
         Returns: Json
       }
       save_assignment_ai_grade_atomic: {
@@ -13782,6 +13796,18 @@ export type Database = {
       test_document_snapshot_path_is_referenced: {
         Args: { p_storage_path: string }
         Returns: boolean
+      }
+      test_owner_workflow_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_expected_test: Json
+          p_operation: string
+          p_payload: Json
+          p_test_id: string
+        }
+        Returns: Json
       }
       tick_attendance_decommission: {
         Args: {

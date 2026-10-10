@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
+import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
-import { closeSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,8 +10,26 @@ import { fileURLToPath } from 'node:url'
 const jobsByLane = {
   'test-build': 'test-and-build',
   database: 'architecture-database-contracts',
+  'database-lifecycle': 'architecture-database-contracts-lifecycle',
+  'test-owner-sdk': 'contextual-test-owner-sdk',
+  'test-owner-sdk-lifecycle': 'contextual-test-owner-sdk-lifecycle',
   browser: 'browser-experience-matrix',
+  'browser-dark': 'browser-experience-dark',
 }
+const browserCommands = {
+  browser: 'pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light',
+  'browser-dark': 'pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark',
+}
+const ownerProofs = [
+  ['detail', 'Verify isolated contextual Test owner-detail SDK reads'],
+  ['list', 'Verify isolated contextual Test owner-list SDK reads'],
+  ['draft-get', 'Verify isolated contextual Test owner-draft GET transactions'],
+  ['draft-save', 'Verify isolated contextual Test owner-draft save transactions'],
+  ['create', 'Verify isolated contextual Test owner creation transactions'],
+  ['pristine-discard', 'Verify isolated contextual pristine Test draft discard transactions'],
+  ['publication', 'Verify isolated contextual Test owner publication transactions'],
+]
+const lifecycleProofs = new Set(['draft-get', 'pristine-discard', 'publication'])
 const actions = new Set(['actions/checkout@v7', 'actions/setup-node@v6', 'pnpm/action-setup@v6',
   'supabase/setup-cli@v1', 'actions/cache@v6', 'actions/upload-artifact@v7'])
 const summaryNames = new Set(['Summarize dependency setup evidence', 'Summarize browser setup evidence'])
@@ -38,7 +57,7 @@ export function parseArguments(argv) {
     else if (value === '--ack=DISPOSABLE_CI_DATABASE') args.acknowledged = true
     else throw new Error(`Unknown argument: ${value}`)
   }
-  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|browser|all.')
+  if (!Object.hasOwn(jobsByLane, args.lane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|database-lifecycle|test-owner-sdk|test-owner-sdk-lifecycle|browser|browser-dark|all.')
   if (args.ref !== null && args.ref !== 'HEAD' && !/^[a-f0-9]{40}$/.test(args.ref ?? '')) throw new Error('--ref requires HEAD or a full lowercase 40-character commit SHA.')
   return args
 }
@@ -123,10 +142,79 @@ function parseStep(lines) {
   return step
 }
 
+// Reviewed ordered proof-name inventories, not copies of executable scripts.
+// Intentional additions/renames/repartitioning update counts/digests after review.
+// Historical combined DB layouts retain their own commands and established
+// sentinels; today's inventories apply only to the explicit split layout.
+const databaseProofInventories = {
+  database: [51, '6e3d08e014bd6f2346dc0cfedd4929baa8398768b100796a5b1533bc408fad3a'],
+  'database-lifecycle': [85, '9e6aeaab8a4583d3d93389f1d17cd1d1a18ca28f339a61e7dbc3dc40b02f26ae'],
+}
+function databaseProofs(job) {
+  const start = job.steps.findIndex(step => step.id === 'supabase-start')
+  const stop = job.steps.findIndex(step => step.run === 'supabase stop --no-backup')
+  if (start < 0 || stop <= start) throw new Error('Missing database proof boundaries.')
+  return job.steps.slice(start + 1, stop)
+}
+function validateDatabaseInventory(jobs) {
+  const primary = jobs[jobsByLane.database]
+  if (!primary) throw new Error('Missing canonical database job.')
+  const secondary = jobs[jobsByLane['database-lifecycle']]
+  if (secondary) {
+    for (const lane of ['database', 'database-lifecycle']) {
+      const job = jobs[jobsByLane[lane]], proofs = databaseProofs(job)
+      const [count, digest] = databaseProofInventories[lane]
+      const namesDigest = createHash('sha256').update(JSON.stringify(proofs.map(step => step.name))).digest('hex')
+      if (job.id !== jobsByLane[lane] || job.lane !== lane || proofs.length !== count || namesDigest !== digest
+        || proofs.some(step => !step.run || step.uses || step.if)) {
+        throw new Error(`Canonical ${lane} database proof inventory is incomplete, reordered or changed.`)
+      }
+    }
+  } else {
+    // Daily Log exists in supported generations and rejects a truncated split
+    // prefix even if all new markers were erased. The earlier pre-SDK generation
+    // predates both member-list/reorder; it still retains all seven SDK proofs.
+    const proofs = databaseProofs(primary)
+    const pair = [
+      ['Verify isolated contextual Test member-list SDK reads', 'scripts/check-contextual-test-member-list-lifecycle.ts'],
+      ['Verify isolated contextual Test owner reorder transactions', 'scripts/check-contextual-test-owner-reorder-lifecycle.ts'],
+    ]
+    const pairRequired = Boolean(jobs[jobsByLane['test-owner-sdk']])
+      || pair.some(([name, script]) => primary.steps.some(step => step.name === name || step.run?.includes(script)))
+    const sentinels = [
+      ...(pairRequired ? pair : []),
+      ['Verify contextual Daily Log save atomicity and privileges', 'scripts/check-contextual-daily-log-save-database.sh'],
+    ]
+    let previous = -1
+    for (const [name, script] of sentinels) {
+      const matches = primary.steps.filter(step => step.name === name || step.run?.includes(script))
+      const index = proofs.indexOf(matches[0])
+      if (matches.length !== 1 || matches[0].name !== name || !matches[0].run?.includes(script)
+        || matches[0].if || index <= previous) throw new Error('Incomplete historical combined database proof inventory.')
+      previous = index
+    }
+  }
+}
+
 export function extractWorkflow(source) {
   const lines = source.split(/\r?\n/)
+  const split = lines.includes(`  ${jobsByLane['test-owner-sdk']}:`)
+  const sdkPartitioned = lines.includes(`  ${jobsByLane['test-owner-sdk-lifecycle']}:`)
+  const databaseSplit = lines.includes(`  ${jobsByLane['database-lifecycle']}:`)
+  if (!databaseSplit && /architecture-database-contracts-lifecycle|DATABASE_LIFECYCLE_RESULT|--lane database-lifecycle/.test(source)) throw new Error('Missing or renamed canonical database lifecycle job in partitioned workflow.')
+  const browserSplit = lines.includes(`  ${jobsByLane['browser-dark']}:`)
+  // Historical reviewed commits retain all seven proofs in the original job.
+  // A damaged split workflow must never silently become a legacy plan.
+  if (!split && /contextual-test-owner-sdk|TEST_OWNER_SDK_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK job in split workflow.')
+  if (!sdkPartitioned && /contextual-test-owner-sdk-lifecycle|TEST_OWNER_SDK_LIFECYCLE_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK lifecycle job in partitioned workflow.')
+  if (sdkPartitioned && !split) throw new Error('Missing canonical primary SDK job in partitioned workflow.')
+  if (!browserSplit && /browser-experience-dark|BROWSER_DARK_RESULT|pnpm e2e:ci --project=/.test(source)) throw new Error('Missing or renamed canonical dark browser job in split workflow.')
   const jobs = {}
   for (const [lane, id] of Object.entries(jobsByLane)) {
+    if (!databaseSplit && lane === 'database-lifecycle') continue
+    if (!split && lane === 'test-owner-sdk') continue
+    if (!sdkPartitioned && lane === 'test-owner-sdk-lifecycle') continue
+    if (!browserSplit && lane === 'browser-dark') continue
     const starts = lines.map((line, index) => line === `  ${id}:` ? index : -1).filter(index => index !== -1)
     if (starts.length !== 1) throw new Error(`Missing or duplicate canonical job: ${id}`)
     const start = starts[0] + 1
@@ -138,6 +226,12 @@ export function extractWorkflow(source) {
     for (const line of body.slice(0, stepsIndex)) {
       if (!line.trim() || line.trimStart().startsWith('#') || /^ {6}[A-Z][A-Z0-9_]*:/.test(line)) continue
       if (!/^    (?:name|needs|if|runs-on|timeout-minutes|env):/.test(line)) throw new Error(`Unsupported canonical job property in ${id}: ${line.trim()}`)
+    }
+    if (databaseSplit && ['database', 'database-lifecycle'].includes(lane)) {
+      const header = body.slice(0, stepsIndex)
+      const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_database == 'true'", '    timeout-minutes: 90',
+        lane === 'database-lifecycle' ? '    runs-on: ubuntu-latest' : '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}']
+      if (required.some(line => header.filter(value => value === line).length !== 1) || header.includes('    env:')) throw new Error(`Canonical ${lane} database job topology changed.`)
     }
     const envIndex = body.slice(0, stepsIndex).findIndex(line => line === '    env:')
     const env = envIndex === -1 ? {} : literalEnvironment(body.slice(envIndex + 1, stepsIndex), 6)
@@ -155,11 +249,75 @@ export function extractWorkflow(source) {
     jobs[id] = { id, lane, env, steps }
     validateLaneSafety(jobs[id])
   }
+  validateDatabaseInventory(jobs)
+  if (databaseSplit) {
+    const gate = source.split('  pr-gate:\n')[1] ?? ''
+    for (const line of ['      - architecture-database-contracts-lifecycle',
+      '          DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}',
+      '          if [[ "$DATABASE_REQUIRED" == "true" && "$DATABASE_LIFECYCLE_RESULT" != "success" ]]; then']) {
+      if (gate.split('\n').filter(value => value === line).length !== 1) throw new Error('Canonical database lifecycle gate closure changed.')
+    }
+  }
+  for (const [profile, name] of ownerProofs) {
+    const proofOwner = sdkPartitioned && lifecycleProofs.has(profile) ? jobsByLane['test-owner-sdk-lifecycle']
+      : split ? jobsByLane['test-owner-sdk'] : jobsByLane.database
+    const script = `scripts/check-contextual-test-owner-${profile}-lifecycle.ts`
+    const matches = Object.values(jobs).flatMap(job => job.steps
+      .filter(step => step.name === name || step.run?.includes(script)).map(step => ({ job, step })))
+    const variable = `test_owner_${profile.replaceAll('-', '_')}`
+    const step = matches[0]?.step
+    const owner = jobs[proofOwner]
+    if (matches.length !== 1 || matches[0].job.id !== proofOwner || step.name !== name || step.if
+      || owner.steps.indexOf(step) <= owner.steps.findIndex(value => value.id === 'supabase-start')
+      || owner.steps.indexOf(step) >= owner.steps.findIndex(value => value.run === 'supabase stop --no-backup')
+      || source.split(script).length !== 3 || step.run?.split(script).length !== 3
+      || !step.run?.includes(`${script} --reviewed-head "$${variable}_head" --mode normal`)
+      || !step.run.includes(`for ${variable}_mode in after-fixture before-capture; do`)
+      || !step.run.includes(`${script} --reviewed-head "$${variable}_head" --mode "$${variable}_mode"`)
+      || !step.run.includes(`[[ "$${variable}_status" -eq 1 ]] || exit 1`)
+      || !step.run.includes(`[[ "$(wc -l < "$${variable}_log" | tr -d ' ')" -eq 2 ]] || exit 1`)
+      || !step.run.includes(`grep -Fx "FAIL forced isolated test-owner-${profile} lifecycle: \${${variable}_mode}."`)
+      || !step.run.includes(`grep -Fx 'PASS isolated test-owner-${profile} exact teardown and unchanged canonical baseline.'`)) {
+      throw new Error(`Canonical ${sdkPartitioned ? 'partitioned' : split ? 'split' : 'legacy'} SDK proof inventory is incomplete or changed: ${profile}`)
+    }
+  }
+  for (const lane of split ? ['test-owner-sdk', ...(sdkPartitioned ? ['test-owner-sdk-lifecycle'] : [])] : []) {
+    const expectedProfiles = sdkPartitioned ? ownerProofs.filter(([profile]) => lifecycleProofs.has(profile) === (lane === 'test-owner-sdk-lifecycle')).length : ownerProofs.length
+    if (jobs[jobsByLane[lane]].steps.filter(step => step.run?.includes('--reviewed-head')).length !== expectedProfiles) {
+      throw new Error(`Canonical ${lane} SDK proof inventory has unexpected profiles.`)
+    }
+  }
+  // Never accept a partial partition as the historical combined browser lane.
+  for (const lane of browserSplit ? ['browser', 'browser-dark'] : ['browser']) {
+    const commands = jobs[jobsByLane[lane]].steps.filter(step => /\bpnpm e2e:ci\b/.test(step.run ?? ''))
+    if (commands.length !== 1 || commands[0].if || commands[0].run !== (browserSplit ? browserCommands[lane] : 'pnpm e2e:ci')) {
+      throw new Error(`Canonical ${lane} browser coverage command is missing or changed.`)
+    }
+  }
   return jobs
 }
 
 export function selectPlan(jobs, lane) {
-  return (lane === 'all' ? Object.keys(jobsByLane) : [lane]).map(value => jobs[jobsByLane[value]])
+  if (!Object.hasOwn(jobsByLane, lane) && lane !== 'all') throw new Error('Unknown CI lane.')
+  validateDatabaseInventory(jobs)
+  const databaseSplit = Boolean(jobs[jobsByLane['database-lifecycle']])
+  if (lane === 'database-lifecycle' && !databaseSplit) throw new Error('The selected historical workflow has no separate database-lifecycle lane; use --lane database.')
+  // Keep database and SDK aliases complete; all local jobs stay serial, with
+  // guarded startup/cleanup on the same dedicated disposable daemon.
+  const split = Boolean(jobs[jobsByLane['test-owner-sdk']])
+  const sdkPartitioned = Boolean(jobs[jobsByLane['test-owner-sdk-lifecycle']])
+  const browserSplit = Boolean(jobs[jobsByLane['browser-dark']])
+  if (lane === 'test-owner-sdk' && !split) throw new Error('The selected historical workflow has no separate test-owner-sdk lane; use --lane database.')
+  if (lane === 'test-owner-sdk-lifecycle' && !sdkPartitioned) throw new Error('The selected historical workflow has no separate test-owner-sdk-lifecycle lane; use --lane test-owner-sdk or database.')
+  if (lane === 'browser-dark' && !browserSplit) throw new Error('The selected historical workflow has no separate browser-dark lane; use --lane browser.')
+  const sdkLanes = split ? ['test-owner-sdk', ...(sdkPartitioned ? ['test-owner-sdk-lifecycle'] : [])] : []
+  const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => jobs[jobsByLane[value]])
+    : lane === 'database' ? ['database', ...(databaseSplit ? ['database-lifecycle'] : []), ...sdkLanes]
+      : lane === 'test-owner-sdk' ? sdkLanes
+        : lane === 'browser' && browserSplit ? ['browser', 'browser-dark'] : [lane]
+  const plan = lanes.map(value => jobs[jobsByLane[value]])
+  if (plan.some((job, index) => !job || job.id !== jobsByLane[lanes[index]] || job.lane !== lanes[index]) || new Set(plan.map(job => job.id)).size !== plan.length) throw new Error('Incomplete or duplicate canonical local CI plan.')
+  return plan
 }
 
 export function validateLaneSafety(job) {
@@ -294,11 +452,29 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
       console.error(`Local CI preflight refused ${job.lane}. Log: ${earlyLog}\n${readFileSync(earlyLog, 'utf8')}`)
       return true
     }
+    if (['browser', 'browser-dark'].includes(job.lane)) {
+      // A setup failure must not label the preceding lane's reports as its own.
+      // The runner uses a private disposable checkout; remove only browser output.
+      for (const directory of ['playwright-report', 'test-results']) rmSync(join(checkout, directory), { recursive: true, force: true })
+    }
     for (const [index, step] of job.steps.entries()) {
       if (interrupted() && step.run !== 'supabase stop --no-backup') { if (step.id) outcomes[step.id] = 'skipped'; continue }
       if (!shouldRun(step.if, laneFailed || interrupted(), outcomes)) { if (step.id) outcomes[step.id] = 'skipped'; continue }
       if (step.uses) {
         console.log(`Local setup override: ${step.name}`)
+        if (step.uses === 'actions/upload-artifact@v7' && ['browser', 'browser-dark'].includes(job.lane)) {
+          // The next serial partition overwrites Playwright's output directories.
+          // Retain only the canonical diagnostics; never copy .auth or symlinks.
+          const destination = join(temp, `${job.lane}-diagnostics`)
+          mkdirSync(destination, { recursive: true, mode: 0o700 })
+          for (const directory of ['playwright-report', 'test-results']) {
+            const source = join(checkout, directory)
+            if (existsSync(source)) cpSync(source, join(destination, directory), {
+              recursive: true, filter: path => !lstatSync(path).isSymbolicLink(),
+            })
+          }
+          console.log(`Local browser diagnostics: ${destination}`)
+        }
         if (step.id) outcomes[step.id] = 'success'
         continue
       }

@@ -279,6 +279,16 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // Inspect discovers the fixed parent and accepts SQLNULL for that argument.
+  // PostgreSQL metadata omits input nullability; keep all other generated keys.
+  test_owner_workflow_v1: FunctionContract<
+    'test_owner_workflow_v1',
+    Json,
+    Replace<GeneratedFunctions['test_owner_workflow_v1']['Args'], {
+      p_classroom_id: string | null
+    }>
+  >
+
   // Installed249 accepts SQLNULL when inspecting a missing draft. PostgreSQL
   // metadata omits input nullability; retain every other generated RPC argument.
   finish_test_draft_save_for_owner_v1: FunctionContract<

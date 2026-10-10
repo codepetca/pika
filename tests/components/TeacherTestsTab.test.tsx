@@ -6,7 +6,7 @@ import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockTest } from '../helpers/mocks'
-import { invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import type { Classroom, TestAssessmentWithStats } from '@/types'
 
 vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
@@ -359,6 +359,7 @@ describe('TeacherTestsTab', () => {
   beforeEach(() => {
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON('teacher-test-detail:test-1')
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     setOpenMock.mockReset()
@@ -370,6 +371,7 @@ describe('TeacherTestsTab', () => {
     window.localStorage.clear()
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON('teacher-test-detail:test-1')
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -1410,7 +1412,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
 
     expect(await screen.findByText('Publish test?')).toBeInTheDocument()
-    expect(screen.getByText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')).toBeInTheDocument()
+    expect(screen.getByText('Test will remain locked to students.')).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Publish test?' })).getByRole('button', { name: 'Publish' }))
 
     await waitFor(() => {
@@ -1436,6 +1438,179 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
     expect(screen.queryByRole('note', { name: /Publish the test first/ })).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('offers Return to draft for a closed test with no known work and cancels without a request', async () => {
+    const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 1, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByRole('button', { name: 'Open All' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+    expect(dialog).toHaveTextContent('Students will no longer see this test.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog', { name: 'Return test to draft?' })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]: [string]) => String(url).endsWith('/unpublish'))).toBe(false)
+  })
+
+  it.each([
+    { title: 'Draft Test', status: 'draft' as const, responded: 0, openAccess: 0, offered: false },
+    { title: 'Active Test', status: 'active' as const, responded: 0, openAccess: 0, offered: false },
+    { title: 'Responded Test', status: 'closed' as const, responded: 1, openAccess: 0, offered: true },
+    { title: 'Open Test', status: 'closed' as const, responded: 0, openAccess: 1, offered: true },
+  ])('hides or disables Return to draft for $title', async ({ title, status, responded, openAccess, offered }) => {
+    const test = makeTest({
+      title, status,
+      stats: { total_students: 1, responded, questions_count: 1, open_access: openAccess },
+    })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: status, students: [] }))
+    renderTab({ selectedTestId: 'test-1', selectedTestMode: 'grading' })
+
+    await screen.findByRole('button', { name: `Edit ${title}` })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    if (offered) {
+      expect(screen.getByRole('menuitem', { name: 'Return to draft' })).toBeDisabled()
+    } else {
+      expect(screen.queryByRole('menuitem', { name: 'Return to draft' })).not.toBeInTheDocument()
+    }
+  })
+
+  it('returns a closed test to draft only after a matching acknowledgement', async () => {
+    const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ test: { ...test, title: 'Saved title', status: 'draft' }, draft_version: 8 }) })
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByRole('button', { name: 'Open All' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Return test to draft?' })).getByRole('button', { name: 'Return to draft' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1/unpublish', expect.objectContaining({ method: 'POST', body: '{}' })))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Edit Saved title' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Return test to draft?' })).not.toBeInTheDocument()
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledOnce()
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledWith(classroom.id)
+  })
+
+  it('keeps a conflict in the confirmation and permits retry', async () => {
+    const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([test])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ error: 'A student has started this test.' }) })
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ test: { ...test, status: 'draft' }, draft_version: 2 }) })
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByRole('button', { name: 'Open All' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
+    const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A student has started this test.')
+    expect(mockInvalidateGradebookForClassroom).not.toHaveBeenCalled()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+    const conflictCacheReload = vi.fn(async () => ({ stamp: 'fresh' }))
+    expect(await fetchJSONWithCache('teacher-test-detail:test-1', conflictCacheReload)).toEqual({ stamp: 'stale' })
+    expect(conflictCacheReload).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument())
+  })
+
+  it.each(['wrong test identity', 'invalid draft version'])(
+    'does not repaint on a success acknowledgement with %s', async (problem) => {
+      const test = makeTest({ title: 'Unit Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+      mockTestsResponse([test])
+      fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'closed', students: [] }))
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          test: { ...test, id: problem === 'wrong test identity' ? 'other' : test.id, status: 'draft' },
+          draft_version: problem === 'invalid draft version' ? 0 : 4,
+        }),
+      })
+      renderTab()
+
+      fireEvent.click(await screen.findByText('Unit Test'))
+      await screen.findByRole('button', { name: 'Open All' })
+      fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+      await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
+      const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not verify the saved test')
+      expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+      expect(mockInvalidateGradebookForClassroom).not.toHaveBeenCalled()
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
+      const malformedCacheReload = vi.fn(async () => ({ stamp: 'fresh' }))
+      expect(await fetchJSONWithCache('teacher-test-detail:test-1', malformedCacheReload)).toEqual({ stamp: 'stale' })
+      expect(malformedCacheReload).not.toHaveBeenCalled()
+    },
+  )
+
+  it('keeps confirmation open and Escape disabled while returning, then ignores a response after selection changes', async () => {
+    const first = makeTest({ id: 'test-1', title: 'First Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    const second = makeTest({ id: 'test-2', title: 'Second Test', status: 'closed', stats: { total_students: 0, responded: 0, questions_count: 1, open_access: 0 } })
+    mockTestsResponse([first, second])
+    let firstServerStatus: 'closed' | 'draft' = 'closed'
+    let resolveUnpublish!: (value: { ok: boolean; json: () => Promise<unknown> }) => void
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/teacher/tests/test-1/unpublish') {
+        return new Promise((resolve) => { resolveUnpublish = resolve })
+      }
+      if (url.includes('/api/teacher/tests?classroom_id=')) {
+        return Promise.resolve({ ok: true, json: async () => ({ tests: [{ ...first, status: 'draft' }, second] }) })
+      }
+      if (url.endsWith('/results')) {
+        return Promise.resolve(makeResultsResponse({
+          testId: url.includes('/test-2/') ? 'test-2' : 'test-1',
+          testStatus: url.includes('/test-2/') ? 'closed' : firstServerStatus,
+          students: [],
+        }))
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${url}`))
+    })
+    const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'grading' })
+
+    await screen.findByRole('button', { name: 'Edit First Test' })
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
+    expect(within(dialog).getByRole('button', { name: 'Returning…' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: 'Return test to draft?' })).toBeInTheDocument()
+
+    view.rerender(<TeacherTestsTab classroom={classroom} selectedTestId="test-2" selectedTestMode="grading" />)
+    await screen.findByRole('button', { name: 'Edit Second Test' })
+    await fetchJSONWithCache(`teacher-tests:${classroom.id}`, async () => ({ tests: [first, second] }), 60_000)
+    await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
+    await act(async () => {
+      firstServerStatus = 'draft'
+      resolveUnpublish({ ok: true, json: async () => ({ test: { ...first, status: 'draft' }, draft_version: 3 }) })
+    })
+    await waitFor(() => expect(listFetchCalls(fetchMock)).toHaveLength(2))
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledOnce()
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledWith(classroom.id)
+    const staleCacheReload = vi.fn(async () => ({ stamp: 'fresh' }))
+    expect(await fetchJSONWithCache('teacher-test-detail:test-1', staleCacheReload)).toEqual({ stamp: 'fresh' })
+    expect(staleCacheReload).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Edit Second Test' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+    view.rerender(<TeacherTestsTab classroom={classroom} selectedTestId="test-1" selectedTestMode="grading" />)
+    await screen.findByRole('button', { name: 'Edit First Test' })
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument()
   })
 
   it('publishes an unpublished test closed from the authoring dialog', async () => {
@@ -1474,7 +1649,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' }))
 
     expect(await screen.findByText('Publish test?')).toBeInTheDocument()
-    expect(screen.getByText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')).toBeInTheDocument()
+    expect(screen.getByText('Test will remain locked to students.')).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Publish test?' })).getByRole('button', { name: 'Publish' }))
 
     await waitFor(() => {
@@ -1797,6 +1972,49 @@ describe('TeacherTestsTab', () => {
     })
     expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Unit Test' })).not.toBeInTheDocument()
+  })
+
+  it('exits list edit mode on Escape after the menu closes', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    renderTab()
+    await screen.findByText('Unit Test')
+    toggleTestListControls()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.keyDown(screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' }), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Unit Test' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
+
+    render(<div aria-hidden="true"><div role="dialog">Closing dialog</div></div>)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('button', { name: 'Delete Unit Test' })).not.toBeInTheDocument()
+  })
+
+  it('keeps list edit mode after deleting a test so another test can be deleted', async () => {
+    const first = makeTest({ id: 'test-1', title: 'Unit Test' })
+    const second = makeTest({ id: 'test-2', title: 'Second Test' })
+    mockTestsResponse([first, second])
+    renderTab()
+    await screen.findByText('Unit Test')
+    toggleTestListControls()
+
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: [second] }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Unit Test' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByText('Unit Test')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Second Test' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Delete test?')
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: [] }) })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-2', expect.objectContaining({ method: 'DELETE' })))
   })
 
   it('shows whole-test delete in list settings mode', async () => {

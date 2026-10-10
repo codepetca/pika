@@ -92,12 +92,23 @@ describe('prepared owner publication route', () => {
   })
   it.each([
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
-    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', '1d334a7ad1fa67da9ac470add284cbab87dea8283888ed7afbc0e3fc3444be33'],
+    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', 'e8653214921b5dbe9ab736fc70232f6d1427b69b97951b71fe23a1e734d9e7b0'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
-    // PATCH remains the attested parent865d source. PR1540 independently reviewed
-    // the separate grading-only UI delta at ae458ec36; its full-file hash replaces
-    // the historical UI hash690d0dd8, retaining an exact byte guard. Publication,
-    // editing and student-access paths are unchanged. This test never executes Git.
-    expect(createHash('sha256').update(readFileSync(path)).digest('hex')).toBe(hash)
+    // Remove only the new dormant metadata dispatcher and its three imports.
+    // The complete remaining legacy file retains the original attested hash;
+    // legacy publication and the current full UI remain byte-for-byte guarded.
+    // The UI hash includes the reviewed PR1552 edit-mode and PR1553 publish
+    // confirmation copy changes; neither alters legacy publication requests.
+    let source = readFileSync(path, 'utf8')
+    if (path.endsWith('/route.ts')) {
+      source = source.replace(/^import .* from '@\/lib\/server\/contextual-test-owner-materials'\n/m, '')
+        .replace(/^import .* from '@\/lib\/validations\/contextual-test-owner-workflow'\n/gm, '')
+      const start = source.indexOf("export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context) => {\n")
+      const prefixEnd = start + "export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context) => {\n".length
+      const legacyStart = source.indexOf("  const user = await requireRole('teacher')", prefixEnd)
+      expect(source.slice(prefixEnd, legacyStart)).toContain('patchContextualTestOwnerMetadata')
+      source = source.slice(0, prefixEnd) + source.slice(legacyStart)
+    }
+    expect(createHash('sha256').update(source).digest('hex')).toBe(hash)
   })
 })

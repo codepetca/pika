@@ -1,5 +1,329 @@
 # CI proof optimization execution plan
 
+## Current phase: database contract partition
+
+User authorized the next database-lane optimization on 2026-10-10. Coordinator
+remains the architecture/development-workflow chat; branch
+`codex/ci-database-optimization`, base
+`b8335397b305e57d7419f5e3709373b6f2b6dbfd`. Risk: `runtime-platform`.
+One GPT-6.1 Sol/high worker completed bounded dependency and timing analysis and
+owns workflow/local-driver implementation. Coordinator owns documentation,
+independent review, publication and acceptance. DeepSeek remains paused. Weekly
+allowance at start is 34% remaining, account-wide; attributable tokens and active
+time are unknown.
+
+The SDK partition is delivered through
+[PR 1556](https://github.com/codepetca/pika/pull/1556), with reviewed/native/merged
+tree `cc5c471bb5b1400321daad7a060daa8fe8a3da6f`. All eight jobs in
+[run 38019722317](https://github.com/codepetca/pika/actions/runs/38019722317) passed.
+The longest SDK job fell from 38m31s to 20m03s, with 1m00s extra summed SDK job
+time. All seven proof groups and 21 fresh-project modes were conserved. Database
+contracts took 45m23s, so the full gate took 45m46s versus the preceding 38m55s;
+that run does not establish end-to-end improvement. Summed all-job time rose from
+144m36s to 147m00s. Unchanged workloads still showed hosted-runner variation.
+
+Split the database lane immediately before the owner reorder proof. The existing
+`architecture-database-contracts` retains 51 proof blocks through Test
+member-list; `architecture-database-contracts-lifecycle` runs the remaining 85,
+starting with reorder and ending with concurrent Stripe binding/webhook intake.
+Conserve all 136 current-main proof blocks exactly once and retain relative order
+within each partition. Setup and cleanup are independently copied metadata;
+identity-migration rehearsal and generated types checks remain prefix-only.
+
+The identity rehearsal resets the disposable canonical database to migration
+133 without seed, replays the remaining reviewed migrations, then deletes its
+synthetic actors and Classroom. It does not perform a final reset. No file,
+environment, fixture or receipt dependency across the selected boundary was
+found. Reorder captures its current canonical checkpoint and independently
+prepares a fresh reviewed-migration project. The suffix starts its own complete
+latest-schema canonical stack. The first two native candidates passed this fresh-start
+check; the latest-main candidate still requires exact-head CI.
+
+The original database job retains configured routing. The new lifecycle job
+uses `ubuntu-latest`, the existing database selector and only the classifier
+dependency. Both retain pinned tools, frozen install, lineage and isolation
+preflights, full migration replay and guarded stop. Proofs remain serial in each
+job. PR Gate requires both database results and both existing SDK results when
+database coverage is selected. Local `database` and `all` plans execute every
+partition once, serially on one dedicated daemon; historical combined database,
+SDK and browser layouts retain complete plans. Split plans close proof-name
+inventory/order and reject malformed ownership; independent raw block comparison
+also verifies unchanged commands and environments.
+
+Projection from run 38019722317: database jobs about 24m58s and 22m48s,
+summed 47m46s, roughly 2m23s more than the original job. The observed browser
+maximum is 25m06s, only eight seconds above the projected database maximum.
+These are single-run estimates, not accepted savings. Native acceptance records
+maximum database elapsed, summed database/all-job time, full gate and queue time,
+proof-mode cleanup, setup, artifact/source equality and failed attempts.
+Focused/static checks, fixed-SHA independent review and one eligible exact-head
+native run remain mandatory. Local canonical DB mutation, hardware activation,
+production/migrations, new dependencies and Clarity collection remain held.
+
+Two reviewed native candidates passed all nine jobs: run 38048029454 had database
+maximum 23m29s, summed database time 43m53s and full gate 34m51s; run 38050484519
+had 19m30s, 36m32s and 33m50s respectively. The latter summed all-job time was
+146m56s versus the 147m00s baseline. These are observations with hosted variance.
+Both runs had six passing light-browser retries; archive recovery desktop-light
+was the one shared retry case. Browser duration now bounds the gate.
+
+Concurrent main PR1555 at `7306426662f8802e3ab1d21fd2948c9d85034dd9` adds migration
+256 and one contextual Test owner workflow contract before the read proofs.
+Retain that exact proof in the primary partition (51/85, 136 total) and the
+reviewed member-list/reorder migration profiles. The local split inventory is
+updated deliberately, with no old-inventory fallback. The owner approved a
+60-minute integration/review/CI completion extension on 2026-10-10. One targeted
+integration review and final-head native acceptance remain required.
+
+## Historical owner SDK partition
+
+User authorized the next SDK speed improvement on 2026-10-09. Coordinator remains
+the architecture/development-workflow chat; branch `codex/ci-sdk-optimization`,
+base `e405fbfab80ffa3ada0d91786dee8edae834a8f3`. Risk: `runtime-platform`.
+One GPT-6.1 Sol/high worker verified fresh-project isolation and owns the bounded
+workflow/local-driver implementation. Coordinator owns documentation, independent
+review, publication and acceptance. DeepSeek remains paused; weekly allowance at
+start is 36% remaining, account-wide, with attributable tokens/active time unknown.
+
+Browser partition [PR 1554](https://github.com/codepetca/pika/pull/1554) is merged.
+Its reviewed and merged tree is `0019864bc8d044b3bb46d3f6d6a5646568bf79c0`.
+All seven jobs in [run 37983590284](https://github.com/codepetca/pika/actions/runs/37983590284)
+passed: browser maximum 32m03s, gate 38m55s, SDK 38m31s and database contracts
+36m46s. The browser inventory is 577 distinct cases; only two auth setup cases
+repeat across isolated partitions. Relative to run 37913960793, browser elapsed
+fell 15m58s and gate elapsed fell 9m30s, while combined browser runner consumption
+rose 10m28s. Different source heads and one observation limit attribution.
+
+The SDK job runs seven proof blocks serially for 36m16s, plus 2m15s setup/cleanup.
+Keep detail (226s), list (222s), draft-save (377s) and create (314s) in the existing
+`contextual-test-owner-sdk` job; move draft-get (346s), pristine-discard (344s)
+and publication (347s) to `contextual-test-owner-sdk-lifecycle`. Each hosted job
+has its own VM/daemon and canonical ephemeral stack. Within each job proofs stay
+serial; every proof mode retains its own fresh project, complete reviewed migration
+replay, exact intentional failure output and unchanged canonical baseline checks.
+All seven proof bodies and all 21 modes remain unchanged. Detail/list stay together
+so their existing timing-directory setup and single sanitized timing artifact remain
+intact. The second job has no timing-profile upload; native job/step telemetry
+measures it without adding a new receipt contract.
+
+Projection from this run: SDK maximum about 21m14s, but database contracts limit
+whole-gate improvement to about 1m45s if all other durations stay unchanged.
+Duplicated setup may increase runner consumption. Acceptance requires conserved
+proof inventory, both selected SDK jobs required by PR Gate, complete historical
+and current local-CI plans, focused/static checks, fixed-SHA independent review
+and one eligible exact-head native CI run. Record maximum SDK elapsed, all selected
+lanes through PR Gate, setup times, summed runner time and failures. Projections
+are not measured savings. Local canonical DB mutation, hardware activation,
+production/migrations, dependency changes and Clarity collection remain held.
+
+## Historical browser critical-path investigation
+
+User authorized the proposed browser investigation and bounded implementation on
+2026-10-09. Coordinator remains the existing architecture/development-workflow
+chat; branch `codex/ci-browser-optimization`, base `48f27a9870c7705187f0fd5708bec7ff5e89ed3e`.
+Risk: `runtime-platform`. One GPT-6.1 Sol/high read-only worker is auditing
+project partitioning and mutation isolation before implementation. No project,
+spec, role, retry or snapshot coverage may be removed; no new dependencies or
+application/schema changes. Local canonical database mutation, self-hosted
+activation/purchases, production and Clarity collection remain outside this phase.
+
+The existing hosted SDK slice was delivered unchanged through combined
+[PR 1550](https://github.com/codepetca/pika/pull/1550), main
+`763edbb180f32a32c0584add894d79415bbb9945`, reviewed merge tree
+`29c3a84404d8584be2ea81dc461907ce177bbac0`. All six jobs in
+[37913960793](https://github.com/codepetca/pika/actions/runs/37913960793) passed.
+Original PR 1546 was closed as delivered; its ready/merge instructions below are
+historical and retired. Earlier budgets, failed attempts and receipts remain.
+
+Browser native duration was 48m01s (test step 44m06s) in run 37913960793, versus
+58m36s in run 37879210697. Four serial experience-matrix project/file groups
+dominate the execution. The current canonical inventory is 573 test/project
+cases including two setup cases. Two independently isolated partitions were selected; retain serial file behavior
+and two workers per runner. The
+database lane ran 44m59s in the latest run, limiting whole-CI improvement there
+to roughly three minutes even if browser execution falls much further. The prior
+run permits roughly fourteen minutes. Neither projection is a measured saving.
+
+Acceptance: conserve the complete canonical inventory; independently seeded and
+cleaned ephemeral databases; fail-closed PR Gate and complete historical local-CI
+plans; focused/static contracts; fixed-SHA independent review; one eligible native
+CI run with every selected lane passing. Compare elapsed gate time and summed
+job consumption including failed attempts. No speed claim before native evidence.
+Weekly allowance at phase start: 39% remaining, account-wide; effective worker
+configuration, tokens and active time unknown. DeepSeek paused. Review counters
+for this new candidate start at zero; prior candidates remain unchanged.
+
+Design accepted: partition by theme. Light selects `chromium-desktop`,
+`chromium-mobile-light`, `pattern-lab-desktop-light` and
+`pattern-lab-mobile-light`; dark selects `chromium-desktop-dark`,
+`chromium-mobile-dark`, `pattern-lab-desktop-dark` and
+`pattern-lab-mobile-dark`. List-only collection gives 301 light and 274 dark
+cases: union 573, with only the two auth setup cases duplicated deliberately
+for independent databases. All eight spec filters and the Playwright config
+remain unchanged. Real database writes remain on their original desktop-light
+project; controlled/read cases can run dark only against its separate seeded
+stack. Independent timing analysis projects roughly 28–32 minute light and
+23–27 minute dark jobs, with extra startup/auth and runner consumption to be
+measured. These are projections, not acceptance evidence.
+
+Implementation owner: the same GPT-6.1 Sol/high worker, limited to workflow,
+local driver/preflight and offline regressions. Coordinator owns documentation,
+publication, independent review and native acceptance. The new hosted dark job
+must be a required browser dependency of PR Gate. Local `--lane browser` retains
+both partitions serially with separate receipts and diagnostics; historical
+combined lanes remain executable. No local database rehearsal is authorized.
+
+## Historical hosted owner SDK shard
+
+The first pilot below was delivered through [PR 1541](https://github.com/codepetca/pika/pull/1541);
+original [PR 1538](https://github.com/codepetca/pika/pull/1538) was closed as delivered.
+The local-CI policy from [PR 1537](https://github.com/codepetca/pika/pull/1537) is also merged.
+Historical review receipts and counters below remain historical; this phase does
+not restart their budgets or claim that the pilot caused a measured speedup.
+
+Current branch: `codex/ci-sdk-proof-shard`, managed worktree `ci-sdk-proof-shard`,
+base `e24d591abb53713e01d75a5c95fc418cf57592eb`. Risk: `runtime-platform` because
+the required gate gains a job dependency. The integration coordinator has allocated
+the first exclusive remote CI slot: after focused checks and fixed-SHA independent
+review pass, mark ready for one fresh eligible hosted execution. Main merge stays
+pending the coordinator's integration order. Local canonical database mutation and
+local-runner
+activation remains held; this change requires no registration or new dependency.
+
+Move the seven established Test owner detail/list/draft-get/draft-save/create/
+pristine-discard/publication step blocks unchanged into `contextual-test-owner-sdk`.
+Keep member-list and reorder in the original database job. The new job uses the
+existing database selector and a fixed `ubuntu-latest` runner. Each hosted job
+has an independent VM and Docker daemon. The shard starts its own canonical
+stack; all 21 fresh disposable proof replays, forced modes, exact failure output,
+restoration, canonical comparisons and cleanup remain. No database state is shared
+or cached. PR Gate must require both database jobs whenever database coverage is
+selected. Manual self-hosted dispatch therefore becomes mixed compute; the shard
+stays hosted.
+
+Local `--lane database` retains complete coverage by executing original database
+then SDK jobs sequentially; `--lane all` executes each once. Explicit
+`--lane test-owner-sdk` uses the same full isolation preflight. Local rehearsal is
+not parallelism and does not replace reviewed-head PR CI.
+
+Observed successful hosted runs (seconds from actual job/step timestamps):
+
+| Run | Head | Database | Seven proofs | Browser |
+| --- | --- | ---: | ---: | ---: |
+| [37810321964](https://github.com/codepetca/pika/actions/runs/37810321964) | `ad19bee721` | 3849 | 1941 | 3579 |
+| [37831362311](https://github.com/codepetca/pika/actions/runs/37831362311) | `d9b22680a0` | 4338 | 2223 | 3911 |
+| [37865407019](https://github.com/codepetca/pika/actions/runs/37865407019) | `e68198ede7` | 4930 | 2244 | 3598 |
+
+Different heads include different proof/migration checkpoints. These are three
+observations, not p95 estimates or causal comparisons. Seven proofs account for
+32m21s–37m24s of the database job. If hosted capacity and runtimes remain similar,
+the browser job becomes the expected critical path: projected end-to-end saving
+is approximately 4m30s, 7m07s and 22m12s respectively. The additional canonical
+startup measured 82–92 seconds in these runs; setup/install overhead and queueing
+must also be included in the first shard result. No saving is accepted yet.
+Six sanitized pilot timing receipts per run confirm normal modes pass and forced
+modes fail, with 52 ephemeral checks per normal profile and one per forced mode.
+
+Acceptance before ready: source comparison shows every moved command block
+unchanged and present exactly once; offline tests execute the actual gate for
+failed/cancelled/skipped shard results and verify CLI expansion, full preflight
+and cleanup. Complete focused/static checks and fixed-SHA independent review.
+Acceptance after slot release: eligible final-head CI passes both database jobs,
+browser, test/build and PR Gate; runner telemetry confirms hosted separation and
+all moved modes execute. Compare queue, job, setup, seven-proof and whole-run
+durations against the observations above, including added runner consumption.
+Rollback restores the original job placement and gate dependency together.
+
+Delegation: one Sol/high worker first completed bounded read-only design, then
+owns workflow/driver/preflight/tests implementation. Coordinator owns this plan,
+documentation, acceptance and PR lifecycle. Weekly allowance at start: 54%
+remaining; DeepSeek paused. Effective worker configuration, tokens and active
+time are unknown. Startup passed after frozen-lockfile installation; no package
+changes. Separate high-risk review ledger for this new PR: two fresh Sol/high
+reviewers (correctness/isolation and architecture/compatibility), maximum seven
+launches, one initial wave, four targeted waves/fix batches, one final integration
+wave, 60 minutes total and 30 minutes per reviewer. No review launched yet.
+
+Implementation delivered without rework or edit conflicts. Seven code/test files
+changed; coordinator independently confirmed all seven original raw step blocks
+occur unchanged exactly once in the shard. Worker targeted tests passed 97/97;
+canonical workflow checks passed 231/231. Coordinator focused integration passed
+the same 231 workflow/affected tests plus architecture, UI policy, design policy,
+TypeScript and lint. Pre-commit Pika audit and whitespace checks passed. No native
+job has run for this phase yet. Durable PR lifecycle metadata and the PR body
+will bind review/CI receipts to their actual SHAs without rewriting this history.
+
+Draft [PR 1546](https://github.com/codepetca/pika/pull/1546), initial head
+`af08e1113cec17b8b63bf094a359fbe673fe28de`: both independent initial reviews
+completed assigned scope and found the same P2 historical `--ref` regression.
+The new unconditional job inventory rejected earlier supported workflows, even
+though they retained every proof inside the original database job. Coordinator
+reproduced it. One batched fix will distinguish a complete legacy topology from
+a broken new split: legacy database/all coverage remains complete, explicit SDK
+selection rejects absent legacy lane, and missing/renamed modern SDK stays an
+error. No hosted-isolation, proof or aggregate-gate defect found. New-PR budget:
+two launches, one initial wave, one accepted issue after deduplication; first fix
+batch underway. Targeted compatibility review then final cumulative integration
+remain before ready. Reviewer active time/tokens unavailable; actual per-turn
+findings and SHA receipts recorded in the append-only lifecycle log.
+
+First batched correction delivered: complete legacy extraction and conditional
+plan expansion plus shallow-checkout-safe regressions. Actual base `e24d591`
+database dry-run changed from RED to GREEN; all/test-build/browser extraction and
+explicit legacy SDK refusal verified. New split missing/deleted/renamed shard
+and incomplete proof inventories still reject. Focused integration passed 244/244
+tests plus all prior static gates; audit and whitespace checks passed. One fix
+batch consumed, no further implementation scope added.
+
+Targeted review and the final cumulative review completed clean at
+`f7ebd67c63eca1e26aa10ad8d23944e2fd9621b7`: four actual review turns, one initial,
+one targeted and one final wave, one fix batch. Ready event started eligible
+[run 37877681068](https://github.com/codepetca/pika/actions/runs/37877681068).
+Four heavy jobs started together on distinct GitHub-hosted Ubuntu runners; extra
+canonical startup measured 87 seconds. Owner-detail normal/two forced modes passed.
+Full coverage tests then exposed six assertions that compared global step order
+across the now-independent jobs (15,754 tests passed, six failed, eight skipped).
+The focused inventory missed these disk-reading workflow tests. Coordinator
+cancelled remaining jobs, returned the PR to draft and retained attempt telemetry.
+No speedup or native acceptance is claimed from this incomplete attempt.
+
+CI correction batch two changes only workflow-contract test scoping and the
+canonical `check:workflow` test inventory. Preserve every command/receipt/safety
+assertion while expressing ordering inside the owning job; original native/type
+checks remain required in their original job, without cross-runner order. Add
+these tests to focused checks because filesystem reads are not import-graph
+dependencies. Targeted review of the correction will combine with unchanged
+final cumulative source coverage; no second full/final wave is planned. Existing
+review clock and counters remain running; native retry must use its new reviewed
+head, with main merge and all other holds unchanged.
+
+Second correction delivered and focused checks passed 532/532 across 53 files
+plus architecture, UI/design policy, TypeScript, lint, audit and whitespace gates.
+All 44 tests that literally read CI YAML are now in the canonical inventory; an
+offline regression detects omissions. A worker's broad check had one existing
+Tart subprocess scheduling failure, followed by isolated 51/51 success; coordinator
+whole focused check passed 532/532 without changing that test or infrastructure.
+Full offline coverage is running as additional validation of the CI-exposed gap.
+First incomplete attempt: 593 seconds workflow time, zero workflow queue seconds,
+2,148 observed job seconds including cancelled work; retain it in total effort.
+Actual classifier was full, selecting both database jobs, test/build and browser.
+
+CI-correction review at `009d63748c7f62afa1cd1452f05f867fd8600843` found one
+additional P2: the inventory covered 44 unit readers but omitted the architecture
+Vitest reader. Coordinator accepted and directly corrected this small third
+batch: include `tests/architecture/atomic-test-grading-contract.test.ts`, scan
+all test directories in the omission regression, and retain the same source and
+runtime coverage. Total literal CI-YAML readers is 45. Five review turns and
+three fix batches consumed; the next targeted turn must validate only this delta
+and combine with unchanged cumulative coverage. Original review clock/budget
+remain unchanged. Full offline CI coverage at `009d63748` passed 15,761 tests,
+eight existing skips and all thresholds (85.5% statements, 77.74% branches,
+91.67% functions, 87.48% lines); production/proof sources remain unchanged.
+Third-batch focused checks passed 541/541 across 54 files and every static/audit
+gate. Native acceptance still requires one eligible run at the final reviewed SHA.
+
+## Historical first pilot
+
 Coordinator: the existing architecture/development-workflow chat. User authorized
 planning and orchestration on 2026-10-08. Worktree: `ci-proof-setup-optimization`;
 branch: `codex/ci-proof-setup-optimization`; base: `d826a01a3`.
@@ -119,3 +443,17 @@ Reviewer effective configurations, tokens and active elapsed time are unknown.
 Final cumulative review follows the corrective fixed SHA; no proof code changed
 in this remediation batch. Review budget consumed: two initial launches, one
 remediation batch; final integration wave pending.
+
+
+Browser implementation verification: targeted red/green regressions retained
+(23 expected pre-implementation failures; 143 final tests pass). Coordinator
+focused checks pass 575 tests in 54 files plus architecture, UI/design policy,
+TypeScript and lint. Four changed TypeScript test files pass Pika audit; script
+syntax and whitespace checks pass. Real list-only collection proves the exact
+573-case union and only the two setup cases repeated. Historical browser plans
+at current pre-split `48f27a9870c7705187f0fd5708bec7ff5e89ed3e` and older local-CI
+`b8169adaa7802e79e44ea8236021ce9297d61d2e` execute dry-run successfully. Separate
+local reports retain failure diagnostics without attributing preceding-lane
+reports to a setup-failed dark lane. No browser runtime or canonical database
+mutation was performed locally. Independent review and final hosted acceptance
+remain pending; the draft-first lifecycle binds their receipts to actual SHAs.

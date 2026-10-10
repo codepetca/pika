@@ -387,6 +387,176 @@ independently once that contract is stable. Batch 4 remains dormant until batche
 batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
 a new per-feature rollout switch for each route family.
 
+### Owner-approved completion strategy — 2026-10-09
+
+The owner approved keeping the existing architecture and simplifying delivery,
+then requested updating this goal and orchestrating the remaining work. This is
+the current execution plan; older checkpoint labels below remain historical.
+
+**Goal:** complete a production-safe classroom experience in which one signed-in
+person can teach Classroom A and join Classroom B. Classroom ownership/membership
+controls access; server-resolved subscription capabilities independently control
+creation and paid consumption. Free members can complete assigned work. Preserve
+existing classes, work, grading and privacy throughout the cutover. Keep the
+current server/session and service-role architecture; no auth/RLS rewrite.
+
+The target baseline is main `763edbb180f32a32c0584add894d79415bbb9945` (#1550).
+Batch 1's backend exit remains recorded. Member Test list preparation #1534 was
+delivered through #1541 (`1dd532581`); owner atomic Test reorder preparation #1515
+was delivered through #1543 (`e24d591ab`). Both original drafts are closed as
+delivered, not separately merged. #1543's merge tree equals reviewed head
+`e68198ede7409912dbccf7c574de2b1514c9160f`; its six finite native modes and
+exact-head CI `37865407019` passed. Do not repeat that accepted work. These are
+component receipts, not a batch-2 exit or feature activation.
+
+| Remaining batch | Deliver complete workflows | Acceptance before advancing |
+| --- | --- | --- |
+| 2 — Assessments and grades (current) | Finish Test owner authoring and learner participation/disclosure, then Surveys and Gradebook/returned Grades; integrate existing Assignment and grading-entrypoint authorization | Through existing screens, mixed-role accounts can author/release/start/save/submit/inspect/manual-grade/return/read results; nonmembers and cross-class substitutions are denied; current visibility, archive and revocation rules hold |
+| 3 — Lifecycle and attached services | Complete remaining archive/restore, reuse/blueprint, export/recovery/purge and attendance/Pal/Bara relationship boundaries | Preserve existing work and tenant isolation; creation/restore retain entitlement enforcement; jobs and services bind the actual classroom relationship |
+| 4 — Product entry and navigation | Connect the approved Teaching/Joined reference, classroom shell, shared menu, join/create, ordering and persisted hide/unhide | One account teaches A and joins B; owner archive differs from member hide; Hidden appears below Archived; teacher/student/mixed-role desktop/mobile light/dark verification passes |
+| 5 — Integrated release | Rehearse the whole reachable experience, verify a compatible recovery release, then prepare a controlled canary and expansion | Existing and mixed-role classes work end to end; concrete stop/recovery evidence and exact authorized migration/release/configuration receipts precede activation |
+
+Deliver coherent, reviewable workflow groups, not a new PR for every helper or
+endpoint. A complete workflow may still need more than one PR when its transaction
+or integration boundary justifies it. Reuse existing relationship/admission,
+transaction, validation and verification contracts; add schema only for a concrete
+missing atomic boundary or persistence requirement. Do not invent a parallel
+permission framework, per-route rollout flags or a new verification framework.
+Use focused regression checks during iteration and risk-matched independent
+review once per stable cumulative scope, followed by targeted remediation review.
+Reuse valid unchanged evidence; retain necessary real database/concurrency proof,
+visual verification, final-SHA CI and PR Gate. Do not weaken safety gates to gain
+speed. Integrate against a current frozen base before readiness, not repeatedly
+recheck stale candidates. This changes delivery strategy, not correctness criteria.
+
+The bounded Test workflow map is accepted against main `763edbb18`. One Sol/high
+implementation worker now owns the coherent dormant owner group: metadata edits,
+reference-document reservation/finalization/sync/readback/removal and selected
+learner open/close access. Reuse existing atomic document/lifecycle transactions
+and the migration-248 selected-access writer; no unlocked metadata-only write.
+The coordinator owns this roadmap, integration, verification and Git/PR operations
+on `codex/classroom-completion`; the worker owns only that subsystem's source/tests
+and necessary additive schema source. No live/shared database writes are delegated.
+Learner detail/start/save/submit/recovery/disclosure is the next dependent workflow;
+its revision-conflict returns must authorize membership/visibility before disclosure.
+Do not perform another architecture audit or revisit accepted reorder/list work.
+Owner workflow PR1555 corrected-source native proof on7a3f2e3f8 passed001–256,
+rollback SQL,94 realSDKrequests and genuine types; exact disposable teardown and
+canonical/global preservation passed. Initial CI38047561807 found the older
+member/reorder proof profiles still sealed at255. The correction admits only
+reviewed256name/digest/bytes, preserving every table catalog, cleanup and future
+refusal. These are proof compatibility corrections, not another product feature
+or a reopened architecture/list/reorder audit. PR remains draft until targeted
+review and corrected-head CI pass; no merge/batch2/activation exit claimed.
+Only concretely independent batch-3 work may run beside batch 2; batch 4's live
+entry remains gated on completed batches 1–3. The coordinator owns integration,
+phase exits, independent-review acceptance and normal authorized main merges.
+
+Billing/subscription implementation remains separately owned and is not a reason
+to expand this cutover into billing, AI/provider activation, analytics or general
+infrastructure. Keep the approved tier/entitlement contracts and coordinate any
+concrete existing-work compatibility dependency. Quota explanations remain only
+on upgrade pages/tier summaries, never classroom/Test/create surfaces. Cold-archive
+retention/email/deletion and final obsolete-role cleanup remain future work.
+
+Existing exact-target migration and release holds are unchanged: canonical local
+and production migrations 249+, quota enforcement, account/plan/provider changes,
+admission/home/page/cohort/cutover activation and production promotion are not
+authorized merely by this plan update. Prior separately authorized production
+promotion #1549 does not activate the classroom experience. Routine in-scope
+implementation, independent review/extensions and normal protected main merges
+retain the owner's authority and cumulative clocks/counters. Preserve explicit
+holds, including prototype #1217 and the separate privacy-audit priority.
+
+The epic is complete only after all four remaining batch exits and the authorized
+integrated cutover are evidenced. Merged dormant components, a prototype, billing
+readiness or source-only tests alone are not goal completion. The stored app goal
+cannot be rewritten/resumed by the available status-only goal tool; this roadmap
+records the owner's superseding objective and execution strategy without replacing
+the unfinished goal or falsely marking it complete.
+
+Owner Test workflow source delivery is prepared on `codex/classroom-completion`.
+The worker reported 167 affected checks; coordinator reran 93 across six affected
+files and 29 focused post-reconcile checks successfully. Architecture passes.
+Full source/type/native acceptance remains pending, not a phase exit. Main
+`ff3685d3e` (#1552/#1553) was reconciled without changing its list-edit behavior,
+return-to-draft transaction or UI byte guard. The original prepared migration 255
+was renamed to `256_contextual_test_owner_workflow.sql` because main allocated
+255 to return-to-draft; its SQL body is unchanged. Shared canonical local and
+production remain untouched. Genuine generation of the new service-only RPC
+signature requires a disposable full-chain replay through 256. The earlier
+disposable-through-255 question is superseded, not reusable approval. No PR is
+ready; independent review, actual native evidence and exact-head CI remain gates.
+
+The owner approved one isolated replay of 001–256 from `1dc0891e7`. That attempt
+failed at 256 with SQLSTATE 42601: an unparenthesized CASE operand in an IF
+comparison was interpreted at its inner THEN. No new SQL contract, SDK or type
+artifact was accepted. Exact disposable-resource teardown, full global Docker
+closure and canonical row/control/cron baseline equality passed (21.251 seconds).
+Private receipt: `/private/tmp/pika-owner-workflow-proof.ylCUiF/result.json`.
+The coordinator parenthesized the CASE operands and added a failing-then-passing
+regression (5/5); the existing ephemeral Database Contract lane now invokes the
+same rollback SQL. This is a source correction, not a proven replay. The one-time
+permission was consumed; corrected-source native verification needs fresh exact
+approval. Shared local/prod, source readiness and activation holds remain intact.
+Bounded independent correction review of `50016e316` found one additional blocker
+in the rollback assertion, not an authorization change: JSON extraction must be
+parenthesized before subtracting metadata fields. Coordinator corrected it with
+a second RED→GREEN regression (6/6). Targeted correction review remains distinct
+from full PR review/native acceptance; no replay was retried.
+
+Superseding native receipt: after direct fresh approval, the one disposable replay
+from `a1bcab47e` passed all 001–256 history and the rollback SQL/ACL contracts.
+Real SDK Storage uploads, MIME/size finalization, signed byte readback, owner
+transfer/archive/member invalidation, cancellation ordering, metadata/snapshot CAS,
+HTML snapshot read/CSP and replacement cleanup passed (63 contained requests,
+85.718 seconds). Exact disposable teardown/global Docker closure and full canonical
+row/control/cron/resource equality passed. Receipt:
+`/private/tmp/pika-owner-workflow-proof.NHXKxe/result.json`. External URL fetching
+was not exercised; downstream snapshot handling used real local Storage bytes.
+Genuine public types hash `6ccab478f97b0df7140e38e2f60b1f3ca4c6d8b50d7f5f36d35c56b994e362e9`
+adds only the new RPC. Application refinement describes its native-proved nullable
+inspect parent; it does not hand-edit generated types. Rebase onto `e405fbfab`
+preserved all runtime/schema/rollback bytes and both source/main history bodies;
+only incoming browser-CI partition and related guidance changed. Shared local and
+production remain untouched; full independent PR review, stable CI and merge
+remain pending. No phase exit or activation.
+
+Draft PR #1555 at `c38547438` received complete independent security/correctness
+and architecture/compatibility reviews (two fresh Sol/high contexts). Both found
+one duplicate P2: supported URL-only legacy uploads cannot be delivered or retained
+after canonical editor normalization. Coordinator reuses the inherited public-URL
+Storage identity resolver for current/proposed paths, retaining exact inline-ID
+comparison and current ready-object/classroom/purpose/Test-ledger delivery checks.
+New rollback cases cover missing/present inline IDs, historical creator/resource
+attribution, readback, normalization plus adding a document, and path/object
+substitution refusal. Source guard RED→GREEN7/7; affected checks80/5 PASS.
+This changes 256 and its SQL contract: the prior successful native receipt remains
+valid only for its executed source, not this correction. Targeted independent
+review, one freshly approved disposable 001–256 replay and exact-head CI remain
+required. No rerun, shared local/hosted application or activation occurred.
+Ledger:4 completed reviewer turns (2 bounded preflight,2 full), full wave1,
+remediation batches2, parser repair1 separately; full reviewers reported roughly
+7minutes each, exact elapsed/effective configuration/tokens unknown. Owner's
+task-stop waiver and all consequential-action holds persist without counter reset.
+
+After direct fresh approval, the single `f84dff650` disposable replay completed
+001–256 with the exact migration manifest, but the expanded rollback script failed
+at its final substitution assertion: unqualified `documents` conflicted with the
+PL/pgSQL variable. SDK and type-generation stages did not execute. Exact owned
+teardown/global741-resource closure/ports and complete canonical row/control/cron
+equality passed (41.299seconds); receipt:
+`/private/tmp/pika-owner-workflow-legacy-proof.WYgJD4/result.json`. No hidden retry.
+Coordinator qualified `test.documents` and `test.id`, with source guard RED→GREEN8/8;
+the migration and runtime are unchanged. Rebase onto `b8335397b` (#1556 CI-only SDK
+partition) retained all runtime/schema bytes, both history-body multisets and the
+existing owner SQL contract registration. No migration collision or renumbering.
+Targeted final review/checks and a freshly approved exact-source isolated replay
+remain required; prior full-chain replay does not establish SDK/type/native exit.
+Ledger5 completed review turns/fullwave1/remediation3/parserrepair1; existing
+waiver retained. The consumed permission does not extend to retry/shared local or
+production application, promotion or activation.
+
 ### Execution checkpoint — 2026-10-08
 
 The owner requested orchestration of the remaining goal in this coordinator.

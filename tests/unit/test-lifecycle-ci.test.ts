@@ -1,12 +1,28 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8')
 const workflow = read('.github/workflows/ci.yml')
+const databaseJob = workflow.split('  architecture-database-contracts-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
 const atomic = read('scripts/check-atomic-test-submit.sh')
 
 describe('required Test lifecycle verification', () => {
+  it('includes every file-backed CI workflow contract in the canonical focused inventory', () => {
+    const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> }
+    const inventory = pkg.scripts['check:workflow'].split(/\s+/)
+    function visit(directory: string) {
+      for (const entry of readdirSync(resolve(process.cwd(), directory), { withFileTypes: true })) {
+        const path = `${directory}/${entry.name}`
+        if (entry.isDirectory()) visit(path)
+        else if (/\.(?:test|spec)\.[jt]sx?$/.test(entry.name) && read(path).includes('.github/workflows/ci.yml')) {
+          expect(inventory, path).toContain(path)
+        }
+      }
+    }
+    visit('tests')
+  })
+
   it('selects the real isolated desktop lifecycle cases in the required browser command', () => {
     const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> }
     expect(pkg.scripts['e2e:ci']).toContain('e2e/test-lifecycle-ci.spec.ts')
@@ -18,10 +34,16 @@ describe('required Test lifecycle verification', () => {
   })
 
   it('requires rollback, observed concurrency, and forced-failure exact teardown after schema replay', () => {
-    const start = workflow.indexOf('  architecture-database-contracts:')
-    const lane = workflow.slice(start, workflow.indexOf('\n  test-and-build:', start))
+    expect(databaseJob).toBeDefined()
+    const lane = databaseJob!
+    expect(lane).toContain('runs-on: ubuntu-latest')
+    expect(lane).toContain('node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
+    expect(lane).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
+    expect(lane).toContain('name: Start ephemeral Supabase and replay migrations')
+    expect(lane).toContain('name: Stop ephemeral database')
     const contracts = lane.indexOf('name: Verify revision-aware Test lifecycle contracts')
     expect(contracts).toBeGreaterThan(lane.indexOf('name: Start ephemeral Supabase and replay migrations'))
+    expect(contracts).toBeLessThan(lane.indexOf('name: Stop ephemeral database'))
     expect(lane).toContain('run: psql -X -v ON_ERROR_STOP=1 -f scripts/check-test-attempt-lifecycle.sql')
     const step = lane.split('name: Verify Test Return lifecycle concurrency and exact cleanup')[1]?.split('      - name:')[0]
     expect(step).toContain('node scripts/check-test-attempt-lifecycle-concurrency.mjs')
@@ -36,7 +58,7 @@ describe('required Test lifecycle verification', () => {
       ['Verify Test lifecycle setup acknowledgement failure exact cleanup', 'CORE244_FORCE_SETUP_ACK_FAILURE=1', 'Exact public fixture teardown and public baseline fingerprint: PASS'],
       ['Verify managed-storage setup acknowledgement failure exact cleanup', 'MANAGED_STORAGE_FORCE_SETUP_ACK_FAILURE=1', 'Exact managed-storage fixture teardown: PASS'],
     ]) {
-      const step = workflow.split(`name: ${name}`)[1]?.split('      - name:')[0]
+      const step = databaseJob?.split(`name: ${name}`)[1]?.split('      - name:')[0]
       expect(step).toContain(flag)
       expect(step).toContain(marker)
       expect(step).toMatch(/\[\[ "\$(?:lifecycle|storage)_ack_status" -ne 0 \]\] \|\| exit 1/)

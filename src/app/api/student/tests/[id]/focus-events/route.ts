@@ -11,6 +11,7 @@ import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
 import { postTestFocusEventSchema } from '@/lib/validations/test-focus-events'
 import type { Json } from '@/types/database.generated'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -91,14 +92,12 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
     )
   }
 
-  const { error: insertError } = await supabase
-    .from('test_focus_events')
-    .insert({
-      test_id: testId,
-      student_id: user.id,
-      session_id: input.session_id,
-      event_type: input.event_type,
-      metadata: (input.incident_id
+  const inserted = await supabase.rpc('record_test_focus_event_atomic', {
+      p_test_id: testId,
+      p_student_id: user.id,
+      p_session_id: input.session_id,
+      p_event_type: input.event_type,
+      p_metadata: (input.incident_id
         ? {
             ...(input.metadata || {}),
             detector_version: 2,
@@ -109,8 +108,18 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
         : input.metadata || null) as Json,
     })
 
-  if (insertError) {
-    console.error('Error inserting test focus event:', insertError)
+  if (inserted.error) {
+    if (['PT409', '55P03', '40P01', '40001'].includes(inserted.error.code)) {
+      return NextResponse.json({ error: 'Test access changed before the focus event was saved' }, { status: 409 })
+    }
+    if (inserted.error.code === 'PT400') {
+      return NextResponse.json({ error: 'Invalid focus event' }, { status: 400 })
+    }
+    console.error('Error inserting test focus event:', inserted.error)
+    return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
+  }
+  if ((inserted.status !== undefined && (inserted.status < 200 || inserted.status >= 300))
+    || !z.string().uuid().safeParse(inserted.data).success) {
     return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
   }
 

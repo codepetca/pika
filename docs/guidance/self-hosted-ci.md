@@ -1,7 +1,8 @@
 # Pika CI on your hardware
 
 Heavy CI can run on a dedicated Linux runner while GitHub runs change
-classification and the required `PR Gate`. All existing checks and risk selectors
+classification, the hosted database lifecycle, Test owner SDK and dark-browser
+shards, and the required `PR Gate`. All existing checks and risk selectors
 remain required. A successful local run does not replace the PR gate.
 
 ## Delivery plan and acceptance
@@ -19,6 +20,37 @@ remain required. A successful local run does not replace the PR gate.
 Preparation does not change visibility, register a runner, or enable the setting.
 Hardware activation remains pending until a host is chosen and a real self-hosted
 run passes.
+
+The `Contextual Test Owner SDK` and `Contextual Test Owner SDK Lifecycle` jobs
+always use `ubuntu-latest`, selected by the existing database flag. The first runs
+detail, list, draft-save and create; the second runs draft-get, pristine-discard
+and publication. Each has a separate hosted VM/daemon and independent canonical
+stack. Every normal and forced proof still uses its own fresh disposable project
+and complete migration replay. Proofs run serially within each job. Database-selected
+PRs require both database-contract jobs and both SDK jobs to pass. The original
+database, test/build and browser jobs continue to follow the configured routing;
+`runner=self-hosted` therefore means mixed compute with hosted shards. This
+does not activate a local runner. See the [proof optimization plan](../plans/ci-proof-setup-optimization.md)
+for observed timings and the comparative acceptance gate.
+
+`Architecture Database Contracts` retains its original routing and the first
+51 proof blocks through Test member-list. `Architecture Database Contracts
+Lifecycle` runs the remaining 85 blocks, starting with owner reorder, on
+`ubuntu-latest`. Both use the same database selector, independent complete
+migration replay, pinned setup, empty-daemon/port preflight and guarded stop.
+Proof blocks stay unchanged and serial within each job. The migration rehearsal
+and generated types check remain in the original job; the lifecycle job requires
+no fixture or receipt from it. The hosted lifecycle job adds no local runner
+registration or activation.
+
+Browser-selected runs require both browser jobs. The original job runs the
+light desktop/mobile and light Pattern Lab projects using configured routing;
+`Browser Experience Matrix Dark` runs the corresponding four dark projects on
+`ubuntu-latest`. Both use the complete canonical `e2e:ci` spec list with explicit
+project filters and their own fresh startup, fixture seed, auth setup, artifacts
+and cleanup. Playwright serial-file behavior, two workers, retries and snapshots
+remain unchanged. The hosted dark shard never shares a database with the
+routable browser job or activates a local runner.
 
 The initial host choice is the existing Mac shared with HQ, using separate Linux
 templates and a cooperative exclusive lease. Pika's host driver below admits one
@@ -174,7 +206,7 @@ pnpm ci:local -- --lane all --ref HEAD --dry-run
 pnpm ci:local -- --lane test-build --ref HEAD
 ```
 
-The live command runs committed source, not uncommitted edits. Database/browser
+The live command runs committed source, not uncommitted edits. Database/SDK/browser
 lanes require the isolated Linux VM and empty daemon. Inspect dry-run output for
 the exact SHA, complete migration inventory and commands. Local migration replay
 retains the one-time exact-target authorization in the schema rollout checklist;
@@ -183,12 +215,35 @@ the runner also requires an explicit acknowledgement:
 ```bash
 pnpm ci:local -- --lane database --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane database --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
+pnpm ci:local -- --lane database-lifecycle --ref <reviewed-sha> --dry-run
+pnpm ci:local -- --lane test-owner-sdk --ref <reviewed-sha> --dry-run
+pnpm ci:local -- --lane test-owner-sdk-lifecycle --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane browser --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
+pnpm ci:local -- --lane browser-dark --ref <reviewed-sha> --dry-run
 ```
+
+`--lane database` runs both database jobs followed by both SDK partitions
+to preserve complete database coverage. `--lane database-lifecycle` selects only
+the second database partition. `--lane test-owner-sdk` runs both SDK
+partitions; `--lane test-owner-sdk-lifecycle` selects only the second partition.
+Live execution has the same isolation and migration-authorization gates. Older
+reviewed commits retain their complete combined SDK job or original database job;
+each explicit lifecycle lane rejects a historical layout that lacks that job.
+`--lane browser` runs both light and dark partitions sequentially;
+`--lane browser-dark` selects only the dark shard with the same isolation gates.
+Older reviewed commits retain their complete combined browser lane.
+`--lane all` includes every job exactly once. Local jobs run sequentially with
+separate start/preflight/cleanup cycles. The host admission rehearsal still
+checks the three routable local lanes; it does not register or serve the hosted
+database lifecycle, SDK or dark-browser shards.
 
 The temporary checkout retains `.git` for commit-bound rehearsals, excludes
 environment files and uses a restricted child environment. Commands come from
 `.github/workflows/ci.yml`; unsupported syntax fails rather than dropping checks.
+The split database plan also validates its ordered proof-name inventory.
+Intentional proof additions, renames or repartitioning must update that reviewed
+inventory contract and preserve supported historical layouts; ordinary command
+changes do not require new inventory digests.
 Setup actions become local tool verification; cache/artifact actions use local
 storage. Logs and browser artifacts remain in the reported private directory.
 `check:focused` remains the faster iteration command, not the full suite.

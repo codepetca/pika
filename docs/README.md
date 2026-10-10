@@ -30,6 +30,13 @@ For classroom assessment content, start with
 [Teacher Tests Markdown Schema](guidance/teacher-tests-markdown-schema.md).
 These are separate from the application testing guidance in `core/tests.md`.
 
+### Proposed implementation plans
+
+- Clarity teacher-workflow pilot: [product proposal](plans/clarity-teacher-workflow-proposal.md)
+  [implementation checklist](plans/clarity-teacher-workflow-implementation.md), and
+  [prepared Microsoft eligibility inquiry](plans/clarity-microsoft-eligibility-inquiry.md).
+  Planning only; no tracking or production rollout is enabled.
+
 ```
 /DESIGN.md                      # Canonical product design entry point
 /docs

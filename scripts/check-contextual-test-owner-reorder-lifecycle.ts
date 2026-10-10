@@ -1,6 +1,8 @@
 /** Inert fixed254 adopter. Offline source/AST checks are not native acceptance.
  * Actual execution requires independent review of this exact clean HEAD. */
 import assert from 'node:assert/strict'
+import { validateTestUnpublicationReviewedMigration } from './test-unpublication-reviewed-migration'
+import { validateTestOwnerWorkflowReviewedMigration } from './test-owner-workflow-reviewed-migration'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { isAbsolute, normalize, resolve } from 'node:path'
@@ -13,6 +15,7 @@ import { ApiError } from '../src/lib/api-error'
 import { boundedAssignmentListJson } from '../src/lib/validations/contextual-assignment-list-read'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from './contextual-assignment-list-proof-fixture'
 import { AssignmentListLifecycleError, assignmentListLifecycleDiagnostic, runAssignmentListEphemeralLifecycle, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
+import { validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
 import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources,
   assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
@@ -38,6 +41,13 @@ const APP_CAPS = Object.freeze({ controls: 4000, actions: 200, totalMs: 900000, 
 // One receipt-sized allowance inside384MiB, not an execution-clock renewal.
 // The unchanged platform canonical adapter owns finite internal command bounds.
 const CANONICAL_AFTER_CAPS = Object.freeze({ attempts: 1, bytes: 8 * 1024 * 1024 })
+export function validateTestOwnerReorderReviewedMigrations(migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>) {
+  validateAssignmentListMigrationChain(migrations)
+  assert([254, 255, 256].includes(migrations.length), 'Unreviewed reorder migration profile')
+  assert.equal(migrations[253]?.name, '254_contextual_test_owner_reorder.sql')
+  if (migrations.length >= 255) validateTestUnpublicationReviewedMigration(migrations[254])
+  if (migrations.length === 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
+}
 type Rows = Record<string, Array<Record<string, unknown>>>
 type Session = Parameters<AssignmentListLifecycleAdapters['executeSql']>[0]
 function freeze<T>(value: T): T { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) } return value }
@@ -287,7 +297,7 @@ async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: bool
   assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['status', '--porcelain', '--untracked-files=all']), '')
   const repository = git(['rev-parse', '--show-toplevel']); assert.equal(repository, process.cwd())
   const migrations = loadAssignmentListReviewedMigrations(repository)
-  assert.equal(migrations.length, 254); assert.equal(migrations.at(-1)?.name, '254_contextual_test_owner_reorder.sql')
+  validateTestOwnerReorderReviewedMigrations(migrations)
   const original = newAssignmentListProofFixture(), f = newTestOwnerReorderFixture(original), projectId = `pika_assignment_list_${f.tag.slice(-12)}`
   const native = createAssignmentListNativeAdapters(original), originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerReorderSetupSql(f, projectId), snapshotSql = testOwnerReorderSnapshotSql(f), union = testOwnerReorderUnionManifest(original, f, input.head, repository)

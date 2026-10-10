@@ -12,6 +12,10 @@ import {
   removeQueuedTestDocumentSnapshotPath,
 } from '@/lib/server/test-document-snapshot-storage-cleanup'
 import { queueManagedStorageCleanupBestEffort } from '@/lib/server/managed-storage'
+import { authorizeSharedTestDetailReadActor } from '@/lib/server/contextual-test-detail-read'
+import { syncContextualTestOwnerDocument } from '@/lib/server/contextual-test-owner-materials'
+import { resolveContextualTestOwnerParams } from '@/lib/validations/contextual-test-owner-workflow'
+import { contextualTestOwnerDocumentQuerySchema, TEST_OWNER_WORKFLOW_DEADLINE_MS } from '@/lib/validations/contextual-test-owner-workflow'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +40,13 @@ async function removeSnapshotAfterConflict(
 }
 
 export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request, context) => {
+  const shared = await authorizeSharedTestDetailReadActor()
+  if (shared.mode === 'shared') {
+    const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
+    const { id, docId } = await resolveContextualTestOwnerParams(_request, context.params, deadline)
+    const query = contextualTestOwnerDocumentQuerySchema.parse({ testId: id, documentId: docId })
+    return NextResponse.json(await syncContextualTestOwnerDocument({ supabase: getServiceRoleClient(), actorId: shared.user.id, ...query, deadline, signal: _request.signal }))
+  }
   const user = await requireRole('teacher')
   const { id: testId, docId } = await context.params
 

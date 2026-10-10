@@ -8,6 +8,10 @@ import {
 } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { TestStudentAvailabilityState } from '@/types'
+import { authorizeSharedTestDetailReadActor } from '@/lib/server/contextual-test-detail-read'
+import { updateContextualTestOwnerStudentAccess } from '@/lib/server/contextual-test-owner-materials'
+import { resolveContextualTestOwnerParams } from '@/lib/validations/contextual-test-owner-workflow'
+import { contextualTestOwnerQuerySchema, contextualTestOwnerStudentAccessSchema, readContextualTestOwnerBody, TEST_OWNER_WORKFLOW_DEADLINE_MS } from '@/lib/validations/contextual-test-owner-workflow'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -44,6 +48,13 @@ function isMissingStudentAccessRpcError(error: {
 
 // POST /api/teacher/tests/[id]/student-access - Open/close selected students' test access
 export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (request, context) => {
+  const shared = await authorizeSharedTestDetailReadActor()
+  if (shared.mode === 'shared') {
+    const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
+    const { testId } = contextualTestOwnerQuerySchema.parse({ testId: (await resolveContextualTestOwnerParams(request, context.params, deadline)).id })
+    const body = contextualTestOwnerStudentAccessSchema.parse(await readContextualTestOwnerBody(request, deadline))
+    return NextResponse.json(await updateContextualTestOwnerStudentAccess({ supabase: getServiceRoleClient(), actorId: shared.user.id, testId, body, deadline, signal: request.signal }))
+  }
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const body = await request.json()
