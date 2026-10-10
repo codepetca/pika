@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Course Guide reading and platform snapshot acceptance
-
-Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
-
-## 2026-10-08 — Student attendance confirmation
-
-Owner: current task; branch codex/attendance-success-classroom, base 47659857d. Success and duplicate scans show the confirmed classroom title and plain America/Toronto time beneath the success heading; explanatory subtitles are hidden only for positive results. Classroom metadata is read before the attendance command and returned only on success. No migrations, dependencies, permission or attendance-recording rules changed.
-UI brief: reuse StudentAttendanceCheckIn card/green Lucide check/return link; extend attendance result with optional classroomName. Reference: existing scan screen plus executable Pattern Lab statuses/Card. Student desktop1440×900/mobile390×844, light/dark, loading/success/duplicate/closed/error; teacher n/a (student-only route). No new shared pattern or composite interaction; no promotion required.
-Evidence: output/playwright/attendance-success-mobile.png (9:06 AM), Pattern Lab status reference, controlled native experience-matrix captures. Component/server/API43 PASS; local classroom-title query PASS; focused362 and UI/design/architecture/TypeScript/lint PASS on implementation tree. Final test-only checks passed. Initial independent Sol/medium full-diff review (4233451f6) found one accepted P2: the new 200-character title limit rejected valid saved classroom names. Remediation removes new naming constraints and adds >200-character and whitespace-compatible server coverage plus long-name component coverage; final focused checks and targeted re-review pending. Review budget: launches1/waves1/fix batches1, reviewer elapsed estimated5min, exact timing/tokens unknown. Weekly usage remaining72%; direct implementation, review model/effort to be recorded in PR receipt; coordinator tokens/active time unknown. One browser fixture placement corrected before final capture, no source rework.
-
 ## 2026-10-08 — Attendance failure classroom context
 
 Owner request extends PR1533: failure header shows the classroom name and omits the generic retry paragraph; retain failure heading/Try again and domain-specific recovery explanations. Reuse the existing scan card and Pattern Lab status/Card reference; extend the server-page/client contract with optional initial classroomName. Student-only (teacher n/a), desktop1440×900/mobile390×844, light/dark; loading/success/duplicate/closed/error. No new shared pattern, composite interaction or experimental promotion.
@@ -263,9 +253,6 @@ Hosted SDK slice delivered unchanged via1550/main763edbb;1546closed as delivered
 
 User authorized SDK speed work after browser PR1554 landed. Split the unchanged seven owner proof blocks into two isolated hosted jobs (detail/list/draft-save/create; draft-get/discard/publication), preserving all21 fresh modes, reviewed migration replay and exact failure/cleanup receipts. PR Gate requires both database-selected SDK results. Local database/SDK aliases retain complete serial coverage, including historical refs. No app/schema/harness/dependency changes or local DB mutation. GPT-6.1 Sol/high design verified; target169tests/5files PASS, raw proof-block hashes equal base e405fbfab. Focused605tests/54files and all static checks PASS; audit8changedTS PASS; independent fixed-SHA review and exact-head native CI pending. Latest unsplit SDK38m31/database36m46; projected SDK~21m14, full-gate gain~1m45 only, extra setup consumption to measure. Private receipts: ~/.codex/artifacts/pika/ci-sdk-optimization/.
 
-## 2026-10-10 — Student test request reduction
-
-Risk: workspace-state/exam-mode. Stabilized the active exam availability callback so ordinary parent renders preserve draft debounce; coalesced focus/visible session-status events within 750ms, scoped to the classroom/selected test effect. True exit/final submit saves, no-store session reads, hidden skips, 30s polling and telemetry remain unchanged. Two failing-before regressions reproduced premature draft writes and redundant settled event reads. Affected suites73/73 and focused728/728 plus architecture/UI/design/TypeScript/lint PASS. Actual StudentTestsTab fixture browser matrix desktop1440x900/mobile390x844 light/dark PASS4/4 with intercepted synthetic APIs; one ordinary save and one burst check, later focus refresh, zero page errors/backend requests. Screenshots reviewed in output/playwright/request-coalescing. Teacher n/a: no rendered teacher surface changed. Existing real local lifecycle browser test failed before exam Start with Test unavailable; no DB/schema changes attempted. Draft-first independent review/exact-head CI pending. Production unchanged; savings unmeasured.
 ## 2026-10-09 — Classroom goal completion strategy
 
 Owner requested updating the goal to keep the architecture and simplify delivery,
@@ -380,6 +367,10 @@ follow on a frozen correction; goal/batch2 not complete.
 Final focused gate PASS743tests/69files plus architecture/UI/design/TypeScript/
 lint; changed-test audit PASS. Native replay of the correction still unapproved.
 
+## 2026-10-10 — Student test request reduction
+
+Risk: workspace-state/exam-mode. Stabilized the active exam availability callback so ordinary parent renders preserve draft debounce; coalesced focus/visible session-status events within 750ms, scoped to the classroom/selected test effect. True exit/final submit saves, no-store session reads, hidden skips, 30s polling and telemetry remain unchanged. Two failing-before regressions reproduced premature draft writes and redundant settled event reads. Affected suites73/73 and focused728/728 plus architecture/UI/design/TypeScript/lint PASS. Actual StudentTestsTab fixture browser matrix desktop1440x900/mobile390x844 light/dark PASS4/4 with intercepted synthetic APIs; one ordinary save and one burst check, later focus refresh, zero page errors/backend requests. Screenshots reviewed in output/playwright/request-coalescing. Teacher n/a: no rendered teacher surface changed. Existing real local lifecycle browser test failed before exam Start with Test unavailable; no DB/schema changes attempted. Draft-first independent review/exact-head CI pending. Production unchanged; savings unmeasured.
+
 ## 2026-10-10 — Owner workflow approved replay and SQL assertion repair
 
 Direct exact approval covered one fresh f84dff650 replay001–256. Root inspected
@@ -427,3 +418,25 @@ canonical249+/activation/account/quota/provider/billing holds unchanged.
 Focused988tests/73files+architecture/UI/design/TypeScript/lint PASS; targeted209/3
 PASS, audit/whitespace PASS. New profile files do not modify executed owner SQL,
 runtime, rollback contract or generated types; retain actual7a3 native receipt.
+
+## 2026-10-10 — Owner workflow current-main integration after exam traffic fix
+
+Targetedprofiledeltaf56 reviewedclean(Sol/highturn7); readyCI38048509744 passed
+15986tests+build, bothSDKlanes anddarkbrowser before mainadvanced via1558/6be42b15b.
+No newfailure inferred; wholeCI/PRGate notaccepted yet. PRdraft restored before
+rebase, singlewatcher41191 stopped. Incoming1558 stabilizesstudentavailability
+callback/coalesces750msactivitypolls, preserves APIenvelopes/interval/errors/exam
+telemetry; reviewedCI38047578776+fourvisualfixturecases acceptedbythatPR, no rendered
+UI/schemachange. Rootpreservedincomingexactbytes; ownerproduct/srcAPI/lib/schema/
+rollbackSQL/generated/proofscripts identicalf56; no newnativeapplicationneeded.
+One archive-marker conflict resolved retainingbothmarkers/bodyunion; fullhistory
+multisets source2785/main2775 missing0. Migration256unchanged/no collision; prior
+stash0preserved/no newstash. Newfocusedchecks and boundedchanged-base integration
+review precede stableSHAreadiness. Ledger7turns/fullwave1/remediation4/parserrepair1
+and taskstop/reviewwaiver retained; this isbase-sync, notnewproductfix orbudgetreset.
+Nextlearnerworkflow10routes11methods read-onlymap accepted afterdirect244/255/history
+sourceverification; preservebest-efforthistory. Noimplementationbeforeownermerge.
+Allcanonical/prod249+/promotion/account/provider/billing/quota/admission/cutoverholds
+persist; source-only group/epicnotcomplete. Currentnativeacceptance remains7a3bytes.
+Reconciled focused988/73+architecture/UI/design/types/lint PASS; incomingexam56/2
+PASS. Keptstartup17kcap unchanged by compactingCURRENT label; audit/diffchecksnext.
