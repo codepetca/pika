@@ -451,10 +451,17 @@ reviewed PR1559 CI-only delta/full-nine-job PASS for candidate3b7ae978e; app,
 migrations and deployment configuration are byte-identical to approved730.
 No new reviewer launch is attributed to reused coverage. Stable release ready,
 CI38062958668 attempt1: 16058PASS/1gallery15s timeout/8skipped; attempt2
-failed-job retry pending at unchanged head. Same gallery28/28PASS locally with
+failed-job retry at unchanged head. Same gallery28/28PASS locally with
 instrumentation, prior exact-main case10.492s; isolated command exit1 on unrelated
 aggregate coverage thresholds, not accepted as full coverage. No threshold change.
-Production remains previousd32b8bbdf until verified deploy.
+Attempt2 PASS:16059tests/8skipped, types/lint/build andPRGate; gallery case7.795s.
+PR1560 merged7d14260ae1f7734a684ef08c4637939fec190a5b at15:40:50UTC.
+Complete production tree equals reviewed3b7 tree6432c634e11fa5ed308724832bacd2e7cd175797.
+Vercel dpl_9BiVq8oZHWzLnzRXrPu4opCqh22V READY at2026-10-10T15:45:25.880Z;
+pika.codepet.ca alias resolves that exact production SHA. Anonymous login200/
+auth-me401 read-only smoke PASS; no signed-in exam persistence claim.
+Retry run wall631s; excludes reused classifier/skipped-job timestamps. Initial
+local metric1393s corrected append-only; attributable tokens/active time unknown.
 Source request reduction preserves five-second debounce, exit/final saves,
 30-second session polling and telemetry; live savings unmeasured. RESPMax
 saving remains OFF pending legitimate shared Hobby headroom and hosted acceptance.

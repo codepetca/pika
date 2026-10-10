@@ -3,7 +3,8 @@
 Release source `3b7ae978e`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
-Production `d32b8bbdf` LIVE Oct9; application promotion#1560 pending CI.
+Production `7d14260ae` LIVE Oct10 15:45UTC; #1560 CI38062958668 PASS.
+Login200/anonymous auth401; request reduction LIVE, savings unmeasured.
 Prod DB001–256 verified(run38062699229); owner approved249–256 once.
 16functions/ACLs, indexes/disabledquota PASS; no data-write canary.
 Prior audit/WAF PASS.
