@@ -120,6 +120,102 @@ describe('StudentTestsTab exam mode', () => {
     })
   }
 
+  async function renderActiveTest() {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-10T12:00:00Z'))
+    localStorage.clear()
+    queueTestList()
+    queueTestDetail()
+    const view = render(<StudentTestsTab classroom={classroom} />)
+    await act(async () => {})
+    await act(async () => { fireEvent.click(screen.getByText('Midterm Test')) })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true, attempt: { draft_revision: 41 } }))
+    await act(async () => { fireEvent.click(screen.getByText('Start test')) })
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/session-status')) return jsonResponse({ can_continue: true })
+      if (url.endsWith('/attempt')) return jsonResponse({ attempt: { draft_revision: 42 } })
+      if (url.endsWith('/focus-events')) return jsonResponse({ success: true, focus_summary: makeFocusSummary() })
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+    return view
+  }
+
+  const sessionReads = () => fetchMock.mock.calls.filter(([url]: [string]) => url.endsWith('/session-status'))
+  const draftWrites = () => fetchMock.mock.calls.filter(([url]: [string]) => url.endsWith('/attempt'))
+
+  it('keeps the pending draft debounce through parent renders and eventually saves once', async () => {
+    const view = await renderActiveTest()
+    fireEvent.click(screen.getByRole('radio', { name: '4' }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await act(async () => { view.rerender(<StudentTestsTab classroom={{ ...classroom, title: 'Updated classroom' }} />) })
+    expect(draftWrites()).toHaveLength(0)
+    expect(screen.getByRole('radio', { name: '4' })).toBeChecked()
+    await act(async () => { await vi.advanceTimersByTimeAsync(3999) })
+    expect(draftWrites()).toHaveLength(0)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(draftWrites()).toHaveLength(1)
+    expect(JSON.parse(draftWrites()[0][1].body)).toMatchObject({ trigger: 'autosave', expected_revision: 41 })
+  })
+
+  it('coalesces settled focus and visible bursts while preserving later focus, polling and hidden skips', async () => {
+    await renderActiveTest()
+    let visibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibilityState as DocumentVisibilityState)
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    expect(sessionReads()).toHaveLength(1)
+    expect(sessionReads()[0][1]).toEqual({ cache: 'no-store' })
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); fireEvent(document, new Event('visibilitychange')) })
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    expect(sessionReads()).toHaveLength(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(650); fireEvent(window, new Event('focus')) })
+    expect(sessionReads()).toHaveLength(2)
+    // A focus immediately before the regular tick must not postpone that tick.
+    await act(async () => { await vi.advanceTimersByTimeAsync(29150); fireEvent(window, new Event('focus')) })
+    expect(sessionReads()).toHaveLength(3)
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(sessionReads()).toHaveLength(4)
+    visibilityState = 'hidden'
+    await act(async () => { fireEvent(window, new Event('focus')); fireEvent(document, new Event('visibilitychange')); await vi.advanceTimersByTimeAsync(30000) })
+    expect(sessionReads()).toHaveLength(4)
+    visibilityState = 'visible'
+    await act(async () => { fireEvent(document, new Event('visibilitychange')) })
+    expect(sessionReads()).toHaveLength(5)
+  })
+
+  it('refreshes availability immediately after a rejected draft even within the focus burst window', async () => {
+    const view = await renderActiveTest()
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    await act(async () => { view.rerender(<StudentTestsTab classroom={{ ...classroom, title: 'Latest classroom' }} />) })
+    fireEvent.click(screen.getByRole('radio', { name: '4' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Test is not active' }, false))
+    await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+    expect(draftWrites()).toHaveLength(1)
+    expect(sessionReads()).toHaveLength(2)
+  })
+
+  it('keeps overlapping activity checks coalesced without extending the burst window', async () => {
+    await renderActiveTest()
+    const pendingStatus = createDeferred<Response>()
+    fetchMock.mockReturnValueOnce(pendingStatus.promise)
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(800); fireEvent(document, new Event('visibilitychange')) })
+    expect(sessionReads()).toHaveLength(1)
+    await act(async () => { pendingStatus.resolve(jsonResponse({ can_continue: true })) })
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    expect(sessionReads()).toHaveLength(2)
+  })
+
+  it('starts a fresh activity window when the active test session resumes', async () => {
+    const view = await renderActiveTest()
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    await act(async () => { view.rerender(<StudentTestsTab classroom={classroom} isActive={false} />) })
+    await act(async () => { view.rerender(<StudentTestsTab classroom={classroom} />) })
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    expect(sessionReads()).toHaveLength(2)
+  })
+
   it('keeps failed detail reads separate from list metadata and restores focus after recovery', async () => {
     queueTestList()
     const detail = createDeferred<Response>()
