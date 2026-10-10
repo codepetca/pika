@@ -10,6 +10,7 @@ const jobsByLane = {
   'test-build': 'test-and-build',
   database: 'architecture-database-contracts',
   'test-owner-sdk': 'contextual-test-owner-sdk',
+  'test-owner-sdk-lifecycle': 'contextual-test-owner-sdk-lifecycle',
   browser: 'browser-experience-matrix',
   'browser-dark': 'browser-experience-dark',
 }
@@ -26,6 +27,7 @@ const ownerProofs = [
   ['pristine-discard', 'Verify isolated contextual pristine Test draft discard transactions'],
   ['publication', 'Verify isolated contextual Test owner publication transactions'],
 ]
+const lifecycleProofs = new Set(['draft-get', 'pristine-discard', 'publication'])
 const actions = new Set(['actions/checkout@v7', 'actions/setup-node@v6', 'pnpm/action-setup@v6',
   'supabase/setup-cli@v1', 'actions/cache@v6', 'actions/upload-artifact@v7'])
 const summaryNames = new Set(['Summarize dependency setup evidence', 'Summarize browser setup evidence'])
@@ -53,7 +55,7 @@ export function parseArguments(argv) {
     else if (value === '--ack=DISPOSABLE_CI_DATABASE') args.acknowledged = true
     else throw new Error(`Unknown argument: ${value}`)
   }
-  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|test-owner-sdk|browser|browser-dark|all.')
+  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|test-owner-sdk|test-owner-sdk-lifecycle|browser|browser-dark|all.')
   if (args.ref !== null && args.ref !== 'HEAD' && !/^[a-f0-9]{40}$/.test(args.ref ?? '')) throw new Error('--ref requires HEAD or a full lowercase 40-character commit SHA.')
   return args
 }
@@ -141,14 +143,18 @@ function parseStep(lines) {
 export function extractWorkflow(source) {
   const lines = source.split(/\r?\n/)
   const split = lines.includes(`  ${jobsByLane['test-owner-sdk']}:`)
+  const sdkPartitioned = lines.includes(`  ${jobsByLane['test-owner-sdk-lifecycle']}:`)
   const browserSplit = lines.includes(`  ${jobsByLane['browser-dark']}:`)
   // Historical reviewed commits retain all seven proofs in the original job.
   // A damaged split workflow must never silently become a legacy plan.
   if (!split && /contextual-test-owner-sdk|TEST_OWNER_SDK_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK job in split workflow.')
+  if (!sdkPartitioned && /contextual-test-owner-sdk-lifecycle|TEST_OWNER_SDK_LIFECYCLE_RESULT/.test(source)) throw new Error('Missing or renamed canonical SDK lifecycle job in partitioned workflow.')
+  if (sdkPartitioned && !split) throw new Error('Missing canonical primary SDK job in partitioned workflow.')
   if (!browserSplit && /browser-experience-dark|BROWSER_DARK_RESULT|pnpm e2e:ci --project=/.test(source)) throw new Error('Missing or renamed canonical dark browser job in split workflow.')
   const jobs = {}
   for (const [lane, id] of Object.entries(jobsByLane)) {
     if (!split && lane === 'test-owner-sdk') continue
+    if (!sdkPartitioned && lane === 'test-owner-sdk-lifecycle') continue
     if (!browserSplit && lane === 'browser-dark') continue
     const starts = lines.map((line, index) => line === `  ${id}:` ? index : -1).filter(index => index !== -1)
     if (starts.length !== 1) throw new Error(`Missing or duplicate canonical job: ${id}`)
@@ -178,14 +184,18 @@ export function extractWorkflow(source) {
     jobs[id] = { id, lane, env, steps }
     validateLaneSafety(jobs[id])
   }
-  const proofOwner = split ? jobsByLane['test-owner-sdk'] : jobsByLane.database
   for (const [profile, name] of ownerProofs) {
+    const proofOwner = sdkPartitioned && lifecycleProofs.has(profile) ? jobsByLane['test-owner-sdk-lifecycle']
+      : split ? jobsByLane['test-owner-sdk'] : jobsByLane.database
     const script = `scripts/check-contextual-test-owner-${profile}-lifecycle.ts`
     const matches = Object.values(jobs).flatMap(job => job.steps
       .filter(step => step.name === name || step.run?.includes(script)).map(step => ({ job, step })))
     const variable = `test_owner_${profile.replaceAll('-', '_')}`
     const step = matches[0]?.step
+    const owner = jobs[proofOwner]
     if (matches.length !== 1 || matches[0].job.id !== proofOwner || step.name !== name || step.if
+      || owner.steps.indexOf(step) <= owner.steps.findIndex(value => value.id === 'supabase-start')
+      || owner.steps.indexOf(step) >= owner.steps.findIndex(value => value.run === 'supabase stop --no-backup')
       || source.split(script).length !== 3 || step.run?.split(script).length !== 3
       || !step.run?.includes(`${script} --reviewed-head "$${variable}_head" --mode normal`)
       || !step.run.includes(`for ${variable}_mode in after-fixture before-capture; do`)
@@ -194,11 +204,14 @@ export function extractWorkflow(source) {
       || !step.run.includes(`[[ "$(wc -l < "$${variable}_log" | tr -d ' ')" -eq 2 ]] || exit 1`)
       || !step.run.includes(`grep -Fx "FAIL forced isolated test-owner-${profile} lifecycle: \${${variable}_mode}."`)
       || !step.run.includes(`grep -Fx 'PASS isolated test-owner-${profile} exact teardown and unchanged canonical baseline.'`)) {
-      throw new Error(`Canonical ${split ? 'split' : 'legacy'} SDK proof inventory is incomplete or changed: ${profile}`)
+      throw new Error(`Canonical ${sdkPartitioned ? 'partitioned' : split ? 'split' : 'legacy'} SDK proof inventory is incomplete or changed: ${profile}`)
     }
   }
-  if (split && jobs[proofOwner].steps.filter(step => step.run?.includes('--reviewed-head')).length !== ownerProofs.length) {
-    throw new Error('Canonical split SDK proof inventory has unexpected profiles.')
+  for (const lane of split ? ['test-owner-sdk', ...(sdkPartitioned ? ['test-owner-sdk-lifecycle'] : [])] : []) {
+    const expectedProfiles = sdkPartitioned ? ownerProofs.filter(([profile]) => lifecycleProofs.has(profile) === (lane === 'test-owner-sdk-lifecycle')).length : ownerProofs.length
+    if (jobs[jobsByLane[lane]].steps.filter(step => step.run?.includes('--reviewed-head')).length !== expectedProfiles) {
+      throw new Error(`Canonical ${lane} SDK proof inventory has unexpected profiles.`)
+    }
   }
   // Never accept a partial partition as the historical combined browser lane.
   for (const lane of browserSplit ? ['browser', 'browser-dark'] : ['browser']) {
@@ -211,15 +224,19 @@ export function extractWorkflow(source) {
 }
 
 export function selectPlan(jobs, lane) {
-  // Keep the existing database selection complete after moving its SDK proofs.
-  // All jobs run serially locally, each with its own guarded startup/cleanup.
+  // Keep database and SDK aliases complete; all local jobs stay serial, with
+  // guarded startup/cleanup on the same dedicated disposable daemon.
   const split = Boolean(jobs[jobsByLane['test-owner-sdk']])
+  const sdkPartitioned = Boolean(jobs[jobsByLane['test-owner-sdk-lifecycle']])
   const browserSplit = Boolean(jobs[jobsByLane['browser-dark']])
   if (lane === 'test-owner-sdk' && !split) throw new Error('The selected historical workflow has no separate test-owner-sdk lane; use --lane database.')
+  if (lane === 'test-owner-sdk-lifecycle' && !sdkPartitioned) throw new Error('The selected historical workflow has no separate test-owner-sdk-lifecycle lane; use --lane test-owner-sdk or database.')
   if (lane === 'browser-dark' && !browserSplit) throw new Error('The selected historical workflow has no separate browser-dark lane; use --lane browser.')
-  const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => (split || value !== 'test-owner-sdk') && (browserSplit || value !== 'browser-dark'))
-    : lane === 'database' && split ? ['database', 'test-owner-sdk']
-      : lane === 'browser' && browserSplit ? ['browser', 'browser-dark'] : [lane]
+  const sdkLanes = split ? ['test-owner-sdk', ...(sdkPartitioned ? ['test-owner-sdk-lifecycle'] : [])] : []
+  const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => jobs[jobsByLane[value]])
+    : lane === 'database' ? ['database', ...sdkLanes]
+      : lane === 'test-owner-sdk' ? sdkLanes
+        : lane === 'browser' && browserSplit ? ['browser', 'browser-dark'] : [lane]
   return lanes.map(value => jobs[jobsByLane[value]])
 }
 

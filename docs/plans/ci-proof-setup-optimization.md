@@ -1,6 +1,47 @@
 # CI proof optimization execution plan
 
-## Current phase: browser critical-path investigation
+## Current phase: owner SDK partition
+
+User authorized the next SDK speed improvement on 2026-10-09. Coordinator remains
+the architecture/development-workflow chat; branch `codex/ci-sdk-optimization`,
+base `e405fbfab80ffa3ada0d91786dee8edae834a8f3`. Risk: `runtime-platform`.
+One GPT-6.1 Sol/high worker verified fresh-project isolation and owns the bounded
+workflow/local-driver implementation. Coordinator owns documentation, independent
+review, publication and acceptance. DeepSeek remains paused; weekly allowance at
+start is 36% remaining, account-wide, with attributable tokens/active time unknown.
+
+Browser partition [PR 1554](https://github.com/codepetca/pika/pull/1554) is merged.
+Its reviewed and merged tree is `0019864bc8d044b3bb46d3f6d6a5646568bf79c0`.
+All seven jobs in [run 37983590284](https://github.com/codepetca/pika/actions/runs/37983590284)
+passed: browser maximum 32m03s, gate 38m55s, SDK 38m31s and database contracts
+36m46s. The browser inventory is 577 distinct cases; only two auth setup cases
+repeat across isolated partitions. Relative to run 37913960793, browser elapsed
+fell 15m58s and gate elapsed fell 9m30s, while combined browser runner consumption
+rose 10m28s. Different source heads and one observation limit attribution.
+
+The SDK job runs seven proof blocks serially for 36m16s, plus 2m15s setup/cleanup.
+Keep detail (226s), list (222s), draft-save (377s) and create (314s) in the existing
+`contextual-test-owner-sdk` job; move draft-get (346s), pristine-discard (344s)
+and publication (347s) to `contextual-test-owner-sdk-lifecycle`. Each hosted job
+has its own VM/daemon and canonical ephemeral stack. Within each job proofs stay
+serial; every proof mode retains its own fresh project, complete reviewed migration
+replay, exact intentional failure output and unchanged canonical baseline checks.
+All seven proof bodies and all 21 modes remain unchanged. Detail/list stay together
+so their existing timing-directory setup and single sanitized timing artifact remain
+intact. The second job has no timing-profile upload; native job/step telemetry
+measures it without adding a new receipt contract.
+
+Projection from this run: SDK maximum about 21m14s, but database contracts limit
+whole-gate improvement to about 1m45s if all other durations stay unchanged.
+Duplicated setup may increase runner consumption. Acceptance requires conserved
+proof inventory, both selected SDK jobs required by PR Gate, complete historical
+and current local-CI plans, focused/static checks, fixed-SHA independent review
+and one eligible exact-head native CI run. Record maximum SDK elapsed, all selected
+lanes through PR Gate, setup times, summed runner time and failures. Projections
+are not measured savings. Local canonical DB mutation, hardware activation,
+production/migrations, dependency changes and Clarity collection remain held.
+
+## Historical browser critical-path investigation
 
 User authorized the proposed browser investigation and bounded implementation on
 2026-10-09. Coordinator remains the existing architecture/development-workflow

@@ -20,11 +20,13 @@ Preparation does not change visibility, register a runner, or enable the setting
 Hardware activation remains pending until a host is chosen and a real self-hosted
 run passes.
 
-The `Contextual Test Owner SDK` job always uses `ubuntu-latest`, selected by the
-existing database flag. It moves seven established owner proofs to a separate
-hosted VM/daemon and starts an independent canonical stack. Every normal and
-forced proof still uses its own fresh disposable project and complete migration
-replay. Database-selected PRs require both database jobs to pass. The original
+The `Contextual Test Owner SDK` and `Contextual Test Owner SDK Lifecycle` jobs
+always use `ubuntu-latest`, selected by the existing database flag. The first runs
+detail, list, draft-save and create; the second runs draft-get, pristine-discard
+and publication. Each has a separate hosted VM/daemon and independent canonical
+stack. Every normal and forced proof still uses its own fresh disposable project
+and complete migration replay. Proofs run serially within each job. Database-selected
+PRs require the database-contract job and both SDK jobs to pass. The original
 database, test/build and browser jobs continue to follow the configured routing;
 `runner=self-hosted` therefore means mixed compute with hosted shards. This
 does not activate a local runner. See the [proof optimization plan](../plans/ci-proof-setup-optimization.md)
@@ -203,13 +205,17 @@ the runner also requires an explicit acknowledgement:
 pnpm ci:local -- --lane database --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane database --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
 pnpm ci:local -- --lane test-owner-sdk --ref <reviewed-sha> --dry-run
+pnpm ci:local -- --lane test-owner-sdk-lifecycle --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane browser --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
 pnpm ci:local -- --lane browser-dark --ref <reviewed-sha> --dry-run
 ```
 
-`--lane database` runs the original database job followed by the SDK shard to
-preserve complete database coverage. `--lane test-owner-sdk` selects just that
-shard; live execution has the same isolation and migration-authorization gates.
+`--lane database` runs the original database job followed by both SDK partitions
+to preserve complete database coverage. `--lane test-owner-sdk` runs both SDK
+partitions; `--lane test-owner-sdk-lifecycle` selects only the second partition.
+Live execution has the same isolation and migration-authorization gates. Older
+reviewed commits retain their complete combined SDK job or original database job;
+the new explicit lane rejects those historical layouts.
 `--lane browser` runs both light and dark partitions sequentially;
 `--lane browser-dark` selects only the dark shard with the same isolation gates.
 Older reviewed commits retain their complete combined browser lane.
