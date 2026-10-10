@@ -45444,3 +45444,31 @@ Final focused/delta review, one specifically authorized immutable local183/all5
 checkpoint with finite quiet window, actual normal/genuine types/twoforced and
 exact-head CI remain gates. No native/DB/checkpoint/provider/production operation
 or phase exit is claimed; canonical249+, activation and1217 remain held.
+
+<!-- pika-session-log-archive-batch:e2ccf03ef563b2e88db107780f14228eadb03006ce3645ee37810a8c65ee02bd -->
+## 2026-10-08 — Exact member-list migration profile compatibility (source batch 32)
+
+CI37849992101 failed before fixture setup on the stale exact253 assertion at
+99c83fe21. Member proof now accepts only complete253 or exact reviewed254:
+filename and literal SHA256 plus actual SQL bytes, retaining source-chain/union
+equality, literal quota253, both183/184 catalogs and all five checkpoints.
+Offline actual-source RED reproduced254!=253; GREEN224/5 PASS. Focused/audit
+receipts remain private; DB/native/genuineCLItypes/checkpoint operations are held
+pending new final-head finite quiet-window authorization. No old99 receipt is
+reheaded. Original1515 clock,31reviews/27targeted/29prior, completionreviews5,
+source30/sync31 and private-wrapper correction stay separate; this is batch32.
+No API/SQL/types/reorder executable change, provider/production/1217 action,
+push or PR-state change. Exact old archive prefix and all prior body counts kept.
+
+## 2026-10-08 — Refresh Clarity teacher-workflow pilot planning
+
+- Rebased the preserved teacher-first Clarity proposal onto current main `e24d591abb53713e01d75a5c95fc418cf57592eb` and reconciled current WorkOS, contextual classroom relationship, retained-tab, Assignment draft initialization, browser-security and first-party exam-telemetry contracts.
+- Added an exact, unsent Microsoft eligibility inquiry. Mixed-age/adult-teacher eligibility and the privacy/legal owner remain unresolved gates; a disclaimer, global teacher role, consent signal or Clarity dashboard filter is not treated as approval.
+- Updated the no-collection boundary for current Consent V2 behavior: declined/unknown Pika participation means the Clarity script is not requested, because Clarity's denied analytics-storage mode still collects cookieless interactions. Future approved use keeps ad storage denied and remains limited to server-admitted adult classroom owners on approved authoring surfaces.
+- Documentation only. No SDK/dependency, Clarity project, tracking key, consent UI, schema/migration, environment, deployment, external inquiry, live data or analytics collection was created or changed. Feature status remains unchanged; draft PR review and all future implementation/pilot gates remain separate.
+- Validation: 39 local document links and 22 existing source/test touchpoints resolve; `git diff --check` and session-log validation pass. The docs-only focused gate passes 13 files / 202 tests using the current-main dependency installation; no package was added or upgraded.
+- Draft PR review accepted one documentation blocker: Clarity tags are session-scoped and repeated values accumulate rather than overwrite. The corrected catalogue reserves tags for session-stable context and uses a finite event-name allowlist for mutable intent/error categories; targeted re-review remains before any readiness decision.
+
+## 2026-10-08 — General Pika AI connector planning
+
+Saved `docs/guidance/pika-ai-connector-plan.md` at baseline e24d591ab: general teacher assistant roadmap, assignment-only private pilot, reusable auth/sanitization/profile/process/persistence contracts, owned paths and acceptance gates. Official Codex/Claude docs checked; connector execution kept separate from embedded subscription permission. One inherited-model read-only native inventory verified; effective model/effort and token attribution unknown, weekly usage46%used, DeepSeek paused. No model call/student egress, grading write, dependency/OAuth activation, feature flag change, migration application, heavy runtime proof or main merge. Next slice is synthetic provider-free preparation/pure validation; draft-only visibility and atomic complete-source/replay persistence require phase1 proof and coordinator-assigned execution slot.

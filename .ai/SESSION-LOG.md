@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Exact member-list migration profile compatibility (source batch 32)
-
-CI37849992101 failed before fixture setup on the stale exact253 assertion at
-99c83fe21. Member proof now accepts only complete253 or exact reviewed254:
-filename and literal SHA256 plus actual SQL bytes, retaining source-chain/union
-equality, literal quota253, both183/184 catalogs and all five checkpoints.
-Offline actual-source RED reproduced254!=253; GREEN224/5 PASS. Focused/audit
-receipts remain private; DB/native/genuineCLItypes/checkpoint operations are held
-pending new final-head finite quiet-window authorization. No old99 receipt is
-reheaded. Original1515 clock,31reviews/27targeted/29prior, completionreviews5,
-source30/sync31 and private-wrapper correction stay separate; this is batch32.
-No API/SQL/types/reorder executable change, provider/production/1217 action,
-push or PR-state change. Exact old archive prefix and all prior body counts kept.
-
-## 2026-10-08 — Refresh Clarity teacher-workflow pilot planning
-
-- Rebased the preserved teacher-first Clarity proposal onto current main `e24d591abb53713e01d75a5c95fc418cf57592eb` and reconciled current WorkOS, contextual classroom relationship, retained-tab, Assignment draft initialization, browser-security and first-party exam-telemetry contracts.
-- Added an exact, unsent Microsoft eligibility inquiry. Mixed-age/adult-teacher eligibility and the privacy/legal owner remain unresolved gates; a disclaimer, global teacher role, consent signal or Clarity dashboard filter is not treated as approval.
-- Updated the no-collection boundary for current Consent V2 behavior: declined/unknown Pika participation means the Clarity script is not requested, because Clarity's denied analytics-storage mode still collects cookieless interactions. Future approved use keeps ad storage denied and remains limited to server-admitted adult classroom owners on approved authoring surfaces.
-- Documentation only. No SDK/dependency, Clarity project, tracking key, consent UI, schema/migration, environment, deployment, external inquiry, live data or analytics collection was created or changed. Feature status remains unchanged; draft PR review and all future implementation/pilot gates remain separate.
-- Validation: 39 local document links and 22 existing source/test touchpoints resolve; `git diff --check` and session-log validation pass. The docs-only focused gate passes 13 files / 202 tests using the current-main dependency installation; no package was added or upgraded.
-- Draft PR review accepted one documentation blocker: Clarity tags are session-scoped and repeated values accumulate rather than overwrite. The corrected catalogue reserves tags for session-stable context and uses a finite event-name allowlist for mutable intent/error categories; targeted re-review remains before any readiness decision.
-
-## 2026-10-08 — General Pika AI connector planning
-
-Saved `docs/guidance/pika-ai-connector-plan.md` at baseline e24d591ab: general teacher assistant roadmap, assignment-only private pilot, reusable auth/sanitization/profile/process/persistence contracts, owned paths and acceptance gates. Official Codex/Claude docs checked; connector execution kept separate from embedded subscription permission. One inherited-model read-only native inventory verified; effective model/effort and token attribution unknown, weekly usage46%used, DeepSeek paused. No model call/student egress, grading write, dependency/OAuth activation, feature flag change, migration application, heavy runtime proof or main merge. Next slice is synthetic provider-free preparation/pure validation; draft-only visibility and atomic complete-source/replay persistence require phase1 proof and coordinator-assigned execution slot.
-
 ## 2026-10-08 — Hosted owner SDK shard implementation phase
 
 Recovered delivered proof pilot1541 (original1538 closed), merged local-CI policy1537 and actual maine24d591 without rewriting historical review/checkpoint receipts. Three successful hosted runs37810321964/37831362311/37865407019 show seven established owner proofs consuming1941/2223/2244s of database3849/4338/4930s; browser3579/3911/3598s bounds projected improvement. Timing artifacts retain normal/forced outcomes and52 normal versus1 forced ephemeral checks. These are different revisions, not causal saving or p95 evidence. One bounded Sol/high design worker completed source analysis and owns the workflow/driver/preflight/tests implementation; coordinator owns integration/docs. Move exactly seven unchanged command blocks, keep member/reorder original, hosted independent stack, aggregate gate and complete backward-compatible local database selection. No shared proof state, dependency or application/schema change. Coordinator assigned the first exclusive remote CI slot after focused checks and stable-SHA independent review; main merge, local canonical DB, local-runner activation, production/provider and held1217/privacy scopes remain held. Weekly54% remaining, DeepSeek paused, tokens/active-time unknown. Plan and new-PR review budget recorded in the existing optimization plan; first-pilot counters retained.
@@ -574,3 +547,24 @@ Original13:16:45clock/cumulative11launch/targeted8/fix6inprogress/final1 preserv
 not reset. One proportional independent review follows focused/publication/freeze;
 no new native attempt, sharedlocal249+/prod257+, deployment or activation.
 Weekly27%remaining/ordinaryAllowed; effective/active/token telemetry unknown.
+
+## 2026-10-10 — Fifth learner rehearsal and response-fixture schema correction
+
+ONE approved424 rehearsal completed001–257/history/rollbackACL/genuineCLItypes,
+ACL restoration, real57014 cancellation, three same-attempt CAS checks and ten
+held-lock/race checks; fixture unchanged and zero remaining sessions. Whole
+learner acceptance FAILED at meaningful-response injection: nonexistent response
+question_type column. Exact-owned/global inventory/ports/full canonical/source
+cleanup PASS(cleanupFailures=[]); consumed runner archived inerttxt, all nine
+false/null reviewed hashes restored. Genuinecc966438731 types remain private.
+Private source-only batch7 removes the one invalid column/value; schema-backed
+offline RED1→GREEN29, full73label/168request/336guard driver, materials30/60,
+SDK3+7timing and private tsc PASS. No product SQL/clock/guard expansion or retry.
+Rebase onto4f352b74b retains incoming CI/UI behavior, learner regression/inventory,
+both histories and41 unrelated stashes; no257 numbering collision. Final focused
+and proportional independent delta/base review follow before another exact-source
+native request. Originalclock/workflow waiver/cumulative12launch9target6priorfix/
+1final1initial retained; sharedlocal249+/prod257+/activation/goal holds unchanged.
+Weekly25%remaining; attributable tokens/effective configuration/active time unknown.
+First focused run had2413PASS/one startup-size failure(17001>17000); compacted
+CURRENT without weakening the gate. Corrected full focused result follows.

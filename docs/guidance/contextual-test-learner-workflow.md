@@ -100,6 +100,18 @@ catalog and whole-fixture equality checks still follow it. Offline child mocks
 now reflect the real guard output. No product SQL, clock or rollout gate changes;
 fresh exact-source native acceptance remains required before type installation.
 
+The fifth approved424 rehearsal completed ACL restoration, real cancellation57014,
+held-lock and same-attempt save/submit/history CAS checks, with unchanged fixture
+and no remaining sessions. Whole acceptance still failed: the later meaningful-
+response injection named nonexistent `test_responses.question_type`. The private
+fixture correction removes only that column/value; type derives from its existing
+parent question. A schema-backed offline assertion fails before and passes after
+the correction. Exact-owned/global/canonical/source cleanup passed; the generated
+type artifact remains private until a complete fresh rehearsal succeeds. Approval
+was consumed; source correction/review does not authorize another native attempt.
+Main CI/UI synchronization retains the independent dark Pattern Lab lane and all
+existing database checks; no migration collision or product/UI change is needed.
+
 Migration 257 is provisional until the candidate is frozen and current main is
 reconciled. Predecessor proof profiles must explicitly seal its reviewed
 name/digest/bytes while retaining full catalogs and future-migration refusal.
