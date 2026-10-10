@@ -15,10 +15,30 @@ function combinedBrowserWorkflow(source = workflow()) {
     .replace(/          if \[\[ "\$BROWSER_REQUIRED" == "true" && "\$BROWSER_DARK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
 }
 
+function combinedSdkWorkflow(source = workflow()) {
+  const primary = source.match(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)![0]
+  const secondary = source.match(/^  contextual-test-owner-sdk-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)?.[0]
+  if (!secondary) return source
+  const names = ['Verify isolated contextual Test owner-detail SDK reads', 'Verify isolated contextual Test owner-list SDK reads',
+    'Verify isolated contextual Test owner-draft GET transactions', 'Verify isolated contextual Test owner-draft save transactions',
+    'Verify isolated contextual Test owner creation transactions', 'Verify isolated contextual pristine Test draft discard transactions',
+    'Verify isolated contextual Test owner publication transactions']
+  const blocks = new Map([...[primary, secondary].join('').matchAll(/^      - name: ([^\n]+)\n[\s\S]*?(?=^      - name: |^  [a-z][a-z-]*:|$(?![\s\S]))/gm)]
+    .map(match => [match[1], match[0]]))
+  for (const name of names) if (!blocks.has(name)) throw new Error(`Missing historical fixture profile: ${name}`)
+  const combined = primary.slice(0, primary.indexOf(`      - name: ${names[0]}\n`))
+    + names.map(name => blocks.get(name)!).join('')
+    + primary.slice(primary.indexOf('      - name: Stop ephemeral database\n'))
+  return source.replace(primary, combined).replace(secondary, '')
+    .replace('      - contextual-test-owner-sdk-lifecycle\n', '')
+    .replace('          TEST_OWNER_SDK_LIFECYCLE_RESULT: ${{ needs.contextual-test-owner-sdk-lifecycle.result }}\n', '')
+    .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$TEST_OWNER_SDK_LIFECYCLE_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
+}
+
 // Reconstruct the original three-job layout from the unchanged proof blocks,
 // without depending on Git history being available in a shallow CI checkout.
-function legacyWorkflow() {
-  const source = combinedBrowserWorkflow()
+function legacyWorkflow(input = workflow(), browserSplit = false) {
+  const source = browserSplit ? combinedSdkWorkflow(input) : combinedBrowserWorkflow(combinedSdkWorkflow(input))
   const shard = source.match(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  test-and-build:\n)/m)![0]
   const blocks = new Map([...shard.matchAll(/^      - name: ([^\n]+)\n[\s\S]*?(?=^      - name: |$(?![\s\S]))/gm)]
     .map(match => [match[1], match[0]]))
@@ -96,7 +116,7 @@ describe('local canonical CI', () => {
     const build = job.steps.find(step => step.name === 'Build production bundle')
     expect(build?.env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://placeholder.supabase.co')
     expect(shouldRun(build?.if, false)).toBe(true)
-    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'test-owner-sdk', 'browser', 'browser-dark'])
+    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark'])
   })
 
   it('keeps database selection complete and includes each canonical SDK command once locally', () => {
@@ -104,8 +124,8 @@ describe('local canonical CI', () => {
     const database = selectPlan(jobs, 'database')
     const all = selectPlan(jobs, 'all')
     const sdk = selectPlan(jobs, 'test-owner-sdk')
-    expect(database.map(job => job.lane)).toEqual(['database', 'test-owner-sdk'])
-    expect(sdk.map(job => job.id)).toEqual(['contextual-test-owner-sdk'])
+    expect(database.map(job => job.lane)).toEqual(['database', 'test-owner-sdk', 'test-owner-sdk-lifecycle'])
+    expect(sdk.map(job => job.id)).toEqual(['contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle'])
     expect(new Set(all.map(job => job.id)).size).toBe(all.length)
     for (const profile of ['detail', 'list', 'draft-get', 'draft-save', 'create', 'pristine-discard', 'publication']) {
       const command = `scripts/check-contextual-test-owner-${profile}-lifecycle.ts`
@@ -136,6 +156,65 @@ describe('local canonical CI', () => {
     }
   })
 
+  it.each([false, true])('preserves combined SDK coverage with browser split=%s', browserSplit => {
+    const source = browserSplit ? combinedSdkWorkflow() : combinedBrowserWorkflow(combinedSdkWorkflow())
+    const jobs = extractWorkflow(source)
+    expect(selectPlan(jobs, 'database').map(job => job.lane)).toEqual(['database', 'test-owner-sdk'])
+    expect(selectPlan(jobs, 'test-owner-sdk').map(job => job.lane)).toEqual(['test-owner-sdk'])
+    expect(selectPlan(jobs, 'all').map(job => job.lane)).toEqual(browserSplit
+      ? ['test-build', 'database', 'test-owner-sdk', 'browser', 'browser-dark']
+      : ['test-build', 'database', 'test-owner-sdk', 'browser'])
+    expect(() => selectPlan(jobs, 'test-owner-sdk-lifecycle')).toThrow('no separate test-owner-sdk-lifecycle lane')
+    const sdk = selectPlan(jobs, 'test-owner-sdk')[0]
+    expect(sdk.steps.filter(step => step.run?.includes('--reviewed-head'))).toHaveLength(7)
+  })
+
+  it('retains pre-SDK proof coverage on refs with the current browser split', () => {
+    const jobs = extractWorkflow(legacyWorkflow(workflow(), true))
+    expect(selectPlan(jobs, 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'browser', 'browser-dark'])
+    expect(selectPlan(jobs, 'database')[0].steps.filter(step => /scripts\/check-contextual-test-owner-(?:detail|list|draft-get|draft-save|create|pristine-discard|publication)-lifecycle\.ts/.test(step.run ?? ''))).toHaveLength(7)
+    expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser', 'browser-dark'])
+  })
+
+  it('selects the new explicit partition once and rejects it on pre-SDK refs', () => {
+    const jobs = extractWorkflow(workflow())
+    const lifecycle = selectPlan(jobs, 'test-owner-sdk-lifecycle')
+    expect(lifecycle.map(job => job.id)).toEqual(['contextual-test-owner-sdk-lifecycle'])
+    expect(lifecycle[0].steps.filter(step => step.run?.includes('--reviewed-head')).map(step => step.name)).toEqual([
+      'Verify isolated contextual Test owner-draft GET transactions',
+      'Verify isolated contextual pristine Test draft discard transactions',
+      'Verify isolated contextual Test owner publication transactions',
+    ])
+    expect(() => selectPlan(extractWorkflow(legacyWorkflow()), 'test-owner-sdk-lifecycle')).toThrow('no separate test-owner-sdk-lifecycle lane')
+  })
+
+  it.each([
+    ['missing secondary job', (source: string) => source.replace(/^  contextual-test-owner-sdk-lifecycle:\n[\s\S]*?(?=^  test-and-build:\n)/m, '')],
+    ['renamed secondary job', (source: string) => source.replace('  contextual-test-owner-sdk-lifecycle:\n', '  renamed-sdk-lifecycle:\n')],
+    ['secondary preflight drift', (source: string) => source.replace('--lane test-owner-sdk-lifecycle', '--lane test-owner-sdk')],
+    ['missing secondary proof', (source: string) => source.replaceAll('scripts/check-contextual-test-owner-publication-lifecycle.ts', 'scripts/omitted-proof.ts')],
+    ['unexpected secondary proof', (source: string) => {
+      const start = source.indexOf('  contextual-test-owner-sdk-lifecycle:\n')
+      return source.slice(0, start) + source.slice(start).replace('      - name: Stop ephemeral database\n', '      - name: Unexpected proof\n        run: pnpm exec tsx scripts/check-contextual-test-owner-extra-lifecycle.ts --reviewed-head head\n\n      - name: Stop ephemeral database\n')
+    }],
+    ['duplicate secondary job', (source: string) => {
+      const secondary = source.match(/^  contextual-test-owner-sdk-lifecycle:\n[\s\S]*?(?=^  test-and-build:\n)/m)![0]
+      return source.replace(secondary, secondary + secondary)
+    }],
+    ['wrong owner', (source: string) => {
+      const detail = source.match(/^      - name: Verify isolated contextual Test owner-detail SDK reads\n[\s\S]*?(?=^      - name:)/m)![0]
+      const publication = source.match(/^      - name: Verify isolated contextual Test owner publication transactions\n[\s\S]*?(?=^      - name:)/m)![0]
+      return source.replace(detail, '__DETAIL__').replace(publication, detail).replace('__DETAIL__', publication)
+    }],
+    ['proof before start', (source: string) => {
+      const detail = source.match(/^      - name: Verify isolated contextual Test owner-detail SDK reads\n[\s\S]*?(?=^      - name:)/m)![0]
+      const start = source.indexOf('  contextual-test-owner-sdk:\n')
+      return source.slice(0, start) + source.slice(start).replace(detail, '').replace('      - name: Start ephemeral Supabase and replay migrations\n', detail + '      - name: Start ephemeral Supabase and replay migrations\n')
+    }],
+  ])('rejects damaged SDK partitions: %s', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(workflow()))).toThrow()
+  })
+
   it('clearly rejects an explicit SDK lane for a historical workflow', () => {
     expect(() => selectPlan(extractWorkflow(legacyWorkflow()), 'test-owner-sdk')).toThrow('no separate test-owner-sdk lane')
   })
@@ -149,7 +228,7 @@ describe('local canonical CI', () => {
   })
 
   it('keeps the complete combined browser plan on historical refs with or without the SDK split', () => {
-    for (const source of [combinedBrowserWorkflow(), legacyWorkflow()]) {
+    for (const source of [combinedBrowserWorkflow(), combinedBrowserWorkflow(combinedSdkWorkflow()), legacyWorkflow()]) {
       const jobs = extractWorkflow(source)
       expect(selectPlan(jobs, 'browser').map(job => job.lane)).toEqual(['browser'])
       expect(selectPlan(jobs, 'browser')[0].steps.find(step => step.name === 'Run combined browser contracts')?.run).toBe('pnpm e2e:ci')
@@ -271,6 +350,7 @@ describe('local canonical CI', () => {
     expect(parseArguments(['--ref', 'HEAD']).ref).toBe('HEAD')
     expect(parseArguments(['--lane', 'test-owner-sdk', '--dry-run']).lane).toBe('test-owner-sdk')
     expect(parseArguments(['--lane', 'browser-dark', '--dry-run']).lane).toBe('browser-dark')
+    expect(parseArguments(['--lane', 'test-owner-sdk-lifecycle', '--dry-run']).lane).toBe('test-owner-sdk-lifecycle')
     for (const args of [['--lane', 'unknown'], ['--ref', 'main'], ['--ack=YES'], ['--lane'], ['--unexpected']]) expect(() => parseArguments(args)).toThrow()
   })
 
@@ -287,7 +367,7 @@ describe('local canonical CI', () => {
     } finally { rmSync(directory, { recursive: true, force: true }) }
   })
 
-  it.each(['database', 'test-owner-sdk', 'browser', 'browser-dark'].flatMap(lane =>
+  it.each(['database', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark'].flatMap(lane =>
     ['refusal', 'partial-start', 'exception', 'interrupted', 'cleanup-failure', 'unconfirmed-group'].map(mode => [lane, mode])))(
     'contains %s cleanup during %s without executing Docker', async (lane, mode) => {
       const directory = mkdtempSync(join(tmpdir(), 'pika-ci-run-test-'))

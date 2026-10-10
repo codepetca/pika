@@ -21,35 +21,50 @@ function jobSource(workflow: string, id: string) {
   return workflow.split(`  ${id}:\n`)[1]?.split(/\n  [a-z][a-z-]*:\n/)[0] ?? ''
 }
 
-function runGate(overrides: Record<string, string> = {}) {
+function runGate(overrides: Record<string, string | undefined> = {}) {
   const gate = jobSource(readFileSync(workflowPath, 'utf8'), 'pr-gate')
   const script = gate.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n')
   return spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script], {
     encoding: 'utf8',
     env: { PATH: process.env.PATH, CI_EVENT_ELIGIBLE: 'true', CLASSIFY_RESULT: 'success',
       TEST_BUILD_RESULT: 'success', TEST_BUILD_REQUIRED: 'true', DATABASE_REQUIRED: 'true',
-      DATABASE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', BROWSER_REQUIRED: 'false',
+      DATABASE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'success', BROWSER_REQUIRED: 'false',
       BROWSER_RESULT: 'skipped', BROWSER_DARK_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
   })
 }
 
 describe('CI workflow', () => {
-  it('moves only the seven established owner profiles into a separately hosted database-selected shard', () => {
+  it('partitions all seven established owner profiles into two isolated database-selected jobs', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const jobs = extractWorkflow(workflow)
     const shard = jobs['contextual-test-owner-sdk']
+    const lifecycle = jobs['contextual-test-owner-sdk-lifecycle']
     const database = jobs['architecture-database-contracts']
-    const body = jobSource(workflow, shard.id)
-    expect(body).toContain('needs: classify-changes\n')
-    expect(body).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
-    expect(body).toContain('runs-on: ubuntu-latest')
-    expect(body).not.toContain('heavy_runner')
-    expect(shard.steps.filter(step => step.run?.includes('--reviewed-head')).map(step => step.name))
-      .toEqual(ownerProfiles.map(([, name]) => name))
+    const primaryProfiles = new Set(['detail', 'list', 'draft-save', 'create'])
+    for (const job of [shard, lifecycle]) {
+      const body = jobSource(workflow, job.id)
+      expect(body).toContain('needs: classify-changes\n')
+      expect(body).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
+      expect(body).toContain('runs-on: ubuntu-latest')
+      expect(body).not.toContain('heavy_runner')
+      expect(job.steps.filter(step => step.run?.includes('--reviewed-head')).map(step => step.name))
+        .toEqual(ownerProfiles.filter(([profile]) => primaryProfiles.has(profile) === (job === shard)).map(([, name]) => name))
+      expect(job.steps.find(step => step.uses === 'supabase/setup-cli@v1')?.with.version).toBe('2.103.0')
+      expect(job.steps.find(step => step.uses === 'actions/setup-node@v6')?.with['node-version']).toBe("'24'")
+      expect(job.steps.find(step => step.uses === 'pnpm/action-setup@v6')?.with.version).toBe('10.25.0')
+      expect(job.steps.find(step => step.name === 'Install dependencies')?.run).toBe('pnpm install --frozen-lockfile')
+      expect(job.steps.find(step => step.name === 'Verify managed-storage migration lineage')?.run).toBe('pnpm run check:managed-storage-lineage')
+      expect(job.steps.filter(step => step.id === 'supabase-start')).toHaveLength(1)
+      expect(job.steps.filter(step => step.run === 'supabase stop --no-backup')).toHaveLength(1)
+    }
+    expect(lifecycle.steps.some(step => step.uses === 'actions/upload-artifact@v7')).toBe(false)
     for (const [profile, name] of ownerProfiles) {
       expect(workflow.split(`      - name: ${name}\n`)).toHaveLength(2)
       expect(database.steps.some(step => step.name === name)).toBe(false)
-      const step = shard.steps.find(step => step.name === name)!
+      const job = primaryProfiles.has(profile) ? shard : lifecycle
+      const step = job.steps.find(step => step.name === name)!
+      expect(job.steps.indexOf(step)).toBeGreaterThan(job.steps.findIndex(step => step.id === 'supabase-start'))
+      expect(job.steps.indexOf(step)).toBeLessThan(job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
       const variable = `test_owner_${profile.replaceAll('-', '_')}`
       expect(step.run).toContain(`${variable}_head=$(git rev-parse HEAD)`)
       expect(step.run).toContain(`pnpm exec tsx scripts/check-contextual-test-owner-${profile}-lifecycle.ts --reviewed-head "$${variable}_head" --mode normal`)
@@ -64,17 +79,18 @@ describe('CI workflow', () => {
     }
     for (const name of ['Verify isolated contextual Test member-list SDK reads', 'Verify isolated contextual Test owner reorder transactions']) {
       expect(database.steps.filter(step => step.name === name)).toHaveLength(1)
-      expect(shard.steps.some(step => step.name === name)).toBe(false)
+      for (const job of [shard, lifecycle]) expect(job.steps.some(step => step.name === name)).toBe(false)
     }
     const upload = shard.steps.find(step => step.name === 'Upload sanitized Test proof timings')!
     expect(database.steps.some(step => step.name === upload.name)).toBe(false)
     expect(workflow.split('      - name: Upload sanitized Test proof timings\n')).toHaveLength(2)
     expect(shard.steps.indexOf(upload)).toBeGreaterThan(shard.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
     const gate = jobSource(workflow, 'pr-gate')
-    for (const dependency of ['classify-changes', 'architecture-database-contracts', 'contextual-test-owner-sdk', 'test-and-build', 'browser-experience-matrix', 'browser-experience-dark']) {
+    for (const dependency of ['classify-changes', 'architecture-database-contracts', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'test-and-build', 'browser-experience-matrix', 'browser-experience-dark']) {
       expect(gate).toContain(`      - ${dependency}\n`)
     }
     expect(gate).toContain('TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}')
+    expect(gate).toContain('TEST_OWNER_SDK_LIFECYCLE_RESULT: ${{ needs.contextual-test-owner-sdk-lifecycle.result }}')
     expect(gate).toContain('DATABASE_REQUIRED: ${{ needs.classify-changes.outputs.run_database }}')
   })
 
@@ -82,6 +98,12 @@ describe('CI workflow', () => {
     const gate = runGate({ TEST_OWNER_SDK_RESULT: result })
     expect(gate.status).toBe(1)
     expect(gate.stdout).toContain('Contextual Test Owner SDK was required but ended:')
+  })
+
+  it.each(['failure', 'cancelled', 'skipped', '', undefined])('rejects a selected SDK lifecycle partition ending %s in the actual aggregate gate', result => {
+    const gate = runGate({ TEST_OWNER_SDK_LIFECYCLE_RESULT: result })
+    expect(gate.status).toBe(1)
+    expect(gate.stdout).toContain('Contextual Test Owner SDK Lifecycle was required but ended:')
   })
 
   it.each(['failure', 'cancelled', 'skipped', ''])('rejects a selected dark browser partition ending %s in the actual gate', result => {
@@ -126,7 +148,7 @@ describe('CI workflow', () => {
     expect(runGate().status).toBe(0)
     for (const [mode, required] of [['docs-only', 'false'], ['production-promotion', 'true'], ['application-test-build', 'true']]) {
       expect(runGate({ CI_MODE: mode, TEST_BUILD_REQUIRED: required, DATABASE_REQUIRED: 'false',
-        DATABASE_RESULT: 'skipped', TEST_OWNER_SDK_RESULT: 'skipped' }).status).toBe(0)
+        DATABASE_RESULT: 'skipped', TEST_OWNER_SDK_RESULT: 'skipped', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'skipped' }).status).toBe(0)
     }
     expect(runGate({ CI_MODE: 'full', BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success' }).status).toBe(0)
   })
@@ -485,7 +507,7 @@ describe('CI workflow', () => {
     expect(workflow).toContain('Browser lane setup evidence')
     expect(workflow).toContain('(false means prefix restore or miss)')
     expect(workflow).toContain('Supabase remains a fresh ephemeral start and migration replay.')
-    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(4)
+    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(5)
   })
 
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 describe('publication isolated CI closure', () => {
   it('runs normal and both forced-cleanup modes serially with exact receipts and unchanged budgets', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    const job = workflow.split('  contextual-test-owner-sdk:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const job = workflow.split('  contextual-test-owner-sdk-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const primary = workflow.split('  contextual-test-owner-sdk:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     const database = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     expect(job).toBeDefined()
     expect(database).toContain('run: pnpm run db:types:check')
@@ -13,6 +14,7 @@ describe('publication isolated CI closure', () => {
     const name = '      - name: Verify isolated contextual Test owner publication transactions'
     expect(workflow.split(name)).toHaveLength(2)
     expect(job!.split(name)).toHaveLength(2)
+    expect(primary).not.toContain(name)
     const step = job!.split(name)[1].split('      - name:')[0]
     expect(step).toContain('test_owner_publication_head=$(git rev-parse HEAD)')
     expect(step).toContain('pnpm exec tsx scripts/check-contextual-test-owner-publication-lifecycle.ts --reviewed-head "$test_owner_publication_head" --mode normal')
