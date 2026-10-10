@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Dashboard recovery refinement
-
-Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
-
-## 2026-10-08 — Public reading stress fixture
-
-- Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
-- Native 56-case 320/390 light/dark normal/reduced witness: no document overflow, final content reachable; Actual title clipping measured and left for coordinator acceptance. Artifacts: product-fluidity/public-reading-stress-fixture under the Oct5 visualization workspace.
-- Focused semantic gate/parity/sparse coverage and architecture/UI/design/audit pass. Coordinator owns review/PR and family acceptance; no tracker promotion.
-
 ## 2026-10-08 — Course Guide full title identity
 
 - Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
@@ -395,3 +385,27 @@ only, no DB/Docker/lease/application authority. Focused gate and targeted review
 follow on a frozen correction; goal/batch2 not complete.
 Final focused gate PASS743tests/69files plus architecture/UI/design/TypeScript/
 lint; changed-test audit PASS. Native replay of the correction still unapproved.
+
+## 2026-10-10 — Owner workflow approved replay and SQL assertion repair
+
+Direct exact approval covered one fresh f84dff650 replay001–256. Root inspected
+enabledhelper42f1723/source+manifest/config/fullcanonical/global741-resource
+baseline receipt before Sol/high worker's one run. Complete migrationhistory PASS;
+rollbackSQL failed193: bare documents conflicted with its PL/pgSQL variable. SDK/
+typegen not reached. No source/helper repair or retry during run; exactowned
+teardown/globalclosure/ports/fullcanonical rows+168controls+cron/source PASS,
+cleanupFailures empty,41.299s; lease released. Receipt private/tmp/pika-owner-
+workflow-legacy-proof.WYgJD4/result.json. Earlier failed/successful receipts retained.
+Root qualified assertion columns, sourceguard RED→GREEN8/8, changedtestaudit PASS.
+Rebased clean feature onto b8335397b (#1556 only CI SDKpartition); one archive
+marker conflict resolved preserving both sides. Fullbody/per-file multiset:
+f84 source2782/main2774 missing0; runtime/schema diff vs f84 empty, migration256
+unchanged/no collision; priorstash0 retained, no new stash needed for clean rebase.
+Focused checks/targeted source+CI integration review and fresh exact native approval
+are next; no ready/fullCI/merge/nativeexit claim. Ledger5completedreviewturns/
+fullwave1/remediation3/parserrepair1; task-stop waiver retained without reset.
+Weekly34%remaining, worker effectiveconfig/tokens/active time unknown; native41s
+separate from review/CI time. Sharedlocal/prod249+, promotion/account/billing/
+provider/runner/admission/home/quota/cutover holds persist. Overallgoal incomplete.
+Post-rebase focused gate PASS774tests/69files plus architecture/UI/design/types/
+lint. The increase includes incoming CIpartition tests; no native success inferred.

@@ -532,6 +532,23 @@ remediation batches2, parser repair1 separately; full reviewers reported roughly
 7minutes each, exact elapsed/effective configuration/tokens unknown. Owner's
 task-stop waiver and all consequential-action holds persist without counter reset.
 
+After direct fresh approval, the single `f84dff650` disposable replay completed
+001–256 with the exact migration manifest, but the expanded rollback script failed
+at its final substitution assertion: unqualified `documents` conflicted with the
+PL/pgSQL variable. SDK and type-generation stages did not execute. Exact owned
+teardown/global741-resource closure/ports and complete canonical row/control/cron
+equality passed (41.299seconds); receipt:
+`/private/tmp/pika-owner-workflow-legacy-proof.WYgJD4/result.json`. No hidden retry.
+Coordinator qualified `test.documents` and `test.id`, with source guard RED→GREEN8/8;
+the migration and runtime are unchanged. Rebase onto `b8335397b` (#1556 CI-only SDK
+partition) retained all runtime/schema bytes, both history-body multisets and the
+existing owner SQL contract registration. No migration collision or renumbering.
+Targeted final review/checks and a freshly approved exact-source isolated replay
+remain required; prior full-chain replay does not establish SDK/type/native exit.
+Ledger5 completed review turns/fullwave1/remediation3/parserrepair1; existing
+waiver retained. The consumed permission does not extend to retry/shared local or
+production application, promotion or activation.
+
 ### Execution checkpoint — 2026-10-08
 
 The owner requested orchestration of the remaining goal in this coordinator.
