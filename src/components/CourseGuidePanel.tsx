@@ -484,6 +484,7 @@ export function CourseGuidePanel({
 
       <CourseGuideOptionsDialog
         isOpen={optionsOpen && currentOwnerWork}
+        exitMotion={currentOwnerWork ? 'opacity' : 'none'}
         saving={optionsSaving}
         error={optionsError}
         published={draftOptions.published}

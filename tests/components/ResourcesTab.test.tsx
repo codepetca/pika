@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render as renderTestingLibrary, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render as renderTestingLibrary, screen, waitFor, within } from '@testing-library/react'
 import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResourcesTab'
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
@@ -164,6 +164,12 @@ beforeEach(() => {
   invalidateCachedJSONMatching('public-course-guide:')
   invalidateCachedJSONMatching('classroom-course-guide:')
   vi.restoreAllMocks()
+  const computedStyle = window.getComputedStyle.bind(window)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+    const style = computedStyle(element)
+    style.setProperty('--motion-duration-standard', '200ms')
+    return style
+  })
 })
 
 describe('Course Guide classroom tabs', () => {
@@ -418,12 +424,13 @@ describe('Course Guide classroom tabs', () => {
     fireEvent.change(screen.getByLabelText('Public page address'), { target: { value: 'denied-options' } })
     view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
-    expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
+    const retiringOptions = screen.getByRole('dialog', { name: 'Guide options' })
     await act(async () => { refresh.resolve(guideResponse({ error: 'Access revoked' }, status)) })
     expect(screen.queryByTestId('course-guide-view')).toBeNull()
     expect(screen.queryByRole('textbox', { name: 'Course guide Markdown' })).toBeNull()
     expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
+    expect(retiringOptions).not.toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Course guide unavailable')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
@@ -452,6 +459,7 @@ describe('Course Guide classroom tabs', () => {
     selectCourseGuideAction('Guide options')
     view.rerender(guideElement({ ...classroom, updated_at: '2026-04-14T00:01:00.000Z' }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    const retiringOptions = screen.getByRole('dialog', { name: 'Guide options' })
     const nextClassroom = boundary === 'classroom' ? { ...classroom, id: 'classroom-2', title: 'Next classroom' } : classroom
     const nextRole = boundary === 'role' ? 'student' : 'teacher'
     view.rerender(guideElement(nextClassroom, nextRole))
@@ -460,6 +468,7 @@ describe('Course Guide classroom tabs', () => {
     expect(screen.queryByTestId('course-guide-view')).toBeNull()
     expect(screen.queryByRole('textbox', { name: 'Course guide Markdown' })).toBeNull()
     expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull()
+    expect(retiringOptions).not.toBeInTheDocument()
     await act(async () => { nextRead.resolve(guideResponse({ guide: { ...guide, classroom: { title: 'Current owner guide' } } })) })
     const currentGuide = await screen.findByTestId('course-guide-view')
     await act(async () => { oldRead.resolve(guideResponse({ error: 'Previous owner denial' }, 403)) })
@@ -655,6 +664,65 @@ describe('Course Guide classroom tabs', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
+  it('retains a passive options draft on cancel and reopens the saved parent draft immediately', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Guide options')
+    const panel = screen.getByRole('dialog', { name: 'Guide options' })
+    const slug = within(panel).getByLabelText('Public page address')
+    const save = within(panel).getByRole('button', { name: 'Save options' })
+    const importButton = within(panel).getByRole('button', { name: 'Import curriculum' })
+    fireEvent.change(slug, { target: { value: 'outgoing-draft' } })
+    vi.useFakeTimers()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(panel).toBeInTheDocument()
+    expect(slug).toHaveValue('outgoing-draft')
+    expect(panel.parentElement).toHaveAttribute('aria-hidden', 'true')
+    expect(panel.parentElement!.inert).toBe(true)
+    fireEvent.click(save)
+    fireEvent.click(importButton)
+    fireEvent.change(slug, { target: { value: 'blocked-draft' } })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    try {
+      selectCourseGuideAction('Guide options')
+      expect(screen.getByLabelText('Public page address')).toHaveValue('test-classroom')
+      act(() => vi.advanceTimersByTime(200))
+      expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('skips options retention for reduced motion and keeps busy dismissal guarded', async () => {
+    const write = deferred<Response>()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide })).mockReturnValueOnce(write.promise)
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      media: query, matches: query === '(prefers-reduced-motion: reduce)',
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    }) as unknown as MediaQueryList)
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Guide options')
+    const first = screen.getByRole('dialog', { name: 'Guide options' })
+    fireEvent.click(within(first).getByRole('button', { name: 'Cancel' }))
+    expect(first).not.toBeInTheDocument()
+    selectCourseGuideAction('Guide options')
+    fireEvent.click(screen.getByRole('button', { name: 'Save options' }))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close', exact: true }))
+    expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    await act(async () => { write.resolve(guideResponse({ error: 'Save failed' }, 500)) })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Save failed')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    selectCourseGuideAction('Guide options')
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByLabelText('Public page address')).toHaveValue('test-classroom')
+  })
+
   it('owns visibility and public sharing in the accessible Guide options dialog', async () => {
     const updatedClassroom = {
       ...classroom,
@@ -707,10 +775,17 @@ describe('Course Guide classroom tabs', () => {
     render(<TeacherResourcesTab classroom={classroom} />)
     await screen.findByTestId('course-guide-view')
     selectCourseGuideAction('Guide options')
+    const outgoingOptions = screen.getByRole('dialog', { name: 'Guide options' })
     fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
 
-    expect(screen.getByRole('dialog', { name: 'Import curriculum' })).toBeInTheDocument()
+    const activeImport = screen.getByRole('dialog', { name: 'Import curriculum' })
+    expect(outgoingOptions).toBeInTheDocument()
+    expect(outgoingOptions.parentElement!.inert).toBe(true)
+    expect(activeImport).toContainElement(document.activeElement as HTMLElement)
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(activeImport).not.toBeInTheDocument()
+    expect(outgoingOptions).not.toContainElement(document.activeElement as HTMLElement)
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
 
     selectCourseGuideAction('Edit')
     fireEvent.change(screen.getByRole('textbox', { name: 'Course guide' }), {

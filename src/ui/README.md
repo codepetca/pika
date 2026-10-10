@@ -157,6 +157,8 @@ An opacity exit retains the last committed open presentation, including its Reac
 
 The classroom join QR dialog and classroom mobile navigation explicitly opt into this fade after descendant lifetime review. `LeftSidebar` keeps its immediate default and accepts `mobileChildren` for an audited mobile presentation; classroom navigation passes `NavItems expanded={true}` so labels remain stable while its logically closed drawer fades. Desktop rail expansion remains independent. `RightSidebar` and live editor drawers retain immediate removal. See the [modal and drawer consistency brief](../../docs/guidance/ui/changes/modal-drawer-closing-consistency.md).
 
+Guide options and Save Classroom as Course Blueprint also opt in for ordinary dismissal. Their parents select immediate removal when the current guide owner/access or settings form generation changes, preserving previous-owner clearing. Parent discard, busy guards, import replacement and success navigation remain immediate. See the [form dialog closing brief](../../docs/guidance/ui/changes/form-dialog-closing-consistency.md).
+
 
 ### QrCode
 

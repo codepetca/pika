@@ -932,6 +932,7 @@ export function TeacherSettingsTab({
 
             <DialogPanel
               isOpen={displayedShowCreateBlueprintDialog}
+              exitMotion={formStateReady ? 'opacity' : 'none'}
               onClose={closeCreateBlueprintDialog}
               maxWidth="max-w-xl"
               className="p-6"

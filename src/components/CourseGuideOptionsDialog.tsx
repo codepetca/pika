@@ -14,6 +14,7 @@ const VISIBILITY_OPTIONS: Array<[keyof ActualCourseSiteConfig, string]> = [
 
 type CourseGuideOptionsDialogProps = {
   isOpen: boolean
+  exitMotion?: 'none' | 'opacity'
   saving: boolean
   error: string
   published: boolean
@@ -31,6 +32,7 @@ type CourseGuideOptionsDialogProps = {
 
 export function CourseGuideOptionsDialog({
   isOpen,
+  exitMotion = 'none',
   saving,
   error,
   published,
@@ -51,6 +53,7 @@ export function CourseGuideOptionsDialog({
   return (
     <ContentDialog
       isOpen={isOpen}
+      exitMotion={exitMotion}
       onClose={saving ? () => {} : onClose}
       title="Guide options"
       subtitle="Choose the high-level course orientation students see and whether it is public."
