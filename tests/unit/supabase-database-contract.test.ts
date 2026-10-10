@@ -10,6 +10,16 @@ function readRepoFile(path: string): string {
 }
 
 describe('generated Supabase database contract', () => {
+  it('refines only the owner-workflow parent nullability used by inspect', () => {
+    type RawArgs = GeneratedDatabase['public']['Functions']['test_owner_workflow_v1']['Args']
+    type Args = Database['public']['Functions']['test_owner_workflow_v1']['Args']
+    expectTypeOf<Args['p_classroom_id']>().toEqualTypeOf<string | null>()
+    expectTypeOf<Omit<Args, 'p_classroom_id'>>().toEqualTypeOf<Omit<RawArgs, 'p_classroom_id'>>()
+    expect(readRepoFile('src/types/database.ts')).toContain(
+      "Replace<GeneratedFunctions['test_owner_workflow_v1']['Args']"
+    )
+  })
+
   it('refines only the generated draft-save expected version nullability', () => {
     type RawArgs = GeneratedDatabase['public']['Functions']['finish_test_draft_save_for_owner_v1']['Args']
     type Args = Database['public']['Functions']['finish_test_draft_save_for_owner_v1']['Args']

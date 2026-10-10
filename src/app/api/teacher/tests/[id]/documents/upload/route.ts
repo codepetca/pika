@@ -14,6 +14,10 @@ import {
 import { validateStoredTestDocumentImage } from '@/lib/server/test-document-image-validation'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { authorizeSharedTestDetailReadActor } from '@/lib/server/contextual-test-detail-read'
+import { reserveContextualTestOwnerDocument, finalizeContextualTestOwnerDocument, cancelContextualTestOwnerDocument } from '@/lib/server/contextual-test-owner-materials'
+import { resolveContextualTestOwnerParams } from '@/lib/validations/contextual-test-owner-workflow'
+import { contextualTestOwnerQuerySchema, contextualTestOwnerReservationSchema, contextualTestOwnerFinalizationSchema, contextualTestOwnerCancellationSchema, readContextualTestOwnerBody, TEST_OWNER_WORKFLOW_DEADLINE_MS } from '@/lib/validations/contextual-test-owner-workflow'
 import {
   TEST_DOCUMENT_MAX_SIZE,
   isAllowedTestDocumentType,
@@ -53,6 +57,13 @@ function isTestDocumentImageType(contentType: string): contentType is 'image/png
 }
 
 export const POST = withErrorHandler('ReserveTeacherTestDocument', async (request, context) => {
+  const shared = await authorizeSharedTestDetailReadActor()
+  if (shared.mode === 'shared') {
+    const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
+    const { testId } = contextualTestOwnerQuerySchema.parse({ testId: (await resolveContextualTestOwnerParams(request, context.params, deadline)).id })
+    const body = contextualTestOwnerReservationSchema.parse(await readContextualTestOwnerBody(request, deadline))
+    return NextResponse.json(await reserveContextualTestOwnerDocument({ supabase: getServiceRoleClient(), actorId: shared.user.id, testId, body, deadline, signal: request.signal }))
+  }
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
@@ -101,6 +112,13 @@ export const POST = withErrorHandler('ReserveTeacherTestDocument', async (reques
 })
 
 export const PATCH = withErrorHandler('FinalizeTeacherTestDocument', async (request, context) => {
+  const shared = await authorizeSharedTestDetailReadActor()
+  if (shared.mode === 'shared') {
+    const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
+    const { testId } = contextualTestOwnerQuerySchema.parse({ testId: (await resolveContextualTestOwnerParams(request, context.params, deadline)).id })
+    const body = contextualTestOwnerFinalizationSchema.parse(await readContextualTestOwnerBody(request, deadline))
+    return NextResponse.json(await finalizeContextualTestOwnerDocument({ supabase: getServiceRoleClient(), actorId: shared.user.id, testId, body, deadline, signal: request.signal }))
+  }
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
@@ -166,7 +184,15 @@ export const PATCH = withErrorHandler('FinalizeTeacherTestDocument', async (requ
   })
 })
 
-export const DELETE = withErrorHandler('CancelTeacherTestDocument', async (request) => {
+export const DELETE = withErrorHandler('CancelTeacherTestDocument', async (request, context) => {
+  const shared = await authorizeSharedTestDetailReadActor()
+  if (shared.mode === 'shared') {
+    const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
+    const { testId } = contextualTestOwnerQuerySchema.parse({ testId: (await resolveContextualTestOwnerParams(request, context.params, deadline)).id })
+    const body = contextualTestOwnerCancellationSchema.parse(await readContextualTestOwnerBody(request, deadline))
+    await cancelContextualTestOwnerDocument({ supabase: getServiceRoleClient(), actorId: shared.user.id, testId, body, deadline, signal: request.signal })
+    return new NextResponse(null, { status: 204 })
+  }
   const user = await requireRole('teacher')
   const input = testDocumentCancellationSchema.parse(await request.json())
   const supabase = getServiceRoleClient()

@@ -25,6 +25,9 @@ import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
 import { authorizeSharedTestDetailReadActor, readContextualTestDetail } from '@/lib/server/contextual-test-detail-read'
 import { contextualTestDetailQuerySchema } from '@/lib/validations/contextual-test-detail-read'
+import { patchContextualTestOwnerMetadata } from '@/lib/server/contextual-test-owner-materials'
+import { resolveContextualTestOwnerParams } from '@/lib/validations/contextual-test-owner-workflow'
+import { contextualTestOwnerQuerySchema, contextualTestOwnerMetadataSchema, readContextualTestOwnerBody, TEST_OWNER_WORKFLOW_DEADLINE_MS } from '@/lib/validations/contextual-test-owner-workflow'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -189,6 +192,13 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
 
 // PATCH /api/teacher/tests/[id] - Update test title/status/show_results
 export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context) => {
+  const shared = await authorizeSharedTestDetailReadActor()
+  if (shared.mode === 'shared') {
+    const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
+    const { testId } = contextualTestOwnerQuerySchema.parse({ testId: (await resolveContextualTestOwnerParams(request, context.params, deadline)).id })
+    const body = contextualTestOwnerMetadataSchema.parse(await readContextualTestOwnerBody(request, deadline))
+    return NextResponse.json(await patchContextualTestOwnerMetadata({ supabase: getServiceRoleClient(), actorId: shared.user.id, testId, body, deadline, signal: request.signal }))
+  }
   const user = await requireRole('teacher')
   const { id } = await context.params
   const body = await request.json()

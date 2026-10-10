@@ -11,44 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 Join retry focus continuity
-
-Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
-
-## 2026-10-08 — Entry recovery continuity
-
-Classic Login native held401 baseline lost activation to BODY, omitted busy state and shifted error geometry. Reused existing reserved FormField slot and renamed the unchanged reset feature request owner to useAuthFormContinuity for genuine third Login adoption. Failed requests preserve nodes/drafts/caret and eligible focus; explicit Forgot/Sign up or unmount retires obsolete results. Signup footer Login now canonical ghost/sm44px, retaining continuation. Existing Magic/session-reason/WorkOS/dev branches and accepted Join source untouched. Focused semantic and selected native regression added; representative desktop/mobile native smoke passed before full combined32case verification. Coordinator owns actual-main binding/review/CI, no worker push/PR. External final execution receipt binds source/dependencies/headless shell/ffmpeg and natural media.
-
-## 2026-10-08 — Signup owner continuity
-
-Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
-
-## 2026-10-08 — Dashboard recovery refinement
-
-Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
-
-## 2026-10-08 — Public reading stress fixture
-
-- Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
-- Native 56-case 320/390 light/dark normal/reduced witness: no document overflow, final content reachable; Actual title clipping measured and left for coordinator acceptance. Artifacts: product-fluidity/public-reading-stress-fixture under the Oct5 visualization workspace.
-- Focused semantic gate/parity/sparse coverage and architecture/UI/design/audit pass. Coordinator owns review/PR and family acceptance; no tracker promotion.
-
-## 2026-10-08 — Course Guide full title identity
-
-- Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
-- Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
-- Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.
-
-## 2026-10-08 — Course Guide reading and platform snapshot acceptance
-
-Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
-
-## 2026-10-08 — Student attendance confirmation
-
-Owner: current task; branch codex/attendance-success-classroom, base 47659857d. Success and duplicate scans show the confirmed classroom title and plain America/Toronto time beneath the success heading; explanatory subtitles are hidden only for positive results. Classroom metadata is read before the attendance command and returned only on success. No migrations, dependencies, permission or attendance-recording rules changed.
-UI brief: reuse StudentAttendanceCheckIn card/green Lucide check/return link; extend attendance result with optional classroomName. Reference: existing scan screen plus executable Pattern Lab statuses/Card. Student desktop1440×900/mobile390×844, light/dark, loading/success/duplicate/closed/error; teacher n/a (student-only route). No new shared pattern or composite interaction; no promotion required.
-Evidence: output/playwright/attendance-success-mobile.png (9:06 AM), Pattern Lab status reference, controlled native experience-matrix captures. Component/server/API43 PASS; local classroom-title query PASS; focused362 and UI/design/architecture/TypeScript/lint PASS on implementation tree. Final test-only checks passed. Initial independent Sol/medium full-diff review (4233451f6) found one accepted P2: the new 200-character title limit rejected valid saved classroom names. Remediation removes new naming constraints and adds >200-character and whitespace-compatible server coverage plus long-name component coverage; final focused checks and targeted re-review pending. Review budget: launches1/waves1/fix batches1, reviewer elapsed estimated5min, exact timing/tokens unknown. Weekly usage remaining72%; direct implementation, review model/effort to be recorded in PR receipt; coordinator tokens/active time unknown. One browser fixture placement corrected before final capture, no source rework.
-
 ## 2026-10-08 — Attendance failure classroom context
 
 Owner request extends PR1533: failure header shows the classroom name and omits the generic retry paragraph; retain failure heading/Try again and domain-specific recovery explanations. Reuse the existing scan card and Pattern Lab status/Card reference; extend the server-page/client contract with optional initial classroomName. Student-only (teacher n/a), desktop1440×900/mobile390×844, light/dark; loading/success/duplicate/closed/error. No new shared pattern, composite interaction or experimental promotion.
@@ -291,6 +253,190 @@ Hosted SDK slice delivered unchanged via1550/main763edbb;1546closed as delivered
 
 User authorized SDK speed work after browser PR1554 landed. Split the unchanged seven owner proof blocks into two isolated hosted jobs (detail/list/draft-save/create; draft-get/discard/publication), preserving all21 fresh modes, reviewed migration replay and exact failure/cleanup receipts. PR Gate requires both database-selected SDK results. Local database/SDK aliases retain complete serial coverage, including historical refs. No app/schema/harness/dependency changes or local DB mutation. GPT-6.1 Sol/high design verified; target169tests/5files PASS, raw proof-block hashes equal base e405fbfab. Focused605tests/54files and all static checks PASS; audit8changedTS PASS; independent fixed-SHA review and exact-head native CI pending. Latest unsplit SDK38m31/database36m46; projected SDK~21m14, full-gate gain~1m45 only, extra setup consumption to measure. Private receipts: ~/.codex/artifacts/pika/ci-sdk-optimization/.
 
+## 2026-10-09 — Classroom goal completion strategy
+
+Owner requested updating the goal to keep the architecture and simplify delivery,
+then orchestrating remaining work. Roadmap's Oct9 strategy supersedes stale
+component labels: member list delivered1541, reorder1543; batches2–5 incomplete.
+One bounded read-only Sol/high worker maps the next coherent Test workflow on
+763edbb18; coordinator owns this branch, plan, integration and acceptance. Weekly
+remaining45%; effective worker model, attributable usage and active time unknown.
+No new audit, rollout switch or billing work. Existing249+/activation/production
+holds and review-counter waiver retained. Goal tool is status-only and still
+reports paused; no false completion/replacement or unsupported resume attempted.
+Worktree creation succeeded but attachment retry hit the existing100-item cap;
+continue at its returned path without deleting attachments or duplicating it.
+Accepted source map; same Sol/high worker now owns dormant Test metadata/material
+and selected-access implementation (no Git/PR/shared DB writes). Coordinator
+verified RPC110 metadata support and244 conflict-before-inner-check dependency.
+Docs focused541/54 and startup79 PASS; one five-character startup-budget overflow
+corrected, no contract weakening. Frozen dependency install reused existing683
+packages; no lockfile/dependency change. Source delivery/independent review/native
+acceptance and main merge remain pending; no phase-exit claim.
+
+## 2026-10-09 — Owner Test workflow verification preparation
+
+Owner requested verification/review/CI/main merge until intervention. Worker source
+delivered eight method boundaries, service-only RPC and rollback fixture; worker167
+affected checks, no native/type generation/CI acceptance. Coordinator93/6 affected
+and29/2 post-reconcile PASS; architecture PASS. TypeScript has only the expected
+missing genuine test_owner_workflow_v1 signature; never synthesize generated types.
+Main ff3685d3e allocated255 to Test return-to-draft; rebase preserved incoming UI,
+source guard/hash and complete history, renamed own SQL unchanged to256. Safety
+stash retained after the resolved publication-test conflict; no reset/overwrite.
+Exact disposable001–256 replay permission is required; earlier255 question is
+superseded. Shared249+/production/activation holds intact, no PR readiness or merge.
+Weekly remaining39%; review launches0 for this workflow, counters not reset from
+other delivered scopes. Runtime/effective model and task tokens unknown.
+
+## 2026-10-09 — Owner Test workflow disposable replay failure
+
+Direct owner approval covered one fresh isolated001–256 replay from1dc0891e7.
+Sol/high native worker used reviewed existing platform/type helpers and a private
+runner; coordinator corrected a fixture document-ID mismatch before dispatch.
+The single replay failed at256 with SQLSTATE42601 (unparenthesized CASE in IF,
+inner THEN).21.251s; no SQL fixture/SDK/type-generation result accepted. Exact
+owned Docker teardown/full global741-resource closure/canonical complete
+row+control+cron baseline/source/port checks PASS; shared local/prod untouched.
+Receipts:/private/tmp/pika-owner-workflow-proof.ylCUiF/result.json. Native worker
+usage/effective config unknown, requestedGPT-6.1Sol/high; weekly37% reused.
+Coordinator parentheses-only SQL repair and explicit regression RED→GREEN5/5;
+same rollback contract registered in existing ephemeral Database Contract lane.
+Workflow541/54, audit and diff checks PASS. One bounded Sol/high independent
+correction/pre-replay review planned; workflow review launches0 before dispatch,
+full-diff waves0/fix batches0 (native parser repair1). No type artifact/PR/CI/merge.
+One-time application permission consumed; fresh exact corrected-source approval
+required before another disposable replay. Existing holds/cumulative counters kept.
+
+Bounded independent Sol/high correction review completed at50016e316: CASE/CI
+delta, full256 structure and immediate dependencies covered; one acceptedP1 in
+rollback SQL49 (JSON extraction/subtraction precedence), no other structural
+blocker. Parenthesize extracted witness; second regression RED→GREEN6/6.
+Review ledger:1 completed bounded source turn/full-diff waves0/remediation1,
+native parser repair1 retained separately. Effective tokens/time unknown.
+Targeted delta review and fresh native approval remain; no full-PR acceptance.
+
+## 2026-10-09 — Owner Test workflow native verification accepted
+
+Direct fresh approval covered one replay001–256 froma1bcab47e. Sol/high worker's
+existing-helper native run PASS85.718s/63containedSDKrequests: fullhistory/SQLACLs,
+owner metadata/selectedaccess/currentrelationship refusals, realPDFsignedupload,
+MIME/size finalize/attach/byte-readback, cancelordering, metadata/snapshotCAS and
+realHTMLCSPsnapshot replacement/durablecleanup. ExactownedDocker teardown/global
+741-resource closure/canonicalcomplete rows+controls+cron/source/ports PASS.
+Receipt:/private/tmp/pika-owner-workflow-proof.NHXKxe/result.json. External URL
+fetch/sanitize orchestration not invoked; downstreamsnapshot bytes real. Generated
+publictypes438466bytes SHA6ccab478f97b0df7140e38e2f60b1f3ca4c6d8b50d7f5f36d35c56b994e362e9,
+copied unchanged; onlynewRPC. NativeNULLinspect parent gets application refinement
+in database.ts with RED→GREEN7/7; finalTypeScriptPASS. No generatedsignatureforge.
+Rebase on e405fbfab incoming browserCIpartition: runtime/schema/proofSQLunchanged.
+One archive-marker conflict resolved preserving fullbodies; source2779/main2773
+history entries missing0 (per-file full-body multiset check; initial concatenated
+files falsepositive corrected). Existing safety stash retained. No new migration
+renumbering: own256 unchanged. Weekly36%remaining; worker tokens/effectiveusage
+unknown. Cumulative boundedpre-replay review turns2/remediation1/parserrepair1;
+fullPRreview/CI/mainmerge pending, sharedlocal/prod/activation holds unchanged.
+Final focused gate on rebased tree PASS742tests/69files plus architecture/UI/design/
+TypeScript/lint; genuine artifact equality and new3-file audit PASS, prior16-file
+implementation audit retained for unchanged source. Risk high/runtime-platform:
+service-only currentowner transaction/Storage boundary plus CI registration.
+Full review will use two fresh independent Sol/high readers (security/correctness,
+architecture/compatibility) on one frozen SHA; cumulative boundedreview2turns,
+fullwave0/remediation1 before dispatch. No new visual surface or activation.
+
+## 2026-10-09 — Owner workflow legacy attachment review correction
+
+Draft1555 c385/e405: both fresh Sol/high full reviewers completed their 26-file
+security/correctness and architecture/compatibility assignments. One duplicate
+acceptedP2: URL-only legacy uploads fail SQLdelivery and normalized metadata
+replay. No other actionable blocker; same-class link candidate rejected without
+proven unauthorized disclosure/mutation. Root reuses inherited Storage URL
+resolver for current/proposed identities, preserving strict inlineID comparison,
+new-upload reservation stamps and ready/classroom/purpose/exactTest delivery
+checks. Rollback regressions cover absent/presentIDs, historicalcreator/resource,
+URLreadback, canonicalrename/addition and path/object substitution refusals.
+Source-only guard RED→GREEN7/7; affected80/5 PASS; SQL not executed yet.
+Prior native/type receipt retained for actual A1 source; modified256 needs one
+fresh exact disposable replay approval after targeted review. No shared DB,
+production, activation or heavy CI action. Ledger now4completedturns/fullwave1/
+remediation2/parserrepair1; reportedfullreviewelapsed ~7min each, exacttime,
+effectivemodel and tokensunknown. Standing task-stop waiver retained; no reset.
+Existing Sol/high native helper owner prepares inert private regression runner
+only, no DB/Docker/lease/application authority. Focused gate and targeted review
+follow on a frozen correction; goal/batch2 not complete.
+Final focused gate PASS743tests/69files plus architecture/UI/design/TypeScript/
+lint; changed-test audit PASS. Native replay of the correction still unapproved.
+
 ## 2026-10-10 — Student test request reduction
 
 Risk: workspace-state/exam-mode. Stabilized the active exam availability callback so ordinary parent renders preserve draft debounce; coalesced focus/visible session-status events within 750ms, scoped to the classroom/selected test effect. True exit/final submit saves, no-store session reads, hidden skips, 30s polling and telemetry remain unchanged. Two failing-before regressions reproduced premature draft writes and redundant settled event reads. Affected suites73/73 and focused728/728 plus architecture/UI/design/TypeScript/lint PASS. Actual StudentTestsTab fixture browser matrix desktop1440x900/mobile390x844 light/dark PASS4/4 with intercepted synthetic APIs; one ordinary save and one burst check, later focus refresh, zero page errors/backend requests. Screenshots reviewed in output/playwright/request-coalescing. Teacher n/a: no rendered teacher surface changed. Existing real local lifecycle browser test failed before exam Start with Test unavailable; no DB/schema changes attempted. Draft-first independent review/exact-head CI pending. Production unchanged; savings unmeasured.
+
+## 2026-10-10 — Owner workflow approved replay and SQL assertion repair
+
+Direct exact approval covered one fresh f84dff650 replay001–256. Root inspected
+enabledhelper42f1723/source+manifest/config/fullcanonical/global741-resource
+baseline receipt before Sol/high worker's one run. Complete migrationhistory PASS;
+rollbackSQL failed193: bare documents conflicted with its PL/pgSQL variable. SDK/
+typegen not reached. No source/helper repair or retry during run; exactowned
+teardown/globalclosure/ports/fullcanonical rows+168controls+cron/source PASS,
+cleanupFailures empty,41.299s; lease released. Receipt private/tmp/pika-owner-
+workflow-legacy-proof.WYgJD4/result.json. Earlier failed/successful receipts retained.
+Root qualified assertion columns, sourceguard RED→GREEN8/8, changedtestaudit PASS.
+Rebased clean feature onto b8335397b (#1556 only CI SDKpartition); one archive
+marker conflict resolved preserving both sides. Fullbody/per-file multiset:
+f84 source2782/main2774 missing0; runtime/schema diff vs f84 empty, migration256
+unchanged/no collision; priorstash0 retained, no new stash needed for clean rebase.
+Focused checks/targeted source+CI integration review and fresh exact native approval
+are next; no ready/fullCI/merge/nativeexit claim. Ledger5completedreviewturns/
+fullwave1/remediation3/parserrepair1; task-stop waiver retained without reset.
+Weekly34%remaining, worker effectiveconfig/tokens/active time unknown; native41s
+separate from review/CI time. Sharedlocal/prod249+, promotion/account/billing/
+provider/runner/admission/home/quota/cutover holds persist. Overallgoal incomplete.
+Post-rebase focused gate PASS774tests/69files plus architecture/UI/design/types/
+lint. The increase includes incoming CIpartition tests; no native success inferred.
+
+## 2026-10-10 — Corrected owner proof accepted; CI profile correction
+
+Direct fresh approval covered one disposable001–256 replay on7a3f2e3f8.
+Root accepted frozenhelper/preflight; Sol/high worker PASS84.961s/94requests,
+expandedrollbackSQL/ACLs/reallegacyfilebytes-retention-substitution refusals and
+all previousSDKcases. GenuinetypesSHA6ccab478 byte-equal committedartifact;
+exactownedabsence/global741closure/ports/freshcompletecanonical equality/source
+PASS; lease released. Receipt /private/tmp/pika-owner-workflow-legacy-proof.CeRBu4/result.json.
+Native no-ID editor persistence covers unchanged compatibilitymode only; external
+fetch orchestration remains shared-helper tests, not native proof. No shared/prodapply.
+Source review6turns cumulativeclean; ready7a3 CI38047561807 failed38tests across
+3files: former exact255 profiles reject reviewed256. Draft restored beforecorrection;
+remaininglanes cancelled by draft lifecycle, PRGatefailure; no eligiblePASS.
+Root reproduced38RED then209GREEN/3files; extend two existing proof profiles only
+with exact reviewed256name+SHA+SQLbytes, preserve255seal/chain/tablecatalogs/future
+refusal. Added altered256/selfhash/future257 tests; application/schema unchanged.
+This is remediation4 plus earlierparserrepair1; counters/clocks/waiver retained.
+Focusedchecks and targeted independent review precede newstablehead readiness.
+Weekly33%remaining; telemetryunknown; no goal/batch2exit. All existing production,
+canonical249+/activation/account/quota/provider/billing holds unchanged.
+Focused988tests/73files+architecture/UI/design/TypeScript/lint PASS; targeted209/3
+PASS, audit/whitespace PASS. New profile files do not modify executed owner SQL,
+runtime, rollback contract or generated types; retain actual7a3 native receipt.
+
+## 2026-10-10 — Owner workflow current-main integration after exam traffic fix
+
+Targetedprofiledeltaf56 reviewedclean(Sol/highturn7); readyCI38048509744 passed
+15986tests+build, bothSDKlanes anddarkbrowser before mainadvanced via1558/6be42b15b.
+No newfailure inferred; wholeCI/PRGate notaccepted yet. PRdraft restored before
+rebase, singlewatcher41191 stopped. Incoming1558 stabilizesstudentavailability
+callback/coalesces750msactivitypolls, preserves APIenvelopes/interval/errors/exam
+telemetry; reviewedCI38047578776+fourvisualfixturecases acceptedbythatPR, no rendered
+UI/schemachange. Rootpreservedincomingexactbytes; ownerproduct/srcAPI/lib/schema/
+rollbackSQL/generated/proofscripts identicalf56; no newnativeapplicationneeded.
+One archive-marker conflict resolved retainingbothmarkers/bodyunion; fullhistory
+multisets source2785/main2775 missing0. Migration256unchanged/no collision; prior
+stash0preserved/no newstash. Newfocusedchecks and boundedchanged-base integration
+review precede stableSHAreadiness. Ledger7turns/fullwave1/remediation4/parserrepair1
+and taskstop/reviewwaiver retained; this isbase-sync, notnewproductfix orbudgetreset.
+Nextlearnerworkflow10routes11methods read-onlymap accepted afterdirect244/255/history
+sourceverification; preservebest-efforthistory. Noimplementationbeforeownermerge.
+Allcanonical/prod249+/promotion/account/provider/billing/quota/admission/cutoverholds
+persist; source-only group/epicnotcomplete. Currentnativeacceptance remains7a3bytes.
+Reconciled focused988/73+architecture/UI/design/types/lint PASS; incomingexam56/2
+PASS. Keptstartup17kcap unchanged by compactingCURRENT label; audit/diffchecksnext.
