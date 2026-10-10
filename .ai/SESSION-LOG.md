@@ -508,3 +508,24 @@ fix1/final0 and original13:16:45 clock/task review extension remain. No257 repla
 preflight/SDK network/Storage/Docker/CLI types, readyCI or production activation.
 Sharedlocal/prod249+/promotion/account/plan/quota/provider/billing/admission/
 home/page/cutover holds persist; no batch2 or goal exit.
+
+## 2026-10-10 — Learner rehearsal failure and bounded fixture correction
+
+Final detached source review onf7aa completed clean; native acceptance was not
+inferred. Owner then approved ONE isolated full001–257 rehearsal. History replay
+passed; the first rollback SQL contract failed before SDK/Storage/types. Exact
+owned teardown and full canonical/global preservation passed, cleanupFailures
+empty. The attempted approval is consumed; no retry or shared/prod application.
+Historical stderr was discarded, so exact first-error attribution is not claimed.
+Bounded independent diagnosis found Closed recovery points_possible=0 violates
+039's retained positive constraint before RPC assertions. Root reproduced a
+RED source regression, then changed fixture0→1 for GREEN4checks;257 unchanged.
+A fresh disabled/unbound private candidate retains first-failure stderr privately
+with a16KiB bound/0600 receipt and cleanup-safe logging;23pure checks PASS.
+Private TypeScript initially rejected nullable child-process error.code; corrected
+the diagnostic input type, then PASS. No product/schema restriction was weakened.
+Focused2330PASS/one startup-budget failure17010>17000; compacted CURRENT without
+changing the limit. Corrected required focused run follows before publication.
+Ledger5launches/initial1/targeted2/fix2/final1; original13:16:45clock/task waiver
+and absolute12/8/8 caps retained. Source correction review and newly approved
+rehearsal/types/CI remain; all rollout/account/production holds persist.

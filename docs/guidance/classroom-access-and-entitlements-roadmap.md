@@ -444,10 +444,16 @@ The next coherent dormant
 detail/start/save/submit/recovery/session/focus/history/results/material delivery.
 Product source is delivered; initial security/compatibility reviews and the
 targeted historical HTML MIME correction review are complete. Source/static
-acceptance is not native acceptance: final inert verification-source review, exact-source
-disposable SQL/SDK/Storage/concurrency evidence, genuine types and final-head
-CI/PR Gate remain pending. No new replay or activation is authorized by this
-checkpoint; no batch-2 exit.
+acceptance is not native acceptance. Final detached source review completed on
+`f7aa06252`; the owner-approved one-off rehearsal replayed001–257 but failed at
+the rollback contract, before SDK/Storage/types. Cleanup and shared/global
+preservation passed. Source diagnosis found a zero-point Test fixture violating
+the retained positive-points constraint; correction changes only the fixture,
+with a RED-to-GREEN regression. Private failure diagnostics are bounded and
+never printed. Correction review, a freshly authorized exact-source disposable
+rehearsal, genuine types and final-head CI/PR Gate remain pending. The failed
+attempt consumed its approval; this checkpoint grants no retry or activation.
+No batch-2 exit.
 Keep existing URLs/envelopes, shared admission and legacy OFF/unmatched behavior.
 Current nonowner membership/visibility must authorize before revision-conflict
 disclosure; teacher-account members participate without paid-owner requirements.

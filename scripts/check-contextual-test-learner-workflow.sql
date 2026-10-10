@@ -19,7 +19,7 @@ insert into public.classroom_enrollments(classroom_id,student_id)
    'a2570000-0000-4000-8000-000000000003','a2570000-0000-4000-8000-000000000004');
 insert into public.tests(id,classroom_id,title,status,points_possible,created_by) values
  ('a2570000-0000-4000-8000-000000000011','a2570000-0000-4000-8000-000000000010','Participation','draft',5,'a2570000-0000-4000-8000-000000000001'),
- ('a2570000-0000-4000-8000-000000000012','a2570000-0000-4000-8000-000000000010','Closed recovery','closed',0,'a2570000-0000-4000-8000-000000000001');
+ ('a2570000-0000-4000-8000-000000000012','a2570000-0000-4000-8000-000000000010','Closed recovery','closed',1,'a2570000-0000-4000-8000-000000000001');
 insert into public.test_questions(id,test_id,question_type,question_text,options,correct_option,points,position) values
  ('a2570000-0000-4000-8000-000000000101','a2570000-0000-4000-8000-000000000011','multiple_choice','Answer','["A","B"]',1,5,0);
 update public.tests set status='active' where id='a2570000-0000-4000-8000-000000000011';

@@ -15,8 +15,8 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Quota OFF/activation variables absent verified Oct10; other settings reuse receipts.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-Owner1555 merged/native/types/CI PASS; Learner1561 draft, review/native/types/CI
-pending; billing separate.
+Owner1555 merged/PASS. Learner1561 draft: fixture failed; fix review/native/
+types/CI pending; billing separate.
 251/252 native/review/CI PASS.
 LegacyPATCH/UI unchanged; local249+ unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.

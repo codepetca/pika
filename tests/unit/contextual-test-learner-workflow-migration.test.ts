@@ -2,6 +2,16 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 const source = () => readFileSync('supabase/migrations/257_contextual_test_learner_workflow.sql', 'utf8')
 describe('contextual learner Test concrete locked boundary', () => {
+  it('seeds rollback Tests with positive maxima compatible with the retained schema constraint', () => {
+    const schema = readFileSync('supabase/migrations/039_quiz_tests_and_focus_events.sql', 'utf8')
+    expect(schema).toMatch(/points_possible numeric\(6,2\) not null default 100 check \(points_possible > 0\)/)
+    const fixture = readFileSync('scripts/check-contextual-test-learner-workflow.sql', 'utf8')
+    const values = fixture.match(/insert into public\.tests\(id,classroom_id,title,status,points_possible,created_by\) values\s*([\s\S]*?);/)
+    expect(values).not.toBeNull()
+    const rows = [...values![1].matchAll(/\('[^']+','[^']+','([^']+)','[^']+',(-?\d+(?:\.\d+)?),'[^']+'\)/g)]
+    expect(rows.map(row => row[1])).toEqual(['Participation', 'Closed recovery'])
+    for (const row of rows) expect(Number(row[2])).toBeGreaterThan(0)
+  })
   it('checks current membership and visibility before invoking the244 conflict-producing RPCs', () => {
     const sql = source(); const authority = sql.indexOf('test_learner_member_forbidden')
     expect(authority).toBeGreaterThan(0)
