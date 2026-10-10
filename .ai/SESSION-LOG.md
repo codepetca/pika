@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Attendance merge continuation after main advance
-
-Owner explicitly requested PR1533 main merge in production-drift chat. Original attendance coordinator stopped with systemError after finishing local verification; this task takes over only final integration/merge. CI37777785707 passed all five checks on reviewed4bb62bb56 (queue0s/run4244s), but main advanced via unrelated public-reading #1535 to b778a6851 during CI. PR returned to draft before clean seven-commit rebase; no source conflicts.
-All17 owned product/test/e2e paths are byte-identical to independent-reviewed4bb62bb56. Incoming Course Guide/planned reading and opt-in PageHeading.wrap do not intersect attendance routes; attendance uses unchanged Card/Button/Spinner/auth/server dependencies, and root layout/UI barrel/runtime config are unchanged. Reuse complete independent coverage rather than launching a redundant review: existing6turns, initialwave1/targetedwaves3/finalintegration1,1accepted/fixedP2,1remediation batch; no new finding, code change, review wave or coverage gap. Rebased focused checks and exact-new-head CI remain merge gates; retain earlier native/visual evidence for unchanged attendance source. Fresh task weekly68% at entry, attributable active/tokens unknown; prior CI and coordination waits are not active-development estimates. No production promotion or migration authority.
-
 ## 2026-10-08 — Public-repository local CI policy
 
 Owner explicitly removed the private-repository prerequisite. Same-repository public/private PRs and explicit diagnostics may use the opt-in isolated runner; forks retain hosted routing. Host admission retains exact Pika identity, consistent visibility metadata and queued same-repository demand checks before registration. Independent security review found post-job diagnostics resent the registration token to the guest; move redaction exclusively to the host, with RED1 proving the resend. Renamed acknowledgement to PIKA_ONE_JOB_RUNNER; disposable VM, credential separation, host lease, one-job bounds and verified teardown remain required. No runner registration or routing activation performed.
@@ -462,3 +457,7 @@ Release evidence retained in respmax/output/verification/pika-production-promoti
 ## 2026-10-10 — Modal drawer closing current-main integration
 
 PR1557 original reviewed8f8f43baf passed all selected CI and PR Gate (38046714949). New main3fd887953 introduced a history-only archive conflict before landing. Returned PR to draft before synchronization; retained all archive receipts and identical common entries while importing reviewed main unchanged. The closing product files and all ten native source/dependency bindings remain byte-identical; previous 16-context native/reference and build evidence is reusable after verification. Current-base focused checks and one targeted independent integration review precede stable-SHA ready CI. Guide options/Blueprint follow-on remains frozen and independently clean locally on prospective parent, publication held behind1557 landing. No new backend/migration/dependency/production work; broad fluidity goal remains incomplete.
+
+## 2026-10-10 — Modal closing CI documentation-contract repair
+
+PR1557 Test & Build run38076231987 reproduced the main-inherited attendance rollout documentation parser failure: CURRENT now uses `Prod DB001–256` and a dated quota-control receipt. Accept those explicit receipt formats while retaining migration floor160, attendance smoke and all rollout-preflight assertions. Focused red/green4tests and audit pass; no product or deployment changes. Parent publication remains draft until this delta is independently reviewed and exact-head CI passes.
