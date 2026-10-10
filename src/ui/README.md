@@ -155,6 +155,8 @@ The primitive portals to `document.body`, focuses the requested initial control,
 
 An opacity exit retains the last committed open presentation, including its React descendants, until visual removal. Inertness does not stop child effects, requests, timers or editor instances. Audit a generic dialog's descendants before opting in, preserve its parent close/request invalidation immediately, and leave rich editors, live widgets and arbitrary drawers on the immediate default until their lifetime is reviewed. An owner removed by a conditional parent cannot animate after that unmount. See the [bounded dismissal brief](../../docs/guidance/ui/changes/softer-modal-dismissal.md) and [experimental adoption guidance](../../docs/guidance/ui/experimental/softer-modal-dismissal.md).
 
+The classroom join QR dialog and classroom mobile navigation explicitly opt into this fade after descendant lifetime review. `LeftSidebar` keeps its immediate default and accepts `mobileChildren` for an audited mobile presentation; classroom navigation passes `NavItems expanded={true}` so labels remain stable while its logically closed drawer fades. Desktop rail expansion remains independent. `RightSidebar` and live editor drawers retain immediate removal. See the [modal and drawer consistency brief](../../docs/guidance/ui/changes/modal-drawer-closing-consistency.md).
+
 
 ### QrCode
 
