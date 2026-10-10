@@ -30,6 +30,12 @@ declare
   cancel_id uuid := 'a2550000-0000-4000-8000-000000000023';
   other_test_id uuid := 'a2550000-0000-4000-8000-000000000012';
   other_object_id uuid := 'a2550000-0000-4000-8000-000000000024';
+  legacy_doc_ids uuid[] := array['a2550000-0000-4000-8000-000000000031'::uuid,'a2550000-0000-4000-8000-000000000032'::uuid];
+  legacy_object_ids uuid[] := array['a2550000-0000-4000-8000-000000000033'::uuid,'a2550000-0000-4000-8000-000000000034'::uuid];
+  legacy_paths text[] := array[]::text[];
+  legacy_documents jsonb := '[]'::jsonb;
+  normalized_documents jsonb := '[]'::jsonb;
+  legacy_index integer; legacy_document jsonb;
   object_path text; snapshot_path text; documents jsonb; upload_args jsonb;
 begin
   if has_function_privilege('anon','public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamptz)','execute')
@@ -129,6 +135,63 @@ begin
   exception when sqlstate 'PT404' then null; end;
   if (select status from public.managed_storage_objects where id=other_object_id) <> 'reserved' then
     raise exception 'Cross-Test refusal changed object'; end if;
+
+  -- A reconciled legacy URL-only attachment is current Test material, even
+  -- with historical creator/resource stamps. Cover absent/present inline IDs.
+  -- These are SQL fixture objects only; real-byte delivery is an SDK proof.
+  for legacy_index in 1..2 loop
+    object_path := 'classrooms/'||class_id||'/legacy/'||legacy_object_ids[legacy_index]||'.pdf';
+    legacy_paths := array_append(legacy_paths,object_path);
+    perform public.begin_managed_storage_upload(legacy_object_ids[legacy_index],'test-documents',object_path,class_id,
+      null,null,'teacher_test_material',learner_id,null,'test',v_test_id,'application/pdf',20);
+    insert into storage.objects(bucket_id,name,metadata) values ('test-documents',object_path,'{"mimetype":"application/pdf","size":20}');
+    perform public.verify_managed_storage_upload(legacy_object_ids[legacy_index]);
+    legacy_document := jsonb_build_object('id',legacy_doc_ids[legacy_index],'title','Legacy','source','upload',
+      'url','https://legacy.example.test/storage/v1/object/public/test-documents/'||object_path);
+    if legacy_index = 2 then legacy_document := legacy_document||jsonb_build_object('managed_object_id',legacy_object_ids[legacy_index]); end if;
+    legacy_documents := legacy_documents||jsonb_build_array(legacy_document);
+    normalized_documents := normalized_documents||jsonb_build_array((legacy_document-'url')||jsonb_build_object(
+      'title','Renamed legacy','storage_bucket','test-documents','storage_path',object_path));
+  end loop;
+  update public.tests set documents=legacy_documents where id=other_test_id;
+  for legacy_index in 1..2 loop
+    if not exists(select 1 from public.managed_storage_objects object
+      join public.managed_storage_json_references reference on reference.managed_object_id=object.id
+      where object.id=legacy_object_ids[legacy_index] and object.status='ready' and reference.test_id=other_test_id
+        and reference.storage_bucket='test-documents' and reference.storage_path=legacy_paths[legacy_index]) then
+      raise exception 'Legacy fixture lacks exact ready Test reference'; end if;
+    result := public.test_owner_workflow_v1(owner_id,other_test_id,class_id,'document',
+      jsonb_build_object('document_id',legacy_doc_ids[legacy_index],'source','upload'),null,deadline);
+    if result#>>'{result,document,url}' is distinct from legacy_documents->(legacy_index-1)->>'url' then
+      raise exception 'Legacy URL-only readback lost current document'; end if;
+  end loop;
+  before_test := public.test_owner_workflow_v1(owner_id,other_test_id,class_id,'inspect','{}',null,deadline)->'test';
+  normalized_documents := normalized_documents||jsonb_build_array(jsonb_build_object(
+    'id','a2550000-0000-4000-8000-000000000035','title','New note','source','text','content','Keep the older files'));
+  result := public.test_owner_workflow_v1(owner_id,other_test_id,class_id,'update',
+    jsonb_build_object('documents',normalized_documents),before_test,deadline);
+  if result#>'{test,documents}' is distinct from normalized_documents then raise exception 'Legacy normalization/edit lost documents'; end if;
+  before_test := result->'test';
+  for legacy_index in 1..2 loop
+    result := public.test_owner_workflow_v1(owner_id,other_test_id,class_id,'document',
+      jsonb_build_object('document_id',legacy_doc_ids[legacy_index],'source','upload'),null,deadline);
+    if result#>>'{result,document,storage_path}' is distinct from legacy_paths[legacy_index]
+      or not exists(select 1 from public.managed_storage_objects where id=legacy_object_ids[legacy_index]
+        and status='ready' and created_by_user_id=learner_id and resource_id=v_test_id) then
+      raise exception 'Legacy normalized read lost reference or historical attribution'; end if;
+  end loop;
+  begin
+    perform public.test_owner_workflow_v1(owner_id,other_test_id,class_id,'update',jsonb_build_object('documents',
+      jsonb_set(normalized_documents,'{0,storage_path}',to_jsonb(legacy_paths[2]))),before_test,deadline);
+    raise exception 'Legacy path substitution accepted';
+  exception when sqlstate 'PT403' then null; end;
+  begin
+    perform public.test_owner_workflow_v1(owner_id,other_test_id,class_id,'update',jsonb_build_object('documents',
+      jsonb_set(normalized_documents,'{1,managed_object_id}',to_jsonb(legacy_object_ids[1]))),before_test,deadline);
+    raise exception 'Legacy object substitution accepted';
+  exception when sqlstate 'PT403' then null; end;
+  if (select documents from public.tests where id=other_test_id) is distinct from normalized_documents then
+    raise exception 'Legacy substitution refusal changed documents'; end if;
 
   update public.tests set blueprint_archived_at=now() where id=v_test_id;
   before_test := public.test_owner_workflow_v1(owner_id,v_test_id,class_id,'inspect','{}',null,deadline)->'test';

@@ -514,6 +514,24 @@ only incoming browser-CI partition and related guidance changed. Shared local an
 production remain untouched; full independent PR review, stable CI and merge
 remain pending. No phase exit or activation.
 
+Draft PR #1555 at `c38547438` received complete independent security/correctness
+and architecture/compatibility reviews (two fresh Sol/high contexts). Both found
+one duplicate P2: supported URL-only legacy uploads cannot be delivered or retained
+after canonical editor normalization. Coordinator reuses the inherited public-URL
+Storage identity resolver for current/proposed paths, retaining exact inline-ID
+comparison and current ready-object/classroom/purpose/Test-ledger delivery checks.
+New rollback cases cover missing/present inline IDs, historical creator/resource
+attribution, readback, normalization plus adding a document, and path/object
+substitution refusal. Source guard RED→GREEN7/7; affected checks80/5 PASS.
+This changes 256 and its SQL contract: the prior successful native receipt remains
+valid only for its executed source, not this correction. Targeted independent
+review, one freshly approved disposable 001–256 replay and exact-head CI remain
+required. No rerun, shared local/hosted application or activation occurred.
+Ledger:4 completed reviewer turns (2 bounded preflight,2 full), full wave1,
+remediation batches2, parser repair1 separately; full reviewers reported roughly
+7minutes each, exact elapsed/effective configuration/tokens unknown. Owner's
+task-stop waiver and all consequential-action holds persist without counter reset.
+
 ### Execution checkpoint — 2026-10-08
 
 The owner requested orchestration of the remaining goal in this coordinator.

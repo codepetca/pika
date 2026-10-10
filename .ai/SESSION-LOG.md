@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Signup owner continuity
-
-Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
-
 ## 2026-10-08 — Dashboard recovery refinement
 
 Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
@@ -376,3 +372,26 @@ service-only currentowner transaction/Storage boundary plus CI registration.
 Full review will use two fresh independent Sol/high readers (security/correctness,
 architecture/compatibility) on one frozen SHA; cumulative boundedreview2turns,
 fullwave0/remediation1 before dispatch. No new visual surface or activation.
+
+## 2026-10-09 — Owner workflow legacy attachment review correction
+
+Draft1555 c385/e405: both fresh Sol/high full reviewers completed their 26-file
+security/correctness and architecture/compatibility assignments. One duplicate
+acceptedP2: URL-only legacy uploads fail SQLdelivery and normalized metadata
+replay. No other actionable blocker; same-class link candidate rejected without
+proven unauthorized disclosure/mutation. Root reuses inherited Storage URL
+resolver for current/proposed identities, preserving strict inlineID comparison,
+new-upload reservation stamps and ready/classroom/purpose/exactTest delivery
+checks. Rollback regressions cover absent/presentIDs, historicalcreator/resource,
+URLreadback, canonicalrename/addition and path/object substitution refusals.
+Source-only guard RED→GREEN7/7; affected80/5 PASS; SQL not executed yet.
+Prior native/type receipt retained for actual A1 source; modified256 needs one
+fresh exact disposable replay approval after targeted review. No shared DB,
+production, activation or heavy CI action. Ledger now4completedturns/fullwave1/
+remediation2/parserrepair1; reportedfullreviewelapsed ~7min each, exacttime,
+effectivemodel and tokensunknown. Standing task-stop waiver retained; no reset.
+Existing Sol/high native helper owner prepares inert private regression runner
+only, no DB/Docker/lease/application authority. Focused gate and targeted review
+follow on a frozen correction; goal/batch2 not complete.
+Final focused gate PASS743tests/69files plus architecture/UI/design/TypeScript/
+lint; changed-test audit PASS. Native replay of the correction still unapproved.

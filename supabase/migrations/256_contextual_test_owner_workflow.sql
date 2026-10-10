@@ -108,16 +108,25 @@ begin
     -- Preserve imported/current references, but a new upload must have been
     -- reserved for this exact Test and current actor, even within one Classroom.
     for v_document in select value from pg_catalog.jsonb_array_elements(coalesce(p_payload->'documents',v_test.documents)) loop
+      v_path := coalesce(nullif(btrim(v_document->>'storage_path'), ''), (
+        select identity.storage_path from public.managed_storage_public_url_identity(btrim(v_document->>'url')) identity
+        where identity.storage_bucket = 'test-documents'
+      ));
       if v_document->>'source' = 'upload' and not exists(
         select 1 from pg_catalog.jsonb_array_elements(v_test.documents) existing
         where existing->>'id' = v_document->>'id' and existing->>'source' = 'upload'
-          and existing->>'storage_path' is not distinct from v_document->>'storage_path'
+          -- The inherited ledger accepts URL-only legacy references. The editor
+          -- canonicalizes them to paths; representation is not a new attachment.
+          and coalesce(nullif(btrim(existing->>'storage_path'), ''), (
+            select identity.storage_path from public.managed_storage_public_url_identity(btrim(existing->>'url')) identity
+            where identity.storage_bucket = 'test-documents'
+          )) is not distinct from v_path
           and existing->>'managed_object_id' is not distinct from v_document->>'managed_object_id'
       ) then
         select * into v_object from public.managed_storage_objects
           where id = (v_document->>'managed_object_id')::uuid for update nowait;
         if not found or v_object.classroom_id is distinct from v_classroom_id
-          or v_object.storage_bucket <> 'test-documents' or v_object.storage_path is distinct from v_document->>'storage_path'
+          or v_object.storage_bucket <> 'test-documents' or v_object.storage_path is distinct from v_path
           or v_object.purpose <> 'teacher_test_material' or v_object.status not in ('verified','ready')
           or v_object.resource_type is distinct from 'test' or v_object.resource_id is distinct from p_test_id
           or v_object.created_by_user_id is distinct from p_actor_id then
@@ -223,7 +232,11 @@ begin
     if not found or v_document->>'source' is distinct from p_payload->>'source' then
       raise exception using errcode = 'PT404', message = 'test_owner_document_not_found';
     end if;
-    v_path := case when p_payload->>'source' = 'upload' then v_document->>'storage_path' else v_document->>'snapshot_path' end;
+    v_path := case when p_payload->>'source' = 'upload' then
+      coalesce(nullif(btrim(v_document->>'storage_path'), ''), (
+        select identity.storage_path from public.managed_storage_public_url_identity(btrim(v_document->>'url')) identity
+        where identity.storage_bucket = 'test-documents'
+      )) else v_document->>'snapshot_path' end;
     v_object_id := (case when p_payload->>'source' = 'upload' then v_document->>'managed_object_id' else v_document->>'snapshot_managed_object_id' end)::uuid;
     if v_path is null then raise exception using errcode = 'PT404', message = 'test_owner_document_not_found'; end if;
     select * into v_object from public.managed_storage_objects where storage_bucket = 'test-documents' and storage_path = v_path

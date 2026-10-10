@@ -42,4 +42,12 @@ describe('dormant owner Test workflow additive transaction', () => {
     const contract = readFileSync('scripts/check-contextual-test-owner-workflow.sql', 'utf8')
     expect(contract).not.toMatch(/\bresult\s*->\s*'test'\s*-/)
   })
+  it('uses the existing Storage URL identity for retained legacy uploads and delivery', () => {
+    // Supported persisted URL-only documents must survive canonical editor
+    // replay. Native SQL/Storage regressions prove behavior; this catches loss
+    // of the inherited resolver at either boundary without duplicating it.
+    expect(sql().match(/public\.managed_storage_public_url_identity\(/g)).toHaveLength(3)
+    expect(sql()).toContain("existing->>'managed_object_id' is not distinct from v_document->>'managed_object_id'")
+    expect(sql()).toContain('reference.test_id = p_test_id and reference.managed_object_id = v_object.id')
+  })
 })

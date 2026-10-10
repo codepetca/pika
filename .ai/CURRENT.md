@@ -14,7 +14,7 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Settings last verified in prior receipts; no fresh hosted query here for controls.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-256native/types PASS; review/CI pending. Billing separate.
+256fix needs replay; review/CI pending. Billing separate.
 Discard251: #1503 merged865d837b7; CI PASS.
 Publication#1510 merged473a5de8a; native/types and exact-head CI PASS.
 LegacyPATCH/UI unchanged; canonical local/prod249+ unapplied.
