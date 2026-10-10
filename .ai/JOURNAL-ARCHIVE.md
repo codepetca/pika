@@ -45428,3 +45428,19 @@ Coordinated five original drafts (1501,1502,1504,1508,1515) onto main1dd532581. 
 ## 2026-10-08 — UI recovery completion separated from native checkpoint gate
 
 The final UI completion branch contains1501/1502/1504/1508 feature changes and the shared dropdown hydration regression.1515 remains on clean e351bd133 in its dedicated worktree, with separate security and corrected-wrapper receipts; no native/checkpoint authority is inferred from budget extensions. Retain prior combined candidate history. All68 student/dropdown/returned-Test cases pass; all68 distinct teacher recovery cases pass across initial60 and unchanged isolatedremaining8, retaining the first mobile403 timeout receipt. All16 changed parent cases pass after advancing only the existing modal exit token for settled captures. Owner suites and visual/hash receipts remain tied to unchanged product paths; no timeout, console, snapshot, motion or native-preservation threshold was relaxed. Motion/reference, final UI-focused/static gate, independent cumulative UI review, exact-head CI and protected main merge remain required. Canonical migrations/production/activation and held1217 remain untouched.
+
+<!-- pika-session-log-archive-batch:b14631e400405a14d302d516fdd42da947d2efc473e1da6f3391ebdd334ffda2 -->
+## 2026-10-08 — Reorder completion synchronized after UI delivery
+
+UI1542 merged83087cc4 after exactd9 review and all five CI checks PASS
+(4362s); originals1501/1502/1504/1508 CLOSED as delivered, histories retained.
+Native completion1543 now includes that actual main; reviewed70aa cleanup
+correction remains source-identical, with only continuity/guidance integration.
+Complete original entry-body multiplicities and exact incoming archive prefix
+are retained. Preserve original1515 Oct7 05:04 clock,31original reviews,
+27targeted and29prior fix-sync batches; source correction30 and this sync31,
+four added actual review turns and private-wrapper correction remain separate.
+Final focused/delta review, one specifically authorized immutable local183/all5
+checkpoint with finite quiet window, actual normal/genuine types/twoforced and
+exact-head CI remain gates. No native/DB/checkpoint/provider/production operation
+or phase exit is claimed; canonical249+, activation and1217 remain held.

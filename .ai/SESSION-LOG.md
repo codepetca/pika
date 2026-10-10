@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Reorder completion synchronized after UI delivery
-
-UI1542 merged83087cc4 after exactd9 review and all five CI checks PASS
-(4362s); originals1501/1502/1504/1508 CLOSED as delivered, histories retained.
-Native completion1543 now includes that actual main; reviewed70aa cleanup
-correction remains source-identical, with only continuity/guidance integration.
-Complete original entry-body multiplicities and exact incoming archive prefix
-are retained. Preserve original1515 Oct7 05:04 clock,31original reviews,
-27targeted and29prior fix-sync batches; source correction30 and this sync31,
-four added actual review turns and private-wrapper correction remain separate.
-Final focused/delta review, one specifically authorized immutable local183/all5
-checkpoint with finite quiet window, actual normal/genuine types/twoforced and
-exact-head CI remain gates. No native/DB/checkpoint/provider/production operation
-or phase exit is claimed; canonical249+, activation and1217 remain held.
-
 ## 2026-10-08 — Exact member-list migration profile compatibility (source batch 32)
 
 CI37849992101 failed before fixture setup on the stale exact253 assertion at
@@ -570,3 +555,22 @@ explicit review extension and hard12launch8target8fix remain; counts10launch/
 targeted7/fix5in progress/final1. Next proportional review includes base/correction;
 owner must approve exact clock semantics after review and ONE fresh exact-source
 isolated rehearsal. Final native/types/CI/merge and batch2/overall goal remain.
+
+## 2026-10-10 — Fourth learner rehearsal and restoration acknowledgement correction
+
+ONE approved isolated0cd rehearsal passed001–257/history/rollbackACL/genuine
+types, then failed cancellation restoration. Finite stage witness locates restore;
+underlying exception masked. All exact-owned/global/canonical/source preservation
+PASS(cleanupFailures=[]); permission consumed, runner restoredfalse/null and all
+nine source hashes verified. Genuine438731byte cc966 types remain private.
+Root source/actualguard check finds deterministic plain-ok→JSON decoder mismatch.
+Batch6 accepts only exactok for fixed learner restore, retains original SQL/full
+guards/catalog+fixture equality and every product/proof clock. Native-shaped mock
+RED3→GREEN; five malformed/absent output refusals and catalog/fixture drift added.
+182nativeprofile checks PASS;28privatepure and SDK timing/source checks follow.
+Prior explicit task override recovered via override-task-stops: workflow review
+limits, including locally absolute caps, waived; previous stop was incorrect.
+Original13:16:45clock/cumulative11launch/targeted8/fix6inprogress/final1 preserved,
+not reset. One proportional independent review follows focused/publication/freeze;
+no new native attempt, sharedlocal249+/prod257+, deployment or activation.
+Weekly27%remaining/ordinaryAllowed; effective/active/token telemetry unknown.

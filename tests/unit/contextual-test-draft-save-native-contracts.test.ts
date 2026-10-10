@@ -163,6 +163,8 @@ describe('native persistent-session transport with offline child mocks', () => {
   let reorderManifest: ReturnType<typeof buildTestOwnerReorderNativeContractsManifest> | undefined
   let learnerManifest: ReturnType<typeof buildTestLearnerNativeContractsManifest> | undefined
   let cancellationInstalled = false
+  let cancellationRestoreOutput = 'ok'
+  let cancellationCatalogChanged = false
   let bulkChunks: string[] = []; let bulkHang = false; let bulkExit = false; let emitCalibration = true
   let bulkDispatched: (() => void) | undefined
   let contaminateOtherFrames = false; let duplicateCalibration = false
@@ -226,6 +228,8 @@ describe('native persistent-session transport with offline child mocks', () => {
     setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined; publicationManifest = undefined
     reorderManifest = undefined; bulkChunks = []; bulkHang = false; bulkExit = false; emitCalibration = true
     learnerManifest = undefined; cancellationInstalled = false
+    cancellationRestoreOutput = 'ok'
+    cancellationCatalogChanged = false
     bulkDispatched = undefined
     contaminateOtherFrames = false; duplicateCalibration = false
     diagnosticManifest = undefined; diagnosticChunks = []; diagnosticNoise = ''; diagnosticHang = false; diagnosticExit = false
@@ -243,9 +247,11 @@ describe('native persistent-session transport with offline child mocks', () => {
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
           else if (input === learnerManifest?.cancellation.restore) {
             if (restorationFails) callback(Error('private cancellation restore failure'), '')
-            else { cancellationInstalled = false; callback(null, '') }
+            // The actual fixed restoration SQL includes its full guard, which
+            // emits one plain-text acknowledgement before the quiet COMMIT.
+            else { cancellationInstalled = false; callback(null, cancellationRestoreOutput) }
           }
-          else if (input === learnerManifest?.cancellation.catalog) callback(null, JSON.stringify({ function: cancellationInstalled ? 'unexpected' : null, triggers: [] }))
+          else if (input === learnerManifest?.cancellation.catalog) callback(null, JSON.stringify({ function: cancellationInstalled || cancellationCatalogChanged ? 'unexpected' : null, triggers: [] }))
           else if (input === manifest.privilege.restore || input === createManifest?.privilege.restore
             || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore || input === reorderManifest?.privilege.restore || input === learnerManifest?.privilege.restore || publicationSql(input, 'restore')) {
             if (restorationFails) callback(Error('private grant restore failure'), '')
@@ -379,6 +385,38 @@ describe('native persistent-session transport with offline child mocks', () => {
     await vi.advanceTimersByTimeAsync(9001); await refused
     expect(cancellationInstalled).toBe(false)
     expect(adapter.diagnostic()).toContain('cancellationStage=timing')
+  })
+  it.each(['', '{"ok":true}', 'ok\nok', 'ok\n{"extra":true}', 'ok trailing'])('refuses unexpected cancellation restoration output %j', async output => {
+    const adapter = learnerFactory(); await adapter.setup()
+    await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    expect(learnerManifest!.cancellation.restore.startsWith(learnerManifest!.guard + '\n')).toBe(true)
+    expect(learnerManifest!.guard.endsWith("end;$guard$;select 'ok';rollback;")).toBe(true)
+    cancellationRestoreOutput = output
+    vi.useFakeTimers()
+    const settled = adapter.probeLearnerCancellation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 8000))
+      return { status: 500, rpcCalls: 1, rawCode: '57014', elapsedMs: 8000 }
+    }).then(() => ({ accepted: true }), () => ({ rejected: true }))
+    await vi.advanceTimersByTimeAsync(8001)
+    expect(await settled).toEqual({ rejected: true })
+    expect(cancellationInstalled).toBe(false)
+    expect(adapter.diagnostic()).toContain('cancellationStage=restore')
+    expect(adapter.diagnostic()).toContain('cancellationRestore=restore')
+  })
+  it.each(['catalog', 'fixture'] as const)('still refuses changed cancellation %s after the exact acknowledgement', async changed => {
+    const adapter = learnerFactory(); await adapter.setup()
+    await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    vi.useFakeTimers()
+    const settled = adapter.probeLearnerCancellation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 8000))
+      if (changed === 'catalog') cancellationCatalogChanged = true
+      else fixtureChanged = true
+      return { status: 500, rpcCalls: 1, rawCode: '57014', elapsedMs: 8000 }
+    }).then(() => ({ accepted: true }), () => ({ rejected: true }))
+    await vi.advanceTimersByTimeAsync(8001)
+    expect(await settled).toEqual({ rejected: true })
+    expect(cancellationInstalled).toBe(false)
+    expect(adapter.diagnostic()).toContain(`cancellationRestore=restored-${changed}`)
   })
   it('expires the guarded cancellation action at30s without renewing its deadline', async () => {
     const adapter = learnerFactory(); await adapter.setup()

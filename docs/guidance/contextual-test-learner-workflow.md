@@ -91,6 +91,15 @@ one-RPC500/57014 evidence, exact restoration and all holds remain unchanged.
 This proof-clock correction requires owner approval after review; no retry is
 authorized by a source or synthetic check. Shared/canonical schemas stay untouched.
 
+The fourth owner-approved isolated0cd rehearsal passed history/rollback/ACL/types,
+then failed cancellation restoration; exact-owned/global/canonical/source cleanup
+passed. A plain `ok` emitted by the fixed restoration guard was incorrectly
+decoded as JSON. The correction accepts only that exact acknowledgement for the
+fixed learner restoration SQL; missing, JSON or extra output is refused. Exact
+catalog and whole-fixture equality checks still follow it. Offline child mocks
+now reflect the real guard output. No product SQL, clock or rollout gate changes;
+fresh exact-source native acceptance remains required before type installation.
+
 Migration 257 is provisional until the candidate is frozen and current main is
 reconciled. Predecessor proof profiles must explicitly seal its reviewed
 name/digest/bytes while retaining full catalogs and future-migration refusal.

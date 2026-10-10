@@ -1003,6 +1003,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     await guard(true)
     const name = `${project}_${sql === manifest.snapshot ? 'draft_contracts' : 'fixture'}`
     const output = await command('docker', dockerArgs(name), sql, CAPS.closeMs)
+    if (profile.learnerCancellation && sql === profile.learnerCancellation.restore) {
+      // This exact fixed SQL includes its full guard's plain-text receipt;
+      // its quiet trigger/function DROP and COMMIT emit no JSON result row.
+      assert.equal(output, 'ok')
+      return []
+    }
     return output ? [{ result: JSON.parse(output) as unknown }] : []
   }
   // Both closed251 capabilities use this SAME engine, counters, deadline and
