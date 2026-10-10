@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8')
 const workflow = read('.github/workflows/ci.yml')
-const databaseJob = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+const databaseJob = workflow.split('  architecture-database-contracts-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
 const atomic = read('scripts/check-atomic-test-submit.sh')
 
 describe('required Test lifecycle verification', () => {
@@ -36,6 +36,9 @@ describe('required Test lifecycle verification', () => {
   it('requires rollback, observed concurrency, and forced-failure exact teardown after schema replay', () => {
     expect(databaseJob).toBeDefined()
     const lane = databaseJob!
+    expect(lane).toContain('runs-on: ubuntu-latest')
+    expect(lane).toContain('node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
+    expect(lane).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
     expect(lane).toContain('name: Start ephemeral Supabase and replay migrations')
     expect(lane).toContain('name: Stop ephemeral database')
     const contracts = lane.indexOf('name: Verify revision-aware Test lifecycle contracts')

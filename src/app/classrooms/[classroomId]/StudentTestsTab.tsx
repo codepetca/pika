@@ -153,6 +153,7 @@ function isMobileBrowserWithoutFullscreen(): boolean {
 }
 
 const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 750
+const SESSION_STATUS_EVENT_BURST_MS = 750
 const EXAM_FOCUS_EVENT_QUEUE_TIMEOUT_MS = 4_000
 const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
 const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
@@ -645,6 +646,10 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       sessionStatusInFlightRef.current = false
     }
   }, [apiBasePath, handleRemoteTestClosure])
+
+  const handleAvailabilityLoss = useCallback(() => {
+    void revalidateActiveTestSession()
+  }, [revalidateActiveTestSession])
 
   const postFocusEvent = useCallback(async (
     eventType: 'away_start' | 'away_end' | 'route_exit_attempt' | 'window_unmaximize_attempt',
@@ -1219,17 +1224,17 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   useEffect(() => {
     if (!focusEnabled) return
 
+    let lastEventCheckAt = Number.NEGATIVE_INFINITY
+
     const intervalId = window.setInterval(() => {
       void revalidateActiveTestSession()
     }, 30_000)
 
-    const handleSessionVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        void revalidateActiveTestSession()
-      }
-    }
-
-    const handleSessionFocus = () => {
+    const handleSessionActivity = () => {
+      if (document.visibilityState !== 'visible' || sessionStatusInFlightRef.current) return
+      const now = performance.now()
+      if (now - lastEventCheckAt < SESSION_STATUS_EVENT_BURST_MS) return
+      lastEventCheckAt = now
       void revalidateActiveTestSession()
     }
 
@@ -1251,18 +1256,18 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       )
     }
 
-    document.addEventListener('visibilitychange', handleSessionVisibility)
-    window.addEventListener('focus', handleSessionFocus)
+    document.addEventListener('visibilitychange', handleSessionActivity)
+    window.addEventListener('focus', handleSessionActivity)
     window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('pagehide', handlePageHide)
     return () => {
       window.clearInterval(intervalId)
-      document.removeEventListener('visibilitychange', handleSessionVisibility)
-      window.removeEventListener('focus', handleSessionFocus)
+      document.removeEventListener('visibilitychange', handleSessionActivity)
+      window.removeEventListener('focus', handleSessionActivity)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('pagehide', handlePageHide)
     }
-  }, [focusEnabled, logRouteExitAttempt, revalidateActiveTestSession])
+  }, [classroom.id, focusEnabled, logRouteExitAttempt, revalidateActiveTestSession, selectedTestId])
 
   useEffect(() => {
     if (!focusEnabled) {
@@ -1633,9 +1638,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                             enableDraftAutosave
                             isInteractionLocked={showNotMaximizedWarning}
                             apiBasePath={apiBasePath}
-                            onAvailabilityLoss={() => {
-                              void revalidateActiveTestSession()
-                            }}
+                            onAvailabilityLoss={handleAvailabilityLoss}
                             onSubmitted={handleTestSubmitted}
                           />
                         )}

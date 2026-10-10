@@ -156,6 +156,13 @@ jobs:
       - name: Check generated database types
         run: pnpm run db:types:check
 
+      - name: Verify contextual Test owner workflow database contracts
+        shell: bash
+        run: |
+          [[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
+          docker port supabase_db_pika 5432/tcp | grep -Eq ':54322[[:space:]]*$'
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-contextual-test-owner-workflow.sql
+
       - name: Verify classroom creation entitlements and active-limit concurrency
         run: bash scripts/check-classroom-creation-entitlements-database.sh
 
@@ -401,6 +408,78 @@ jobs:
             grep -Fx "FAIL forced isolated test-member-list lifecycle: ${test_member_list_mode}." "$test_member_list_log"
             grep -Fx 'PASS isolated test-member-list exact teardown and unchanged canonical baseline.' "$test_member_list_log"
           done
+
+      - name: Stop ephemeral database
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
+        run: supabase stop --no-backup
+
+  architecture-database-contracts-lifecycle:
+    name: Architecture Database Contracts Lifecycle
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_database == 'true'
+    # Independent hosted VM/daemon, including self-hosted dispatches.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.103.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore pnpm store cache
+        id: database-lifecycle-pnpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        id: database-lifecycle-install
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Summarize dependency setup evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Database lifecycle lane setup evidence'
+            echo "- pnpm store exact-key hit: ${{ steps.database-lifecycle-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
+            echo '- Dependencies are always installed from the lockfile.'
+            echo '- Supabase remains a fresh ephemeral start and migration replay.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify managed-storage migration lineage
+        run: pnpm run check:managed-storage-lineage
+
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane database-lifecycle
+
+      - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
       - name: Verify isolated contextual Test owner reorder transactions
         shell: bash
@@ -1612,6 +1691,7 @@ jobs:
     needs:
       - classify-changes
       - architecture-database-contracts
+      - architecture-database-contracts-lifecycle
       - contextual-test-owner-sdk
       - contextual-test-owner-sdk-lifecycle
       - test-and-build
@@ -1629,6 +1709,7 @@ jobs:
           TEST_BUILD_REQUIRED: ${{ needs.classify-changes.outputs.run_test_build }}
           DATABASE_REQUIRED: ${{ needs.classify-changes.outputs.run_database }}
           DATABASE_RESULT: ${{ needs.architecture-database-contracts.result }}
+          DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}
           TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}
           TEST_OWNER_SDK_LIFECYCLE_RESULT: ${{ needs.contextual-test-owner-sdk-lifecycle.result }}
           BROWSER_REQUIRED: ${{ needs.classify-changes.outputs.run_browser }}
@@ -1665,6 +1746,10 @@ jobs:
           esac
           if [[ "$DATABASE_REQUIRED" == "true" && "$DATABASE_RESULT" != "success" ]]; then
             echo "Architecture Database Contracts were required but ended: $DATABASE_RESULT"
+            exit 1
+          fi
+          if [[ "$DATABASE_REQUIRED" == "true" && "$DATABASE_LIFECYCLE_RESULT" != "success" ]]; then
+            echo "Architecture Database Contracts Lifecycle were required but ended: $DATABASE_LIFECYCLE_RESULT"
             exit 1
           fi
           if [[ "$DATABASE_REQUIRED" == "true" && "$TEST_OWNER_SDK_RESULT" != "success" ]]; then

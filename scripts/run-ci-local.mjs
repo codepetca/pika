@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
 import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -9,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 const jobsByLane = {
   'test-build': 'test-and-build',
   database: 'architecture-database-contracts',
+  'database-lifecycle': 'architecture-database-contracts-lifecycle',
   'test-owner-sdk': 'contextual-test-owner-sdk',
   'test-owner-sdk-lifecycle': 'contextual-test-owner-sdk-lifecycle',
   browser: 'browser-experience-matrix',
@@ -55,7 +57,7 @@ export function parseArguments(argv) {
     else if (value === '--ack=DISPOSABLE_CI_DATABASE') args.acknowledged = true
     else throw new Error(`Unknown argument: ${value}`)
   }
-  if (!(args.lane in jobsByLane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|test-owner-sdk|test-owner-sdk-lifecycle|browser|browser-dark|all.')
+  if (!Object.hasOwn(jobsByLane, args.lane) && args.lane !== 'all') throw new Error('Use --lane test-build|database|database-lifecycle|test-owner-sdk|test-owner-sdk-lifecycle|browser|browser-dark|all.')
   if (args.ref !== null && args.ref !== 'HEAD' && !/^[a-f0-9]{40}$/.test(args.ref ?? '')) throw new Error('--ref requires HEAD or a full lowercase 40-character commit SHA.')
   return args
 }
@@ -140,10 +142,66 @@ function parseStep(lines) {
   return step
 }
 
+// Reviewed ordered proof-name inventories, not copies of executable scripts.
+// Intentional additions/renames/repartitioning update counts/digests after review.
+// Historical combined DB layouts retain their own commands and established
+// sentinels; today's inventories apply only to the explicit split layout.
+const databaseProofInventories = {
+  database: [51, '6e3d08e014bd6f2346dc0cfedd4929baa8398768b100796a5b1533bc408fad3a'],
+  'database-lifecycle': [85, '9e6aeaab8a4583d3d93389f1d17cd1d1a18ca28f339a61e7dbc3dc40b02f26ae'],
+}
+function databaseProofs(job) {
+  const start = job.steps.findIndex(step => step.id === 'supabase-start')
+  const stop = job.steps.findIndex(step => step.run === 'supabase stop --no-backup')
+  if (start < 0 || stop <= start) throw new Error('Missing database proof boundaries.')
+  return job.steps.slice(start + 1, stop)
+}
+function validateDatabaseInventory(jobs) {
+  const primary = jobs[jobsByLane.database]
+  if (!primary) throw new Error('Missing canonical database job.')
+  const secondary = jobs[jobsByLane['database-lifecycle']]
+  if (secondary) {
+    for (const lane of ['database', 'database-lifecycle']) {
+      const job = jobs[jobsByLane[lane]], proofs = databaseProofs(job)
+      const [count, digest] = databaseProofInventories[lane]
+      const namesDigest = createHash('sha256').update(JSON.stringify(proofs.map(step => step.name))).digest('hex')
+      if (job.id !== jobsByLane[lane] || job.lane !== lane || proofs.length !== count || namesDigest !== digest
+        || proofs.some(step => !step.run || step.uses || step.if)) {
+        throw new Error(`Canonical ${lane} database proof inventory is incomplete, reordered or changed.`)
+      }
+    }
+  } else {
+    // Daily Log exists in supported generations and rejects a truncated split
+    // prefix even if all new markers were erased. The earlier pre-SDK generation
+    // predates both member-list/reorder; it still retains all seven SDK proofs.
+    const proofs = databaseProofs(primary)
+    const pair = [
+      ['Verify isolated contextual Test member-list SDK reads', 'scripts/check-contextual-test-member-list-lifecycle.ts'],
+      ['Verify isolated contextual Test owner reorder transactions', 'scripts/check-contextual-test-owner-reorder-lifecycle.ts'],
+    ]
+    const pairRequired = Boolean(jobs[jobsByLane['test-owner-sdk']])
+      || pair.some(([name, script]) => primary.steps.some(step => step.name === name || step.run?.includes(script)))
+    const sentinels = [
+      ...(pairRequired ? pair : []),
+      ['Verify contextual Daily Log save atomicity and privileges', 'scripts/check-contextual-daily-log-save-database.sh'],
+    ]
+    let previous = -1
+    for (const [name, script] of sentinels) {
+      const matches = primary.steps.filter(step => step.name === name || step.run?.includes(script))
+      const index = proofs.indexOf(matches[0])
+      if (matches.length !== 1 || matches[0].name !== name || !matches[0].run?.includes(script)
+        || matches[0].if || index <= previous) throw new Error('Incomplete historical combined database proof inventory.')
+      previous = index
+    }
+  }
+}
+
 export function extractWorkflow(source) {
   const lines = source.split(/\r?\n/)
   const split = lines.includes(`  ${jobsByLane['test-owner-sdk']}:`)
   const sdkPartitioned = lines.includes(`  ${jobsByLane['test-owner-sdk-lifecycle']}:`)
+  const databaseSplit = lines.includes(`  ${jobsByLane['database-lifecycle']}:`)
+  if (!databaseSplit && /architecture-database-contracts-lifecycle|DATABASE_LIFECYCLE_RESULT|--lane database-lifecycle/.test(source)) throw new Error('Missing or renamed canonical database lifecycle job in partitioned workflow.')
   const browserSplit = lines.includes(`  ${jobsByLane['browser-dark']}:`)
   // Historical reviewed commits retain all seven proofs in the original job.
   // A damaged split workflow must never silently become a legacy plan.
@@ -153,6 +211,7 @@ export function extractWorkflow(source) {
   if (!browserSplit && /browser-experience-dark|BROWSER_DARK_RESULT|pnpm e2e:ci --project=/.test(source)) throw new Error('Missing or renamed canonical dark browser job in split workflow.')
   const jobs = {}
   for (const [lane, id] of Object.entries(jobsByLane)) {
+    if (!databaseSplit && lane === 'database-lifecycle') continue
     if (!split && lane === 'test-owner-sdk') continue
     if (!sdkPartitioned && lane === 'test-owner-sdk-lifecycle') continue
     if (!browserSplit && lane === 'browser-dark') continue
@@ -167,6 +226,12 @@ export function extractWorkflow(source) {
     for (const line of body.slice(0, stepsIndex)) {
       if (!line.trim() || line.trimStart().startsWith('#') || /^ {6}[A-Z][A-Z0-9_]*:/.test(line)) continue
       if (!/^    (?:name|needs|if|runs-on|timeout-minutes|env):/.test(line)) throw new Error(`Unsupported canonical job property in ${id}: ${line.trim()}`)
+    }
+    if (databaseSplit && ['database', 'database-lifecycle'].includes(lane)) {
+      const header = body.slice(0, stepsIndex)
+      const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_database == 'true'", '    timeout-minutes: 90',
+        lane === 'database-lifecycle' ? '    runs-on: ubuntu-latest' : '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}']
+      if (required.some(line => header.filter(value => value === line).length !== 1) || header.includes('    env:')) throw new Error(`Canonical ${lane} database job topology changed.`)
     }
     const envIndex = body.slice(0, stepsIndex).findIndex(line => line === '    env:')
     const env = envIndex === -1 ? {} : literalEnvironment(body.slice(envIndex + 1, stepsIndex), 6)
@@ -183,6 +248,15 @@ export function extractWorkflow(source) {
     if (!steps.length) throw new Error(`No steps in ${id}.`)
     jobs[id] = { id, lane, env, steps }
     validateLaneSafety(jobs[id])
+  }
+  validateDatabaseInventory(jobs)
+  if (databaseSplit) {
+    const gate = source.split('  pr-gate:\n')[1] ?? ''
+    for (const line of ['      - architecture-database-contracts-lifecycle',
+      '          DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}',
+      '          if [[ "$DATABASE_REQUIRED" == "true" && "$DATABASE_LIFECYCLE_RESULT" != "success" ]]; then']) {
+      if (gate.split('\n').filter(value => value === line).length !== 1) throw new Error('Canonical database lifecycle gate closure changed.')
+    }
   }
   for (const [profile, name] of ownerProofs) {
     const proofOwner = sdkPartitioned && lifecycleProofs.has(profile) ? jobsByLane['test-owner-sdk-lifecycle']
@@ -224,6 +298,10 @@ export function extractWorkflow(source) {
 }
 
 export function selectPlan(jobs, lane) {
+  if (!Object.hasOwn(jobsByLane, lane) && lane !== 'all') throw new Error('Unknown CI lane.')
+  validateDatabaseInventory(jobs)
+  const databaseSplit = Boolean(jobs[jobsByLane['database-lifecycle']])
+  if (lane === 'database-lifecycle' && !databaseSplit) throw new Error('The selected historical workflow has no separate database-lifecycle lane; use --lane database.')
   // Keep database and SDK aliases complete; all local jobs stay serial, with
   // guarded startup/cleanup on the same dedicated disposable daemon.
   const split = Boolean(jobs[jobsByLane['test-owner-sdk']])
@@ -234,10 +312,12 @@ export function selectPlan(jobs, lane) {
   if (lane === 'browser-dark' && !browserSplit) throw new Error('The selected historical workflow has no separate browser-dark lane; use --lane browser.')
   const sdkLanes = split ? ['test-owner-sdk', ...(sdkPartitioned ? ['test-owner-sdk-lifecycle'] : [])] : []
   const lanes = lane === 'all' ? Object.keys(jobsByLane).filter(value => jobs[jobsByLane[value]])
-    : lane === 'database' ? ['database', ...sdkLanes]
+    : lane === 'database' ? ['database', ...(databaseSplit ? ['database-lifecycle'] : []), ...sdkLanes]
       : lane === 'test-owner-sdk' ? sdkLanes
         : lane === 'browser' && browserSplit ? ['browser', 'browser-dark'] : [lane]
-  return lanes.map(value => jobs[jobsByLane[value]])
+  const plan = lanes.map(value => jobs[jobsByLane[value]])
+  if (plan.some((job, index) => !job || job.id !== jobsByLane[lanes[index]] || job.lane !== lanes[index]) || new Set(plan.map(job => job.id)).size !== plan.length) throw new Error('Incomplete or duplicate canonical local CI plan.')
+  return plan
 }
 
 export function validateLaneSafety(job) {

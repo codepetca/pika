@@ -1,6 +1,81 @@
 # CI proof optimization execution plan
 
-## Current phase: owner SDK partition
+## Current phase: database contract partition
+
+User authorized the next database-lane optimization on 2026-10-10. Coordinator
+remains the architecture/development-workflow chat; branch
+`codex/ci-database-optimization`, base
+`b8335397b305e57d7419f5e3709373b6f2b6dbfd`. Risk: `runtime-platform`.
+One GPT-6.1 Sol/high worker completed bounded dependency and timing analysis and
+owns workflow/local-driver implementation. Coordinator owns documentation,
+independent review, publication and acceptance. DeepSeek remains paused. Weekly
+allowance at start is 34% remaining, account-wide; attributable tokens and active
+time are unknown.
+
+The SDK partition is delivered through
+[PR 1556](https://github.com/codepetca/pika/pull/1556), with reviewed/native/merged
+tree `cc5c471bb5b1400321daad7a060daa8fe8a3da6f`. All eight jobs in
+[run 38019722317](https://github.com/codepetca/pika/actions/runs/38019722317) passed.
+The longest SDK job fell from 38m31s to 20m03s, with 1m00s extra summed SDK job
+time. All seven proof groups and 21 fresh-project modes were conserved. Database
+contracts took 45m23s, so the full gate took 45m46s versus the preceding 38m55s;
+that run does not establish end-to-end improvement. Summed all-job time rose from
+144m36s to 147m00s. Unchanged workloads still showed hosted-runner variation.
+
+Split the database lane immediately before the owner reorder proof. The existing
+`architecture-database-contracts` retains 51 proof blocks through Test
+member-list; `architecture-database-contracts-lifecycle` runs the remaining 85,
+starting with reorder and ending with concurrent Stripe binding/webhook intake.
+Conserve all 136 current-main proof blocks exactly once and retain relative order
+within each partition. Setup and cleanup are independently copied metadata;
+identity-migration rehearsal and generated types checks remain prefix-only.
+
+The identity rehearsal resets the disposable canonical database to migration
+133 without seed, replays the remaining reviewed migrations, then deletes its
+synthetic actors and Classroom. It does not perform a final reset. No file,
+environment, fixture or receipt dependency across the selected boundary was
+found. Reorder captures its current canonical checkpoint and independently
+prepares a fresh reviewed-migration project. The suffix starts its own complete
+latest-schema canonical stack. The first two native candidates passed this fresh-start
+check; the latest-main candidate still requires exact-head CI.
+
+The original database job retains configured routing. The new lifecycle job
+uses `ubuntu-latest`, the existing database selector and only the classifier
+dependency. Both retain pinned tools, frozen install, lineage and isolation
+preflights, full migration replay and guarded stop. Proofs remain serial in each
+job. PR Gate requires both database results and both existing SDK results when
+database coverage is selected. Local `database` and `all` plans execute every
+partition once, serially on one dedicated daemon; historical combined database,
+SDK and browser layouts retain complete plans. Split plans close proof-name
+inventory/order and reject malformed ownership; independent raw block comparison
+also verifies unchanged commands and environments.
+
+Projection from run 38019722317: database jobs about 24m58s and 22m48s,
+summed 47m46s, roughly 2m23s more than the original job. The observed browser
+maximum is 25m06s, only eight seconds above the projected database maximum.
+These are single-run estimates, not accepted savings. Native acceptance records
+maximum database elapsed, summed database/all-job time, full gate and queue time,
+proof-mode cleanup, setup, artifact/source equality and failed attempts.
+Focused/static checks, fixed-SHA independent review and one eligible exact-head
+native run remain mandatory. Local canonical DB mutation, hardware activation,
+production/migrations, new dependencies and Clarity collection remain held.
+
+Two reviewed native candidates passed all nine jobs: run 38048029454 had database
+maximum 23m29s, summed database time 43m53s and full gate 34m51s; run 38050484519
+had 19m30s, 36m32s and 33m50s respectively. The latter summed all-job time was
+146m56s versus the 147m00s baseline. These are observations with hosted variance.
+Both runs had six passing light-browser retries; archive recovery desktop-light
+was the one shared retry case. Browser duration now bounds the gate.
+
+Concurrent main PR1555 at `7306426662f8802e3ab1d21fd2948c9d85034dd9` adds migration
+256 and one contextual Test owner workflow contract before the read proofs.
+Retain that exact proof in the primary partition (51/85, 136 total) and the
+reviewed member-list/reorder migration profiles. The local split inventory is
+updated deliberately, with no old-inventory fallback. The owner approved a
+60-minute integration/review/CI completion extension on 2026-10-10. One targeted
+integration review and final-head native acceptance remain required.
+
+## Historical owner SDK partition
 
 User authorized the next SDK speed improvement on 2026-10-09. Coordinator remains
 the architecture/development-workflow chat; branch `codex/ci-sdk-optimization`,
