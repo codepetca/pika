@@ -12,13 +12,14 @@ import { GET as results } from '@/app/api/student/tests/[id]/results/route'
 import { GET as file } from '@/app/api/student/tests/[id]/documents/[docId]/file/route'
 import { GET as snapshot } from '@/app/api/student/tests/[id]/documents/[docId]/snapshot/route'
 import { resolveTestDocumentUploadContentTypes } from '@/lib/server/test-document-content-types'
-import { buildPrivateStorageRedirect, buildPublicStorageCompatibilityRedirect } from '@/lib/server/direct-storage-delivery'
+import { buildPrivateStorageRedirect, buildPublicStorageCompatibilityRedirect, getPrivateStorageContentType } from '@/lib/server/direct-storage-delivery'
 import { buildSnapshotResponse } from '@/lib/server/test-document-snapshots'
 import type { TestLearnerOperation } from '@/lib/validations/contextual-test-learner-workflow'
 
 vi.mock('@/lib/auth', () => ({ requireAuth: vi.fn(), requireRole: vi.fn() }))
 const rpc = vi.fn()
-vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => ({ rpc })) }))
+const download = vi.fn()
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => ({ rpc, storage: { from: () => ({ download }) } })) }))
 vi.mock('@/lib/server/test-document-content-types', () => ({ resolveTestDocumentUploadContentTypes: vi.fn(async documents => documents) }))
 vi.mock('@/lib/server/direct-storage-delivery', () => ({ getPrivateStorageContentType: vi.fn(async () => 'application/pdf'),
   buildPrivateStorageRedirect: vi.fn(async () => NextResponse.redirect('https://storage.example.test/signed', 302)),
@@ -184,5 +185,44 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     const response = await snapshot(req(),ctx)
     expect(response.status).toBe(200); expect(response.headers.get('content-security-policy')).toBe("default-src 'none'")
     expect(buildSnapshotResponse).toHaveBeenCalledOnce(); expect(calls()).toEqual(['inspect','document','document'])
+  })
+  it.each(['registered-object', 'unmanaged-metadata'])('normalizes historical HTML charset MIME from %s without weakening the raw tuple recheck', async source => {
+    const rawMime = 'text/html; charset=utf-8'
+    if (source === 'unmanaged-metadata') vi.mocked(getPrivateStorageContentType).mockResolvedValueOnce(rawMime)
+    const actual = await vi.importActual<typeof import('@/lib/server/test-document-snapshots')>('@/lib/server/test-document-snapshots')
+    vi.mocked(buildSnapshotResponse).mockImplementationOnce(actual.buildSnapshotResponse)
+    download.mockResolvedValueOnce({ data: new Blob(['<p>Historical snapshot</p>']), error: null })
+    const legacyDoc = { id: docId, title: 'Historical link', source: 'link', url: 'https://example.test/ref',
+      snapshot_path: path, snapshot_content_type: rawMime, synced_at: stamp }
+    const base = resultFor; resultFor = args => args.p_operation === 'document' ? {
+      document: source === 'registered-object' ? { ...legacyDoc, snapshot_managed_object_id: objectId } : legacyDoc,
+      content_type: source === 'registered-object' ? rawMime : null,
+      object: source === 'registered-object' ? { ...material.object, content_type: rawMime, purpose: 'test_execution_snapshot' } : null,
+    } : base(args)
+    const response = await snapshot(req(),ctx)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-security-policy')).toContain("script-src 'none'")
+    expect(response.headers.get('content-type')).toBe('text/html')
+    expect(await response.text()).toBe('<p>Historical snapshot</p>')
+    expect(download).toHaveBeenCalledWith(path)
+    expect(buildSnapshotResponse).toHaveBeenCalledWith(expect.objectContaining({ snapshot_content_type: 'text/html', synced_at: stamp }))
+    expect(calls()).toEqual(['inspect','document','document'])
+    expect(getPrivateStorageContentType).toHaveBeenCalledTimes(source === 'registered-object' ? 0 : 1)
+  })
+  it('rejects a changed raw HTML charset tuple even when both values normalize to the same supported MIME', async () => {
+    let documentCalls = 0; const base = resultFor
+    resultFor = args => args.p_operation === 'document' ? { content_type: ++documentCalls === 1 ? 'text/html; charset=utf-8' : 'text/html; charset=iso-8859-1',
+      document: { id: docId, title: 'Link', source: 'link', url: 'https://example.test/ref', snapshot_path: path }, object: null } : base(args)
+    const response = await snapshot(req(),ctx)
+    expect(response.status).toBe(409)
+    expect(buildSnapshotResponse).toHaveBeenCalledOnce()
+    expect(calls()).toEqual(['inspect','document','document'])
+  })
+  it('continues to reject unsupported link MIME before preparing delivery', async () => {
+    const base = resultFor; resultFor = args => args.p_operation === 'document' ? { content_type: 'application/x-executable',
+      document: { id: docId, title: 'Link', source: 'link', url: 'https://example.test/ref', snapshot_path: path }, object: null } : base(args)
+    expect((await snapshot(req(),ctx)).status).toBe(404)
+    expect(buildSnapshotResponse).not.toHaveBeenCalled()
+    expect(calls()).toEqual(['inspect','document'])
   })
 })

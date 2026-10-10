@@ -11,7 +11,7 @@ import { getEffectiveStudentTestAccess } from '@/lib/server/tests'
 import { getStudentTestStatus, summarizeTestFocusEvents } from '@/lib/tests'
 import { normalizeTestResponses, buildTestAttemptHistoryMetrics } from '@/lib/test-attempts'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import { normalizeTestDocuments, getTestDocumentStoragePath, isAllowedTestDocumentType, isSupportedLinkSnapshotContentType } from '@/lib/test-documents'
+import { normalizeTestDocuments, getTestDocumentStoragePath, isAllowedTestDocumentType, isSupportedLinkSnapshotContentType, normalizeSnapshotContentType } from '@/lib/test-documents'
 import { buildSnapshotResponse } from '@/lib/server/test-document-snapshots'
 import { resolveTestDocumentUploadContentTypes } from '@/lib/server/test-document-content-types'
 import { buildPrivateStorageRedirect, buildPublicStorageCompatibilityRedirect, getPrivateStorageContentType } from '@/lib/server/direct-storage-delivery'
@@ -178,7 +178,8 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
       || before.object.storage_path !== path || (objectId && before.object.id !== objectId)
       || before.object.purpose !== (source === 'upload' ? 'teacher_test_material' : 'test_execution_snapshot')
       || before.content_type !== before.object.content_type)) throw unavailable()
-    const mime = before.content_type ?? await flow.within(() => getPrivateStorageContentType({ supabase: client, bucket: 'test-documents', path }))
+    const rawMime = before.content_type ?? await flow.within(() => getPrivateStorageContentType({ supabase: client, bucket: 'test-documents', path }))
+    const mime = source === 'link' ? normalizeSnapshotContentType(rawMime) : rawMime
     if (!mime || !(source === 'upload' ? isAllowedTestDocumentType(mime) : isSupportedLinkSnapshotContentType(mime))) throw new ApiError(404, 'Document not found')
     const response = await flow.within(async () => {
       if (source === 'link') return buildSnapshotResponse({ ...doc, snapshot_content_type: mime })
