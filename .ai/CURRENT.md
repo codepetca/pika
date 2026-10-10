@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-09 UTC
 
-Main `ff3685d3e`; 27 audit findings accepted.
+Main `e405fbfab`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE since2026-10-05 06:27UTC; loginHTTP200. Appc6f23b4b (#1476),
@@ -14,7 +14,7 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Settings last verified in prior receipts; no fresh hosted query here for controls.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-Oct9 plan: coherent assessment/lifecycle/UI/release; billing separate.
+256native/types PASS; review/CI pending. Billing separate.
 Discard251: #1503 merged865d837b7; CI PASS.
 Publication#1510 merged473a5de8a; native/types and exact-head CI PASS.
 LegacyPATCH/UI unchanged; canonical local/prod249+ unapplied.

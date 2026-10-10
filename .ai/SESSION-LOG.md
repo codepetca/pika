@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 Join retry focus continuity
-
-Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
-
-## 2026-10-08 — Entry recovery continuity
-
-Classic Login native held401 baseline lost activation to BODY, omitted busy state and shifted error geometry. Reused existing reserved FormField slot and renamed the unchanged reset feature request owner to useAuthFormContinuity for genuine third Login adoption. Failed requests preserve nodes/drafts/caret and eligible focus; explicit Forgot/Sign up or unmount retires obsolete results. Signup footer Login now canonical ghost/sm44px, retaining continuation. Existing Magic/session-reason/WorkOS/dev branches and accepted Join source untouched. Focused semantic and selected native regression added; representative desktop/mobile native smoke passed before full combined32case verification. Coordinator owns actual-main binding/review/CI, no worker push/PR. External final execution receipt binds source/dependencies/headless shell/ffmpeg and natural media.
-
 ## 2026-10-08 — Signup owner continuity
 
 Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
@@ -356,3 +348,31 @@ blocker. Parenthesize extracted witness; second regression RED→GREEN6/6.
 Review ledger:1 completed bounded source turn/full-diff waves0/remediation1,
 native parser repair1 retained separately. Effective tokens/time unknown.
 Targeted delta review and fresh native approval remain; no full-PR acceptance.
+
+## 2026-10-09 — Owner Test workflow native verification accepted
+
+Direct fresh approval covered one replay001–256 froma1bcab47e. Sol/high worker's
+existing-helper native run PASS85.718s/63containedSDKrequests: fullhistory/SQLACLs,
+owner metadata/selectedaccess/currentrelationship refusals, realPDFsignedupload,
+MIME/size finalize/attach/byte-readback, cancelordering, metadata/snapshotCAS and
+realHTMLCSPsnapshot replacement/durablecleanup. ExactownedDocker teardown/global
+741-resource closure/canonicalcomplete rows+controls+cron/source/ports PASS.
+Receipt:/private/tmp/pika-owner-workflow-proof.NHXKxe/result.json. External URL
+fetch/sanitize orchestration not invoked; downstreamsnapshot bytes real. Generated
+publictypes438466bytes SHA6ccab478f97b0df7140e38e2f60b1f3ca4c6d8b50d7f5f36d35c56b994e362e9,
+copied unchanged; onlynewRPC. NativeNULLinspect parent gets application refinement
+in database.ts with RED→GREEN7/7; finalTypeScriptPASS. No generatedsignatureforge.
+Rebase on e405fbfab incoming browserCIpartition: runtime/schema/proofSQLunchanged.
+One archive-marker conflict resolved preserving fullbodies; source2779/main2773
+history entries missing0 (per-file full-body multiset check; initial concatenated
+files falsepositive corrected). Existing safety stash retained. No new migration
+renumbering: own256 unchanged. Weekly36%remaining; worker tokens/effectiveusage
+unknown. Cumulative boundedpre-replay review turns2/remediation1/parserrepair1;
+fullPRreview/CI/mainmerge pending, sharedlocal/prod/activation holds unchanged.
+Final focused gate on rebased tree PASS742tests/69files plus architecture/UI/design/
+TypeScript/lint; genuine artifact equality and new3-file audit PASS, prior16-file
+implementation audit retained for unchanged source. Risk high/runtime-platform:
+service-only currentowner transaction/Storage boundary plus CI registration.
+Full review will use two fresh independent Sol/high readers (security/correctness,
+architecture/compatibility) on one frozen SHA; cumulative boundedreview2turns,
+fullwave0/remediation1 before dispatch. No new visual surface or activation.

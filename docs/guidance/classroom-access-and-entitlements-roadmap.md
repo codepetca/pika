@@ -497,6 +497,23 @@ parenthesized before subtracting metadata fields. Coordinator corrected it with
 a second RED→GREEN regression (6/6). Targeted correction review remains distinct
 from full PR review/native acceptance; no replay was retried.
 
+Superseding native receipt: after direct fresh approval, the one disposable replay
+from `a1bcab47e` passed all 001–256 history and the rollback SQL/ACL contracts.
+Real SDK Storage uploads, MIME/size finalization, signed byte readback, owner
+transfer/archive/member invalidation, cancellation ordering, metadata/snapshot CAS,
+HTML snapshot read/CSP and replacement cleanup passed (63 contained requests,
+85.718 seconds). Exact disposable teardown/global Docker closure and full canonical
+row/control/cron/resource equality passed. Receipt:
+`/private/tmp/pika-owner-workflow-proof.NHXKxe/result.json`. External URL fetching
+was not exercised; downstream snapshot handling used real local Storage bytes.
+Genuine public types hash `6ccab478f97b0df7140e38e2f60b1f3ca4c6d8b50d7f5f36d35c56b994e362e9`
+adds only the new RPC. Application refinement describes its native-proved nullable
+inspect parent; it does not hand-edit generated types. Rebase onto `e405fbfab`
+preserved all runtime/schema/rollback bytes and both source/main history bodies;
+only incoming browser-CI partition and related guidance changed. Shared local and
+production remain untouched; full independent PR review, stable CI and merge
+remain pending. No phase exit or activation.
+
 ### Execution checkpoint — 2026-10-08
 
 The owner requested orchestration of the remaining goal in this coordinator.
