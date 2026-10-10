@@ -16,6 +16,7 @@ Quota OFF/activation variables absent verified Oct10; other settings reuse recei
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 256native/review/CI PASS; billing separate.
+Learner source preparation active.
 251/252 native/review/CI PASS.
 LegacyPATCH/UI unchanged; local249+ unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.

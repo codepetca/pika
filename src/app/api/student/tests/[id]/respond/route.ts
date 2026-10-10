@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { submitStudentTestAttempt } from '@/lib/server/test-submissions'
@@ -9,6 +10,8 @@ export const revalidate = 0
 
 // POST /api/student/tests/[id]/respond - Submit all responses
 export const POST = withErrorHandler('PostStudentTestRespond', async (request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('submit', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
   let rawBody: unknown

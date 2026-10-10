@@ -429,16 +429,27 @@ visual verification, final-SHA CI and PR Gate. Do not weaken safety gates to gai
 speed. Integrate against a current frozen base before readiness, not repeatedly
 recheck stale candidates. This changes delivery strategy, not correctness criteria.
 
-The bounded Test workflow map is accepted against main `763edbb18`. One Sol/high
-implementation worker now owns the coherent dormant owner group: metadata edits,
-reference-document reservation/finalization/sync/readback/removal and selected
-learner open/close access. Reuse existing atomic document/lifecycle transactions
-and the migration-248 selected-access writer; no unlocked metadata-only write.
-The coordinator owns this roadmap, integration, verification and Git/PR operations
-on `codex/classroom-completion`; the worker owns only that subsystem's source/tests
-and necessary additive schema source. No live/shared database writes are delegated.
-Learner detail/start/save/submit/recovery/disclosure is the next dependent workflow;
-its revision-conflict returns must authorize membership/visibility before disclosure.
+The bounded Test workflow map was accepted against main `763edbb18`. The coherent
+dormant owner group (metadata, reference-document lifecycle/delivery and selected
+learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
+Exact reviewed552tree `a496f1cf595920f89b5cebe7510e48942dbf4986` equals the merge tree;
+CI38050378092 passed all8jobs/PRGate and clean canonical main fast-forwarded.
+Eight completed independent review turns retain earlier failure/remediation/base-
+sync receipts; no repeated full review or administrator bypass. No batch2 exit.
+
+One Sol/high implementation worker now owns the next coherent dormant
+[learner Test group](contextual-test-learner-workflow.md) on
+`codex/learner-test-workflow`, based on that actual merged main:
+detail/start/save/submit/recovery/session/focus/history/results/material delivery.
+Keep existing URLs/envelopes, shared admission and legacy OFF/unmatched behavior.
+Current nonowner membership/visibility must authorize before revision-conflict
+disclosure; teacher-account members participate without paid-owner requirements.
+Preserve existing selected-close recovery differences and separately locked
+best-effort history, so history failure does not roll back successful answers.
+Worker owns feature source/tests and necessary additive SQL source; coordinator
+owns this roadmap, Git/PR, proof integration, native/type acceptance and review.
+No database application or rollout controls are delegated. Source-only preparation
+does not reuse the consumed256 replay approval or authorize a fresh migration.
 Do not perform another architecture audit or revisit accepted reorder/list work.
 Owner workflow PR1555 corrected-source native proof on7a3f2e3f8 passed001–256,
 rollback SQL,94 realSDKrequests and genuine types; exact disposable teardown and
@@ -446,8 +457,9 @@ canonical/global preservation passed. Initial CI38047561807 found the older
 member/reorder proof profiles still sealed at255. The correction admits only
 reviewed256name/digest/bytes, preserving every table catalog, cleanup and future
 refusal. These are proof compatibility corrections, not another product feature
-or a reopened architecture/list/reorder audit. PR remains draft until targeted
-review and corrected-head CI pass; no merge/batch2/activation exit claimed.
+or a reopened architecture/list/reorder audit. Corrected profile and current-main
+integration reviews and exact-head CI passed before merge. This component receipt
+does not activate admission/home/page/cutover or complete batch2/the overall goal.
 Only concretely independent batch-3 work may run beside batch 2; batch 4's live
 entry remains gated on completed batches 1–3. The coordinator owns integration,
 phase exits, independent-review acceptance and normal authorized main merges.

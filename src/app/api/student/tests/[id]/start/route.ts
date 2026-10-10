@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { z } from 'zod'
 import { savedAttemptSchema } from '@/lib/server/test-submissions'
 import { requireRole } from '@/lib/auth'
@@ -12,6 +13,8 @@ const startedSnapshotSchema = z.object({ questions: z.array(z.unknown()), attemp
 export const dynamic = 'force-dynamic'
 
 export const POST = withErrorHandler('StartStudentTest', async (_request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('start', _request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
   const access = await assertStudentCanAccessTest(user.id, testId)

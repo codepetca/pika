@@ -163,6 +163,13 @@ jobs:
           docker port supabase_db_pika 5432/tcp | grep -Eq ':54322[[:space:]]*$'
           docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-contextual-test-owner-workflow.sql
 
+      - name: Verify contextual Test learner workflow authority and lifecycle
+        shell: bash
+        run: |
+          [[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
+          docker port supabase_db_pika 5432/tcp | grep -Eq ':54322[[:space:]]*$'
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-contextual-test-learner-workflow.sql
+
       - name: Verify classroom creation entitlements and active-limit concurrency
         run: bash scripts/check-classroom-creation-entitlements-database.sh
 

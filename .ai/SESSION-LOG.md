@@ -294,6 +294,21 @@ lint; changed-test audit PASS. Native replay of the correction still unapproved.
 ## 2026-10-10 — Modal and drawer closing final integration
 
 PR1557 initial full-diff review CLEAN at a6f3d48fb (13 changed paths plus immediate contracts, observed228sec, zero findings). Human directed Next. Actual main b8335397b adds CI-only SDK partition; merge into feature preserves both session histories and both archival receipt markers for their identical entry. Product/native10source hashes, dependency lock and build inputs unchanged; original16-context closing proof remains reusable subject to hash verification. Final current-base focused/static and targeted integration review precede stable-SHA ready CI. Weekly34% remaining; DeepSeek pause and privacy/1217/production holds retained. Root coordinates, requested Sol6.1/medium integration reviewer; effective/tokens/active time unknown. No production, migrations or dependency operations.
+## 2026-10-10 — Owner Test workflow delivered; learner group started
+
+PR1555 normal squashmerge730642666 verified12:37:09UTC after exact552 CI38050378092
+all8jobs/PRGate PASS; merge tree equals revieweda496f1cf5. Canonical cleanmain
+fast-forwarded, lifecycleci-passed/merged recorded. Eight independent review turns,
+native7a3 actual001–256/94SDK/genuine types and all historical failed receipts retained.
+No prod/shared migration/promotion/activation, phase exit or overall completion.
+
+Fresh codex/learner-test-workflow at actualmerge730642666: offline frozen dependencies,
+Node24.12.0, envsymlink/startup PASS. Same Sol/high bounded implementation worker owns
+the accepted10-route learner group source/tests/additive SQL only. Coordinator owns
+docs/proof/native/review/Git. Preserve best-effort fenced history and existing closed
+attempt recovery semantics; no new architecture audit. Exact fresh native application
+will need separate authority; previous256 permission consumed. DeepSeek pause retained.
+CI observed queue0/runwindow2152s; active effort/tokens/effective worker config unknown.
 
 ## 2026-10-10 — Student test request reduction
 
