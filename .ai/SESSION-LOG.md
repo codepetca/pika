@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Attendance result text sizes
-
-Owner requests larger classroom names and check-in times. Reuse the existing StudentAttendanceCheckIn card and Pattern Lab status/Card reference; increase both text sizes from14px to20px using canonical text-xl. Retain wrapping and all scan/retry behavior. Student-only, teacher n/a; desktop1440×900/mobile390×844 in light/dark, plus long-title mobile boundary.
-Focused checks PASS376tests plus architecture/UI/design/TypeScript/lint. Native four-project browser scenario PASS32.7s; root inspected all eight success/failure captures and long-title mobile boundary, no viewport overflow. Independent typography-delta review pending; prior cumulative ec4f4a962 review clean. PR1533 returned to draft before edits. One native harness launch lacked the local session secret after prior server ended; restart via approved local-dev skill before rerun. No source rework. Risk none; fast-tier GPT-6 Luna/medium recommended for two-class delta, direct implementation. Prior reviewer turns3; tokens/active time unknown, weekly remaining72% reused.
-
-Audit heuristic flagged missing changed accessibility tests because it scans existing role/status markup. This delta changes only two typography classes; existing keyboard-focus regression and final 376 tests pass. No composite semantics changed, no mirrored CSS test or audit-rule weakening; independent reviewer will verify this classification.
-
 ## 2026-10-08 — Attendance failure heading
 
 Owner requests exact failure heading “Not checked-in” in place of “We could not confirm check-in.” Reuse existing student scan card and Pattern Lab status/Card; no new pattern/interaction. Preserve classroom name,20px typography and Try again. Update existing semantic heading assertions in component and native QR/return-focus coverage. Teacher n/a; student desktop/mobile light/dark, normal/reduced motion for return navigation.
@@ -440,3 +433,29 @@ PASS. Keptstartup17kcap unchanged by compactingCURRENT label; audit/diffchecksne
 SDK PR1556 merged b8335397b: native eight-job/full-gate PASS, SDK max20m03s vs38m31s; database45m23s now critical path. Authorized next slice preserves all135 database proof blocks across50/85 independent jobs, boundary before owner reorder; local database/all aliases remain complete and serial. No app/schema/harness/dependency changes or local canonical/prod DB mutation. Sol/high design and two independent fixed-SHA reviews PASS; focused671/54files and all static/audit PASS. First native run38048029454 all9/full-gatePASS: database max23m29/sum43m53 vs45m23; gate34m51 vs45m46; lightbrowser34m31/6passing retries now critical path. Rebased onto concurrent student-request PR1558/main6be42b15; retained both continuity bodies and main archive marker for the same archived entry. No CI implementation or proof body changed. Updated-base focused checks, proportional independent delta review and final-head CI pending. Plan: docs/plans/ci-proof-setup-optimization.md.
 
 Second candidate38050484519 at1c0cd35/6be42b15 all9/full-gatePASS: DBmax19m30/sum36m32, gate33m50, all-job146m56; all135proofs,36isolatedmodes+cleanup,SDK21,15973tests+build,577distinctbrowserselections/20skips/6passingretries,3artifacts/six timingJSON accepted. Concurrent owner-workflow PR1555/main730642666 then prevented merge. Returned draft and retained passing receipts. User approved one60minute integration/targetedreview/CI extension from13:05UTC. Preserve inherited migration256/profile validators and its exact newSQLproof in primary51/lifecycle85:136total. Strict local inventory/count tests updated; no old-layout fallback or app/schema/harness changes by this feature. Archive conflict resolved with main archive after verifying prior archived Join body already present byte-for-byte. Final focused/review/native gate and main merge remain pending; all holds unchanged.
+
+## 2026-10-10 — Authorized production migration and request-reduction rollout
+
+Owner explicitly approved one production application of249–256 and deployment
+of cumulative promotionPR1560. Preview38062580801/source730642666 retained
+all eight approved SQL hashes/digest36e0b26058a9; latest complete mainCI
+38055131704 accepted the unchanged Supabase tree. One apply38062699229
+returned applied-verified, history256. Read-only catalogue checks match all16
+installed function bodies/owners/empty search paths and service-only ACLs,
+both indexes ready/valid, quota singleton disabled and trigger installed.
+No production fixtures, student-work deletion/backfill or activation/plan changes.
+
+Two independent Sol/high cumulative reviews identified missing255 as the one
+blocking root cause; installed-function verification resolves it. Reused exact
+reviewed PR1559 CI-only delta/full-nine-job PASS for candidate3b7ae978e; app,
+migrations and deployment configuration are byte-identical to approved730.
+No new reviewer launch is attributed to reused coverage. Stable release ready,
+CI38062958668 attempt1: 16058PASS/1gallery15s timeout/8skipped; attempt2
+failed-job retry pending at unchanged head. Same gallery28/28PASS locally with
+instrumentation, prior exact-main case10.492s; isolated command exit1 on unrelated
+aggregate coverage thresholds, not accepted as full coverage. No threshold change.
+Production remains previousd32b8bbdf until verified deploy.
+Source request reduction preserves five-second debounce, exit/final saves,
+30-second session polling and telemetry; live savings unmeasured. RESPMax
+saving remains OFF pending legitimate shared Hobby headroom and hosted acceptance.
+Release evidence retained in respmax/output/verification/pika-production-promotion-20261010/.
