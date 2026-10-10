@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Completion batch review and recovery correction
-
-Fixed batch0f6737b has2239 tests/109files and TypeScript/lint/architecture/UI/design PASS. Two independent GPT-6.1 Sol/high cumulative reviewers completed backend/security and architecture/compatibility scopes; compatibility CLEAN, security accepted oneP2: body transport or timeout errors bypassed grading polling retry budget. One correction batch distinguishes SyntaxError from transient body failures, retaining finite failure/deadline limits, status-before-tick ownership and cancellation. Three regression cases cover real broken Response streams, body timeout and repeated transport exhaustion; polling28 PASS and changed-file audit PASS. Targeted independent delta review and corrected-head focused checks precede readiness. Ledger:2 initial cumulative reviewer turns,1 wave,1 accepted finding,1 fix batch; prior per-PR counters preserved. Reported review intervals123/253seconds are elapsed estimates, active time/tokens unknown.
-
-Fresh fixture-only visual evidence at0f6737b:8 teacher/student×desktop/mobile×light/dark captures PASS and4 unchanged Darwin contract comparisons PASS; synthetic API interception/empty storage, zero custom-capture API requests, no authenticated-app or canonical-data claim. Normal/late16px ring and12px late clock verified; compact fixture is14px submitted, no dedicated compact-progress fixture. Original compact-progress evidence remains tied to its executed source. Two original ready-event runs intentionally cancelled by returning1525/1538 to draft for batch strategy; no product failure inferred. Exact corrected-head CI/PRGate and merge still pending. Evidence/handoff:~/.codex/artifacts/pika/pr-completion-20261008; all production/migration/activation/provider/runner holds retained.
-
 ## 2026-10-08 — Reorder source-only main completion candidate
 
 Synced dormant PR1515 from7d5dff8 onto fixed main1dd5325 in owned completion
@@ -457,6 +451,7 @@ PR1557 merged to main3675a8a01 with all selected CI/PR Gate PASS; parent squash 
 ## 2026-10-10 — Browser reliability and dark-family scheduling
 
 User authorized next browser slice. Preserve all577 distinct cases/579 runtime selections, native TTL waits, configured workers/retries/timeouts, snapshots and isolation. Separate dark Pattern Lab into an independently guarded hosted job to remove the pinned Playwright project phase barrier before dark Experience; PR Gate requires its success whenever browser selected. Local browser/dark aliases remain complete and serial across current and historical generations. Three native-artifact/source-supported waits preserve existing assertions: animated inspector geometry, remounted question-editor validation before navigation, survey publication settlement before Escape. No product/schema/dependency changes. Baseline PatternLab16PASS; changed PatternLab24PASS without retries. Cold survey attempt2timeouts/6passes before interruption retained for diagnosis, not accepted as full success; complete warmed survey matrix8PASS without retries and focused737tests/54files plus architecture/UI/design/types/lint PASS. Two bounded Sol6.1/high investigations plus one local-driver implementation delivered; 179 driver/preflight/policy and115 workflow tests PASS. DeepSeek pause honored, weekly28% remaining at start; effective models/tokens/active time unknown. Independent fixed-SHA review and actual hosted timing/retry acceptance remain required. Course Guide availability and focus-restoration flakes remain unresolved. No canonical DB, production promotion, provider/hardware or Clarity actions.
+
 ## 2026-10-10 — Shared page action menu closing
 
 - Extended PageActionBar More actions with the semantic fast opacity exit, immediate inert/hidden command retirement and focus return, owner/availability invalidation, reopen cancellation and reduced motion.
