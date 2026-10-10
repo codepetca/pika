@@ -208,4 +208,30 @@ describe('exact learner installed-SDK source transport (offline, no native accep
     expect(() => t.readContext('recover-member-teacher',new Date(Date.now()-1).toISOString())).toThrow()
     expect(s.fetcher).not.toHaveBeenCalled()
   })
+  it.each(['baseline','collapse','patch','no-op','submit'] as const)('derives exact fixed application history %s plan', async profile => {
+    const deadline=new Date(Date.now()+10000).toISOString(),next={ [f.questions[0].id]:{question_type:'open_response',response_text:'x'.repeat(1800)},
+      [f.questions[1].id]:{question_type:'multiple_choice',selected_option:profile==='collapse'?1:0} }
+    const previous=profile==='baseline'?{}:profile==='no-op'?next:{...next,[f.questions[1].id]:{question_type:'multiple_choice',selected_option:profile==='collapse'?0:1}}
+    const current={...attempt,responses:next,draft_revision:2},last=profile==='baseline'?null:{id:f.materials[0].objectId,test_attempt_id:f.attemptId,
+      patch:null,snapshot:previous,word_count:1,char_count:1900,paste_word_count:3,keystroke_count:5,trigger:'baseline',created_at:new Date(Date.now()-(profile==='collapse'?1000:11000)).toISOString()}
+    const fetcher=vi.fn<typeof fetch>(async (_resource,init)=>{const body=JSON.parse(String(init?.body)),op=body.p_operation
+      const result=op==='inspect'?{access_mode:'member'}:op==='save'?{created:profile==='baseline',previous_responses:previous,attempt:current}
+        :op==='submit'?{attempt_id:f.attemptId,submitted_at:f.now,inserted_responses:2,draft_revision:2}
+        :op==='history-plan'?{attempt:current,last_history:last}:{historyEntry:null}
+      return new Response(JSON.stringify({...witness(op),result}),{headers:{'content-type':'application/json'}})})
+    const transport=createTestLearnerProofTransport(f,target,`pika_assignment_list_${f.tag.slice(-12)}`,fetcher,async()=>{})
+    const label=profile==='submit'?'submit-member-teacher':'save-member-teacher'
+    transport.readContext(label,deadline,profile)
+    const client=createClient(target.API_URL,key,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:transport.safeFetch}})
+    const flow=createContextualTestLearnerWorkflow({supabase:client as unknown as TestLearnerRpcClient,actorId:f.actors[1].id,testId:f.testId,deadline:Date.parse(deadline)})
+    await flow.inspect();await flow.run(profile==='submit'?'submit':'save',{responses:next,expected_revision:1,...(profile==='submit'?{}:{trigger:'autosave',paste_word_count:0,keystroke_count:1})})
+    await flow.run('history-plan',{attempt_id:f.attemptId,draft_revision:2})
+    const body=transport.historyWriteRequest()
+    if(profile==='no-op'){expect(body).toBeNull();expect(fetcher).toHaveBeenCalledTimes(3)}
+    else {expect(body).toMatchObject({attempt_id:f.attemptId,draft_revision:2,expected_last:last,collapse:profile==='collapse',trigger:profile==='submit'?'submit':profile==='baseline'?'baseline':'autosave'})
+      if(profile==='patch'){expect(body?.snapshot).toBeNull();expect(body?.patch).toHaveLength(1)}else expect(body?.snapshot).toEqual(next)
+      if(profile==='collapse')expect(body).toMatchObject({paste_word_count:3,keystroke_count:6})
+      await flow.run('history-write',body as never);expect(fetcher).toHaveBeenCalledTimes(4)}
+    expect(transport.report()).toMatchObject({complete:true,failed:false,nativeVerified:false})
+  })
 })

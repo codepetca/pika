@@ -37,6 +37,9 @@ import { testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql
 import { captureTestOwnerReorderProgress, type TestOwnerReorderProgressCheckpoint, type TestOwnerReorderProgressScope } from './contextual-test-reorder-progress'
 import { assertTestOwnerReorderDiagnosticAvailable, buildTestOwnerReorderDiagnosticManifest, validateTestOwnerReorderDiagnosticSql,
   runTestOwnerReorderDiagnostic, captureTestOwnerReorderTimings, validateTestOwnerReorderDiagnosticReceipt, type TestOwnerReorderTimings } from './contextual-test-reorder-diagnostic'
+import { testLearnerNativePlan, validateTestLearnerNativePlanSql, runTestLearnerNativeContracts, runTestLearnerNativeRaces,
+  type TestLearnerNativePlan } from './contextual-test-learner-native-contracts'
+import type { TestLearnerObservedAttempt } from './contextual-test-learner-proof-fixture'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -86,12 +89,13 @@ function freeze<T>(value: T): T {
   return value
 }
 type PublicationPrivilegeKind = 'snapshot247' | 'publication252' | 'legacy139' | 'activation134'
-function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | PublicationPrivilegeKind = 'snapshot') {
+function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | 'learner' | PublicationPrivilegeKind = 'snapshot') {
   const signature = kind === 'snapshot' ? 'public.snapshot_test_draft_save_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'create' ? 'public.create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)'
     : kind === 'discard' ? 'public.discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)'
     : kind === 'discard-inner' ? 'public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)'
     : kind === 'reorder' ? 'public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)'
+    : kind === 'learner' ? 'public.test_learner_workflow_v1(uuid,uuid,uuid,text,jsonb,timestamp with time zone)'
     : kind === 'snapshot247' ? 'public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'publication252' ? 'public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)'
     : kind === 'legacy139' ? 'public.publish_test_from_draft_atomic(uuid,uuid,integer)'
@@ -135,7 +139,7 @@ function decodeSnapshotCatalog(rows: readonly { result?: unknown }[]): SnapshotC
 export function buildDraftSaveNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
   const fixture = newDraftSaveFixture(original.manifest.syntheticTag.slice(-12))
-  const originalIds = new Set(original.allocatedIds)
+  const originalIds = new Set<string>(original.allocatedIds)
   assert(fixture.allowedFixtureIds.every(id => !originalIds.has(id)))
   const guard = testOwnerGuardSql(fixture.projectId)
   const setup = `${guard}\nbegin;set local lock_timeout='1s';set local statement_timeout='30s';\n${draftSaveFixtureStatements(fixture)}\ncommit;`
@@ -521,8 +525,9 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner';
+  learnerCancellation?: TestLearnerNativePlan['cancellation'];
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
   absoluteDeadline?: number;
@@ -538,6 +543,38 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   runContracts(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<C>;
   runRaces(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<R>;
 }>
+
+export function buildTestLearnerNativeContractsManifest(original: AssignmentListProofFixture,
+  observedAttempts: readonly TestLearnerObservedAttempt[], reviewedHead: string, repository: string) {
+  const plan = testLearnerNativePlan(original, observedAttempts, reviewedHead, repository)
+  return freeze({ ...plan, bootstrap: boot, termination: draftSaveNativeTerminationSql(), close: 'rollback;',
+    capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('learner') })
+}
+export type TestLearnerNativeCancellationRequest = Readonly<{ p_actor_id: string; p_test_id: string; p_classroom_id: string;
+  p_operation: 'save'; p_payload: TestLearnerNativePlan['cancellation']['payload']; p_deadline: string }>
+export type TestLearnerNativeCancellationReceipt = Readonly<{ status: 500; rpcCalls: 1; rawCode: '57014'; elapsedMs: number }>
+
+/** One fixed learner factory. The executor/profile selector stays private. */
+export function createTestLearnerNativeContracts(input: NativeOwnerInput & {
+  observedAttempts: readonly TestLearnerObservedAttempt[]; absoluteDeadline: number;
+}) {
+  const now = Date.now()
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
+  const manifest = buildTestLearnerNativeContractsManifest(input.original, input.observedAttempts, input.reviewedHead, input.repository)
+  const engine = createNativeOwnerContracts(input, { manifest, project: manifest.projectId,
+    sourceFile: '257_contextual_test_learner_workflow.sql', label: 'test-learner', absoluteDeadline: input.absoluteDeadline,
+    singleMs: 12000, committedOuterPrivilege: true, learnerCancellation: manifest.cancellation,
+    validateSql: sql => [manifest.bootstrap, manifest.close, manifest.privilege.catalog, manifest.privilege.revoke].includes(sql)
+      || validateTestLearnerNativePlanSql(manifest, sql),
+    contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    runContracts: (bound, driver) => runTestLearnerNativeContracts(manifest, bound, driver),
+    runRaces: (bound, driver) => runTestLearnerNativeRaces(manifest, bound, driver),
+  })
+  const { probeSnapshotPrivilegeDrift: probe, probeLearnerCancellation, manifest: sealed, setup, verifyTarget, diagnostic, run } = engine
+  assert(probeLearnerCancellation)
+  return Object.freeze({ manifest: sealed, setup, verifyTarget, diagnostic, run, probeLearnerPrivilegeDrift: probe,
+    probeLearnerCancellation })
+}
 
 /** The only exported factories select source-owned closed profiles. Never accept
  * caller-supplied SQL callbacks, migration paths or resource protocols. The
@@ -692,6 +729,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   // Entering the second runner must not renew its 180-second phase budget.
   let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
+  let learnerCancellationDone = false
   let phase: Phase = 'idle'
   let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
   let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
@@ -732,7 +770,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     return ['--host', endpoint.host, 'exec', '-i', '-e', `PGAPPNAME=${name}`, input.containerId, 'psql', '-U', 'postgres', '-d', 'postgres',
       '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', profile.reorderDiagnosticSql && role(name) === 'contracts' ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate', ...variables]
   }
-  function command(file: 'git' | 'docker', args: string[], sql?: string, timeout = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
+  function command(file: 'git' | 'docker', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
     assert(++controls <= CAPS.controlCalls)
     if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
     return new Promise((resolveResult, reject) => {
@@ -951,6 +989,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   }
   async function restorationControl(sql: string) {
     assert([manifest.privilege.catalog, manifest.privilege.restore, manifest.snapshot,
+      ...(profile.learnerCancellation ? [profile.learnerCancellation.catalog, profile.learnerCancellation.restore] : []),
       ...(profile.innerPrivilege ? [profile.innerPrivilege.catalog, profile.innerPrivilege.restore] : []),
       ...Object.values(profile.publicationPrivileges ?? {}).flatMap(p => [p.catalog, p.restore])].includes(sql))
     assert(++actions <= CAPS.actions)
@@ -1020,6 +1059,46 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     probeSnapshotPrivilegeDrift: (probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) => probePrivilege('outer', probe),
     probeInnerPrivilegeDrift: (probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) => probePrivilege('inner', probe),
     probeFixedPrivilegeDrift: (kind: PublicationPrivilegeKind, probe: () => Promise<{ status: 503; rpcCalls: 1 | 2; rawCode: '42501' }>) => probePrivilege(kind, probe),
+    ...(profile.learnerCancellation ? { async probeLearnerCancellation(probe: (request: TestLearnerNativeCancellationRequest) => Promise<TestLearnerNativeCancellationReceipt>) {
+      phase = 'privilege'
+      const fault = profile.learnerCancellation
+      assert(fault && setupDone && completedProbes.has('outer') && !ran && !probing && !learnerCancellationDone && sessions.size === 0)
+      probing = true
+      let restoreRequired = false
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        check(); const before = await single(manifest.snapshot)
+        const catalog = await single(fault.catalog)
+        assert.deepEqual(catalog, [{ result: { function: null, triggers: [] } }])
+        try {
+          restoreRequired = true
+          await single(fault.install, true)
+          assert.deepEqual(await single(fault.installed), [{ result: { installed: true } }])
+          await guard(); check()
+          const request = freeze({ p_actor_id: fault.actorId, p_test_id: fault.testId, p_classroom_id: fault.classroomId,
+            p_operation: fault.operation, p_payload: fault.payload, p_deadline: new Date(Math.min(Date.now() + 30000, profile.absoluteDeadline!)).toISOString() })
+          const started = Date.now()
+          const receipt = await Promise.race([probe(request), new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(failure()), 12000)
+          })])
+          const elapsed = Date.now() - started
+          assert.deepEqual(Object.keys(receipt).sort(), ['elapsedMs', 'rawCode', 'rpcCalls', 'status'])
+          assert.equal(receipt.status, 500); assert.equal(receipt.rpcCalls, 1); assert.equal(receipt.rawCode, '57014')
+          assert(Number.isFinite(receipt.elapsedMs) && receipt.elapsedMs >= 7500 && receipt.elapsedMs <= 12000)
+          assert(elapsed >= 7500 && elapsed <= 12000); check()
+        } finally {
+          if (timer) clearTimeout(timer)
+          if (restoreRequired) {
+            await restorationControl(fault.restore)
+            assert.deepEqual(await restorationControl(fault.catalog), catalog)
+            assert.deepEqual(await restorationControl(manifest.snapshot), before)
+          }
+        }
+        learnerCancellationDone = true
+        return Object.freeze({ cancellationCode: '57014' as const, catalogRestored: true, fixtureUnchanged: true })
+      } catch { record('unknown'); failed = true; throw failure() }
+      finally { probing = false }
+    } } : {}),
     async runCommittedTransitions() {
       phase = 'transitions'
       try {
@@ -1044,6 +1123,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       if (profile.innerPrivilege) assert(probed.has('outer') && probed.has('inner'))
       if (profile.publicationPrivileges) assert(Object.keys(profile.publicationPrivileges).every(k => probed.has(k as PublicationPrivilegeKind)))
       if (profile.committedOuterPrivilege) assert(completedProbes.has('outer'))
+      if (profile.learnerCancellation) assert(learnerCancellationDone)
       ran = true; check()
       const before = await single(manifest.snapshot)
       phase = 'contracts'

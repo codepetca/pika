@@ -461,3 +461,50 @@ User authorized next browser slice. Preserve all577 distinct cases/579 runtime s
 Extended SplitButton with an opt-in semantic fast opacity exit for primitive labels without caller icons; replaced live controls with an inert owner-rendered projection immediately on dismissal. Material creation is the first production adopter, with preview, disabled and unmount boundaries. The existing teacher/student UiConsistency Pattern Lab menu exercises the shared contract without changing closed layout. Preserved immediate rich-menu fallback and WorkSurface latest-hover callback rollover. Committed lifetime guards cancel stale commands, Tab/focus work and expiry across reopening, availability, owner replacement and unmount. No persistence, permission, dependency, schema or production changes.
 
 Sol6.1/medium bounded lifetime audit and implementation accepted after coordinator source inspection; audit measured141.5 seconds, implementation recorded243-second interval excluding orientation, two coordinator corrections: hover rollover and keyboard-selection focus. Effective models/tokens and coordinator active time unknown; weekly24% remaining was account-wide at start, DeepSeek pause honored. Focused owner tests66/66 and gallery32/32 pass; four unchanged desktop/mobile/theme Pattern Lab contract goldens pass. Both-role normal/reduced native matrix, canonical focused gates and exact-head independent draft review/CI remain publication requirements. Initial independent full review211 seconds accepted two P2 fixes in one batch: preserve Shift-Tab close through hover-driven inline options updates, and advance committed generation for empty/all-disabled states after selection. Three failing regressions plus primary-action availability compatibility now pass; synthetic late-rAF delivery is a generation-fence check, not a reproduced browser race. Broad fluidity goal and held work remain open.
+## 2026-10-10 — Owner merged; learner source review and compatibility correction
+
+Owner1555 squashmerged730642666 at12:37UTC after exact552CI38050378092 all8
+checks/PRGate PASS; reviewed/merge trees equal, clean canonicalmain ff-synced.
+Native001–256/94SDK/genuine type receipts retained; earlier failures/counters
+not reset. No sharedlocal/prod migration or activation.
+Learner1561 draft21fc based730642: tenexistingroutes/elevenmethods, role-neutral
+enrollment, current-authority-before-conflict, separate best-effort history,
+returned current-roster aggregates/material rechecks and additive257 source.
+Focused1081/77files plus types/lint/architecture/UI/design PASS; audit PASS.
+Two independent Sol/high source reviews: security clean; compatibility P2
+historical HTML charset404. Root RED3→GREEN25 fixes link-only normalization,
+retains complete raw tuple/CSP and uploads;94contextual/doc+20legacychecks PASS.
+Pushed49802; targeted Sol/high correction review clean. Three completed turns,
+initialwave1/targeted1/fix1; original13:16:45 clock/task extensionwaiver retained.
+Earlier reviewers used fixed Git blobs in implementationcheckout; needed final
+cumulative review will use separate detached checkout to satisfy workflow.
+Inert native source preparation continues; existing fixed executor must be
+reused, not exported generically or replaced. No257 replay/SDK network/Storage/
+CLI typegeneration approval or attempt, no readiness/CI/merge/phaseexit claim.
+Weekly32%remaining reused; token/active/effectiveconfiguration unknown, no usage
+savings inferred. Private coordinator evidence pika-learner-test-map.G7k1ir.
+Sharedlocal/prod249+/promotion/account/plan/quota/billing/provider/runner/
+admission/home/page/cutover holds persist. Billing remains separate.
+
+## 2026-10-10 — Learner proof preparation and current-main reconciliation
+
+All preparation writers stopped before rebase onto main3b7ae978e (#1559); one
+archive-marker conflict preserved both histories. No migration collision:257
+SQL digest unchanged. The existing executor gained a fixed learner profile,
+not a generic exported executor. Closed history/SDK/Storage/returned-roster/
+authority-race/ACL/cancellation source plans integrated; inherited private-type
+diagnostics fixed with narrow UUID/parsed-schema/literal-RPC adapters. No
+generated artifact was edited. Private source is disabled and unbound.
+Root offline checks:21source,73finite-case labels/168synthetic requests/336guards,
+2material cases/30requests/60guards and3fixed native-SDK probes PASS; private
+TypeScript PASS. Native evidence is still absent, not inferred from mocks.
+First post-rebase focused run exposed14 CI-inventory failures; retained actual
+new database split and added learner proof to its exact primary52-name seal,
+leaving lifecycle85 unchanged. Scoped192 CI checks PASS; final focused2330tests/
+113files plus architecture/UI/design/TypeScript/lint PASS (Fn0jp0 logs).
+Final cumulative review will use a separate detached candidate; initial source
+coverage retained, not a second initial wave. Ledger3launches/initial1/targeted1/
+fix1/final0 and original13:16:45 clock/task review extension remain. No257 replay,
+preflight/SDK network/Storage/Docker/CLI types, readyCI or production activation.
+Sharedlocal/prod249+/promotion/account/plan/quota/provider/billing/admission/
+home/page/cutover holds persist; no batch2 or goal exit.

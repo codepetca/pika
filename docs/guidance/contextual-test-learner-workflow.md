@@ -66,8 +66,16 @@ security and compatibility review, a fresh exact-source disposable replay and
 real SDK/Storage/concurrency/ACL evidence, genuine CLI-generated types, complete
 canonical/global preservation and exact teardown, then final-head CI/PR Gate.
 Offline fixture/transport tests and rollback SQL text are not native evidence.
-The existing CI database lane runs the rollback contracts; no new runner or
-weakened gate is introduced.
+The existing primary CI database lane runs the rollback contracts. Its sealed
+inventory includes the added learner check; the independent lifecycle lane and
+all existing checks remain intact. No new runner or weakened gate is introduced.
+
+The fixed learner native profile reuses the existing private executor. Source
+and offline checks cover history, real-SDK request plans, private material
+delivery, returned current-roster aggregates, authority races, ACL restoration
+and SQL cancellation. The separate execution candidate remains disabled and
+unbound until final source review and fresh exact replay authorization. These
+checks do not establish actual database, Storage, concurrency or type evidence.
 
 Migration 257 is provisional until the candidate is frozen and current main is
 reconciled. Predecessor proof profiles must explicitly seal its reviewed

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { normalizeTestResponses } from '../src/lib/test-attempts'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
-import { testLearnerWitnessSchema, testLearnerResultSchemas, TEST_LEARNER_COLLECTION_LIMIT,
+import { testLearnerWitnessSchema, testLearnerResultSchemas, testLearnerQuestionSchema, testLearnerHistoryEntrySchema, TEST_LEARNER_COLLECTION_LIMIT,
   type TestLearnerOperation } from '../src/lib/validations/contextual-test-learner-workflow'
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
@@ -53,7 +53,7 @@ export function newTestLearnerWorkflowFixture(parent: AssignmentListProofFixture
   const allocatedIds = [...actors.map(a => a.id), classroomId, wrongClassroomId, testId, attemptId,
     ...enrollments.map(e => e.id), ...questions.map(q => q.id), ...materials.flatMap(m => [m.id,m.objectId])]
   assert.equal(new Set(allocatedIds).size, allocatedIds.length)
-  assert(allocatedIds.every(value => !parent.allocatedIds.includes(value)))
+  assert(allocatedIds.every(value => !new Set<string>(parent.allocatedIds).has(value)))
   return freeze({ version: 1 as const, tag, now: parent.manifest.now, actors, classroomId, wrongClassroomId,
     testId, attemptId, enrollments, questions, materials, allocatedIds, nativeVerified: false as const })
 }
@@ -112,9 +112,9 @@ export function validateTestLearnerWorkflowWitness(f: TestLearnerWorkflowFixture
     assert(Object.keys(result.attempt.responses).every(id => f.questions.some(question => question.id === id)))
   }
   if ('state' in result) { assert.equal(result.state.test.id, f.testId); assert.equal(result.state.test.classroom_id, f.classroomId) }
-  if ('questions' in result) { assert.equal(new Set(result.questions.map(q => q.id)).size, result.questions.length); assert(result.questions.every(q => q.test_id === f.testId)) }
+  if ('questions' in result) { assert(Array.isArray(result.questions));const questions=result.questions.map(q=>testLearnerQuestionSchema.parse(q));assert.equal(new Set(questions.map(q => q.id)).size, questions.length); assert(questions.every(q => q.test_id === f.testId)) }
   if ('history' in result) { assert.equal(result.attemptId,attemptId); assert(result.history.every(h => h.test_attempt_id === attemptId)) }
-  if ('last_history' in result && result.last_history) assert.equal(result.last_history.test_attempt_id,attemptId)
+  if ('last_history' in result && result.last_history) assert.equal(testLearnerHistoryEntrySchema.parse(result.last_history).test_attempt_id,attemptId)
   if ('historyEntry' in result && result.historyEntry) assert.equal(result.historyEntry.test_attempt_id,attemptId)
   if ('attempt_id' in result) assert.equal(result.attempt_id,attemptId)
   if ('document' in result) {

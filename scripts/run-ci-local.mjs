@@ -151,7 +151,7 @@ function parseStep(lines) {
 // Historical combined DB layouts retain their own commands and established
 // sentinels; today's inventories apply only to the explicit split layout.
 const databaseProofInventories = {
-  database: [51, '6e3d08e014bd6f2346dc0cfedd4929baa8398768b100796a5b1533bc408fad3a'],
+  database: [52, '7caa4a5884cbc819df40f43b070b6e8c2d2e8c10303cfe325616dafe4870e383'],
   'database-lifecycle': [85, '9e6aeaab8a4583d3d93389f1d17cd1d1a18ca28f339a61e7dbc3dc40b02f26ae'],
 }
 function databaseProofs(job) {

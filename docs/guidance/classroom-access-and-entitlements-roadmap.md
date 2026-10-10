@@ -437,10 +437,17 @@ CI38050378092 passed all8jobs/PRGate and clean canonical main fast-forwarded.
 Eight completed independent review turns retain earlier failure/remediation/base-
 sync receipts; no repeated full review or administrator bypass. No batch2 exit.
 
-One Sol/high implementation worker now owns the next coherent dormant
+The next coherent dormant
 [learner Test group](contextual-test-learner-workflow.md) on
-`codex/learner-test-workflow`, based on that actual merged main:
+`codex/learner-test-workflow` is draft PR #1561, reconciled onto current main
+`3b7ae978e` after the owner merge and database CI partition:
 detail/start/save/submit/recovery/session/focus/history/results/material delivery.
+Product source is delivered; initial security/compatibility reviews and the
+targeted historical HTML MIME correction review are complete. Source/static
+acceptance is not native acceptance: final inert verification-source review, exact-source
+disposable SQL/SDK/Storage/concurrency evidence, genuine types and final-head
+CI/PR Gate remain pending. No new replay or activation is authorized by this
+checkpoint; no batch-2 exit.
 Keep existing URLs/envelopes, shared admission and legacy OFF/unmatched behavior.
 Current nonowner membership/visibility must authorize before revision-conflict
 disclosure; teacher-account members participate without paid-owner requirements.
