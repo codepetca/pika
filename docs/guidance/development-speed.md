@@ -74,6 +74,23 @@ checks remain required. Compare the native step durations against equivalent
 runner/migration checkpoints; a changed checkpoint or a small sample limits
 the speedup claim. See the [execution plan](../plans/ci-proof-setup-optimization.md).
 
+## SDK partition measurement
+
+The seven owner SDK proofs run across two independent hosted jobs, selected by
+the existing database flag. Detail/list/draft-save/create remain in the first;
+draft-get/pristine-discard/publication run in the second. All 21 fresh-project
+modes remain serial within their job, with full migration replay and exact cleanup
+checks. [Hosted Ubuntu jobs use separate VMs](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+Keep the existing detail/list sanitized timing artifact with their job; use native
+step/job telemetry for the remaining profiles.
+
+Compare the slower SDK partition, summed SDK runner consumption, setup and cleanup,
+all selected jobs through PR Gate and failed attempts. Splitting a lane can reduce
+its elapsed time while increasing total compute. Database contracts may then bound
+full CI. Preserve historical `ci:local --ref` completeness and measure the exact
+reviewed source tree; a different-source single-run comparison cannot establish
+sustained or isolated speedup. See the [execution plan](../plans/ci-proof-setup-optimization.md).
+
 ## Browser partition measurement
 
 The browser suite is partitioned by project theme across two independent jobs.

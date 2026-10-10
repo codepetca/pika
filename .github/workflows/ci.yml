@@ -1086,23 +1086,6 @@ jobs:
             grep -Fx 'PASS isolated test-owner-list exact teardown and unchanged canonical baseline.' "$test_owner_list_log"
           done
 
-      - name: Verify isolated contextual Test owner-draft GET transactions
-        shell: bash
-        run: |
-          test_owner_draft_get_head=$(git rev-parse HEAD)
-          test_owner_draft_get_log=$(mktemp)
-          chmod 600 "$test_owner_draft_get_log"
-          trap 'rm -f -- "$test_owner_draft_get_log"' EXIT
-          pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode normal
-          for test_owner_draft_get_mode in after-fixture before-capture; do
-            test_owner_draft_get_status=0
-            pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode "$test_owner_draft_get_mode" > "$test_owner_draft_get_log" 2>&1 || test_owner_draft_get_status=$?
-            [[ "$test_owner_draft_get_status" -eq 1 ]] || exit 1
-            [[ "$(wc -l < "$test_owner_draft_get_log" | tr -d ' ')" -eq 2 ]] || exit 1
-            grep -Fx "FAIL forced isolated test-owner-draft-get lifecycle: ${test_owner_draft_get_mode}." "$test_owner_draft_get_log"
-            grep -Fx 'PASS isolated test-owner-draft-get exact teardown and unchanged canonical baseline.' "$test_owner_draft_get_log"
-          done
-
       - name: Verify isolated contextual Test owner-draft save transactions
         shell: bash
         run: |
@@ -1135,6 +1118,103 @@ jobs:
             [[ "$(wc -l < "$test_owner_create_log" | tr -d ' ')" -eq 2 ]] || exit 1
             grep -Fx "FAIL forced isolated test-owner-create lifecycle: ${test_owner_create_mode}." "$test_owner_create_log"
             grep -Fx 'PASS isolated test-owner-create exact teardown and unchanged canonical baseline.' "$test_owner_create_log"
+          done
+
+      - name: Stop ephemeral database
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
+        run: supabase stop --no-backup
+
+      - name: Upload sanitized Test proof timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-proof-timings
+          path: ${{ runner.temp }}/pika-proof-timings/*.json
+          retention-days: 7
+
+  contextual-test-owner-sdk-lifecycle:
+    name: Contextual Test Owner SDK Lifecycle
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_database == 'true'
+    # A hosted job gets its own VM and Docker daemon, even for self-hosted dispatches.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.103.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore pnpm store cache
+        id: test-owner-sdk-lifecycle-pnpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        id: test-owner-sdk-lifecycle-install
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Summarize dependency setup evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Test owner SDK lifecycle lane setup evidence'
+            echo "- pnpm store exact-key hit: ${{ steps.test-owner-sdk-lifecycle-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
+            echo '- Dependencies are always installed from the lockfile.'
+            echo '- Supabase remains a fresh ephemeral start and migration replay.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify managed-storage migration lineage
+        run: pnpm run check:managed-storage-lineage
+
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane test-owner-sdk-lifecycle
+
+      - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+
+      - name: Verify isolated contextual Test owner-draft GET transactions
+        shell: bash
+        run: |
+          test_owner_draft_get_head=$(git rev-parse HEAD)
+          test_owner_draft_get_log=$(mktemp)
+          chmod 600 "$test_owner_draft_get_log"
+          trap 'rm -f -- "$test_owner_draft_get_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode normal
+          for test_owner_draft_get_mode in after-fixture before-capture; do
+            test_owner_draft_get_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode "$test_owner_draft_get_mode" > "$test_owner_draft_get_log" 2>&1 || test_owner_draft_get_status=$?
+            [[ "$test_owner_draft_get_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_draft_get_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-draft-get lifecycle: ${test_owner_draft_get_mode}." "$test_owner_draft_get_log"
+            grep -Fx 'PASS isolated test-owner-draft-get exact teardown and unchanged canonical baseline.' "$test_owner_draft_get_log"
           done
 
       - name: Verify isolated contextual pristine Test draft discard transactions
@@ -1174,14 +1254,6 @@ jobs:
       - name: Stop ephemeral database
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
-
-      - name: Upload sanitized Test proof timings
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-proof-timings
-          path: ${{ runner.temp }}/pika-proof-timings/*.json
-          retention-days: 7
 
   test-and-build:
     name: Test & Build
@@ -1541,6 +1613,7 @@ jobs:
       - classify-changes
       - architecture-database-contracts
       - contextual-test-owner-sdk
+      - contextual-test-owner-sdk-lifecycle
       - test-and-build
       - browser-experience-matrix
       - browser-experience-dark
@@ -1557,6 +1630,7 @@ jobs:
           DATABASE_REQUIRED: ${{ needs.classify-changes.outputs.run_database }}
           DATABASE_RESULT: ${{ needs.architecture-database-contracts.result }}
           TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}
+          TEST_OWNER_SDK_LIFECYCLE_RESULT: ${{ needs.contextual-test-owner-sdk-lifecycle.result }}
           BROWSER_REQUIRED: ${{ needs.classify-changes.outputs.run_browser }}
           BROWSER_RESULT: ${{ needs.browser-experience-matrix.result }}
           BROWSER_DARK_RESULT: ${{ needs.browser-experience-dark.result }}
@@ -1595,6 +1669,10 @@ jobs:
           fi
           if [[ "$DATABASE_REQUIRED" == "true" && "$TEST_OWNER_SDK_RESULT" != "success" ]]; then
             echo "Contextual Test Owner SDK was required but ended: $TEST_OWNER_SDK_RESULT"
+            exit 1
+          fi
+          if [[ "$DATABASE_REQUIRED" == "true" && "$TEST_OWNER_SDK_LIFECYCLE_RESULT" != "success" ]]; then
+            echo "Contextual Test Owner SDK Lifecycle was required but ended: $TEST_OWNER_SDK_LIFECYCLE_RESULT"
             exit 1
           fi
           if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_RESULT" != "success" ]]; then

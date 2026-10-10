@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 describe('contextual pristine Test draft discard CI evidence', () => {
   it('runs251 normal and both exact forced cleanup modes serially without changing limits', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    const job = workflow.split('  contextual-test-owner-sdk:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const job = workflow.split('  contextual-test-owner-sdk-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const sibling = workflow.split('  contextual-test-owner-sdk:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     const database = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     expect(job).toBeDefined()
     expect(database).toContain('run: pnpm run db:types:check')
@@ -33,10 +34,19 @@ describe('contextual pristine Test draft discard CI evidence', () => {
     expect(job!.indexOf('id: ci-isolation')).toBeLessThan(job!.indexOf('id: supabase-start'))
     expect(job!.indexOf('name: Start ephemeral Supabase and replay migrations')).toBeLessThan(job!.indexOf(name))
     expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('name: Stop ephemeral database'))
-    expect(job).toContain('name: Verify isolated contextual Test owner creation transactions')
+    expect(job).not.toContain('name: Verify isolated contextual Test owner creation transactions')
+    expect(sibling).toContain('name: Verify isolated contextual Test owner creation transactions')
     expect(job).toContain('name: Verify isolated contextual Test owner publication transactions')
-    expect(job!.indexOf('      - name: Verify isolated contextual Test owner creation transactions')).toBeLessThan(job!.indexOf(name))
     expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('      - name: Verify isolated contextual Test owner publication transactions'))
+    expect(sibling).toContain('runs-on: ubuntu-latest')
+    expect(sibling).toContain('run: node scripts/ci-runner-preflight.mjs --lane test-owner-sdk')
+    expect(sibling).toContain('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector')
+    expect(sibling).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
+    expect(sibling).toContain('run: supabase stop --no-backup')
+    expect(sibling!.indexOf('id: ci-isolation')).toBeLessThan(sibling!.indexOf('id: supabase-start'))
+    expect(sibling!.indexOf('name: Start ephemeral Supabase and replay migrations')).toBeLessThan(sibling!.indexOf('      - name: Verify isolated contextual Test owner creation transactions'))
+    expect(sibling!.indexOf('      - name: Verify isolated contextual Test owner creation transactions')).toBeLessThan(sibling!.indexOf('name: Stop ephemeral database'))
+    expect(sibling!.match(/^    timeout-minutes: (\d+)/m)?.[1]).toBe('90')
     expect(job!.match(/^    timeout-minutes: (\d+)/m)?.[1]).toBe('90')
     expect(workflow.match(/name: Architecture Database Contracts[\s\S]*?timeout-minutes: (\d+)/)?.[1]).toBe('90')
   })
