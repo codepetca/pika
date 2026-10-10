@@ -206,6 +206,19 @@ describe('exact learner installed-SDK source transport (offline, no native accep
     expect(s.fetcher).toHaveBeenCalledTimes(stage === 'guard-before' ? 0 : 1)
     expect(s.transport.report().failed).toBe(true)
   })
+  it('retains the first finite refusal witness despite actual SDK/application error masking', async () => {
+    const s=setup();s.guard.mockRejectedValueOnce(new Error(`private synthetic ${key}`))
+    const client=createClient(target.API_URL,key,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:s.transport.safeFetch}})
+    const flow=createContextualTestLearnerWorkflow({supabase:client as unknown as TestLearnerRpcClient,actorId:f.actors[1].id,testId:f.testId,deadline:Date.parse(s.deadline)})
+    await expect(flow.inspect()).rejects.toMatchObject({statusCode:503,message:'Unable to verify test operation'})
+    const refusal=s.transport.report().refusal
+    expect(refusal).toEqual({stage:'guard-before',label:'recover-member-teacher',phase:'inspect',profile:'default'})
+    expect(Object.isFrozen(refusal)).toBe(true)
+    await expect(s.transport.safeFetch(url,s.init)).rejects.toThrow()
+    expect(s.transport.report().refusal).toBe(refusal)
+    expect(JSON.stringify(refusal)).not.toContain(key)
+    expect(s.fetcher).not.toHaveBeenCalled()
+  })
   it.each(['wrong-witness','redirect','oversize','malformed-utf8'])('fails closed on %s replies', async kind => {
     const s = setup(async () => {
       if (kind === 'redirect') return new Response(null,{ status: 302,headers: { location: 'https://example.invalid' } })

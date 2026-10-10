@@ -590,3 +590,12 @@ Ledger7launches/initial1/targeted4/fix3in progress/final1; original13:16:45clock
 task review waiver and hard12/8/8 caps retained. Correction review/fresh native/
 types/finalCI remain. Sharedlocal249+/prod257+/activation/account/billing holds
 persist; no phase or goal exit.
+
+Targeted detached53f91 correction review complete: timing/expiry/hash/continuity
+scope clean, one P2 diagnostic witness lost through SDK/application masking.
+Root reproduced RED1, then retains first finite refusal in read-only proof report
+and private captured fetch/0600 receipt; product generic503 masking unchanged.
+End-to-end actualSDK→helper→private receipt before/afterguard checks PASS with
+synthetic fetch only;91transport/27privatepure/73finite PASS. Fresh inert rz5Sdz
+preserves frozenGAGt5W; no preflight/native permission. Batch4/launch8/targeted5/
+final1; next proportional correction review uses original clock/waiver/caps.

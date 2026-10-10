@@ -13,6 +13,7 @@ import { testLearnerWorkflowRequest, testLearnerWorkflowCase, validateTestLearne
 
 const origin = 'http://127.0.0.1:54331', path = '/rest/v1/rpc/test_learner_workflow_v1'
 type RefusalStage = 'preflight'|'request'|'guard-before'|'exchange'|'reply'|'witness'|'history-profile'|'guard-after'
+export type TestLearnerProofRefusal = Readonly<{stage:RefusalStage;label:string;phase:string;profile:HistoryProfile|'default'}>
 const failure = (stage?: RefusalStage,context?: { label: string; phase: string; profile?: HistoryProfile }) =>
   new Error('Learner verification transport refused; native acceptance not established' +
     (stage ? `; stage=${stage}; case=${context?.label??'unset'}; phase=${context?.phase??'unset'}; profile=${context?.profile??'default'}` : ''))
@@ -42,6 +43,7 @@ export function createTestLearnerProofTransport(f: TestLearnerWorkflowFixture, r
   let context: { label: string; deadline: string; phase: 'inspect'|'operation'|'history-plan'|'history-write'|'document-recheck'|'complete'; document?: unknown;
     profile?: HistoryProfile; saved?: unknown; plan?: unknown; historyWrite?: Record<string,unknown>|null } | undefined
   let failed = false, inFlight = false, calls = 0, bytes = 0
+  let refusal:TestLearnerProofRefusal|null=null
   let observed: readonly TestLearnerObservedAttempt[] = Object.freeze([])
   const seen = new Set<string>()
   function readContext(label: string, deadline: string, profile?: HistoryProfile) {
@@ -157,9 +159,12 @@ export function createTestLearnerProofTransport(f: TestLearnerWorkflowFixture, r
         : context.phase === 'history-plan' ? context.profile&&context.historyWrite===null?'complete':'history-write'
         : context.phase === 'operation' && c.operation === 'document' ? 'document-recheck' : 'complete'
       return new Response(output,{ status: response.status, headers: { 'content-type': 'application/json' } })
-    } catch { failed = true; controller.abort(); void reader?.cancel().catch(() => {}); void response?.body?.cancel().catch(() => {}); throw failure(stage,context) }
+    } catch {
+      refusal??=Object.freeze({stage,label:context?.label??'unset',phase:context?.phase??'unset',profile:context?.profile??'default'})
+      failed = true; controller.abort(); void reader?.cancel().catch(() => {}); void response?.body?.cancel().catch(() => {}); throw failure(stage,context)
+    }
     finally { clearTimeout(timer); caller?.removeEventListener('abort',abort); inFlight = false }
   }
-  return Object.freeze({ safeFetch, readContext, historyWriteRequest, report: () => Object.freeze({ calls, bytes, failed,
+  return Object.freeze({ safeFetch, readContext, historyWriteRequest, report: () => Object.freeze({ calls, bytes, failed,refusal,
     complete: context?.phase === 'complete', observedAttempts: observed,nativeVerified: false as const }) })
 }
