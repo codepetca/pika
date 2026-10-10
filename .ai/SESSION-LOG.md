@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Course Guide full title identity
-
-- Added opt-in PageHeading wrapping for CourseGuideView, preserving default truncation elsewhere; deterministic Pattern Lab example and public/embedded semantic coverage.
-- Hardened gated anonymous native helper with explicit reachability, hash/nav, overflow, HTTP/error, actual theme/motion and full-title assertions; removed permanent Git-history parity test (external proof retained).
-- Final candidate native evidence is written externally to product-fluidity/public-reading-title-wrap; coordinator owns acceptance/review/PR. No loader/auth/business/schema changes or tracker promotion.
-
 ## 2026-10-08 — Course Guide reading and platform snapshot acceptance
 
 Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
@@ -409,3 +403,27 @@ separate from review/CI time. Sharedlocal/prod249+, promotion/account/billing/
 provider/runner/admission/home/quota/cutover holds persist. Overallgoal incomplete.
 Post-rebase focused gate PASS774tests/69files plus architecture/UI/design/types/
 lint. The increase includes incoming CIpartition tests; no native success inferred.
+
+## 2026-10-10 — Corrected owner proof accepted; CI profile correction
+
+Direct fresh approval covered one disposable001–256 replay on7a3f2e3f8.
+Root accepted frozenhelper/preflight; Sol/high worker PASS84.961s/94requests,
+expandedrollbackSQL/ACLs/reallegacyfilebytes-retention-substitution refusals and
+all previousSDKcases. GenuinetypesSHA6ccab478 byte-equal committedartifact;
+exactownedabsence/global741closure/ports/freshcompletecanonical equality/source
+PASS; lease released. Receipt /private/tmp/pika-owner-workflow-legacy-proof.CeRBu4/result.json.
+Native no-ID editor persistence covers unchanged compatibilitymode only; external
+fetch orchestration remains shared-helper tests, not native proof. No shared/prodapply.
+Source review6turns cumulativeclean; ready7a3 CI38047561807 failed38tests across
+3files: former exact255 profiles reject reviewed256. Draft restored beforecorrection;
+remaininglanes cancelled by draft lifecycle, PRGatefailure; no eligiblePASS.
+Root reproduced38RED then209GREEN/3files; extend two existing proof profiles only
+with exact reviewed256name+SHA+SQLbytes, preserve255seal/chain/tablecatalogs/future
+refusal. Added altered256/selfhash/future257 tests; application/schema unchanged.
+This is remediation4 plus earlierparserrepair1; counters/clocks/waiver retained.
+Focusedchecks and targeted independent review precede newstablehead readiness.
+Weekly33%remaining; telemetryunknown; no goal/batch2exit. All existing production,
+canonical249+/activation/account/quota/provider/billing holds unchanged.
+Focused988tests/73files+architecture/UI/design/TypeScript/lint PASS; targeted209/3
+PASS, audit/whitespace PASS. New profile files do not modify executed owner SQL,
+runtime, rollback contract or generated types; retain actual7a3 native receipt.

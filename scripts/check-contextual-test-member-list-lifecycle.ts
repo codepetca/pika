@@ -2,6 +2,7 @@
  * and explicit coordinator acceptance are required before invoking this file. */
 import assert from 'node:assert/strict'
 import { validateTestUnpublicationReviewedMigration } from './test-unpublication-reviewed-migration'
+import { validateTestOwnerWorkflowReviewedMigration } from './test-owner-workflow-reviewed-migration'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
@@ -51,7 +52,7 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
 /** Exact complete source profiles for this proof; future additions need review. */
 export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   validateAssignmentListMigrationChain(migrations)
-  assert(migrations.length === 253 || migrations.length === 254 || migrations.length === 255, 'Unreviewed member-list migration profile')
+  assert([253, 254, 255, 256].includes(migrations.length), 'Unreviewed member-list migration profile')
   classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   if (migrations.length >= 254) {
     const addition = migrations[253]
@@ -59,7 +60,8 @@ export function validateTestMemberListReviewedMigrations(migrations: Parameters<
     assert.equal(addition.sha256, '7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea')
     assert.equal(testOwnerDigest(addition.sql), '7439de12a4c0721d52f529180b545e8076bd5d9a8884b2efb2c2f04f522b5eea')
   }
-  if (migrations.length === 255) validateTestUnpublicationReviewedMigration(migrations[254])
+  if (migrations.length >= 255) validateTestUnpublicationReviewedMigration(migrations[254])
+  if (migrations.length === 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
 }
 /** Both exact reviewed canonical profiles remain complete. The isolated253
  * union is idempotent and bound to the reviewed migration, never fixture rows. */

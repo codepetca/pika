@@ -440,6 +440,14 @@ and necessary additive schema source. No live/shared database writes are delegat
 Learner detail/start/save/submit/recovery/disclosure is the next dependent workflow;
 its revision-conflict returns must authorize membership/visibility before disclosure.
 Do not perform another architecture audit or revisit accepted reorder/list work.
+Owner workflow PR1555 corrected-source native proof on7a3f2e3f8 passed001–256,
+rollback SQL,94 realSDKrequests and genuine types; exact disposable teardown and
+canonical/global preservation passed. Initial CI38047561807 found the older
+member/reorder proof profiles still sealed at255. The correction admits only
+reviewed256name/digest/bytes, preserving every table catalog, cleanup and future
+refusal. These are proof compatibility corrections, not another product feature
+or a reopened architecture/list/reorder audit. PR remains draft until targeted
+review and corrected-head CI pass; no merge/batch2/activation exit claimed.
 Only concretely independent batch-3 work may run beside batch 2; batch 4's live
 entry remains gated on completed batches 1–3. The coordinator owns integration,
 phase exits, independent-review acceptance and normal authorized main merges.
