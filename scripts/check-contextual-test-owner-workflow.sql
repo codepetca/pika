@@ -190,7 +190,7 @@ begin
       jsonb_set(normalized_documents,'{1,managed_object_id}',to_jsonb(legacy_object_ids[1]))),before_test,deadline);
     raise exception 'Legacy object substitution accepted';
   exception when sqlstate 'PT403' then null; end;
-  if (select documents from public.tests where id=other_test_id) is distinct from normalized_documents then
+  if (select test.documents from public.tests test where test.id=other_test_id) is distinct from normalized_documents then
     raise exception 'Legacy substitution refusal changed documents'; end if;
 
   update public.tests set blueprint_archived_at=now() where id=v_test_id;

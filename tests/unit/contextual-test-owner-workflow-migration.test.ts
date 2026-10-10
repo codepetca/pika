@@ -50,4 +50,10 @@ describe('dormant owner Test workflow additive transaction', () => {
     expect(sql()).toContain("existing->>'managed_object_id' is not distinct from v_document->>'managed_object_id'")
     expect(sql()).toContain('reference.test_id = p_test_id and reference.managed_object_id = v_object.id')
   })
+  it('qualifies the rollback column that shares its PL/pgSQL variable name', () => {
+    const contract = readFileSync('scripts/check-contextual-test-owner-workflow.sql', 'utf8')
+    // A native replay exposed this conflict after the new behavioral checks;
+    // the guard prevents reintroducing it but cannot establish SQL execution.
+    expect(/select\s+documents\s+from\s+public\.tests/i.test(contract)).toBe(false)
+  })
 })
