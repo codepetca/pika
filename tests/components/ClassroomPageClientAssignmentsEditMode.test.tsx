@@ -1150,9 +1150,13 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     renderClient()
 
     expect(mockLeftSidebarProps).toHaveBeenCalledWith(expect.objectContaining({
+      exitMotion: 'opacity',
       mobileHomeHref: '/classrooms',
       onNavigateHome: expect.any(Function),
     }))
+    const mobileNavigation = mockLeftSidebarProps.mock.lastCall?.[0].mobileChildren
+    expect(mobileNavigation.props).toMatchObject({ expanded: true, role: 'teacher', classroomId: classroom.id })
+    expect(mockNavItemsProps.mock.lastCall?.[0].expanded).toBeUndefined()
   })
 
   it('leaves missing student today and yesterday lesson plans blank after a classroom route change', async () => {
