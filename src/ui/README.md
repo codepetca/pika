@@ -209,6 +209,13 @@ wrappers:
   For intentional focus after in-page navigation, pass `headingRef` and `tabIndex={-1}`;
   callers own when focus moves, and default headings remain outside the Tab order.
 - Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
+- The private Page action menu closes logically immediately and retains only copied static labels,
+  disabled state and destructive grouping for a semantic fast opacity exit. Its exiting menu is inert,
+  hidden from accessibility and cannot dispatch commands; focus returns before selection callbacks.
+  Incoming action-array changes, unavailable actions, owner removal and reduced motion end retention
+  immediately. Reopening cancels the old exit. Callers may interrupt the fade on any parent render;
+  keep the incoming array identity as the conservative owner stamp. Hydrated trigger/menu ID
+  relationships are deferred until mount. This contract does not apply to other menu families.
 - `PageActionBar` keeps primary context and actions on one row. Actions marked `primary` stay
   visible at every width; an optional `icon` renders them as a named IconButton. Secondary actions
   use the keyboard-accessible More actions menu at the far right, after any trailing content.
