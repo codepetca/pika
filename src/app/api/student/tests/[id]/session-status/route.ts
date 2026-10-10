@@ -1,16 +1,9 @@
 import { NextResponse } from 'next/server'
 import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
-import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getStudentTestStatus } from '@/lib/tests'
-import {
-  assertStudentCanAccessTest,
-  getEffectiveStudentTestAccess,
-  getTestStudentAvailabilityState,
-  isMissingTestAttemptClosureColumnsError,
-  isMissingTestAttemptReturnColumnsError,
-} from '@/lib/server/tests'
-import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
+import { getEffectiveStudentTestAccess } from '@/lib/server/tests'
+import { getStudentTestSessionProjection } from '@/lib/server/student-test-session'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
@@ -39,83 +32,17 @@ export const GET = withErrorHandler('GetStudentTestSessionStatus', async (_reque
   const user = await requireRole('student')
   const { id: testId } = await context.params
 
-  const access = await assertStudentCanAccessTest(user.id, testId)
-  if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status })
+  const projection = await getStudentTestSessionProjection(user.id, testId)
+  if (!projection.ok) {
+    return NextResponse.json({ error: projection.error }, { status: projection.status })
   }
-
-  const test = access.test
-  const supabase = getServiceRoleClient()
-
-  type AttemptRow = {
-    is_submitted: boolean
-    returned_at: string | null
-    closed_for_grading_at: string | null
-  }
-
-  let attempt: AttemptRow | null = null
-  let attemptError: { code?: string; message?: string; details?: string; hint?: string } | null = null
-
-  {
-    const attemptWithReturnResult = await supabase
-      .from('test_attempts')
-      .select('is_submitted, returned_at, closed_for_grading_at')
-      .eq('test_id', testId)
-      .eq('student_id', user.id)
-      .maybeSingle()
-
-    attempt = (attemptWithReturnResult.data as AttemptRow | null) || null
-    attemptError = attemptWithReturnResult.error
-  }
-
-  if (
-    attemptError &&
-    (isMissingTestAttemptReturnColumnsError(attemptError) ||
-      isMissingTestAttemptClosureColumnsError(attemptError))
-  ) {
-    const legacyAttemptResult = await supabase
-      .from('test_attempts')
-      .select('is_submitted')
-      .eq('test_id', testId)
-      .eq('student_id', user.id)
-      .maybeSingle()
-
-    attempt = (legacyAttemptResult.data
-      ? {
-          ...(legacyAttemptResult.data as { is_submitted: boolean }),
-          returned_at: null,
-          closed_for_grading_at: null,
-        }
-      : null)
-    attemptError = legacyAttemptResult.error
-  }
-
-  if (attemptError && attemptError.code !== 'PGRST205') {
-    console.error('Error fetching student test session status:', attemptError)
-    return NextResponse.json({ error: 'Failed to fetch test session status' }, { status: 500 })
-  }
-
-  const { data: responses, error: responsesError } = await supabase
-    .from('test_responses')
-    .select('selected_option, response_text')
-    .eq('test_id', testId)
-    .eq('student_id', user.id)
-
-  if (responsesError) {
-    console.error('Error checking submitted test responses for session status:', responsesError)
-    return NextResponse.json({ error: 'Failed to fetch test session status' }, { status: 500 })
-  }
-
+  const test = projection.test
+  const attempt = projection
   const isLockedForGrading = Boolean(attempt?.closed_for_grading_at)
-  const hasSubmitted = Boolean(attempt?.is_submitted) || (!isLockedForGrading && hasAnyMeaningfulTestResponse(responses))
-  const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
-  if (availabilityResult.error && !availabilityResult.missingTable) {
-    console.error('Error fetching student test access for session status:', availabilityResult.error)
-    return NextResponse.json({ error: 'Failed to fetch test session status' }, { status: 500 })
-  }
+  const hasSubmitted = Boolean(attempt?.is_submitted) || (!isLockedForGrading && projection.has_meaningful_response)
   const accessState = getEffectiveStudentTestAccess({
     testStatus: test.status,
-    accessState: availabilityResult.state,
+    accessState: projection.access_state,
     hasSubmitted,
     returnedAt: attempt?.returned_at || null,
     isLockedForGrading,

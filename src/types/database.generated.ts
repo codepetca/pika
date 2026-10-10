@@ -12012,6 +12012,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_student_test_session_status_projection: {
+        Args: { p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
       get_teacher_log_history_preview: {
         Args: {
           p_classroom_id: string
