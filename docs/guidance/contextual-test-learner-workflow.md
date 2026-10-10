@@ -77,6 +77,20 @@ and SQL cancellation. The separate execution candidate remains disabled and
 unbound until final source review and fresh exact replay authorization. These
 checks do not establish actual database, Storage, concurrency or type evidence.
 
+The third isolated rehearsal on reviewed28d passed migration history, rollback/ACL
+and genuine type generation, then failed the cancellation executor. Its exact
+failed assertion remains unknown; teardown and complete preservation passed.
+Source diagnosis proved that guard time polluted cancellation latency. The
+correction measures dispatch through complete body validation separately from
+guards: the wire retains its12s hard limit and7500–12000ms acceptance window;
+the unchanged30s/absolute request deadline covers both full guards and SDK work.
+An early cancellation cannot be padded by guard latency. Private finite stage
+diagnostics retain first failure separately from restoration failure, without
+underlying errors, inputs, bodies, headers or identities. Product SQL8s/30s,
+one-RPC500/57014 evidence, exact restoration and all holds remain unchanged.
+This proof-clock correction requires owner approval after review; no retry is
+authorized by a source or synthetic check. Shared/canonical schemas stay untouched.
+
 Migration 257 is provisional until the candidate is frozen and current main is
 reconciled. Predecessor proof profiles must explicitly seal its reviewed
 name/digest/bytes while retaining full catalogs and future-migration refusal.

@@ -15,8 +15,8 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Quota OFF/vars absent Oct10; other receipts reused.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-1555 merged/PASS. 1561 draft: learner proof failed/cleanup PASS;
-fix review/native/types/CI pending; billing separate.
+1555 merged/PASS. 1561 draft: cancellation proof failed/cleanup PASS;
+clock review/native/types/CI pending; billing separate.
 251/252 native/review/CI PASS.
 LegacyPATCH/UI unchanged; local249+ unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.

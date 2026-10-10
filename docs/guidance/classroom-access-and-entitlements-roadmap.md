@@ -440,7 +440,7 @@ sync receipts; no repeated full review or administrator bypass. No batch2 exit.
 The next coherent dormant
 [learner Test group](contextual-test-learner-workflow.md) on
 `codex/learner-test-workflow` is draft PR #1561, reconciled onto current main
-`3fd887953` after the owner merge, database CI partition and continuity-only sync:
+`03fca4506` after the owner merge, database CI partition and later UI/history sync:
 detail/start/save/submit/recovery/session/focus/history/results/material delivery.
 Product source is delivered; initial security/compatibility reviews and the
 targeted historical HTML MIME correction review are complete. Source/static
@@ -460,10 +460,21 @@ found a timing-sensitive collapse proof fixture, not a proven product defect.
 The next source correction positions only the observed attempt's selected history
 row for a controlled positive branch, retains the product10s cutoff/guards/CAS,
 adds expired-collapse refusal/unchanged-state proof and private bounded exception
-diagnostics. Offline latency regressions are not native evidence. Correction
-review, a newly authorized exact-source disposable rehearsal, accepted genuine
-types and final-head CI/PR Gate remain pending. Both failed attempts consumed
-their separate approvals; this checkpoint grants no retry or activation.
+diagnostics. That correction and finite refusal-witness review completed on
+`28d010366`. A third separately approved one-off rehearsal passed001–257 replay,
+rollback/ACL and genuine types, but failed cancellation acceptance. The retained
+private stack identifies the cancellation executor, not its original assertion;
+historical timing/response/restoration cause remains unknown. Exact cleanup and
+canonical/global/source preservation passed; its approval is consumed too.
+Bounded source diagnosis found guard time wrongly counted as cancellation time:
+it can reject a valid8s wire response or pad an early response into acceptance.
+The source-only correction separates unchanged7500–12000ms wire/body evidence
+from the original30s/absolute action deadline, retains every full guard, and adds
+finite first-failure/restoration diagnostics. Product257 and SQL8s/30s stay intact.
+Synthetic regressions are not native evidence. The exact proof-clock correction
+needs owner approval following independent review. A newly authorized exact-source
+rehearsal, genuine type acceptance and final-head CI/PR Gate remain pending. All
+three attempted approvals are consumed; no retry or activation follows here.
 No batch-2 exit.
 Keep existing URLs/envelopes, shared admission and legacy OFF/unmatched behavior.
 Current nonowner membership/visibility must authorize before revision-conflict

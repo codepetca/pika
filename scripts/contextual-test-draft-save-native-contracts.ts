@@ -552,6 +552,7 @@ export function buildTestLearnerNativeContractsManifest(original: AssignmentList
 }
 export type TestLearnerNativeCancellationRequest = Readonly<{ p_actor_id: string; p_test_id: string; p_classroom_id: string;
   p_operation: 'save'; p_payload: TestLearnerNativePlan['cancellation']['payload']; p_deadline: string }>
+/** elapsedMs measures dispatch through complete response-body validation, excluding guards. */
 export type TestLearnerNativeCancellationReceipt = Readonly<{ status: 500; rpcCalls: 1; rawCode: '57014'; elapsedMs: number }>
 
 /** One fixed learner factory. The executor/profile selector stays private. */
@@ -730,6 +731,10 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
   let learnerCancellationDone = false
+  type CancellationStage = 'none' | 'snapshot' | 'catalog' | 'install' | 'installed' | 'guard' | 'probe' | 'receipt' | 'timing' | 'restore' | 'restored-catalog' | 'restored-fixture' | 'complete'
+  let cancellationStage: CancellationStage = 'none'
+  let cancellationFirstFailure: CancellationStage | undefined
+  let cancellationRestoreFailure: CancellationStage | undefined
   let phase: Phase = 'idle'
   let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
   let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
@@ -1047,6 +1052,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
       return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
+        + (profile.learnerCancellation ? `DIAG learner cancellationStage=${cancellationFirstFailure ?? cancellationStage} cancellationRestore=${cancellationRestoreFailure ?? 'none'}.\n` : '')
     },
     async setup() {
       phase = 'setup'
@@ -1067,36 +1073,55 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       let restoreRequired = false
       let timer: ReturnType<typeof setTimeout> | undefined
       try {
-        check(); const before = await single(manifest.snapshot)
+        cancellationStage = 'snapshot'; check(); const before = await single(manifest.snapshot)
+        cancellationStage = 'catalog'
         const catalog = await single(fault.catalog)
         assert.deepEqual(catalog, [{ result: { function: null, triggers: [] } }])
         try {
           restoreRequired = true
+          cancellationStage = 'install'
           await single(fault.install, true)
+          cancellationStage = 'installed'
           assert.deepEqual(await single(fault.installed), [{ result: { installed: true } }])
+          cancellationStage = 'guard'
           await guard(); check()
           const request = freeze({ p_actor_id: fault.actorId, p_test_id: fault.testId, p_classroom_id: fault.classroomId,
             p_operation: fault.operation, p_payload: fault.payload, p_deadline: new Date(Math.min(Date.now() + 30000, profile.absoluteDeadline!)).toISOString() })
           const started = Date.now()
+          const deadline = Date.parse(request.p_deadline)
+          cancellationStage = 'probe'
           const receipt = await Promise.race([probe(request), new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(failure()), 12000)
+            // Full preservation guards share the original30s action. The
+            // adapter separately enforces12s wire/body and reports only that.
+            timer = setTimeout(() => reject(failure()), Math.max(0, deadline - Date.now()))
           })])
           const elapsed = Date.now() - started
+          cancellationStage = 'receipt'
           assert.deepEqual(Object.keys(receipt).sort(), ['elapsedMs', 'rawCode', 'rpcCalls', 'status'])
           assert.equal(receipt.status, 500); assert.equal(receipt.rpcCalls, 1); assert.equal(receipt.rawCode, '57014')
+          cancellationStage = 'timing'
           assert(Number.isFinite(receipt.elapsedMs) && receipt.elapsedMs >= 7500 && receipt.elapsedMs <= 12000)
-          assert(elapsed >= 7500 && elapsed <= 12000); check()
+          assert(elapsed >= receipt.elapsedMs && elapsed <= 30000 && Date.now() < deadline); check()
+        } catch (error) {
+          cancellationFirstFailure ??= cancellationStage
+          throw error
         } finally {
           if (timer) clearTimeout(timer)
           if (restoreRequired) {
-            await restorationControl(fault.restore)
-            assert.deepEqual(await restorationControl(fault.catalog), catalog)
-            assert.deepEqual(await restorationControl(manifest.snapshot), before)
+            try {
+              cancellationStage = 'restore'; await restorationControl(fault.restore)
+              cancellationStage = 'restored-catalog'; assert.deepEqual(await restorationControl(fault.catalog), catalog)
+              cancellationStage = 'restored-fixture'; assert.deepEqual(await restorationControl(manifest.snapshot), before)
+            } catch (error) {
+              cancellationRestoreFailure ??= cancellationStage
+              throw error
+            }
           }
         }
         learnerCancellationDone = true
+        cancellationStage = 'complete'
         return Object.freeze({ cancellationCode: '57014' as const, catalogRestored: true, fixtureUnchanged: true })
-      } catch { record('unknown'); failed = true; throw failure() }
+      } catch { cancellationFirstFailure ??= cancellationStage; record('unknown'); failed = true; throw failure() }
       finally { probing = false }
     } } : {}),
     async runCommittedTransitions() {

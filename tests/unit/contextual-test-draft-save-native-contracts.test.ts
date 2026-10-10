@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { readdirSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { PassThrough, Writable } from 'node:stream'
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
   snapshotSqlReads: false, sourceDrift: false, driftMigration: '249_contextual_test_draft_owner_save.sql', socketInode: 2, sqlFileCache: new Map<string, string>() }))
@@ -27,7 +28,9 @@ import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, 
   validateTestOwnerCreateAllocatorPlan, buildTestOwnerPristineDiscardNativeContractsManifest,
   createTestOwnerPristineDiscardNativeContracts, buildTestOwnerPublicationNativeContractsManifest,
   createTestOwnerPublicationNativeContracts, buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts,
-  buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+  buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts,
+  buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+import { newTestLearnerWorkflowFixture } from '../../scripts/contextual-test-learner-proof-fixture'
 import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../../src/lib/validations/contextual-test-create'
 import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
 import { newTestOwnerPristineDiscardFixture } from '../../scripts/contextual-test-pristine-discard-proof-fixture'
@@ -158,6 +161,8 @@ describe('native persistent-session transport with offline child mocks', () => {
   let discardManifest: ReturnType<typeof buildTestOwnerPristineDiscardNativeContractsManifest> | undefined
   let publicationManifest: ReturnType<typeof buildTestOwnerPublicationNativeContractsManifest> | undefined
   let reorderManifest: ReturnType<typeof buildTestOwnerReorderNativeContractsManifest> | undefined
+  let learnerManifest: ReturnType<typeof buildTestLearnerNativeContractsManifest> | undefined
+  let cancellationInstalled = false
   let bulkChunks: string[] = []; let bulkHang = false; let bulkExit = false; let emitCalibration = true
   let bulkDispatched: (() => void) | undefined
   let contaminateOtherFrames = false; let duplicateCalibration = false
@@ -197,6 +202,14 @@ describe('native persistent-session transport with offline child mocks', () => {
       capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(reorderManifest)), absoluteDeadline: Date.now() + 900000 })
   }
+  const learnerFactory = () => {
+    const fixture = newTestLearnerWorkflowFixture(original)
+    const observed = Object.freeze([1,2].map(index => Object.freeze({ actorId: fixture.actors[index].id, attemptId: randomUUID(), revision: 2 })))
+    learnerManifest = buildTestLearnerNativeContractsManifest(original, observed, head, repository)
+    return createTestLearnerNativeContracts({ repository, reviewedHead: head, original, observedAttempts: observed,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(learnerManifest)), absoluteDeadline: Date.now() + 900000 })
+  }
   const diagnosticFactory = () => {
     // Presence/bootstrap/snapshot SQL is shared with the ordinary reorder
     // profile, while only the two diagnostic frame replies are new here.
@@ -212,6 +225,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined; publicationManifest = undefined
     reorderManifest = undefined; bulkChunks = []; bulkHang = false; bulkExit = false; emitCalibration = true
+    learnerManifest = undefined; cancellationInstalled = false
     bulkDispatched = undefined
     contaminateOtherFrames = false; duplicateCalibration = false
     diagnosticManifest = undefined; diagnosticChunks = []; diagnosticNoise = ''; diagnosticHang = false; diagnosticExit = false
@@ -227,14 +241,19 @@ describe('native persistent-session transport with offline child mocks', () => {
           if (file === 'git') callback(null, args[1] === '--show-toplevel' ? repository : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
+          else if (input === learnerManifest?.cancellation.restore) {
+            if (restorationFails) callback(Error('private cancellation restore failure'), '')
+            else { cancellationInstalled = false; callback(null, '') }
+          }
+          else if (input === learnerManifest?.cancellation.catalog) callback(null, JSON.stringify({ function: cancellationInstalled ? 'unexpected' : null, triggers: [] }))
           else if (input === manifest.privilege.restore || input === createManifest?.privilege.restore
-            || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore || input === reorderManifest?.privilege.restore || publicationSql(input, 'restore')) {
+            || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore || input === reorderManifest?.privilege.restore || input === learnerManifest?.privilege.restore || publicationSql(input, 'restore')) {
             if (restorationFails) callback(Error('private grant restore failure'), '')
             else { serviceExecute = true; callback(null, '') }
           }
           else if (input === manifest.privilege.catalog || input === createManifest?.privilege.catalog
-            || input === discardManifest?.privilege.catalog || input === discardManifest?.innerPrivilege.catalog || input === reorderManifest?.privilege.catalog || publicationSql(input, 'catalog')) callback(null, JSON.stringify(catalog()))
-          else if (input === manifest.snapshot || input === createManifest?.snapshot || input === discardManifest?.snapshot || input === publicationManifest?.snapshot || input === reorderManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
+            || input === discardManifest?.privilege.catalog || input === discardManifest?.innerPrivilege.catalog || input === reorderManifest?.privilege.catalog || input === learnerManifest?.privilege.catalog || publicationSql(input, 'catalog')) callback(null, JSON.stringify(catalog()))
+          else if (input === manifest.snapshot || input === createManifest?.snapshot || input === discardManifest?.snapshot || input === publicationManifest?.snapshot || input === reorderManifest?.snapshot || input === learnerManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
           else callback(null, 'ok')
         }); done()
       } })
@@ -263,7 +282,10 @@ describe('native persistent-session transport with offline child mocks', () => {
         }
         else if (sql === manifest.setup && malformedSetup) response = 'PRIVATE malformed row'
         else if (sql === manifest.concurrency.observe) response = JSON.stringify({ held:true,transaction:true })
-        else if (sql === manifest.snapshot || sql === createManifest?.snapshot || sql === discardManifest?.snapshot || sql === publicationManifest?.snapshot || sql === reorderManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === manifest.snapshot || sql === createManifest?.snapshot || sql === discardManifest?.snapshot || sql === publicationManifest?.snapshot || sql === reorderManifest?.snapshot || sql === learnerManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === learnerManifest?.cancellation.catalog) response = JSON.stringify({ function: null, triggers: [] })
+        else if (sql === learnerManifest?.cancellation.install) cancellationInstalled = true
+        else if (sql === learnerManifest?.cancellation.installed) response = JSON.stringify({ installed: true })
         else if (sql === diagnosticManifest?.contracts.frames[0].sql) response = JSON.stringify({ kind: diagnosticManifest.kind,
           plan: [{ Plan: { 'Node Type': 'ModifyTable', 'Relation Name': 'PRIVATE synthetic relation', Plans: [{ 'Node Type': 'Function Scan' }] } }] })
         else if (sql === diagnosticManifest?.contracts.frames[1].sql) {
@@ -295,9 +317,9 @@ describe('native persistent-session transport with offline child mocks', () => {
           response = JSON.stringify(batch.expectedResult)
         }
         else if (sql === manifest.privilege.catalog || sql === createManifest?.privilege.catalog
-          || sql === discardManifest?.privilege.catalog || sql === discardManifest?.innerPrivilege.catalog || sql === reorderManifest?.privilege.catalog || publicationSql(sql, 'catalog')) response = JSON.stringify(catalog())
+          || sql === discardManifest?.privilege.catalog || sql === discardManifest?.innerPrivilege.catalog || sql === reorderManifest?.privilege.catalog || sql === learnerManifest?.privilege.catalog || publicationSql(sql, 'catalog')) response = JSON.stringify(catalog())
         else if (sql === manifest.privilege.revoke || sql === createManifest?.privilege.revoke
-          || sql === discardManifest?.privilege.revoke || sql === discardManifest?.innerPrivilege.revoke || sql === reorderManifest?.privilege.revoke || publicationSql(sql, 'revoke')) serviceExecute = false
+          || sql === discardManifest?.privilege.revoke || sql === discardManifest?.innerPrivilege.revoke || sql === reorderManifest?.privilege.revoke || sql === learnerManifest?.privilege.revoke || publicationSql(sql, 'revoke')) serviceExecute = false
         else if (sql.includes('select public.snapshot_test_draft_save_for_owner_v1')) {
           const testId = sql.match(/_v1\('[a-f0-9-]+','([a-f0-9-]+)'/)![1]
           response = JSON.stringify({ version: 1, actor_id: manifest.fixture.owner, classroom: { id: manifest.fixture.classroom, teacher_id: manifest.fixture.owner },
@@ -332,6 +354,51 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  it('measures8s wire separately from14s guarded cancellation action', async () => {
+    const adapter = learnerFactory(); await adapter.setup()
+    await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    vi.useFakeTimers()
+    const proof = adapter.probeLearnerCancellation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 14000))
+      return { status: 500, rpcCalls: 1, rawCode: '57014', elapsedMs: 8000 }
+    })
+    const accepted = proof.then(value => ({ value }), () => ({ failed: true }))
+    await vi.advanceTimersByTimeAsync(14001)
+    expect(await accepted).toEqual({ value: { cancellationCode: '57014', catalogRestored: true, fixtureUnchanged: true } })
+    expect(cancellationInstalled).toBe(false)
+    expect(adapter.diagnostic()).not.toContain('failure=unknown')
+  })
+  it('rejects early wire despite guard padding and restores exact fixture', async () => {
+    const adapter = learnerFactory(); await adapter.setup()
+    await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    vi.useFakeTimers()
+    const refused = expect(adapter.probeLearnerCancellation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 9000))
+      return { status: 500, rpcCalls: 1, rawCode: '57014', elapsedMs: 1000 }
+    })).rejects.toThrow()
+    await vi.advanceTimersByTimeAsync(9001); await refused
+    expect(cancellationInstalled).toBe(false)
+    expect(adapter.diagnostic()).toContain('cancellationStage=timing')
+  })
+  it('expires the guarded cancellation action at30s without renewing its deadline', async () => {
+    const adapter = learnerFactory(); await adapter.setup()
+    await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    vi.useFakeTimers()
+    const refused = expect(adapter.probeLearnerCancellation(async () => new Promise(() => {}))).rejects.toThrow()
+    await vi.advanceTimersByTimeAsync(30001); await refused
+    expect(cancellationInstalled).toBe(false)
+    expect(adapter.diagnostic()).toContain('cancellationStage=probe')
+  })
+  it('retains first probe failure separately from a later restore failure', async () => {
+    const adapter = learnerFactory(); await adapter.setup()
+    await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    await expect(adapter.probeLearnerCancellation(async () => {
+      restorationFails = true; throw Error('PRIVATE synthetic SDK secret')
+    })).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain('cancellationStage=probe')
+    expect(adapter.diagnostic()).toContain('cancellationRestore=restore')
+    expect(adapter.diagnostic()).not.toContain('synthetic SDK secret')
+  })
   it.each(['ordinary', 'timeout', 'child-exit', 'late-stderr'])('retires historical 10k diagnostic before fake-child dispatch in %s scenario', scenario => {
     diagnosticHang = scenario === 'timeout'; diagnosticExit = scenario === 'child-exit'
     diagnosticMarkerFirst = scenario === 'late-stderr'
