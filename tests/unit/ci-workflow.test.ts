@@ -28,12 +28,55 @@ function runGate(overrides: Record<string, string | undefined> = {}) {
     encoding: 'utf8',
     env: { PATH: process.env.PATH, CI_EVENT_ELIGIBLE: 'true', CLASSIFY_RESULT: 'success',
       TEST_BUILD_RESULT: 'success', TEST_BUILD_REQUIRED: 'true', DATABASE_REQUIRED: 'true',
-      DATABASE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'success', BROWSER_REQUIRED: 'false',
+      DATABASE_RESULT: 'success', DATABASE_LIFECYCLE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'success', BROWSER_REQUIRED: 'false',
       BROWSER_RESULT: 'skipped', BROWSER_DARK_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
   })
 }
 
 describe('CI workflow', () => {
+  it('partitions every database proof at the owner reorder boundary with independent setup', () => {
+    const source = readFileSync(workflowPath, 'utf8')
+    const jobs = extractWorkflow(source)
+    const primary = jobs['architecture-database-contracts'], secondary = jobs['architecture-database-contracts-lifecycle']
+    const proofs = (job: typeof primary) => job.steps.slice(job.steps.findIndex(step => step.id === 'supabase-start') + 1,
+      job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
+    expect(proofs(primary)).toHaveLength(51)
+    expect(proofs(secondary)).toHaveLength(85)
+    expect(proofs(primary).filter(step => step.name === 'Verify contextual Test owner workflow database contracts')).toHaveLength(1)
+    expect(proofs(primary).at(-1)?.name).toBe('Verify isolated contextual Test member-list SDK reads')
+    expect(proofs(secondary)[0].name).toBe('Verify isolated contextual Test owner reorder transactions')
+    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(136)
+    for (const job of [primary, secondary]) {
+      expect(proofs(job).every(step => step.run && !step.if && !step.uses)).toBe(true)
+      expect(job.steps.find(step => step.uses === 'supabase/setup-cli@v1')?.with.version).toBe('2.103.0')
+      expect(job.steps.find(step => step.uses === 'actions/setup-node@v6')?.with['node-version']).toBe("'24'")
+      expect(job.steps.find(step => step.uses === 'pnpm/action-setup@v6')?.with.version).toBe('10.25.0')
+      expect(job.steps.find(step => step.name === 'Install dependencies')?.run).toBe('pnpm install --frozen-lockfile')
+      expect(job.steps.find(step => step.name === 'Verify managed-storage migration lineage')?.run).toBe('pnpm run check:managed-storage-lineage')
+      expect(job.steps.find(step => step.id === 'ci-isolation')?.run).toBe(`node scripts/ci-runner-preflight.mjs --lane ${job.lane}`)
+    }
+    expect(jobSource(source, secondary.id)).toContain('runs-on: ubuntu-latest')
+    expect(jobSource(source, secondary.id)).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
+    expect(jobSource(source, secondary.id)).toContain('needs: classify-changes')
+    expect(jobSource(source, 'pr-gate')).toContain('DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}')
+  })
+
+  it.each(['DATABASE_RESULT', 'DATABASE_LIFECYCLE_RESULT'].flatMap(key =>
+    ['failure', 'cancelled', 'skipped', '', undefined].flatMap(result =>
+      ['application-database', 'application-database-browser', 'full'].map(mode => [key, result, mode] as const))))(
+    'rejects required %s=%s in %s using the actual Bash gate', (key, result, mode) => {
+      expect(runGate({ CI_MODE: mode, BROWSER_REQUIRED: mode === 'application-database' ? 'false' : 'true',
+        BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', [key]: result }).status).toBe(1)
+    })
+
+  it.each(['docs-only', 'production-promotion', 'application-test-build', 'application-browser'])(
+    'permits both database jobs to be skipped in %s', mode => {
+      expect(runGate({ CI_MODE: mode, TEST_BUILD_REQUIRED: mode === 'docs-only' ? 'false' : 'true',
+        DATABASE_REQUIRED: 'false', DATABASE_RESULT: 'skipped', DATABASE_LIFECYCLE_RESULT: 'skipped',
+        TEST_OWNER_SDK_RESULT: 'skipped', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'skipped',
+        BROWSER_REQUIRED: mode === 'application-browser' ? 'true' : 'false', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success' }).status).toBe(0)
+    })
+
   it('partitions all seven established owner profiles into two isolated database-selected jobs', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const jobs = extractWorkflow(workflow)
@@ -78,7 +121,7 @@ describe('CI workflow', () => {
       expect(step.run).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
     }
     for (const name of ['Verify isolated contextual Test member-list SDK reads', 'Verify isolated contextual Test owner reorder transactions']) {
-      expect(database.steps.filter(step => step.name === name)).toHaveLength(1)
+      expect([database, jobs['architecture-database-contracts-lifecycle']].flatMap(job => job.steps).filter(step => step.name === name)).toHaveLength(1)
       for (const job of [shard, lifecycle]) expect(job.steps.some(step => step.name === name)).toBe(false)
     }
     const upload = shard.steps.find(step => step.name === 'Upload sanitized Test proof timings')!
@@ -86,7 +129,7 @@ describe('CI workflow', () => {
     expect(workflow.split('      - name: Upload sanitized Test proof timings\n')).toHaveLength(2)
     expect(shard.steps.indexOf(upload)).toBeGreaterThan(shard.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
     const gate = jobSource(workflow, 'pr-gate')
-    for (const dependency of ['classify-changes', 'architecture-database-contracts', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'test-and-build', 'browser-experience-matrix', 'browser-experience-dark']) {
+    for (const dependency of ['classify-changes', 'architecture-database-contracts', 'architecture-database-contracts-lifecycle', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'test-and-build', 'browser-experience-matrix', 'browser-experience-dark']) {
       expect(gate).toContain(`      - ${dependency}\n`)
     }
     expect(gate).toContain('TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}')
@@ -507,7 +550,7 @@ describe('CI workflow', () => {
     expect(workflow).toContain('Browser lane setup evidence')
     expect(workflow).toContain('(false means prefix restore or miss)')
     expect(workflow).toContain('Supabase remains a fresh ephemeral start and migration replay.')
-    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(5)
+    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(6)
   })
 
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {

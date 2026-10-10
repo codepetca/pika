@@ -8,10 +8,20 @@ describe('contextual Test draft save CI evidence', () => {
     const job = workflow.split('  contextual-test-owner-sdk:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     const sibling = workflow.split('  contextual-test-owner-sdk-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     const database = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const databaseLifecycle = workflow.split('  architecture-database-contracts-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     expect(job).toBeDefined()
     expect(database).toContain('run: pnpm run db:types:check')
     expect(database).toContain('name: Rehearse the production-shaped Test identity migration')
-    expect(database).toContain('name: Verify contextual Daily Log save atomicity and privileges')
+    expect(database).not.toContain('name: Verify contextual Daily Log save atomicity and privileges')
+    expect(databaseLifecycle).toContain('name: Verify contextual Daily Log save atomicity and privileges')
+    expect(databaseLifecycle).toContain('runs-on: ubuntu-latest')
+    expect(databaseLifecycle).toContain('run: node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
+    expect(databaseLifecycle).toContain('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector')
+    expect(databaseLifecycle).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
+    expect(databaseLifecycle).toContain('run: supabase stop --no-backup')
+    expect(databaseLifecycle!.indexOf('id: ci-isolation')).toBeLessThan(databaseLifecycle!.indexOf('id: supabase-start'))
+    expect(databaseLifecycle!.indexOf('name: Verify contextual Daily Log save atomicity and privileges')).toBeGreaterThan(databaseLifecycle!.indexOf('name: Start ephemeral Supabase and replay migrations'))
+    expect(databaseLifecycle!.indexOf('name: Verify contextual Daily Log save atomicity and privileges')).toBeLessThan(databaseLifecycle!.indexOf('name: Stop ephemeral database'))
     const name = '      - name: Verify isolated contextual Test owner-draft save transactions'
     expect(workflow.split(name)).toHaveLength(2)
     expect(job!.split(name)).toHaveLength(2)

@@ -7,10 +7,13 @@ describe('contextual member Test-list CI evidence', () => {
     const workflow = readFileSync(resolve(process.cwd(), '.github/workflows/ci.yml'), 'utf8')
     const job = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     const database = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const lifecycle = workflow.split('  architecture-database-contracts-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     expect(job).toBeDefined()
+    expect(lifecycle).toBeDefined()
     expect(database).toContain('run: pnpm run db:types:check')
     expect(database).toContain('name: Rehearse the production-shaped Test identity migration')
-    expect(database).toContain('name: Verify contextual Daily Log save atomicity and privileges')
+    expect(lifecycle).toContain('name: Verify contextual Daily Log save atomicity and privileges')
+    expect(database).not.toContain('name: Verify contextual Daily Log save atomicity and privileges')
     const name = '      - name: Verify isolated contextual Test member-list SDK reads'
     expect(workflow.split(name)).toHaveLength(2)
     expect(job!.split(name)).toHaveLength(2)
@@ -35,9 +38,10 @@ describe('contextual member Test-list CI evidence', () => {
     expect(job!.indexOf('name: Start ephemeral Supabase and replay migrations')).toBeLessThan(job!.indexOf(name))
     expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('name: Stop ephemeral database'))
     expect(job).toContain('name: Verify isolated contextual Assignment integrated SDK effects and private delivery')
-    expect(job).toContain('name: Verify isolated contextual Test owner reorder transactions')
+    expect(lifecycle).toContain('name: Verify isolated contextual Test owner reorder transactions')
+    expect(job).not.toContain('name: Verify isolated contextual Test owner reorder transactions')
+    expect(lifecycle).not.toContain('name: Verify isolated contextual Test member-list SDK reads')
     expect(job!.indexOf('      - name: Verify isolated contextual Assignment integrated SDK effects and private delivery')).toBeLessThan(job!.indexOf(name))
-    expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('      - name: Verify isolated contextual Test owner reorder transactions'))
     expect(job!.match(/^    timeout-minutes: (\d+)/m)?.[1]).toBe('90')
   })
 })

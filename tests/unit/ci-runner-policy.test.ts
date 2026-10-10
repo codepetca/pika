@@ -31,7 +31,7 @@ describe('CI compute routing', () => {
 
   it('changes only heavy-job compute and keeps refusal from triggering database cleanup', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    for (const job of ['classify-changes', 'pr-gate', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'browser-experience-dark']) {
+    for (const job of ['classify-changes', 'pr-gate', 'architecture-database-contracts-lifecycle', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'browser-experience-dark']) {
       const body = workflow.split(`  ${job}:\n`)[1]?.split(/\n  [a-z][a-z-]+:\n/)[0]
       expect(body).toContain('runs-on: ubuntu-latest')
     }

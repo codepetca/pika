@@ -4,12 +4,18 @@ import { describe, expect, it } from 'vitest'
 describe('isolated reorder CI receipt closure', () => {
   it('serially requires normal and both exact forced cleanup receipts without widening CI budgets', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    const job = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
+    const job = workflow.split('  architecture-database-contracts-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     const database = workflow.split('  architecture-database-contracts:\n')[1]?.split(/\n  [a-z][a-z-]*:\n/)[0]
     expect(job).toBeDefined()
     expect(database).toContain('run: pnpm run db:types:check')
     expect(database).toContain('name: Rehearse the production-shaped Test identity migration')
-    expect(database).toContain('name: Verify contextual Daily Log save atomicity and privileges')
+    expect(job).toContain('name: Verify contextual Daily Log save atomicity and privileges')
+    expect(job).not.toContain('name: Rehearse the production-shaped Test identity migration')
+    expect(job).not.toContain('run: pnpm run db:types:check')
+    expect(job).toContain('runs-on: ubuntu-latest')
+    expect(job).toContain('run: pnpm install --frozen-lockfile')
+    expect(job).toContain('run: pnpm run check:managed-storage-lineage')
+    expect(job).toContain('node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
     const name = '      - name: Verify isolated contextual Test owner reorder transactions'
     expect(workflow.split(name)).toHaveLength(2)
     expect(job!.split(name)).toHaveLength(2)
@@ -33,9 +39,10 @@ describe('isolated reorder CI receipt closure', () => {
     expect(job!.indexOf('id: ci-isolation')).toBeLessThan(job!.indexOf('id: supabase-start'))
     expect(job!.indexOf('name: Start ephemeral Supabase and replay migrations')).toBeLessThan(job!.indexOf(name))
     expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('name: Stop ephemeral database'))
-    expect(job).toContain('name: Verify isolated contextual Test member-list SDK reads')
+    expect(database).toContain('name: Verify isolated contextual Test member-list SDK reads')
+    expect(job).not.toContain('name: Verify isolated contextual Test member-list SDK reads')
+    expect(database).not.toContain('name: Verify isolated contextual Test owner reorder transactions')
     expect(job).toContain('name: Verify contextual Daily Log save atomicity and privileges')
-    expect(job!.indexOf('      - name: Verify isolated contextual Test member-list SDK reads')).toBeLessThan(job!.indexOf(name))
     expect(job!.indexOf(name)).toBeLessThan(job!.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
     expect(job!.match(/^    timeout-minutes: (\d+)/m)?.[1]).toBe('90')
     expect(workflow.match(/name: Architecture Database Contracts[\s\S]*?timeout-minutes: (\d+)/)?.[1]).toBe('90')

@@ -91,6 +91,24 @@ full CI. Preserve historical `ci:local --ref` completeness and measure the exact
 reviewed source tree; a different-source single-run comparison cannot establish
 sustained or isolated speedup. See the [execution plan](../plans/ci-proof-setup-optimization.md).
 
+## Database partition measurement
+
+The database contract suite runs in two independent jobs. The original job keeps
+51 proof blocks through Test member-list; the hosted lifecycle job starts at
+owner reorder and keeps the remaining 85. All 136 current-main proof blocks remain
+present exactly once, with unchanged commands, environments and within-job order.
+Each job starts its own canonical ephemeral stack with complete reviewed
+migrations and retains guarded teardown. Two earlier native candidates confirmed fresh-start coverage; final-head CI
+remains required after inheriting main’s additional owner workflow proof.
+
+Compare the slower database partition, summed database runtime, setup/cleanup,
+queue time and creation-to-PR-Gate duration. Preserve every normal, forced-failure
+and exact-cleanup proof, including the original migration rehearsal. Compare
+actual reviewed/native source trees and all required jobs; the browser or SDK
+lanes may become the critical path. Added setup can increase compute while
+shortening feedback. Use the [execution plan](../plans/ci-proof-setup-optimization.md)
+for the observed baseline and pending native acceptance.
+
 ## Browser partition measurement
 
 The browser suite is partitioned by project theme across two independent jobs.

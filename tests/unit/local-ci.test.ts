@@ -7,6 +7,19 @@ import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment,
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 
+function combinedDatabaseWorkflow(source = workflow()) {
+  const secondary = source.match(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)?.[0]
+  if (!secondary) return source
+  const proofStart = secondary.indexOf('      - name: Verify isolated contextual Test owner reorder transactions\n')
+  const proofs = secondary.slice(proofStart, secondary.indexOf('      - name: Stop ephemeral database\n'))
+  const primary = source.match(/^  architecture-database-contracts:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)![0]
+  return source.replace(primary, () => primary.replace('      - name: Stop ephemeral database\n', () => proofs + '      - name: Stop ephemeral database\n'))
+    .replace(secondary, '')
+    .replace('      - architecture-database-contracts-lifecycle\n', '')
+    .replace('          DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}\n', '')
+    .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$DATABASE_LIFECYCLE_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
+}
+
 function combinedBrowserWorkflow(source = workflow()) {
   return source.replace(/^  browser-experience-dark:\n[\s\S]*?(?=^  pr-gate:\n)/m, '')
     .replace(/run: pnpm e2e:ci --project=[^\n]+/, 'run: pnpm e2e:ci')
@@ -15,7 +28,7 @@ function combinedBrowserWorkflow(source = workflow()) {
     .replace(/          if \[\[ "\$BROWSER_REQUIRED" == "true" && "\$BROWSER_DARK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
 }
 
-function combinedSdkWorkflow(source = workflow()) {
+function combinedSdkWorkflow(source = combinedDatabaseWorkflow()) {
   const primary = source.match(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)![0]
   const secondary = source.match(/^  contextual-test-owner-sdk-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)?.[0]
   if (!secondary) return source
@@ -29,7 +42,7 @@ function combinedSdkWorkflow(source = workflow()) {
   const combined = primary.slice(0, primary.indexOf(`      - name: ${names[0]}\n`))
     + names.map(name => blocks.get(name)!).join('')
     + primary.slice(primary.indexOf('      - name: Stop ephemeral database\n'))
-  return source.replace(primary, combined).replace(secondary, '')
+  return source.replace(primary, () => combined).replace(secondary, '')
     .replace('      - contextual-test-owner-sdk-lifecycle\n', '')
     .replace('          TEST_OWNER_SDK_LIFECYCLE_RESULT: ${{ needs.contextual-test-owner-sdk-lifecycle.result }}\n', '')
     .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$TEST_OWNER_SDK_LIFECYCLE_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
@@ -38,7 +51,7 @@ function combinedSdkWorkflow(source = workflow()) {
 // Reconstruct the original three-job layout from the unchanged proof blocks,
 // without depending on Git history being available in a shallow CI checkout.
 function legacyWorkflow(input = workflow(), browserSplit = false) {
-  const source = browserSplit ? combinedSdkWorkflow(input) : combinedBrowserWorkflow(combinedSdkWorkflow(input))
+  const source = browserSplit ? combinedSdkWorkflow(combinedDatabaseWorkflow(input)) : combinedBrowserWorkflow(combinedSdkWorkflow(combinedDatabaseWorkflow(input)))
   const shard = source.match(/^  contextual-test-owner-sdk:\n[\s\S]*?(?=^  test-and-build:\n)/m)![0]
   const blocks = new Map([...shard.matchAll(/^      - name: ([^\n]+)\n[\s\S]*?(?=^      - name: |$(?![\s\S]))/gm)]
     .map(match => [match[1], match[0]]))
@@ -48,9 +61,9 @@ function legacyWorkflow(input = workflow(), browserSplit = false) {
     'Verify isolated contextual Test owner creation transactions', 'Verify isolated contextual pristine Test draft discard transactions',
     'Verify isolated contextual Test owner publication transactions'].map(name => blocks.get(name)!).join('')
   return source.replace(shard, '')
-    .replace('      - name: Verify isolated contextual Test member-list SDK reads\n', reads + '      - name: Verify isolated contextual Test member-list SDK reads\n')
-    .replace('      - name: Verify isolated contextual Test owner reorder transactions\n', writes + '      - name: Verify isolated contextual Test owner reorder transactions\n')
-    .replace('  test-and-build:\n', blocks.get('Upload sanitized Test proof timings')! + '  test-and-build:\n')
+    .replace('      - name: Verify isolated contextual Test member-list SDK reads\n', () => reads + '      - name: Verify isolated contextual Test member-list SDK reads\n')
+    .replace('      - name: Verify isolated contextual Test owner reorder transactions\n', () => writes + '      - name: Verify isolated contextual Test owner reorder transactions\n')
+    .replace('  test-and-build:\n', () => blocks.get('Upload sanitized Test proof timings')! + '  test-and-build:\n')
     .replace('      - contextual-test-owner-sdk\n', '')
     .replace('          TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}\n', '')
     .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$TEST_OWNER_SDK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
@@ -91,6 +104,62 @@ describe('local canonical CI', () => {
     }
   })
 
+  it('runs the complete database alias serially with fresh environment and cleanup cycles', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'pika-ci-partition-test-'))
+    const jobs = selectPlan(extractWorkflow(workflow()), 'database')
+    const starts: string[] = [], stops: string[] = [], preflights: string[] = []
+    let active: string | null = null
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const execute = async (script: string, _cwd: string, env: Record<string, string>, _child: unknown, path: string) => {
+      writeFileSync(path, 'fake executor receipt\n')
+      if (script.startsWith('node scripts/ci-runner-preflight')) {
+        expect(active).toBeNull(); preflights.push(script)
+        expect(env.NEXT_PUBLIC_SUPABASE_URL).toBeUndefined()
+      }
+      if (script.startsWith('supabase start ')) { expect(active).toBeNull(); active = script; starts.push(script) }
+      if (script === 'supabase stop --no-backup') { expect(active).not.toBeNull(); active = null; stops.push(script) }
+      if (env.GITHUB_ENV) writeFileSync(env.GITHUB_ENV, script.startsWith('supabase start ') ? 'NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321\n' : '')
+      return 0
+    }
+    try {
+      for (const job of jobs) expect(await runLane(job, directory, directory, {}, { execute })).toBe(false)
+      expect(jobs.map(job => job.lane)).toEqual(['database', 'database-lifecycle', 'test-owner-sdk', 'test-owner-sdk-lifecycle'])
+      expect(starts).toHaveLength(4); expect(stops).toHaveLength(4); expect(preflights).toHaveLength(8)
+      expect(active).toBeNull()
+    } finally { log.mockRestore(); rmSync(directory, { recursive: true, force: true }) }
+  })
+
+  it('selects the explicit database partition and rejects missing jobs and unknown plans', () => {
+    const jobs = extractWorkflow(workflow())
+    expect(selectPlan(jobs, 'database-lifecycle').map(job => job.id)).toEqual(['architecture-database-contracts-lifecycle'])
+    expect(() => selectPlan(extractWorkflow(combinedDatabaseWorkflow()), 'database-lifecycle')).toThrow('no separate database-lifecycle lane')
+    expect(() => selectPlan(jobs, 'unknown')).toThrow()
+    expect(() => selectPlan(jobs, 'constructor')).toThrow()
+    expect(() => parseArguments(['--lane', 'constructor'])).toThrow()
+    expect(() => selectPlan(jobs, 'toString')).toThrow()
+    expect(() => parseArguments(['--lane', 'toString'])).toThrow()
+    const damaged = { ...jobs }; delete damaged['architecture-database-contracts-lifecycle']
+    expect(() => selectPlan(damaged, 'database')).toThrow()
+  })
+
+  it.each([
+    ['missing job', (s: string) => s.replace(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m, '')],
+    ['renamed job', (s: string) => s.replace('  architecture-database-contracts-lifecycle:', '  renamed-database-lifecycle:')],
+    ['duplicate job', (s: string) => { const block = s.match(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)![0]; return s.replace(block, block + block) }],
+    ['missing proof', (s: string) => s.replace(/^      - name: Verify contextual Daily Log save atomicity and privileges\n[\s\S]*?(?=^      - name:)/m, '')],
+    ['duplicate proof', (s: string) => { const block = s.match(/^      - name: Verify contextual Daily Log save atomicity and privileges\n[\s\S]*?(?=^      - name:)/m)![0]; return s.replace(block, block + block) }],
+    ['wrong owner and order', (s: string) => { const a = s.match(/^      - name: Verify isolated contextual Test member-list SDK reads\n[\s\S]*?(?=^      - name:)/m)![0]; const b = s.match(/^      - name: Verify isolated contextual Test owner reorder transactions\n[\s\S]*?(?=^      - name:)/m)![0]; return s.replace(a, '__PROOF__').replace(b, a).replace('__PROOF__', b) }],
+    ['conditional proof', (s: string) => s.replace('      - name: Verify contextual Daily Log save atomicity and privileges\n', '      - name: Verify contextual Daily Log save atomicity and privileges\n        if: success()\n')],
+    ['proof outside start', (s: string) => { const block = s.match(/^      - name: Verify isolated contextual Test owner reorder transactions\n[\s\S]*?(?=^      - name:)/m)![0]; const start = s.indexOf('  architecture-database-contracts-lifecycle:'); return s.slice(0, start) + s.slice(start).replace(block, '').replace('      - name: Start ephemeral Supabase and replay migrations\n', block + '      - name: Start ephemeral Supabase and replay migrations\n') }],
+    ['suffix routing drift', (s: string) => s.replace('    # Independent hosted VM/daemon, including self-hosted dispatches.\n    runs-on: ubuntu-latest', '    runs-on: unknown')],
+    ['missing result gate mapping', (s: string) => s.replace('          DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}\n', '')],
+    ['preflight drift', (s: string) => s.replace('--lane database-lifecycle', '--lane database')],
+    ['startup drift', (s: string) => s.replace('supabase start -x analytics,', 'supabase start -x ')],
+    ['erased markers prefix only', (s: string) => s.replace(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m, '').replaceAll('architecture-database-contracts-lifecycle', 'erased').replaceAll('DATABASE_LIFECYCLE_RESULT', 'ERASED')],
+  ])('refuses damaged database partition %s', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(workflow()))).toThrow()
+  })
+
   it('retains every executable database and browser contract in canonical order', () => {
     const jobs = extractWorkflow(workflow())
     const database = selectPlan(jobs, 'database')[0]
@@ -99,7 +168,7 @@ describe('local canonical CI', () => {
     const integrated = database.steps.find(step => step.name === 'Verify isolated contextual Assignment integrated SDK effects and private delivery')
     expect(integrated?.run).toContain('for assignment_integrated_mode in after-fixture before-capture; do')
     expect(integrated?.run).toContain('[[ "$(wc -l < "$assignment_integrated_log" | tr -d \' \')" -eq 2 ]] || exit 1')
-    expect(database.steps.filter(step => step.run).length).toBeGreaterThan(100)
+    expect(selectPlan(jobs, 'database').slice(0, 2).flatMap(job => job.steps).filter(step => step.run).length).toBeGreaterThan(136)
     expect(browser.steps.find(step => step.name === 'Export local Supabase environment')?.run).toContain('>> "$GITHUB_ENV"')
     expect(browser.steps.find(step => step.name === 'Seed browser fixtures')?.run).toBe('pnpm seed')
     expect(browser.steps.find(step => step.name === 'Run combined browser contracts')?.run).toContain('pnpm e2e:ci --project=chromium-desktop ')
@@ -116,7 +185,7 @@ describe('local canonical CI', () => {
     const build = job.steps.find(step => step.name === 'Build production bundle')
     expect(build?.env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://placeholder.supabase.co')
     expect(shouldRun(build?.if, false)).toBe(true)
-    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark'])
+    expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'database-lifecycle', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark'])
   })
 
   it('keeps database selection complete and includes each canonical SDK command once locally', () => {
@@ -124,7 +193,7 @@ describe('local canonical CI', () => {
     const database = selectPlan(jobs, 'database')
     const all = selectPlan(jobs, 'all')
     const sdk = selectPlan(jobs, 'test-owner-sdk')
-    expect(database.map(job => job.lane)).toEqual(['database', 'test-owner-sdk', 'test-owner-sdk-lifecycle'])
+    expect(database.map(job => job.lane)).toEqual(['database', 'database-lifecycle', 'test-owner-sdk', 'test-owner-sdk-lifecycle'])
     expect(sdk.map(job => job.id)).toEqual(['contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle'])
     expect(new Set(all.map(job => job.id)).size).toBe(all.length)
     for (const profile of ['detail', 'list', 'draft-get', 'draft-save', 'create', 'pristine-discard', 'publication']) {
@@ -167,6 +236,25 @@ describe('local canonical CI', () => {
     expect(() => selectPlan(jobs, 'test-owner-sdk-lifecycle')).toThrow('no separate test-owner-sdk-lifecycle lane')
     const sdk = selectPlan(jobs, 'test-owner-sdk')[0]
     expect(sdk.steps.filter(step => step.run?.includes('--reviewed-head'))).toHaveLength(7)
+  })
+
+  // The actual pre-SDK ref b8169adaa7802e79e44ea8236021ce9297d61d2e
+  // predates both member-list and reorder. Reconstruct that topology so shallow
+  // CI checkouts do not need historical Git objects to exercise the regression.
+  it('accepts the older pre-SDK generation without inventing member-list or reorder proofs', () => {
+    const source = legacyWorkflow().replace(/^      - name: Verify isolated contextual Test (?:member-list SDK reads|owner reorder transactions)\n[\s\S]*?(?=^      - name:)/gm, '')
+    const jobs = extractWorkflow(source)
+    const plan = selectPlan(jobs, 'database')
+    expect(plan.map(job => job.lane)).toEqual(['database'])
+    expect(plan[0].steps.filter(step => /scripts\/check-contextual-test-owner-(?:detail|list|draft-get|draft-save|create|pristine-discard|publication)-lifecycle\.ts/.test(step.run ?? ''))).toHaveLength(7)
+    expect(plan[0].steps.some(step => step.name === 'Verify contextual Daily Log save atomicity and privileges')).toBe(true)
+    expect(() => selectPlan(jobs, 'database-lifecycle')).toThrow('no separate database-lifecycle lane')
+    expect(() => extractWorkflow(source.replace(/^      - name: Verify contextual Daily Log save atomicity and privileges\n[\s\S]*?(?=^      - name:)/m, ''))).toThrow()
+  })
+
+  it.each(['member-list SDK reads', 'owner reorder transactions'])('rejects partial established legacy proof pair missing %s', name => {
+    const source = combinedDatabaseWorkflow().replace(new RegExp(`^      - name: Verify isolated contextual Test ${name}\\n[\\s\\S]*?(?=^      - name:)`, 'm'), '')
+    expect(() => extractWorkflow(source)).toThrow()
   })
 
   it('retains pre-SDK proof coverage on refs with the current browser split', () => {
@@ -367,7 +455,7 @@ describe('local canonical CI', () => {
     } finally { rmSync(directory, { recursive: true, force: true }) }
   })
 
-  it.each(['database', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark'].flatMap(lane =>
+  it.each(['database', 'database-lifecycle', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark'].flatMap(lane =>
     ['refusal', 'partial-start', 'exception', 'interrupted', 'cleanup-failure', 'unconfirmed-group'].map(mode => [lane, mode])))(
     'contains %s cleanup during %s without executing Docker', async (lane, mode) => {
       const directory = mkdtempSync(join(tmpdir(), 'pika-ci-run-test-'))
