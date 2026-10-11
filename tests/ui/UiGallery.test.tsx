@@ -15,17 +15,32 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: () => <div />,
 }))
 
-function renderGallery(role: 'teacher' | 'student' = 'teacher') {
+function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentControllerFixture = false) {
   return render(
     <ThemeProvider>
       <TooltipProvider>
-        <UiGallery role={role} />
+        <UiGallery role={role} assignmentControllerFixture={assignmentControllerFixture} />
       </TooltipProvider>
     </ThemeProvider>,
   )
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('keeps AssignmentControllerPattern absent from ordinary %s references', role => {
+    renderGallery(role)
+    expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it('gates AssignmentControllerPattern to the explicitly enabled teacher fixture', () => {
+    const teacher = renderGallery('teacher', true)
+    expect(screen.getByTestId('assignment-controller-fixture')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open controlled assignment' })).toBeVisible()
+    expect(screen.queryByRole('dialog', { name: 'Edit Draft' })).not.toBeInTheDocument()
+    teacher.unmount()
+    renderGallery('student', true)
+    expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('UiConsistencyPattern retires the plain split menu before its %s visual exit', role => {
     renderGallery(role)
     const section = document.getElementById('ui-consistency')!

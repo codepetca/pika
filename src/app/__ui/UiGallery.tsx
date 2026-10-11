@@ -72,6 +72,7 @@ import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
+import { AssignmentControllerPattern } from './AssignmentControllerPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
 import { SurveyEditSplitPattern } from './SurveyEditSplitPattern'
@@ -169,9 +170,10 @@ const QUICK_LINK_LABELS: Record<string, string> = {
 
 interface Props {
   role: Role
+  assignmentControllerFixture?: boolean
 }
 
-export function UiGallery({ role }: Props) {
+export function UiGallery({ role, assignmentControllerFixture = false }: Props) {
   const { theme, mounted, toggleTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
@@ -740,6 +742,7 @@ export function UiGallery({ role }: Props) {
               </div>
             </PatternSection>
             {role === 'teacher' && <AssignmentCreationPattern />}
+            {role === 'teacher' && assignmentControllerFixture && <AssignmentControllerPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
               title="Guided assignment Markdown" description="The production assignment renderer with a fixed coding reference for both classroom roles.">

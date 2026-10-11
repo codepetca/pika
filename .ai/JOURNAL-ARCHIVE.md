@@ -45401,3 +45401,8 @@ Preserve originalOct7 05:04 clock,31reviews/27targeted and prior28fix-sync batch
 feature synchronization is batch29, this continuity-only commit is not another
 fix batch. Human workflow-stop/budget waiver remains task-scoped; correctness,
 checkpoint/migration/production/activation/provider/billing holds remain.
+
+<!-- pika-session-log-archive-batch:55267434dcc18e1b8cf4ea9671e8e001df69c49be2132e6ccbeb6e6574d61da5 -->
+## 2026-10-08 — Reorder exact restoration composition correction (batch30)
+
+Fixed the accepted e351 compatibility P2 by privately binding the current source-issued revocation plan across its exact restoration session, SQL and verification. The900s ordinary gate remains sticky; scoped restoration retains finite inherited/native caps, primary failures, exact teardown and all five canonical comparisons. Real adopter/parent/SDK-observer regressions with pure platform stubs fail10/10 against e351 and pass the correction; unrelated setup/matrix evidence is stubbed, with no native/type/forced/CI acceptance. Preserve31 original reviews/27 targeted/29 preceding fix-sync batches; this source correction is batch30, distinct from the root's private-wrapper artifact correction. Targeted final review and all actual native evidence remain pending; all runtime/database/checkpoint/production/rollout holds remain.
