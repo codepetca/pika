@@ -62,6 +62,7 @@ language sql stable security definer set search_path='' as $protected$
  n.nspname,c.relname,case n.nspname||'.'||c.relname
  when 'public.tests' then format('where r.id<>%L::uuid',p_test_id)
  when 'public.assessment_drafts' then format('where not(r.assessment_type=''test'' and r.assessment_id=%L::uuid)',p_test_id)
+ when 'public.classrooms' then format('where r.id<>(select classroom_id from public.tests where id=%L::uuid)',p_test_id)
  when 'public.classroom_archive_revisions' then format('where r.classroom_id<>(select classroom_id from public.tests where id=%L::uuid)',p_test_id)
  else '' end),true,false,'')::text) order by n.nspname,c.relname),'[]'::jsonb)
  from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in('r','p') and n.nspname in('public','private','storage');
@@ -144,11 +145,6 @@ begin
   raise exception using errcode='55000', message='forced_unpublication_status_failure';
 end;
 $fault$;
-create trigger reject_unpublication_status_update
-before update on public.tests for each row
-when (new.id='a2610000-0000-4000-8000-000000000031'::uuid
-  and old.status='closed' and new.status='draft')
-execute function pg_temp.reject_unpublication_status_update();
 
 -- Invoke the success path as the actual granted role; the definer function
 -- must perform the private checks without granting private schema access.
@@ -177,8 +173,12 @@ begin
     or content#>>'{questions,1,question_text}' <> 'Current prompt'
     or content#>>'{questions,1,answer_key}' <> 'Current key'
     or after_graph->'protected' is distinct from before_graph->'protected'
-    or (after_graph#>>'{archive_revision,revision}')::bigint<>(before_graph#>>'{archive_revision,revision}')::bigint+2
+    or (after_graph#>>'{archive_revision,revision}')::bigint<>(before_graph#>>'{archive_revision,revision}')::bigint+3
     or ((after_graph->'archive_revision')-array['revision','updated_at']) is distinct from ((before_graph->'archive_revision')-array['revision','updated_at'])
+    or (after_graph#>>'{archive_revision,updated_at}')::timestamptz is distinct from transaction_timestamp()
+    or (after_graph#>>'{classroom,blueprint_source_revision}')::bigint<>(before_graph#>>'{classroom,blueprint_source_revision}')::bigint+1
+    or ((after_graph->'classroom')-array['blueprint_source_revision','updated_at']) is distinct from ((before_graph->'classroom')-array['blueprint_source_revision','updated_at'])
+    or (after_graph#>>'{classroom,updated_at}')::timestamptz is distinct from transaction_timestamp()
     or after_graph->'questions' is distinct from before_graph->'questions'
     or after_graph->'availability' is distinct from before_graph->'availability'
     or after_graph#>'{test,documents}' is distinct from before_graph#>'{test,documents}'
@@ -198,8 +198,12 @@ begin
     or after_graph#>>'{draft,content,title}' <> 'No retained draft'
     or after_graph#>>'{draft,content,questions,0,id}' <> 'a2610000-0000-4000-8000-000000000211'
     or after_graph->'protected' is distinct from before_graph->'protected'
-    or (after_graph#>>'{archive_revision,revision}')::bigint<>(before_graph#>>'{archive_revision,revision}')::bigint+2
+    or (after_graph#>>'{archive_revision,revision}')::bigint<>(before_graph#>>'{archive_revision,revision}')::bigint+3
     or ((after_graph->'archive_revision')-array['revision','updated_at']) is distinct from ((before_graph->'archive_revision')-array['revision','updated_at'])
+    or (after_graph#>>'{archive_revision,updated_at}')::timestamptz is distinct from transaction_timestamp()
+    or (after_graph#>>'{classroom,blueprint_source_revision}')::bigint<>(before_graph#>>'{classroom,blueprint_source_revision}')::bigint+1
+    or ((after_graph->'classroom')-array['blueprint_source_revision','updated_at']) is distinct from ((before_graph->'classroom')-array['blueprint_source_revision','updated_at'])
+    or (after_graph#>>'{classroom,updated_at}')::timestamptz is distinct from transaction_timestamp()
     or after_graph->'questions' is distinct from before_graph->'questions' then
     raise exception 'Missing-draft conversion did not create version one';
   end if;
@@ -289,7 +293,13 @@ begin
   update public.test_questions set options='["A",""]'::jsonb where id='a2610000-0000-4000-8000-000000000302';
   perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_invalid_published_content','invalid published question');
   update public.test_questions set options='["A","B"]'::jsonb where id='a2610000-0000-4000-8000-000000000302';
+  execute $late_fault_ddl$create trigger reject_unpublication_status_update
+    before update on public.tests for each row
+    when (new.id='a2610000-0000-4000-8000-000000000031'::uuid
+      and old.status='closed' and new.status='draft')
+    execute function pg_temp.reject_unpublication_status_update()$late_fault_ddl$;
   perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'55000','forced_unpublication_status_failure','partial draft write rollback');
+  execute 'drop trigger reject_unpublication_status_update on public.tests';
   update public.tests set questions_locked_at=now() where id=test_id;
   perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_not_eligible','locked questions');
 end;
@@ -407,9 +417,13 @@ begin
  into canonical from public.tests t where t.id=tid;
  if result#>>'{result,draft_version}'<>'9' or result->'test' is distinct from after_graph->'test'
  or result#>>'{test,status}'<>'draft' or after_graph#>'{draft,content}' is distinct from canonical
- or (after_graph-array['test','draft','archive_revision']) is distinct from (before_graph-array['test','draft','archive_revision'])
- or (after_graph#>>'{archive_revision,revision}')::bigint<>(before_graph#>>'{archive_revision,revision}')::bigint+2
+ or (after_graph-array['test','draft','archive_revision','classroom']) is distinct from (before_graph-array['test','draft','archive_revision','classroom'])
+ or (after_graph#>>'{archive_revision,revision}')::bigint<>(before_graph#>>'{archive_revision,revision}')::bigint+3
  or ((after_graph->'archive_revision')-array['revision','updated_at']) is distinct from ((before_graph->'archive_revision')-array['revision','updated_at'])
+ or (after_graph#>>'{archive_revision,updated_at}')::timestamptz is distinct from transaction_timestamp()
+ or (after_graph#>>'{classroom,blueprint_source_revision}')::bigint<>(before_graph#>>'{classroom,blueprint_source_revision}')::bigint+1
+ or ((after_graph->'classroom')-array['blueprint_source_revision','updated_at']) is distinct from ((before_graph->'classroom')-array['blueprint_source_revision','updated_at'])
+ or (after_graph#>>'{classroom,updated_at}')::timestamptz is distinct from transaction_timestamp()
  or ((after_graph->'test')-array['status','updated_at']) is distinct from ((before_graph->'test')-array['status','updated_at'])
  or ((after_graph->'draft')-array['content','version','updated_by','updated_at']) is distinct from ((before_graph->'draft')-array['content','version','updated_by','updated_at'])
  then raise exception 'Contextual canonical content or protected graph differs';end if;

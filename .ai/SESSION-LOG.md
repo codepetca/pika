@@ -618,3 +618,15 @@ operational lifetime and strict TypeScript checks. No native run/PR acceptance
 yet. Independent review and fresh exact-source disposable proof remain required.
 Routine/budget waiver persists; sharedlocal249+/prod259+, production promotion,
 provider/account and admission/home/page/cohort/cutover holds remain unchanged.
+
+PR1578 draft63d1 source focused2133/120files and24TS audit PASS. Initial security/
+compatibility plus targeted privacy review cover that source; one P2 corrected
+privately (canonical fullrow/cron database-side digests, no rawaccount exports).
+First fresh disposablea1fbab47a8f7 replay001–261 PASS but rollback fixture failed;
+exactcleanup/global741resources/canonical183table+2cron preservation PASS.
+No native acceptance. Source diagnosis identified deliberate faulttrigger leaking
+into setup and112/095 normal Draft/Classroom trigger expectations. Correct fixture
+to narrow latefault and exact classroomblueprint+1/archive+3/fullotherfields;
+54focusedsource tests PASS. Private SDK exactsame effects and three corruption
+models PASS. Fresh source review/disposable proof/CI remain pending; no migration
+or production/cohort activation. Prior attempt receipts retained, no reset.
