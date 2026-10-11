@@ -45963,3 +45963,52 @@ only, no DB/Docker/lease/application authority. Focused gate and targeted review
 follow on a frozen correction; goal/batch2 not complete.
 Final focused gate PASS743tests/69files plus architecture/UI/design/TypeScript/
 lint; changed-test audit PASS. Native replay of the correction still unapproved.
+
+<!-- pika-session-log-archive-batch:f03dbd43f39586646d7f35a715516e445afc640bba74d34b9c56e83949a3814d -->
+## 2026-10-10 — Modal and drawer closing final integration
+
+PR1557 initial full-diff review CLEAN at a6f3d48fb (13 changed paths plus immediate contracts, observed228sec, zero findings). Human directed Next. Actual main b8335397b adds CI-only SDK partition; merge into feature preserves both session histories and both archival receipt markers for their identical entry. Product/native10source hashes, dependency lock and build inputs unchanged; original16-context closing proof remains reusable subject to hash verification. Final current-base focused/static and targeted integration review precede stable-SHA ready CI. Weekly34% remaining; DeepSeek pause and privacy/1217/production holds retained. Root coordinates, requested Sol6.1/medium integration reviewer; effective/tokens/active time unknown. No production, migrations or dependency operations.
+
+## 2026-10-10 — Owner Test workflow delivered; learner group started
+
+PR1555 normal squashmerge730642666 verified12:37:09UTC after exact552 CI38050378092
+all8jobs/PRGate PASS; merge tree equals revieweda496f1cf5. Canonical cleanmain
+fast-forwarded, lifecycleci-passed/merged recorded. Eight independent review turns,
+native7a3 actual001–256/94SDK/genuine types and all historical failed receipts retained.
+No prod/shared migration/promotion/activation, phase exit or overall completion.
+
+Fresh codex/learner-test-workflow at actualmerge730642666: offline frozen dependencies,
+Node24.12.0, envsymlink/startup PASS. Same Sol/high bounded implementation worker owns
+the accepted10-route learner group source/tests/additive SQL only. Coordinator owns
+docs/proof/native/review/Git. Preserve best-effort fenced history and existing closed
+attempt recovery semantics; no new architecture audit. Exact fresh native application
+will need separate authority; previous256 permission consumed. DeepSeek pause retained.
+CI observed queue0/runwindow2152s; active effort/tokens/effective worker config unknown.
+
+## 2026-10-10 — Student test request reduction
+
+Risk: workspace-state/exam-mode. Stabilized the active exam availability callback so ordinary parent renders preserve draft debounce; coalesced focus/visible session-status events within 750ms, scoped to the classroom/selected test effect. True exit/final submit saves, no-store session reads, hidden skips, 30s polling and telemetry remain unchanged. Two failing-before regressions reproduced premature draft writes and redundant settled event reads. Affected suites73/73 and focused728/728 plus architecture/UI/design/TypeScript/lint PASS. Actual StudentTestsTab fixture browser matrix desktop1440x900/mobile390x844 light/dark PASS4/4 with intercepted synthetic APIs; one ordinary save and one burst check, later focus refresh, zero page errors/backend requests. Screenshots reviewed in output/playwright/request-coalescing. Teacher n/a: no rendered teacher surface changed. Existing real local lifecycle browser test failed before exam Start with Test unavailable; no DB/schema changes attempted. Draft-first independent review/exact-head CI pending. Production unchanged; savings unmeasured.
+
+## 2026-10-10 — Owner workflow approved replay and SQL assertion repair
+
+Direct exact approval covered one fresh f84dff650 replay001–256. Root inspected
+enabledhelper42f1723/source+manifest/config/fullcanonical/global741-resource
+baseline receipt before Sol/high worker's one run. Complete migrationhistory PASS;
+rollbackSQL failed193: bare documents conflicted with its PL/pgSQL variable. SDK/
+typegen not reached. No source/helper repair or retry during run; exactowned
+teardown/globalclosure/ports/fullcanonical rows+168controls+cron/source PASS,
+cleanupFailures empty,41.299s; lease released. Receipt private/tmp/pika-owner-
+workflow-legacy-proof.WYgJD4/result.json. Earlier failed/successful receipts retained.
+Root qualified assertion columns, sourceguard RED→GREEN8/8, changedtestaudit PASS.
+Rebased clean feature onto b8335397b (#1556 only CI SDKpartition); one archive
+marker conflict resolved preserving both sides. Fullbody/per-file multiset:
+f84 source2782/main2774 missing0; runtime/schema diff vs f84 empty, migration256
+unchanged/no collision; priorstash0 retained, no new stash needed for clean rebase.
+Focused checks/targeted source+CI integration review and fresh exact native approval
+are next; no ready/fullCI/merge/nativeexit claim. Ledger5completedreviewturns/
+fullwave1/remediation3/parserrepair1; task-stop waiver retained without reset.
+Weekly34%remaining, worker effectiveconfig/tokens/active time unknown; native41s
+separate from review/CI time. Sharedlocal/prod249+, promotion/account/billing/
+provider/runner/admission/home/quota/cutover holds persist. Overallgoal incomplete.
+Post-rebase focused gate PASS774tests/69files plus architecture/UI/design/types/
+lint. The increase includes incoming CIpartition tests; no native success inferred.
