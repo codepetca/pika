@@ -45662,3 +45662,70 @@ Production1549 separately merged approved e24d591 into d32b8bbdf; exact reviewed
 Task owns codex/persistent-list-edit-mode at main base763edbb18. Risk profile:none; teacher-only list interaction change. Reuse existing Classwork/Test cards, menus, confirmation/editor owners and Pattern Lab teacher work surfaces; extend feature-local mode lifetimes. Classwork selection/editor-close and Test create/delete no longer reset list edit mode. Escape exits with menu/dialog and input precedence; ignore hidden/inert closing overlays using the Attendance reference. Explicit navigation/classroom/access resets retained. No new visual pattern or shared-control change; student/motion n/a. Composite accessibility checklist reviewed; semantic mode and keyboard regressions cover the two owners.
 
 Component163 and final focused771 PASS; architecture/UI/design/TypeScript/lint PASS. Playwright8 PASS (teacher two lists,1440x900/390x844,light/dark; repeated deletion, Classwork editor dismissal, overlay precedence, edit then regular screenshots visually reviewed). Synthetic API interception at local3119, no hosted data changes. Artifacts:test-results and output/playwright; logs:/tmp/pika-list-edit-{tests,focused-final,browser-final}.log. Audit flags unchanged uncached no-store Test grading-results read at990, byte-identical to main; kept out of this fix. Pre-review local UI iteration corrected fixture selectors and hidden-ancestor overlay handling. Codex weekly44% remaining; DeepSeek pause honored. One independent Sol/medium fixed-SHA review follows draft publication; coordinator/worker tokens unknown. Merge authorization outstanding; no production promotion.
+
+
+## 2026-10-10 — Student Test session-status projection (implementation)
+
+- Worktree `codex/session-status-projection`, base `03fca4506`; exam-mode risk.
+- Migration 257 adds an authorized service-role-only read projection; fresh session auth, status rules, 30s polling and autosave stay intact. Only exact missing-RPC errors use the existing pre-migration reader; apply 257 before application promotion to avoid the compatibility probe cost.
+- Startup/frozen install passed. Disposable project `pika_session_status_257_20261010` replayed 001–257; generated types from that explicit workdir and checked drift. No shared local or production migration applied.
+- Rollback database proof covers ACL/real role rejection, isolation/access ordering, ECMAScript trim/option precedence, 72 snapshot combinations, and 17,000-byte answer → 218-byte projection. Route tests compare 144 fallback/current payload combinations, failures and fresh auth.
+- Private evidence: `output/verification/student-test-session-status-20261010/`. Implementation remains uncommitted for coordinator review/publish; no compute savings claimed.
+
+## 2026-10-10 — Session-status CI migration-profile compatibility correction
+
+- PR1566/CI38090731782 failed before reorder fixture setup because its finite source profile stopped at256; member-list had the same bound. Both initial product/security reviews were clean; this is one bounded CI correction batch.
+- Extended both guards to exact257 using a shared immutable filename/SHA-256 validator, preserving256 validation at257 and rejection of altered/self-hashed257, malformed manifests and future258. Actual-chain rejection reproduced before implementation; two guard suites204tests PASS.
+- Original migration257/product/generated/API/database-proof bytes unchanged; existing isolated database/type evidence reusable. No canonical/shared/production migration, native lifecycle, provider or deployment action. Corrected-source focused checks and one independent correction review precede renewed eligible CI.
+- Private red/targeted/focused evidence: `output/verification/student-test-session-status-20261010/remediation-*.log`. No new review wave or budget extension inferred.
+
+## 2026-10-10 — Session-status projection minor base sync
+
+Synced PR1566 with main4f352b74b after PR1565. Retained both archive batch markers and exact maximum-multiplicity union of both parent journal/session histories. All15 application, migration, proof and CI paths remain byte-identical to reviewed3d6657009. Owner instructed autonomous minor conflict resolution; cumulative review counters retained. Prior corrected-head CI38091446860 passed after one unchanged browser retry. Synced-head focused checks, one integration review and exact-head CI precede readiness. Production application and databases unchanged.
+
+## 2026-10-11 — Session-status projection integration with contextual learner workflow
+
+PR #1566 rebased onto main517d272ab (#1567/#1561). Preserve contextual session dispatch and failure boundary; legacy compact projection/helper/SQL proof unchanged byte-for-byte. Resequence only unmerged projection migration257→258; seal exact257 learner and258 projection in both existing finite profiles, retaining future/altered-source refusal. Preserve both journal histories (2846-entry maximum-multiplicity union).
+
+Focused62 suites/1062 tests + architecture/UI/design/TS/lint PASS; contextual route/workflow interaction tests PASS. Fresh disposable001–258 replay, both rollback SQL contracts, genuine types/drift and warning-free DB lint PASS; zero synthetic users, exact Docker inventory preservation and teardown PASS. Shared local/production unchanged. Independent current-base integration review and final-head CI pending; draft stays draft. Existing cumulative review ledger and minor-conflict waiver retained; substantive review requires budget checkpoint. Evidence: output/verification/student-test-session-status-20261010/upstream-*.
+
+<!-- pika-session-log-archive-batch:04c7b15c10bd90571aa99b018efbede2ff79cd3cb34bb43f6181a337e8df0f7e -->
+
+<!-- pika-session-log-archive-batch:34c4174a16cf94f64e95d6ee6e0cddc64e1554a89bd46c644bda84a7ca130776 -->
+
+<!-- pika-session-log-archive-batch:637cf83cc461aded8c9ce589d5465c745c11e5bc8bc69811b7c964da24251e97 -->
+
+<!-- pika-session-log-archive-batch:9515ddb3e6d978a50ebf31b090f91b6c439e69fade61a5cfa59fdfa760971c5a -->
+
+<!-- pika-session-log-archive-batch:f77bb5cca877bacc090fe5a0298c526ae4d0df1a00679dc5a0857b46a8189b13 -->
+
+<!-- pika-session-log-archive-batch:7a952eb804f72fdab89c2130e82edd0dc0e0ac17ffb4d878a52564bc07b56a13 -->
+
+<!-- pika-session-log-archive-batch:624be3311947c987975a2a5129453920adb4a3ff325a6436b2ddab6c5aa89b56 -->
+
+<!-- pika-session-log-archive-batch:86a8dcb59015021fcc933416890e66045b305cc6ab8247adbee6c568de35e438 -->
+
+<!-- pika-session-log-archive-batch:514907638a02f81dec4c03d073e8b49d9cb0f4c773e236d23f5ad7d25c310bec -->
+## 2026-10-09 — Publish copy main synchronization
+
+PR1553 syncs origin/main48f27a987 without rewriting branch history. Incoming PR1552 list edit-mode/Escape product and tests retained; normalizing only the modal description reproduces current main TeacherTestsTab exactly. Preserve both histories and incoming fingerprint baseline before setting the combined full-file hash. Earlier ready transition briefly requested before discovering the merge conflict; returned to draft before sync, with no eligible new-head CI observed at that point. Current-base focused/visual checks and independent integration delta review precede stable ready CI.
+
+## 2026-10-09 — Allow unused Tests to return to draft
+
+User approved Return to draft implementation and requested orchestration. PR1553 returned to draft before scope expansion. Reuse selected Test actions menu and ConfirmDialog; extend feature-local state; no new shared pattern. Teacher/student desktop/mobile and light/dark matrix includes confirmation, cancel/Escape, pending, server error/retry, authoring and student empty state. Publish copy remains “Test will remain locked to students.”
+
+Native Sol/high workers owned API/SQL, teacher UI/component tests and database harness; coordinator owns integration, generated contract, browser proof and Git/review. Backend13 and component92 tests PASS; boundary38 PASS. Full001–255 replay in a fresh pika_unpublish_e12931ca841c CLI project PASS; genuine CLI generation and canonical generator check against that disposable schema PASS (only new RPC type). Native rollback/fault/identity/content/ownership/dependency checks and both244 access lock-order races PASS; synthetic committed race fixture removed. No canonical local/production migration application. No existing application database was changed; production remains last recorded001–248. Rollout requires fresh exact-target/pending-set verification.
+
+New endpoint accepts strict empty JSON and current teacher ownership; authoritative SQL rejects started/work/grading/open access and retains current published question/document identity while synchronizing retained draft. Missing255 fails503; closed availability retained. “Unused” does not assert never-viewed because reads have no durable receipt. Existing Test PATCH byte guard retained, UI fullfile guard refreshed to263f0dd166fbac6ceb69f91061fd143aa5d6a3a7716f25cf6bb877f63315443c; contextual publication/admission remain dormant.
+
+Weekly42% remaining at start; DeepSeek pause honored. Native worker/coordinator token and attributable-time values unavailable. Integration rework: SQL teacher role defense, native JSON assertion precedence, browser ACK/authoring-policy fixture fidelity; one initial browser run used evolving sources, final frozen rerun required. Existing audit raw no-store grading-results fetch is byte-identical to main and outside this diff. Logs:/tmp/pika-unpublish-{replay-current,database-final,checks,browser-final,browser-authoring}.log. Full focused and independent high-risk review pending; no merge or production promotion authorization.
+
+PR1553 review expansion receipt: initial high-risk wave used two fresh Sol/high reviewers on225cb31f5 (security/correctness and architecture/compatibility). Accepted oneP1 focus-write race and twoP2 Test/gradebook stale-cache issues. One remediation batch uses an atomic live focus-event RPC under244 locks, preserving historical direct SQL/restoration paths, and moves valid-ACK cache/event invalidation before local-selection fencing. Native full255 replay regenerated both RPC types; generator check and all rollback/access/focus two-session contracts PASS, including observed blocked focus session then rejection after draft COMMIT; fixture residue0. API53 and component92 PASS; final eight browser cases PASS and screenshots reviewed. Full focused twice had only unchanged offline Tart timing failures (735/738 then736/738); standalone Tart51 PASS. Final focused/static and targeted/final integration review pending. PR remains draft; no canonical migration application, merge or production promotion.
+
+Targeted security review accepted remediation at5e848dcf1 with no remaining blocker. Final local focused run:751/753 PASS, only two unchanged offline Tart group-lifetime timing failures; the same unchanged Tart51 passed independently. Architecture/UI/design/type/lint gates passed separately; final typecheck follows genuine focus RPC generation. Disposable containers/network/volumes removed and all preexisting container IDs preserved. Read-only CLI container supabase_db_pika history returned243 (different from old continuity receipt248); do not infer a local apply set from historical context. No application/production target was retargeted or migrated. Final integration review and final reviewed-SHA CI remain pending.
+
+Final product/security integration coverage CLEAN at f5379b83. Ready CI37971379565 failed39 tests in three contextual proof files because source profiles still required the chain to end at254; other heavy lanes were cancelled on draft transition. Returned PR1553 to draft before correction. Batch2 extends only finite source profiles to the exact reviewed255 name/SHA, retaining complete-chain, counter-digest and catalog controls; altered/self-hashed255 and future256 negative cases added. All193 affected tests PASS; proportional type/lint and independent targeted delta review precede another stable-head CI. Product/SQL/UI/generated source remains unchanged; final screenshot and disposable native receipts remain applicable. Review ledger:4 completed reviewer turns,1 prior remediation batch; one bounded Sol/high source-profile review planned as turn5, batch2. No merge, application migration or promotion.
+
+## 2026-10-09 — Partition browser CI by theme without reducing coverage
+
+Hosted SDK slice delivered unchanged via1550/main763edbb;1546closed as delivered and old merge instructions retired. New browser phase on baseline48f27a987: light projects retain configured routing, dark projects use independent hosted Ubuntu/start/seed/auth/cleanup. All eight spec filters/config/snapshots/workers/retries unchanged. Exact list-only inventory union573; light301/dark274 duplicate only two setup cases. PR Gate requires both browser jobs; local browser executes both serially, legacy combined refs remain complete, unique receipts/diagnostics retain failure provenance. Worker GPT-6.1 Sol/high delivered143 offline PASS; coordinator focused575/54 and architecture/UI/design/TypeScript/lint/audit PASS. Independent review/native CI pending; no local DB replay, activation, dependency/schema/product change. Native baselines browser48m01/58m36; latest DB44m59 limits whole-run saving to~3min versus~14min prior; projections are not measured savings. Weekly remaining39%start/38%pre-review account-wide; effective model/tokens/active time unknown. Private phase evidence ~/.codex/artifacts/pika/ci-browser-optimization; broader work/holds retained.

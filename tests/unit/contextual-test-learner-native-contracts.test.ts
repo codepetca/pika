@@ -1,15 +1,19 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestLearnerWorkflowFixture } from '../../scripts/contextual-test-learner-proof-fixture'
 import { testLearnerNativePlan, validateTestLearnerNativePlanSql, runTestLearnerNativeContracts, runTestLearnerNativeRaces } from '../../scripts/contextual-test-learner-native-contracts'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
+
+const offline = createOfflineTestLearnerRepository(process.cwd())
+afterAll(offline.dispose)
 
 const original = newAssignmentListProofFixture(new Date('2026-10-10T12:00:00Z'))
 const fixture = newTestLearnerWorkflowFixture(original)
 const observed = Object.freeze([1,2].map(index => Object.freeze({ actorId: fixture.actors[index].id, attemptId: randomUUID(), revision: 1 })))
-const plan = () => testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())
+const plan = () => testLearnerNativePlan(original, observed, 'b'.repeat(40), offline.repository)
 const targetFor = (manifest: ReturnType<typeof plan>, phase: 'contracts'|'concurrency'): DraftSaveTarget => Object.freeze({
   projectId: manifest.projectId, containerProjectLabel: manifest.projectId, apiUrl: 'http://127.0.0.1:54331',
   databaseHost: '127.0.0.1', databasePort: 54332, containerId: 'a'.repeat(64), disposable: true,
@@ -18,6 +22,9 @@ const targetFor = (manifest: ReturnType<typeof plan>, phase: 'contracts'|'concur
 })
 
 describe('closed learner native profile source', () => {
+  it('keeps the native profile closed to the growing current migration chain', () => {
+    expect(() => testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())).toThrow(/\d+ !== 257/)
+  })
   it('derives the mixed-role fixture and presence-checks rather than seeding a predecessor', () => {
     const m = plan()
     expect(m.fixture).toEqual(fixture)
@@ -32,8 +39,8 @@ describe('closed learner native profile source', () => {
     for (const bad of [observed.slice(0,1), [{ ...observed[0], attemptId: fixture.attemptId }, observed[1]],
       [observed[0], { ...observed[1], attemptId: observed[0].attemptId }],
       [{ ...observed[0], actorId: fixture.actors[0].id }, observed[1]]])
-      expect(() => testLearnerNativePlan(original, Object.freeze(bad.map(row=>Object.freeze(row))), 'b'.repeat(40), process.cwd())).toThrow()
-    expect(() => testLearnerNativePlan(original, [...observed], 'b'.repeat(40), process.cwd())).toThrow()
+      expect(() => testLearnerNativePlan(original, Object.freeze(bad.map(row=>Object.freeze(row))), 'b'.repeat(40), offline.repository)).toThrow()
+    expect(() => testLearnerNativePlan(original, [...observed], 'b'.repeat(40), offline.repository)).toThrow()
   })
   it('admits only complete fixed SQL frames, with restoration reserved to the engine', () => {
     const m = plan()
@@ -96,8 +103,8 @@ describe('closed learner native profile source', () => {
     await expect(runTestLearnerNativeContracts(m,target,d)).rejects.toThrow();expect(execute).toHaveBeenCalledOnce()
   })
   it('exports one fixed factory facade and requires setup before any SDK callback', async () => {
-    const manifest=buildTestLearnerNativeContractsManifest(original,observed,'b'.repeat(40),process.cwd())
-    const factory=createTestLearnerNativeContracts({repository:process.cwd(),original,observedAttempts:observed,reviewedHead:'b'.repeat(40),
+    const manifest=buildTestLearnerNativeContractsManifest(original,observed,'b'.repeat(40),offline.repository)
+    const factory=createTestLearnerNativeContracts({repository:offline.repository,original,observedAttempts:observed,reviewedHead:'b'.repeat(40),
       containerId:'a'.repeat(64),capturedResources:[],absoluteDeadline:Date.now()+60000,
       acceptedManifestSha256:createHash('sha256').update(JSON.stringify(manifest)).digest('hex')})
     expect(Object.keys(factory).sort()).toEqual(['diagnostic','manifest','probeLearnerCancellation','probeLearnerPrivilegeDrift','run','setup','verifyTarget'])
