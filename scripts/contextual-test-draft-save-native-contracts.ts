@@ -524,6 +524,8 @@ function backend(value: unknown, name: string): Backend {
 type NativeOwnerInput = {
   repository: string; reviewedHead: string; original: AssignmentListProofFixture;
   capturedResources: readonly AssignmentListResource[]; containerId: string; acceptedManifestSha256: string;
+  /** Trusted caller denial/join gate only; never selects SQL or replaces guards. */
+  restorationAdmission?: () => Promise<void>;
 }
 type NativeManifestShape = Omit<Manifest, 'fixture' | 'contracts' | 'concurrency'> & { fixture: object }
 type NativeOwnerProfile<M extends NativeManifestShape, C, R,
@@ -774,6 +776,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>>(input: NativeOwnerInput, profile: NativeOwnerProfile<M, C, R, T>) {
   input = Object.freeze({ ...input })
   profile = Object.freeze({ ...profile })
+  assert(input.restorationAdmission === undefined || typeof input.restorationAdmission === 'function')
+  const restorationAdmission = input.restorationAdmission
   const manifest = profile.manifest
   assert.equal(input.acceptedManifestSha256, testOwnerDigest(JSON.stringify(manifest)))
   assert.match(input.containerId, /^[a-f0-9]{64}$/)
@@ -1057,7 +1061,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     assert(++actions <= CAPS.actions)
     // Cleanup is allowed after a failed SDK/dispatch; all immutable bindings and
     // original safety guards still pass before the fixed restoration operation.
+    if (restorationAdmission) assert.equal(await restorationAdmission(), undefined)
     await guard(true)
+    // Guard awaits fresh discovery. Recheck caller lifetime/poison immediately
+    // before the fixed restoration dispatch; this gate cannot authorize SQL.
+    if (restorationAdmission) assert.equal(await restorationAdmission(), undefined)
     const name = `${project}_${sql === manifest.snapshot ? 'draft_contracts' : 'fixture'}`
     const output = await command('docker', dockerArgs(name), sql, CAPS.closeMs)
     if (profile.learnerCancellation && sql === profile.learnerCancellation.restore) {

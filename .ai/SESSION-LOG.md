@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Form dialog closing consistency
-
-Adopted existing ModalLayer opacity exit for teacher Guide options and Save Classroom as Course Blueprint only. Parent currentOwnerWork/formStateReady gates preserve immediate physical removal on denied access or context replacement; synchronous draft/error/operation resets, busy dismissal guards, import replacement and success navigation remain unchanged. No shared-default, dependency, backend or migration changes. Brief and shared-owner README document the audited lifetimes.
-
-Focused affected semantic tests: 90/90 PASS. Native matrix: 8 teacher contexts/16 affected interactions plus 8 student teacher-control absence guards; desktop/mobile, light/dark, normal/reduced motion. Source/media-bound 48 screenshots, 16 videos and 4 same-viewport Pattern Lab references visually inspected. Preserved all interrupted capture attempts; reused only complete passed teacher cases after exact source/media hash checks, recaptured student reads. Existing ActionBarMenu streamed aria-controls mismatch reproduced on unchanged parent #1557 code (1/12 baseline,0/12 changed paired loads); open separate accessibility follow-up, production reproduction unproven. Requested Sol6.1/medium implementation and bounded read-only investigation accepted after coordinator source/evidence verification; effective config and tokens unknown. Parent #1557 landing, final focused checks and independent stable-head review remain publication gates. Broad fluidity goal remains incomplete; held privacy/calendar and production work untouched.
-
 ## 2026-10-10 — Form closing prospective-main synchronization
 
 Integrated current modal/drawer parent a5960643f with reviewed main3fd887953 into the frozen Guide options/Blueprint follow-on. Product/adopter/native dependency hashes remain unchanged from the completed local matrix and initial independent review f1e492aa1. Reconciled the duplicate Entry recovery archive body while preserving both parent histories and all receipts; imported upstream source and CI unchanged. Updated prospective-parent checks and proportional integration review follow. Publication remains behind PR1557 actual main landing; exact final SHA requires normal ready CI. The pre-existing shared-menu streamed-ID mismatch remains a separate open accessibility follow-up, not an owner-approved goal deferral. No migration application, backend write, new dependency or production work.
@@ -585,3 +579,18 @@ still active; do not launch parallel heavyCI. Affected checks/currentfocused and
 one narrow docs-delta review precede the new stablehead ready event. Original
 ledger11completed/2626measureds+unknown9+11/targeted8/final1; fixbatch8 under
 direct delegated workflow authority, no repeated owner approval required.
+
+## 2026-10-11 — Dormant owner recovery and verifier lifetime correction
+
+PR1577 adds dormant contextual owner unsubmit/single-reset/bulk-reset with sealed
+260; legacy routes and production remain unchanged. Original focused1934/115files
+passed, but native acceptance remains pending. Seven failed isolated rehearsals
+were retained and cleaned with full canonical/global preservation. Approved Docker
+restart did not fix CLI volume-inspection HTTP500; read-only pinned bulk comparison
+passed100 fresh full-metadata reads. Private transport correction preserves the
+sealed whole graph and explicit socket pin. Targeted review caught nested engine
+ACL restoration bypassing pending/poisoned inventory; the denial/join-only gate and
+regressions are being added before a new reviewed source binding. No native PASS,
+Tests phase exit, sharedlocal249+/prod259+ application, promotion, provider/account
+or admission/home/page/cutover activation. Task-scoped routine/budget waiver remains;
+actual counters/evidence retained, no reset.
