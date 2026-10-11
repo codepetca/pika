@@ -130,3 +130,15 @@ cutover remain held. Prior native permissions are consumed; another actual
 rehearsal needs fresh exact-source disposable-target authority. Ordinary source
 implementation, independent review and protected main PR merge are authorized,
 but merging still requires the complete evidence and final-head CI/PR Gate.
+
+## Disposable evidence — 2026-10-11
+
+The single approved rehearsal at `08389a934` completed migration history001–258,
+then its rollback-proof SQL child failed before type generation, the closed
+engine or genuine SDK acceptance. Exact owned teardown, global inventory/ports
+and whole canonical rows/settings/cron/resources checks passed. Native acceptance
+is **not** established. The driver discarded PostgreSQL stderr, so the actual
+cause is unknown; source inspection is not a substitute diagnosis. Bounded,
+mode600 private failure capture is being prepared and independently reviewed.
+The attempt consumed its permission. Another run needs fresh exact-source and
+disposable-target authority; shared local, production and activation holds remain.
