@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Attendance explicit-retry keyboard continuity
-
-Bounded product-fluidity continuation on main e24d591ab: keyboard Retry
-removed its focused button and dropped focus to body (component RED). A stable
-named check-in region now receives preventScroll focus before explicit Retry;
-initial entry and background outcomes preserve focus. Reuses StudentGrades
-semantic focus tokens and existing Card/Button composition. Guarded fixture
-adds synthetic classroom/occurrence and restricted-teacher coverage. Ten
-component tests and 16 native synthetic role/mode/viewport/theme cases PASS;
-retry pending/result, next-Tab return, 44px targets, and no overflow verified.
-Audit PASS; composite checklist reviewed, keyboard and semantic tests covered.
-No request, attendance, auth, schema or dependency change. Broad 17-family
-goal remains incomplete. No hosted heavy CI or merge: integration order stays
-with coordinator. Private screenshots/probe failures/check receipts preserved.
-
-## 2026-10-09 — Priority completion integration
-
-Integrated the five pinned reviewed sources from PR1544 Clarity planning, PR1545 teacher AI connector planning, PR1546 hosted owner SDK CI split, PR1547 captured-upgrade cancellation reconciliation and PR1548 attendance Retry focus. All nonhistory source blobs are disjoint and byte-identical to their reviewed originals; complete incoming histories preserved before immediate normal trim. Reuse the accepted attendance focus brief and synthetic teacher/student visual evidence. Independent integration review and final exact-head CI/main merge remain pending; application promotion1549 is separately pinned to approved main e24d591. Privacy and1217 remain held; no migrations, flags, dependencies, live Stripe/provider operations or external inquiry sent. Scheduled downgrade grace choice remains unresolved.
-
 ## 2026-10-09 — Priority completion fixture build correction
 
 Production1549 separately merged approved e24d591 into d32b8bbdf; exact reviewed tree and READY Vercel deployment confirmed, five public anonymous GET smoke checks PASS. Fresh production001–248 and eight settings unchanged; no authenticated-flow or migration/activation claim. Combined1550 initial independent security/compatibility reviews CLEAN889254895, focused1006/73 and23TS audit PASS. Final CI37912363753 passed coverage/types/lint but Next build rejected an optional default-argument PageProps signature in the development attendance fixture. Returned draft, requested remaining jobs cancel, preserved failed evidence; batch1 removes only the fixture argument default, with rendered props/behavior unchanged. Local full build, focused gates and targeted independent compatibility acceptance precede another stable-head CI. Original review counters and all complete history bodies retained; no product-policy, dependency, provider or production expansion.
@@ -369,11 +350,6 @@ User authorized next browser slice. Preserve all577 distinct cases/579 runtime s
 - Recorded the governed UI brief and executable Pattern Lab reference. Focused lifetime/keyboard/SSR tests and both-role native verification cover the narrow static menu owner. Other menu families and broad fluidity completion remain open.
 - Risk: workspace-state presentation lifetime only. No dependencies, backend writes, production promotion or migration application.
 
-## 2026-10-11 — Split menu closing consistency
-
-Extended SplitButton with an opt-in semantic fast opacity exit for primitive labels without caller icons; replaced live controls with an inert owner-rendered projection immediately on dismissal. Material creation is the first production adopter, with preview, disabled and unmount boundaries. The existing teacher/student UiConsistency Pattern Lab menu exercises the shared contract without changing closed layout. Preserved immediate rich-menu fallback and WorkSurface latest-hover callback rollover. Committed lifetime guards cancel stale commands, Tab/focus work and expiry across reopening, availability, owner replacement and unmount. No persistence, permission, dependency, schema or production changes.
-
-Sol6.1/medium bounded lifetime audit and implementation accepted after coordinator source inspection; audit measured141.5 seconds, implementation recorded243-second interval excluding orientation, two coordinator corrections: hover rollover and keyboard-selection focus. Effective models/tokens and coordinator active time unknown; weekly24% remaining was account-wide at start, DeepSeek pause honored. Focused owner tests66/66 and gallery32/32 pass; four unchanged desktop/mobile/theme Pattern Lab contract goldens pass. Both-role normal/reduced native matrix, canonical focused gates and exact-head independent draft review/CI remain publication requirements. Initial independent full review211 seconds accepted two P2 fixes in one batch: preserve Shift-Tab close through hover-driven inline options updates, and advance committed generation for empty/all-disabled states after selection. Three failing regressions plus primary-action availability compatibility now pass; synthetic late-rAF delivery is a generation-fence check, not a reproduced browser race. Broad fluidity goal and held work remain open.
 ## 2026-10-10 — Owner merged; learner source review and compatibility correction
 
 Owner1555 squashmerged730642666 at12:37UTC after exact552CI38050378092 all8
@@ -535,6 +511,12 @@ Weekly25%remaining; attributable tokens/effective configuration/active time unkn
 First focused run had2413PASS/one startup-size failure(17001>17000); compacted
 CURRENT without weakening the gate. Corrected full focused result follows.
 
+## 2026-10-11 — Split menu closing consistency
+
+Extended SplitButton with an opt-in semantic fast opacity exit for primitive labels without caller icons; replaced live controls with an inert owner-rendered projection immediately on dismissal. Material creation is the first production adopter, with preview, disabled and unmount boundaries. The existing teacher/student UiConsistency Pattern Lab menu exercises the shared contract without changing closed layout. Preserved immediate rich-menu fallback and WorkSurface latest-hover callback rollover. Committed lifetime guards cancel stale commands, Tab/focus work and expiry across reopening, availability, owner replacement and unmount. No persistence, permission, dependency, schema or production changes.
+
+Sol6.1/medium bounded lifetime audit and implementation accepted after coordinator source inspection; audit measured141.5 seconds, implementation recorded243-second interval excluding orientation, two coordinator corrections: hover rollover and keyboard-selection focus. Effective models/tokens and coordinator active time unknown; weekly24% remaining was account-wide at start, DeepSeek pause honored. Focused owner tests66/66 and gallery32/32 pass; four unchanged desktop/mobile/theme Pattern Lab contract goldens pass. Both-role normal/reduced native matrix, canonical focused gates and exact-head independent draft review/CI remain publication requirements. Initial independent full review211 seconds accepted two P2 fixes in one batch: preserve Shift-Tab close through hover-driven inline options updates, and advance committed generation for empty/all-disabled states after selection. Three failing regressions plus primary-action availability compatibility now pass; synthetic late-rAF delivery is a generation-fence check, not a reproduced browser race. Broad fluidity goal and held work remain open.
+
 ## 2026-10-11 — Whole learner native acceptance and genuine type installation
 
 Sixth separately approved one-shot rehearsal at46ceb93c9/base4f352b74b ran
@@ -564,3 +546,21 @@ weakening or product/schema/proof change. Targeted regression/startup cap and
 focused checks precede narrow independent wording/history review. Original
 clock/waiver/counters14turn11target8priorbatch1initial1final retained; all six
 native permissions consumed; shared/prod/activation/toolgoal holds unchanged.
+
+## 2026-10-11 — Learner current-main UI synchronization
+
+External main6695630 (#1567 Material chooser/SplitButton dismissal) advanced while
+corrected CI38100575333 ran: eight completed jobs passed, light browser remained.
+Strict latest-main rule/history conflict requires synchronization; PR returned
+draft and remaining run canceled, not a new product failure. Rebased12commits in
+the owning clean worktree, resolved only archive markers while retaining both
+histories, then normal trim. All45 nonhistory feature blobs and8 incoming blobs
+match their intended versions; both history multisets missing0/loss0. No migration
+collision/rename: full001–257 manifest,257/regression, genuinecc966 types and all
+nine disabled private source hashes unchanged. Existing41 unrelated stashes
+untouched. Proportional exact-head base/UI/history interaction review must judge
+reuse of prior actual whole native/type coverage; no new rehearsal or native
+permission inferred. Focused and targeted marker/startup checks, draft publication,
+independent review then one final-head ready CI/PR Gate remain. Original clock/
+waiver/counters15turn12target9priorbatch1initial1final and all sharedlocal249+/
+prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.

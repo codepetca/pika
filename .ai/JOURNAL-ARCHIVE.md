@@ -45508,3 +45508,24 @@ QA owned tests/docs and adjusted one synthetic quote digest to valid stored proo
 New correction PR ledger starts with0reviews/0remediation; completed1435 ledger
 retains7reviewer launches/6composite batches. Direct human correction/main-merge
 approval override persists; correctness/shared-slot/explicit holds remain.
+
+<!-- pika-session-log-archive-batch:f0b2847fd0cb5e08f2ba9656fc7661180ca76b5a4eb60e81492b8184483b1c95 -->
+## 2026-10-08 — Attendance explicit-retry keyboard continuity
+
+Bounded product-fluidity continuation on main e24d591ab: keyboard Retry
+removed its focused button and dropped focus to body (component RED). A stable
+named check-in region now receives preventScroll focus before explicit Retry;
+initial entry and background outcomes preserve focus. Reuses StudentGrades
+semantic focus tokens and existing Card/Button composition. Guarded fixture
+adds synthetic classroom/occurrence and restricted-teacher coverage. Ten
+component tests and 16 native synthetic role/mode/viewport/theme cases PASS;
+retry pending/result, next-Tab return, 44px targets, and no overflow verified.
+Audit PASS; composite checklist reviewed, keyboard and semantic tests covered.
+No request, attendance, auth, schema or dependency change. Broad 17-family
+goal remains incomplete. No hosted heavy CI or merge: integration order stays
+with coordinator. Private screenshots/probe failures/check receipts preserved.
+
+<!-- pika-session-log-archive-batch:3d205addee5f7007efb6f2c49e810819bd1a364daa52b42932438dd073e98369 -->
+## 2026-10-09 — Priority completion integration
+
+Integrated the five pinned reviewed sources from PR1544 Clarity planning, PR1545 teacher AI connector planning, PR1546 hosted owner SDK CI split, PR1547 captured-upgrade cancellation reconciliation and PR1548 attendance Retry focus. All nonhistory source blobs are disjoint and byte-identical to their reviewed originals; complete incoming histories preserved before immediate normal trim. Reuse the accepted attendance focus brief and synthetic teacher/student visual evidence. Independent integration review and final exact-head CI/main merge remain pending; application promotion1549 is separately pinned to approved main e24d591. Privacy and1217 remain held; no migrations, flags, dependencies, live Stripe/provider operations or external inquiry sent. Scheduled downgrade grace choice remains unresolved.
