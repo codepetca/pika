@@ -46067,3 +46067,37 @@ PASS. Keptstartup17kcap unchanged by compactingCURRENT label; audit/diffchecksne
 SDK PR1556 merged b8335397b: native eight-job/full-gate PASS, SDK max20m03s vs38m31s; database45m23s now critical path. Authorized next slice preserves all135 database proof blocks across50/85 independent jobs, boundary before owner reorder; local database/all aliases remain complete and serial. No app/schema/harness/dependency changes or local canonical/prod DB mutation. Sol/high design and two independent fixed-SHA reviews PASS; focused671/54files and all static/audit PASS. First native run38048029454 all9/full-gatePASS: database max23m29/sum43m53 vs45m23; gate34m51 vs45m46; lightbrowser34m31/6passing retries now critical path. Rebased onto concurrent student-request PR1558/main6be42b15; retained both continuity bodies and main archive marker for the same archived entry. No CI implementation or proof body changed. Updated-base focused checks, proportional independent delta review and final-head CI pending. Plan: docs/plans/ci-proof-setup-optimization.md.
 
 Second candidate38050484519 at1c0cd35/6be42b15 all9/full-gatePASS: DBmax19m30/sum36m32, gate33m50, all-job146m56; all135proofs,36isolatedmodes+cleanup,SDK21,15973tests+build,577distinctbrowserselections/20skips/6passingretries,3artifacts/six timingJSON accepted. Concurrent owner-workflow PR1555/main730642666 then prevented merge. Returned draft and retained passing receipts. User approved one60minute integration/targetedreview/CI extension from13:05UTC. Preserve inherited migration256/profile validators and its exact newSQLproof in primary51/lifecycle85:136total. Strict local inventory/count tests updated; no old-layout fallback or app/schema/harness changes by this feature. Archive conflict resolved with main archive after verifying prior archived Join body already present byte-for-byte. Final focused/review/native gate and main merge remain pending; all holds unchanged.
+
+<!-- pika-session-log-archive-batch:69952d8e207b7af9fa7381bfddc7eb90a2d8f862e93bd5dfb36a56419d979d7d -->
+## 2026-10-10 — Authorized production migration and request-reduction rollout
+
+Owner explicitly approved one production application of249–256 and deployment
+of cumulative promotionPR1560. Preview38062580801/source730642666 retained
+all eight approved SQL hashes/digest36e0b26058a9; latest complete mainCI
+38055131704 accepted the unchanged Supabase tree. One apply38062699229
+returned applied-verified, history256. Read-only catalogue checks match all16
+installed function bodies/owners/empty search paths and service-only ACLs,
+both indexes ready/valid, quota singleton disabled and trigger installed.
+No production fixtures, student-work deletion/backfill or activation/plan changes.
+
+Two independent Sol/high cumulative reviews identified missing255 as the one
+blocking root cause; installed-function verification resolves it. Reused exact
+reviewed PR1559 CI-only delta/full-nine-job PASS for candidate3b7ae978e; app,
+migrations and deployment configuration are byte-identical to approved730.
+No new reviewer launch is attributed to reused coverage. Stable release ready,
+CI38062958668 attempt1: 16058PASS/1gallery15s timeout/8skipped; attempt2
+failed-job retry at unchanged head. Same gallery28/28PASS locally with
+instrumentation, prior exact-main case10.492s; isolated command exit1 on unrelated
+aggregate coverage thresholds, not accepted as full coverage. No threshold change.
+Attempt2 PASS:16059tests/8skipped, types/lint/build andPRGate; gallery case7.795s.
+PR1560 merged7d14260ae1f7734a684ef08c4637939fec190a5b at15:40:50UTC.
+Complete production tree equals reviewed3b7 tree6432c634e11fa5ed308724832bacd2e7cd175797.
+Vercel dpl_9BiVq8oZHWzLnzRXrPu4opCqh22V READY at2026-10-10T15:45:25.880Z;
+pika.codepet.ca alias resolves that exact production SHA. Anonymous login200/
+auth-me401 read-only smoke PASS; no signed-in exam persistence claim.
+Retry run wall631s; excludes reused classifier/skipped-job timestamps. Initial
+local metric1393s corrected append-only; attributable tokens/active time unknown.
+Source request reduction preserves five-second debounce, exit/final saves,
+30-second session polling and telemetry; live savings unmeasured. RESPMax
+saving remains OFF pending legitimate shared Hobby headroom and hosted acceptance.
+Release evidence retained in respmax/output/verification/pika-production-promotion-20261010/.

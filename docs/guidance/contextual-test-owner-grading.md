@@ -250,3 +250,27 @@ Existing SDK denial, transport, cancellation and settlement checks remain;
 success uses31/32 fixed frames. Product/schema/generated types are unchanged.
 These are source/mock checks only; targeted review and genuine native evidence
 remain required before readiness.
+
+## Native acceptance — 2026-10-11
+
+The subsequent exact `d714cb2f4e6b72303a1a5d14140f5aaa500c8754` rehearsal on
+`pika_assignment_list_01067ea3558c` passed with `nativeVerified:true` and no
+cleanup failures. Complete001–259 history, rollback/ACL contracts, genuine CLI
+types identical, closed-engine privilege restoration and held schedules, real
+SDK owner grading/clear/return/disclosure and six committed authority denials,
+PostgREST hoisting and actual8s57014 cancellation all passed. Cancellation
+preserved the whole fixture, restored the catalog and left zero RPC backends.
+The roster scenario restored its precise allowed fresh-generation successor,
+preserving retained removed identity evidence and all academic work.
+Exact owned teardown, global inventory/ports and whole canonical app database
+rows/settings/cron/resources preservation passed. Entry flags are inert again;
+all seven private hashes match reviewed source. Prior failed attempts above are
+retained history and are superseded for acceptance by this successful run.
+
+Native evidence applies to the exact tested source; subsequent factual
+documentation needs its own delta review and byte-equivalence check before
+reuse. Required stable-head CI/PR Gate and normal protected main merge remain.
+No shared-local/production migration, deployment, account/provider or cohort/UI
+activation occurred. Batch2 and the overall goal remain open; authenticated
+signed-manual-provenance token-route coverage belongs to the later integrated
+application rehearsal, not the seeded-metadata proof.

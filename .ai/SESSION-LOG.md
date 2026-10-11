@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Authorized production migration and request-reduction rollout
-
-Owner explicitly approved one production application of249–256 and deployment
-of cumulative promotionPR1560. Preview38062580801/source730642666 retained
-all eight approved SQL hashes/digest36e0b26058a9; latest complete mainCI
-38055131704 accepted the unchanged Supabase tree. One apply38062699229
-returned applied-verified, history256. Read-only catalogue checks match all16
-installed function bodies/owners/empty search paths and service-only ACLs,
-both indexes ready/valid, quota singleton disabled and trigger installed.
-No production fixtures, student-work deletion/backfill or activation/plan changes.
-
-Two independent Sol/high cumulative reviews identified missing255 as the one
-blocking root cause; installed-function verification resolves it. Reused exact
-reviewed PR1559 CI-only delta/full-nine-job PASS for candidate3b7ae978e; app,
-migrations and deployment configuration are byte-identical to approved730.
-No new reviewer launch is attributed to reused coverage. Stable release ready,
-CI38062958668 attempt1: 16058PASS/1gallery15s timeout/8skipped; attempt2
-failed-job retry at unchanged head. Same gallery28/28PASS locally with
-instrumentation, prior exact-main case10.492s; isolated command exit1 on unrelated
-aggregate coverage thresholds, not accepted as full coverage. No threshold change.
-Attempt2 PASS:16059tests/8skipped, types/lint/build andPRGate; gallery case7.795s.
-PR1560 merged7d14260ae1f7734a684ef08c4637939fec190a5b at15:40:50UTC.
-Complete production tree equals reviewed3b7 tree6432c634e11fa5ed308724832bacd2e7cd175797.
-Vercel dpl_9BiVq8oZHWzLnzRXrPu4opCqh22V READY at2026-10-10T15:45:25.880Z;
-pika.codepet.ca alias resolves that exact production SHA. Anonymous login200/
-auth-me401 read-only smoke PASS; no signed-in exam persistence claim.
-Retry run wall631s; excludes reused classifier/skipped-job timestamps. Initial
-local metric1393s corrected append-only; attributable tokens/active time unknown.
-Source request reduction preserves five-second debounce, exit/final saves,
-30-second session polling and telemetry; live savings unmeasured. RESPMax
-saving remains OFF pending legitimate shared Hobby headroom and hosted acceptance.
-Release evidence retained in respmax/output/verification/pika-production-promotion-20261010/.
-
 ## 2026-10-10 — Modal drawer closing current-main integration
 
 PR1557 original reviewed8f8f43baf passed all selected CI and PR Gate (38046714949). New main3fd887953 introduced a history-only archive conflict before landing. Returned PR to draft before synchronization; retained all archive receipts and identical common entries while importing reviewed main unchanged. The closing product files and all ten native source/dependency bindings remain byte-identical; previous 16-context native/reference and build evidence is reusable after verification. Current-base focused checks and one targeted independent integration review precede stable-SHA ready CI. Guide options/Blueprint follow-on remains frozen and independently clean locally on prospective parent, publication held behind1557 landing. No new backend/migration/dependency/production work; broad fluidity goal remains incomplete.
@@ -574,3 +541,21 @@ diffs, native168/169 interaction, source equivalence and whole documentation
 delta. Original clock/9completedturns/prior2261measureds+unknown9 retained;
 fixbatch7/standingworkflow waiver. PR1569 stays draft; actual native acceptance
 still absent, shared local/prod and activation holds remain.
+
+## 2026-10-11 — Owner grading disposable native acceptance passes
+
+Exact reviewedd714cb2f/full001–259/project01067ea3558c run16809 completed exit0,
+success/nativeVerified true and cleanupFailures[]. History, rollback/ACLs,
+genuine CLI types identical, closed-engine privilege/restoration/held schedules,
+real SDK manual-zero/provenance/answered-MC clear/return/disclosure/retraction
+and six committed owner/parent/roster/archive/source/AI denials PASS. Captured
+PostgREST hoisting and actual8s57014 cancellation preserved fullfixture/catalog
+and settled zeroRPC backends. Exact owned cleanup/global inventory/ports/whole
+canonical app rows/settings/cron/resources/sourcefreeze PASS. Receipt result
+mtime14:57:33UTC; exact process exit timestamp unknown. Two entry flags inert
+again and all seven reviewed hashes match. No duplicate run/shared migration/
+production/provider/account/activation. Seeded produced metadata is not later
+authenticated token-route coverage; batch2/goal remain open and goaltoolPAUSED.
+Factual docs delta only; runtime/SQL/generated/CI evidence reused only after
+byte equivalence and targeted independent delta review. Original ledger10turns/
+2626measureds+unknown9/targeted7/final1/fix7 under delegated workflow authority.
