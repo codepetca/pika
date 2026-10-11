@@ -328,6 +328,11 @@ begin
       select student_id from public.classroom_enrollments where classroom_id = v_classroom_id
         and student_id = any(v_ids) and student_id <> p_actor_id order by student_id for share nowait
     ) enrolled;
+    -- A final plan becoming stale is a source conflict even if its last
+    -- eligible member left. Initial plans and resets retain invalid-selection400.
+    if p_operation = 'unsubmit' and p_payload->'eligible_student_ids' is distinct from to_jsonb(v_eligible) then
+      raise exception using errcode = 'PT409', message = 'test_owner_recovery_source_changed';
+    end if;
     if cardinality(v_eligible) = 0 or (p_operation in ('delete-single','delete-bulk') and cardinality(v_eligible) <> cardinality(v_ids)) then
       raise exception using errcode = 'PT400', message = 'test_owner_invalid_members';
     end if;
@@ -364,8 +369,7 @@ begin
         raise exception using errcode = 'PT503', message = 'test_owner_recovery_collection_limit';
       end if;
       if p_operation = 'unsubmit' then
-        if p_payload->'eligible_student_ids' is distinct from to_jsonb(v_eligible)
-          or jsonb_typeof(p_payload->'attempts') is distinct from 'array' then
+        if jsonb_typeof(p_payload->'attempts') is distinct from 'array' then
           raise exception using errcode = 'PT409', message = 'test_owner_recovery_source_changed';
         end if;
         if jsonb_array_length(p_payload->'attempts') <> v_attempt_count then

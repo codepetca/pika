@@ -44,7 +44,7 @@ declare
  class_id uuid:='a2600000-0000-4000-8000-000000000010';wrong_class uuid:='a2600000-0000-4000-8000-000000000019';
  test_id uuid:='a2600000-0000-4000-8000-000000000011';open_question uuid:='a2600000-0000-4000-8000-000000000101';
  run_id uuid:='a2600000-0000-4000-8000-000000000401';item_id uuid:='a2600000-0000-4000-8000-000000000501';
- expected_test jsonb;plan jsonb;payload jsonb;result jsonb;before_rows jsonb;after_rows jsonb;peer_before jsonb;
+ expected_test jsonb;plan jsonb;payload jsonb;result jsonb;before_rows jsonb;after_rows jsonb;peer_before jsonb;partial_plan jsonb;partial_payload jsonb;
  attempt_id uuid;revision bigint;saved jsonb;snapshot jsonb;selected jsonb;operation text;run_state text;category_id uuid;
 begin
  -- service-only-empty-search-path
@@ -182,8 +182,41 @@ begin
  begin select id into strict category_id from public.gradebook_categories where classroom_id=wrong_class and is_default;
   update public.tests set classroom_id=wrong_class,gradebook_category_id=category_id where id=test_id;
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'unsubmit',payload,expected_test,clock_timestamp()+interval '25 seconds');raise exception 'Moved Test accepted';exception when sqlstate 'PT409' then null;end;
+ -- initial-no-eligible400 / partial-planned-membership409 / sole-planned-membership409
+ before_rows:=jsonb_build_object('test',(select to_jsonb(t) from public.tests t where t.id=test_id),
+  'questions',(select jsonb_agg(to_jsonb(q) order by q.id) from public.test_questions q where q.test_id=test_id),
+  'attempts',(select jsonb_agg(to_jsonb(a) order by a.id) from public.test_attempts a where a.test_id=test_id),
+  'responses',(select jsonb_agg(to_jsonb(r) order by r.id) from public.test_responses r where r.test_id=test_id),
+  'focus',(select jsonb_agg(to_jsonb(f) order by f.id) from public.test_focus_events f where f.test_id=test_id),
+  'items',(select jsonb_agg(to_jsonb(i) order by i.id) from public.test_ai_grading_run_items i where i.test_id=test_id),
+  'availability',(select jsonb_agg(to_jsonb(a) order by a.id) from public.test_student_availability a where a.test_id=test_id),
+  'history',(select jsonb_agg(to_jsonb(h) order by h.id) from public.test_attempt_history h join public.test_attempts a on a.id=h.test_attempt_id where a.test_id=test_id));
+ foreach operation in array array['unsubmit-plan','delete-single','delete-bulk'] loop
+  begin perform public.test_owner_workflow_v1(owner_id,test_id,class_id,operation,jsonb_build_object('student_ids',jsonb_build_array(outsider_id)),expected_test,clock_timestamp()+interval '25 seconds');
+   raise exception 'Initially empty eligible selection accepted';exception when sqlstate 'PT400' then null;end;
+ end loop;
+ begin
+  partial_plan:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'unsubmit-plan',jsonb_build_object('student_ids',jsonb_build_array(member_id,peer_id)),expected_test,clock_timestamp()+interval '25 seconds');
+  if jsonb_array_length(partial_plan#>'{result,eligible_student_ids}')<>2 then raise exception 'Partial-loss plan must contain two members';end if;
+  partial_payload:=(partial_plan->'result')||jsonb_build_object('attempts',(
+   select jsonb_agg(a||jsonb_build_object('snapshot',a->'responses','word_count',case when a->>'student_id'=member_id::text then 3 else 0 end,
+    'char_count',case when a->>'student_id'=member_id::text then char_length('{"'||open_question::text||'":{"question_type":"open_response","response_text":"Synthetic recovery answer"}}') else 2 end,
+    'paste_word_count',0,'keystroke_count',0) order by a->>'student_id') from jsonb_array_elements(partial_plan#>'{result,attempts}') a));
+  delete from public.classroom_enrollments where classroom_id=class_id and student_id=member_id;
+  if not exists(select 1 from public.classroom_enrollments where classroom_id=class_id and student_id=peer_id) then raise exception 'Partial-loss fixture lost all members';end if;
+  perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'unsubmit',partial_payload,expected_test,clock_timestamp()+interval '25 seconds');
+  raise exception 'Partial planned membership loss accepted';exception when sqlstate 'PT409' then null;end;
  begin delete from public.classroom_enrollments where classroom_id=class_id and student_id=member_id;
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'unsubmit',payload,expected_test,clock_timestamp()+interval '25 seconds');raise exception 'Removed planned member accepted';exception when sqlstate 'PT409' then null;end;
+ after_rows:=jsonb_build_object('test',(select to_jsonb(t) from public.tests t where t.id=test_id),
+  'questions',(select jsonb_agg(to_jsonb(q) order by q.id) from public.test_questions q where q.test_id=test_id),
+  'attempts',(select jsonb_agg(to_jsonb(a) order by a.id) from public.test_attempts a where a.test_id=test_id),
+  'responses',(select jsonb_agg(to_jsonb(r) order by r.id) from public.test_responses r where r.test_id=test_id),
+  'focus',(select jsonb_agg(to_jsonb(f) order by f.id) from public.test_focus_events f where f.test_id=test_id),
+  'items',(select jsonb_agg(to_jsonb(i) order by i.id) from public.test_ai_grading_run_items i where i.test_id=test_id),
+  'availability',(select jsonb_agg(to_jsonb(a) order by a.id) from public.test_student_availability a where a.test_id=test_id),
+  'history',(select jsonb_agg(to_jsonb(h) order by h.id) from public.test_attempt_history h join public.test_attempts a on a.id=h.test_attempt_id where a.test_id=test_id));
+ if before_rows is distinct from after_rows then raise exception 'Rejected membership changed academic rows';end if;
  begin perform set_config('pika.classroom_purge_finalize','on',true);
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'unsubmit',payload,expected_test,clock_timestamp()+interval '25 seconds');raise exception 'Purge bypass accepted';exception when sqlstate 'PT403' then null;end;
 end;$contracts$;

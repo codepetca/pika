@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 
 export const TEST_OWNER_RECOVERY_REVIEWED_MIGRATION = Object.freeze({
   name: '260_contextual_test_owner_recovery.sql',
-  sha256: 'b60c53cb242dc29356565e8d4718e227cfe6f4e07090814172c44425ab598af9',
+  sha256: '84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0',
 })
 export function validateTestOwnerRecoveryReviewedMigration(migration: { name: string; sql: string; sha256: string }) {
   assert.equal(migration.name, TEST_OWNER_RECOVERY_REVIEWED_MIGRATION.name)
