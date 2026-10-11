@@ -45729,3 +45729,55 @@ Final product/security integration coverage CLEAN at f5379b83. Ready CI379713795
 ## 2026-10-09 — Partition browser CI by theme without reducing coverage
 
 Hosted SDK slice delivered unchanged via1550/main763edbb;1546closed as delivered and old merge instructions retired. New browser phase on baseline48f27a987: light projects retain configured routing, dark projects use independent hosted Ubuntu/start/seed/auth/cleanup. All eight spec filters/config/snapshots/workers/retries unchanged. Exact list-only inventory union573; light301/dark274 duplicate only two setup cases. PR Gate requires both browser jobs; local browser executes both serially, legacy combined refs remain complete, unique receipts/diagnostics retain failure provenance. Worker GPT-6.1 Sol/high delivered143 offline PASS; coordinator focused575/54 and architecture/UI/design/TypeScript/lint/audit PASS. Independent review/native CI pending; no local DB replay, activation, dependency/schema/product change. Native baselines browser48m01/58m36; latest DB44m59 limits whole-run saving to~3min versus~14min prior; projections are not measured savings. Weekly remaining39%start/38%pre-review account-wide; effective model/tokens/active time unknown. Private phase evidence ~/.codex/artifacts/pika/ci-browser-optimization; broader work/holds retained.
+
+<!-- pika-session-log-archive-batch:a1ef782426647afac84562d69a20c1fc6f735bd3b564db191d2e68fda7887366 -->
+## 2026-10-09 — Consistent modal and mobile navigation closing
+
+User requested a shared-pattern transition pass with orchestration. Reuse ModalLayer standard200ms opacity exit; explicit audited adoption in teacher Join QR and teacher/student classroom mobile navigation. Generic LeftSidebar remains immediate; RightSidebar Calendar/live editors retain immediate cleanup. Extend mobileChildren and NavItems expanded presentation so collapsed desktop rails cannot collapse labels during passive exit. Logical close, guarded commands, focus and scroll restoration remain immediate; reduced motion skips retention. UI reuse/extend brief and composite checklist recorded before implementation. Pattern Lab uses actual navigation owner. No new dependencies, backend/data or feature activation. Privacy/1217 holds retained.
+
+Native Sol6.1/medium read-only lifetime audit accepted; root owns changes. Weekly36% remaining at start; DeepSeek pause honored. Focused component/caller regressions pass; native synthetic16-context matrix and16 affected interactions PASS across roles/viewports/themes/motion,40 images/16 videos plus8 Pattern Lab references; natural RAF fade evidence and visual inspection PASS. Source/media hashes bound in private product-fluidity/transition-consistency receipts. No production performance or backend proof claim. Harness rework corrected jsdom viewport and added meaningful fixture/caller semantics for path-aware audit; final audit PASS. Worker tokens/effective configuration and attributable coordinator time unknown. Final focused827/72 and architecture/UI/design/TypeScript/lint PASS; fixture spacing corrected to standard utilities and final source-bound matrix refreshed. Build and draft independent review pending; no production promotion.
+
+## 2026-10-09 — SDK CI partition
+
+User authorized SDK speed work after browser PR1554 landed. Split the unchanged seven owner proof blocks into two isolated hosted jobs (detail/list/draft-save/create; draft-get/discard/publication), preserving all21 fresh modes, reviewed migration replay and exact failure/cleanup receipts. PR Gate requires both database-selected SDK results. Local database/SDK aliases retain complete serial coverage, including historical refs. No app/schema/harness/dependency changes or local DB mutation. GPT-6.1 Sol/high design verified; target169tests/5files PASS, raw proof-block hashes equal base e405fbfab. Focused605tests/54files and all static checks PASS; audit8changedTS PASS; independent fixed-SHA review and exact-head native CI pending. Latest unsplit SDK38m31/database36m46; projected SDK~21m14, full-gate gain~1m45 only, extra setup consumption to measure. Private receipts: ~/.codex/artifacts/pika/ci-sdk-optimization/.
+
+<!-- pika-session-log-archive-batch:a0087c126ed84f9f3fdd43a08741250708dd28dabe8bdd83d2552d86946071a2 -->
+## 2026-10-09 — SDK CI partition
+
+User authorized SDK speed work after browser PR1554 landed. Split the unchanged seven owner proof blocks into two isolated hosted jobs (detail/list/draft-save/create; draft-get/discard/publication), preserving all21 fresh modes, reviewed migration replay and exact failure/cleanup receipts. PR Gate requires both database-selected SDK results. Local database/SDK aliases retain complete serial coverage, including historical refs. No app/schema/harness/dependency changes or local DB mutation. GPT-6.1 Sol/high design verified; target169tests/5files PASS, raw proof-block hashes equal base e405fbfab. Focused605tests/54files and all static checks PASS; audit8changedTS PASS; independent fixed-SHA review and exact-head native CI pending. Latest unsplit SDK38m31/database36m46; projected SDK~21m14, full-gate gain~1m45 only, extra setup consumption to measure. Private receipts: ~/.codex/artifacts/pika/ci-sdk-optimization/.
+
+## 2026-10-09 — Classroom goal completion strategy
+
+Owner requested updating the goal to keep the architecture and simplify delivery,
+then orchestrating remaining work. Roadmap's Oct9 strategy supersedes stale
+component labels: member list delivered1541, reorder1543; batches2–5 incomplete.
+One bounded read-only Sol/high worker maps the next coherent Test workflow on
+763edbb18; coordinator owns this branch, plan, integration and acceptance. Weekly
+remaining45%; effective worker model, attributable usage and active time unknown.
+No new audit, rollout switch or billing work. Existing249+/activation/production
+holds and review-counter waiver retained. Goal tool is status-only and still
+reports paused; no false completion/replacement or unsupported resume attempted.
+Worktree creation succeeded but attachment retry hit the existing100-item cap;
+continue at its returned path without deleting attachments or duplicating it.
+Accepted source map; same Sol/high worker now owns dormant Test metadata/material
+and selected-access implementation (no Git/PR/shared DB writes). Coordinator
+verified RPC110 metadata support and244 conflict-before-inner-check dependency.
+Docs focused541/54 and startup79 PASS; one five-character startup-budget overflow
+corrected, no contract weakening. Frozen dependency install reused existing683
+packages; no lockfile/dependency change. Source delivery/independent review/native
+acceptance and main merge remain pending; no phase-exit claim.
+
+## 2026-10-09 — Owner Test workflow verification preparation
+
+Owner requested verification/review/CI/main merge until intervention. Worker source
+delivered eight method boundaries, service-only RPC and rollback fixture; worker167
+affected checks, no native/type generation/CI acceptance. Coordinator93/6 affected
+and29/2 post-reconcile PASS; architecture PASS. TypeScript has only the expected
+missing genuine test_owner_workflow_v1 signature; never synthesize generated types.
+Main ff3685d3e allocated255 to Test return-to-draft; rebase preserved incoming UI,
+source guard/hash and complete history, renamed own SQL unchanged to256. Safety
+stash retained after the resolved publication-test conflict; no reset/overwrite.
+Exact disposable001–256 replay permission is required; earlier255 question is
+superseded. Shared249+/production/activation holds intact, no PR readiness or merge.
+Weekly remaining39%; review launches0 for this workflow, counters not reset from
+other delivered scopes. Runtime/effective model and task tokens unknown.

@@ -11,52 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — Consistent modal and mobile navigation closing
-
-User requested a shared-pattern transition pass with orchestration. Reuse ModalLayer standard200ms opacity exit; explicit audited adoption in teacher Join QR and teacher/student classroom mobile navigation. Generic LeftSidebar remains immediate; RightSidebar Calendar/live editors retain immediate cleanup. Extend mobileChildren and NavItems expanded presentation so collapsed desktop rails cannot collapse labels during passive exit. Logical close, guarded commands, focus and scroll restoration remain immediate; reduced motion skips retention. UI reuse/extend brief and composite checklist recorded before implementation. Pattern Lab uses actual navigation owner. No new dependencies, backend/data or feature activation. Privacy/1217 holds retained.
-
-Native Sol6.1/medium read-only lifetime audit accepted; root owns changes. Weekly36% remaining at start; DeepSeek pause honored. Focused component/caller regressions pass; native synthetic16-context matrix and16 affected interactions PASS across roles/viewports/themes/motion,40 images/16 videos plus8 Pattern Lab references; natural RAF fade evidence and visual inspection PASS. Source/media hashes bound in private product-fluidity/transition-consistency receipts. No production performance or backend proof claim. Harness rework corrected jsdom viewport and added meaningful fixture/caller semantics for path-aware audit; final audit PASS. Worker tokens/effective configuration and attributable coordinator time unknown. Final focused827/72 and architecture/UI/design/TypeScript/lint PASS; fixture spacing corrected to standard utilities and final source-bound matrix refreshed. Build and draft independent review pending; no production promotion.
-
-## 2026-10-09 — SDK CI partition
-
-User authorized SDK speed work after browser PR1554 landed. Split the unchanged seven owner proof blocks into two isolated hosted jobs (detail/list/draft-save/create; draft-get/discard/publication), preserving all21 fresh modes, reviewed migration replay and exact failure/cleanup receipts. PR Gate requires both database-selected SDK results. Local database/SDK aliases retain complete serial coverage, including historical refs. No app/schema/harness/dependency changes or local DB mutation. GPT-6.1 Sol/high design verified; target169tests/5files PASS, raw proof-block hashes equal base e405fbfab. Focused605tests/54files and all static checks PASS; audit8changedTS PASS; independent fixed-SHA review and exact-head native CI pending. Latest unsplit SDK38m31/database36m46; projected SDK~21m14, full-gate gain~1m45 only, extra setup consumption to measure. Private receipts: ~/.codex/artifacts/pika/ci-sdk-optimization/.
-
-## 2026-10-09 — Classroom goal completion strategy
-
-Owner requested updating the goal to keep the architecture and simplify delivery,
-then orchestrating remaining work. Roadmap's Oct9 strategy supersedes stale
-component labels: member list delivered1541, reorder1543; batches2–5 incomplete.
-One bounded read-only Sol/high worker maps the next coherent Test workflow on
-763edbb18; coordinator owns this branch, plan, integration and acceptance. Weekly
-remaining45%; effective worker model, attributable usage and active time unknown.
-No new audit, rollout switch or billing work. Existing249+/activation/production
-holds and review-counter waiver retained. Goal tool is status-only and still
-reports paused; no false completion/replacement or unsupported resume attempted.
-Worktree creation succeeded but attachment retry hit the existing100-item cap;
-continue at its returned path without deleting attachments or duplicating it.
-Accepted source map; same Sol/high worker now owns dormant Test metadata/material
-and selected-access implementation (no Git/PR/shared DB writes). Coordinator
-verified RPC110 metadata support and244 conflict-before-inner-check dependency.
-Docs focused541/54 and startup79 PASS; one five-character startup-budget overflow
-corrected, no contract weakening. Frozen dependency install reused existing683
-packages; no lockfile/dependency change. Source delivery/independent review/native
-acceptance and main merge remain pending; no phase-exit claim.
-
-## 2026-10-09 — Owner Test workflow verification preparation
-
-Owner requested verification/review/CI/main merge until intervention. Worker source
-delivered eight method boundaries, service-only RPC and rollback fixture; worker167
-affected checks, no native/type generation/CI acceptance. Coordinator93/6 affected
-and29/2 post-reconcile PASS; architecture PASS. TypeScript has only the expected
-missing genuine test_owner_workflow_v1 signature; never synthesize generated types.
-Main ff3685d3e allocated255 to Test return-to-draft; rebase preserved incoming UI,
-source guard/hash and complete history, renamed own SQL unchanged to256. Safety
-stash retained after the resolved publication-test conflict; no reset/overwrite.
-Exact disposable001–256 replay permission is required; earlier255 question is
-superseded. Shared249+/production/activation holds intact, no PR readiness or merge.
-Weekly remaining39%; review launches0 for this workflow, counters not reset from
-other delivered scopes. Runtime/effective model and task tokens unknown.
-
 ## 2026-10-09 — Owner Test workflow disposable replay failure
 
 Direct owner approval covered one fresh isolated001–256 replay from1dc0891e7.
@@ -552,3 +506,25 @@ PR #1566 syncs main77d5095e (#1568). Journal-only conflict resolved preserving b
 ## 2026-10-11 — Offline fixed learner-profile fixture compatibility
 
 PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.
+
+## 2026-10-11 — Production polling optimization and reviewed UI batch
+
+Owner authorized production app deployment and one application of257/258. Promotion1573 merged reviewed872d19582 into production5a3cb8967; exact reviewed tree retained. Cumulative security/compatibility reviews CLEAN; source CI38133165213 all10 PASS, abbreviated promotion CI38136281882 PASS. Apply38136681044 returned applied-verified/history258; read-only catalog verifies all four bodies against reviewed SQL, owners/search paths and service-only public/private helper ACLs. Vercel deploymentdpl_6YwCcNdD3Xa5waAzy6UTPRY2GkNG READY and production aliases assigned Oct11 11:55UTC. Anonymous login200/status401/Pattern Lab and fixture404 PASS. No authenticated learner/write canary.
+
+Compact legacy session polling uses one domain query instead of five, with fresh authentication retained. Invocation/CPU savings unmeasured. Dormant learner admission absent; production env key inventory unchanged. No provider-plan/control/credential changes or phase exit. Two Sol6.1/high review attempts, one known332s inspection duration; other elapsed/tokens/active coordination unavailable. One promotion CI attempt,863s workflow wall; no retry. Evidence in RESPMax evidence-custody output/verification/pika-production-release-20261011. RESPMax hosted saving remains OFF; release record only.
+
+## 2026-10-11 — Classwork Material Markdown editing
+
+- Added Visual/Markdown editing, current/proposed review, explicit Apply/Discard, separate Save/Post, conversion-loss acknowledgment and per-material draft isolation. No API/schema or authority changes.
+- Governed brief: docs/guidance/ui/changes/material-markdown.md. Existing Material Pattern Lab owner extended; shared controls/converters reused.
+- Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
+- Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
+- Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.
+
+## 2026-10-11 — Material Markdown approved main integration
+
+Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
+
+## 2026-10-11 — Material Markdown final log sync
+
+Final reviewed be7674d4 CI38136077644 and all ten lanes including PR Gate PASS (35m09s). Main79a6f7994 landed a production continuity receipt during CI; rebase again resolves only archive/log overlap, retaining distinct history. Feature/UI/test blobs unchanged; prior focused969/65 and teacher/student desktop/mobile light/dark proof remain applicable. No application migration, production promotion or feature correction. Proportional sync review and exact final-head CI precede the authorized main merge.

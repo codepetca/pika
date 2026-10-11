@@ -1,22 +1,22 @@
-# Checkpoint — 2026-10-10 UTC
+# Checkpoint — 2026-10-11 UTC
 
 Release `3b7ae978e`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
-Production `7d14260ae` LIVE Oct10 15:45UTC; #1560 CI38062958668 PASS.
-Login200/anonymous401; request reduction LIVE, savings unmeasured.
-Prod DB001–256 verified(run38062699229); owner approved249–256 once.
-16functions/ACLs/indexes/disabledquota PASS; no write canary.
+Production `5a3cb8967` LIVE Oct11 11:55UTC; #1573 CI38136281882 PASS.
+Login200/anonymous401/hiddenfixtures404; savings unmeasured.
+Prod DB001–258 verified(run38136681044); owner approved257/258 once.
+Four new function bodies/ACLs PASS; no write canary.
+Session poll domain reads5→1; fresh auth retained; admission absent.
 Prior audit/WAF PASS.
 Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
 admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Controls unchanged: quota OFF/vars absent Oct10; reuse receipts.
+Controls unchanged: quota OFF; production env key names unchanged Oct11.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-1555 merged/PASS;1561 draft: whole native/cleanup PASS at46ceb93c9;
-genuine types installed/review PASS; CI/merge pending.
+1555/1561/1566 merged; learner workflow dormant; source CI38133165213 PASS.
 251/252 native/review/CI PASS.
 LegacyPATCH/UI unchanged; local249+ unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.
