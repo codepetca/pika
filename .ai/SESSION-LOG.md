@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Reorder source-only main completion candidate
-
-Synced dormant PR1515 from7d5dff8 onto fixed main1dd5325 in owned completion
-worktree; feature commitbb731336 retains32/38 exact feature blobs and combines
-six shared proof/CI/guidance paths without product expansion. Route/helper,
-validator/migration254 remain exact7d; incoming91 nonhistory paths preserved.
-Final focused1613/54, architecture/UI/design/TypeScript/lint and33TS audit PASS;
-first unchanged run had four5s timeouts, exact targeted rerun and final gate
-passed without changing assertions or limits. All historical1515/main entry
-bodies and multiplicities retained by append-only union and official trim.
-Private inert verifier awaits exact final-H review, specific fresh immutable
-canonical183/all5 checkpoint authority and a new finite quiet window; no native,
-DB/checkpoint/CI/push/PR operation, proof acceptance or epic completion claimed.
-Preserve originalOct7 05:04 clock,31reviews/27targeted and prior28fix-sync batches;
-feature synchronization is batch29, this continuity-only commit is not another
-fix batch. Human workflow-stop/budget waiver remains task-scoped; correctness,
-checkpoint/migration/production/activation/provider/billing holds remain.
-
 ## 2026-10-08 — Reorder exact restoration composition correction (batch30)
 
 Fixed the accepted e351 compatibility P2 by privately binding the current source-issued revocation plan across its exact restoration session, SQL and verification. The900s ordinary gate remains sticky; scoped restoration retains finite inherited/native caps, primary failures, exact teardown and all five canonical comparisons. Real adopter/parent/SDK-observer regressions with pure platform stubs fail10/10 against e351 and pass the correction; unrelated setup/matrix evidence is stubbed, with no native/type/forced/CI acceptance. Preserve31 original reviews/27 targeted/29 preceding fix-sync batches; this source correction is batch30, distinct from the root's private-wrapper artifact correction. Targeted final review and all actual native evidence remain pending; all runtime/database/checkpoint/production/rollout holds remain.
@@ -458,3 +440,9 @@ User authorized next browser slice. Preserve all577 distinct cases/579 runtime s
 - Deferred trigger/menu ID relationships until hydration, following useDropdownNav; retained prior streamed-ID baseline evidence.
 - Recorded the governed UI brief and executable Pattern Lab reference. Focused lifetime/keyboard/SSR tests and both-role native verification cover the narrow static menu owner. Other menu families and broad fluidity completion remain open.
 - Risk: workspace-state presentation lifetime only. No dependencies, backend writes, production promotion or migration application.
+
+## 2026-10-11 — Split menu closing consistency
+
+Extended SplitButton with an opt-in semantic fast opacity exit for primitive labels without caller icons; replaced live controls with an inert owner-rendered projection immediately on dismissal. Material creation is the first production adopter, with preview, disabled and unmount boundaries. The existing teacher/student UiConsistency Pattern Lab menu exercises the shared contract without changing closed layout. Preserved immediate rich-menu fallback and WorkSurface latest-hover callback rollover. Committed lifetime guards cancel stale commands, Tab/focus work and expiry across reopening, availability, owner replacement and unmount. No persistence, permission, dependency, schema or production changes.
+
+Sol6.1/medium bounded lifetime audit and implementation accepted after coordinator source inspection; audit measured141.5 seconds, implementation recorded243-second interval excluding orientation, two coordinator corrections: hover rollover and keyboard-selection focus. Effective models/tokens and coordinator active time unknown; weekly24% remaining was account-wide at start, DeepSeek pause honored. Focused owner tests62/62 and gallery32/32 pass; four unchanged desktop/mobile/theme Pattern Lab contract goldens pass. Both-role normal/reduced native matrix, canonical focused gates and exact-head independent draft review/CI remain publication requirements. Broad fluidity goal and held work remain open.

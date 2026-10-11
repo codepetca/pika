@@ -18,7 +18,7 @@ export function UiConsistencyPattern({ role }: { role: 'teacher' | 'student' }) 
     <Card tone="panel" padding="md">
       <h2 className="font-semibold">Menu keyboard and artifact targets</h2>
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <SplitButton label="Example actions" singleMenuTrigger menuPlacement="down" options={[
+        <SplitButton label="Example actions" singleMenuTrigger menuPlacement="down" exitMotion="opacity" options={[
           { id: 'first', label: 'First action', onSelect: () => setResult('First selected') },
           { id: 'disabled', label: 'Unavailable action', disabled: true, onSelect: () => undefined },
           { id: 'last', label: 'Last action', onSelect: () => setResult('Last selected') },
