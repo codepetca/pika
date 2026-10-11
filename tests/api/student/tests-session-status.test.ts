@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/student/tests/[id]/session-status/route'
 
+vi.mock('@/lib/server/contextual-test-learner-workflow', () => ({
+  handleContextualTestLearnerRequest: vi.fn(async () => null),
+}))
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -42,9 +46,38 @@ vi.mock('@/lib/server/tests', async () => {
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('GET /api/student/tests/[id]/session-status', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    const { handleContextualTestLearnerRequest } = await import('@/lib/server/contextual-test-learner-workflow')
+    vi.mocked(handleContextualTestLearnerRequest).mockResolvedValue(null)
     mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_student_test_session_status_projection' } })
+  })
+
+  it('returns the contextual session response without entering the legacy reader', async () => {
+    const { handleContextualTestLearnerRequest } = await import('@/lib/server/contextual-test-learner-workflow')
+    const { requireRole } = await import('@/lib/auth')
+    const contextualResponse = new Response(JSON.stringify({ can_continue: false, message: 'contextual' }))
+    vi.mocked(handleContextualTestLearnerRequest).mockResolvedValueOnce(contextualResponse as any)
+    const request = new NextRequest('http://localhost:3000/api/student/tests/test-1/session-status')
+    const params = Promise.resolve({ id: 'test-1' })
+    const response = await GET(request, { params })
+    expect(response).toBe(contextualResponse)
+    expect(handleContextualTestLearnerRequest).toHaveBeenCalledWith('session', request, params)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('does not fall through to legacy access when the contextual handler fails', async () => {
+    const { handleContextualTestLearnerRequest } = await import('@/lib/server/contextual-test-learner-workflow')
+    const { requireRole } = await import('@/lib/auth')
+    vi.mocked(handleContextualTestLearnerRequest).mockRejectedValueOnce(new Error('contextual failure'))
+    const response = await GET(new NextRequest('http://localhost:3000/api/student/tests/test-1/session-status'),
+      { params: Promise.resolve({ id: 'test-1' }) })
+    expect(response.status).toBe(500)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('returns can_continue for an active in-progress test', async () => {
