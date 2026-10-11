@@ -12,11 +12,11 @@ Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
 admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Quota OFF/vars absent Oct10; other receipts reused.
+Controls unchanged: quota OFF/vars absent Oct10; reuse receipts.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-1555 merged/PASS. 1561 draft: sixth whole native/cleanup PASS at46ceb93c9;
-genuine types installed; final delta review/CI/merge pending.
+1555 merged/PASS;1561 draft: whole native/cleanup PASS at46ceb93c9;
+genuine types installed/review PASS; CI/merge pending.
 251/252 native/review/CI PASS.
 LegacyPATCH/UI unchanged; local249+ unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.

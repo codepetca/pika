@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Billing continuation: applied-upgrade cancellation
-
-Priority6 continued from verified maine24d591ab; old1435 is mergedefe4eb3f, not a
-pending PR. Separate codex/scheduled-plan-change-contracts worktree passed startup;
-old task checkouts were removed, so no branch switch or hub edit. Bounded GPT-6.1
-Sol/high inventory found scheduled execution still requires the pending owner
-source-vs-target grace decision and billing/access version split. Asked that choice;
-no answer inferred. Independent accepted SUB10 gap now has a dedicated read-only
-applied receipt observation, exact captured-payment/target/term/cancel validation,
-complete terminal invoice enumeration and existing fenced canceled writer. Strict
-mutation schemas unchanged; no new migration/types/dependency/auth/UI/flag changes.
-QA RED reproduced24fail/62pass; actual adapter+reconciliation fixtures and all637
-billing tests/32files GREEN. Focused651tests/29files, architecture, TypeScript,
-lint and Pika audit pass. Two financial/compatibility reviewers and draft
-publication remain next.
-Native/shared DB/browser/runtime proofs and main merge await assigned execution
-slot. Provider rehearsal/activation are separate; no Stripe/account/DB operations.
-New fixture-first rehearsal plan records implemented vs pending flows.
-
-Delegation receipt: one GPT-6.1 Sol/high read-only inventory and one Sol/high
-four-file implementation, both delivered/inspected by02:54:07UTC on Oct9
-(Oct8 Toronto). Actual start durations/token telemetry unknown; initial weekly
-used46percent, remaining54. One implementation attempt, no integration conflict;
-QA owned tests/docs and adjusted one synthetic quote digest to valid stored proof.
-New correction PR ledger starts with0reviews/0remediation; completed1435 ledger
-retains7reviewer launches/6composite batches. Direct human correction/main-merge
-approval override persists; correctness/shared-slot/explicit holds remain.
-
 ## 2026-10-08 — Attendance explicit-retry keyboard continuity
 
 Bounded product-fluidity continuation on main e24d591ab: keyboard Retry
@@ -578,3 +550,17 @@ prod257+, promotion, activation, batch2/goal exit or goal resume. Original revie
 clock13:16:45UTC/counters13launch10target7fix1initial1final retained under direct
 workflow-stop waiver. Weekly24%remaining/ordinaryAllowed; DeepSeek paused;
 effective model, attributable active time and token telemetry unknown.
+
+## 2026-10-11 — Learner CI continuity-marker correction
+
+Final delta review14 COMPLETE/sourceclean at53e43782; actual whole rehearsal and
+exact generated type installation accepted with unchanged runtime/base/private
+manifest. Eligible CI38099607449 failed one existing Bara rollout documentation
+contract(16376testsPASS/1FAIL/8skip); shortened CURRENT omitted required unchanged-
+controls marker. PR returned draft and remaining lanes canceled; no duplicate CI.
+Existing assertion reproduced locally RED1/3PASS. Source-only batch9 restores
+Controls unchanged wording with identical receipt meaning; no assertion/gate
+weakening or product/schema/proof change. Targeted regression/startup cap and
+focused checks precede narrow independent wording/history review. Original
+clock/waiver/counters14turn11target8priorbatch1initial1final retained; all six
+native permissions consumed; shared/prod/activation/toolgoal holds unchanged.

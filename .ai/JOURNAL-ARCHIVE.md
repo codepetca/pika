@@ -45479,3 +45479,32 @@ Saved `docs/guidance/pika-ai-connector-plan.md` at baseline e24d591ab: general t
 Recovered delivered proof pilot1541 (original1538 closed), merged local-CI policy1537 and actual maine24d591 without rewriting historical review/checkpoint receipts. Three successful hosted runs37810321964/37831362311/37865407019 show seven established owner proofs consuming1941/2223/2244s of database3849/4338/4930s; browser3579/3911/3598s bounds projected improvement. Timing artifacts retain normal/forced outcomes and52 normal versus1 forced ephemeral checks. These are different revisions, not causal saving or p95 evidence. One bounded Sol/high design worker completed source analysis and owns the workflow/driver/preflight/tests implementation; coordinator owns integration/docs. Move exactly seven unchanged command blocks, keep member/reorder original, hosted independent stack, aggregate gate and complete backward-compatible local database selection. No shared proof state, dependency or application/schema change. Coordinator assigned the first exclusive remote CI slot after focused checks and stable-SHA independent review; main merge, local canonical DB, local-runner activation, production/provider and held1217/privacy scopes remain held. Weekly54% remaining, DeepSeek paused, tokens/active-time unknown. Plan and new-PR review budget recorded in the existing optimization plan; first-pilot counters retained.
 
 PR1546 initialaf08 reviews found one historical-ref P2; correctionf7eb passed244tests/static and targeted/final cumulative reviews. Eligible hosted run37877681068 confirmed four distinct parallel Ubuntu runners and87s extra canonical startup; owner-detail3modes passed. Fullcoverage found six global cross-job ordering test failures (15754pass/6fail/8skip). Cancelled other lanes, returned PRdraft;593s workflow/2148jobseconds retained as failed-attempt effort. Secondbatch scopes ten workflow contracts to actual jobs and expands only package scripts.check:workflow, covering all44literal YAML readers with inventory regression. Rootfocused532/532+allstatic/audit PASS; worker's isolated Tart timing flake passed51/51 retry without infrastructure/test changes. Fullpurecoverage and targetedCI-correction review remain before ready; runtime workflow/proof/gate/timeouts unchanged. Preserve four prior review turns/one final wave and original02:56UTC new-PR review clock; secondfixbatch only, no reset. Mainmerge/localcanonical/prod/runneractivation/heldscopes remain held.
+
+<!-- pika-session-log-archive-batch:ac992811bd17d4bc853556cc0f9110da00d4a5b3d6b440a627ba3b51bcd8b08c -->
+## 2026-10-08 — Billing continuation: applied-upgrade cancellation
+
+Priority6 continued from verified maine24d591ab; old1435 is mergedefe4eb3f, not a
+pending PR. Separate codex/scheduled-plan-change-contracts worktree passed startup;
+old task checkouts were removed, so no branch switch or hub edit. Bounded GPT-6.1
+Sol/high inventory found scheduled execution still requires the pending owner
+source-vs-target grace decision and billing/access version split. Asked that choice;
+no answer inferred. Independent accepted SUB10 gap now has a dedicated read-only
+applied receipt observation, exact captured-payment/target/term/cancel validation,
+complete terminal invoice enumeration and existing fenced canceled writer. Strict
+mutation schemas unchanged; no new migration/types/dependency/auth/UI/flag changes.
+QA RED reproduced24fail/62pass; actual adapter+reconciliation fixtures and all637
+billing tests/32files GREEN. Focused651tests/29files, architecture, TypeScript,
+lint and Pika audit pass. Two financial/compatibility reviewers and draft
+publication remain next.
+Native/shared DB/browser/runtime proofs and main merge await assigned execution
+slot. Provider rehearsal/activation are separate; no Stripe/account/DB operations.
+New fixture-first rehearsal plan records implemented vs pending flows.
+
+Delegation receipt: one GPT-6.1 Sol/high read-only inventory and one Sol/high
+four-file implementation, both delivered/inspected by02:54:07UTC on Oct9
+(Oct8 Toronto). Actual start durations/token telemetry unknown; initial weekly
+used46percent, remaining54. One implementation attempt, no integration conflict;
+QA owned tests/docs and adjusted one synthetic quote digest to valid stored proof.
+New correction PR ledger starts with0reviews/0remediation; completed1435 ledger
+retains7reviewer launches/6composite batches. Direct human correction/main-merge
+approval override persists; correctness/shared-slot/explicit holds remain.
