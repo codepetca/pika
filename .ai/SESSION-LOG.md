@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-08 — Hosted owner SDK shard implementation phase
-
-Recovered delivered proof pilot1541 (original1538 closed), merged local-CI policy1537 and actual maine24d591 without rewriting historical review/checkpoint receipts. Three successful hosted runs37810321964/37831362311/37865407019 show seven established owner proofs consuming1941/2223/2244s of database3849/4338/4930s; browser3579/3911/3598s bounds projected improvement. Timing artifacts retain normal/forced outcomes and52 normal versus1 forced ephemeral checks. These are different revisions, not causal saving or p95 evidence. One bounded Sol/high design worker completed source analysis and owns the workflow/driver/preflight/tests implementation; coordinator owns integration/docs. Move exactly seven unchanged command blocks, keep member/reorder original, hosted independent stack, aggregate gate and complete backward-compatible local database selection. No shared proof state, dependency or application/schema change. Coordinator assigned the first exclusive remote CI slot after focused checks and stable-SHA independent review; main merge, local canonical DB, local-runner activation, production/provider and held1217/privacy scopes remain held. Weekly54% remaining, DeepSeek paused, tokens/active-time unknown. Plan and new-PR review budget recorded in the existing optimization plan; first-pilot counters retained.
-
-PR1546 initialaf08 reviews found one historical-ref P2; correctionf7eb passed244tests/static and targeted/final cumulative reviews. Eligible hosted run37877681068 confirmed four distinct parallel Ubuntu runners and87s extra canonical startup; owner-detail3modes passed. Fullcoverage found six global cross-job ordering test failures (15754pass/6fail/8skip). Cancelled other lanes, returned PRdraft;593s workflow/2148jobseconds retained as failed-attempt effort. Secondbatch scopes ten workflow contracts to actual jobs and expands only package scripts.check:workflow, covering all44literal YAML readers with inventory regression. Rootfocused532/532+allstatic/audit PASS; worker's isolated Tart timing flake passed51/51 retry without infrastructure/test changes. Fullpurecoverage and targetedCI-correction review remain before ready; runtime workflow/proof/gate/timeouts unchanged. Preserve four prior review turns/one final wave and original02:56UTC new-PR review clock; secondfixbatch only, no reset. Mainmerge/localcanonical/prod/runneractivation/heldscopes remain held.
-
 ## 2026-10-08 — Billing continuation: applied-upgrade cancellation
 
 Priority6 continued from verified maine24d591ab; old1435 is mergedefe4eb3f, not a
@@ -568,3 +562,19 @@ native request. Originalclock/workflow waiver/cumulative12launch9target6priorfix
 Weekly25%remaining; attributable tokens/effective configuration/active time unknown.
 First focused run had2413PASS/one startup-size failure(17001>17000); compacted
 CURRENT without weakening the gate. Corrected full focused result follows.
+
+## 2026-10-11 — Whole learner native acceptance and genuine type installation
+
+Sixth separately approved one-shot rehearsal at46ceb93c9/base4f352b74b ran
+00:29:01–00:39:16UTC and passed all78 labels: full001–257, real SDK/Storage,
+ACL/cancellation/CAS/held-lock races and complete owned/global/canonical/source
+cleanup. result.success=true, cleanupFailures=[]; prior failed receipts retained.
+Permission consumed, enabled source archived nonexecuted, runnerfalse/null and
+all nine original source hashes restored. Installed only exact11-line RPC delta
+from fresh genuine438731-byte CLI artifactcc966 (full byte equality verified).
+Runtime SQL/proof/base unchanged; final focused checks, proportional type/receipt
+delta review, final-head CI and normal-main merge remain. No sharedlocal249+,
+prod257+, promotion, activation, batch2/goal exit or goal resume. Original review
+clock13:16:45UTC/counters13launch10target7fix1initial1final retained under direct
+workflow-stop waiver. Weekly24%remaining/ordinaryAllowed; DeepSeek paused;
+effective model, attributable active time and token telemetry unknown.

@@ -112,6 +112,19 @@ was consumed; source correction/review does not authorize another native attempt
 Main CI/UI synchronization retains the independent dark Pattern Lab lane and all
 existing database checks; no migration collision or product/UI change is needed.
 
+The sixth separately approved isolated rehearsal at `46ceb93c9` completed on
+2026-10-11 at00:39UTC: all78 native acceptance labels passed, including full
+001–257 history, actual SDK/Storage disclosure, ACL restoration, cancellation,
+same-attempt CAS and held-lock races. Exact-owned teardown and complete global
+inventory/ports/canonical rows/settings/cron/resources preservation passed with
+no cleanup failures. This supersedes the fifth whole-proof failure, not its
+historical receipt. Execution authority is consumed; the runner is disabled and
+all nine reviewed source hashes restored. The fresh genuine438731-byte CLI
+artifact (SHA256 `cc966e8b8b665ace7cab7d738c2159153e308eeff3d0f88e43a7bee257a51d4c`)
+is installed byte-for-byte as the exact11-line RPC type delta. Runtime SQL and
+proof sources remain unchanged. Final delta review and exact-head CI/PR Gate
+remain required; no shared schema application or rollout is implied.
+
 Migration 257 is provisional until the candidate is frozen and current main is
 reconciled. Predecessor proof profiles must explicitly seal its reviewed
 name/digest/bytes while retaining full catalogs and future-migration refusal.
