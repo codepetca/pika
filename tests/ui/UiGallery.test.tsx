@@ -15,17 +15,35 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: () => <div />,
 }))
 
-function renderGallery(role: 'teacher' | 'student' = 'teacher') {
+function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentControllerFixture = false) {
   return render(
     <ThemeProvider>
       <TooltipProvider>
-        <UiGallery role={role} />
+        <UiGallery role={role} assignmentControllerFixture={assignmentControllerFixture} />
       </TooltipProvider>
     </ThemeProvider>,
   )
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('keeps AssignmentControllerPattern absent from ordinary %s references', role => {
+    renderGallery(role)
+    expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it('renders the explicitly enabled teacher fixture closed', () => {
+    renderGallery('teacher', true)
+    const fixture = within(screen.getByTestId('assignment-controller-fixture'))
+    expect(fixture.getByRole('button', { name: 'Open controlled assignment' })).toBeVisible()
+    // AssignmentModal portals outside the fixture section; keep this global assertion.
+    expect(screen.queryByRole('dialog', { name: 'Edit Draft' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the enabled AssignmentControllerPattern absent for students', () => {
+    renderGallery('student', true)
+    expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('UiConsistencyPattern retires the plain split menu before its %s visual exit', role => {
     renderGallery(role)
     const section = document.getElementById('ui-consistency')!

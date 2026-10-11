@@ -9,7 +9,7 @@ export const revalidate = 0
 export default async function PatternLabPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ role?: string }>
+  searchParams?: Promise<{ role?: string; fixture?: string }>
 }) {
   if (process.env.NODE_ENV === 'production' || process.env.ENABLE_UI_GALLERY !== 'true') {
     notFound()
@@ -20,7 +20,9 @@ export default async function PatternLabPage({
   if (process.env.PIKA_E2E_FIXTURES === 'true') {
     const fixtureRole = resolvedSearchParams?.role === 'student' ? 'student' : 'teacher'
     // Give the lazy client gallery a stable server parent without changing layout.
-    return <div className="contents"><UiGallery role={fixtureRole} /></div>
+    return <div className="contents"><UiGallery role={fixtureRole}
+      assignmentControllerFixture={resolvedSearchParams?.fixture === 'assignment-controller'}
+    /></div>
   }
 
   const user = await getCurrentUser()

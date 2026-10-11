@@ -103,6 +103,30 @@ describe('UiGallery history preview fixture', () => {
   })
 
   it.each([
+    { Component: AssignmentCreationPattern, opener: 'Open assignment example', title: 'New Assignment' },
+    { Component: AssignmentEditSplitPattern, opener: 'Open assignment edit prototype', title: 'Edit Assignment' },
+  ])('$opener retires its chooser before fading and hands focus to Preview', ({ Component, opener, title }) => {
+    render(<ThemeProvider><TooltipProvider><Component /></TooltipProvider></ThemeProvider>)
+    fireEvent.click(screen.getByRole('button', { name: opener }))
+    const dialog = screen.getByRole('dialog', { name: title })
+    const trigger = within(dialog).getByRole('button', { name: 'Choose assignment action' })
+    fireEvent.click(trigger)
+    const menu = within(dialog).getByRole('menu')
+    menu.style.setProperty('--motion-duration-fast', '150ms')
+    fireEvent.keyDown(within(menu).getAllByRole('menuitem')[0], { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(within(dialog).queryByRole('menu')).not.toBeInTheDocument()
+    const closing = dialog.querySelector<HTMLElement>('[data-menu-closing]')
+    expect(closing).toBeInTheDocument()
+    expect(closing).toHaveAttribute('aria-hidden', 'true')
+    expect(closing?.inert).toBe(true)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Preview' }))
+    expect(dialog.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Instructions' })).toContainElement(document.activeElement as HTMLElement)
+  })
+
+  it.each([
     { kind: 'Assignment', Component: AssignmentCreationPattern, title: 'Field observations', closeLabel: 'Close assignment example' },
     { kind: 'Material', Component: MaterialCreationPattern, title: 'Field guide', closeLabel: 'Close material modal' },
   ])('demonstrates the tall $kind dialog and returns focus when dismissed', async ({ kind, Component, title, closeLabel }) => {
