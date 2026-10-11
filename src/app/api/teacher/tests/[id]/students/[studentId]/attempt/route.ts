@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { handleContextualTestOwnerRecoveryRequest } from '@/lib/server/contextual-test-owner-recovery'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,6 +25,8 @@ function isMissingDeleteAttemptRpcError(error: {
 
 // DELETE /api/teacher/tests/[id]/students/[studentId]/attempt - Delete one student's test work
 export const DELETE = withErrorHandler('DeleteTeacherTestStudentAttempt', async (_request, context) => {
+  const contextual = await handleContextualTestOwnerRecoveryRequest('delete-single', _request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId, studentId } = await context.params
 

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { validateStudentTestSessionStatusReviewedMigration } from '../../scripts/student-test-session-status-reviewed-migration'
 import { validateTestOwnerGradingReviewedMigration } from '../../scripts/test-owner-grading-reviewed-migration'
+import { validateTestOwnerRecoveryReviewedMigration } from '../../scripts/test-owner-recovery-reviewed-migration'
 
 /** Offline inputs for the exact historical learner profiles.
  * Copies real source bytes; this never runs a database or widens native admission. */
@@ -13,9 +14,10 @@ export function createOfflineTestLearnerRepository(repository: string, count: 25
   // Validate the complete source inventory before taking an explicit historical
   // prefix; malformed, duplicate or unknown-numeric source must not disappear.
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([257, 258, 259].includes(inventory.length), 'Unreviewed offline learner source profile')
+  assert([257, 258, 259, 260].includes(inventory.length), 'Unreviewed offline learner source profile')
   if (inventory.length >= 258) validateStudentTestSessionStatusReviewedMigration(inventory[257])
-  if (inventory.length === 259) validateTestOwnerGradingReviewedMigration(inventory[258])
+  if (inventory.length >= 259) validateTestOwnerGradingReviewedMigration(inventory[258])
+  if (inventory.length === 260) validateTestOwnerRecoveryReviewedMigration(inventory[259])
   const names = inventory.slice(0, count).map(migration => migration.name)
   assert.deepEqual(names.map(name => Number(name.slice(0, 3))), Array.from({ length: count }, (_, index) => index + 1))
   assert.equal(names.at(-1), count === 257 ? '257_contextual_test_learner_workflow.sql' : '258_student_test_session_status_projection.sql')

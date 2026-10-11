@@ -182,7 +182,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     acl: [{ grantor: 'postgres', grantee: 'postgres', privilege_type: 'EXECUTE', is_grantable: false },
       ...(serviceExecute ? [{ grantor: 'postgres', grantee: 'service_role', privilege_type: 'EXECUTE', is_grantable: false }] : []),
       ...(publicGrant ? [{ grantor: 'postgres', grantee: 'PUBLIC', privilege_type: 'EXECUTE', is_grantable: false }] : [])] })
-  const factory = () => createDraftSaveNativeContracts({ repository, reviewedHead: head, original, capturedResources: resources,
+  const factory = (restorationAdmission?: () => Promise<void>) => createDraftSaveNativeContracts({ repository, reviewedHead: head, original, capturedResources: resources, restorationAdmission,
     containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id, acceptedManifestSha256: testOwnerDigest(JSON.stringify(manifest)) })
   const createFactory = () => {
     createManifest = buildTestOwnerCreateNativeContractsManifest(original, newTestOwnerCreateFixture(original), head, repository)
@@ -903,6 +903,61 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(callback).toHaveBeenCalledTimes(1); expect(serviceExecute).toBe(true)
     await expect(adapter.probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
     expect(callback).toHaveBeenCalledTimes(1)
+  })
+  it('rejects a nonfunction restoration admission before any native operation', () => {
+    for (const invalid of [null, false, 1, {}]) expect(() => factory(invalid as never)).toThrow()
+    expect(mocks.spawn).not.toHaveBeenCalled(); expect(mocks.execFile).not.toHaveBeenCalled()
+  })
+  it('awaits caller closure before any restoration guard or SQL, without clearing a failed probe', async () => {
+    let release!: () => void
+    const closed = new Promise<void>(resolve => { release = resolve })
+    const admission = vi.fn(() => closed)
+    const adapter = factory(admission); await adapter.setup()
+    let controlsAtFailure = 0; let inventoriesAtFailure = 0
+    const result = adapter.probeSnapshotPrivilegeDrift(async () => {
+      controlsAtFailure = sqlControls.length; inventoriesAtFailure = mocks.inventory.mock.calls.length
+      throw Error('synthetic callback failure')
+    })
+    const rejected = expect(result).rejects.toThrow('exact project disposal required')
+    await vi.waitFor(() => expect(admission).toHaveBeenCalledTimes(1))
+    expect(sqlControls).toHaveLength(controlsAtFailure)
+    expect(mocks.inventory).toHaveBeenCalledTimes(inventoriesAtFailure)
+    expect(serviceExecute).toBe(false)
+    release(); await rejected
+    expect(admission).toHaveBeenCalledTimes(6); expect(serviceExecute).toBe(true)
+    await expect(adapter.run()).rejects.toThrow()
+  })
+  it('retains the revoked fixture when restoration admission rejects, without guard or SQL dispatch', async () => {
+    const admission = vi.fn(async () => { throw Error('synthetic unsettled owner') })
+    const adapter = factory(admission); await adapter.setup()
+    let controlsAtFailure = 0; let inventoriesAtFailure = 0
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => {
+      controlsAtFailure = sqlControls.length; inventoriesAtFailure = mocks.inventory.mock.calls.length
+      throw Error('synthetic callback failure')
+    })).rejects.toThrow('exact project disposal required')
+    expect(admission).toHaveBeenCalledTimes(1); expect(serviceExecute).toBe(false)
+    expect(sqlControls).toHaveLength(controlsAtFailure)
+    expect(mocks.inventory).toHaveBeenCalledTimes(inventoriesAtFailure)
+    await expect(adapter.run()).rejects.toThrow()
+  })
+  it('rechecks admission after the asynchronous guard and denies the fixed restoration SQL', async () => {
+    const admission = vi.fn(async () => { if (admission.mock.calls.length === 2) throw Error('synthetic guard-time poison') })
+    const adapter = factory(admission); await adapter.setup()
+    let controlsAtFailure = 0; let inventoriesAtFailure = 0
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => {
+      controlsAtFailure = sqlControls.length; inventoriesAtFailure = mocks.inventory.mock.calls.length
+      throw Error('synthetic callback failure')
+    })).rejects.toThrow('exact project disposal required')
+    expect(admission).toHaveBeenCalledTimes(2); expect(serviceExecute).toBe(false)
+    expect(mocks.inventory.mock.calls.length).toBeGreaterThan(inventoriesAtFailure)
+    expect(sqlControls.slice(controlsAtFailure).some(control => control.sql === manifest.privilege.restore)).toBe(false)
+  })
+  it('preserves normal privilege restoration with a trusted void-returning admission', async () => {
+    const admission = vi.fn(async () => undefined)
+    const adapter = factory(admission); await adapter.setup()
+    expect(await adapter.probeSnapshotPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' })))
+      .toMatchObject({ privilegeRestored: true, fixtureUnchanged: true })
+    expect(admission).toHaveBeenCalledTimes(6); expect(serviceExecute).toBe(true)
   })
   it('uses the approved contract-session name for the restoration whole-row snapshot without weakening its guard', async () => {
     const adapter = factory(); await adapter.setup()
