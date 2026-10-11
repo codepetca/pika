@@ -7,6 +7,7 @@ import { testOwnerUnpublicationNativePlan, validateTestOwnerUnpublicationNativeP
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { buildTestOwnerUnpublicationNativeContractsManifest } from '../../scripts/contextual-test-draft-save-native-contracts'
 import type { DraftSaveDriver,DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
+import { validateTestDraftContent } from '../../src/lib/validations/assessment-drafts'
 import { TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION, validateTestOwnerUnpublicationReviewedMigration } from '../../scripts/test-owner-unpublication-reviewed-migration'
 
 const original = newAssignmentListProofFixture(new Date('2026-10-11T12:00:00Z'))
@@ -64,6 +65,22 @@ describe('inert unpublication source proof', () => {
     expect(sql.match(/classroom'\)-array\['blueprint_source_revision','updated_at'\]/g)).toHaveLength(6)
     expect(sql).toContain("update public.tests set status='draft' where id=p_test")
     expect(sql).toContain('Rejected unpublication changed graph')
+  })
+  it('keeps the wrong-parent fixture storage-valid under the installed134 identity CHECK',()=>{
+    const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const limits=sql.split('do $limits261$')[1].split('end;$limits261$;')[0]
+    const insert=/values\('test',tid,'([^']+)','([^']+)'(?:\:\:jsonb)?,1,owner_id,owner_id\)/.exec(limits)
+    expect(insert).not.toBeNull()
+    expect(insert![1]).toBe('a2610000-0000-4000-8000-000000000020')
+    const content=JSON.parse(insert![2])
+    expect(content.question_identity_version).toBe(1)
+    expect(validateTestDraftContent(content,{requirePortableQuestionIdentity:true}).valid).toBe(true)
+    const migration=readFileSync('supabase/migrations/134_blueprint_test_question_ordinal_identity.sql','utf8')
+    expect(migration).toContain('add constraint assessment_drafts_test_question_identity_version_check')
+    expect(migration).toContain("or content->'question_identity_version' is not distinct from '1'::jsonb")
+    expect(limits).toContain("'PT409','test_unpublish_draft_mismatch','wrong Draft parent'")
+    expect(limits).toContain('classroom_id=cid,version=2147483647')
+    expect(limits).toContain("'draft shortcut still fences attempt history'")
   })
   it.each(['gap','unknown262',...[253,254,255,256,257,258,259,260,261].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
     const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m}))

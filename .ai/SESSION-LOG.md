@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Browser reliability and dark-family scheduling
-
-User authorized next browser slice. Preserve all577 distinct cases/579 runtime selections, native TTL waits, configured workers/retries/timeouts, snapshots and isolation. Separate dark Pattern Lab into an independently guarded hosted job to remove the pinned Playwright project phase barrier before dark Experience; PR Gate requires its success whenever browser selected. Local browser/dark aliases remain complete and serial across current and historical generations. Three native-artifact/source-supported waits preserve existing assertions: animated inspector geometry, remounted question-editor validation before navigation, survey publication settlement before Escape. No product/schema/dependency changes. Baseline PatternLab16PASS; changed PatternLab24PASS without retries. Cold survey attempt2timeouts/6passes before interruption retained for diagnosis, not accepted as full success; complete warmed survey matrix8PASS without retries and focused737tests/54files plus architecture/UI/design/types/lint PASS. Two bounded Sol6.1/high investigations plus one local-driver implementation delivered; 179 driver/preflight/policy and115 workflow tests PASS. DeepSeek pause honored, weekly28% remaining at start; effective models/tokens/active time unknown. Independent fixed-SHA review and actual hosted timing/retry acceptance remain required. Course Guide availability and focus-restoration flakes remain unresolved. No canonical DB, production promotion, provider/hardware or Clarity actions.
-
 ## 2026-10-10 — Shared page action menu closing
 
 - Extended PageActionBar More actions with the semantic fast opacity exit, immediate inert/hidden command retirement and focus return, owner/availability invalidation, reopen cancellation and reduced motion.
@@ -630,3 +626,17 @@ to narrow latefault and exact classroomblueprint+1/archive+3/fullotherfields;
 54focusedsource tests PASS. Private SDK exactsame effects and three corruption
 models PASS. Fresh source review/disposable proof/CI remain pending; no migration
 or production/cohort activation. Prior attempt receipts retained, no reset.
+
+## 2026-10-11 — Unpublish fixture constraint diagnosis
+
+Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
+review turns1101measured seconds/two formal findings resolved/five source batches
+retained; private diagnostic deltas reviewed, no counter reset. Four fresh isolated
+attempts replayed001–261 then failed rollback; each exactcleanup/global741resources/
+canonical183table+2cron preservation PASS. No native acceptance. Bounded final
+diagnostic observed23514/inlineblockline6: limits fixture inserted empty Test Draft
+violating134 question_identity_version CHECK. Correct only fixture to valid marked
+content while retaining wrong-parent/version/work/parity assertions; no product or
+migration change. Raw error/user data not retained. Fresh source review and complete
+native/CI acceptance remain required; all sharedlocal249+/production259+, promotion,
+provider/account and admission/home/page/cohort/cutover holds unchanged.

@@ -313,7 +313,7 @@ do $limits261$ declare owner_id uuid:='a2610000-0000-4000-8000-000000000001';
 begin
  update public.tests set questions_locked_at=null where id=tid;
  insert into public.assessment_drafts(assessment_type,assessment_id,classroom_id,content,version,created_by,updated_by)
- values('test',tid,'a2610000-0000-4000-8000-000000000020','{}',1,owner_id,owner_id);
+ values('test',tid,'a2610000-0000-4000-8000-000000000020','{"title":"Synthetic retained draft","show_results":false,"question_identity_version":1,"questions":[]}'::jsonb,1,owner_id,owner_id);
  perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT409','test_unpublish_draft_mismatch','wrong Draft parent');
  update public.assessment_drafts set classroom_id=cid,version=2147483647 where assessment_type='test' and assessment_id=tid;
  perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT409','test_unpublish_version_limit','closed teacher-owner INT_MAX');
