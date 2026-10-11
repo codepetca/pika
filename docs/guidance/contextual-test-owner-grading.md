@@ -142,3 +142,30 @@ cause is unknown; source inspection is not a substitute diagnosis. Bounded,
 mode600 private failure capture is being prepared and independently reviewed.
 The attempt consumed its permission. Another run needs fresh exact-source and
 disposable-target authority; shared local, production and activation holds remain.
+
+The fresh approved `993c62949`/`pika_assignment_list_bd4b1eb551ad` attempt also
+passed complete001–258 replay but failed rollback verification. This time bounded
+private mode0600 stderr capture confirmed the invalid parent-move fixture at
+`scripts/check-contextual-test-owner-grading.sql:268`: it changes classroom_id
+without changing the gradebook category, and the retained147/207 trigger correctly
+rejects that cross-classroom category. The intended PT409 assertion is not reached.
+The private SDK parentApply/Restore setup has the analogous source issue; it was
+not executed. Correct those fixtures using matching existing categories and exact
+restoration, never weaken the product invariant. Exact owned cleanup, global
+inventory/ports and whole canonical preservation passed again. Native acceptance
+remains absent; permission is consumed, no retry occurred and the gate is inert.
+Types/closed-engine/SDK/cancellation still need evidence after source correction,
+focused checks, targeted review and fresh exact-source disposable permission.
+
+The source correction uses a strictly selected existing destination default
+category while moving the Test parent. Its nested PT409 rollback then compares
+the full original Test row, including category and timestamp. Private SDK setup
+requires both default-category baselines, moves parent/category together and
+restores the original default category. A captured before/after academic graph
+assertion verifies the exact original category identity and unchanged category/
+work rows even after an Apply failure. Only the fixed Test's valid `updated_at`
+is omitted from that committed comparison because the retained039 trigger always
+updates it; no other Test field or graph row is omitted. Pure corruption tests
+and the injected SDK driver reject an incorrect restored category. These are
+source/mock checks, not native SQL execution or acceptance. The entry gate stays
+inert; no fresh rehearsal, shared-local/production write or rollout is authorized.

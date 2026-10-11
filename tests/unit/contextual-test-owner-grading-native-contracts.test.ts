@@ -131,6 +131,20 @@ describe('inert contextual owner grading proof', () => {
     const forged=Object.freeze({...m,setup:'select 1;'})
     expect(validateTestOwnerGradingNativePlanSql(forged,forged.setup)).toBe(false)
   })
+  it('moves a parent with its matching category and proves full-row rollback restoration', () => {
+    const sql=readFileSync('scripts/check-contextual-test-owner-grading.sql','utf8')
+    const parent=sql.slice(sql.indexOf('-- category-consistent-parent-change'),sql.indexOf('-- category-consistent-parent-end'))
+    expect(parent).toContain('select to_jsonb(t) into parent_before')
+    expect(parent).toContain('select id into strict wrong_category from public.gradebook_categories')
+    expect(parent).toContain('where classroom_id=wrong_class and is_default')
+    expect(parent).toContain('set classroom_id=wrong_class,gradebook_category_id=wrong_category')
+    expect(parent).toContain("exception when sqlstate 'PT409' then null")
+    expect(parent).toContain('is distinct from parent_before')
+    expect(parent).toContain("raise exception 'Changed parent rollback restoration differs'")
+    expect(plan().contracts.sql).toContain(parent)
+    expect(sql).not.toContain('set classroom_id=wrong_class where id=test_id')
+    expect(sql).not.toMatch(/disable\s+trigger|session_replication_role/i)
+  })
   it('cannot dispatch a forged source candidate even with a matching mock target', async () => {
     const m=plan(),open=vi.fn(),driver:DraftSaveDriver={verifyTarget:vi.fn(async()=>targetFor(m,'contracts')),openSession:open}
     const forged=Object.freeze({...m,sourceSha256:'0'.repeat(64)})

@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — Partition browser CI by theme without reducing coverage
-
-Hosted SDK slice delivered unchanged via1550/main763edbb;1546closed as delivered and old merge instructions retired. New browser phase on baseline48f27a987: light projects retain configured routing, dark projects use independent hosted Ubuntu/start/seed/auth/cleanup. All eight spec filters/config/snapshots/workers/retries unchanged. Exact list-only inventory union573; light301/dark274 duplicate only two setup cases. PR Gate requires both browser jobs; local browser executes both serially, legacy combined refs remain complete, unique receipts/diagnostics retain failure provenance. Worker GPT-6.1 Sol/high delivered143 offline PASS; coordinator focused575/54 and architecture/UI/design/TypeScript/lint/audit PASS. Independent review/native CI pending; no local DB replay, activation, dependency/schema/product change. Native baselines browser48m01/58m36; latest DB44m59 limits whole-run saving to~3min versus~14min prior; projections are not measured savings. Weekly remaining39%start/38%pre-review account-wide; effective model/tokens/active time unknown. Private phase evidence ~/.codex/artifacts/pika/ci-browser-optimization; broader work/holds retained.
-
-## 2026-10-09 — Consistent modal and mobile navigation closing
-
-User requested a shared-pattern transition pass with orchestration. Reuse ModalLayer standard200ms opacity exit; explicit audited adoption in teacher Join QR and teacher/student classroom mobile navigation. Generic LeftSidebar remains immediate; RightSidebar Calendar/live editors retain immediate cleanup. Extend mobileChildren and NavItems expanded presentation so collapsed desktop rails cannot collapse labels during passive exit. Logical close, guarded commands, focus and scroll restoration remain immediate; reduced motion skips retention. UI reuse/extend brief and composite checklist recorded before implementation. Pattern Lab uses actual navigation owner. No new dependencies, backend/data or feature activation. Privacy/1217 holds retained.
-
-Native Sol6.1/medium read-only lifetime audit accepted; root owns changes. Weekly36% remaining at start; DeepSeek pause honored. Focused component/caller regressions pass; native synthetic16-context matrix and16 affected interactions PASS across roles/viewports/themes/motion,40 images/16 videos plus8 Pattern Lab references; natural RAF fade evidence and visual inspection PASS. Source/media hashes bound in private product-fluidity/transition-consistency receipts. No production performance or backend proof claim. Harness rework corrected jsdom viewport and added meaningful fixture/caller semantics for path-aware audit; final audit PASS. Worker tokens/effective configuration and attributable coordinator time unknown. Final focused827/72 and architecture/UI/design/TypeScript/lint PASS; fixture spacing corrected to standard utilities and final source-bound matrix refreshed. Build and draft independent review pending; no production promotion.
-
 ## 2026-10-09 — SDK CI partition
 
 User authorized SDK speed work after browser PR1554 landed. Split the unchanged seven owner proof blocks into two isolated hosted jobs (detail/list/draft-save/create; draft-get/discard/publication), preserving all21 fresh modes, reviewed migration replay and exact failure/cleanup receipts. PR Gate requires both database-selected SDK results. Local database/SDK aliases retain complete serial coverage, including historical refs. No app/schema/harness/dependency changes or local DB mutation. GPT-6.1 Sol/high design verified; target169tests/5files PASS, raw proof-block hashes equal base e405fbfab. Focused605tests/54files and all static checks PASS; audit8changedTS PASS; independent fixed-SHA review and exact-head native CI pending. Latest unsplit SDK38m31/database36m46; projected SDK~21m14, full-gate gain~1m45 only, extra setup consumption to measure. Private receipts: ~/.codex/artifacts/pika/ci-sdk-optimization/.
@@ -641,3 +631,43 @@ and private TypeScript PASS; independent correction review pending. Rebased only
 UI1570/1571 onto caaa1c926, preserving both archive bodies; backend/proof/migration
 bytes unchanged and258 numbering retained. Current-base checks, delta review and
 fresh exact-source native permission precede readyCI/merge. Overall goal PAUSED.
+
+## 2026-10-11 — Owner grading diagnostic rehearsal confirms fixture mismatch
+
+Targeted diagnostic/base-sync source review CLEAN993c62949,387s; seven actual
+turns1917s/initial1/targeted4/final1/fix4, original02:58:39 clock retained.
+Human approved one fresh exact993/full001–258/projectbd4b1eb551ad rehearsal.
+Old377 receipts preserved privately; fresh preflight/binding PASS. Actual run
+82020 replayed001–258 then failed rollback; private mode0600 capture worked.
+Observed statement is check-contextual-test-owner-grading.sql268: moving the
+Test classroom alone leaves its category in the old classroom. Retained207
+assign_default_gradebook_category correctly raises category-parent mismatch
+before the intended changed-parent PT409 assertion. Source inspection finds
+analogous private SDK parentApply/Restore; that path was not reached. Keep the
+product invariant; next source-only fix must use matching target categories and
+restore the original category exactly, with regressions/targeted review before
+another fresh native permission. No fix or retry in this rehearsal turn.
+Exact owned cleanup, global inventory/ports and whole canonical rows/settings/
+cron/resources/sourcefreeze PASS; cleanupFailures[]. Types/closed-engine/SDK/
+cancellation not reached, nativeVerified=false. Permission consumed; entry gate
+false/null again, receipts retained. PR1569 remains draft/unmerged. Normal-local,
+production, account/provider/activation and toolgoalPAUSED holds unchanged.
+
+## 2026-10-11 — Owner grading category-consistent fixture correction
+
+Human requested rollback/SDK correction, restoration checks and review only;
+no fresh native permission. Root batch5 corrects the parent move with a strictly
+selected existing destination default category; nested PT409 scope restores the
+whole Test row and an explicit comparison rejects restoration drift. RED→GREEN
+13 focused source checks retain ordinary147/207/039 triggers. Private SDK checks
+both default-category baselines, moves parent/category together, reads both
+classrooms' categories and compares exact original category plus work graph in
+finally after Restore, including committed-Apply faults. Only the fixed Test's
+valid updated_at is omitted for the unchanged039 timestamp trigger; all other
+Test/category/work bytes must match. Pure helper corruption cases and production
+SDK fake-driver wrong-restored-category refusal PASS. No category writes, new
+tables, dependency, product/RPC/migration258 change or execution-control edits.
+Focused/static/audit and one targeted Sol/high source review precede publication
+acceptance. Cumulative ledger7turns1917s/targeted4/fix5/original02:58:39 retained;
+review-stop waiver active, actual native permission still consumed. Draft PR1569,
+normal-local/prod/activation/provider/account/toolgoalPAUSED holds unchanged.

@@ -56,7 +56,7 @@ declare
  expected_test jsonb;result jsonb;grade jsonb;before_rows jsonb;after_rows jsonb;
  revision bigint;returned_stamp timestamptz;returned_actor uuid;mc_before jsonb;
  ai_result jsonb;run_state text;mutation text;review_before jsonb;provenance_before jsonb;suggestion jsonb;
- fresh_test jsonb;nonfinite_rejected boolean:=false;
+ fresh_test jsonb;nonfinite_rejected boolean:=false;parent_before jsonb;wrong_category uuid;
 begin
  if has_function_privilege('anon','public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamptz)','execute')
  or has_function_privilege('authenticated','public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamptz)','execute')
@@ -265,8 +265,17 @@ begin
  -- Parent, owner, roster and original-Test freshness refuse inside transaction.
  begin update public.classrooms set teacher_id=outsider_id where id=class_id;
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id)),expected_test,clock_timestamp()+interval '25 seconds');raise exception 'Transferred owner accepted';exception when sqlstate 'PT403' then null;end;
- begin update public.tests set classroom_id=wrong_class where id=test_id;
+ -- category-consistent-parent-change: keep inherited category validation active.
+ -- Only the nested scope changes parent/category; PT409 rolls back both plus
+ -- the ordinary updated_at trigger before the whole original row comparison.
+ select to_jsonb(t) into parent_before from public.tests t where t.id=test_id;
+ select id into strict wrong_category from public.gradebook_categories
+  where classroom_id=wrong_class and is_default;
+ begin update public.tests set classroom_id=wrong_class,gradebook_category_id=wrong_category where id=test_id;
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id)),expected_test,clock_timestamp()+interval '25 seconds');raise exception 'Changed parent accepted';exception when sqlstate 'PT409' then null;end;
+ if (select to_jsonb(t) from public.tests t where t.id=test_id) is distinct from parent_before
+  then raise exception 'Changed parent rollback restoration differs';end if;
+ -- category-consistent-parent-end
  begin delete from public.classroom_enrollments where classroom_id=class_id and student_id=member_id;
   result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'results','{}',expected_test,clock_timestamp()+interval '25 seconds');
   if result#>'{result,student_ids}' is distinct from jsonb_build_array(peer_id) or jsonb_array_length(result#>'{result,responses}')<>2
