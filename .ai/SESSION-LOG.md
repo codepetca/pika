@@ -11,58 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Corrected owner proof accepted; CI profile correction
-
-Direct fresh approval covered one disposable001–256 replay on7a3f2e3f8.
-Root accepted frozenhelper/preflight; Sol/high worker PASS84.961s/94requests,
-expandedrollbackSQL/ACLs/reallegacyfilebytes-retention-substitution refusals and
-all previousSDKcases. GenuinetypesSHA6ccab478 byte-equal committedartifact;
-exactownedabsence/global741closure/ports/freshcompletecanonical equality/source
-PASS; lease released. Receipt /private/tmp/pika-owner-workflow-legacy-proof.CeRBu4/result.json.
-Native no-ID editor persistence covers unchanged compatibilitymode only; external
-fetch orchestration remains shared-helper tests, not native proof. No shared/prodapply.
-Source review6turns cumulativeclean; ready7a3 CI38047561807 failed38tests across
-3files: former exact255 profiles reject reviewed256. Draft restored beforecorrection;
-remaininglanes cancelled by draft lifecycle, PRGatefailure; no eligiblePASS.
-Root reproduced38RED then209GREEN/3files; extend two existing proof profiles only
-with exact reviewed256name+SHA+SQLbytes, preserve255seal/chain/tablecatalogs/future
-refusal. Added altered256/selfhash/future257 tests; application/schema unchanged.
-This is remediation4 plus earlierparserrepair1; counters/clocks/waiver retained.
-Focusedchecks and targeted independent review precede newstablehead readiness.
-Weekly33%remaining; telemetryunknown; no goal/batch2exit. All existing production,
-canonical249+/activation/account/quota/provider/billing holds unchanged.
-Focused988tests/73files+architecture/UI/design/TypeScript/lint PASS; targeted209/3
-PASS, audit/whitespace PASS. New profile files do not modify executed owner SQL,
-runtime, rollback contract or generated types; retain actual7a3 native receipt.
-
-## 2026-10-10 — Owner workflow current-main integration after exam traffic fix
-
-Targetedprofiledeltaf56 reviewedclean(Sol/highturn7); readyCI38048509744 passed
-15986tests+build, bothSDKlanes anddarkbrowser before mainadvanced via1558/6be42b15b.
-No newfailure inferred; wholeCI/PRGate notaccepted yet. PRdraft restored before
-rebase, singlewatcher41191 stopped. Incoming1558 stabilizesstudentavailability
-callback/coalesces750msactivitypolls, preserves APIenvelopes/interval/errors/exam
-telemetry; reviewedCI38047578776+fourvisualfixturecases acceptedbythatPR, no rendered
-UI/schemachange. Rootpreservedincomingexactbytes; ownerproduct/srcAPI/lib/schema/
-rollbackSQL/generated/proofscripts identicalf56; no newnativeapplicationneeded.
-One archive-marker conflict resolved retainingbothmarkers/bodyunion; fullhistory
-multisets source2785/main2775 missing0. Migration256unchanged/no collision; prior
-stash0preserved/no newstash. Newfocusedchecks and boundedchanged-base integration
-review precede stableSHAreadiness. Ledger7turns/fullwave1/remediation4/parserrepair1
-and taskstop/reviewwaiver retained; this isbase-sync, notnewproductfix orbudgetreset.
-Nextlearnerworkflow10routes11methods read-onlymap accepted afterdirect244/255/history
-sourceverification; preservebest-efforthistory. Noimplementationbeforeownermerge.
-Allcanonical/prod249+/promotion/account/provider/billing/quota/admission/cutoverholds
-persist; source-only group/epicnotcomplete. Currentnativeacceptance remains7a3bytes.
-Reconciled focused988/73+architecture/UI/design/types/lint PASS; incomingexam56/2
-PASS. Keptstartup17kcap unchanged by compactingCURRENT label; audit/diffchecksnext.
-
-## 2026-10-10 Database CI partition
-
-SDK PR1556 merged b8335397b: native eight-job/full-gate PASS, SDK max20m03s vs38m31s; database45m23s now critical path. Authorized next slice preserves all135 database proof blocks across50/85 independent jobs, boundary before owner reorder; local database/all aliases remain complete and serial. No app/schema/harness/dependency changes or local canonical/prod DB mutation. Sol/high design and two independent fixed-SHA reviews PASS; focused671/54files and all static/audit PASS. First native run38048029454 all9/full-gatePASS: database max23m29/sum43m53 vs45m23; gate34m51 vs45m46; lightbrowser34m31/6passing retries now critical path. Rebased onto concurrent student-request PR1558/main6be42b15; retained both continuity bodies and main archive marker for the same archived entry. No CI implementation or proof body changed. Updated-base focused checks, proportional independent delta review and final-head CI pending. Plan: docs/plans/ci-proof-setup-optimization.md.
-
-Second candidate38050484519 at1c0cd35/6be42b15 all9/full-gatePASS: DBmax19m30/sum36m32, gate33m50, all-job146m56; all135proofs,36isolatedmodes+cleanup,SDK21,15973tests+build,577distinctbrowserselections/20skips/6passingretries,3artifacts/six timingJSON accepted. Concurrent owner-workflow PR1555/main730642666 then prevented merge. Returned draft and retained passing receipts. User approved one60minute integration/targetedreview/CI extension from13:05UTC. Preserve inherited migration256/profile validators and its exact newSQLproof in primary51/lifecycle85:136total. Strict local inventory/count tests updated; no old-layout fallback or app/schema/harness changes by this feature. Archive conflict resolved with main archive after verifying prior archived Join body already present byte-for-byte. Final focused/review/native gate and main merge remain pending; all holds unchanged.
-
 ## 2026-10-10 — Authorized production migration and request-reduction rollout
 
 Owner explicitly approved one production application of249–256 and deployment
@@ -568,3 +516,61 @@ three private diffs, Start→observed manifest and unchanged incoming material U
 Cumulative counters original02:58:39/8completedturn2261s/targeted5/final1/fix6
 retained under waiver; native acceptance/readyCI/merge still blocked. PR1569 stays
 draft; shared-local/prod/provider/account/activation/toolgoalPAUSED holds remain.
+
+## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
+
+Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
+pika_assignment_list_ef9c8ece7a72. Locked preflight accepted; sole root run38015
+started14:05:27UTC, observed complete exit1 at14:10:12UTC, no retry. Full history,
+product rollback/ACLs, genuine CLI types identical and closed-engine privilege/
+rollback/held-schedule checks PASS. SDK acceptance stopped in rosterRestore:
+bounded private0600 diagnostic pal_membership_generation_closed. Fixture deletes
+an enrollment then reinserts its same id; retained168 records DELETE as removed
+and forbids reactivating that generation. This is invalid restoration setup, not
+evidence that the product guard should change. Remaining SDK/hoisting/cancellation
+acceptance absent. Exact owned teardown, global inventory/ports, whole canonical
+rows/settings/cron/resources and sourcefreeze PASS; cleanupFailures[]. Runner
+entry flags false/null again; all seven inert hashes match reviewed sources.
+Permission consumed; PR1569 remains OPEN/DRAFTa3c5, goalPAUSED. No sourcefix,
+additional native command, CI/merge/shared migration/deployment/account/provider/
+activation. Next source-only fixture correction must respect generation closure,
+verify lifecycle-aware cleanup/restoration, and receive targeted review before
+another exact-candidate rehearsal. Review ledger/counters/waiver not reset.
+
+## 2026-10-11 — Owner delegates reasonable workflow approvals
+
+Human requested faster completion and explicitly delegated reasonable approvals
+for this task. Root carries implementation/fixture corrections, offline testing,
+isolated disposable rehearsals, review/usage extensions and protected main PR
+completion forward without repeated checkpoints. Exact source/target bindings,
+fresh receipts, settled effects, independent review, CI and privacy gates remain.
+Shared local/production migrations and rollout/provider/account holds retain
+their separate authority; no activation or global policy change. Goal tool still
+paused; owner grading slice source correction proceeds within new instruction.
+Weekly97%remaining/ordinary allowed; explicit DeepSeek pause retained.
+One bounded GPT6.1Sol/high implementation worker owns only three private SDK/
+offline files for lifecycle-aware fresh-generation roster restoration, preserving
+product168/169 guards and academic work. Root owns Git/PR/docs/native execution;
+one targeted independent review follows verified delivery. Original ledger/
+clock retained, fixbatch7; no native retry or source evidence claimed yet.
+
+## 2026-10-11 — Roster fixture respects irreversible membership generation
+
+Bounded Sol/high writer delivered exactly three private SDK/offline source files;
+root verified snapshots/hashes/diff and reran transport+operational fake effects
+PASS. Retained168 same-ID reinsertion regression RED; fixed fresh-generation
+reenrollment GREEN. Before/after full18-table academic/enrollment/membership/
+outbox graph accepts only exact enrollment ID successor, old active→removed,
+one fresh scoped active generation and validated novel Pal reference. Original
+work/timestamps/attendance marks/non-target identities stay exact. Uncommitted
+Apply leaves original untouched; failed Restore and16 corruption cases fail
+closed. Six committed-denial/postguard faults and cancellation mocks retained;
+full success31/32frames. No trigger/maintenance bypass, product/SQL/generated/
+dependency/runner/control change or native operation. Worker start unknown,
+first observation14:32:47/final checks14:38:52; effective/tokens unknown.
+Full current-base gate95217 PASS1954/112 plus allstatic; final factualdocs delta
+receives targeted checks. One targeted independent review covers three private
+diffs, native168/169 interaction, source equivalence and whole documentation
+delta. Original clock/9completedturns/prior2261measureds+unknown9 retained;
+fixbatch7/standingworkflow waiver. PR1569 stays draft; actual native acceptance
+still absent, shared local/prod and activation holds remain.

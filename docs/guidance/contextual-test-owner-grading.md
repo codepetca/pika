@@ -200,3 +200,53 @@ The existing full mock SDK/restoration path also starts at19/37. No sequence,
 SQL, product writer, identity binding, cap or execution gate changed. These checks
 do not establish native acceptance; a new rehearsal needs fresh exact-source
 and target permission after targeted review.
+
+The fresh approved `a3c5b389a`/`pika_assignment_list_ef9c8ece7a72` rehearsal
+passed complete001–259 history, product rollback/ACL contracts, genuine CLI
+types identical and the closed-engine privilege/restoration/rollback/held
+schedules. It stopped during SDK acceptance in `rosterRestore`: the bounded
+private diagnostic is `pal_membership_generation_closed`. The fixture commits
+enrollment deletion, then attempts to insert the same enrollment id. Retained168
+marks the membership generation removed on DELETE and deliberately forbids
+reactivation of that id. Do not weaken this product privacy/lifecycle invariant.
+Correct the scenario's lifecycle-aware fixture and restoration design before
+targeted review and another fresh exact-candidate rehearsal; source mocks did
+not model this trigger effect. Remaining SDK acceptance, observed PostgREST
+hoisting and cancellation were not completed. Exact owned teardown, global
+inventory/ports, whole canonical rows/settings/cron/resources and sourcefreeze
+passed; cleanupFailures is empty. Permission is consumed, entry flags are inert
+and all seven private hashes match reviewed sources. PR1569 remains draft;
+the overall goal remains paused. No automatic retry, source correction, shared
+local/production database change, deployment, account/provider or activation
+operation occurred in this attempt.
+
+## Task-scoped workflow authority — 2026-10-11
+
+The owner explicitly delegated reasonable approvals to accelerate this task.
+Implementation/fixture corrections, offline checks, isolated disposable
+rehearsals, review extensions, draft publication and normal protected main merge
+may proceed without repetitive approval prompts. Each disposable attempt still
+requires a fresh exact source/target binding, accepted immutable preflight,
+exclusive execution and settled cleanup evidence; consumed receipts are never
+reused. This does not relax product privacy/security invariants, independent
+review, required CI/PR Gate, or exact-target authorization for shared local or
+production migration application. Deployment, provider/account/plan operations
+and admission/home/page/cohort/cutover activation remain held. Escalate material
+product decisions or credible exposure/data-loss risk rather than auto-approving
+them. This is a task-specific authority record, not a global repository policy.
+
+The source-only roster fixture correction now reenrolls with one fixed fresh
+generation after a committed deletion, preserving the original removed identity.
+Uncommitted deletion restores nothing and leaves the exact original active row.
+Full18-table graph equality accepts only the exact enrollment ID replacement,
+old active→removed state and one scoped active successor with a valid novel
+opaque Pal reference. It retains all academic work, timestamps, attendance marks
+and non-target identities; it never reopens/deletes retained identity evidence
+or invokes maintenance bypass. Operational archive revision counters continue
+advancing through their ordinary triggers and are not reset. Regression mocks
+reproduce the old generation-closure failure, reject16 lifecycle/work corruptions
+and cover precommit Apply, committed postguard failure and failed Restore.
+Existing SDK denial, transport, cancellation and settlement checks remain;
+success uses31/32 fixed frames. Product/schema/generated types are unchanged.
+These are source/mock checks only; targeted review and genuine native evidence
+remain required before readiness.

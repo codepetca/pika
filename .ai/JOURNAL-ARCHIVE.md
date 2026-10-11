@@ -46012,3 +46012,58 @@ separate from review/CI time. Sharedlocal/prod249+, promotion/account/billing/
 provider/runner/admission/home/quota/cutover holds persist. Overallgoal incomplete.
 Post-rebase focused gate PASS774tests/69files plus architecture/UI/design/types/
 lint. The increase includes incoming CIpartition tests; no native success inferred.
+
+<!-- pika-session-log-archive-batch:93b69b577d2dbd0c72c74ddeaf66535957f7f941ca4c3e42f6f945ddee329fa2 -->
+## 2026-10-10 — Corrected owner proof accepted; CI profile correction
+
+Direct fresh approval covered one disposable001–256 replay on7a3f2e3f8.
+Root accepted frozenhelper/preflight; Sol/high worker PASS84.961s/94requests,
+expandedrollbackSQL/ACLs/reallegacyfilebytes-retention-substitution refusals and
+all previousSDKcases. GenuinetypesSHA6ccab478 byte-equal committedartifact;
+exactownedabsence/global741closure/ports/freshcompletecanonical equality/source
+PASS; lease released. Receipt /private/tmp/pika-owner-workflow-legacy-proof.CeRBu4/result.json.
+Native no-ID editor persistence covers unchanged compatibilitymode only; external
+fetch orchestration remains shared-helper tests, not native proof. No shared/prodapply.
+Source review6turns cumulativeclean; ready7a3 CI38047561807 failed38tests across
+3files: former exact255 profiles reject reviewed256. Draft restored beforecorrection;
+remaininglanes cancelled by draft lifecycle, PRGatefailure; no eligiblePASS.
+Root reproduced38RED then209GREEN/3files; extend two existing proof profiles only
+with exact reviewed256name+SHA+SQLbytes, preserve255seal/chain/tablecatalogs/future
+refusal. Added altered256/selfhash/future257 tests; application/schema unchanged.
+This is remediation4 plus earlierparserrepair1; counters/clocks/waiver retained.
+Focusedchecks and targeted independent review precede newstablehead readiness.
+Weekly33%remaining; telemetryunknown; no goal/batch2exit. All existing production,
+canonical249+/activation/account/quota/provider/billing holds unchanged.
+Focused988tests/73files+architecture/UI/design/TypeScript/lint PASS; targeted209/3
+PASS, audit/whitespace PASS. New profile files do not modify executed owner SQL,
+runtime, rollback contract or generated types; retain actual7a3 native receipt.
+
+<!-- pika-session-log-archive-batch:81980d214b8e8ee4e019e4f8754afd76d7fe35153496e9c76c54b5191eb8cedd -->
+## 2026-10-10 — Owner workflow current-main integration after exam traffic fix
+
+Targetedprofiledeltaf56 reviewedclean(Sol/highturn7); readyCI38048509744 passed
+15986tests+build, bothSDKlanes anddarkbrowser before mainadvanced via1558/6be42b15b.
+No newfailure inferred; wholeCI/PRGate notaccepted yet. PRdraft restored before
+rebase, singlewatcher41191 stopped. Incoming1558 stabilizesstudentavailability
+callback/coalesces750msactivitypolls, preserves APIenvelopes/interval/errors/exam
+telemetry; reviewedCI38047578776+fourvisualfixturecases acceptedbythatPR, no rendered
+UI/schemachange. Rootpreservedincomingexactbytes; ownerproduct/srcAPI/lib/schema/
+rollbackSQL/generated/proofscripts identicalf56; no newnativeapplicationneeded.
+One archive-marker conflict resolved retainingbothmarkers/bodyunion; fullhistory
+multisets source2785/main2775 missing0. Migration256unchanged/no collision; prior
+stash0preserved/no newstash. Newfocusedchecks and boundedchanged-base integration
+review precede stableSHAreadiness. Ledger7turns/fullwave1/remediation4/parserrepair1
+and taskstop/reviewwaiver retained; this isbase-sync, notnewproductfix orbudgetreset.
+Nextlearnerworkflow10routes11methods read-onlymap accepted afterdirect244/255/history
+sourceverification; preservebest-efforthistory. Noimplementationbeforeownermerge.
+Allcanonical/prod249+/promotion/account/provider/billing/quota/admission/cutoverholds
+persist; source-only group/epicnotcomplete. Currentnativeacceptance remains7a3bytes.
+Reconciled focused988/73+architecture/UI/design/types/lint PASS; incomingexam56/2
+PASS. Keptstartup17kcap unchanged by compactingCURRENT label; audit/diffchecksnext.
+
+<!-- pika-session-log-archive-batch:78e1bbf8bd63219404f72705922ee651595c6099fd59eeb895ada1ccd29e0b46 -->
+## 2026-10-10 Database CI partition
+
+SDK PR1556 merged b8335397b: native eight-job/full-gate PASS, SDK max20m03s vs38m31s; database45m23s now critical path. Authorized next slice preserves all135 database proof blocks across50/85 independent jobs, boundary before owner reorder; local database/all aliases remain complete and serial. No app/schema/harness/dependency changes or local canonical/prod DB mutation. Sol/high design and two independent fixed-SHA reviews PASS; focused671/54files and all static/audit PASS. First native run38048029454 all9/full-gatePASS: database max23m29/sum43m53 vs45m23; gate34m51 vs45m46; lightbrowser34m31/6passing retries now critical path. Rebased onto concurrent student-request PR1558/main6be42b15; retained both continuity bodies and main archive marker for the same archived entry. No CI implementation or proof body changed. Updated-base focused checks, proportional independent delta review and final-head CI pending. Plan: docs/plans/ci-proof-setup-optimization.md.
+
+Second candidate38050484519 at1c0cd35/6be42b15 all9/full-gatePASS: DBmax19m30/sum36m32, gate33m50, all-job146m56; all135proofs,36isolatedmodes+cleanup,SDK21,15973tests+build,577distinctbrowserselections/20skips/6passingretries,3artifacts/six timingJSON accepted. Concurrent owner-workflow PR1555/main730642666 then prevented merge. Returned draft and retained passing receipts. User approved one60minute integration/targetedreview/CI extension from13:05UTC. Preserve inherited migration256/profile validators and its exact newSQLproof in primary51/lifecycle85:136total. Strict local inventory/count tests updated; no old-layout fallback or app/schema/harness changes by this feature. Archive conflict resolved with main archive after verifying prior archived Join body already present byte-for-byte. Final focused/review/native gate and main merge remain pending; all holds unchanged.
