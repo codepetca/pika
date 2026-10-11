@@ -5,6 +5,7 @@ import { validateTestUnpublicationReviewedMigration } from './test-unpublication
 import { validateTestOwnerWorkflowReviewedMigration } from './test-owner-workflow-reviewed-migration'
 import { validateTestLearnerWorkflowReviewedMigration } from './test-learner-workflow-reviewed-migration'
 import { validateStudentTestSessionStatusReviewedMigration } from './student-test-session-status-reviewed-migration'
+import { validateTestOwnerGradingReviewedMigration } from './test-owner-grading-reviewed-migration'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { isAbsolute, normalize, resolve } from 'node:path'
@@ -50,7 +51,14 @@ export function validateTestOwnerReorderReviewedMigrations(migrations: ReturnTyp
   if (migrations.length >= 255) validateTestUnpublicationReviewedMigration(migrations[254])
   if (migrations.length >= 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
   if (migrations.length >= 257) validateTestLearnerWorkflowReviewedMigration(migrations[256])
-  if (migrations.length === 258) validateStudentTestSessionStatusReviewedMigration(migrations[257])
+  if (migrations.length === 258) {
+    const tail = migrations[257]
+    if (tail.name === '258_student_test_session_status_projection.sql') validateStudentTestSessionStatusReviewedMigration(tail)
+    else {
+      assert.equal(tail.name, '258_contextual_test_owner_grading.sql', 'Unreviewed reorder migration profile')
+      validateTestOwnerGradingReviewedMigration(tail)
+    }
+  }
 }
 type Rows = Record<string, Array<Record<string, unknown>>>
 type Session = Parameters<AssignmentListLifecycleAdapters['executeSql']>[0]

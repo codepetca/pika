@@ -5,6 +5,7 @@ import { validateTestUnpublicationReviewedMigration } from './test-unpublication
 import { validateTestOwnerWorkflowReviewedMigration } from './test-owner-workflow-reviewed-migration'
 import { validateTestLearnerWorkflowReviewedMigration } from './test-learner-workflow-reviewed-migration'
 import { validateStudentTestSessionStatusReviewedMigration } from './student-test-session-status-reviewed-migration'
+import { validateTestOwnerGradingReviewedMigration } from './test-owner-grading-reviewed-migration'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
@@ -65,7 +66,14 @@ export function validateTestMemberListReviewedMigrations(migrations: Parameters<
   if (migrations.length >= 255) validateTestUnpublicationReviewedMigration(migrations[254])
   if (migrations.length >= 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
   if (migrations.length >= 257) validateTestLearnerWorkflowReviewedMigration(migrations[256])
-  if (migrations.length === 258) validateStudentTestSessionStatusReviewedMigration(migrations[257])
+  if (migrations.length === 258) {
+    const tail = migrations[257]
+    if (tail.name === '258_student_test_session_status_projection.sql') validateStudentTestSessionStatusReviewedMigration(tail)
+    else {
+      assert.equal(tail.name, '258_contextual_test_owner_grading.sql', 'Unreviewed member-list migration profile')
+      validateTestOwnerGradingReviewedMigration(tail)
+    }
+  }
 }
 /** Both exact reviewed canonical profiles remain complete. The isolated253
  * union is idempotent and bound to the reviewed migration, never fixture rows. */

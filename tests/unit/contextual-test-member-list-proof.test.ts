@@ -155,8 +155,16 @@ describe('finite member Test list fixture', () => {
     for (const row of result.tests) expect(Object.keys(row).sort()).toEqual('id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at,assessment_type,student_status,access_state,effective_access'.split(',').sort())
   })
 })
-describe('actual-source member migration profiles (offline)', () => {
-  const current = loadAssignmentListReviewedMigrations(process.cwd())
+describe.each([
+  ['student-session projection', '258_student_test_session_status_projection.sql', '7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f'],
+  ['owner grading', '258_contextual_test_owner_grading.sql', '84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c'],
+] as const)('actual-source member %s migration profile (offline)', (_profile, tailName, tailDigest) => {
+  // The complete loader retains numeric-lineage refusal during the rebase.
+  // These separately named historical profiles share only the exact001–257 prefix.
+  const source = loadAssignmentListReviewedMigrations(process.cwd())
+  const tail = source.find(migration => migration.name === tailName)
+  assert(tail, 'Missing exact reviewed profile tail')
+  const current = [...source.slice(0, 257), tail]
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
   it('reproduces the former exact257 rejection of the complete current258 chain', () => {
     expect(current).toHaveLength(258)
@@ -167,8 +175,8 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(current[256]).toMatchObject({ name: '257_contextual_test_learner_workflow.sql',
       sha256: 'd4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a' })
     expect(digest(current[256]!.sql)).toBe('d4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a')
-    expect(current[257]).toMatchObject({ name: '258_student_test_session_status_projection.sql', sha256: '7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f' })
-    expect(digest(current[257].sql)).toBe('7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f')
+    expect(current[257]).toMatchObject({ name: tailName, sha256: tailDigest })
+    expect(digest(current[257].sql)).toBe(tailDigest)
   })
   it.each([253, 254, 255, 256, 257, 258])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)
@@ -182,11 +190,11 @@ describe('actual-source member migration profiles (offline)', () => {
     'bad253name', 'self-hashed253bytes'] as const)('rejects unreviewed source profile: %s', defect => {
     const migrations = current.map(m => ({ ...m })), tail = migrations[253]
     if (defect === 'future259') migrations.push({ name: '259_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
-    const projection = migrations[257]
-    if (defect === 'bad258name') projection.name = '258_unknown.sql'
-    if (defect === 'bad258digest') projection.sha256 = 'f'.repeat(64)
-    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') projection.sql += '\n'
-    if (defect === 'self-hashed258bytes') projection.sha256 = digest(projection.sql)
+    const profileTail = migrations[257]
+    if (defect === 'bad258name') profileTail.name = '258_unknown.sql'
+    if (defect === 'bad258digest') profileTail.sha256 = 'f'.repeat(64)
+    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') profileTail.sql += '\n'
+    if (defect === 'self-hashed258bytes') profileTail.sha256 = digest(profileTail.sql)
     const learner = migrations[256]
     if (defect === 'bad257name') learner.name = '257_unknown.sql'
     if (defect === 'bad257digest') learner.sha256 = 'f'.repeat(64)

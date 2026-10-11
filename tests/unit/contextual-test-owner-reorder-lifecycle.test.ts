@@ -28,19 +28,23 @@ const catalog = testOwnerReorderTableCatalogFromCanonical(canonical)
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: names.map(table => ({ table, fingerprint: 'unchanged' })) })
 
-describe('closed reorder lifecycle source contracts', () => {
+describe.each(['258_student_test_session_status_projection.sql', '258_contextual_test_owner_grading.sql'])('closed reorder lifecycle exact named source profile %s', tailName => {
+  const source = loadAssignmentListReviewedMigrations(process.cwd())
+  const tail = source.find(migration => migration.name === tailName)
+  if (!tail) throw new Error('Missing exact reviewed profile tail')
+  const current = [...source.slice(0, 257), tail]
   it.each([254, 255, 256, 257, 258])('admits exact complete reviewed migration profile %i', count => {
-    expect(() => validateTestOwnerReorderReviewedMigrations(loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count))).not.toThrow()
+    expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, count))).not.toThrow()
   })
   it.each(['future259', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
-    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(m => ({ ...m }))
+    const migrations = current.map(m => ({ ...m }))
     const addition = migrations[255]
     if (defect === 'future259') migrations.push({ name: '259_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
-    const projection = migrations[257]
-    if (defect === 'bad258name') projection.name = '258_unknown.sql'
-    if (defect === 'bad258digest') projection.sha256 = 'f'.repeat(64)
-    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') projection.sql += '\n'
-    if (defect === 'self-hashed258bytes') projection.sha256 = testOwnerDigest(projection.sql)
+    const profileTail = migrations[257]
+    if (defect === 'bad258name') profileTail.name = '258_unknown.sql'
+    if (defect === 'bad258digest') profileTail.sha256 = 'f'.repeat(64)
+    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') profileTail.sql += '\n'
+    if (defect === 'self-hashed258bytes') profileTail.sha256 = testOwnerDigest(profileTail.sql)
     const learner = migrations[256]
     if (defect === 'bad257name') learner.name = '257_unknown.sql'
     if (defect === 'bad257digest') learner.sha256 = 'f'.repeat(64)
@@ -55,6 +59,9 @@ describe('closed reorder lifecycle source contracts', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
+})
+
+describe('closed reorder lifecycle source contracts', () => {
   it('validates four required RPC arguments and Json return as supplemental AST evidence', () => {
     expect(validateTestOwnerReorderGeneratedTypes(generated, testOwnerDigest(generated))).toBe(true)
     expect(() => validateTestOwnerReorderGeneratedTypes(generated, '0'.repeat(64))).toThrow()

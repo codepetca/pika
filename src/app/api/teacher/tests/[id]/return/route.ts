@@ -1,3 +1,4 @@
+import { handleContextualTestOwnerGradingRequest } from '@/lib/server/contextual-test-owner-grading'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireRole } from '@/lib/auth'
@@ -12,6 +13,8 @@ const returnRequestSchema = z.object({
 })
 
 export const POST = withErrorHandler('ReturnTeacherTest', async (request, context) => {
+  const contextual = await handleContextualTestOwnerGradingRequest('return', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const parsed = returnRequestSchema.safeParse(await request.json())
