@@ -360,8 +360,10 @@ end;$limits261$;
 -- Pending provider cleanup is only a relational fence; no provider is called.
 do $provider_fence261$ declare owner_id uuid:='a2610000-0000-4000-8000-000000000001';
  tid uuid:='a2610000-0000-4000-8000-000000000031';cid uuid:='a2610000-0000-4000-8000-000000000010';
- sid uuid:='a2610000-0000-4000-8000-000000000003';op uuid:='a2610000-0000-4000-8000-000000000112';generation record;
+ sid uuid:='a2610000-0000-4000-8000-000000000003';op uuid:='a2610000-0000-4000-8000-000000000112';generation record;baseline jsonb;
 begin
+ baseline:=pg_temp.test_unpublication_graph(tid);
+ begin
  select * into strict generation from private.pal_membership_generations
  where scope_digest=encode(sha256(convert_to('pika-membership-scope-v1:'||cid::text||':'||sid::text,'UTF8')),'hex') and state='active';
  insert into public.student_purge_operations(id,teacher_id,classroom_id,student_id,student_binding_sha256,request_sha256,status,source_revision)
@@ -371,8 +373,9 @@ begin
  values(op,generation.generation_id,generation.scope_digest,generation.pal_reference,'https://example.invalid',owner_id,
  'https://example.invalid','synthetic','roster_'||repeat('a',32),'participant_'||repeat('a',32),'principal_'||repeat('a',32));
  perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT403','test_unpublish_fenced','pending provider-cleanup fence');
- delete from private.student_provider_cleanup_bindings where operation_id=op;
- delete from public.student_purge_operations where id=op;
+ raise exception using errcode='ZX261',message='rollback retained provider-fence evidence';
+ exception when sqlstate 'ZX261' then null;end;
+ if pg_temp.test_unpublication_graph(tid) is distinct from baseline then raise exception 'Provider fence rollback changed full graph';end if;
 end;$provider_fence261$;
 
 -- service-only-empty-search-path / private-core-service-denial

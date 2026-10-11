@@ -648,3 +648,9 @@ preserves any existing question lock; the earlier locked-question probe left tha
 fixture locked. Keep that protection and expected rejection, but rollback the probe
 setup before subsequent limits cases. Source-only correction/verification is in
 progress; no shared schema or product permission changes, no readiness/merge claim.
+
+Later fresh corrected-source replay reaches55000/anonymousline14. Source mapping
+corrects an initial version-reset guess:171 intentionally rejects provider-binding
+DELETE. Preserve that retained evidence guard and isolate the synthetic provider
+fence setup/assertion with rollback instead of deleting its immutable binding.
+No native acceptance; independent review/current-source proof remain required.

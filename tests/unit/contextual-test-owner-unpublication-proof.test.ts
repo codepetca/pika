@@ -95,6 +95,21 @@ describe('inert unpublication source proof', () => {
     expect(limits).toContain("t.status='closed' and t.questions_locked_at is null")
     expect(sql).not.toMatch(/disable trigger|session_replication_role/)
   })
+  it('rolls provider-fence evidence back instead of deleting retained bindings',()=>{
+    const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const provider=sql.split('do $provider_fence261$')[1].split('end;$provider_fence261$;')[0]
+    expect(provider).not.toMatch(/delete from (?:private\.student_provider_cleanup_bindings|public\.student_purge_operations)/)
+    expect(provider).toContain("'PT403','test_unpublish_fenced','pending provider-cleanup fence'")
+    expect(provider).toContain("errcode='ZX261',message='rollback retained provider-fence evidence'")
+    expect(provider).toContain("exception when sqlstate 'ZX261' then null;")
+    expect(provider).toContain('baseline:=pg_temp.test_unpublication_graph(tid)')
+    expect(provider).toContain('Provider fence rollback changed full graph')
+    const migration=readFileSync('supabase/migrations/171_student_provider_cleanup_prerequisite.sql','utf8')
+    expect(migration).toContain("if tg_op <> 'UPDATE' then")
+    expect(migration).toContain("errcode='55000', message='student_provider_evidence_retained'")
+    expect(migration).toContain('create trigger guard_student_provider_binding before update or delete')
+    expect(sql).not.toMatch(/disable trigger|session_replication_role/)
+  })
   it.each(['gap','unknown262',...[253,254,255,256,257,258,259,260,261].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
     const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m}))
     if(defect==='gap') inventory.splice(100,1)
