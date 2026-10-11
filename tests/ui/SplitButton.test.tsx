@@ -764,3 +764,67 @@ describe('SplitButton closing lifetime', () => {
   })
 
 })
+
+
+describe('SplitButton reviewed deferred-work boundaries', () => {
+  it('preserves native Shift-Tab dismissal when hover release rerenders inline options', async () => {
+    function Parent() {
+      const [hovered, setHovered] = useState(false)
+      return <>
+        <SplitButton label="Actions" singleMenuTrigger options={[
+          { id: 'one', label: 'First', onSelect: vi.fn(), onHoverChange: setHovered },
+        ]} />
+        <span data-testid="preview">{String(hovered)}</span>
+      </>
+    }
+    const user = userEvent.setup()
+    render(<Parent />)
+    const trigger = screen.getByRole('button', { name: 'Actions' })
+    await user.click(trigger)
+    expect(screen.getByTestId('preview')).toHaveTextContent('true')
+    await user.tab({ shift: true })
+    expect(trigger).toHaveFocus()
+    expect(screen.getByTestId('preview')).toHaveTextContent('false')
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  // Synthetic late delivery verifies the retirement fence, not a browser race.
+  it.each(['empty', 'allDisabled'] as const)('fences a cancelled selection frame after closed-menu %s retirement and reactivation', (reason) => {
+    let oldFrame!: FrameRequestCallback
+    const frameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { oldFrame = callback; return 77 })
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    const options = [{ id: 'one', label: 'First', onSelect: vi.fn() }]
+    const props = { label: 'Actions', singleMenuTrigger: true, options }
+    const view = render(<SplitButton {...props} />)
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'First' }))
+      expect(frameSpy).toHaveBeenCalledOnce()
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      view.rerender(<SplitButton {...props} options={reason === 'empty' ? [] : options.map((option) => ({ ...option, disabled: true }))} />)
+      expect(cancelSpy).toHaveBeenCalledWith(77)
+      view.rerender(<SplitButton {...props} />)
+      const trigger = screen.getByRole('button', { name: 'Actions' })
+      expect(trigger).not.toHaveFocus()
+      act(() => oldFrame(0))
+      expect(trigger).not.toHaveFocus()
+    } finally { view.unmount(); frameSpy.mockRestore(); cancelSpy.mockRestore() }
+  })
+
+  it('keeps the split primary action enabled across secondary menu availability changes', () => {
+    const onPrimaryClick = vi.fn()
+    const options = [{ id: 'one', label: 'First', onSelect: vi.fn() }]
+    const props = { label: 'Post', onPrimaryClick, options }
+    const view = render(<SplitButton {...props} />)
+    for (const nextOptions of [[], options.map((option) => ({ ...option, disabled: true })), options]) {
+      view.rerender(<SplitButton {...props} options={nextOptions} />)
+      const primary = screen.getByRole('button', { name: 'Post' })
+      expect(primary).toBeEnabled()
+      fireEvent.click(primary)
+    }
+    expect(onPrimaryClick).toHaveBeenCalledTimes(3)
+    view.unmount()
+  })
+
+})

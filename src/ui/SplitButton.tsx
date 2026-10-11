@@ -72,15 +72,18 @@ export function SplitButton({
   type Presentation = Pick<SplitButtonOption, 'id' | 'disabled' | 'checked' | 'dividerBefore' | 'destructive'> & { label: string | number }
   const [closing, setClosing] = useState<{ owner: SplitButtonOption[]; items: Presentation[] } | null>(null)
   const available = interactionActive && !disabled && options.some((option) => !option.disabled)
-  const interactionRef = useRef({ active: interactionActive && !disabled, open: false, generation: 0, options, primary: onPrimaryClick })
+  const interactionRef = useRef({ active: interactionActive && !disabled, available, open: false, generation: 0, options, primary: onPrimaryClick })
   const hoverRef = useRef(new Map<string, (hovered: boolean) => void>())
   const retireListenersRef = useRef<(() => void) | null>(null)
   const mountedRef = useRef(true)
   const focusFrameRef = useRef<number | null>(null)
   const tabTimeoutRef = useRef<number | null>(null)
   const menuOpen = available && isOpen
-  // Predict only the committed active-state fence; never change refs during render.
-  const generation = interactionRef.current.generation + (interactionRef.current.active !== (interactionActive && !disabled) ? 1 : 0)
+  // Predict the next committed authority fence without changing refs during render.
+  // Menu availability is separate from the split primary action's authority.
+  const authorityChanges = interactionRef.current.active !== (interactionActive && !disabled)
+    || interactionRef.current.available !== available
+  const generation = interactionRef.current.generation + (authorityChanges ? 1 : 0)
   const closingView = available && !menuOpen && closing?.owner === options && exitMotion === 'opacity' ? closing : null
   const containerRef = useRef<HTMLDivElement | null>(null)
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -115,9 +118,10 @@ export function SplitButton({
   useInsertionEffect(() => {
     const current = interactionRef.current
     const active = interactionActive && !disabled
-    if (current.active !== active) current.generation += 1
+    if (current.active !== active || current.available !== available) current.generation += 1
     if (!available) current.open = false
     current.active = active
+    current.available = available
     current.options = options
     current.primary = onPrimaryClick
   })
@@ -199,13 +203,9 @@ export function SplitButton({
         hoverRef.current.set(id, option.onHoverChange)
       }
     }
-    // Inline command updates keep the same trigger lifetime. Do not cancel a
-    // selection's focus handoff merely because its callback updated the options.
+    // Available inline command updates keep the same lifetime: both selection
+    // focus handoff and native Tab dismissal must survive hover-driven rerenders.
     if (!available) cancelDeferredWork()
-    else if (tabTimeoutRef.current !== null) {
-      window.clearTimeout(tabTimeoutRef.current)
-      tabTimeoutRef.current = null
-    }
   }, [options, available, cancelDeferredWork])
 
   useLayoutEffect(() => {
