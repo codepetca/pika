@@ -1,3 +1,4 @@
+import { handleContextualTestOwnerGradingRequest } from '@/lib/server/contextual-test-owner-grading'
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
@@ -289,6 +290,8 @@ async function loadStudentAvailabilityMap(
 
 // GET /api/teacher/tests/[id]/results - Get aggregated results
 export const GET = withErrorHandler('GetTeacherTestResults', async (request, context) => {
+  const contextual = await handleContextualTestOwnerGradingRequest('results', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
 

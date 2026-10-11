@@ -11,6 +11,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-09 — Publish test confirmation copy
+
+- `codex/publish-test-locked-copy`: replace student-visibility language with “Publishing is permanent. Test will remain locked.”; update existing component and browser assertions. Risk: none (copy only).
+- UI brief: teacher publish confirmation, reuse existing `ConfirmDialog`; reference `/pattern-lab` confirmation owner and teacher test authoring fixture. Open modal verified at 1440×900 and 390×844 in light/dark; student n/a (teacher-only copy). Primary signal: explicit locked-state sentence. No new styling, composite behavior, experimental pattern, or refactor.
+- Evidence: focused checks passed (58 files, 688 tests, architecture, UI/design policy, TypeScript, lint); publication browser contract 4/4 and screenshots visually reviewed. Logs `/tmp/pika-publish-focused.log`, `/tmp/pika-publish-visual.log`; captures in ignored `test-results/experience-matrix-shows-pu-*/`. Initial visual setup retried for temporary session secret. Weekly remaining at start: 43%; task token usage unknown.
+- Pre-commit audit flags the pre-existing uncached grading-results read at TeacherTestsTab:990; the changed source line is only the modal description. Preserve the existing fresh-results behavior; no audit rule or exception changed.
+- Implementation handled directly; one bounded low-risk independent review planned with GPT-6 Luna/medium. PR/CI pending; merge and production promotion require their authority gates.
+
 ## 2026-10-09 — Publish copy refinement and unpublish investigation
 
 - PR1553 returned to draft before correction: modal now reads only “Test will remain locked to students.” Existing component/browser assertions updated; same ConfirmDialog reuse and teacher-only open-state desktop/mobile light/dark brief applies. Four Playwright captures passed and visually reviewed; final focused713/59 plus all static gates passed. Initial focused run had three offline Tart-host timing failures; unchanged harness passed on retry.
@@ -560,3 +568,35 @@ prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.
 ## 2026-10-11 — Assignment chooser current-main synchronization
 
 PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.
+## 2026-10-11 — Test learner merge and next owner grading group
+
+Learner1561 merged normally at reviewed1aedb4156 as squash517d272ab; exact-head
+CI38102771099 all10/PRGate PASS, merge tree equals reviewed tree and clean
+canonical main fast-forwarded. Whole001–257 native/type/cleanup/preservation
+evidence accepted; six old one-off approvals consumed, no shared/prod apply or
+activation. Original review receipts/counters retained; batch2 and goal open.
+
+Owner requested orchestration of recommended next coherent group. New clean
+codex/test-owner-inspect-grade-return at517d272ab; frozen dependency install and
+startup PASS before edits. Sol/high bounded read-only map accepted: exactly five
+existing results/single-grade/batch-grade/clear/return routes, no new attempt GET,
+unsubmit/deletion/UI/provider work. One mapper correction preserves accepted
+learner disclosure without a new show_results gate. Observed208s wall, tokens
+unknown. Astra/high sole product writer and Sol/high separate inert proof writer
+work in disjoint paths; root owns integration, docs, CI, review and main merge.
+Weekly22% remaining at start; DeepSeek pause honored. No attributed usage claim.
+
+Reuse existing owner transaction/admission and inherited grade/provenance/review/
+return writers. Additive258 source must bind current owner/parent/nonowner roster,
+archive/purge/membership/protocol and queued/running AI exclusion. Source and
+mock checks are not actual database acceptance. CI wiring RED→GREEN250 checks;
+one rollback step in existing primary lane, exact53-name seal, secondary85 intact.
+Product/inert proof source frozen; expanded JSON bounds and PostgREST-hoisted8s
+timeout corrected before review. Final258 SHA84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c.
+Full focused1880/112, architecture/types/lint/UI/design policy and27TS audit PASS.
+Two source integration failures (workflow inventory/startup budget) fixed; prior
+failed receipts retained. Independent review, actual disposable SDK/concurrency/
+types and final-head CI/merge remain; private SDK adapter preparation is inert.
+Canonical local249+, prod257+, reset/seed/promotion/accounts/providers/quota and
+admission/home/page/cohort/cutover holds unchanged. Overall tool goal PAUSED;
+specific owner-group source work authorized, no fresh native permission inferred.

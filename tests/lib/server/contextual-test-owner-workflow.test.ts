@@ -44,6 +44,22 @@ describe('contextual owner Test workflow transaction boundary', () => {
     reply = witness('sync'); await flow.run('sync', {})
     expect(JSON.parse(String(network.mock.calls[2][1]?.body)).p_expected_test).toEqual(test)
   })
+  it.each(['results', 'manual-save', 'clear-open-grades', 'return'] as const)('binds the new %s operation to the original owner/Test/parent witness', async operation => {
+    const flow = workflow(); await flow.inspect()
+    const payload = operation === 'results' ? {} : { student_ids: [learner] }
+    reply = witness(operation, { student_ids: [learner] }); await flow.run(operation, payload)
+    expect(JSON.parse(String(network.mock.calls[1][1]?.body))).toMatchObject({ p_operation: operation, p_payload: payload,
+      p_actor_id: actor, p_test_id: testId, p_classroom_id: classroom, p_expected_test: test })
+    reply = witness('inspect', { student_ids: [learner] })
+    await expect(flow.run(operation, payload)).rejects.toMatchObject({ statusCode: 503 })
+    expect(network).toHaveBeenCalledTimes(3)
+  })
+  it('rejects a results reply over the shared byte budget without retrying', async () => {
+    const flow = workflow(); await flow.inspect()
+    reply = witness('results', { padding: 'x'.repeat(4 * 1024 * 1024) })
+    await expect(flow.run('results')).rejects.toMatchObject({ statusCode: 503 })
+    expect(network).toHaveBeenCalledTimes(2)
+  })
   it.each(['actor_id', 'classroom_id', 'test_id', 'operation', 'version'] as const)('rejects forged %s acknowledgements', async key => {
     reply = { ...witness(), [key]: key === 'version' ? 2 : learner }
     await expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 503 })

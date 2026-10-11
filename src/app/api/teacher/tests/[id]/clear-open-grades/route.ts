@@ -1,3 +1,4 @@
+import { handleContextualTestOwnerGradingRequest } from '@/lib/server/contextual-test-owner-grading'
 import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
@@ -10,6 +11,8 @@ export const revalidate = 0
 
 // POST /api/teacher/tests/[id]/clear-open-grades - Clear selected open-response grades.
 export const POST = withErrorHandler('ClearTestOpenResponseGrades', async (request, context) => {
+  const contextual = await handleContextualTestOwnerGradingRequest('clear-open-grades', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   let rawBody: unknown

@@ -40,6 +40,8 @@ import { assertTestOwnerReorderDiagnosticAvailable, buildTestOwnerReorderDiagnos
 import { testLearnerNativePlan, validateTestLearnerNativePlanSql, runTestLearnerNativeContracts, runTestLearnerNativeRaces,
   type TestLearnerNativePlan } from './contextual-test-learner-native-contracts'
 import type { TestLearnerObservedAttempt } from './contextual-test-learner-proof-fixture'
+import { testOwnerGradingNativePlan, validateTestOwnerGradingNativePlanSql, runTestOwnerGradingNativeContracts,
+  runTestOwnerGradingNativeRaces } from './contextual-test-owner-grading-native-contracts'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -89,13 +91,14 @@ function freeze<T>(value: T): T {
   return value
 }
 type PublicationPrivilegeKind = 'snapshot247' | 'publication252' | 'legacy139' | 'activation134'
-function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | 'learner' | PublicationPrivilegeKind = 'snapshot') {
+function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | 'learner' | 'owner-grading' | PublicationPrivilegeKind = 'snapshot') {
   const signature = kind === 'snapshot' ? 'public.snapshot_test_draft_save_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'create' ? 'public.create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)'
     : kind === 'discard' ? 'public.discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)'
     : kind === 'discard-inner' ? 'public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)'
     : kind === 'reorder' ? 'public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)'
     : kind === 'learner' ? 'public.test_learner_workflow_v1(uuid,uuid,uuid,text,jsonb,timestamp with time zone)'
+    : kind === 'owner-grading' ? 'public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamp with time zone)'
     : kind === 'snapshot247' ? 'public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'publication252' ? 'public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)'
     : kind === 'legacy139' ? 'public.publish_test_from_draft_atomic(uuid,uuid,integer)'
@@ -525,8 +528,8 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '258_contextual_test_owner_grading.sql';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading';
   learnerCancellation?: TestLearnerNativePlan['cancellation'];
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
@@ -543,6 +546,33 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   runContracts(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<C>;
   runRaces(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<R>;
 }>
+
+/** One fixed grading profile reuses the native engine; there is no public SQL,
+ * resource selector, migration callback or programmable cleanup surface. */
+export function buildTestOwnerGradingNativeContractsManifest(original: AssignmentListProofFixture,
+  observed: readonly TestLearnerObservedAttempt[], reviewedHead: string, repository: string) {
+  const plan = testOwnerGradingNativePlan(original, observed, reviewedHead, repository)
+  return freeze({ ...plan, bootstrap: boot, termination: draftSaveNativeTerminationSql(), close: 'rollback;',
+    capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('owner-grading') })
+}
+export function createTestOwnerGradingNativeContracts(input: NativeOwnerInput & {
+  observedAttempts: readonly TestLearnerObservedAttempt[]; absoluteDeadline: number;
+}) {
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > Date.now())
+  const manifest = buildTestOwnerGradingNativeContractsManifest(input.original, input.observedAttempts,
+    input.reviewedHead, input.repository)
+  const engine = createNativeOwnerContracts(input, { manifest, project: manifest.projectId,
+    sourceFile: '258_contextual_test_owner_grading.sql', label: 'test-owner-grading', absoluteDeadline: input.absoluteDeadline,
+    singleMs: 12000, committedOuterPrivilege: true,
+    validateSql: sql => [manifest.bootstrap, manifest.close, manifest.privilege.catalog, manifest.privilege.revoke].includes(sql)
+      || validateTestOwnerGradingNativePlanSql(manifest, sql),
+    contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    runContracts: (bound, driver) => runTestOwnerGradingNativeContracts(manifest, bound, driver),
+    runRaces: (bound, driver) => runTestOwnerGradingNativeRaces(manifest, bound, driver),
+  })
+  const { manifest: sealed, setup, verifyTarget, diagnostic, run, probeSnapshotPrivilegeDrift } = engine
+  return Object.freeze({ manifest: sealed, setup, verifyTarget, diagnostic, run, probeOwnerGradingPrivilegeDrift: probeSnapshotPrivilegeDrift })
+}
 
 export function buildTestLearnerNativeContractsManifest(original: AssignmentListProofFixture,
   observedAttempts: readonly TestLearnerObservedAttempt[], reviewedHead: string, repository: string) {

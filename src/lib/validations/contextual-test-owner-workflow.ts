@@ -32,7 +32,7 @@ export const contextualTestOwnerReservationSchema = z.object({
 }).strict()
 export const contextualTestOwnerFinalizationSchema = z.object({ document_id: inputUuid, managed_object_id: inputUuid }).strict()
 export const contextualTestOwnerCancellationSchema = z.object({ managed_object_id: inputUuid }).strict()
-export const contextualTestOwnerOperationSchema = z.enum(['inspect', 'update', 'student-access', 'reserve', 'upload', 'verify', 'cancel', 'sync', 'document'])
+export const contextualTestOwnerOperationSchema = z.enum(['inspect', 'update', 'student-access', 'reserve', 'upload', 'verify', 'cancel', 'sync', 'document', 'results', 'manual-save', 'clear-open-grades', 'return'])
 export type TestOwnerOperation = z.infer<typeof contextualTestOwnerOperationSchema>
 export const contextualTestOwnerWitnessSchema = z.object({
   version: z.literal(1), actor_id: inputUuid, classroom_id: inputUuid, test_id: inputUuid,

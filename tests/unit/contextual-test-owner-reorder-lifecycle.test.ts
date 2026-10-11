@@ -29,13 +29,18 @@ const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: names.map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle source contracts', () => {
-  it.each([254, 255, 256, 257])('admits exact complete reviewed migration profile %i', count => {
+  it.each([254, 255, 256, 257, 258])('admits exact complete reviewed migration profile %i', count => {
     expect(() => validateTestOwnerReorderReviewedMigrations(loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count))).not.toThrow()
   })
-  it.each(['future258', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
+  it.each(['future259', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
     const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(m => ({ ...m }))
     const addition = migrations[255]
-    if (defect === 'future258') migrations.push({ name: '258_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    if (defect === 'future259') migrations.push({ name: '259_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    const grading = migrations[257]
+    if (defect === 'bad258name') grading.name = '258_unknown.sql'
+    if (defect === 'bad258digest') grading.sha256 = 'f'.repeat(64)
+    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') grading.sql += '\n'
+    if (defect === 'self-hashed258bytes') grading.sha256 = testOwnerDigest(grading.sql)
     const learner = migrations[256]
     if (defect === 'bad257name') learner.name = '257_unknown.sql'
     if (defect === 'bad257digest') learner.sha256 = 'f'.repeat(64)
