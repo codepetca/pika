@@ -300,8 +300,12 @@ begin
     execute function pg_temp.reject_unpublication_status_update()$late_fault_ddl$;
   perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'55000','forced_unpublication_status_failure','partial draft write rollback');
   execute 'drop trigger reject_unpublication_status_update on public.tests';
-  update public.tests set questions_locked_at=now() where id=test_id;
-  perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_not_eligible','locked questions');
+  begin
+    update public.tests set questions_locked_at=now() where id=test_id;
+    perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_not_eligible','locked questions');
+    --143 makes this lock irreversible; restore the fixture by transaction rollback.
+    raise exception using errcode='ZX261',message='rollback irreversible question-lock probe';
+  exception when sqlstate 'ZX261' then null;end;
 end;
 $reject_cases$;
 
@@ -309,9 +313,12 @@ $reject_cases$;
 -- Additional255/261 parity limits run before the intentional late status fault.
 do $limits261$ declare owner_id uuid:='a2610000-0000-4000-8000-000000000001';
  tid uuid:='a2610000-0000-4000-8000-000000000031';cid uuid:='a2610000-0000-4000-8000-000000000010';
- student_id uuid:='a2610000-0000-4000-8000-000000000003';attempt_id uuid;flag text;prior text;baseline jsonb;
+ student_id uuid:='a2610000-0000-4000-8000-000000000003';attempt_id uuid;flag text;prior text;baseline jsonb;restored integer;
 begin
- update public.tests set questions_locked_at=null where id=tid;
+ update public.tests t set status='closed',questions_locked_at=null where t.id=tid and t.classroom_id=cid;
+ get diagnostics restored=row_count;
+ if restored<>1 or not exists(select 1 from public.tests t where t.id=tid and t.classroom_id=cid and t.status='closed' and t.questions_locked_at is null)
+ then raise exception 'Limits fixture pristine Test differs';end if;
  insert into public.assessment_drafts(assessment_type,assessment_id,classroom_id,content,version,created_by,updated_by)
  values('test',tid,'a2610000-0000-4000-8000-000000000020','{"title":"Synthetic retained draft","show_results":false,"question_identity_version":1,"questions":[]}'::jsonb,1,owner_id,owner_id);
  perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT409','test_unpublish_draft_mismatch','wrong Draft parent');

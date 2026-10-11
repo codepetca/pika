@@ -640,3 +640,11 @@ content while retaining wrong-parent/version/work/parity assertions; no product 
 migration change. Raw error/user data not retained. Fresh source review and complete
 native/CI acceptance remain required; all sharedlocal249+/production259+, promotion,
 provider/account and admission/home/page/cohort/cutover holds unchanged.
+
+Two further fresh isolated attempts retain cleanup/preservation PASS and no native
+acceptance. Reviewed bounded diagnostics identify the later wrong-parent fixture
+failure: legacy PT409/test_unpublish_not_eligible. Installed143 intentionally
+preserves any existing question lock; the earlier locked-question probe left that
+fixture locked. Keep that protection and expected rejection, but rollback the probe
+setup before subsequent limits cases. Source-only correction/verification is in
+progress; no shared schema or product permission changes, no readiness/merge claim.

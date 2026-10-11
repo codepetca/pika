@@ -82,6 +82,19 @@ describe('inert unpublication source proof', () => {
     expect(limits).toContain('classroom_id=cid,version=2147483647')
     expect(limits).toContain("'draft shortcut still fences attempt history'")
   })
+  it('rolls back the irreversible lock probe before the pristine limits fixture',()=>{
+    const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const cases=sql.split('do $reject_cases$')[1].split('$reject_cases$;')[0]
+    expect(cases).toMatch(/begin\s+update public\.tests set questions_locked_at=now\(\) where id=test_id;[\s\S]*?'locked questions'[\s\S]*?errcode='ZX261',message='rollback irreversible question-lock probe'[\s\S]*?exception when sqlstate 'ZX261' then null;end;/)
+    const trigger=readFileSync('supabase/migrations/143_test_prompt_corrections_after_start.sql','utf8')
+    expect(trigger).toContain('if old.questions_locked_at is not null then')
+    expect(trigger).toContain('new.questions_locked_at := old.questions_locked_at;')
+    const limits=sql.split('do $limits261$')[1].split('end;$limits261$;')[0]
+    expect(limits).toContain("update public.tests t set status='closed',questions_locked_at=null where t.id=tid and t.classroom_id=cid;")
+    expect(limits).toContain('get diagnostics restored=row_count')
+    expect(limits).toContain("t.status='closed' and t.questions_locked_at is null")
+    expect(sql).not.toMatch(/disable trigger|session_replication_role/)
+  })
   it.each(['gap','unknown262',...[253,254,255,256,257,258,259,260,261].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
     const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m}))
     if(defect==='gap') inventory.splice(100,1)
