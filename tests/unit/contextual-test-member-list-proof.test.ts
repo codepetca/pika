@@ -157,7 +157,7 @@ describe('finite member Test list fixture', () => {
 })
 describe.each([
   ['student-session projection', '258_student_test_session_status_projection.sql', '7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f'],
-  ['owner grading', '258_contextual_test_owner_grading.sql', '84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c'],
+  ['owner grading', '258_contextual_test_owner_grading.sql', '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540'],
 ] as const)('actual-source member %s migration profile (offline)', (_profile, tailName, tailDigest) => {
   // The complete loader retains numeric-lineage refusal during the rebase.
   // These separately named historical profiles share only the exact001–257 prefix.

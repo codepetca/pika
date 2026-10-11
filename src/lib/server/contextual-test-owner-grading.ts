@@ -24,13 +24,20 @@ export function validateOwnerGradeSaveResult(raw: unknown, studentId: string | n
   const parsed = ownerSaveResultSchema.safeParse(raw)
   if (!parsed.success) throw unavailable()
   const result = parsed.data
+  const cleared = grades.filter(grade => grade.clear_grade)
   if (result.student_id !== studentId || result.saved_count !== grades.length || result.responses.length !== grades.length
-    || result.cleared_count !== grades.filter(grade => grade.clear_grade).length
+    || result.cleared_count !== cleared.length
+    || !sameIds(result.clear_context.map(row => row.response_id), cleared.map(grade => grade.response_id!))
     || !sameIds(result.responses.map(row => row.id), grades.map(grade => grade.response_id!))) throw unavailable()
   for (const row of result.responses) {
     const grade = grades.find(grade => grade.response_id === row.id)!
+    const context = result.clear_context.find(context => context.response_id === row.id)
+    if (context && grade.question_id !== null && context.question_id !== grade.question_id) throw unavailable()
+    // The SQL witness is captured from the current locked question/response,
+    // never inferred from the incoming score or an unfenced follow-up query.
+    const expectedScore = grade.clear_grade && context?.question_type === 'multiple_choice' ? 0 : grade.score
     if (row.revision < grade.expected_response_revision || row.revision > grade.expected_response_revision + 1
-      || row.score !== grade.score || row.feedback !== grade.feedback) throw unavailable()
+      || row.score !== expectedScore || row.feedback !== grade.feedback) throw unavailable()
   }
   return result
 }

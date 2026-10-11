@@ -16,9 +16,12 @@ export function newTestOwnerGradingFixture(original:AssignmentListProofFixture) 
   const id=(label:string)=>{const h=ownerGradingDigest(`${tag}:${label}`);return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-8${h.slice(17,20)}-${h.slice(20,32)}`}
   const responses=[1,2].flatMap(actor=>[0,1].map(question=>({id:id(`response:${actor}:${question}`),
     testId:base.testId,studentId:base.actors[actor].id,questionId:base.questions[question].id,question,revision:1})))
-  const runId=id('ai-run'),runItemId=id('ai-run-item'),allocatedIds=[...base.allocatedIds,...responses.map(r=>r.id),runId,runItemId]
+  // These synthetic IDs are only inserted inside the rollback no-question
+  // contract. They never replace the two product-observed Start identities.
+  const emptyTestId=id('empty-test'),emptyAttemptIds=[id('empty-attempt:1'),id('empty-attempt:2')]
+  const runId=id('ai-run'),runItemId=id('ai-run-item'),allocatedIds=[...base.allocatedIds,...responses.map(r=>r.id),runId,runItemId,emptyTestId,...emptyAttemptIds]
   assert.equal(new Set(allocatedIds).size,allocatedIds.length)
-  return freezeOwnerGrading({...base,tag,responses,runId,runItemId,allocatedIds,nativeVerified:false as const})
+  return freezeOwnerGrading({...base,tag,responses,runId,runItemId,emptyTestId,emptyAttemptIds,allocatedIds,nativeVerified:false as const})
 }
 export type TestOwnerGradingFixture=ReturnType<typeof newTestOwnerGradingFixture>
 export type TestOwnerGradingOperation='results'|'manual-save'|'clear-open-grades'|'return'
@@ -76,15 +79,28 @@ export function validateTestOwnerGradingWitness(f:TestOwnerGradingFixture,reques
       }
     }
   } else if(request.p_operation==='manual-save') {
-    assert.deepEqual(Object.keys(r).sort(),['cleared_count','responses','saved_count','student_id'])
+    assert.deepEqual(Object.keys(r).sort(),['clear_context','cleared_count','responses','saved_count','student_id'])
     assert.equal(r.student_id,payload.student_id);const grades=rows(payload.grades),saved=rows(r.responses)
     assert.equal(saved.length,grades.length);assert.equal(new Set(saved.map(row=>row.id)).size,saved.length)
     assert.equal(count(r.saved_count),grades.length);assert.equal(count(r.cleared_count),grades.filter(grade=>grade.clear_grade===true).length)
+    const context=rows(r.clear_context),clears=grades.filter(grade=>grade.clear_grade===true)
+    assert.equal(context.length,clears.length);assert.equal(new Set(context.map(row=>row.response_id)).size,context.length)
+    for(const row of context) {
+      assert.deepEqual(Object.keys(row).sort(),['question_id','question_type','response_id','selected_option'])
+      const grade=clears.find(grade=>grade.response_id===row.response_id),response=f.responses.find(response=>response.id===row.response_id)
+      assert(grade&&response);assert.equal(row.question_id,response.questionId)
+      if(grade.question_id!==undefined&&grade.question_id!==null)assert.equal(row.question_id,grade.question_id)
+      assert.equal(row.question_type,response.question===0?'open_response':'multiple_choice')
+      if(response.question===0)assert.equal(row.selected_option,null)
+      else assert(Number.isSafeInteger(row.selected_option)&&Number(row.selected_option)>=0&&Number(row.selected_option)<2)
+    }
     for(const grade of grades) {
       const row=saved.find(row=>row.id===grade.response_id);assert(row)
       const revision=count(row.revision),expected=count(grade.expected_response_revision)
       assert(revision>=expected&&revision<=expected+1)
-      assert.equal(row.score,grade.clear_grade?null:grade.score);assert.equal(row.feedback,grade.clear_grade?null:grade.feedback)
+      const cleared=context.find(row=>row.response_id===grade.response_id)
+      assert.equal(row.score,grade.clear_grade?(cleared?.question_type==='multiple_choice'?0:null):grade.score)
+      assert.equal(row.feedback,grade.clear_grade?null:grade.feedback)
     }
   } else {
     assert(Array.isArray(payload.student_ids)&&Array.isArray(r.student_ids));assert.deepEqual([...r.student_ids].sort(),[...payload.student_ids].sort())

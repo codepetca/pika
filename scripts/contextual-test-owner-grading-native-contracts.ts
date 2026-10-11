@@ -15,7 +15,7 @@ import { newTestOwnerGradingFixture, freezeOwnerGrading as freeze, ownerGradingD
 const q=(value:string)=>`'${value.replaceAll("'","''")}'`
 const json=(value:unknown)=>`${q(JSON.stringify(value))}::jsonb`
 const plans=new WeakMap<object,TestOwnerGradingNativePlan>()
-const checks=freeze(['current-nonowner-roster','late-batch-rollback','revision-provenance-review','zero-return-idempotent',
+const checks=freeze(['current-nonowner-roster','late-batch-rollback','answered-mc-clear','revision-provenance-review','zero-return-idempotent',
   'clear-retracts-return','empty-roster-source','logical-source-bound','no-question-return','nonfinite-eligibility-or-constraint',
   'global-closed-finalization','authority-freshness','active-ai-both-orders'])
 function bounded(sql:string){assert(Buffer.byteLength(sql)<=caps.sqlBytes);return sql}
@@ -45,7 +45,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   const tables=[['public.users',`id in (${f.actors.map(a=>q(a.id)).join(',')})`],['public.classrooms',`id in (${q(f.classroomId)},${q(f.wrongClassroomId)})`],
     ['public.classroom_enrollments',`classroom_id=${cid}`],['public.managed_storage_settings','true'],
     ...['tests','test_questions','test_attempts','test_responses','test_student_availability','test_focus_events','test_ai_grading_runs','test_ai_grading_run_items']
-      .map(table=>[`public.${table}`,`${table==='tests'?'id':'test_id'}=${tid}`])]
+      .map(table=>[`public.${table}`,`${table==='tests'?'id':'test_id'} in (${tid},${q(f.emptyTestId)}::uuid)`])]
   const graph=`pg_catalog.jsonb_build_object(${tables.map(([table,predicate])=>`${q(table)},(select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r) order by pg_catalog.to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})`).join(',')})`
   const snapshot=bounded(`begin read only;set local lock_timeout='1s';set local statement_timeout='8s';select ${graph} as result;rollback;`)
   const presence=`do $presence$ begin if not exists(select 1 from public.classrooms where id=${cid} and teacher_id=${owner} and archived_at is null)
@@ -69,6 +69,8 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
     ...f.questions.map((r,i)=>[`a2580000-0000-4000-8000-${String(101+i).padStart(12,'0')}`,r.id] as [string,string]),
     ...f.responses.map((r,i)=>[`a2580000-0000-4000-8000-${String(301+i).padStart(12,'0')}`,r.id] as [string,string]),
     ['a2580000-0000-4000-8000-000000000401',f.runId],
+    ['a2580000-0000-4000-8000-000000000012',f.emptyTestId],
+    ...f.emptyAttemptIds.map((id,i)=>[`a2580000-0000-4000-8000-${String(211+i).padStart(12,'0')}`,id] as [string,string]),
   ])
   for(const [before,after]of replacement)body=body.replaceAll(before,after)
   assert(!body.includes('a2580000-'))

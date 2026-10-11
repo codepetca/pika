@@ -33,6 +33,8 @@ declare
   v_object_id uuid;
   v_content_type text;
   v_grade jsonb;
+  v_clear_row jsonb;
+  v_clear_context jsonb := '[]'::jsonb;
   v_student_id uuid;
   v_source jsonb;
   v_source_invalid boolean;
@@ -233,13 +235,17 @@ begin
         raise exception using errcode = 'PT400', message = 'test_owner_invalid_grades';
       end if;
       for v_grade in select value from jsonb_array_elements(p_payload->'grades') loop
-        perform 1 from public.test_responses r join public.test_questions q on q.id = r.question_id and q.test_id = p_test_id
+        select jsonb_build_object('response_id',r.id,'question_id',q.id,'question_type',q.question_type,'selected_option',r.selected_option)
+          into v_clear_row from public.test_responses r join public.test_questions q on q.id = r.question_id and q.test_id = p_test_id
           join public.classroom_enrollments e on e.student_id = r.student_id and e.classroom_id = v_classroom_id
           where r.id = (v_grade->>'response_id')::uuid and r.test_id = p_test_id and r.student_id <> p_actor_id
             and (v_student_id is null or r.student_id = v_student_id)
             and (v_grade->>'question_id' is null or q.id = (v_grade->>'question_id')::uuid)
-          for update of r nowait;
+          for update of r nowait for share of q nowait;
         if not found then raise exception using errcode = 'PT400', message = 'test_owner_invalid_grade_target'; end if;
+        if (v_grade->>'clear_grade')::boolean then
+          v_clear_context := v_clear_context || jsonb_build_array(v_clear_row);
+        end if;
       end loop;
       v_inner := public.save_test_response_grades_with_provenance_atomic(p_test_id,v_student_id,p_actor_id,p_payload->'grades',clock_timestamp());
       if jsonb_typeof(v_inner) is distinct from 'object' or v_inner - array['saved_count','cleared_count','responses'] <> '{}'::jsonb
@@ -253,13 +259,18 @@ begin
         or exists(select 1 from jsonb_array_elements(p_payload->'grades') g where not exists(
           select 1 from jsonb_array_elements(v_inner->'responses') r
           join public.test_responses saved on saved.id::text = r->>'id' and saved.test_id = p_test_id
+          left join jsonb_array_elements(v_clear_context) context on context->>'response_id' = r->>'id'
           where r->>'id' = (g->>'response_id')::uuid::text
             and r = jsonb_build_object('id',saved.id,'revision',saved.revision,'score',saved.score,'feedback',saved.feedback)
-            and saved.score is not distinct from (g->>'score')::numeric
+            -- The inherited shape trigger normalizes answered MC null to zero.
+            -- Only actual locked clear targets receive that exception.
+            and saved.score is not distinct from (case when (g->>'clear_grade')::boolean
+              and context->>'question_type' = 'multiple_choice' and context->>'selected_option' is not null
+              then 0::numeric else (g->>'score')::numeric end)
             and saved.feedback is not distinct from (g->>'feedback')
             and saved.revision between (g->>'expected_response_revision')::bigint and (g->>'expected_response_revision')::bigint + 1
         )) then raise exception using errcode = 'PT503', message = 'test_owner_postcondition'; end if;
-      v_result := v_inner || jsonb_build_object('student_id',v_student_id);
+      v_result := v_inner || jsonb_build_object('student_id',v_student_id,'clear_context',v_clear_context);
     else
       if p_payload - (case when p_operation = 'return' then array['student_ids'] else array['student_ids','responses'] end) <> '{}'::jsonb
         or jsonb_typeof(p_payload->'student_ids') is distinct from 'array' then

@@ -48,6 +48,10 @@ all-or-nothing batches and signed AI-provenance verification. Omitted suggestion
 metadata preserves it; explicit clearing removes it. Existing review triggers
 own final outcomes and do not increment revisions for metadata-only changes.
 Accepting an existing signed suggestion authorizes no provider operation.
+Clearing an answered multiple-choice score preserves the inherited normalized
+zero; open-response clears remain null. An internal, exact clear-target witness
+comes from locked current responses/questions before the existing writer. The
+server validates it and the saved rows, then omits it from the public envelope.
 
 Clear-open requires the complete expected current open-response set and its
 revisions; multiple-choice grades stay untouched. Clearing a required grade
@@ -110,6 +114,10 @@ Actual disposable full-chain replay, service-only ACL/search-path verification,
 SDK/PostgREST requests with abort signals, revision/review trigger behavior,
 late-fault rollback and both relevant contention orders are separate required
 evidence. Mocks and source seals alone are not native acceptance.
+The no-question return proof uses a separate, initially empty synthetic Test in
+a rollback scope; it never deletes or unlocks started questions. The finite
+grading proof also exercises answered-MC single clear, mixed clear/edit batches
+and complete versus incomplete returned-work behavior with ordinary triggers.
 
 Reuse existing finite verification machinery. No new permission framework,
 per-route rollout flags, database tables or verification platform are needed.

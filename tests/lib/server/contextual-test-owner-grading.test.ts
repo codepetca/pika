@@ -15,7 +15,7 @@ vi.mock('@/lib/server/test-ai-provenance', () => ({ verifyManualTestAiProvenance
 
 function request(body?: unknown) { return new Request('https://example.test/api', body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }) }
 const grade = { response_id: responseId, question_id: null, expected_response_revision: 3, clear_grade: false, score: 4.25, feedback: 'Good' }
-const saved = { student_id: student, saved_count: 1, cleared_count: 0, responses: [{ id: responseId, revision: 4, score: 4.25, feedback: 'Good' }] }
+const saved = { student_id: student, saved_count: 1, cleared_count: 0, clear_context: [], responses: [{ id: responseId, revision: 4, score: 4.25, feedback: 'Good' }] }
 const stamp = '2026-10-10T12:00:00Z'
 const questionId = '55555555-5555-4555-8555-555555555555'
 const test = { id: testId, classroom_id: '66666666-6666-4666-8666-666666666666', title: 'Test', status: 'active' as const, show_results: false, documents: [],
@@ -107,7 +107,7 @@ describe('contextual Test owner grading', () => {
     expect(payload.grades[0]).not.toHaveProperty('ai_provenance_token')
   })
   it('transports explicit grade clearing and verifies the null outcome', async () => {
-    mocks.run.mockResolvedValue({ result: { student_id: null, saved_count: 1, cleared_count: 1, responses: [{ id: responseId, revision: 4, score: null, feedback: null }] } })
+    mocks.run.mockResolvedValue({ result: { student_id: null, saved_count: 1, cleared_count: 1, clear_context: [{ response_id: responseId, question_id: questionId, question_type: 'open_response', selected_option: null }], responses: [{ id: responseId, revision: 4, score: null, feedback: null }] } })
     const result = await handleContextualTestOwnerGradingRequest('response-save', request({ expected_response_revision: 3, clear_grade: true }), Promise.resolve({ id: testId, responseId }))
     expect(await result!.json()).toEqual({ response: { id: responseId, revision: 4, score: null, feedback: null } })
     expect(mocks.run.mock.calls[0][1].grades[0]).toMatchObject({ clear_grade: true, score: null, feedback: null, ai_grading_basis: null, ai_grading_provenance: null })
@@ -119,6 +119,50 @@ describe('contextual Test owner grading', () => {
       ...[{ id: actor }, { revision: 2 }, { revision: 5 }, { score: 4 }, { feedback: 'forged' }].map(change => ({ ...saved, responses: [{ ...saved.responses[0], ...change }] })) ]) {
       expect(() => validateOwnerGradeSaveResult(result, student, [grade])).toThrowError('Unable to verify test operation')
     }
+  })
+  it.each(['response-save', 'student-save'] as const)('accepts locked answered-MC clear normalization on %s without exposing its witness', async operation => {
+    const response = { id: responseId, revision: 4, score: 0, feedback: null }
+    mocks.run.mockResolvedValue({ result: { student_id: operation === 'response-save' ? null : student, saved_count: 1, cleared_count: 1,
+      clear_context: [{ response_id: responseId, question_id: questionId, question_type: 'multiple_choice', selected_option: 0 }], responses: [response] } })
+    const input = { response_id: responseId, question_id: questionId, expected_response_revision: 3, clear_grade: true }
+    const result = await handleContextualTestOwnerGradingRequest(operation, request(operation === 'response-save' ? input : { grades: [input] }), Promise.resolve({ id: testId, studentId: student, responseId }))
+    expect(await result!.json()).toEqual(operation === 'response-save' ? { response } : { saved_count: 1, responses: [response] })
+    expect(mocks.run).toHaveBeenCalledOnce(); expect(mocks.inspect).toHaveBeenCalledOnce()
+  })
+  it('accepts a mixed answered-MC clear/open edit batch and keeps unchanged-revision clears', () => {
+    const clear = { ...grade, question_id: questionId, clear_grade: true, score: null, feedback: null }
+    const edit = { ...grade, response_id: actor, question_id: testId }
+    const context = { response_id: responseId, question_id: questionId, question_type: 'multiple_choice', selected_option: 0 }
+    const result = { ...saved, saved_count: 2, cleared_count: 1, clear_context: [context], responses: [
+      { id: responseId, revision: 3, score: 0, feedback: null }, { ...saved.responses[0], id: actor },
+    ] }
+    expect(validateOwnerGradeSaveResult(result, student, [clear, edit])).toEqual(result)
+  })
+  it('binds every answered-MC clear in a reordered multi-response batch', () => {
+    const first = { ...grade, question_id: questionId, clear_grade: true, score: null, feedback: null }
+    const second = { ...first, response_id: actor, question_id: testId, expected_response_revision: 9 }
+    const context = { response_id: responseId, question_id: questionId, question_type: 'multiple_choice', selected_option: 0 }
+    const result = { ...saved, saved_count: 2, cleared_count: 2, clear_context: [context, { ...context, response_id: actor, question_id: testId, selected_option: 1 }],
+      responses: [{ id: actor, revision: 10, score: 0, feedback: null }, { id: responseId, revision: 4, score: 0, feedback: null }] }
+    expect(validateOwnerGradeSaveResult(result, student, [first, second])).toEqual(result)
+    expect(() => validateOwnerGradeSaveResult({ ...result, clear_context: [...result.clear_context].reverse().map(row => ({ ...row, question_id: questionId })) }, student, [first, second])).toThrow()
+  })
+  it('rejects missing, extra, mismatched and forged normalization contexts and outcomes', () => {
+    const clear = { ...grade, question_id: questionId, clear_grade: true, score: null, feedback: null }
+    const context = { response_id: responseId, question_id: questionId, question_type: 'multiple_choice', selected_option: 0 }
+    const result = { ...saved, cleared_count: 1, clear_context: [context], responses: [{ id: responseId, revision: 4, score: 0, feedback: null }] }
+    const invalid = [
+      { ...result, clear_context: undefined }, { ...result, clear_context: [] }, { ...result, clear_context: [context, context] },
+      ...[{ response_id: actor }, { question_id: actor }, { selected_option: null }, { selected_option: -1 }, { question_type: 'open_response' }, { private: true }]
+        .map(change => ({ ...result, clear_context: [{ ...context, ...change }] })),
+      ...[{ revision: 2 }, { revision: 5 }, { score: null }, { score: 1 }, { feedback: 'forged' }]
+        .map(change => ({ ...result, responses: [{ ...result.responses[0], ...change }] })),
+      { ...result, clear_context: [{ ...context, question_type: 'open_response', selected_option: null }] },
+    ]
+    for (const raw of invalid) expect(() => validateOwnerGradeSaveResult(raw, student, [clear])).toThrowError('Unable to verify test operation')
+    expect(() => validateOwnerGradeSaveResult({ ...saved, clear_context: [context] }, student, [grade])).toThrowError('Unable to verify test operation')
+    const open = { ...result, clear_context: [{ ...context, question_type: 'open_response', selected_option: null }], responses: [{ ...result.responses[0], score: null }] }
+    expect(validateOwnerGradeSaveResult(open, student, [clear])).toEqual(open)
   })
   it('projects current member grades, deliberate zero, sorted identity and the exact public envelope', () => {
     const result = projectOwnerTestResults(test, source(), actor)

@@ -48,6 +48,7 @@ declare
  class_id uuid:='a2580000-0000-4000-8000-000000000010';
  wrong_class uuid:='a2580000-0000-4000-8000-000000000019';
  test_id uuid:='a2580000-0000-4000-8000-000000000011';
+ empty_test_id uuid:='a2580000-0000-4000-8000-000000000012';
  open_question uuid:='a2580000-0000-4000-8000-000000000101';
  open_response uuid:='a2580000-0000-4000-8000-000000000301';
  peer_response uuid:='a2580000-0000-4000-8000-000000000303';
@@ -102,6 +103,41 @@ begin
  exception when sqlstate 'PT409' then null;end;
  select jsonb_agg(to_jsonb(r) order by r.id) into after_rows from public.test_responses r where r.test_id=test_id;
  if after_rows is distinct from before_rows then raise exception 'late-batch-rollback changed rows';end if;
+ -- answered-mc-clear: preserve the inherited trigger's normalized zero. This
+ -- nested scope tests single clear, a mixed batch, and returned-work semantics
+ -- without changing the fixture used by the remaining contracts.
+ begin
+  select r.revision into revision from public.test_responses r where r.id='a2580000-0000-4000-8000-000000000302';
+  result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',null,'grades',jsonb_build_array(
+   jsonb_build_object('response_id','a2580000-0000-4000-8000-000000000302','expected_response_revision',revision,'clear_grade',true,'score',null,'feedback',null))),expected_test,clock_timestamp()+interval '25 seconds');
+  if result#>'{result,student_id}'<>'null'::jsonb or result#>>'{result,saved_count}'<>'1' or result#>>'{result,cleared_count}'<>'1'
+   or (result#>>'{result,responses,0,score}')::numeric is distinct from 0::numeric
+   or (result#>>'{result,responses,0,revision}')::bigint is distinct from revision+1
+   or result#>'{result,responses,0,feedback}'<>'null'::jsonb
+   or result#>'{result,clear_context}' is distinct from jsonb_build_array(jsonb_build_object('response_id','a2580000-0000-4000-8000-000000000302','question_id','a2580000-0000-4000-8000-000000000102','question_type','multiple_choice','selected_option',0))
+   then raise exception 'Answered MC single clear differs';end if;
+  result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',member_id,'grades',jsonb_build_array(
+   jsonb_build_object('response_id','a2580000-0000-4000-8000-000000000302','question_id','a2580000-0000-4000-8000-000000000102','expected_response_revision',(select r.revision from public.test_responses r where r.id='a2580000-0000-4000-8000-000000000302'),'clear_grade',true,'score',null,'feedback',null),
+   jsonb_build_object('response_id',open_response,'question_id',open_question,'expected_response_revision',(select r.revision from public.test_responses r where r.id=open_response),'clear_grade',false,'score',0,'feedback','Mixed MC clear/open edit'))),expected_test,clock_timestamp()+interval '25 seconds');
+  if result#>>'{result,saved_count}'<>'2' or result#>>'{result,cleared_count}'<>'1'
+   or (select r.score from public.test_responses r where r.id='a2580000-0000-4000-8000-000000000302') is distinct from 0::numeric
+   or (select r.score from public.test_responses r where r.id=open_response) is distinct from 0::numeric
+   or (select r.feedback from public.test_responses r where r.id=open_response) is distinct from 'Mixed MC clear/open edit'
+   then raise exception 'Answered MC mixed clear/edit batch differs';end if;
+  result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id)),expected_test,clock_timestamp()+interval '25 seconds');
+  if result#>>'{result,returned_count}'<>'1' then raise exception 'Answered MC normalized zero is not return eligible';end if;
+  select a.returned_at into returned_stamp from public.test_attempts a where a.test_id=test_id and a.student_id=member_id;
+  perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',member_id,'grades',jsonb_build_array(
+   jsonb_build_object('response_id','a2580000-0000-4000-8000-000000000302','question_id','a2580000-0000-4000-8000-000000000102','expected_response_revision',(select r.revision from public.test_responses r where r.id='a2580000-0000-4000-8000-000000000302'),'clear_grade',true,'score',null,'feedback',null))),expected_test,clock_timestamp()+interval '25 seconds');
+  if returned_stamp is null or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is distinct from returned_stamp
+   then raise exception 'Answered MC clear revoked complete return';end if;
+  perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',member_id,'grades',jsonb_build_array(
+   jsonb_build_object('response_id',open_response,'question_id',open_question,'expected_response_revision',(select r.revision from public.test_responses r where r.id=open_response),'clear_grade',true,'score',null,'feedback',null))),expected_test,clock_timestamp()+interval '25 seconds');
+  if (select r.score from public.test_responses r where r.id=open_response) is not null
+   or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is not null
+   then raise exception 'Open clear did not revoke incomplete return';end if;
+  raise exception using errcode='ZX258',message='Rollback answered MC clear';
+ exception when sqlstate 'ZX258' then null;end;
  -- revision-provenance-review: manual edit preserves source suggestion metadata.
  select ai_grading_provenance,ai_grading_review into provenance_before,review_before from public.test_responses where id=open_response;
  result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',member_id,'grades',jsonb_build_array(grade)),expected_test,clock_timestamp()+interval '25 seconds');
@@ -172,11 +208,19 @@ begin
   raise exception using errcode='ZX258',message='Rollback JSON escaped source bound';
  exception when sqlstate 'ZX258' then null;end;
  begin
-  delete from public.test_questions q where q.test_id=test_id;
-  result:=public.test_owner_workflow_v1(owner_id,test_id,null,'inspect','{}',null,clock_timestamp()+interval '25 seconds');fresh_test:=result->'test';
-  result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id,peer_id)),fresh_test,clock_timestamp()+interval '25 seconds');
+  -- Never delete or unlock started questions. This separate synthetic Test is
+  -- empty from the outset, with ordinary triggers retained throughout.
+  insert into public.tests(id,classroom_id,title,status,created_by,points_possible,show_results) values
+   (empty_test_id,class_id,'Initially empty owner grading','active',owner_id,1,false);
+  insert into public.test_attempts(id,test_id,student_id,is_submitted,submitted_at,responses) values
+   ('a2580000-0000-4000-8000-000000000211',empty_test_id,member_id,true,clock_timestamp(),'{}'),
+   ('a2580000-0000-4000-8000-000000000212',empty_test_id,peer_id,true,clock_timestamp(),'{}');
+  insert into public.test_student_availability(test_id,student_id,state,updated_by) values
+   (empty_test_id,member_id,'closed',owner_id),(empty_test_id,peer_id,'closed',owner_id);
+  result:=public.test_owner_workflow_v1(owner_id,empty_test_id,null,'inspect','{}',null,clock_timestamp()+interval '25 seconds');fresh_test:=result->'test';
+  result:=public.test_owner_workflow_v1(owner_id,empty_test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id,peer_id)),fresh_test,clock_timestamp()+interval '25 seconds');
   if result#>>'{result,returned_count}'<>'0' or result#>>'{result,already_returned_count}'<>'0' or result#>>'{result,skipped_count}'<>'2'
-   or exists(select 1 from public.test_attempts a where a.test_id=test_id and a.returned_at is not null) then raise exception 'No-question return eligibility differs';end if;
+   or exists(select 1 from public.test_attempts a where a.test_id=empty_test_id and a.returned_at is not null) then raise exception 'No-question return eligibility differs';end if;
   raise exception using errcode='ZX258',message='Rollback no-question selection';
  exception when sqlstate 'ZX258' then null;end;
  begin
@@ -289,5 +333,5 @@ begin
 end;
 $contracts$;
 -- owner-grading-contracts-end
-select jsonb_build_object('checks',jsonb_build_array('current-nonowner-roster','late-batch-rollback','revision-provenance-review','zero-return-idempotent','clear-retracts-return','empty-roster-source','logical-source-bound','no-question-return','nonfinite-eligibility-or-constraint','global-closed-finalization','authority-freshness','active-ai-both-orders')) as result;
+select jsonb_build_object('checks',jsonb_build_array('current-nonowner-roster','late-batch-rollback','answered-mc-clear','revision-provenance-review','zero-return-idempotent','clear-retracts-return','empty-roster-source','logical-source-bound','no-question-return','nonfinite-eligibility-or-constraint','global-closed-finalization','authority-freshness','active-ai-both-orders')) as result;
 rollback;
