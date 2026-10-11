@@ -26,6 +26,36 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('UiConsistencyPattern retires the plain split menu before its %s visual exit', role => {
+    renderGallery(role)
+    const section = document.getElementById('ui-consistency')!
+    const example = within(section)
+    const trigger = example.getByRole('button', { name: 'Example actions' })
+    fireEvent.click(trigger)
+    const menu = example.getByRole('menu')
+    menu.style.setProperty('--motion-duration-fast', '150ms')
+    const command = within(menu).getByRole('menuitem', { name: 'First action' })
+    expect(command).toHaveFocus()
+    expect(within(menu).getByRole('menuitem', { name: 'Unavailable action' })).toBeDisabled()
+    fireEvent.keyDown(command, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(example.queryByRole('menu')).not.toBeInTheDocument()
+    const closing = section.querySelector<HTMLElement>('[data-menu-closing]')
+    expect(closing).toBeInTheDocument()
+    expect(closing).toHaveAttribute('aria-hidden', 'true')
+    expect(closing?.inert).toBe(true)
+    expect(closing).not.toContainElement(command)
+    fireEvent.click(command)
+    expect(example.getByRole('status')).toHaveTextContent('No action selected')
+    fireEvent.click(trigger)
+    fireEvent.keyDown(example.getByRole('menuitem', { name: 'First action' }), { key: 'End' })
+    expect(example.getByRole('menuitem', { name: 'Last action' })).toHaveFocus()
+    fireEvent.click(example.getByRole('menuitem', { name: 'Last action' }))
+    expect(example.getByRole('status')).toHaveTextContent('Last selected')
+    expect(section.querySelector<HTMLElement>('[data-menu-closing]')).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('previews shared menu retirement and dialog focus handoff for %s', role => {
     renderGallery(role)
     const example = within(screen.getByTestId('page-action-icons-example'))

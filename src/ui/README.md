@@ -548,3 +548,10 @@ ESLint and CI enforce that app code imports from `@/ui`:
 Approved classroom entry is opt-in via Classwork/Tests
 `workspaceFrameClassName`; the shared shell does not animate every consumer.
 Student Classwork opts in on its existing selected-content frame.
+
+
+### SplitButton menu dismissal
+
+`SplitButton` removes live menu children, commands, preview ownership and document listeners at logical dismissal. `exitMotion="opacity"` optionally retains an inert, aria-hidden presentation for the semantic fast duration with standard easing; default dismissal is immediate. Eligibility requires every option label to be a string or number and every caller icon to be null or absent. Checked marks, grouping and disabled/destructive styling are copied as primitive presentation; arbitrary children and callbacks are never rendered during exit.
+
+Committed options identity changes during closing, disabled/inactive/empty/all-disabled owners, unmount and reduced motion remove the presentation immediately. Open menus resolve current commands by ID across parent renders. Reopening cancels old expiry and deferred focus/Tab work. Material's plain-text action chooser opts in; saving, read-only and preview state retire its authority.
