@@ -437,7 +437,30 @@ CI38050378092 passed all8jobs/PRGate and clean canonical main fast-forwarded.
 Eight completed independent review turns retain earlier failure/remediation/base-
 sync receipts; no repeated full review or administrator bypass. No batch2 exit.
 
-The next coherent dormant
+Current superseding receipt — 2026-10-11: learner Test PR #1561 merged normally
+as squash `517d272abd0090e598092f1fa1bdf5d28b9bf13f`, reviewed head
+`1aedb41561cc19b2804c831dc6f6defe9ec86d61`. All ten exact-head CI checks,
+including PR Gate, passed in run `38102771099`; the clean canonical main checkout
+fast-forwarded to the merge. Whole disposable001–257 proof, generated types,
+cleanup and preservation passed before readiness. The six prior one-off native
+permissions are consumed. No shared local/production257 application, promotion,
+admission activation or batch-2 exit follows from this receipt.
+
+The owner authorized orchestration of the next coherent dormant group:
+[Test owner inspection, manual grading and return](contextual-test-owner-grading.md).
+Keep the five existing results/single-grade/batch-grade/clear/return endpoints;
+selected learner inspection already uses results, so no new attempt GET is
+needed. Reuse the current owner transaction protocol and inherited atomic grade,
+provenance, review and return writers. Current nonowner roster and fixed parent,
+archive/purge/membership fences must govern the transaction, independently of
+the historical account role. Existing learner disclosure remains unchanged.
+Unsubmit/deletion, UI, provider work and rollout controls are excluded. Actual
+database/SDK/concurrency evidence and normal final-head review/CI remain required;
+source preparation does not authorize another disposable or shared migration.
+
+The following learner checkpoint is historical and superseded by the merged
+receipt above, not an instruction to repeat its preparation or native attempts.
+The prior coherent dormant
 [learner Test group](contextual-test-learner-workflow.md) on
 `codex/learner-test-workflow` is draft PR #1561, reconciled onto current main
 `03fca4506` after the owner merge, database CI partition and later UI/history sync:

@@ -1,3 +1,4 @@
+import { handleContextualTestOwnerGradingRequest } from '@/lib/server/contextual-test-owner-grading'
 import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
@@ -10,6 +11,8 @@ export const revalidate = 0
 
 // PATCH /api/teacher/tests/[id]/responses/[responseId] - Grade one test response.
 export const PATCH = withErrorHandler('GradeTeacherTestResponse', async (request, context) => {
+  const contextual = await handleContextualTestOwnerGradingRequest('response-save', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId, responseId } = await context.params
   let rawBody: unknown
