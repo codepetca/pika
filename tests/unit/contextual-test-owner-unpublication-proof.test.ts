@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
-import { newTestOwnerUnpublicationFixture } from '../../scripts/contextual-test-owner-unpublication-proof-fixture'
+import { newTestOwnerUnpublicationFixture,testOwnerUnpublicationSetupSql } from '../../scripts/contextual-test-owner-unpublication-proof-fixture'
+import { testOwnerPublicationSetupSql } from '../../scripts/contextual-test-publication-proof-fixture'
+import * as publicationFixture from '../../scripts/contextual-test-publication-proof-fixture'
 import { testOwnerUnpublicationNativePlan, validateTestOwnerUnpublicationNativePlanSql,runTestOwnerUnpublicationNativeContracts,runTestOwnerUnpublicationNativeRaces } from '../../scripts/contextual-test-owner-unpublication-native-contracts'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { buildTestOwnerUnpublicationNativeContractsManifest } from '../../scripts/contextual-test-draft-save-native-contracts'
@@ -25,6 +27,60 @@ describe('inert unpublication source proof', () => {
     expect(f.tests.every(t => t.status === 'closed' && t.questions_locked_at === null)).toBe(true)
     expect(f).not.toHaveProperty('observedAttempts')
     expect(f.allocatedIds.length).toBe(new Set(f.allocatedIds).size)
+  })
+  it('fits the actual fixed256KiB preparation input boundary without removing bulk rows',()=>{
+    const f=newTestOwnerUnpublicationFixture(original),sql=testOwnerUnpublicationSetupSql(f,`pika_assignment_list_${f.tag.slice(-12)}`)
+    expect(Buffer.byteLength(sql)).toBeLessThanOrEqual(256*1024)
+    expect(f.questions.filter(q=>q.test_id===f.publicationBase.cases[2].testId)).toHaveLength(1001)
+    expect(sql).toContain('with ordinality as b(row_id,artifact_id,ordinal)')
+    expect(sql).toContain('Publication namespace collision')
+    expect(sql).toContain("set local lock_timeout='3s';set local statement_timeout='30s'")
+    expect(sql.match(/\bcommit;/g)).toHaveLength(1)
+  })
+  it('changes only the one repeated bulk content expression and matches its complete row oracle',()=>{
+    const f=newTestOwnerUnpublicationFixture(original),project=`pika_assignment_list_${f.tag.slice(-12)}`
+    const sql=testOwnerUnpublicationSetupSql(f,project),bulkTest=f.publicationBase.tests[2]
+    const draft=f.publicationBase.drafts.find(d=>d.assessment_id===bulkTest.id)!
+    const expression=/\/\* unpublication-bulk-draft \*\/([\s\S]*?)\/\* end-unpublication-bulk-draft \*\//.exec(sql)
+    expect(expression).not.toBeNull()
+    const content={title:draft.content.title,show_results:draft.content.show_results,question_identity_version:1,
+      questions:f.questions.filter(q=>q.test_id===bulkTest.id).sort((a,b)=>a.position-b.position||a.id.localeCompare(b.id)).map(q=>({
+        id:q.source_artifact_id??q.artifact_id??q.id,question_type:q.question_type,question_text:q.question_text,
+        options:[...q.options],correct_option:q.correct_option,answer_key:q.answer_key,sample_solution:q.sample_solution,
+        points:q.points,response_max_chars:q.response_max_chars,response_monospace:q.response_monospace,
+      }))}
+    expect({...draft,content}).toEqual(draft)
+    const q=(s:string)=>`'${s.replaceAll("'","''")}'`
+    const originalSql=testOwnerPublicationSetupSql(f.publicationBase,project).replaceAll("'draft'","'closed'")
+    const expected=`${originalSql.slice(0,-'commit;'.length)}\ninsert into public.classroom_enrollments(id,classroom_id,student_id) values(${q(f.selfEnrollmentId)},${q(f.classes[1].id)},${q(f.actors[1].id)});commit;`
+    expect(sql.replace(expression![0],`${q(JSON.stringify(draft.content))}::jsonb`)).toBe(expected)
+    expect(sql.indexOf('with ordinality as b(row_id,artifact_id,ordinal)')).toBeLessThan(sql.indexOf(expression![0]))
+    expect(expression![1]).toContain(`where question.test_id=${q(bulkTest.id)}::uuid`)
+    for(const key of ['question_type','question_text','options','correct_option','answer_key','sample_solution','points','response_max_chars','response_monospace'])
+      expect(expression![1]).toContain(`'${key}',question.${key}`)
+    expect(expression![1]).toContain('order by question.position,question.id')
+    expect(expression![1]).toContain("'points',question.points::integer")
+  })
+  it.each(['row-drift','content-drift','marker-drift','count-drift'])('refuses unsupported bulk fixture %s instead of changing its full rows',defect=>{
+    const f=structuredClone(newTestOwnerUnpublicationFixture(original)),tid=f.publicationBase.cases[2].testId
+    if(defect==='row-drift') f.publicationBase.questions.find((q,i)=>q.test_id===tid&&i>5)!.answer_key='Unsupported varied bulk answer'
+    if(defect==='content-drift') f.publicationBase.drafts.find(d=>d.assessment_id===tid)!.content.questions[0].question_text='Unsupported stale bulk Draft'
+    if(defect==='marker-drift') f.publicationBase.drafts.find(d=>d.assessment_id===tid)!.content.question_identity_version=2
+    if(defect==='count-drift') f.publicationBase.questions.splice(f.publicationBase.questions.findIndex(q=>q.test_id===tid),1)
+    expect(()=>testOwnerUnpublicationSetupSql(f,`pika_assignment_list_${f.tag.slice(-12)}`)).toThrow()
+  })
+  it.each(['missing','duplicate'])('requires exactly one inherited fixed bulk content literal: %s',defect=>{
+    const f=newTestOwnerUnpublicationFixture(original),project=`pika_assignment_list_${f.tag.slice(-12)}`
+    const draft=f.publicationBase.drafts.find(d=>d.assessment_id===f.publicationBase.cases[2].testId)!
+    const literal=`'${JSON.stringify(draft.content).replaceAll("'","''")}'::jsonb`,sql=testOwnerPublicationSetupSql(f.publicationBase,project)
+    const altered=defect==='missing'?sql.replace(literal,"'{}'::jsonb"):sql.replace('commit;',`select ${literal};commit;`)
+    const source=vi.spyOn(publicationFixture,'testOwnerPublicationSetupSql').mockReturnValueOnce(altered)
+    try{expect(()=>testOwnerUnpublicationSetupSql(f,project)).toThrow()}finally{source.mockRestore()}
+  })
+  it('keeps every inert unpublication SQL frame within the actual fixed runner input cap',()=>{
+    const m=buildTestOwnerUnpublicationNativeContractsManifest(original,'b'.repeat(40),process.cwd())
+    for(const sql of [m.bootstrap,m.guard,m.preparation,m.setup,m.snapshot,m.contracts.sql,m.privilege.catalog,m.privilege.revoke,m.privilege.restore,
+      ...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) expect(Buffer.byteLength(sql)).toBeLessThanOrEqual(256*1024)
   })
   it('binds actual current bytes to the externally fixed seal', () => {
     const name = TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql = readFileSync(`supabase/migrations/${name}`, 'utf8')

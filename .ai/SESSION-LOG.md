@@ -654,3 +654,15 @@ corrects an initial version-reset guess:171 intentionally rejects provider-bindi
 DELETE. Preserve that retained evidence guard and isolate the synthetic provider
 fence setup/assertion with rollback instead of deleting its immutable binding.
 No native acceptance; independent review/current-source proof remain required.
+
+Current bd12564f focused2137/120files plus policies/tsc/lint PASS; provider-fixture
+delta reviewed clean36s. Eleven completed reviews1383measured seconds/two formal
+findings resolved/nine fix batches/four draft correction pushes retained. Eighth
+fresh exact-source abd33efe796a now passes001–261/productrollbackcontractsACLs and
+genuineCLItypes438871B byte-equal7b2ab664acf1cc1808a227d1803aca392c854fe2d6650ab41579cabcdd89f00f.
+Later fixture preparation fails before dispatch:453657-byte generated setup exceeds
+unchanged256KiB runner limit. Exactcleanup/global741/canonical183tables+2cron PASS.
+Compact only inherited bulk Draft content into source-equivalent SQL derived from
+already inserted1001questions; retain all IDs/rows/content/cases/guards and caps.
+Correction verification/review/fresh nativeSDK/heldlocks/cancellation/CI pending;
+partial actual passes are not full native acceptance, merge or rollout. Holds remain.
