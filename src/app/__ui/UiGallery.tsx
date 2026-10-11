@@ -73,6 +73,7 @@ import { StatusPatterns } from './StatusPatterns'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentControllerPattern } from './AssignmentControllerPattern'
+import { TestControllerPattern } from './TestControllerPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
 import { SurveyEditSplitPattern } from './SurveyEditSplitPattern'
@@ -171,9 +172,10 @@ const QUICK_LINK_LABELS: Record<string, string> = {
 interface Props {
   role: Role
   assignmentControllerFixture?: boolean
+  testControllerFixture?: boolean
 }
 
-export function UiGallery({ role, assignmentControllerFixture = false }: Props) {
+export function UiGallery({ role, assignmentControllerFixture = false, testControllerFixture = false }: Props) {
   const { theme, mounted, toggleTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
@@ -743,6 +745,7 @@ export function UiGallery({ role, assignmentControllerFixture = false }: Props) 
             </PatternSection>
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'teacher' && assignmentControllerFixture && <AssignmentControllerPattern />}
+            {role === 'teacher' && testControllerFixture && <TestControllerPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
               title="Guided assignment Markdown" description="The production assignment renderer with a fixed coding reference for both classroom roles.">

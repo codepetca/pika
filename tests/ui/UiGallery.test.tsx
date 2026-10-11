@@ -15,11 +15,11 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: () => <div />,
 }))
 
-function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentControllerFixture = false) {
+function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentControllerFixture = false, testControllerFixture = false) {
   return render(
     <ThemeProvider>
       <TooltipProvider>
-        <UiGallery role={role} assignmentControllerFixture={assignmentControllerFixture} />
+        <UiGallery role={role} assignmentControllerFixture={assignmentControllerFixture} testControllerFixture={testControllerFixture} />
       </TooltipProvider>
     </ThemeProvider>,
   )
@@ -29,6 +29,7 @@ describe('UiGallery accessibility contracts', () => {
   it.each(['teacher', 'student'] as const)('keeps AssignmentControllerPattern absent from ordinary %s references', role => {
     renderGallery(role)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
   })
 
   it('renders the explicitly enabled teacher fixture closed', () => {
@@ -42,6 +43,19 @@ describe('UiGallery accessibility contracts', () => {
   it('keeps the enabled AssignmentControllerPattern absent for students', () => {
     renderGallery('student', true)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it('renders the explicitly enabled teacher TestControllerPattern closed', () => {
+    renderGallery('teacher', false, true)
+    const fixture = within(screen.getByTestId('test-controller-fixture'))
+    expect(fixture.getByRole('button', { name: 'Open controlled test' })).toBeVisible()
+    // The real teacher shell portals outside the fixture; keep this global.
+    expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the enabled TestControllerPattern absent for students', () => {
+    renderGallery('student', false, true)
+    expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
   })
 
   it.each(['teacher', 'student'] as const)('UiConsistencyPattern retires the plain split menu before its %s visual exit', role => {

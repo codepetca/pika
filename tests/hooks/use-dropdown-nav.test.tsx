@@ -2,9 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { useDropdownNav } from '@/hooks/use-dropdown-nav'
 
-function MenuHarness() {
+function MenuHarness({ interactionActive = true }: { interactionActive?: boolean }) {
   const menu = useDropdownNav({
     itemCount: 3,
+    interactionActive,
     isItemDisabled: (index) => index === 1,
   })
 
@@ -70,5 +71,27 @@ describe('useDropdownNav', () => {
     fireEvent.keyDown(last, { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
+  })
+})
+
+
+describe('useDropdownNav interaction availability', () => {
+  it('retires an open menu immediately and rejects captured keys on inactive and unmounted owners', () => {
+    const view = render(<MenuHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+    const item = screen.getByRole('menuitem', { name: 'First' })
+    const key = Object.keys(item).find((name) => name.startsWith('__reactProps$'))!
+    const oldKeys = (item as unknown as Record<string, { onKeyDown: (event: { key: string; preventDefault: () => void; stopPropagation: () => void }) => void }>)[key].onKeyDown
+    const next = document.createElement('button'); document.body.append(next); next.focus()
+    view.rerender(<MenuHarness interactionActive={false} />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    oldKeys({ key: 'Escape', preventDefault() {}, stopPropagation() {} })
+    expect(next).toHaveFocus()
+    view.rerender(<MenuHarness />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    view.unmount()
+    oldKeys({ key: 'Escape', preventDefault() {}, stopPropagation() {} })
+    expect(next).toHaveFocus()
+    next.remove()
   })
 })

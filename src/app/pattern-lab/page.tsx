@@ -22,6 +22,7 @@ export default async function PatternLabPage({
     // Give the lazy client gallery a stable server parent without changing layout.
     return <div className="contents"><UiGallery role={fixtureRole}
       assignmentControllerFixture={resolvedSearchParams?.fixture === 'assignment-controller'}
+      testControllerFixture={resolvedSearchParams?.fixture === 'test-controller'}
     /></div>
   }
 
