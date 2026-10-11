@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — Keep teacher list edit mode until explicit exit
-
-Task owns codex/persistent-list-edit-mode at main base763edbb18. Risk profile:none; teacher-only list interaction change. Reuse existing Classwork/Test cards, menus, confirmation/editor owners and Pattern Lab teacher work surfaces; extend feature-local mode lifetimes. Classwork selection/editor-close and Test create/delete no longer reset list edit mode. Escape exits with menu/dialog and input precedence; ignore hidden/inert closing overlays using the Attendance reference. Explicit navigation/classroom/access resets retained. No new visual pattern or shared-control change; student/motion n/a. Composite accessibility checklist reviewed; semantic mode and keyboard regressions cover the two owners.
-
-Component163 and final focused771 PASS; architecture/UI/design/TypeScript/lint PASS. Playwright8 PASS (teacher two lists,1440x900/390x844,light/dark; repeated deletion, Classwork editor dismissal, overlay precedence, edit then regular screenshots visually reviewed). Synthetic API interception at local3119, no hosted data changes. Artifacts:test-results and output/playwright; logs:/tmp/pika-list-edit-{tests,focused-final,browser-final}.log. Audit flags unchanged uncached no-store Test grading-results read at990, byte-identical to main; kept out of this fix. Pre-review local UI iteration corrected fixture selectors and hidden-ancestor overlay handling. Codex weekly44% remaining; DeepSeek pause honored. One independent Sol/medium fixed-SHA review follows draft publication; coordinator/worker tokens unknown. Merge authorization outstanding; no production promotion.
-
 ## 2026-10-09 — Publish copy main synchronization
 
 PR1553 syncs origin/main48f27a987 without rewriting branch history. Incoming PR1552 list edit-mode/Escape product and tests retained; normalizing only the modal description reproduces current main TeacherTestsTab exactly. Preserve both histories and incoming fingerprint baseline before setting the combined full-file hash. Earlier ready transition briefly requested before discovering the merge conflict; returned to draft before sync, with no eligible new-head CI observed at that point. Current-base focused/visual checks and independent integration delta review precede stable ready CI.
@@ -557,3 +551,7 @@ PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but m
 ## 2026-10-11 — Minor Assignment-menu upstream sync before approved integration review
 
 PR #1566 syncs main77d5095e (#1568). Journal-only conflict resolved preserving both parent entry/batch-marker histories. All non-continuity feature bytes and entire migration chain unchanged versus reviewed-check candidate11d6b3034; disposable001–258 proof/type evidence remains valid. Fresh focused checks and the owner-approved single integration review cover the final combined revision before requiredCI. Shared local/production unchanged; no merge/promotion authority added.
+
+## 2026-10-11 — Offline fixed learner-profile fixture compatibility
+
+PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.

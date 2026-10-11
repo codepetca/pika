@@ -1,8 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { readdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { PassThrough, Writable } from 'node:stream'
+import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
+
+const learnerOffline = createOfflineTestLearnerRepository(process.cwd())
+afterAll(learnerOffline.dispose)
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
   snapshotSqlReads: false, sourceDrift: false, driftMigration: '249_contextual_test_draft_owner_save.sql', socketInode: 2, sqlFileCache: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn, execFile: mocks.execFile, execFileSync: vi.fn() }))
@@ -207,8 +211,8 @@ describe('native persistent-session transport with offline child mocks', () => {
   const learnerFactory = () => {
     const fixture = newTestLearnerWorkflowFixture(original)
     const observed = Object.freeze([1,2].map(index => Object.freeze({ actorId: fixture.actors[index].id, attemptId: randomUUID(), revision: 2 })))
-    learnerManifest = buildTestLearnerNativeContractsManifest(original, observed, head, repository)
-    return createTestLearnerNativeContracts({ repository, reviewedHead: head, original, observedAttempts: observed,
+    learnerManifest = buildTestLearnerNativeContractsManifest(original, observed, head, learnerOffline.repository)
+    return createTestLearnerNativeContracts({ repository: learnerOffline.repository, reviewedHead: head, original, observedAttempts: observed,
       capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(learnerManifest)), absoluteDeadline: Date.now() + 900000 })
   }
@@ -242,7 +246,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       child.stdin = new Writable({ write(chunk, _encoding, done) { input += String(chunk); done() }, final(done) {
         sqlControls.push({ args: [...args], sql: input })
         queueMicrotask(() => {
-          if (file === 'git') callback(null, args[1] === '--show-toplevel' ? repository : args[0] === 'rev-parse' ? head : '')
+          if (file === 'git') callback(null, args[1] === '--show-toplevel' ? (_options as { cwd: string }).cwd : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
           else if (input === learnerManifest?.cancellation.restore) {
