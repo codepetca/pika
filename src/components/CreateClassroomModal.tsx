@@ -516,6 +516,9 @@ export function CreateClassroomModal({
         </Button>
         {step === 'name' ? (
           <SplitButton
+            key={initialBlueprintId ?? 'blank'}
+            interactionActive={isOpen}
+            exitMotion="opacity"
             label="Next"
             onPrimaryClick={() => {
               if (!title) return

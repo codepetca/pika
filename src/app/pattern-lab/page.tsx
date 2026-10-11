@@ -23,6 +23,7 @@ export default async function PatternLabPage({
     return <div className="contents"><UiGallery role={fixtureRole}
       assignmentControllerFixture={resolvedSearchParams?.fixture === 'assignment-controller'}
       testControllerFixture={resolvedSearchParams?.fixture === 'test-controller'}
+      createClassroomControllerFixture={resolvedSearchParams?.fixture === 'create-classroom-controller'}
     /></div>
   }
 

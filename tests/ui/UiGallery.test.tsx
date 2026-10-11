@@ -5,6 +5,10 @@ import { UiGallery } from '@/app/__ui/UiGallery'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 vi.mock('@/components/HistoryGraph', () => ({
   HistoryGraph: () => <div data-testid="history-graph" />,
 }))
@@ -15,11 +19,11 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: () => <div />,
 }))
 
-function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentControllerFixture = false, testControllerFixture = false) {
+function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentControllerFixture = false, testControllerFixture = false, createClassroomControllerFixture = false) {
   return render(
     <ThemeProvider>
       <TooltipProvider>
-        <UiGallery role={role} assignmentControllerFixture={assignmentControllerFixture} testControllerFixture={testControllerFixture} />
+        <UiGallery role={role} assignmentControllerFixture={assignmentControllerFixture} testControllerFixture={testControllerFixture} createClassroomControllerFixture={createClassroomControllerFixture} />
       </TooltipProvider>
     </ThemeProvider>,
   )
@@ -30,6 +34,7 @@ describe('UiGallery accessibility contracts', () => {
     renderGallery(role)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
     expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('create-classroom-controller-fixture')).not.toBeInTheDocument()
   })
 
   it('renders the explicitly enabled teacher fixture closed', () => {
@@ -56,6 +61,19 @@ describe('UiGallery accessibility contracts', () => {
   it('keeps the enabled TestControllerPattern absent for students', () => {
     renderGallery('student', false, true)
     expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it('renders the explicitly enabled teacher CreateClassroomControllerPattern closed', () => {
+    renderGallery('teacher', false, false, true)
+    const fixture = within(screen.getByTestId('create-classroom-controller-fixture'))
+    expect(fixture.getByRole('button', { name: 'Open controlled classroom' })).toBeVisible()
+    // The real wizard portals outside its fixture section.
+    expect(screen.queryByRole('dialog', { name: 'Create Classroom' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the enabled CreateClassroomControllerPattern absent for students', () => {
+    renderGallery('student', false, false, true)
+    expect(screen.queryByTestId('create-classroom-controller-fixture')).not.toBeInTheDocument()
   })
 
   it.each(['teacher', 'student'] as const)('UiConsistencyPattern retires the plain split menu before its %s visual exit', role => {
