@@ -46,7 +46,7 @@ export function newTestOwnerDetailFixture(original: AssignmentListProofFixture) 
   ]
   const allocatedIds = [...actors.map(row => row.id), ...classes.map(row => row.id), ...tests.map(row => row.id), ...enrollments.map(row => row.id),
     ...questions.flatMap(row => [row.id, row.artifactId]), ...drafts.map(row => row.id), ...objects.flatMap(row => [row.id, row.documentId])]
-  assert.equal(new Set(allocatedIds).size, allocatedIds.length); assert(allocatedIds.every(value => !original.allocatedIds.includes(value)))
+  assert.equal(new Set(allocatedIds).size, allocatedIds.length); assert(allocatedIds.every(value => !new Set<string>(original.allocatedIds).has(value)))
   assert(INTEGRATED_PNG.length === 68)
   return freeze({ version: 1 as const, tag, now: original.manifest.now, actors, classes, tests, enrollments, questions, drafts, objects, cases, allocatedIds })
 }

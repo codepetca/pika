@@ -122,12 +122,14 @@ export function AssignmentCreationPattern() {
           )}
           topRowActions={(
             <SplitButton
+              exitMotion="opacity"
+              interactionActive={open && !previewOpen && !scheduleOpen}
               label={action}
               variant={action === 'Post' ? 'success' : 'primary'}
               size="md"
               className="w-full shadow-sm"
               toggleAriaLabel="Choose assignment action"
-              menuPlacement="down"
+              menuPlacement="up"
               primaryButtonProps={{ className: 'flex-1 justify-center font-semibold' }}
               options={ACTIONS.map((label) => ({ id: label, label, onSelect: () => setAction(label) }))}
               onPrimaryClick={() => {

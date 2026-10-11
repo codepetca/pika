@@ -457,3 +457,63 @@ local reports retain failure diagnostics without attributing preceding-lane
 reports to a setup-failed dark lane. No browser runtime or canonical database
 mutation was performed locally. Independent review and final hosted acceptance
 remain pending; the draft-first lifecycle binds their receipts to actual SHAs.
+
+
+## Browser reliability and dark-family scheduling — 2026-10-10
+
+User authorized the next bounded slice: reduce browser flakiness and speed up the
+dark lane. Coordinator owns `codex/ci-browser-reliability-speed`, starting from
+`03fca4506fa4359bec164638730a3cba3bf4097f`. No production promotion, schema change,
+canonical local database mutation, provider/hardware activation or Clarity work.
+
+Latest accepted baseline is full hosted run 38055131704: dark 1622s, light1350s,
+full gate1645s, summed jobs9001s, four retry-rescued cases and zero final failures.
+Pinned Playwright1.58 phases run auth-independent Pattern Lab alongside setup,
+then wait for that entire phase before starting dependent Experience projects.
+The latest first-phase barrier spans318s while auth takes32s; earlier barriers
+were247s and280s. Separate dark Pattern Lab desktop/mobile into one hosted job;
+keep both dark Chromium projects in the existing job. Keep the light command,
+all577 distinct cases (579 runtime selections including duplicated auth setup),
+all assertions, native TTL waits, workers2, retries2, timeouts and snapshots.
+Require all three browser results in the aggregate gate whenever selected.
+Current local browser and dark aliases preserve complete serial coverage;
+historical layouts retain their original complete commands and safety guards.
+
+Native failed artifacts support three test synchronization fixes: poll the
+unchanged bounded inspector geometry through its200ms transition; observe
+restored editor content and invalid parent question state before navigation;
+wait for native survey publication settlement before Escape. No product logic
+changes. The real Pattern Lab baseline16/16 passed locally, so no deterministic
+product reproduction is claimed. Course Guide availability, session/feedback
+focus restoration and archive budget failures remain unresolved; keep native
+contracts and assertions intact rather than hiding them with retry/reload/mocks.
+
+Projection only: dark Experience about1335–1400s, new Pattern Lab450–500s;
+full gate about1495s versus1645s, summed compute roughly+180s. Cold route
+compilation after removing Pattern Lab prewarming is an uncertainty. Acceptance
+requires local affected/focused checks, exact configured inventory identity
+union, historical dry plans, fixed-SHA independent review and an eligible native
+full run. Report observed critical path and summed compute separately; one run
+cannot establish p95 or causality. Full136 database proofs, SDK profile modes,
+exact cleanup and sanitized timing artifacts remain unchanged.
+
+Orchestration: two bounded read-only Sol6.1/high investigations, followed by one
+coherent local-driver implementation with tests while coordinator owns YAML,
+E2E synchronization, integration and acceptance. Weekly usage28% remaining at
+start; DeepSeek pause honored. Effective configurations, worker tokens and
+attributable active time are unavailable. Investigation elapsed4m06s (design)
+and7m41s (flakes); one initial viewport-split idea was rejected after inspecting
+the pinned phase scheduler. Independent review/native acceptance are pending.
+
+
+Local delivery: meaningful workflow RED19fail/75pass before implementation;
+final workflow115PASS and driver/preflight/policy179PASS. Canonical focused
+checks737tests/54files plus architecture/UI/design/TypeScript/lint PASS. Pattern
+Lab targeted24PASS across four projects with retries0; survey matrix8PASS across
+explicit desktop/mobile/light/dark with retries0. Initial cold survey attempt
+had two30s timeouts plus six passes before interruption; preserved as failed,
+with no timeout or assertion change. Actual historical all/browser/dark dry
+plans pass across five supported revisions, including explicit historical-lane
+refusals. Original seven non-dark/gate job blocks, Playwright configuration,
+package and lock are byte-identical to base; current identity union577/runtime579.
+Independent stable-SHA review and native hosted acceptance remain pending.

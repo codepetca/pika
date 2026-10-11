@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { ComponentProps } from 'react'
+import { startTransition, Suspense, useState, type ComponentProps } from 'react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import type { CourseBlueprint } from '@/types'
@@ -92,6 +92,99 @@ describe('CreateClassroomModal', () => {
   function getClassroomNameInput() {
     return screen.getByRole('textbox', { name: /classroom name/i })
   }
+
+  it('retires the path commands immediately while Escape keeps only inert closing presentation', async () => {
+    renderModal()
+    await waitFor(() => expect(fetchTeacherBlueprints).toHaveBeenCalledOnce())
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Field studies' } })
+    const trigger = screen.getByRole('button', { name: 'Choose classroom creation path' })
+    fireEvent.click(trigger)
+    screen.getByRole('menu').style.setProperty('--motion-duration-fast', '150ms')
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'From Course Blueprint' }), { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    const closing = document.querySelector('[data-menu-closing]')
+    expect(closing).toHaveAttribute('aria-hidden', 'true')
+    // JSDOM does not reflect the native inert property to an attribute.
+    expect((closing as HTMLElement & { inert: boolean }).inert).toBe(true)
+    expect(closing).not.toHaveAttribute('id')
+    expect(closing?.querySelector('button')).toBeNull()
+  })
+
+  it('retires the nested path owner on blueprint replacement without resetting the name field', async () => {
+    const props = { isOpen: true, onClose: vi.fn(), onSuccess: vi.fn() }
+    const { rerender } = render(<CreateClassroomModal {...props} />)
+    await waitFor(() => expect(fetchTeacherBlueprints).toHaveBeenCalledOnce())
+    const name = getClassroomNameInput()
+    fireEvent.change(name, { target: { value: 'Field studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
+    const command = screen.getByRole('menuitem', { name: 'From Course Blueprint' })
+    const propsKey = Object.keys(command).find(key => key.startsWith('__reactProps$'))!
+    const queuedClick = (command as unknown as Record<string, { onClick: (event: { stopPropagation: () => void }) => void }>)[propsKey].onClick
+    rerender(<CreateClassroomModal {...props} initialBlueprintId="bp-2" />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-menu-closing]')).toBeNull()
+    act(() => queuedClick({ stopPropagation: vi.fn() }))
+    expect(getClassroomNameInput()).toBe(name)
+    expect(name).toHaveValue('Field studies')
+    expect(screen.queryByLabelText(/First day of class/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps the committed path command live when a blueprint replacement is abandoned', async () => {
+    const pending = new Promise<never>(() => undefined)
+    let replace!: (id: string | null) => void
+    let suspendedAttempts = 0
+    function ReplacementGate({ id }: { id: string | null }) {
+      if (id) { suspendedAttempts += 1; throw pending }
+      return null
+    }
+    function Owner() {
+      const [id, setId] = useState<string | null>(null)
+      replace = setId
+      return <Suspense fallback={<p>Switching blueprint</p>}>
+        <CreateClassroomModal isOpen onClose={vi.fn()} onSuccess={vi.fn()} initialBlueprintId={id} />
+        <ReplacementGate id={id} />
+      </Suspense>
+    }
+    render(<Owner />)
+    await waitFor(() => expect(fetchTeacherBlueprints).toHaveBeenCalledOnce())
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Field studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
+    const command = screen.getByRole('menuitem', { name: 'From Course Blueprint' })
+    act(() => startTransition(() => replace('bp-2')))
+    expect(suspendedAttempts).toBeGreaterThan(0)
+    expect(command).toHaveFocus()
+    expect(screen.queryByText('Switching blueprint')).not.toBeInTheDocument()
+    act(() => replace(null))
+    fireEvent.click(command)
+    expect(screen.getByRole('combobox', { name: /course blueprint/i })).toBeVisible()
+    expect(screen.queryByLabelText(/First day of class/i)).not.toBeInTheDocument()
+  })
+
+  it('removes closing presentation when the classroom name becomes unavailable or the parent closes', async () => {
+    const props = { isOpen: true, onClose: vi.fn(), onSuccess: vi.fn() }
+    const { rerender } = render(<CreateClassroomModal {...props} />)
+    await waitFor(() => expect(fetchTeacherBlueprints).toHaveBeenCalledOnce())
+    const name = getClassroomNameInput()
+    const trigger = screen.getByRole('button', { name: 'Choose classroom creation path' })
+    fireEvent.change(name, { target: { value: 'Field studies' } })
+    fireEvent.click(trigger)
+    screen.getByRole('menu').style.setProperty('--motion-duration-fast', '150ms')
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'From Course Blueprint' }), { key: 'Escape' })
+    expect(document.querySelector('[data-menu-closing]')).not.toBeNull()
+    fireEvent.change(name, { target: { value: '' } })
+    expect(trigger).toBeDisabled()
+    expect(document.querySelector('[data-menu-closing]')).toBeNull()
+    fireEvent.change(name, { target: { value: 'Field studies' } })
+    fireEvent.click(trigger)
+    screen.getByRole('menu').style.setProperty('--motion-duration-fast', '150ms')
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'From Course Blueprint' }), { key: 'Escape' })
+    rerender(<CreateClassroomModal {...props} isOpen={false} />)
+    expect(document.querySelector('[data-menu-closing]')).toBeNull()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
 
   it('focuses the name field through the modal owner and restores the opener on close', async () => {
     const opener = document.createElement('button')

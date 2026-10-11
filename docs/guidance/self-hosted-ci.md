@@ -220,6 +220,7 @@ pnpm ci:local -- --lane test-owner-sdk --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane test-owner-sdk-lifecycle --ref <reviewed-sha> --dry-run
 pnpm ci:local -- --lane browser --ref <reviewed-sha> --ack=DISPOSABLE_CI_DATABASE
 pnpm ci:local -- --lane browser-dark --ref <reviewed-sha> --dry-run
+pnpm ci:local -- --lane browser-pattern-dark --ref <reviewed-sha> --dry-run
 ```
 
 `--lane database` runs both database jobs followed by both SDK partitions
@@ -229,9 +230,16 @@ partitions; `--lane test-owner-sdk-lifecycle` selects only the second partition.
 Live execution has the same isolation and migration-authorization gates. Older
 reviewed commits retain their complete combined SDK job or original database job;
 each explicit lifecycle lane rejects a historical layout that lacks that job.
-`--lane browser` runs both light and dark partitions sequentially;
-`--lane browser-dark` selects only the dark shard with the same isolation gates.
-Older reviewed commits retain their complete combined browser lane.
+`--lane browser` runs light, dark Experience and dark Pattern Lab sequentially.
+`--lane browser-dark` runs both dark jobs; `--lane browser-pattern-dark` selects
+only dark Pattern Lab. Both dark jobs use hosted Ubuntu, including when the
+primary lanes route to self-hosted compute. Each retains its own guarded fresh
+Supabase replay, seed, Chromium verification and diagnostic artifact. Splitting
+by family removes the Pattern Lab phase barrier before dark Experience without
+changing Playwright workers, retries, timeouts or test selection.
+Older reviewed commits retain their complete combined browser lane or original
+two-job light/dark layout. The explicit Pattern Lab lane rejects historical
+layouts that lack that job.
 `--lane all` includes every job exactly once. Local jobs run sequentially with
 separate start/preflight/cleanup cycles. The host admission rehearsal still
 checks the three routable local lanes; it does not register or serve the hosted

@@ -67,6 +67,8 @@ function NavIconWithDot({ Icon, showDot }: NavIconWithDotProps) {
 // ============================================================================
 
 export interface NavItemsProps {
+  /** Fixed presentation for the mobile drawer, including its passive exit. */
+  expanded?: boolean
   classroomId: string
   role: 'student' | 'teacher'
   activeTab: string
@@ -78,6 +80,7 @@ export interface NavItemsProps {
 }
 
 export function NavItems({
+  expanded,
   classroomId,
   role,
   activeTab,
@@ -90,7 +93,7 @@ export function NavItems({
   const { isExpanded } = useLeftSidebar()
   const { isLeftOpen, close: closeMobileDrawer } = useMobileDrawer()
   const notifications = useStudentNotifications()
-  const showLabels = isExpanded || isLeftOpen
+  const showLabels = expanded ?? (isExpanded || isLeftOpen)
 
   // Compute pulse states for student tabs
   const showTodayPulse =

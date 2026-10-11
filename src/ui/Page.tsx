@@ -1,7 +1,7 @@
 'use client'
 
-import type { ElementType, KeyboardEvent as ReactKeyboardEvent, ReactNode, Ref } from 'react'
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import type { ElementType, KeyboardEvent as ReactKeyboardEvent, ReactNode, Ref, SyntheticEvent } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { MoreVertical, type LucideIcon } from 'lucide-react'
 import { buttonVariants } from './Button'
 import { IconButton } from './IconButton'
@@ -215,6 +215,13 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const menuId = useId()
+  const [mounted, setMounted] = useState(false)
+  const [present, setPresent] = useState(false)
+  const logicalOpenRef = useRef(false)
+  const commandsRef = useRef<ActionBarItem[] | null>(null)
+  const retireListenerRef = useRef<(() => void) | undefined>()
+  const lastOpen = useRef<{ owner: ActionBarItem[]; items: Pick<ActionBarItem, 'id' | 'label' | 'disabled' | 'destructive'>[] } | null>(null)
+  useEffect(() => { setMounted(true) }, [])
   const hasEnabledItems = items.some((item) => !item.disabled)
 
   const getEnabledMenuItems = useCallback(() => {
@@ -224,6 +231,14 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
   }, [])
 
   const closeMenu = useCallback((options?: { restoreFocus?: boolean }) => {
+    logicalOpenRef.current = false
+    commandsRef.current = null
+    if (menuRef.current) {
+      menuRef.current.inert = true
+      menuRef.current.setAttribute('aria-hidden', 'true')
+    }
+    retireListenerRef.current?.()
+    retireListenerRef.current = undefined
     setOpen(false)
     if (options?.restoreFocus) {
       buttonRef.current?.focus()
@@ -260,8 +275,60 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
     enabledItems[nextIndex]?.focus()
   }, [closeMenu, getEnabledMenuItems])
 
-  useEffect(() => {
-    if (!open) return
+  useLayoutEffect(() => {
+    logicalOpenRef.current = open && hasEnabledItems
+    commandsRef.current = open && hasEnabledItems ? items : null
+    if (open && hasEnabledItems) {
+      // Only committed primitive presentation survives logical dismissal.
+      lastOpen.current = { owner: items, items: items.map(({ id, label, disabled, destructive }) => ({ id, label, disabled, destructive })) }
+    }
+  })
+
+  useLayoutEffect(() => {
+    if (!hasEnabledItems) {
+      logicalOpenRef.current = false
+      setOpen(false)
+      setPresent(false)
+      lastOpen.current = null
+      return
+    }
+    if (open) {
+      setPresent(true)
+      return
+    }
+    if (!present || lastOpen.current?.owner !== items) {
+      setPresent(false)
+      lastOpen.current = null
+      return
+    }
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const token = menuRef.current ? getComputedStyle(menuRef.current).getPropertyValue('--motion-duration-fast').trim() : ''
+    const parsed = token.match(/^(\d+(?:\.\d+)?|\.\d+)(ms|s)$/)
+    const duration = parsed ? Number(parsed[1]) * (parsed[2] === 's' ? 1000 : 1) : 0
+    const finish = () => {
+      window.clearTimeout(timer)
+      media.removeEventListener('change', onMotionChange)
+      lastOpen.current = null
+      setPresent(false)
+    }
+    const onMotionChange = () => { if (media.matches) finish() }
+    let timer: number | undefined
+    if (media.matches || duration <= 0) {
+      finish()
+      return
+    }
+    timer = window.setTimeout(finish, duration)
+    media.addEventListener('change', onMotionChange)
+    return () => {
+      window.clearTimeout(timer)
+      media.removeEventListener('change', onMotionChange)
+    }
+  }, [open, hasEnabledItems, items, present])
+
+  useLayoutEffect(() => {
+    const menu = menuRef.current
+    if (menu) menu.inert = !open || !hasEnabledItems
+    if (!open || !hasEnabledItems) return
 
     const enabledItems = getEnabledMenuItems()
     enabledItems[0]?.focus()
@@ -274,17 +341,30 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
     }
 
     document.addEventListener('mousedown', onMouseDown)
+    const retire = () => document.removeEventListener('mousedown', onMouseDown)
+    retireListenerRef.current = retire
     return () => {
-      document.removeEventListener('mousedown', onMouseDown)
+      retire()
+      retireListenerRef.current = undefined
     }
-  }, [closeMenu, getEnabledMenuItems, open])
+  }, [closeMenu, getEnabledMenuItems, open, hasEnabledItems])
 
-  const { normalItems, destructiveItems } = useMemo(() => {
-    return {
-      normalItems: items.filter((item) => !item.destructive),
-      destructiveItems: items.filter((item) => item.destructive),
-    }
-  }, [items])
+  // A new incoming array retires stale content during render, before paint.
+  const view = open && hasEnabledItems ? items : present && lastOpen.current?.owner === items ? lastOpen.current.items : []
+  const normalItems = view.filter((item) => !item.destructive)
+  const destructiveItems = view.filter((item) => item.destructive)
+  function suppressClosedEvent(event: SyntheticEvent) {
+    if (logicalOpenRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  function selectItem(id: string) {
+    if (!logicalOpenRef.current) return
+    const item = commandsRef.current?.find((candidate) => candidate.id === id)
+    if (!item || item.disabled) return
+    closeMenu({ restoreFocus: true })
+    item.onSelect()
+  }
 
   if (items.length === 0) return null
 
@@ -305,24 +385,29 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
               closeMenu({ restoreFocus: true })
               return
             }
+            logicalOpenRef.current = true
             setOpen(true)
           }}
           aria-label="More actions"
           aria-haspopup="menu"
-          aria-controls={hasEnabledItems ? menuId : undefined}
-          aria-expanded={open}
+          aria-controls={mounted && hasEnabledItems ? menuId : undefined}
+          aria-expanded={open && hasEnabledItems}
         >
           <MoreVertical className="h-5 w-5 text-text-default" aria-hidden="true" />
         </button>
       </Tooltip>
 
-      {open && hasEnabledItems && (
+      {view.length > 0 && (
         <div
-          id={menuId}
+          id={mounted ? menuId : undefined}
           ref={menuRef}
           role="menu"
+          aria-hidden={!open || undefined}
+          onClickCapture={suppressClosedEvent}
+          onKeyDownCapture={suppressClosedEvent}
+          onPointerDownCapture={suppressClosedEvent}
           onKeyDown={handleMenuKeyDown}
-          className="absolute right-0 z-local-menu mt-2 w-56 overflow-hidden rounded-md border border-border bg-surface shadow-lg"
+          className={cn('absolute right-0 z-local-menu mt-2 w-56 overflow-hidden rounded-md border border-border bg-surface shadow-lg transition-opacity duration-fast ease-standard', !open && 'pointer-events-none opacity-0')}
         >
           {normalItems.map((item) => (
             <button
@@ -331,8 +416,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
               role="menuitem"
               disabled={item.disabled}
               onClick={() => {
-                closeMenu({ restoreFocus: true })
-                item.onSelect()
+                selectItem(item.id)
               }}
               className={cn(menuItemClassName, 'text-text-default hover:bg-surface-hover')}
             >
@@ -349,8 +433,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
                   role="menuitem"
                   disabled={item.disabled}
                   onClick={() => {
-                    closeMenu({ restoreFocus: true })
-                    item.onSelect()
+                    selectItem(item.id)
                   }}
                   className={cn(menuItemClassName, 'text-danger hover:bg-danger-bg')}
                 >

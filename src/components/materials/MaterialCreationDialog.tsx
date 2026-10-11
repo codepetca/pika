@@ -70,6 +70,8 @@ export function MaterialCreationDialog({
                 variant={!saveAsDraft && isDraft ? 'success' : 'primary'}
                 size="md"
                 disabled={disabled}
+                interactionActive={!previewOpen}
+                exitMotion="opacity"
                 toggleAriaLabel="Choose material action"
                 menuPlacement="down"
                 primaryButtonProps={{ className: 'min-w-24 justify-center font-semibold' }}

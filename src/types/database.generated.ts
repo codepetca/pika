@@ -12012,6 +12012,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_student_test_session_status_projection: {
+        Args: { p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
       get_teacher_log_history_preview: {
         Args: {
           p_classroom_id: string
@@ -13796,6 +13800,17 @@ export type Database = {
       test_document_snapshot_path_is_referenced: {
         Args: { p_storage_path: string }
         Returns: boolean
+      }
+      test_learner_workflow_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_operation: string
+          p_payload: Json
+          p_test_id: string
+        }
+        Returns: Json
       }
       test_owner_workflow_v1: {
         Args: {

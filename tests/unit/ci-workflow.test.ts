@@ -29,7 +29,7 @@ function runGate(overrides: Record<string, string | undefined> = {}) {
     env: { PATH: process.env.PATH, CI_EVENT_ELIGIBLE: 'true', CLASSIFY_RESULT: 'success',
       TEST_BUILD_RESULT: 'success', TEST_BUILD_REQUIRED: 'true', DATABASE_REQUIRED: 'true',
       DATABASE_RESULT: 'success', DATABASE_LIFECYCLE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'success', BROWSER_REQUIRED: 'false',
-      BROWSER_RESULT: 'skipped', BROWSER_DARK_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
+      BROWSER_RESULT: 'skipped', BROWSER_DARK_RESULT: 'skipped', BROWSER_PATTERN_DARK_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
   })
 }
 
@@ -40,12 +40,13 @@ describe('CI workflow', () => {
     const primary = jobs['architecture-database-contracts'], secondary = jobs['architecture-database-contracts-lifecycle']
     const proofs = (job: typeof primary) => job.steps.slice(job.steps.findIndex(step => step.id === 'supabase-start') + 1,
       job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
-    expect(proofs(primary)).toHaveLength(51)
-    expect(proofs(secondary)).toHaveLength(85)
+    expect(proofs(primary)).toHaveLength(52)
+    expect(proofs(secondary)).toHaveLength(86)
     expect(proofs(primary).filter(step => step.name === 'Verify contextual Test owner workflow database contracts')).toHaveLength(1)
+    expect(proofs(primary).filter(step => step.name === 'Verify contextual Test learner workflow authority and lifecycle')).toHaveLength(1)
     expect(proofs(primary).at(-1)?.name).toBe('Verify isolated contextual Test member-list SDK reads')
     expect(proofs(secondary)[0].name).toBe('Verify isolated contextual Test owner reorder transactions')
-    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(136)
+    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(138)
     for (const job of [primary, secondary]) {
       expect(proofs(job).every(step => step.run && !step.if && !step.uses)).toBe(true)
       expect(job.steps.find(step => step.uses === 'supabase/setup-cli@v1')?.with.version).toBe('2.103.0')
@@ -66,7 +67,7 @@ describe('CI workflow', () => {
       ['application-database', 'application-database-browser', 'full'].map(mode => [key, result, mode] as const))))(
     'rejects required %s=%s in %s using the actual Bash gate', (key, result, mode) => {
       expect(runGate({ CI_MODE: mode, BROWSER_REQUIRED: mode === 'application-database' ? 'false' : 'true',
-        BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', [key]: result }).status).toBe(1)
+        BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success', [key]: result }).status).toBe(1)
     })
 
   it.each(['docs-only', 'production-promotion', 'application-test-build', 'application-browser'])(
@@ -74,7 +75,7 @@ describe('CI workflow', () => {
       expect(runGate({ CI_MODE: mode, TEST_BUILD_REQUIRED: mode === 'docs-only' ? 'false' : 'true',
         DATABASE_REQUIRED: 'false', DATABASE_RESULT: 'skipped', DATABASE_LIFECYCLE_RESULT: 'skipped',
         TEST_OWNER_SDK_RESULT: 'skipped', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'skipped',
-        BROWSER_REQUIRED: mode === 'application-browser' ? 'true' : 'false', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success' }).status).toBe(0)
+        BROWSER_REQUIRED: mode === 'application-browser' ? 'true' : 'false', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success' }).status).toBe(0)
     })
 
   it('partitions all seven established owner profiles into two isolated database-selected jobs', () => {
@@ -129,7 +130,7 @@ describe('CI workflow', () => {
     expect(workflow.split('      - name: Upload sanitized Test proof timings\n')).toHaveLength(2)
     expect(shard.steps.indexOf(upload)).toBeGreaterThan(shard.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
     const gate = jobSource(workflow, 'pr-gate')
-    for (const dependency of ['classify-changes', 'architecture-database-contracts', 'architecture-database-contracts-lifecycle', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'test-and-build', 'browser-experience-matrix', 'browser-experience-dark']) {
+    for (const dependency of ['classify-changes', 'architecture-database-contracts', 'architecture-database-contracts-lifecycle', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'test-and-build', 'browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
       expect(gate).toContain(`      - ${dependency}\n`)
     }
     expect(gate).toContain('TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}')
@@ -149,17 +150,33 @@ describe('CI workflow', () => {
     expect(gate.stdout).toContain('Contextual Test Owner SDK Lifecycle was required but ended:')
   })
 
-  it.each(['failure', 'cancelled', 'skipped', ''])('rejects a selected dark browser partition ending %s in the actual gate', result => {
+  it.each(['failure', 'cancelled', 'skipped', '', undefined])('rejects a selected dark browser partition ending %s in the actual gate', result => {
     const gate = runGate({ CI_MODE: 'application-browser', DATABASE_REQUIRED: 'false', BROWSER_REQUIRED: 'true',
-      BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: result })
+      BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: result, BROWSER_PATTERN_DARK_RESULT: 'success' })
     expect(gate.status).toBe(1)
     expect(gate.stdout).toContain('Browser Experience Matrix Dark was required but ended:')
   })
 
+  it.each(['failure', 'cancelled', 'skipped', '', undefined].flatMap(result =>
+    ['application-browser', 'application-database-browser', 'full'].map(mode => [result, mode] as const)))(
+    'rejects dark Pattern Lab result=%s in %s using the actual Bash gate', (result, mode) => {
+      const gate = runGate({ CI_MODE: mode, DATABASE_REQUIRED: mode === 'application-browser' ? 'false' : 'true',
+        BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: result })
+      expect(gate.status).toBe(1)
+      expect(gate.stdout).toContain('Browser Pattern Lab Dark was required but ended:')
+    })
+
+  it.each(['skipped', 'failure', 'cancelled', '', undefined].flatMap(result =>
+    ['docs-only', 'production-promotion', 'application-test-build', 'application-database'].map(mode => [result, mode] as const)))(
+    'allows unselected dark Pattern Lab result=%s in %s', (result, mode) => {
+      expect(runGate({ CI_MODE: mode, TEST_BUILD_REQUIRED: mode === 'docs-only' ? 'false' : 'true',
+        DATABASE_REQUIRED: mode === 'application-database' ? 'true' : 'false', BROWSER_PATTERN_DARK_RESULT: result }).status).toBe(0)
+    })
+
   it('preserves the full configured browser inventory with only independent auth setup repeated', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> }
     const jobs = extractWorkflow(readFileSync(workflowPath, 'utf8'))
-    const commands = ['browser-experience-matrix', 'browser-experience-dark'].map(id => {
+    const commands = ['browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark'].map(id => {
       const runs = jobs[id].steps.filter(step => step.run?.startsWith('pnpm e2e:ci'))
       expect(runs).toHaveLength(1)
       return runs[0].run!.split(/\s+/).slice(2)
@@ -180,10 +197,13 @@ describe('CI workflow', () => {
       expect(new Set(rows).size).toBe(rows.length)
       return rows
     }
-    const full = inventory([]), light = inventory(commands[0]), dark = inventory(commands[1])
-    expect([...new Set([...light, ...dark])].sort()).toEqual([...full].sort())
+    const full = inventory([]), light = inventory(commands[0]), dark = inventory(commands[1]), patternDark = inventory(commands[2])
+    expect([...new Set([...light, ...dark, ...patternDark])].sort()).toEqual([...full].sort())
     const repeated = light.filter(row => dark.includes(row))
     expect(repeated.sort()).toEqual(full.filter(row => JSON.parse(row)[0] === 'setup').sort())
+    expect(patternDark.filter(row => light.includes(row) || dark.includes(row))).toEqual([])
+    expect(full).toHaveLength(577)
+    expect(light.length + dark.length + patternDark.length).toBe(579)
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
   }, 20_000)
 
@@ -193,12 +213,12 @@ describe('CI workflow', () => {
       expect(runGate({ CI_MODE: mode, TEST_BUILD_REQUIRED: required, DATABASE_REQUIRED: 'false',
         DATABASE_RESULT: 'skipped', TEST_OWNER_SDK_RESULT: 'skipped', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'skipped' }).status).toBe(0)
     }
-    expect(runGate({ CI_MODE: 'full', BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success' }).status).toBe(0)
+    expect(runGate({ CI_MODE: 'full', BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success' }).status).toBe(0)
   })
 
   it.each(['CLASSIFY_RESULT', 'TEST_BUILD_RESULT', 'DATABASE_RESULT', 'BROWSER_RESULT', 'CI_EVENT_ELIGIBLE'])(
     'retains aggregate rejection for %s after sharding', key => {
-      const gate = runGate({ CI_MODE: 'full', BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success',
+      const gate = runGate({ CI_MODE: 'full', BROWSER_REQUIRED: 'true', BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success',
         [key]: key === 'CI_EVENT_ELIGIBLE' ? 'false' : 'failure' })
       expect(gate.status).toBe(1)
     },
@@ -519,12 +539,12 @@ describe('CI workflow', () => {
     )
   })
 
-  it('uses two guarded setups with every existing contract selected in its configured projects', () => {
+  it('uses three guarded setups with every existing contract selected in its configured projects', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
     expect(workflow).toContain('name: Run combined browser contracts')
-    expect(workflow.match(/run: pnpm e2e:ci --project=/g)).toHaveLength(2)
-    for (const id of ['browser-experience-matrix', 'browser-experience-dark']) {
+    expect(workflow.match(/run: pnpm e2e:ci --project=/g)).toHaveLength(3)
+    for (const id of ['browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
       const body = jobSource(workflow, id)
       expect(body).toContain("if: needs.classify-changes.outputs.run_browser == 'true'")
       expect(body).toContain('timeout-minutes: 90')
@@ -550,7 +570,7 @@ describe('CI workflow', () => {
     expect(workflow).toContain('Browser lane setup evidence')
     expect(workflow).toContain('(false means prefix restore or miss)')
     expect(workflow).toContain('Supabase remains a fresh ephemeral start and migration replay.')
-    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(6)
+    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(7)
   })
 
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {

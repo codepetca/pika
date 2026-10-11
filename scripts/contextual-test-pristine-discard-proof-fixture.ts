@@ -59,7 +59,7 @@ export function newTestOwnerPristineDiscardFixture(original:AssignmentListProofF
     expectedHTTP:503 as const,expectedDiscarded:undefined,expectedCode:'42501' as const}))
   const allocatedIds=[...actors.map(a=>a.id),...classes.map(c=>c.id),...tests.flatMap(t=>[t.id,t.artifact_id]),...drafts.map(d=>d.id),
     ...enrollments.map(e=>e.id),retainedEnrollment.id,...availability.map(r=>r.id),...overrides.map(r=>r.id),missingTestId]
-  assert.equal(new Set(allocatedIds).size,allocatedIds.length);const originalIds=new Set(original.allocatedIds)
+  assert.equal(new Set(allocatedIds).size,allocatedIds.length);const originalIds=new Set<string>(original.allocatedIds)
   assert(allocatedIds.every(i=>!originalIds.has(i)));assert(cases.length+privilegeProbes.length<=TEST_OWNER_PRISTINE_DISCARD_CAPS.rpcRequests)
   return freeze({version:1 as const,tag,now,actors,classes,tests,drafts,enrollments,retainedEnrollment,availability,overrides,cases,privilegeProbes,missingTestId,allocatedIds,
     inventory:{actors:4,classes:4,tests:1001,drafts:drafts.length,enrollments:4,triggerCategories:12,archiveRevisionRows:4,cases:18,successes:6},

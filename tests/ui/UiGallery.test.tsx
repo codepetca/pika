@@ -5,6 +5,10 @@ import { UiGallery } from '@/app/__ui/UiGallery'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 vi.mock('@/components/HistoryGraph', () => ({
   HistoryGraph: () => <div data-testid="history-graph" />,
 }))
@@ -15,17 +19,118 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: () => <div />,
 }))
 
-function renderGallery(role: 'teacher' | 'student' = 'teacher') {
+function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentControllerFixture = false, testControllerFixture = false, createClassroomControllerFixture = false) {
   return render(
     <ThemeProvider>
       <TooltipProvider>
-        <UiGallery role={role} />
+        <UiGallery role={role} assignmentControllerFixture={assignmentControllerFixture} testControllerFixture={testControllerFixture} createClassroomControllerFixture={createClassroomControllerFixture} />
       </TooltipProvider>
     </ThemeProvider>,
   )
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('keeps AssignmentControllerPattern absent from ordinary %s references', role => {
+    renderGallery(role)
+    expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('create-classroom-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it('renders the explicitly enabled teacher fixture closed', () => {
+    renderGallery('teacher', true)
+    const fixture = within(screen.getByTestId('assignment-controller-fixture'))
+    expect(fixture.getByRole('button', { name: 'Open controlled assignment' })).toBeVisible()
+    // AssignmentModal portals outside the fixture section; keep this global assertion.
+    expect(screen.queryByRole('dialog', { name: 'Edit Draft' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the enabled AssignmentControllerPattern absent for students', () => {
+    renderGallery('student', true)
+    expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it('renders the explicitly enabled teacher TestControllerPattern closed', () => {
+    renderGallery('teacher', false, true)
+    const fixture = within(screen.getByTestId('test-controller-fixture'))
+    expect(fixture.getByRole('button', { name: 'Open controlled test' })).toBeVisible()
+    // The real teacher shell portals outside the fixture; keep this global.
+    expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the enabled TestControllerPattern absent for students', () => {
+    renderGallery('student', false, true)
+    expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it('renders the explicitly enabled teacher CreateClassroomControllerPattern closed', () => {
+    renderGallery('teacher', false, false, true)
+    const fixture = within(screen.getByTestId('create-classroom-controller-fixture'))
+    expect(fixture.getByRole('button', { name: 'Open controlled classroom' })).toBeVisible()
+    // The real wizard portals outside its fixture section.
+    expect(screen.queryByRole('dialog', { name: 'Create Classroom' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the enabled CreateClassroomControllerPattern absent for students', () => {
+    renderGallery('student', false, false, true)
+    expect(screen.queryByTestId('create-classroom-controller-fixture')).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('UiConsistencyPattern retires the plain split menu before its %s visual exit', role => {
+    renderGallery(role)
+    const section = document.getElementById('ui-consistency')!
+    const example = within(section)
+    const trigger = example.getByRole('button', { name: 'Example actions' })
+    fireEvent.click(trigger)
+    const menu = example.getByRole('menu')
+    menu.style.setProperty('--motion-duration-fast', '150ms')
+    const command = within(menu).getByRole('menuitem', { name: 'First action' })
+    expect(command).toHaveFocus()
+    expect(within(menu).getByRole('menuitem', { name: 'Unavailable action' })).toBeDisabled()
+    fireEvent.keyDown(command, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(example.queryByRole('menu')).not.toBeInTheDocument()
+    const closing = section.querySelector<HTMLElement>('[data-menu-closing]')
+    expect(closing).toBeInTheDocument()
+    expect(closing).toHaveAttribute('aria-hidden', 'true')
+    expect(closing?.inert).toBe(true)
+    expect(closing).not.toContainElement(command)
+    fireEvent.click(command)
+    expect(example.getByRole('status')).toHaveTextContent('No action selected')
+    fireEvent.click(trigger)
+    fireEvent.keyDown(example.getByRole('menuitem', { name: 'First action' }), { key: 'End' })
+    expect(example.getByRole('menuitem', { name: 'Last action' })).toHaveFocus()
+    fireEvent.click(example.getByRole('menuitem', { name: 'Last action' }))
+    expect(example.getByRole('status')).toHaveTextContent('Last selected')
+    expect(section.querySelector<HTMLElement>('[data-menu-closing]')).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('previews shared menu retirement and dialog focus handoff for %s', role => {
+    renderGallery(role)
+    const example = within(screen.getByTestId('page-action-icons-example'))
+    const trigger = example.getByRole('button', { name: 'More actions' })
+    fireEvent.click(trigger)
+    const menu = example.getByRole('menu')
+    menu.style.setProperty('--motion-duration-fast', '150ms')
+    const command = within(menu).getByRole('menuitem', { name: 'Export assignments' })
+    expect(within(menu).getByRole('menuitem', { name: 'Archive selected' })).toBeDisabled()
+    fireEvent.keyDown(command, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(menu).toHaveAttribute('aria-hidden', 'true')
+    expect(menu.inert).toBe(true)
+    fireEvent.click(command)
+    expect(screen.queryByRole('alertdialog', { name: 'Pattern confirmed' })).not.toBeInTheDocument()
+    fireEvent.click(trigger)
+    fireEvent.click(example.getByRole('menuitem', { name: 'Export assignments' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Pattern confirmed' })
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    expect(menu).not.toBeInTheDocument()
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+  })
+
   it.each(['teacher', 'student'] as const)('shows default and opt-in FormField semantics independently for %s', role => {
     renderGallery(role)
     const controls = within(screen.getByTestId('pattern-section-controls'))

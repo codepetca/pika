@@ -44,6 +44,7 @@ describe('AssignmentModal logical close with retained real descendants', () => {
     vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
       const style = originalComputedStyle(element)
       style.setProperty('--motion-duration-standard', '200ms')
+      style.setProperty('--motion-duration-fast', '150ms')
       return style
     })
     const provenance = new Promise<Response>((resolve) => { resolveProvenance = resolve })
@@ -388,4 +389,143 @@ describe('AssignmentModal logical close with retained real descendants', () => {
     expect(afterRefresh.defaultPrevented).toBe(false)
     expect(writes()).toHaveLength(0)
   })
+
+  function chooser() { return screen.getByRole('button', { name: 'Choose assignment action' }) }
+  function openChooser() { fireEvent.click(chooser()); return screen.getByRole('menu') }
+  function menuClosing() { return document.querySelector<HTMLElement>('[data-menu-closing]') }
+  function captured(node: HTMLElement): { onClick: (event: { stopPropagation: () => void }) => void } {
+    const key = Object.keys(node).find((name) => name.startsWith('__reactProps$'))!
+    return (node as unknown as Record<string, { onClick: (event: { stopPropagation: () => void }) => void }>)[key]
+  }
+
+  it('fades only primitive chooser presentation on Escape within the real assignment dialog', async () => {
+    const owner = mount()
+    await advance(100)
+    const current = editor()
+    const menu = openChooser()
+    const oldSchedule = captured(within(menu).getByRole('menuitem', { name: 'Schedule' }))
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(chooser()).toHaveFocus()
+    const visual = menuClosing()!
+    expect(visual).toHaveAttribute('aria-hidden', 'true')
+    expect(visual.inert).toBe(true)
+    expect(visual.querySelectorAll('button,[role],[tabindex]')).toHaveLength(0)
+    act(() => oldSchedule.onClick({ stopPropagation() {} }))
+    expect(screen.queryByRole('dialog', { name: 'Schedule Release' })).not.toBeInTheDocument()
+    expect(editor()).toBe(current)
+    expect(owner.onClose).not.toHaveBeenCalled()
+    expect(owner.onSuccess).not.toHaveBeenCalled()
+    await advance(149)
+    expect(visual).toBeInTheDocument()
+    await advance(1)
+    expect(visual).not.toBeInTheDocument()
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('removes chooser presentation immediately when the parent closes, before its editor exits', async () => {
+    const owner = mount()
+    await advance(100)
+    const current = editor()
+    fireEvent.keyDown(openChooser(), { key: 'Escape' })
+    expect(menuClosing()).toBeInTheDocument()
+    owner.changeOwner(false, null)
+    expect(menuClosing()).not.toBeInTheDocument()
+    expect(current).toBeInTheDocument()
+    expect(owner.opener).toHaveFocus()
+    await advance(160)
+    expect(owner.opener).toHaveFocus()
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('retires chooser command authority during real instructions preview without retiring the editor', async () => {
+    mount()
+    await advance(100)
+    const current = editor()
+    fireEvent.keyDown(openChooser(), { key: 'Escape' })
+    const oldToggle = captured(chooser())
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    const preview = screen.getByRole('dialog', { name: 'Instructions' })
+    expect(menuClosing()).not.toBeInTheDocument()
+    act(() => oldToggle.onClick({ stopPropagation() {} }))
+    expect(document.querySelector('[role="menu"]')).not.toBeInTheDocument()
+    fireEvent.click(within(preview).getByRole('button', { name: 'Close' }))
+    expect(editor()).toBe(current)
+    expect(writes()).toHaveLength(0)
+  })
+
+  it.each(['same ID', 'new record', 'live record'] as const)('retires an open chooser and captured commands on external %s replacement', async (kind) => {
+    const owner = mount()
+    await advance(100)
+    const current = editor()
+    const oldSchedule = captured(within(openChooser()).getByRole('menuitem', { name: 'Schedule' }))
+    owner.changeOwner(true, { ...assignment, id: kind === 'new record' ? 'assignment-exit-B' : assignment.id, title: 'Refreshed title', ...(kind === 'live record' ? { is_draft: false, released_at: '2026-10-01T00:00:00.000Z' } : {}) })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(menuClosing()).not.toBeInTheDocument()
+    act(() => oldSchedule.onClick({ stopPropagation() {} }))
+    await advance(0)
+    expect(screen.queryByRole('dialog', { name: 'Schedule Release' })).not.toBeInTheDocument()
+    if (kind === 'same ID') expect(editor()).toBe(current)
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('hands selection focus to the real Schedule dialog and retires cancelled chooser frames', async () => {
+    mount()
+    await advance(100)
+    const current = editor()
+    const frames: FrameRequestCallback[] = []
+    const frameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { frames.push(callback); return 501 })
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    const scheduleOption = within(openChooser()).getByRole('menuitem', { name: 'Schedule' })
+    await act(async () => { fireEvent.click(scheduleOption) })
+    const schedule = screen.getByRole('dialog', { name: 'Schedule Release' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(menuClosing()).not.toBeInTheDocument()
+    expect(cancelSpy).toHaveBeenCalledWith(501)
+    expect(schedule).toContainElement(document.activeElement as HTMLElement)
+    fireEvent.keyDown(schedule, { key: 'Escape' })
+    await advance(0)
+    act(() => { (document.activeElement as HTMLElement)?.blur(); frames.forEach((frame) => frame(0)) })
+    expect(chooser()).not.toHaveFocus()
+    expect(editor()).toBe(current)
+    expect(writes()).toHaveLength(0)
+    frameSpy.mockRestore()
+    cancelSpy.mockRestore()
+  })
+
+  it('removes real chooser presentation immediately under reduced motion', async () => {
+    reducedMotion = true
+    mount()
+    await advance(100)
+    fireEvent.keyDown(openChooser(), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(menuClosing()).not.toBeInTheDocument()
+    expect(chooser()).toHaveFocus()
+    expect(writes()).toHaveLength(0)
+  })
+
+
+  it('retires the real chooser while manual draft saving waits for a held synthetic PATCH', async () => {
+    const owner = mount()
+    await advance(100)
+    let finishPatch!: (response: Response) => void
+    const patch = new Promise<Response>((resolve) => { finishPatch = resolve })
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === `/api/teacher/assignments/${assignment.id}` && init?.method === 'PATCH') return patch
+      throw new Error(`Unexpected held-save request: ${init?.method ?? 'GET'} ${url}`)
+    })
+    fireEvent.click(within(openChooser()).getByRole('menuitem', { name: 'Draft' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Saved updated title' } })
+    const menu = openChooser()
+    expect(menu).toBeInTheDocument()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Draft', exact: true })) })
+    expect(chooser()).toBeDisabled()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(menuClosing()).not.toBeInTheDocument()
+    expect(writes()).toHaveLength(1)
+    expect(owner.onClose).not.toHaveBeenCalled()
+    expect(owner.onSuccess).not.toHaveBeenCalled()
+    await act(async () => { finishPatch({ ok: true, json: async () => ({ assignment: { ...assignment, title: 'Saved updated title' } }) } as Response) })
+  })
+
 })

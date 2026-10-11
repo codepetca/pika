@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
@@ -43,6 +43,7 @@ describe('Material creation', () => {
     await user.click(screen.getByRole('button', { name: 'Choose material action' }))
     await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Save draft' })).toHaveFocus())
     await user.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Choose material action' })).toHaveFocus())
     expect(handlers.onSave).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Save draft', exact: true }))
     expect(handlers.onSave).toHaveBeenLastCalledWith(true)
@@ -68,5 +69,43 @@ describe('Material creation', () => {
     expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     expect(screen.getByRole('alert')).toHaveTextContent('Could not save material')
+  })
+})
+
+
+describe('Material chooser closing', () => {
+  it('dismisses the menu within its dialog without saving or closing the material', () => {
+    const handlers = props()
+    const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
+    const trigger = screen.getByRole('button', { name: 'Choose material action' })
+    fireEvent.click(trigger)
+    screen.getByRole('menu').style.setProperty('--motion-duration-fast', '100ms')
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Save draft' }), { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-menu-closing]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+    expect(handlers.onClose).not.toHaveBeenCalled()
+    view.unmount()
+  })
+
+  it.each(['saving', 'readOnly', 'closed'] as const)('immediately retires open and closing presentation when %s', (reason) => {
+    const handlers = props()
+    const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
+    const updated = { ...handlers, saving: reason === 'saving', readOnly: reason === 'readOnly', isOpen: reason !== 'closed' }
+    fireEvent.click(screen.getByRole('button', { name: 'Choose material action' }))
+    view.rerender(<MaterialCreationDialog {...updated} />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    view.rerender(<MaterialCreationDialog {...handlers} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Choose material action' }))
+    screen.getByRole('menu').style.setProperty('--motion-duration-fast', '100ms')
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(document.querySelector('[data-menu-closing]')).toBeInTheDocument()
+    view.rerender(<MaterialCreationDialog {...updated} />)
+    expect(document.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+    view.unmount()
   })
 })

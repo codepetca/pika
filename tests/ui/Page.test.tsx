@@ -1,8 +1,10 @@
-import { createRef, type ReactNode } from 'react'
+import { createRef, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { TooltipProvider } from '@/ui'
-import { fireEvent, render as renderRTL, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render as renderRTL, screen, waitFor, within } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
@@ -149,4 +151,201 @@ describe('Page primitives', () => {
     expect(nextAction).toHaveFocus()
     expect(screen.getByRole('menu')).toBeInTheDocument()
   })
+})
+
+
+describe('Page action menu closing lifetime', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
+
+  function motion(duration = '150ms', reduced = false) {
+    vi.useFakeTimers()
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({ getPropertyValue: () => duration } as unknown as CSSStyleDeclaration)
+    const media = new EventTarget() as EventTarget & { matches: boolean }
+    media.matches = reduced
+    vi.spyOn(window, 'matchMedia').mockReturnValue(media as unknown as MediaQueryList)
+    return media
+  }
+
+  it('retires commands and focus immediately, retaining an inert fast exit until expiry', () => {
+    motion()
+    const command = vi.fn()
+    render(<PageActionBar primary="Actions" actions={[{ id: 'archive', label: 'Archive', onSelect: command }]} />)
+    const trigger = screen.getByRole('button', { name: 'More actions' })
+    fireEvent.click(trigger)
+    const menu = screen.getByRole('menu')
+    const item = screen.getByRole('menuitem')
+    fireEvent.keyDown(item, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(menu).toBeInTheDocument()
+    expect(menu).toHaveAttribute('aria-hidden', 'true')
+    expect(menu.inert).toBe(true)
+    fireEvent.click(item)
+    fireEvent.keyDown(item, { key: 'Enter' })
+    fireEvent.pointerDown(item)
+    expect(command).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(149))
+    expect(menu).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(menu).not.toBeInTheDocument()
+  })
+
+  it('does not resurrect an all-disabled menu when availability returns', () => {
+    const command = vi.fn()
+    const view = (disabled: boolean) => <PageActionBar primary="Actions" actions={[{ id: 'archive', label: 'Archive', onSelect: command, disabled }]} />
+    const { rerender } = render(view(false))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    rerender(<TooltipProvider>{view(true)}</TooltipProvider>)
+    rerender(<TooltipProvider>{view(false)}</TooltipProvider>)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('rapid reopen cancels an old exit and uses current enabled keyboard order and matching IDs', () => {
+    motion('0.15s')
+    render(<PageActionBar primary="Actions" actions={[
+      { id: 'first', label: 'First', onSelect: vi.fn() },
+      { id: 'disabled', label: 'Disabled', disabled: true, onSelect: vi.fn() },
+      { id: 'last', label: 'Delete', destructive: true, onSelect: vi.fn() },
+    ]} />)
+    const trigger = screen.getByRole('button', { name: 'More actions' })
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menu')).toHaveAttribute('id', trigger.getAttribute('aria-controls'))
+    expect(screen.getByRole('menuitem', { name: 'First' })).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Home' })
+    expect(screen.getByRole('menuitem', { name: 'First' })).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'End' })
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveFocus()
+    fireEvent.click(trigger)
+    act(() => vi.advanceTimersByTime(75))
+    fireEvent.click(trigger)
+    act(() => vi.advanceTimersByTime(150))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'First' })).toHaveFocus()
+  })
+
+  it.each(['callback', 'label', 'disabled', 'empty'] as const)('clears retained presentation immediately on %s owner updates', (change) => {
+    motion()
+    const command = vi.fn()
+    const original = { id: 'action', label: 'Original', onSelect: command }
+    const view = (actions: typeof original[]) => <TooltipProvider><PageActionBar primary="Actions" actions={actions} /></TooltipProvider>
+    const { rerender } = renderRTL(view([original]))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    const menu = screen.getByRole('menu')
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(menu).toBeInTheDocument()
+    const changed = change === 'callback' ? { ...original, onSelect: vi.fn() } : change === 'label' ? { ...original, label: 'New owner' } : { ...original, disabled: true }
+    rerender(view(change === 'empty' ? [] : [changed]))
+    expect(menu).not.toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(200))
+    expect(command).not.toHaveBeenCalled()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it.each(['0ms', 'invalid', '-1ms'])('removes immediately for the semantic duration %s', (duration) => {
+    motion(duration)
+    render(<PageActionBar primary="Actions" actions={[{ id: 'action', label: 'Action', onSelect: vi.fn() }]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    const menu = screen.getByRole('menu')
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(menu).not.toBeInTheDocument()
+  })
+
+  it.each([true, false])('respects reduced motion at close or during exit (initial: %s)', (initial) => {
+    const media = motion('150ms', initial)
+    render(<PageActionBar primary="Actions" actions={[{ id: 'action', label: 'Action', onSelect: vi.fn() }]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    const menu = screen.getByRole('menu')
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    if (!initial) {
+      expect(menu).toBeInTheDocument()
+      act(() => { media.matches = true; media.dispatchEvent(new Event('change')) })
+    }
+    expect(menu).not.toBeInTheDocument()
+  })
+
+  it('blocks reentrant command dispatch before React commits dismissal', () => {
+    motion()
+    const otherCommand = vi.fn()
+    let staleItem: HTMLElement
+    const command = vi.fn(() => { fireEvent.click(staleItem) })
+    render(<PageActionBar primary="Actions" actions={[
+      { id: 'first', label: 'First', onSelect: command },
+      { id: 'other', label: 'Other', onSelect: otherCommand },
+    ]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    staleItem = screen.getByRole('menuitem', { name: 'Other' })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'First' }))
+    expect(command).toHaveBeenCalledOnce()
+    expect(otherCommand).not.toHaveBeenCalled()
+  })
+
+  it('retires outside dismissal and pending motion when unmounted', () => {
+    const media = motion()
+    const removeMedia = vi.spyOn(media, 'removeEventListener')
+    const { unmount } = render(<><PageActionBar primary="Actions" actions={[{ id: 'action', label: 'Action', onSelect: vi.fn() }]} /><button>Outside</button></>)
+    const trigger = screen.getByRole('button', { name: 'More actions' })
+    fireEvent.click(trigger)
+    const menu = screen.getByRole('menu')
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Outside' }))
+    expect(trigger).toHaveFocus()
+    screen.getByRole('button', { name: 'Outside' }).focus()
+    fireEvent.mouseDown(document.body)
+    expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
+    unmount()
+    expect(menu).not.toBeInTheDocument()
+    expect(removeMedia).toHaveBeenCalledWith('change', expect.any(Function))
+    act(() => vi.advanceTimersByTime(200))
+  })
+
+  it('lets dialog focus win selection handoff without a delayed focus return', () => {
+    motion()
+    function Handoff() {
+      const [dialog, setDialog] = useState(false)
+      const focus = useRef<HTMLButtonElement>(null)
+      useLayoutEffect(() => { if (dialog) focus.current?.focus() }, [dialog])
+      return <><PageActionBar primary="Actions" actions={[{ id: 'dialog', label: 'Open dialog', onSelect: () => setDialog(true) }]} />{dialog && <div role="dialog"><button ref={focus}>Dialog action</button></div>}</>
+    }
+    render(<Handoff />)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem'))
+    expect(screen.getByRole('button', { name: 'Dialog action' })).toHaveFocus()
+    act(() => vi.advanceTimersByTime(200))
+    expect(screen.getByRole('button', { name: 'Dialog action' })).toHaveFocus()
+  })
+
+  it('defers client-owned ID relationships in server markup', () => {
+    const html = renderToString(<TooltipProvider><PageActionBar primary="Actions" actions={[{ id: 'action', label: 'Action', onSelect: vi.fn() }]} /></TooltipProvider>)
+    expect(html).not.toContain('aria-controls=')
+    expect(html).toContain('aria-expanded="false"')
+  })
+
+
+  it('hydrates differing server/client ID paths without a stale trigger relationship', async () => {
+    const ui = <TooltipProvider><PageActionBar primary="Actions" actions={[{ id: 'action', label: 'Action', onSelect: vi.fn() }]} /></TooltipProvider>
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(ui, { identifierPrefix: 'server-' })
+    document.body.appendChild(container)
+    expect(container.querySelector('[aria-label="More actions"]')).not.toHaveAttribute('aria-controls')
+    const recoverable = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let root: ReturnType<typeof hydrateRoot>
+    await act(async () => { root = hydrateRoot(container, ui, { identifierPrefix: 'client-', onRecoverableError: recoverable }) })
+    try {
+      const trigger = within(container).getByRole('button', { name: 'More actions' })
+      fireEvent.click(trigger)
+      const menu = within(container).getByRole('menu')
+      expect(trigger).toHaveAttribute('aria-controls', menu.id)
+      expect(menu.id).toContain('client-')
+      expect(recoverable).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+    } finally {
+      act(() => root!.unmount())
+      container.remove()
+    }
+  })
+
 })

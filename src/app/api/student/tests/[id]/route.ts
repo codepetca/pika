@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getStudentTestStatus, summarizeTestFocusEvents } from '@/lib/tests'
@@ -19,6 +20,8 @@ export const revalidate = 0
 
 // GET /api/student/tests/[id] - Get test with questions
 export const GET = withErrorHandler('GetStudentTest', async (request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('detail', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
 

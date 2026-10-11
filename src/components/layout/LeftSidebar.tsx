@@ -5,10 +5,14 @@ import { useRef, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
 import { PikaLogo } from '@/components/PikaLogo'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
-import { IconButton, ModalLayer, Tooltip } from '@/ui'
+import { IconButton, ModalLayer, Tooltip, type ModalLayerProps } from '@/ui'
 
 export interface LeftSidebarProps {
   children: ReactNode
+  /** Audited mobile presentation independent of the desktop rail state. */
+  mobileChildren?: ReactNode
+  /** Opt in only after auditing the mobile descendants' cleanup lifetime. */
+  exitMotion?: ModalLayerProps['exitMotion']
   className?: string
   mobileHomeHref?: string
   onNavigateHome?: (href: string) => boolean
@@ -21,6 +25,8 @@ export interface LeftSidebarProps {
  */
 export function LeftSidebar({
   children,
+  mobileChildren,
+  exitMotion = 'none',
   className,
   mobileHomeHref,
   onNavigateHome,
@@ -89,6 +95,7 @@ export function LeftSidebar({
       {/* Mobile drawer */}
       <ModalLayer
         isOpen={isLeftOpen}
+        exitMotion={exitMotion}
         onClose={close}
         ariaLabel="Navigation menu"
         initialFocusRef={firstFocusableRef}
@@ -139,7 +146,7 @@ export function LeftSidebar({
               </Link>
             </div>
           )}
-          {children}
+          {mobileChildren ?? children}
         </div>
       </ModalLayer>
     </>

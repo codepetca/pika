@@ -38,6 +38,11 @@ vi.mock('@/components/editor', () => ({
   ),
 }))
 
+// The section-removal proof exercises the real settings owner, not calendar loading.
+vi.mock('@/app/classrooms/[classroomId]/TeacherCalendarTab', () => ({
+  TeacherCalendarTab: () => <div>Class days section</div>,
+}))
+
 vi.mock('react-qr-code', () => ({
   default: ({ value }: { value: string }) => <svg data-testid="join-qr-value" data-value={value} />,
 }))
@@ -767,11 +772,107 @@ describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
     mockPush.mockClear()
+    const computedStyle = window.getComputedStyle.bind(window)
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+      const style = computedStyle(element)
+      style.setProperty('--motion-duration-standard', '200ms')
+      return style
+    })
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
     cleanup()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('retains the canceled title/error passively and reopens with reset state and a fresh operation', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: 'Temporary failure' }) })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />, { wrapper: Wrapper })
+    const opener = screen.getByRole('button', { name: 'Save as Course Blueprint' })
+    opener.focus()
+    fireEvent.click(opener)
+    const dialog = screen.getByRole('dialog')
+    const title = within(dialog).getByPlaceholderText('Grade 11 Computer Science')
+    const save = within(dialog).getByRole('button', { name: 'Save Blueprint' })
+    fireEvent.change(title, { target: { value: 'Outgoing title' } })
+    fireEvent.click(save)
+    await within(dialog).findByText('Temporary failure')
+    vi.useFakeTimers()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(dialog).toBeInTheDocument()
+    expect(title).toHaveValue('Outgoing title')
+    expect(within(dialog).getByText('Temporary failure')).toBeInTheDocument()
+    expect(dialog.parentElement!.inert).toBe(true)
+    expect(opener).toHaveFocus()
+    fireEvent.click(save)
+    fireEvent.change(title, { target: { value: 'Blocked title' } })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    fireEvent.click(opener)
+    expect(screen.getByPlaceholderText('Grade 11 Computer Science')).toHaveValue(mockClassroom.title)
+    expect(screen.queryByText('Temporary failure')).toBeNull()
+    act(() => vi.advanceTimersByTime(200))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    vi.useRealTimers()
+    fireEvent.change(screen.getByPlaceholderText('Grade 11 Computer Science'), { target: { value: 'Outgoing title' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Blueprint' }))
+    await screen.findByText('Temporary failure')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][1].headers['Idempotency-Key'])
+      .not.toBe(fetchMock.mock.calls[1][1].headers['Idempotency-Key'])
+  })
+
+  it('physically retires old classroom work while busy and rejects an away/back response', async () => {
+    let resolve!: (value: unknown) => void
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockReturnValue(new Promise((done) => { resolve = done }))
+    const view = render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+    const oldDialog = screen.getByRole('dialog')
+    fireEvent.change(within(oldDialog).getByPlaceholderText('Grade 11 Computer Science'), { target: { value: 'Previous classroom draft' } })
+    fireEvent.click(within(oldDialog).getByRole('button', { name: 'Save Blueprint' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    expect(oldDialog).toHaveAttribute('aria-modal', 'true')
+    expect(within(oldDialog).getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    view.rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="reuse" />)
+    expect(oldDialog).not.toBeInTheDocument()
+    expect(document.querySelector('input[value="Previous classroom draft"]')).toBeNull()
+    view.rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />)
+    await act(async () => { resolve({ ok: true, json: async () => ({ blueprint_id: 'old' }) }) })
+    expect(mockPush).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+    expect(screen.getByPlaceholderText('Grade 11 Computer Science')).toHaveValue(mockClassroom.title)
+  })
+
+  it('removes Blueprint immediately for reduced motion and owner unmount', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      media: query, matches: query === '(prefers-reduced-motion: reduce)',
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    }) as unknown as MediaQueryList)
+    const view = render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(dialog).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+    const nextDialog = screen.getByRole('dialog')
+    view.unmount()
+    expect(nextDialog).not.toBeInTheDocument()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('removes the Blueprint owner immediately when switching to class days', () => {
+    const view = render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+    const dialog = screen.getByRole('dialog')
+    view.rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="class-days" />)
+    expect(screen.getByText('Class days section')).toBeInTheDocument()
+    expect(dialog).not.toBeInTheDocument()
+    expect(document.body.style.overflow).toBe('')
   })
 
   it('opens the save-as-course-blueprint dialog with the classroom title prefilled', () => {

@@ -25,6 +25,7 @@ export function TeacherClassroomJoinQrDialog({
   return (
     <DialogPanel
       isOpen={isOpen}
+      exitMotion="opacity"
       onClose={onClose}
       ariaLabelledBy={titleId}
       maxWidth="max-w-6xl"

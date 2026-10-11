@@ -126,6 +126,97 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
+  describe('actual split Question actions lifetime', () => {
+    function props() {
+      return { test: makeTestWithStats({ assessment_type: 'test', status: 'draft' }), classroomId: 'classroom-1', onTestUpdate: vi.fn(), onDraftSummaryChange: vi.fn(), testQuestionLayout: 'split' as const }
+    }
+    function captureClick(node: HTMLElement) {
+      const key = Object.keys(node).find((name) => name.startsWith('__reactProps$'))!
+      return (node as unknown as Record<string, { onClick: (event: { stopPropagation: () => void }) => void }>)[key].onClick
+    }
+    async function open() {
+      fireEvent.click(await screen.findByRole('button', { name: 'Question actions' }))
+      return screen.getByRole('menuitem', { name: 'Add open-response question' })
+    }
+    it('dismisses the actual icon menu with inert presentation and no insertion', async () => {
+      vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList)
+      vi.spyOn(window, 'getComputedStyle').mockReturnValue({ getPropertyValue: () => '100ms' } as unknown as CSSStyleDeclaration)
+      const fetchMock = mockFetchForTest(sampleQuestions)
+      const input = props()
+      const view = render(<TestDetailPanel {...input} />, { wrapper: Wrapper })
+      const queuedClick = captureClick(await open())
+      input.onDraftSummaryChange.mockClear()
+      fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Add open-response question' }), { key: 'Escape' })
+      const closing = view.container.querySelector('[data-menu-closing]') as HTMLElement
+      expect(closing).toHaveAttribute('aria-hidden', 'true'); expect(closing.inert).toBe(true)
+      expect(closing.querySelector('.lucide-plus')).toBeInTheDocument()
+      act(() => queuedClick({ stopPropagation() {} }))
+      expect(input.onDraftSummaryChange).not.toHaveBeenCalled()
+      expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'PATCH')).toHaveLength(0)
+    })
+    it.each(['isClosing', 'isPreparingPublish'] as const)('retires actual commands during %s', async (busyFlag) => {
+      mockFetchForTest(sampleQuestions)
+      const input = props()
+      const view = render(<TestDetailPanel {...input} />, { wrapper: Wrapper })
+      const queuedClick = captureClick(await open())
+      input.onDraftSummaryChange.mockClear()
+      view.rerender(<TestDetailPanel {...input} {...{ [busyFlag]: true }} />)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      act(() => queuedClick({ stopPropagation() {} }))
+      expect(input.onDraftSummaryChange).not.toHaveBeenCalled()
+      view.rerender(<TestDetailPanel {...input} />)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    })
+    it.each(['test', 'classroom', 'api'] as const)('retires %s scope before replacement loading resolves', async (scope) => {
+      const fetchMock = mockFetchForTest(sampleQuestions)
+      fetchMock.mockResolvedValueOnce(jsonResponse({ test: { documents: [] } }))
+      const pending = createDeferred<Response>()
+      fetchMock.mockImplementation(() => pending.promise)
+      const input = props()
+      const view = render(<TestDetailPanel {...input} />, { wrapper: Wrapper })
+      const queuedClick = captureClick(await open())
+      input.onDraftSummaryChange.mockClear()
+      view.rerender(<TestDetailPanel {...input} test={scope === 'test' ? { ...input.test, id: 'replacement' } : input.test} classroomId={scope === 'classroom' ? 'replacement' : input.classroomId} apiBasePath={scope === 'api' ? '/api/teacher/alternate-tests' : '/api/teacher/tests'} />)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      act(() => queuedClick({ stopPropagation() {} }))
+      expect(input.onDraftSummaryChange).not.toHaveBeenCalled()
+    })
+    it('preserves actual split editor and menu ownership across same-ID summaries', async () => {
+      const fetchMock = mockFetchForTest(sampleQuestions)
+      const input = props()
+      const view = render(<TestDetailPanel {...input} />, { wrapper: Wrapper })
+      await open()
+      const editor = screen.getByRole('textbox', { name: 'Question 1 prompt' })
+      const trigger = screen.getByRole('button', { name: 'Question actions' })
+      const count = fetchMock.mock.calls.length
+      view.rerender(<TestDetailPanel {...input} test={{ ...input.test, title: 'Parent summary', updated_at: '2026-10-11T02:00:00Z' }} />)
+      expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBe(editor)
+      expect(screen.getByRole('button', { name: 'Question actions' })).toBe(trigger)
+      expect(screen.getByRole('menu')).toBeInTheDocument()
+      expect(fetchMock.mock.calls).toHaveLength(count)
+    })
+    it('retires actual commands while the real preview save is unresolved', async () => {
+      const fetchMock = mockFetchForTest(sampleQuestions)
+      fetchMock.mockResolvedValueOnce(jsonResponse({ test: { documents: [] } }))
+      const patch = createDeferred<Response>()
+      fetchMock.mockImplementation((_url: string, options?: RequestInit) => options?.method === 'PATCH' ? patch.promise : Promise.resolve(jsonResponse({})))
+      const input = props(); const preview = vi.fn()
+      render(<TestDetailPanel {...input} onRequestTestPreview={preview} />, { wrapper: Wrapper })
+      const queuedClick = captureClick(await open())
+      input.onDraftSummaryChange.mockClear()
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+      await waitFor(() => expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'PATCH')).toHaveLength(1))
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      act(() => queuedClick({ stopPropagation() {} }))
+      expect(input.onDraftSummaryChange).not.toHaveBeenCalled(); expect(preview).not.toHaveBeenCalled()
+      const body = JSON.parse(String(fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')![1].body))
+      expect(body.content.questions).toHaveLength(2)
+      await act(async () => patch.resolve(jsonResponse({ editingPolicy: { structureLocked: false }, draft: { version: 2, content: body.content } })))
+      expect(preview).toHaveBeenCalledOnce()
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    })
+  })
+
   it('shows the updated post-start boundary and leaves existing MC choice text editable', async () => {
     mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
     render(

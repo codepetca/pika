@@ -131,7 +131,7 @@ export function newTestOwnerPublicationFixture(original: AssignmentListProofFixt
     ...drafts.map(r => r.id), ...questions.flatMap(r => [r.id, r.artifact_id, ...(r.source_artifact_id ? [r.source_artifact_id] : [])]),
     ...enrollments.map(r => r.id), blueprint.id, blueprintVersion.id, ...transitions.map(r => r.documents[0].id),
     reservedIds.newQuestionPortableId, reservedIds.rollbackTestId, reservedIds.rollbackDraftId, ...reservedIds.rollbackQuestionIds, reservedIds.focusEventId]
-  assert.equal(new Set(allocatedIds).size, allocatedIds.length); const old = new Set(original.allocatedIds)
+  assert.equal(new Set(allocatedIds).size, allocatedIds.length); const old = new Set<string>(original.allocatedIds)
   assert(allocatedIds.every(value => !old.has(value))); assert.equal(cases.reduce((n, c) => n + c.expectedRPCs, 0), 13)
   assert.equal(privilegeProbes.reduce((n, c) => n + c.expectedRPCs, 0), 7)
   return freeze({ version: 1 as const, tag, now, actors, classes, tests, drafts, questions, enrollments, blueprint, blueprintVersion,

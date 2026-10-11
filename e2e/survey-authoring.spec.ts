@@ -171,6 +171,10 @@ for (const mobile of [false, true]) {
       await expect(prompt).toBeVisible()
       await dialog.getByRole('button', { name: 'Publish', exact: true }).click()
       await expect.poll(() => survey.status).toBe('active')
+      // The route-owned object changes before the client commits the response.
+      // Closing is guarded while publication/navigation is still in progress.
+      await expect(dialog.getByRole('button', { name: 'Close survey editor' })).toBeEnabled()
+      await expect(dialog.getByRole('status')).toHaveText('Saved')
       await page.keyboard.press('Escape')
       await expect(dialog).toHaveCount(0)
 

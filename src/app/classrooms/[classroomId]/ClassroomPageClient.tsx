@@ -1801,6 +1801,20 @@ function ClassroomPageContent({
     }
   }
 
+  const classroomNavigation = (expanded?: boolean) => (
+    <NavItems
+      expanded={expanded}
+      classroomId={classroom.id}
+      role={classroomRole}
+      activeTab={activeTab}
+      onTabChange={handleTabChange}
+      onTabIntent={prefetchTabData}
+      updateSearchParams={navigateInClassroom}
+      palEnabled={palEnabled}
+      featureVisibility={featureVisibility}
+    />
+  )
+
   const content = (
     <AppShell
       initialNow={initialNow}
@@ -1836,19 +1850,12 @@ function ClassroomPageContent({
           <div aria-hidden="true" className="hidden lg:block" />
         ) : (
           <LeftSidebar
+            exitMotion="opacity"
+            mobileChildren={classroomNavigation(true)}
             mobileHomeHref="/classrooms"
             onNavigateHome={handleHomeNavigationAttempt}
           >
-            <NavItems
-              classroomId={classroom.id}
-              role={classroomRole}
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              onTabIntent={prefetchTabData}
-              updateSearchParams={navigateInClassroom}
-              palEnabled={palEnabled}
-              featureVisibility={featureVisibility}
-            />
+            {classroomNavigation()}
           </LeftSidebar>
         )}
 

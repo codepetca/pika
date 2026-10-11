@@ -73,9 +73,9 @@ function AssignmentEditorBody({
   )
 }
 
-function AssignmentActionButton(props: ComponentProps<typeof SplitButton>) {
+function AssignmentActionButton({ interactionActive = true, ...props }: ComponentProps<typeof SplitButton>) {
   const { active } = useContext(AssignmentInteractionContext)
-  return <SplitButton {...props} interactionActive={active} />
+  return <SplitButton {...props} interactionActive={active && interactionActive} />
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
@@ -193,7 +193,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   }
   const [requirementsOwner, setRequirementsOwner] = useState({ classroomId, assignment, generation: 0 })
   if (requirementsOwner.classroomId !== classroomId || requirementsOwner.assignment !== assignment) {
-    // External refresh retires only its requirements owner. Abandoned renders
+    // External refresh retires nested interaction owners. Abandoned renders
     // must not turn the legacy business session counter into a physical remount.
     setRequirementsOwner({ classroomId, assignment, generation: requirementsOwner.generation + 1 })
   }
@@ -1043,6 +1043,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
             currentAssignment && !isLive ? (
               <div className="flex w-full items-end">
                 <AssignmentActionButton
+                  key={requirementsOwner.generation}
+                  exitMotion="opacity"
+                  interactionActive={!showInstructionsPreview && !showCreateScheduleModal && !showPostNowConfirm && !showRevertToDraftConfirm}
                   label={primaryLabel}
                   onPrimaryClick={() => {
                     void handleTriggerPrimaryAction()

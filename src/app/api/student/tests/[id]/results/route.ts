@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateTestResults, canStudentViewTestResults } from '@/lib/tests'
@@ -163,6 +164,8 @@ async function loadReturnedTestResponsesForStudents(
 
 // GET /api/student/tests/[id]/results - Get aggregated results (if allowed)
 export const GET = withErrorHandler('GetStudentTestResults', async (request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('results', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
 

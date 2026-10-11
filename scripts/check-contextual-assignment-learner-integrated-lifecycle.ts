@@ -311,8 +311,8 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
       assert.equal(name,'open_assignment_doc_for_member_v1'); assert.deepEqual(Object.keys(values).sort(),['p_actor_id','p_assignment_id','p_pal_event','p_viewed_at'])
       assert.equal(values.p_actor_id,actorId); assert.equal(values.p_assignment_id,a.id); assert.equal(values.p_pal_event,null)
       assert(typeof values.p_viewed_at==='string'&&Number.isFinite(Date.parse(values.p_viewed_at)))
-      transport.planRpc(name,values); return originalRpc(name,values as never)
-    }) as typeof client.rpc
+      transport.planRpc(name,values); return originalRpc('open_assignment_doc_for_member_v1',values as never)
+    }) as unknown as typeof client.rpc
     const body=await openSharedAssignmentLearnerDoc({supabase:wrapped,actorId,assignmentId:a.id})
     transport.assertNoPendingRpc(); assert.equal(body.doc.assignment_id,a.id); assert.equal(body.doc.student_id,actorId)
     assert.equal(body.assignment.classroom_id,a.classroomId); assert(!('pal_delivery' in body)); return body
@@ -321,7 +321,10 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
     const a=f.assignments[index]; const docId=integratedDocId(f,documents,index)
     const values={p_actor_id:actorId,p_expected_classroom_id:a.classroomId,p_assignment_doc_id:docId,p_managed_object_id:object.id}
     transport.planRpc('read_assignment_inline_image_for_context_v1',values)
-    const access=await readContextualAssignmentInlineImage({supabase:client,actorId,classroomId:a.classroomId,assignmentDocId:docId,managedObjectId:object.id})
+    const access=await readContextualAssignmentInlineImage({supabase:{rpc:(name,args)=>{
+      assert.equal(name,'read_assignment_inline_image_for_context_v1')
+      return client.rpc('read_assignment_inline_image_for_context_v1',args as never)
+    }},actorId,classroomId:a.classroomId,assignmentDocId:docId,managedObjectId:object.id})
     transport.assertNoPendingRpc(); return access
   }
   async function setup() {
@@ -368,7 +371,7 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
       assert(typeof artifact.id==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(artifact.id))
       assert(artifact.assignment_doc_id===integratedDocId(f,documents,index)&&artifact.requirement_id===requirement.id&&artifact.student_id===f.assignments[index].actorId&&artifact.type==='image')
       assert(artifact.managed_object_id===object.id&&artifact.storage_path===integratedObjectPath(f,documents,object))
-      assert(!f.allocatedIds.includes(artifact.id)&&!f.originalAllocatedIds.includes(artifact.id)&&![...artifactReceipts.values()].includes(artifact.id))
+      assert(!f.allocatedIds.includes(artifact.id)&&!new Set<string>(f.originalAllocatedIds).has(artifact.id)&&![...artifactReceipts.values()].includes(artifact.id))
       artifactReceipts.set(requirement.id,artifact.id)
     }
     await guard(); extensionComplete = true;extensionStep='setup-complete'

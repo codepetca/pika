@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -11,6 +12,8 @@ export const revalidate = 0
 
 // PATCH /api/student/tests/[id]/attempt - Autosave draft test responses
 export const PATCH = withErrorHandler('PatchStudentTestAttempt', async (request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('save', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
   let rawBody: unknown
@@ -42,6 +45,8 @@ export const PATCH = withErrorHandler('PatchStudentTestAttempt', async (request,
 
 // Read authoritative draft state after a conflict; never infer an initial revision.
 export const GET = withErrorHandler('GetStudentTestAttempt', async (_request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('recover', _request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
   const access = await assertStudentCanAccessTest(user.id, testId)

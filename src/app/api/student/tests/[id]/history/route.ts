@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { logServerError } from '@/lib/server/diagnostics'
 import { requireAuth } from '@/lib/auth'
 import {
@@ -26,6 +27,8 @@ type AttemptRow = {
 
 // GET /api/student/tests/[id]/history - Get test draft history for student/teacher
 export const GET = withErrorHandler('GetStudentTestHistory', async (request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('history', request, context.params)
+  if (contextual) return contextual
   const user = await requireAuth()
   const { id: testId } = await context.params
   const { searchParams } = new URL(request.url)

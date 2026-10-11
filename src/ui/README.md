@@ -155,6 +155,10 @@ The primitive portals to `document.body`, focuses the requested initial control,
 
 An opacity exit retains the last committed open presentation, including its React descendants, until visual removal. Inertness does not stop child effects, requests, timers or editor instances. Audit a generic dialog's descendants before opting in, preserve its parent close/request invalidation immediately, and leave rich editors, live widgets and arbitrary drawers on the immediate default until their lifetime is reviewed. An owner removed by a conditional parent cannot animate after that unmount. See the [bounded dismissal brief](../../docs/guidance/ui/changes/softer-modal-dismissal.md) and [experimental adoption guidance](../../docs/guidance/ui/experimental/softer-modal-dismissal.md).
 
+The classroom join QR dialog and classroom mobile navigation explicitly opt into this fade after descendant lifetime review. `LeftSidebar` keeps its immediate default and accepts `mobileChildren` for an audited mobile presentation; classroom navigation passes `NavItems expanded={true}` so labels remain stable while its logically closed drawer fades. Desktop rail expansion remains independent. `RightSidebar` and live editor drawers retain immediate removal. See the [modal and drawer consistency brief](../../docs/guidance/ui/changes/modal-drawer-closing-consistency.md).
+
+Guide options and Save Classroom as Course Blueprint also opt in for ordinary dismissal. Their parents select immediate removal when the current guide owner/access or settings form generation changes, preserving previous-owner clearing. Parent discard, busy guards, import replacement and success navigation remain immediate. See the [form dialog closing brief](../../docs/guidance/ui/changes/form-dialog-closing-consistency.md).
+
 
 ### QrCode
 
@@ -205,6 +209,13 @@ wrappers:
   For intentional focus after in-page navigation, pass `headingRef` and `tabIndex={-1}`;
   callers own when focus moves, and default headings remain outside the Tab order.
 - Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
+- The private Page action menu closes logically immediately and retains only copied static labels,
+  disabled state and destructive grouping for a semantic fast opacity exit. Its exiting menu is inert,
+  hidden from accessibility and cannot dispatch commands; focus returns before selection callbacks.
+  Incoming action-array changes, unavailable actions, owner removal and reduced motion end retention
+  immediately. Reopening cancels the old exit. Callers may interrupt the fade on any parent render;
+  keep the incoming array identity as the conservative owner stamp. Hydrated trigger/menu ID
+  relationships are deferred until mount. This contract does not apply to other menu families.
 - `PageActionBar` keeps primary context and actions on one row. Actions marked `primary` stay
   visible at every width; an optional `icon` renders them as a named IconButton. Secondary actions
   use the keyboard-accessible More actions menu at the far right, after any trailing content.
@@ -537,3 +548,10 @@ ESLint and CI enforce that app code imports from `@/ui`:
 Approved classroom entry is opt-in via Classwork/Tests
 `workspaceFrameClassName`; the shared shell does not animate every consumer.
 Student Classwork opts in on its existing selected-content frame.
+
+
+### SplitButton menu dismissal
+
+`SplitButton` removes live menu children, commands, preview ownership and document listeners at logical dismissal. `exitMotion="opacity"` optionally retains an inert, aria-hidden presentation for the semantic fast duration with standard easing; default dismissal is immediate. Eligibility requires every option label to be a string or number and every caller icon to be null or absent. Checked marks, grouping and disabled/destructive styling are copied as primitive presentation; arbitrary children and callbacks are never rendered during exit.
+
+Committed options identity changes during closing, disabled/inactive/empty/all-disabled owners, unmount and reduced motion remove the presentation immediately. Open menus resolve current commands by ID across parent renders. Reopening cancels old expiry and deferred focus/Tab work. Material's plain-text action chooser opts in; saving, read-only and preview state retire its authority.
