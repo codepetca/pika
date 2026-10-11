@@ -44,7 +44,7 @@ describe('contextual owner Test workflow transaction boundary', () => {
     reply = witness('sync'); await flow.run('sync', {})
     expect(JSON.parse(String(network.mock.calls[2][1]?.body)).p_expected_test).toEqual(test)
   })
-  it.each(['results', 'manual-save', 'clear-open-grades', 'return'] as const)('binds the new %s operation to the original owner/Test/parent witness', async operation => {
+  it.each(['results', 'manual-save', 'clear-open-grades', 'return', 'unsubmit-plan', 'unsubmit', 'delete-single', 'delete-bulk'] as const)('binds the new %s operation to the original owner/Test/parent witness', async operation => {
     const flow = workflow(); await flow.inspect()
     const payload = operation === 'results' ? {} : { student_ids: [learner] }
     reply = witness(operation, { student_ids: [learner] }); await flow.run(operation, payload)

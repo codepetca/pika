@@ -7,6 +7,7 @@ import type { AssignmentListProofFixture } from './contextual-assignment-list-pr
 import { loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
 import { TEST_OWNER_GRADING_REVIEWED_MIGRATION, validateTestOwnerGradingReviewedMigration } from './test-owner-grading-reviewed-migration'
 import { validateStudentTestSessionStatusReviewedMigration } from './student-test-session-status-reviewed-migration'
+import { validateTestOwnerRecoveryReviewedMigration } from './test-owner-recovery-reviewed-migration'
 import type { TestLearnerObservedAttempt } from './contextual-test-learner-proof-fixture'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
@@ -32,9 +33,10 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const sql=readFileSync(resolve(repository,'supabase/migrations',TEST_OWNER_GRADING_REVIEWED_MIGRATION.name),'utf8')
   const sourceSha256=hash(sql);validateTestOwnerGradingReviewedMigration({name:TEST_OWNER_GRADING_REVIEWED_MIGRATION.name,sql,sha256:sourceSha256})
-  const inventory=loadAssignmentListReviewedMigrations(repository);assert.equal(inventory.length,259)
+  const inventory=loadAssignmentListReviewedMigrations(repository);assert([259,260].includes(inventory.length),'Unreviewed owner grading migration profile')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
+  if(inventory.length===260)validateTestOwnerRecoveryReviewedMigration(inventory[259])
   const migrations=inventory.map(({name,sha256})=>({name,sha256}));const migrationManifestSha256=hash(JSON.stringify(migrations))
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`,guard=testOwnerGuardSql(projectId)
   const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';",terminal="end;$guard$;select 'ok';rollback;"

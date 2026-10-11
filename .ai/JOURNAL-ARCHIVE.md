@@ -46106,3 +46106,8 @@ Release evidence retained in respmax/output/verification/pika-production-promoti
 ## 2026-10-10 — Modal drawer closing current-main integration
 
 PR1557 original reviewed8f8f43baf passed all selected CI and PR Gate (38046714949). New main3fd887953 introduced a history-only archive conflict before landing. Returned PR to draft before synchronization; retained all archive receipts and identical common entries while importing reviewed main unchanged. The closing product files and all ten native source/dependency bindings remain byte-identical; previous 16-context native/reference and build evidence is reusable after verification. Current-base focused checks and one targeted independent integration review precede stable-SHA ready CI. Guide options/Blueprint follow-on remains frozen and independently clean locally on prospective parent, publication held behind1557 landing. No new backend/migration/dependency/production work; broad fluidity goal remains incomplete.
+
+<!-- pika-session-log-archive-batch:637509109c9c5c30e6ac360f161b5bf49e28ab142b847b720d5fc576eb78d786 -->
+## 2026-10-10 — Modal closing CI documentation-contract repair
+
+PR1557 Test & Build run38076231987 reproduced the main-inherited attendance rollout documentation parser failure: CURRENT now uses `Prod DB001–256` and a dated quota-control receipt. Accept those explicit receipt formats while retaining migration floor160, attendance smoke and all rollout-preflight assertions. Focused red/green4tests and audit pass; no product or deployment changes. Parent publication remains draft until this delta is independently reviewed and exact-head CI passes.

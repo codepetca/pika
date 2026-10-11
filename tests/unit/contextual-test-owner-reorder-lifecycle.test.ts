@@ -4,6 +4,7 @@ import { AssertionError } from 'node:assert'
 import ts from 'typescript'
 import { AssignmentListLifecycleError, runAssignmentListEphemeralLifecycle, type AssignmentListLifecycleAdapters } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
+import { draftSaveMigrationManifestSha256 } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerReorderFixture, TEST_OWNER_REORDER_SNAPSHOT_TABLES, testOwnerReorderTableCatalogFromCanonical } from '../../scripts/contextual-test-reorder-proof-fixture'
 import { assignmentListExpectedResources, assignmentListRestorationPolicy, loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
@@ -30,13 +31,18 @@ const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
-  it.each([254, 255, 256, 257, 258, 259])('admits exact complete reviewed migration profile %i', count => {
+  it.each([254, 255, 256, 257, 258, 259, 260])('admits exact complete reviewed migration profile %i', count => {
     expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, count))).not.toThrow()
   })
-  it.each(['future260', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
+  it.each(['future261', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
     const migrations = current.map(m => ({ ...m }))
     const addition = migrations[255]
-    if (defect === 'future260') migrations.push({ name: '260_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    if (defect === 'future261') migrations.push({ name: '261_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    const recovery = migrations[259]
+    if (defect === 'bad260name') recovery.name = '260_unknown.sql'
+    if (defect === 'bad260digest') recovery.sha256 = 'f'.repeat(64)
+    if (defect === 'bad260bytes' || defect === 'self-hashed260bytes') recovery.sql += '\n'
+    if (defect === 'self-hashed260bytes') recovery.sha256 = testOwnerDigest(recovery.sql)
     const grading = migrations[258]
     if (defect === 'bad259name') grading.name = '259_unknown.sql'
     if (defect === 'bad259digest') grading.sha256 = 'f'.repeat(64)
@@ -62,6 +68,12 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'gap') migrations.splice(100, 1)
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
+  })
+  it('binds the complete current260 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(260)
+    const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
+    expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
+    expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))
   })
 })
 

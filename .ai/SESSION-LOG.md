@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Modal closing CI documentation-contract repair
-
-PR1557 Test & Build run38076231987 reproduced the main-inherited attendance rollout documentation parser failure: CURRENT now uses `Prod DB001–256` and a dated quota-control receipt. Accept those explicit receipt formats while retaining migration floor160, attendance smoke and all rollout-preflight assertions. Focused red/green4tests and audit pass; no product or deployment changes. Parent publication remains draft until this delta is independently reviewed and exact-head CI passes.
-
 ## 2026-10-10 — Form dialog closing consistency
 
 Adopted existing ModalLayer opacity exit for teacher Guide options and Save Classroom as Course Blueprint only. Parent currentOwnerWork/formStateReady gates preserve immediate physical removal on denied access or context replacement; synchronous draft/error/operation resets, busy dismissal guards, import replacement and success navigation remain unchanged. No shared-default, dependency, backend or migration changes. Brief and shared-owner README document the audited lifetimes.
@@ -200,6 +196,25 @@ native request. Originalclock/workflow waiver/cumulative12launch9target6priorfix
 Weekly25%remaining; attributable tokens/effective configuration/active time unknown.
 First focused run had2413PASS/one startup-size failure(17001>17000); compacted
 CURRENT without weakening the gate. Corrected full focused result follows.
+
+## 2026-10-11 — Owner grading merged; next recovery group started
+
+PR1569 merged normally at15:45:58UTC as2cea88dc1; exact reviewedff65head
+CI38150651417all10/PRGatePASS. Prior exactd714native001–259acceptancePASS;
+laterdocs-onlydeltas independentlyreviewed. Clean canonicalmainFF verified.
+Next branchcodex/classroom-assessment-next starts2cea in namedmanagedroot;
+fullstartupPASS after frozenlockfile cachedinstall, no dependency/source change.
+Owner requested continuous reasonablework without routineapprovals. Sharedlocal/
+prod/promotion/provider/account/activation holds remain. Weekly95%remaining,
+DeepSeekpause retained. Sol/high boundedread-only Testmap identifies three
+ownerunsubmit/resetroutes; rootverified role/preflight+244writer boundaries.
+Sol/high soleproductwriter assigned coherent dormantthree-routegroup, no Git/
+native/external effects. Root owns docs/Git/proof/review. Unpublish and Test
+deletion remain explicit ordinarygaps; no Tests/batch2/goal completion claimed.
+Product194focusedtestsPASS; proof248tests plus reorder187PASS; privateSDK,
+operationalfault andTypescript checksPASS. Audit26filesPASS. Initial aggregate
+exposed finite260guard andCItestinventory gaps; fixed without looseningseals.
+Final exact260sourceb60c53cb2; nativeexecution remainsinert pendingreview.
 
 ## 2026-10-11 PR1566 authorized main merge — minor journal sync
 

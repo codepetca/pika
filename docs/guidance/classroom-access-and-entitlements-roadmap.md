@@ -446,7 +446,17 @@ cleanup and preservation passed before readiness. The six prior one-off native
 permissions are consumed. No shared local/production257 application, promotion,
 admission activation or batch-2 exit follows from this receipt.
 
-The owner authorized orchestration of the next coherent dormant group:
+The following owner-grading scope is delivered by PR #1569, squash
+`2cea88dc11ca43c1aeaafbc622a50c2e63a1273b` on 2026-10-11. Exact reviewed head
+`ff65bbc38f909c8f1493a30a86ce23e952f48c02` passed all ten required checks,
+including PR Gate, in run `38150651417`. Fresh disposable001–259 acceptance
+passed on equivalent product source `d714cb2f4e6b72303a1a5d14140f5aaa500c8754`:
+real SDK, database/concurrency, ACLs, genuine generated types, cancellation,
+restoration and cleanup. Later reviewed changes were receipt/continuity docs only.
+Canonical main fast-forwarded to the actual merge. No shared/prod259 application,
+promotion, activation or batch-2 exit follows from this receipt.
+
+The owner authorized orchestration of this coherent dormant group:
 [Test owner inspection, manual grading and return](contextual-test-owner-grading.md).
 Keep the five existing results/single-grade/batch-grade/clear/return endpoints;
 selected learner inspection already uses results, so no new attempt GET is
@@ -456,7 +466,24 @@ archive/purge/membership fences must govern the transaction, independently of
 the historical account role. Existing learner disclosure remains unchanged.
 Unsubmit/deletion, UI, provider work and rollout controls are excluded. Actual
 database/SDK/concurrency evidence and normal final-head review/CI remain required;
-source preparation does not authorize another disposable or shared migration.
+source preparation does not authorize a shared migration.
+
+Current next slice — 2026-10-11:
+[owner recovery and attempt reset](contextual-test-owner-recovery.md) migrates
+the existing owner unsubmit, single
+attempt reset and bulk attempt reset as one coherent dormant recovery group.
+Reuse shared admission, the current owner transaction and existing lifecycle
+writers. Prove current owner/parent/nonowner roster, archive/purge/membership
+fences and bounded all-or-nothing mutations; preserve unsubmit's skipped-member
+counts and saved work, and reset's deletion counters. History must be fenced,
+not a raw post-transaction write. Existing unpublish and whole-Test deletion
+are still ordinary Test gaps with distinct lifecycle contracts; close them
+before declaring Tests complete or moving the phase exit to Surveys. Provider,
+AI-job, Storage/purge lifecycle and integrated app proof remain separately scoped.
+The owner's delegated reasonable-work authority covers local implementation,
+isolated disposable verification, review and normal protected-main merge without
+routine approval pauses. Specific shared local/production, promotion, provider,
+account and admission/home/page/cohort/cutover holds remain unchanged.
 
 The following learner checkpoint is historical and superseded by the merged
 receipt above, not an instruction to repeat its preparation or native attempts.
