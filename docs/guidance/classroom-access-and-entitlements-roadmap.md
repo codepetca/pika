@@ -429,16 +429,62 @@ visual verification, final-SHA CI and PR Gate. Do not weaken safety gates to gai
 speed. Integrate against a current frozen base before readiness, not repeatedly
 recheck stale candidates. This changes delivery strategy, not correctness criteria.
 
-The bounded Test workflow map is accepted against main `763edbb18`. One Sol/high
-implementation worker now owns the coherent dormant owner group: metadata edits,
-reference-document reservation/finalization/sync/readback/removal and selected
-learner open/close access. Reuse existing atomic document/lifecycle transactions
-and the migration-248 selected-access writer; no unlocked metadata-only write.
-The coordinator owns this roadmap, integration, verification and Git/PR operations
-on `codex/classroom-completion`; the worker owns only that subsystem's source/tests
-and necessary additive schema source. No live/shared database writes are delegated.
-Learner detail/start/save/submit/recovery/disclosure is the next dependent workflow;
-its revision-conflict returns must authorize membership/visibility before disclosure.
+The bounded Test workflow map was accepted against main `763edbb18`. The coherent
+dormant owner group (metadata, reference-document lifecycle/delivery and selected
+learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
+Exact reviewed552tree `a496f1cf595920f89b5cebe7510e48942dbf4986` equals the merge tree;
+CI38050378092 passed all8jobs/PRGate and clean canonical main fast-forwarded.
+Eight completed independent review turns retain earlier failure/remediation/base-
+sync receipts; no repeated full review or administrator bypass. No batch2 exit.
+
+The next coherent dormant
+[learner Test group](contextual-test-learner-workflow.md) on
+`codex/learner-test-workflow` is draft PR #1561, reconciled onto current main
+`03fca4506` after the owner merge, database CI partition and later UI/history sync:
+detail/start/save/submit/recovery/session/focus/history/results/material delivery.
+Product source is delivered; initial security/compatibility reviews and the
+targeted historical HTML MIME correction review are complete. Source/static
+acceptance is not native acceptance. Final detached source review completed on
+`f7aa06252`; the owner-approved one-off rehearsal replayed001–257 but failed at
+the rollback contract, before SDK/Storage/types. Cleanup and shared/global
+preservation passed. Source diagnosis found a zero-point Test fixture violating
+the retained positive-points constraint; correction changes only the fixture,
+with a RED-to-GREEN regression. Private failure diagnostics are bounded and
+never printed. The correction review completed clean on `8ca1f7381`; a second
+explicitly approved one-off rehearsal passed001–257 replay, rollback/ACL contracts
+and genuine type generation, then failed inside learner verification. Exact
+cleanup/global/canonical preservation passed. Its JavaScript exception was not
+retained, so the historical cause is unknown; the private artifact is not installed
+centrally while whole acceptance is incomplete. Independent bounded diagnosis
+found a timing-sensitive collapse proof fixture, not a proven product defect.
+The next source correction positions only the observed attempt's selected history
+row for a controlled positive branch, retains the product10s cutoff/guards/CAS,
+adds expired-collapse refusal/unchanged-state proof and private bounded exception
+diagnostics. That correction and finite refusal-witness review completed on
+`28d010366`. A third separately approved one-off rehearsal passed001–257 replay,
+rollback/ACL and genuine types, but failed cancellation acceptance. The retained
+private stack identifies the cancellation executor, not its original assertion;
+historical timing/response/restoration cause remains unknown. Exact cleanup and
+canonical/global/source preservation passed; its approval is consumed too.
+Bounded source diagnosis found guard time wrongly counted as cancellation time:
+it can reject a valid8s wire response or pad an early response into acceptance.
+The source-only correction separates unchanged7500–12000ms wire/body evidence
+from the original30s/absolute action deadline, retains every full guard, and adds
+finite first-failure/restoration diagnostics. Product257 and SQL8s/30s stay intact.
+Synthetic regressions are not native evidence. The exact proof-clock correction
+needs owner approval following independent review. A newly authorized exact-source
+rehearsal, genuine type acceptance and final-head CI/PR Gate remain pending. All
+three attempted approvals are consumed; no retry or activation follows here.
+No batch-2 exit.
+Keep existing URLs/envelopes, shared admission and legacy OFF/unmatched behavior.
+Current nonowner membership/visibility must authorize before revision-conflict
+disclosure; teacher-account members participate without paid-owner requirements.
+Preserve existing selected-close recovery differences and separately locked
+best-effort history, so history failure does not roll back successful answers.
+Worker owns feature source/tests and necessary additive SQL source; coordinator
+owns this roadmap, Git/PR, proof integration, native/type acceptance and review.
+No database application or rollout controls are delegated. Source-only preparation
+does not reuse the consumed256 replay approval or authorize a fresh migration.
 Do not perform another architecture audit or revisit accepted reorder/list work.
 Owner workflow PR1555 corrected-source native proof on7a3f2e3f8 passed001–256,
 rollback SQL,94 realSDKrequests and genuine types; exact disposable teardown and
@@ -446,8 +492,9 @@ canonical/global preservation passed. Initial CI38047561807 found the older
 member/reorder proof profiles still sealed at255. The correction admits only
 reviewed256name/digest/bytes, preserving every table catalog, cleanup and future
 refusal. These are proof compatibility corrections, not another product feature
-or a reopened architecture/list/reorder audit. PR remains draft until targeted
-review and corrected-head CI pass; no merge/batch2/activation exit claimed.
+or a reopened architecture/list/reorder audit. Corrected profile and current-main
+integration reviews and exact-head CI passed before merge. This component receipt
+does not activate admission/home/page/cutover or complete batch2/the overall goal.
 Only concretely independent batch-3 work may run beside batch 2; batch 4's live
 entry remains gated on completed batches 1–3. The coordinator owns integration,
 phase exits, independent-review acceptance and normal authorized main merges.

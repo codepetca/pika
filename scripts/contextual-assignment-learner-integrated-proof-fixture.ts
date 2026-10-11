@@ -43,7 +43,7 @@ export function newIntegratedLearnerFixture(original: AssignmentListProofFixture
   const allocatedIds = [...actors.map(r=>r.id),...classes.map(r=>r.id),...assignments.map(r=>r.id),...assignments.flatMap(r=>r.docId?[r.docId]:[]),
     ...enrollments.map(r=>r.id),...requirements.flatMap(r=>[r.id,r.artifactId]),...objects.map(r=>r.id),...feedback.map(r=>r.id),...identities.map(r=>r.id),...history.map(r=>r.id)]
   assert.equal(new Set(allocatedIds).size, allocatedIds.length)
-  assert(allocatedIds.every(value=>!original.allocatedIds.includes(value)))
+  assert(allocatedIds.every(value=>!new Set<string>(original.allocatedIds).has(value)))
   assert(actors.length<=INTEGRATED_CAPS.actors&&classes.length<=INTEGRATED_CAPS.classes&&assignments.length<=INTEGRATED_CAPS.assignments&&objects.length<=INTEGRATED_CAPS.images)
   for(const collection of [actors,classes,assignments,enrollments,requirements,objects,feedback,identities,history]) {
     collection.forEach(row=>Object.freeze(row));Object.freeze(collection)
@@ -58,7 +58,7 @@ export function acceptCreatedDocument(f: IntegratedLearnerFixture, documents: Cr
   const receipt = receiptSchema.parse(input)
   const assignment = f.assignments.find(a=>a.id===receipt.assignmentId && a.docId===null)
   assert(assignment && assignment.actorId===receipt.actorId && assignment.classroomId===receipt.classroomId)
-  assert(!documents.has(assignment.id) && !f.allocatedIds.includes(receipt.id) && !f.originalAllocatedIds.includes(receipt.id) && ![...documents.values()].includes(receipt.id))
+  assert(!documents.has(assignment.id) && !f.allocatedIds.includes(receipt.id) && !new Set<string>(f.originalAllocatedIds).has(receipt.id) && ![...documents.values()].includes(receipt.id))
   documents.set(assignment.id, receipt.id)
   return receipt.id
 }

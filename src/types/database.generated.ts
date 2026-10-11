@@ -13797,6 +13797,17 @@ export type Database = {
         Args: { p_storage_path: string }
         Returns: boolean
       }
+      test_learner_workflow_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_operation: string
+          p_payload: Json
+          p_test_id: string
+        }
+        Returns: Json
+      }
       test_owner_workflow_v1: {
         Args: {
           p_actor_id: string

@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { validateTestUnpublicationReviewedMigration } from './test-unpublication-reviewed-migration'
 import { validateTestOwnerWorkflowReviewedMigration } from './test-owner-workflow-reviewed-migration'
+import { validateTestLearnerWorkflowReviewedMigration } from './test-learner-workflow-reviewed-migration'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
 import { isAbsolute, normalize, resolve } from 'node:path'
@@ -43,10 +44,11 @@ const APP_CAPS = Object.freeze({ controls: 4000, actions: 200, totalMs: 900000, 
 const CANONICAL_AFTER_CAPS = Object.freeze({ attempts: 1, bytes: 8 * 1024 * 1024 })
 export function validateTestOwnerReorderReviewedMigrations(migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>) {
   validateAssignmentListMigrationChain(migrations)
-  assert([254, 255, 256].includes(migrations.length), 'Unreviewed reorder migration profile')
+  assert([254, 255, 256, 257].includes(migrations.length), 'Unreviewed reorder migration profile')
   assert.equal(migrations[253]?.name, '254_contextual_test_owner_reorder.sql')
   if (migrations.length >= 255) validateTestUnpublicationReviewedMigration(migrations[254])
-  if (migrations.length === 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
+  if (migrations.length >= 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
+  if (migrations.length === 257) validateTestLearnerWorkflowReviewedMigration(migrations[256])
 }
 type Rows = Record<string, Array<Record<string, unknown>>>
 type Session = Parameters<AssignmentListLifecycleAdapters['executeSql']>[0]

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getStudentTestStatus } from '@/lib/tests'
@@ -33,6 +34,8 @@ function getSessionMessage(
 
 // GET /api/student/tests/[id]/session-status - Lightweight student test session revalidation
 export const GET = withErrorHandler('GetStudentTestSessionStatus', async (_request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('session', _request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
 

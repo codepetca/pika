@@ -158,14 +158,17 @@ describe('finite member Test list fixture', () => {
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-  it('reproduces the former exact253 rejection of the complete current256 chain', () => {
-    expect(current).toHaveLength(256)
-    expect(() => assert.equal(current.length, 253)).toThrow()
-    expect(current.at(-1)).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
+  it('reproduces the former exact256 rejection of the complete current257 chain', () => {
+    expect(current).toHaveLength(257)
+    expect(() => assert.equal(current.length, 256)).toThrow()
+    expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })
-    expect(digest(current.at(-1)!.sql)).toBe('33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831')
+    expect(digest(current[255].sql)).toBe('33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831')
+    expect(current.at(-1)).toMatchObject({ name: '257_contextual_test_learner_workflow.sql',
+      sha256: 'd4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a' })
+    expect(digest(current.at(-1)!.sql)).toBe('d4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a')
   })
-  it.each([253, 254, 255, 256])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
+  it.each([253, 254, 255, 256, 257])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)
     expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248, ci = [...local, 'private.classroom_test_quota_settings'].sort()
@@ -173,10 +176,15 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(testMemberListReviewedIsolatedCatalog(local, migrations)).toEqual(ci)
     expect(testMemberListReviewedIsolatedCatalog(ci, migrations)).toEqual(ci)
   })
-  it.each(['future257', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
+  it.each(['future258', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
     'bad253name', 'self-hashed253bytes'] as const)('rejects unreviewed source profile: %s', defect => {
     const migrations = current.map(m => ({ ...m })), tail = migrations[253]
-    if (defect === 'future257') migrations.push({ name: '257_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future258') migrations.push({ name: '258_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    const learner = migrations[256]
+    if (defect === 'bad257name') learner.name = '257_unknown.sql'
+    if (defect === 'bad257digest') learner.sha256 = 'f'.repeat(64)
+    if (defect === 'bad257bytes' || defect === 'self-hashed257bytes') learner.sql += '\n'
+    if (defect === 'self-hashed257bytes') learner.sha256 = digest(learner.sql)
     const workflow = migrations[255]
     if (defect === 'bad256name') workflow.name = '256_unknown.sql'
     if (defect === 'bad256digest') workflow.sha256 = 'f'.repeat(64)

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { requireRole } from '@/lib/auth'
 import { summarizeTestFocusEvents } from '@/lib/tests'
 import {
@@ -18,6 +19,8 @@ export const revalidate = 0
 
 // POST /api/student/tests/[id]/focus-events - log focus telemetry for tests
 export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request, context) => {
+  const contextual = await handleContextualTestLearnerRequest('focus', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('student')
   const { id: testId } = await context.params
   const input = postTestFocusEventSchema.parse(await request.json())
