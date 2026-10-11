@@ -24,7 +24,7 @@ export function MaterialCreationPattern() {
     <section id="material-creation">
     <Card tone="panel" padding="md">
       <h3 className="font-semibold">Material creation · proposed shared bar</h3>
-      <p className="mt-2 text-sm text-text-muted">Production editor, icon-only Preview, and Post / Save draft actions.</p>
+      <p className="mt-2 text-sm text-text-muted">Production Visual / Markdown editor, current / proposed Preview, Apply Markdown, and Post / Save draft actions.</p>
       <Button variant="surface" className="mt-3" onClick={() => {
         setTitle('Field guide')
         setContent(SAMPLE_CONTENT)
