@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — Publish copy refinement and unpublish investigation
-
-- PR1553 returned to draft before correction: modal now reads only “Test will remain locked to students.” Existing component/browser assertions updated; same ConfirmDialog reuse and teacher-only open-state desktop/mobile light/dark brief applies. Four Playwright captures passed and visually reviewed; final focused713/59 plus all static gates passed. Initial focused run had three offline Tart-host timing failures; unchanged harness passed on retry.
-- Prior CI37944770780: browser PASS; coverage15801 passed/1 failed on the full TeacherTestsTab fingerprint guard. Inspected base-to-current source diff: sole change is description copy. Refresh exact UI fingerprint e298e0b115d42922e639038201052d3510a26769949189fe8efcea1513b59192 and document the scoped baseline; retain full-file guard and PATCH fingerprint. Pre-existing uncached grading-results audit finding remains outside diff.
-- Native GPT-6 Sol/medium read-only investigation and one targeted follow-up verified by coordinator. Current PATCH rejects closed→draft. Published tests already allow structure edits before irreversible first-Start lock (143); student GET can expose open questions without creating an attempt, so “never viewed” is unprovable. Recommend future atomic Return to draft guarded by no start/work/access/grading dependencies and lifecycle lock order244, preserving question/document identity and synchronizing/versioning retained draft from current published rows (legacy title/results PATCH may leave draft stale). Contextual owner252 is a separate dormant path. No unpublish implementation or migration application. Worker time/tokens and coordinator attribution unavailable; one focused follow-up corrected stale-draft assumption.
-- Logs: /tmp/pika-publish-followup-focused-final.log, /tmp/pika-publish-followup-visual.log; screenshots in ignored test-results. Targeted independent correction review and updated stable-SHA CI pending; no merge/promotion.
-
 ## 2026-10-09 — Keep teacher list edit mode until explicit exit
 
 Task owns codex/persistent-list-edit-mode at main base763edbb18. Risk profile:none; teacher-only list interaction change. Reuse existing Classwork/Test cards, menus, confirmation/editor owners and Pattern Lab teacher work surfaces; extend feature-local mode lifetimes. Classwork selection/editor-close and Test create/delete no longer reset list edit mode. Escape exits with menu/dialog and input precedence; ignore hidden/inert closing overlays using the Attendance reference. Explicit navigation/classroom/access resets retained. No new visual pattern or shared-control change; student/motion n/a. Composite accessibility checklist reviewed; semantic mode and keyboard regressions cover the two owners.
@@ -498,6 +491,12 @@ native request. Originalclock/workflow waiver/cumulative12launch9target6priorfix
 Weekly25%remaining; attributable tokens/effective configuration/active time unknown.
 First focused run had2413PASS/one startup-size failure(17001>17000); compacted
 CURRENT without weakening the gate. Corrected full focused result follows.
+
+## 2026-10-11 — Test Question actions closing consistency
+
+Extended the actual split Test authoring Question actions menu with shared semantic-fast opacity dismissal. Live commands, hover ownership, document listeners and stale focus work retire immediately; owner/loading/Close/Publish/Preview changes and reduced motion remove presentation immediately. Copied primitive fields and audited known Lucide icon kinds preserve existing icons without retaining caller React descendants. Shared menu defaults remain immediate and canonical useDropdownNav owns navigation; only the Test menu is keyed by existing scope. Business insertion/autosave/flush and structural rules unchanged.
+
+Added exact development E2E teacher controller fixture using real TeacherTestAuthoringDialog/TestDetailPanel, summary merges and intercepted transport. Actual Test matrix8, held-save6 and teacher/student UserMenu4 passed frozen-source native verification (100PNGs/18videos;13source bindings). Canonical focused1651tests/101files and static checks, audit11TS and four unchanged Pattern Lab goldens PASS; coordinator inspected11boards and prior Material reference parity. Two default-concurrency runs exposed unchanged Tart-host timing and gallery5s failures; isolated host51 and canonical focused with2workers passed without test/timeout weakening. Native harness selector/hydration/capture rework retained externally; no product fixes were needed for those attempts. Independent stable-SHA review/CI/main landing remain recorded in PR and external receipts. No backend writes, dependencies, migrations, production or stable-pattern promotion. Broad fluidity goal remains open; explicit holds and human task stop waiver persist. Governed brief: docs/guidance/ui/test-menu-closing-consistency.md. External evidence: product-fluidity/transition-consistency/test-menu in this chat visualization directory.
 
 ## 2026-10-11 Assignment publication chooser closing consistency
 

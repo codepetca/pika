@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { EllipsisVertical, Pencil, Plus } from 'lucide-react'
+import { EllipsisVertical, Pencil, Plus, Code2, Copy, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
@@ -327,4 +327,134 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     })
     expect(document.querySelector('[data-radix-popper-content-wrapper] [role="tooltip"]')).toBeNull()
   })
+})
+
+
+describe('TeacherWorkSurface menu lifetime', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
+  function motion(reduced = false) {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: reduced, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList)
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({ getPropertyValue: () => '100ms' } as unknown as CSSStyleDeclaration)
+  }
+  function clickHandler(node: HTMLElement) {
+    const key = Object.keys(node).find((name) => name.startsWith('__reactProps$'))!
+    return (node as unknown as Record<string, { onClick: (event: { stopPropagation: () => void }) => void }>)[key].onClick
+  }
+  function items(onSelect = vi.fn()) {
+    return [{ id: 'add', label: 'Add', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect }]
+  }
+  function open() { fireEvent.click(screen.getByRole('button', { name: 'Actions' })) }
+  function escape() { fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Add' }), { key: 'Escape' }) }
+
+  it('retires captured commands and renders only static known-icon opacity presentation', () => {
+    motion(); vi.useFakeTimers()
+    const command = vi.fn()
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={items(command)} exitMotion="opacity" />)
+    open(); const oldClick = clickHandler(screen.getByRole('menuitem', { name: 'Add' })); escape()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    const closing = view.container.querySelector('[data-menu-closing]') as HTMLElement
+    expect(closing).toHaveAttribute('aria-hidden', 'true')
+    expect(closing.inert).toBe(true)
+    expect(closing.querySelectorAll('button,[tabindex],[role]')).toHaveLength(0)
+    expect(closing.querySelector('.lucide-plus')).toBeInTheDocument()
+    act(() => oldClick({ stopPropagation() {} }))
+    expect(command).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(100))
+    expect(closing).not.toBeInTheDocument()
+  })
+
+  it.each([Plus, Code2, Copy, Trash2])('accepts each audited icon with controlled props', (Icon) => {
+    motion()
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={[{ id: 'add', label: 'Add', icon: <Icon className="h-4 w-4" aria-hidden="true" />, onSelect: vi.fn() }]} exitMotion="opacity" />)
+    open(); escape()
+    expect(view.container.querySelector('[data-menu-closing] svg')).toBeInTheDocument()
+  })
+
+  it.each(['default', 'reduced', 'customLabel', 'customIcon', 'unsupportedProps'] as const)('closes immediately for %s', (reason) => {
+    motion(reason === 'reduced')
+    const entry = items()[0]
+    if (reason === 'customLabel') entry.label = <span>Add</span> as unknown as string
+    if (reason === 'customIcon') entry.icon = <Pencil />
+    if (reason === 'unsupportedProps') entry.icon = <Plus className="h-4 w-4" aria-hidden="true" onClick={vi.fn()} />
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={[entry]} exitMotion={reason === 'default' ? undefined : 'opacity'} />)
+    open(); escape()
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+  })
+
+  it('dispatches current same-ID commands and preview cleanup after a rerender', () => {
+    const oldCommand = vi.fn(); const newCommand = vi.fn(); const oldPreview = vi.fn(); const newPreview = vi.fn()
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={[{ ...items(oldCommand)[0], onHoverChange: oldPreview }]} />)
+    open(); const queuedClick = clickHandler(screen.getByRole('menuitem', { name: 'Add' }))
+    view.rerender(<TeacherWorkSurfaceMenuButton label="Actions" items={[{ ...items(newCommand)[0], onHoverChange: newPreview }]} />)
+    act(() => queuedClick({ stopPropagation() {} }))
+    expect(oldCommand).not.toHaveBeenCalled(); expect(newCommand).toHaveBeenCalledOnce()
+    expect(newPreview).toHaveBeenLastCalledWith(false)
+    expect(oldPreview).not.toHaveBeenCalledWith(false)
+  })
+
+  it.each(['disabled', 'inactive', 'empty', 'unmount'] as const)('fences queued events across %s', (reason) => {
+    const command = vi.fn(); const input = items(command)
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={input} />)
+    open(); const queuedClick = clickHandler(screen.getByRole('menuitem', { name: 'Add' }))
+    if (reason === 'unmount') view.unmount()
+    else view.rerender(<TeacherWorkSurfaceMenuButton label="Actions" items={reason === 'empty' ? [] : input} disabled={reason === 'disabled'} interactionActive={reason !== 'inactive'} />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    act(() => queuedClick({ stopPropagation() {} }))
+    expect(command).not.toHaveBeenCalled()
+  })
+
+  it('retires fading presentation on availability changes and cancels old expiry on rapid reopen', () => {
+    motion(); vi.useFakeTimers()
+    const command = vi.fn(); const input = items(command)
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={input} exitMotion="opacity" />)
+    open(); const queuedClick = clickHandler(screen.getByRole('menuitem', { name: 'Add' })); escape()
+    expect(view.container.querySelector('[data-menu-closing]')).toBeInTheDocument()
+    open()
+    act(() => { queuedClick({ stopPropagation() {} }); vi.advanceTimersByTime(100) })
+    expect(command).not.toHaveBeenCalled()
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    escape()
+    view.rerender(<TeacherWorkSurfaceMenuButton label="Actions" items={input} exitMotion="opacity" interactionActive={false} />)
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    view.rerender(<TeacherWorkSurfaceMenuButton label="Actions" items={input} exitMotion="opacity" />)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('rejects a queued command after its same-ID item becomes disabled', () => {
+    const command = vi.fn(); const input = items(command)
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={input} />)
+    open(); const queuedClick = clickHandler(screen.getByRole('menuitem', { name: 'Add' }))
+    view.rerender(<TeacherWorkSurfaceMenuButton label="Actions" items={[{ ...input[0], disabled: true }]} />)
+    act(() => queuedClick({ stopPropagation() {} }))
+    expect(command).not.toHaveBeenCalled()
+  })
+
+
+  it('copies the live normal/destructive ordering and grouping into presentation', () => {
+    motion()
+    const input = [
+      { id: 'remove', label: 'Remove', destructive: true, onSelect: vi.fn() },
+      { id: 'add', label: 'Add', onSelect: vi.fn() },
+      { id: 'copy', label: 'Copy', dividerBefore: true, onSelect: vi.fn() },
+    ]
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={input} exitMotion="opacity" />)
+    open()
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Add', 'Copy', 'Remove'])
+    escape()
+    const closing = view.container.querySelector('[data-menu-closing]')!
+    expect(Array.from(closing.querySelectorAll('.font-medium')).map((item) => item.textContent)).toEqual(['Add', 'Copy', 'Remove'])
+    expect(closing.querySelectorAll('.border-t')).toHaveLength(2)
+  })
+
+  it('retires an opacity owner when every command becomes disabled', () => {
+    motion()
+    const input = items()
+    const view = render(<TeacherWorkSurfaceMenuButton label="Actions" items={input} exitMotion="opacity" />)
+    open(); escape()
+    expect(view.container.querySelector('[data-menu-closing]')).toBeInTheDocument()
+    view.rerender(<TeacherWorkSurfaceMenuButton label="Actions" items={[{ ...input[0], disabled: true }]} exitMotion="opacity" />)
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Actions' })).toBeDisabled()
+  })
+
 })
