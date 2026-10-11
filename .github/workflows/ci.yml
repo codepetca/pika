@@ -921,6 +921,12 @@ jobs:
           grep -F 'Forced failure after fixture setup COMMIT before acknowledgement (teardown control)' "$storage_ack_log"
           grep -Fx 'Exact managed-storage fixture teardown: PASS' "$storage_ack_log"
 
+      - name: Verify student Test session-status projection
+        env:
+          STUDENT_TEST_SESSION_DB_CONTAINER: supabase_db_pika
+          STUDENT_TEST_SESSION_ALLOW_CI_DATABASE: "1"
+        run: bash scripts/check-student-test-session-status-database.sh
+
       - name: Verify revision-aware Test lifecycle contracts
         env:
           PGHOST: 127.0.0.1

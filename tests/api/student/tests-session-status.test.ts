@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/student/tests/[id]/session-status/route'
 
+vi.mock('@/lib/server/contextual-test-learner-workflow', () => ({
+  handleContextualTestLearnerRequest: vi.fn(async () => null),
+}))
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -39,11 +43,41 @@ vi.mock('@/lib/server/tests', async () => {
   }
 })
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('GET /api/student/tests/[id]/session-status', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    const { handleContextualTestLearnerRequest } = await import('@/lib/server/contextual-test-learner-workflow')
+    vi.mocked(handleContextualTestLearnerRequest).mockResolvedValue(null)
+    mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_student_test_session_status_projection' } })
+  })
+
+  it('returns the contextual session response without entering the legacy reader', async () => {
+    const { handleContextualTestLearnerRequest } = await import('@/lib/server/contextual-test-learner-workflow')
+    const { requireRole } = await import('@/lib/auth')
+    const contextualResponse = new Response(JSON.stringify({ can_continue: false, message: 'contextual' }))
+    vi.mocked(handleContextualTestLearnerRequest).mockResolvedValueOnce(contextualResponse as any)
+    const request = new NextRequest('http://localhost:3000/api/student/tests/test-1/session-status')
+    const params = Promise.resolve({ id: 'test-1' })
+    const response = await GET(request, { params })
+    expect(response).toBe(contextualResponse)
+    expect(handleContextualTestLearnerRequest).toHaveBeenCalledWith('session', request, params)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('does not fall through to legacy access when the contextual handler fails', async () => {
+    const { handleContextualTestLearnerRequest } = await import('@/lib/server/contextual-test-learner-workflow')
+    const { requireRole } = await import('@/lib/auth')
+    vi.mocked(handleContextualTestLearnerRequest).mockRejectedValueOnce(new Error('contextual failure'))
+    const response = await GET(new NextRequest('http://localhost:3000/api/student/tests/test-1/session-status'),
+      { params: Promise.resolve({ id: 'test-1' }) })
+    expect(response.status).toBe(500)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('returns can_continue for an active in-progress test', async () => {
@@ -295,5 +329,142 @@ describe('GET /api/student/tests/[id]/session-status', () => {
     expect(data.can_continue).toBe(false)
     expect(data.effective_access ?? data.test.effective_access).toBe('closed')
     expect(data.message).toContain('saved draft is preserved')
+  })
+})
+
+
+describe('session-status database projection', () => {
+  const projection = {
+    ok: true, test: { id: 'test-1', status: 'active' },
+    is_submitted: false, returned_at: null, closed_for_grading_at: null,
+    has_meaningful_response: false, access_state: null,
+  }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSupabaseClient.rpc.mockResolvedValue({ data: projection, error: null })
+    mockSupabaseClient.from = vi.fn(() => { throw new Error('Projection must not fan out') })
+  })
+  const request = () => GET(new NextRequest('http://localhost/api/student/tests/test-1/session-status'), { params: Promise.resolve({ id: 'test-1' }) })
+  it('uses one scoped domain RPC and returns the unchanged compact payload', async () => {
+    const response = await request()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      test: { id: 'test-1', status: 'active', assessment_type: 'test', student_status: 'not_started', returned_at: null, access_state: null, effective_access: 'open' },
+      student_status: 'not_started', returned_at: null, can_continue: true, message: null,
+    })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledExactlyOnceWith('get_student_test_session_status_projection', { p_student_id: 'student-1', p_test_id: 'test-1' })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    const serverTests = await import('@/lib/server/tests')
+    expect(serverTests.assertStudentCanAccessTest).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['active', false, null, null, null, false, 200, 'not_started', true],
+    ['closed', false, null, null, null, false, 404, null, null],
+    ['draft', true, null, null, 'open', true, 404, null, null],
+    ['closed', false, null, null, 'open', false, 200, 'not_started', true],
+    ['active', false, null, null, 'closed', false, 200, 'not_started', false],
+    ['closed', false, null, null, null, true, 200, 'responded', false],
+    ['active', false, null, '2026-01-02T00:00:00Z', null, true, 200, 'responded', false],
+    ['closed', false, '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z', null, false, 200, 'can_view_results', false],
+    ['active', true, '2026-01-02T00:00:00Z', null, null, false, 200, 'responded', false],
+  ])('preserves access/status for %s submitted=%s returned=%s locked=%s override=%s meaningful=%s', async (status, submitted, returned, locked, access, meaningful, http, studentStatus, canContinue) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: { ...projection, test: { id: 'test-1', status }, is_submitted: submitted, returned_at: returned, closed_for_grading_at: locked, access_state: access, has_meaningful_response: meaningful }, error: null })
+    const response = await request()
+    const body = await response.json()
+    expect(response.status).toBe(http)
+    if (http === 200) { expect(body.student_status).toBe(studentStatus); expect(body.can_continue).toBe(canContinue) }
+  })
+  it.each([[404, 'Test not found'], [403, 'Classroom is archived'], [403, 'Not enrolled in this classroom']])('preserves access denial %s %s', async (status, error) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: { ok: false, status, error }, error: null })
+    const response = await request()
+    expect(response.status).toBe(status)
+    expect(await response.json()).toEqual({ error })
+  })
+  it.each([{ code: '42501', message: 'permission denied' }, { code: 'XX000', message: 'internal error' }, { code: 'PGRST202', message: 'Could not find another function' }, { code: 'PGRST202', message: 'Could not find the function public.get_student_test_session_status_projection_other' }])('fails closed for unexpected RPC error %o', async error => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: null, error })
+    expect((await request()).status).toBe(500)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+  it('fails closed on malformed projection', async () => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: { ...projection, has_meaningful_response: 'yes' }, error: null })
+    expect((await request()).status).toBe(500)
+  })
+  it('rejects a widened projection that accidentally contains answer text', async () => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: { ...projection, response_text: 'private answer' }, error: null })
+    expect((await request()).status).toBe(500)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+  it('rejects the wrong role before invoking the projection', async () => {
+    const { requireRole } = await import('@/lib/auth')
+    const { ApiError } = await import('@/lib/api-handler')
+    vi.mocked(requireRole).mockRejectedValueOnce(new ApiError(403, 'Forbidden'))
+    expect((await request()).status).toBe(403)
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+  })
+  it('authenticates every poll before invoking the projection, including revoked sessions', async () => {
+    const { requireRole } = await import('@/lib/auth')
+    const { ApiError } = await import('@/lib/api-handler')
+    vi.mocked(requireRole).mockRejectedValueOnce(new ApiError(401, 'Unauthorized'))
+    expect((await request()).status).toBe(401)
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    await request()
+    expect(requireRole).toHaveBeenCalledTimes(2)
+  })
+})
+
+
+describe('session-status rollout fallback', () => {
+  it('preserves the legacy attempt-column fallback and does not broaden the response payload', async () => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_student_test_session_status_projection(p_student_id, p_test_id) in the schema cache' } })
+    const attemptRead = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST204', message: 'missing returned_at column' } })
+      .mockResolvedValueOnce({ data: { is_submitted: true }, error: null })
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      if (table === 'test_attempts') return { select: vi.fn(() => ({ eq: vi.fn().mockReturnThis(), maybeSingle: attemptRead })) }
+      if (table === 'test_responses') return { select: vi.fn(() => ({ eq: vi.fn().mockReturnThis(), then: vi.fn((resolve: (value: unknown) => unknown) => resolve({ data: [{ selected_option: null, response_text: 'synthetic-answer-'.repeat(1000) }], error: null })) })) }
+      if (table === 'test_student_availability') return { select: vi.fn(() => ({ eq: vi.fn().mockReturnThis(), in: vi.fn().mockResolvedValue({ data: [], error: null }) })) }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    const response = await GET(new NextRequest('http://localhost/api/student/tests/test-1/session-status'), { params: Promise.resolve({ id: 'test-1' }) })
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.student_status).toBe('responded')
+    expect(body.returned_at).toBeNull()
+    expect(body.can_continue).toBe(false)
+    expect(JSON.stringify(body)).not.toContain('synthetic-answer-')
+    expect(attemptRead).toHaveBeenCalledTimes(2)
+  })
+})
+
+
+describe('legacy and installed projection payload parity', () => {
+  it('matches the legacy route payload for all 144 access/submission/return/lock/response combinations', async () => {
+    const serverTests = await import('@/lib/server/tests')
+    let comparisons = 0
+    for (const status of ['draft', 'active', 'closed'] as const)
+    for (const access_state of [null, 'open', 'closed'] as const)
+    for (const is_submitted of [false, true])
+    for (const returned of [false, true])
+    for (const locked of [false, true])
+    for (const meaningful of [false, true]) {
+      const attempt = { is_submitted, returned_at: returned ? '2026-01-02T00:00:00Z' : null, closed_for_grading_at: locked ? '2026-01-02T00:00:00Z' : null }
+      const test = { id: 'test-1', status }
+      vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValueOnce({ ok: true, test } as never)
+      mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_student_test_session_status_projection' } })
+      mockSupabaseClient.from = vi.fn((table: string) => {
+        if (table === 'test_attempts') return { select: vi.fn(() => ({ eq: vi.fn().mockReturnThis(), maybeSingle: vi.fn().mockResolvedValue({ data: attempt, error: null }) })) }
+        if (table === 'test_responses') return { select: vi.fn(() => ({ eq: vi.fn().mockReturnThis(), then: vi.fn((resolve: (value: unknown) => unknown) => resolve({ data: [{ selected_option: null, response_text: meaningful ? 'answer' : '   ' }], error: null })) })) }
+        if (table === 'test_student_availability') return { select: vi.fn(() => ({ eq: vi.fn().mockReturnThis(), in: vi.fn().mockResolvedValue({ data: access_state ? [{ student_id: 'student-1', state: access_state }] : [], error: null }) })) }
+        throw new Error(`Unexpected table: ${table}`)
+      })
+      const request = () => GET(new NextRequest('http://localhost/api/student/tests/test-1/session-status'), { params: Promise.resolve({ id: 'test-1' }) })
+      const legacy = await request()
+      mockSupabaseClient.rpc.mockResolvedValueOnce({ data: { ok: true, test, ...attempt, access_state, has_meaningful_response: meaningful }, error: null })
+      const current = await request()
+      expect(current.status).toBe(legacy.status)
+      expect(await current.json()).toEqual(await legacy.json())
+      comparisons++
+    }
+    expect(comparisons).toBe(144)
   })
 })
