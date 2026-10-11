@@ -468,7 +468,7 @@ Unsubmit/deletion, UI, provider work and rollout controls are excluded. Actual
 database/SDK/concurrency evidence and normal final-head review/CI remain required;
 source preparation does not authorize a shared migration.
 
-Current next slice — 2026-10-11:
+Delivered recovery slice — 2026-10-11:
 [owner recovery and attempt reset](contextual-test-owner-recovery.md) migrates
 the existing owner unsubmit, single
 attempt reset and bulk attempt reset as one coherent dormant recovery group.
@@ -484,6 +484,23 @@ The owner's delegated reasonable-work authority covers local implementation,
 isolated disposable verification, review and normal protected-main merge without
 routine approval pauses. Specific shared local/production, promotion, provider,
 account and admission/home/page/cohort/cutover holds remain unchanged.
+
+Recovery PR #1577 merged normally as `18126e95299ba051de6646e2b786c522468616b7`.
+Reviewed head `f703568d2cc23572242543aa1518c4d1efc5cdc1` passed all ten checks,
+including PR Gate, in run `38175680856`; its merge tree is identical and clean
+canonical main fast-forwarded. Disposable001–260 native acceptance passed on
+`b11ff987afe9cc864e526c2246d89a983bd7063d`. Independent review explicitly accepted
+reuse for the later unchanged recovery source; the final delta corrected the
+predecessor member-list proof's known260 seal and continuity records. Actual
+native receipts retain their executed head. This is not a batch2 or Tests exit.
+
+Current next slice: [ordinary Test return to draft](contextual-test-owner-unpublication.md)
+through the existing unpublish
+endpoint. Preserve its legacy teacher branch, canonical published-source draft
+reconstruction, work-history exclusions and idempotency. Add dormant current-owner
+authority through the existing shared admission and seven-argument owner workflow,
+not a new rollout switch. Whole-Test deletion remains the next separate lifecycle
+gap. All shared database, production and activation holds above remain unchanged.
 
 The following learner checkpoint is historical and superseded by the merged
 receipt above, not an instruction to repeat its preparation or native attempts.

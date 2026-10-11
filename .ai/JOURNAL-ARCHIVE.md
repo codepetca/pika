@@ -46123,3 +46123,8 @@ Focused affected semantic tests: 90/90 PASS. Native matrix: 8 teacher contexts/1
 ## 2026-10-10 — Form closing prospective-main synchronization
 
 Integrated current modal/drawer parent a5960643f with reviewed main3fd887953 into the frozen Guide options/Blueprint follow-on. Product/adopter/native dependency hashes remain unchanged from the completed local matrix and initial independent review f1e492aa1. Reconciled the duplicate Entry recovery archive body while preserving both parent histories and all receipts; imported upstream source and CI unchanged. Updated prospective-parent checks and proportional integration review follow. Publication remains behind PR1557 actual main landing; exact final SHA requires normal ready CI. The pre-existing shared-menu streamed-ID mismatch remains a separate open accessibility follow-up, not an owner-approved goal deferral. No migration application, backend write, new dependency or production work.
+
+<!-- pika-session-log-archive-batch:703d84d6e8164ead50cd751e85147d4b80787b0f2e5eb056d29adbe78ba39011 -->
+## 2026-10-10 — Form closing actual-main publication
+
+PR1557 merged to main3675a8a01 with all selected CI/PR Gate PASS; parent squash tree exactly matches reviewed b6eccc99a. Replayed only the Guide options/Blueprint form adoption onto actual main, preserved both source histories and owned synchronization notes, and retained all upstream implementation/test/dependency files. Eight own nonhistory files and ten native bindings remain unchanged from the accepted initial review/matrix. Canonical focused checks, draft publication and proportional actual-main integration review precede ready CI; no phase exit or production promotion claimed. Shared ActionBarMenu hydration follow-up remains open.

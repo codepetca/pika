@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Form closing actual-main publication
-
-PR1557 merged to main3675a8a01 with all selected CI/PR Gate PASS; parent squash tree exactly matches reviewed b6eccc99a. Replayed only the Guide options/Blueprint form adoption onto actual main, preserved both source histories and owned synchronization notes, and retained all upstream implementation/test/dependency files. Eight own nonhistory files and ten native bindings remain unchanged from the accepted initial review/matrix. Canonical focused checks, draft publication and proportional actual-main integration review precede ready CI; no phase exit or production promotion claimed. Shared ActionBarMenu hydration follow-up remains open.
-
 ## 2026-10-10 — Browser reliability and dark-family scheduling
 
 User authorized next browser slice. Preserve all577 distinct cases/579 runtime selections, native TTL waits, configured workers/retries/timeouts, snapshots and isolation. Separate dark Pattern Lab into an independently guarded hosted job to remove the pinned Playwright project phase barrier before dark Experience; PR Gate requires its success whenever browser selected. Local browser/dark aliases remain complete and serial across current and historical generations. Three native-artifact/source-supported waits preserve existing assertions: animated inspector geometry, remounted question-editor validation before navigation, survey publication settlement before Escape. No product/schema/dependency changes. Baseline PatternLab16PASS; changed PatternLab24PASS without retries. Cold survey attempt2timeouts/6passes before interruption retained for diagnosis, not accepted as full success; complete warmed survey matrix8PASS without retries and focused737tests/54files plus architecture/UI/design/types/lint PASS. Two bounded Sol6.1/high investigations plus one local-driver implementation delivered; 179 driver/preflight/policy and115 workflow tests PASS. DeepSeek pause honored, weekly28% remaining at start; effective models/tokens/active time unknown. Independent fixed-SHA review and actual hosted timing/retry acceptance remain required. Course Guide availability and focus-restoration flakes remain unresolved. No canonical DB, production promotion, provider/hardware or Clarity actions.
@@ -607,3 +603,18 @@ to that proof, retain exact259 checks and unknown261/tampered260 rejection. This
 does not change recovery runtime, migrations, private verifier or application.
 Sharedlocal249+/prod259+/promotion/provider/account/cutover holds remain; Tests,
 Surveys/Grades and broader integration/rollout remain unfinished.
+
+## 2026-10-11 — Recovery merged; owner unpublish source preparation
+
+PR1577 merged18126e952 after exact reviewedf703568d CI38175680856 passed all10
+checks/PR Gate. Canonical main fast-forwarded cleanly; reviewed and merge trees
+match. Native acceptance remains the explicitly verified b11 ancestor reuse,
+not a claimed f703 execution. Original review ledger19turns1944measureds,
+seven accepted findings resolved/ten source batches, no counter reset.
+Next bounded dormant owner unpublish uses sealed261/private shared255 core,
+preserves literal legacy teacher dispatch and seven-argument current-owner RPC.
+Product TDD104checks pass; coordinator independently verifies private SDK model,
+operational lifetime and strict TypeScript checks. No native run/PR acceptance
+yet. Independent review and fresh exact-source disposable proof remain required.
+Routine/budget waiver persists; sharedlocal249+/prod259+, production promotion,
+provider/account and admission/home/page/cohort/cutover holds remain unchanged.

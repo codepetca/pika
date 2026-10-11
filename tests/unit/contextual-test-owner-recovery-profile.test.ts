@@ -32,7 +32,7 @@ const target = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency'):
 describe('fixed recovery260 profile reuses the closed native engine', () => {
   it('binds complete260 inventory, real observed identities and fixed finite SQL', () => {
     const m = plan()
-    expect(m.migrations).toHaveLength(260); expect(m.nativeVerified).toBe(false)
+    expect(m.migrations).toHaveLength(261); expect(m.nativeVerified).toBe(false)
     expect(m.contracts.checks).toHaveLength(13); expect(m.concurrency.schedules).toHaveLength(10)
     expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
     expect(m.preparation).toContain(`draft_revision=${observed[0].revision}`)
@@ -49,10 +49,14 @@ describe('fixed recovery260 profile reuses the closed native engine', () => {
     expect(() => testOwnerRecoveryNativePlan(original, [...observed], 'b'.repeat(40), process.cwd())).toThrow()
     expect(() => testOwnerRecoveryNativePlan(original, Object.freeze([observed[0], observed[0]]), 'b'.repeat(40), process.cwd())).toThrow()
   })
-  it.each(['missing260', 'future261', 'altered259', 'self-hashed260'])('refuses incomplete/altered predecessor chain %s', defect => {
+  it.each(['missing260', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future262', 'altered259', 'self-hashed260'])('refuses incomplete/altered predecessor chain %s', defect => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m => ({ ...m }))
-    if (defect === 'missing260') migrations.pop()
-    if (defect === 'future261') migrations.push({ name: '261_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'missing260') migrations.splice(259,1)
+    if (defect === 'future262') migrations.push({ name: '262_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'bad261name') migrations[260].name = '261_unknown.sql'
+    if (defect === 'bad261digest') migrations[260].sha256 = 'f'.repeat(64)
+    if (defect === 'bad261bytes' || defect === 'self-hashed261bytes') migrations[260].sql += '\n'
+    if (defect === 'self-hashed261bytes') migrations[260].sha256 = digest(migrations[260].sql)
     if (defect === 'altered259') migrations[258].sql += '\n'
     if (defect === 'self-hashed260') { migrations[259].sql += '\n'; migrations[259].sha256 = digest(migrations[259].sql) }
     const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValueOnce(migrations)

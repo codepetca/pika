@@ -158,8 +158,8 @@ describe('finite member Test list fixture', () => {
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-  it('reproduces the former exact257 rejection of the complete current260 chain', () => {
-    expect(current).toHaveLength(260)
+  it('reproduces the former exact257 rejection of the complete current261 chain', () => {
+    expect(current).toHaveLength(261)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })
@@ -174,7 +174,7 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(current[259]).toMatchObject({ name: '260_contextual_test_owner_recovery.sql', sha256: '84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0' })
     expect(digest(current[259].sql)).toBe('84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0')
   })
-  it.each([253, 254, 255, 256, 257, 258, 259, 260])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
+  it.each([253, 254, 255, 256, 257, 258, 259, 260, 261])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)
     expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248, ci = [...local, 'private.classroom_test_quota_settings'].sort()
@@ -182,10 +182,14 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(testMemberListReviewedIsolatedCatalog(local, migrations)).toEqual(ci)
     expect(testMemberListReviewedIsolatedCatalog(ci, migrations)).toEqual(ci)
   })
-  it.each(['future261', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
+  it.each(['bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future262', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
     'bad253name', 'self-hashed253bytes'] as const)('rejects unreviewed source profile: %s', defect => {
     const migrations = current.map(m => ({ ...m })), tail = migrations[253]
-    if (defect === 'future261') migrations.push({ name: '261_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future262') migrations.push({ name: '262_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'bad261name') migrations[260].name = '261_unknown.sql'
+    if (defect === 'bad261digest') migrations[260].sha256 = 'f'.repeat(64)
+    if (defect === 'bad261bytes' || defect === 'self-hashed261bytes') migrations[260].sql += '\n'
+    if (defect === 'self-hashed261bytes') migrations[260].sha256 = digest(migrations[260].sql)
     const recovery = migrations[259]
     if (defect === 'bad260name') recovery.name = '260_unknown.sql'
     if (defect === 'bad260digest') recovery.sha256 = 'f'.repeat(64)

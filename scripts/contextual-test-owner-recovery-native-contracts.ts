@@ -1,5 +1,6 @@
 /** Finite recovery frames for the existing closed native engine. Import is inert. */
 import assert from 'node:assert/strict'
+import { validateTestOwnerUnpublicationReviewedMigration } from './test-owner-unpublication-reviewed-migration'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
@@ -28,8 +29,8 @@ export function testOwnerRecoveryNativePlan(original: AssignmentListProofFixture
   })
   assert.notEqual(observed[0].attemptId, observed[1].attemptId)
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert.equal(inventory.length, 260); validateStudentTestSessionStatusReviewedMigration(inventory[257])
-  validateTestOwnerGradingReviewedMigration(inventory[258]); validateTestOwnerRecoveryReviewedMigration(inventory[259])
+  assert([260,261].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
+  validateTestOwnerGradingReviewedMigration(inventory[258]); validateTestOwnerRecoveryReviewedMigration(inventory[259]); if (inventory.length === 261) validateTestOwnerUnpublicationReviewedMigration(inventory[260])
   const source = readFileSync(resolve(repository, 'supabase/migrations', TEST_OWNER_RECOVERY_REVIEWED_MIGRATION.name), 'utf8')
   validateTestOwnerRecoveryReviewedMigration({ name: TEST_OWNER_RECOVERY_REVIEWED_MIGRATION.name, sql: source, sha256: hash(source) })
   assert.equal(source, inventory[259].sql)

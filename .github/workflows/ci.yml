@@ -177,6 +177,7 @@ jobs:
           docker port supabase_db_pika 5432/tcp | grep -Eq ':54322[[:space:]]*$'
           docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-contextual-test-owner-grading.sql
           docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-contextual-test-owner-recovery.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-contextual-test-owner-unpublication.sql
 
       - name: Verify classroom creation entitlements and active-limit concurrency
         run: bash scripts/check-classroom-creation-entitlements-database.sh

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { handleContextualTestOwnerUnpublicationRequest } from '@/lib/server/contextual-test-owner-unpublication'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
@@ -9,6 +10,8 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const POST = withErrorHandler('ReturnTestToDraft', async (request, context) => {
+  const contextual = await handleContextualTestOwnerUnpublicationRequest(request, context.params)
+  if (contextual) return contextual
   const actor = await requireRole('teacher')
   const { id } = testUnpublicationParamsSchema.parse(await context.params)
   const access = await assertTeacherOwnsTest(actor.id, id, { checkArchived: true })
