@@ -666,3 +666,11 @@ Compact only inherited bulk Draft content into source-equivalent SQL derived fro
 already inserted1001questions; retain all IDs/rows/content/cases/guards and caps.
 Correction verification/review/fresh nativeSDK/heldlocks/cancellation/CI pending;
 partial actual passes are not full native acceptance, merge or rollout. Holds remain.
+
+Compacted preparation196218B keeps1019questions/15Drafts,66targetchecks+fullfocused
+2146/120files/policies/tsc/lint PASS. Targeted review140s accepts one guard defect:
+missing insertion marker yields indexOf=-1 and passes ordering comparison. Require
+exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
+marker. No cap/fixture case/product/migration changes. Counters12completedreviews
+1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
+fresh complete native acceptance remains pending, all holds retained.

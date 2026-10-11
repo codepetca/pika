@@ -45,7 +45,9 @@ export function testOwnerUnpublicationSetupSql(f: TestOwnerUnpublicationFixture,
   const literal = `${q(JSON.stringify(draft.content))}::jsonb`
   const inherited = testOwnerPublicationSetupSql(source, projectId).replaceAll("'draft'", "'closed'")
   assert.equal(inherited.split(literal).length, 2, 'Expected exactly one fixed bulk Draft content literal')
-  assert(inherited.indexOf('with ordinality as b(row_id,artifact_id,ordinal)') < inherited.indexOf(literal))
+  const insertionMarker = 'with ordinality as b(row_id,artifact_id,ordinal)'
+  assert.equal(inherited.split(insertionMarker).length, 2, 'Expected exactly one fixed bulk insertion witness')
+  assert(inherited.indexOf(insertionMarker) >= 0 && inherited.indexOf(insertionMarker) < inherited.indexOf(literal))
   // Only the already inserted fixed1001-question content is derived. Integer
   // points preserve the original JSON number1 instead of numeric(6,2)1.00.
   const expression = `/* unpublication-bulk-draft */(select jsonb_build_object('title',${q(content.title)},'show_results',${content.show_results},'question_identity_version',1,

@@ -82,6 +82,14 @@ describe('inert unpublication source proof', () => {
     for(const sql of [m.bootstrap,m.guard,m.preparation,m.setup,m.snapshot,m.contracts.sql,m.privilege.catalog,m.privilege.revoke,m.privilege.restore,
       ...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) expect(Buffer.byteLength(sql)).toBeLessThanOrEqual(256*1024)
   })
+  it.each(['missing','duplicate','after-content'])('requires exactly one earlier bulk insertion witness: %s',defect=>{
+    const f=newTestOwnerUnpublicationFixture(original),project=`pika_assignment_list_${f.tag.slice(-12)}`
+    const marker='with ordinality as b(row_id,artifact_id,ordinal)',sql=testOwnerPublicationSetupSql(f.publicationBase,project)
+    const without=sql.replace(marker,'')
+    const altered=defect==='missing'?without:defect==='duplicate'?sql.replace(marker,marker+marker):without.replace('commit;',`${marker} commit;`)
+    const source=vi.spyOn(publicationFixture,'testOwnerPublicationSetupSql').mockReturnValueOnce(altered)
+    try{expect(()=>testOwnerUnpublicationSetupSql(f,project)).toThrow()}finally{source.mockRestore()}
+  })
   it('binds actual current bytes to the externally fixed seal', () => {
     const name = TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql = readFileSync(`supabase/migrations/${name}`, 'utf8')
     expect(() => validateTestOwnerUnpublicationReviewedMigration({ name, sql, sha256: createHash('sha256').update(sql).digest('hex') })).not.toThrow()
