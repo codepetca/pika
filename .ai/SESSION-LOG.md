@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — Publish copy refinement and unpublish investigation
-
-- PR1553 returned to draft before correction: modal now reads only “Test will remain locked to students.” Existing component/browser assertions updated; same ConfirmDialog reuse and teacher-only open-state desktop/mobile light/dark brief applies. Four Playwright captures passed and visually reviewed; final focused713/59 plus all static gates passed. Initial focused run had three offline Tart-host timing failures; unchanged harness passed on retry.
-- Prior CI37944770780: browser PASS; coverage15801 passed/1 failed on the full TeacherTestsTab fingerprint guard. Inspected base-to-current source diff: sole change is description copy. Refresh exact UI fingerprint e298e0b115d42922e639038201052d3510a26769949189fe8efcea1513b59192 and document the scoped baseline; retain full-file guard and PATCH fingerprint. Pre-existing uncached grading-results audit finding remains outside diff.
-- Native GPT-6 Sol/medium read-only investigation and one targeted follow-up verified by coordinator. Current PATCH rejects closed→draft. Published tests already allow structure edits before irreversible first-Start lock (143); student GET can expose open questions without creating an attempt, so “never viewed” is unprovable. Recommend future atomic Return to draft guarded by no start/work/access/grading dependencies and lifecycle lock order244, preserving question/document identity and synchronizing/versioning retained draft from current published rows (legacy title/results PATCH may leave draft stale). Contextual owner252 is a separate dormant path. No unpublish implementation or migration application. Worker time/tokens and coordinator attribution unavailable; one focused follow-up corrected stale-draft assumption.
-- Logs: /tmp/pika-publish-followup-focused-final.log, /tmp/pika-publish-followup-visual.log; screenshots in ignored test-results. Targeted independent correction review and updated stable-SHA CI pending; no merge/promotion.
-
 ## 2026-10-09 — Keep teacher list edit mode until explicit exit
 
 Task owns codex/persistent-list-edit-mode at main base763edbb18. Risk profile:none; teacher-only list interaction change. Reuse existing Classwork/Test cards, menus, confirmation/editor owners and Pattern Lab teacher work surfaces; extend feature-local mode lifetimes. Classwork selection/editor-close and Test create/delete no longer reset list edit mode. Escape exits with menu/dialog and input precedence; ignore hidden/inert closing overlays using the Attendance reference. Explicit navigation/classroom/access resets retained. No new visual pattern or shared-control change; student/motion n/a. Composite accessibility checklist reviewed; semantic mode and keyboard regressions cover the two owners.
@@ -560,3 +553,51 @@ prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.
 ## 2026-10-11 — Assignment chooser current-main synchronization
 
 PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.
+
+## 2026-10-11 — Test learner merge and next owner grading group
+
+Learner1561 merged normally at reviewed1aedb4156 as squash517d272ab; exact-head
+CI38102771099 all10/PRGate PASS, merge tree equals reviewed tree and clean
+canonical main fast-forwarded. Whole001–257 native/type/cleanup/preservation
+evidence accepted; six old one-off approvals consumed, no shared/prod apply or
+activation. Original review receipts/counters retained; batch2 and goal open.
+
+Owner requested orchestration of recommended next coherent group. New clean
+codex/test-owner-inspect-grade-return at517d272ab; frozen dependency install and
+startup PASS before edits. Sol/high bounded read-only map accepted: exactly five
+existing results/single-grade/batch-grade/clear/return routes, no new attempt GET,
+unsubmit/deletion/UI/provider work. One mapper correction preserves accepted
+learner disclosure without a new show_results gate. Observed208s wall, tokens
+unknown. Astra/high sole product writer and Sol/high separate inert proof writer
+work in disjoint paths; root owns integration, docs, CI, review and main merge.
+Weekly22% remaining at start; DeepSeek pause honored. No attributed usage claim.
+
+Reuse existing owner transaction/admission and inherited grade/provenance/review/
+return writers. Additive258 source must bind current owner/parent/nonowner roster,
+archive/purge/membership/protocol and queued/running AI exclusion. Source and
+mock checks are not actual database acceptance. CI wiring RED→GREEN250 checks;
+one rollback step in existing primary lane, exact53-name seal, secondary85 intact.
+Product/inert proof source frozen; expanded JSON bounds and PostgREST-hoisted8s
+timeout corrected before review. Final258 SHA84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c.
+Full focused1880/112, architecture/types/lint/UI/design policy and27TS audit PASS.
+Two source integration failures (workflow inventory/startup budget) fixed; prior
+failed receipts retained. Independent review, actual disposable SDK/concurrency/
+types and final-head CI/merge remain; private SDK adapter preparation is inert.
+Canonical local249+, prod257+, reset/seed/promotion/accounts/providers/quota and
+admission/home/page/cohort/cutover holds unchanged. Overall tool goal PAUSED;
+specific owner-group source work authorized, no fresh native permission inferred.
+
+PR1569 initial security review found two accepted source blockers: locked-question
+deletion in the no-question proof, and answered-MC clear normalization. One batch
+uses a separate initially empty rollback Test and locked internal clear_context;
+MC clears keep inherited zero, open clears null, public envelopes unchanged.
+Product148 focused checks and proof/profile89 PASS; full1890/112 plus static gates
+and11TS audit PASS before base sync. SQL258 now698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540.
+Private inert SDK/timeout/cleanup source types and13 fake-SDK checks PASS; no
+native execution. Rebased onto77d5095e6 (unrelated Assignment UI1568); retained
+both archive histories at the append conflict. No migration numbering change.
+Initial source reviewer turns recorded376s/2 findings and265s/0; launches2,
+initial1/targeted0/final0/fixbatch1, original review clock02:58:39UTC retained.
+Base-synced1890/112 and static gates PASS. Targeted/final review and fresh exact-source disposable
+001–258 permission remain before native acceptance, ready CI or merge. Draft,
+overall goal pause and all shared/production/activation/provider holds unchanged.

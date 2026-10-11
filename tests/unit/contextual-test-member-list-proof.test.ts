@@ -158,17 +158,20 @@ describe('finite member Test list fixture', () => {
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-  it('reproduces the former exact256 rejection of the complete current257 chain', () => {
-    expect(current).toHaveLength(257)
-    expect(() => assert.equal(current.length, 256)).toThrow()
+  it('reproduces the former exact257 rejection of the complete current258 chain', () => {
+    expect(current).toHaveLength(258)
+    expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })
     expect(digest(current[255].sql)).toBe('33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831')
-    expect(current.at(-1)).toMatchObject({ name: '257_contextual_test_learner_workflow.sql',
+    expect(current[256]).toMatchObject({ name: '257_contextual_test_learner_workflow.sql',
       sha256: 'd4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a' })
-    expect(digest(current.at(-1)!.sql)).toBe('d4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a')
+    expect(digest(current[256].sql)).toBe('d4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a')
+    expect(current.at(-1)).toMatchObject({ name: '258_contextual_test_owner_grading.sql',
+      sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540' })
+    expect(digest(current.at(-1)!.sql)).toBe('698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540')
   })
-  it.each([253, 254, 255, 256, 257])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
+  it.each([253, 254, 255, 256, 257, 258])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)
     expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248, ci = [...local, 'private.classroom_test_quota_settings'].sort()
@@ -176,10 +179,15 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(testMemberListReviewedIsolatedCatalog(local, migrations)).toEqual(ci)
     expect(testMemberListReviewedIsolatedCatalog(ci, migrations)).toEqual(ci)
   })
-  it.each(['future258', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
+  it.each(['future259', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
     'bad253name', 'self-hashed253bytes'] as const)('rejects unreviewed source profile: %s', defect => {
     const migrations = current.map(m => ({ ...m })), tail = migrations[253]
-    if (defect === 'future258') migrations.push({ name: '258_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future259') migrations.push({ name: '259_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    const grading = migrations[257]
+    if (defect === 'bad258name') grading.name = '258_unknown.sql'
+    if (defect === 'bad258digest') grading.sha256 = 'f'.repeat(64)
+    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') grading.sql += '\n'
+    if (defect === 'self-hashed258bytes') grading.sha256 = digest(grading.sql)
     const learner = migrations[256]
     if (defect === 'bad257name') learner.name = '257_unknown.sql'
     if (defect === 'bad257digest') learner.sha256 = 'f'.repeat(64)

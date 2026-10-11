@@ -52,7 +52,7 @@ function throwGradeRpcError(error: RpcError, fallback: string): never {
   throw new ApiError(500, fallback)
 }
 
-function toRpcGrade(
+export function toRpcGrade(
   grade: SaveStudentTestGradesInput['grades'][number] | SaveTestResponseGradeInput,
   identity: { responseId?: string; questionId?: string } = {},
 ) {
@@ -78,7 +78,7 @@ function toRpcGrade(
   }
 }
 
-function assertManualAiProvenance(input: {
+export function assertManualAiProvenance(input: {
   teacherId: string
   testId: string
   responseId: string

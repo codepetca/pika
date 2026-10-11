@@ -22,7 +22,9 @@ describe('closed learner native profile source', () => {
     const m = plan()
     expect(m.fixture).toEqual(fixture)
     expect(m.sourceSha256).toBe('d4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a')
-    expect(m.migrations).toHaveLength(257)
+    expect(m.migrations).toHaveLength(258)
+    expect(m.migrations.at(-1)).toEqual({ name: '258_contextual_test_owner_grading.sql',
+      sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540' })
     expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
     expect(m.setup).toContain('Migration257 learner fixture presence differs')
     expect(m.nativeVerified).toBe(false)
