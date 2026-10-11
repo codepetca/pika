@@ -45910,3 +45910,56 @@ blocker. Parenthesize extracted witness; second regression RED→GREEN6/6.
 Review ledger:1 completed bounded source turn/full-diff waves0/remediation1,
 native parser repair1 retained separately. Effective tokens/time unknown.
 Targeted delta review and fresh native approval remain; no full-PR acceptance.
+
+<!-- pika-session-log-archive-batch:e30c7cd01ccf106b327b60d35681dae5fa3bf91c8bdc3ffaccfcbe359b4f65cb -->
+## 2026-10-09 — Owner Test workflow native verification accepted
+
+Direct fresh approval covered one replay001–256 froma1bcab47e. Sol/high worker's
+existing-helper native run PASS85.718s/63containedSDKrequests: fullhistory/SQLACLs,
+owner metadata/selectedaccess/currentrelationship refusals, realPDFsignedupload,
+MIME/size finalize/attach/byte-readback, cancelordering, metadata/snapshotCAS and
+realHTMLCSPsnapshot replacement/durablecleanup. ExactownedDocker teardown/global
+741-resource closure/canonicalcomplete rows+controls+cron/source/ports PASS.
+Receipt:/private/tmp/pika-owner-workflow-proof.NHXKxe/result.json. External URL
+fetch/sanitize orchestration not invoked; downstreamsnapshot bytes real. Generated
+publictypes438466bytes SHA6ccab478f97b0df7140e38e2f60b1f3ca4c6d8b50d7f5f36d35c56b994e362e9,
+copied unchanged; onlynewRPC. NativeNULLinspect parent gets application refinement
+in database.ts with RED→GREEN7/7; finalTypeScriptPASS. No generatedsignatureforge.
+Rebase on e405fbfab incoming browserCIpartition: runtime/schema/proofSQLunchanged.
+One archive-marker conflict resolved preserving fullbodies; source2779/main2773
+history entries missing0 (per-file full-body multiset check; initial concatenated
+files falsepositive corrected). Existing safety stash retained. No new migration
+renumbering: own256 unchanged. Weekly36%remaining; worker tokens/effectiveusage
+unknown. Cumulative boundedpre-replay review turns2/remediation1/parserrepair1;
+fullPRreview/CI/mainmerge pending, sharedlocal/prod/activation holds unchanged.
+Final focused gate on rebased tree PASS742tests/69files plus architecture/UI/design/
+TypeScript/lint; genuine artifact equality and new3-file audit PASS, prior16-file
+implementation audit retained for unchanged source. Risk high/runtime-platform:
+service-only currentowner transaction/Storage boundary plus CI registration.
+Full review will use two fresh independent Sol/high readers (security/correctness,
+architecture/compatibility) on one frozen SHA; cumulative boundedreview2turns,
+fullwave0/remediation1 before dispatch. No new visual surface or activation.
+
+<!-- pika-session-log-archive-batch:6f9cc4514a9745cfdb8214de8b01147e7eb660b50237954c821270f0a75a5175 -->
+## 2026-10-09 — Owner workflow legacy attachment review correction
+
+Draft1555 c385/e405: both fresh Sol/high full reviewers completed their 26-file
+security/correctness and architecture/compatibility assignments. One duplicate
+acceptedP2: URL-only legacy uploads fail SQLdelivery and normalized metadata
+replay. No other actionable blocker; same-class link candidate rejected without
+proven unauthorized disclosure/mutation. Root reuses inherited Storage URL
+resolver for current/proposed identities, preserving strict inlineID comparison,
+new-upload reservation stamps and ready/classroom/purpose/exactTest delivery
+checks. Rollback regressions cover absent/presentIDs, historicalcreator/resource,
+URLreadback, canonicalrename/addition and path/object substitution refusals.
+Source-only guard RED→GREEN7/7; affected80/5 PASS; SQL not executed yet.
+Prior native/type receipt retained for actual A1 source; modified256 needs one
+fresh exact disposable replay approval after targeted review. No shared DB,
+production, activation or heavy CI action. Ledger now4completedturns/fullwave1/
+remediation2/parserrepair1; reportedfullreviewelapsed ~7min each, exacttime,
+effectivemodel and tokensunknown. Standing task-stop waiver retained; no reset.
+Existing Sol/high native helper owner prepares inert private regression runner
+only, no DB/Docker/lease/application authority. Focused gate and targeted review
+follow on a frozen correction; goal/batch2 not complete.
+Final focused gate PASS743tests/69files plus architecture/UI/design/TypeScript/
+lint; changed-test audit PASS. Native replay of the correction still unapproved.

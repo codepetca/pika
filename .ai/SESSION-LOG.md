@@ -11,57 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — Owner Test workflow native verification accepted
-
-Direct fresh approval covered one replay001–256 froma1bcab47e. Sol/high worker's
-existing-helper native run PASS85.718s/63containedSDKrequests: fullhistory/SQLACLs,
-owner metadata/selectedaccess/currentrelationship refusals, realPDFsignedupload,
-MIME/size finalize/attach/byte-readback, cancelordering, metadata/snapshotCAS and
-realHTMLCSPsnapshot replacement/durablecleanup. ExactownedDocker teardown/global
-741-resource closure/canonicalcomplete rows+controls+cron/source/ports PASS.
-Receipt:/private/tmp/pika-owner-workflow-proof.NHXKxe/result.json. External URL
-fetch/sanitize orchestration not invoked; downstreamsnapshot bytes real. Generated
-publictypes438466bytes SHA6ccab478f97b0df7140e38e2f60b1f3ca4c6d8b50d7f5f36d35c56b994e362e9,
-copied unchanged; onlynewRPC. NativeNULLinspect parent gets application refinement
-in database.ts with RED→GREEN7/7; finalTypeScriptPASS. No generatedsignatureforge.
-Rebase on e405fbfab incoming browserCIpartition: runtime/schema/proofSQLunchanged.
-One archive-marker conflict resolved preserving fullbodies; source2779/main2773
-history entries missing0 (per-file full-body multiset check; initial concatenated
-files falsepositive corrected). Existing safety stash retained. No new migration
-renumbering: own256 unchanged. Weekly36%remaining; worker tokens/effectiveusage
-unknown. Cumulative boundedpre-replay review turns2/remediation1/parserrepair1;
-fullPRreview/CI/mainmerge pending, sharedlocal/prod/activation holds unchanged.
-Final focused gate on rebased tree PASS742tests/69files plus architecture/UI/design/
-TypeScript/lint; genuine artifact equality and new3-file audit PASS, prior16-file
-implementation audit retained for unchanged source. Risk high/runtime-platform:
-service-only currentowner transaction/Storage boundary plus CI registration.
-Full review will use two fresh independent Sol/high readers (security/correctness,
-architecture/compatibility) on one frozen SHA; cumulative boundedreview2turns,
-fullwave0/remediation1 before dispatch. No new visual surface or activation.
-
-## 2026-10-09 — Owner workflow legacy attachment review correction
-
-Draft1555 c385/e405: both fresh Sol/high full reviewers completed their 26-file
-security/correctness and architecture/compatibility assignments. One duplicate
-acceptedP2: URL-only legacy uploads fail SQLdelivery and normalized metadata
-replay. No other actionable blocker; same-class link candidate rejected without
-proven unauthorized disclosure/mutation. Root reuses inherited Storage URL
-resolver for current/proposed identities, preserving strict inlineID comparison,
-new-upload reservation stamps and ready/classroom/purpose/exactTest delivery
-checks. Rollback regressions cover absent/presentIDs, historicalcreator/resource,
-URLreadback, canonicalrename/addition and path/object substitution refusals.
-Source-only guard RED→GREEN7/7; affected80/5 PASS; SQL not executed yet.
-Prior native/type receipt retained for actual A1 source; modified256 needs one
-fresh exact disposable replay approval after targeted review. No shared DB,
-production, activation or heavy CI action. Ledger now4completedturns/fullwave1/
-remediation2/parserrepair1; reportedfullreviewelapsed ~7min each, exacttime,
-effectivemodel and tokensunknown. Standing task-stop waiver retained; no reset.
-Existing Sol/high native helper owner prepares inert private regression runner
-only, no DB/Docker/lease/application authority. Focused gate and targeted review
-follow on a frozen correction; goal/batch2 not complete.
-Final focused gate PASS743tests/69files plus architecture/UI/design/TypeScript/
-lint; changed-test audit PASS. Native replay of the correction still unapproved.
-
 ## 2026-10-10 — Modal and drawer closing final integration
 
 PR1557 initial full-diff review CLEAN at a6f3d48fb (13 changed paths plus immediate contracts, observed228sec, zero findings). Human directed Next. Actual main b8335397b adds CI-only SDK partition; merge into feature preserves both session histories and both archival receipt markers for their identical entry. Product/native10source hashes, dependency lock and build inputs unchanged; original16-context closing proof remains reusable subject to hash verification. Final current-base focused/static and targeted integration review precede stable-SHA ready CI. Weekly34% remaining; DeepSeek pause and privacy/1217/production holds retained. Root coordinates, requested Sol6.1/medium integration reviewer; effective/tokens/active time unknown. No production, migrations or dependency operations.
@@ -614,3 +563,39 @@ Sol/high source review follows frozen publication. Cumulative ledger7turns1917s/
 targeted4/fix5/original02:58:39 retained;
 review-stop waiver active, actual native permission still consumed. Draft PR1569,
 normal-local/prod/activation/provider/account/toolgoalPAUSED holds unchanged.
+
+## 2026-10-11 — Owner grading corrected rollback passes; SDK revision setup stops
+
+Targeted source review8 CLEAN344s atcebc37d9d/base79a6f7994; cumulative8turns/
+2261seconds/targeted5/final1/fix5 retains original02:58:39 clock and waiver.
+Human approved ONE fresh exactcebc/full001–259/projectaee0568126a9 rehearsal.
+Fresh locked preflight/private bindings accepted; root sole native executor,
+no duplicate watcher or retry. Session11117 exit1: complete001–259 replay,
+corrected product rollback/ACL contracts and genuine CLI types identical PASS.
+Private SDK startLearners failed before closed-engine execution: fixed revision1
+assertion observed19. Retained244 global revision sequence and rollback proof's
+sequence caveat explain the driver assumption; no product defect established.
+Next source-only correction should validate/capture actual safe positive revisions
+with non-1 regression, then targeted review before fresh native authority.
+Exact owned teardown, global inventory/ports, whole canonical rows/settings/cron/
+resources and sourcefreeze PASS; cleanupFailures[]. Entry gates false/null again,
+seven inert hashes verified. Permission consumed; no sourcefix/CI/merge/shared
+migration/deployment/account/provider/activation or toolgoal resume occurred.
+
+## 2026-10-11 — Owner grading SDK captures real Start revisions
+
+Human authorized private driver correction/regressions/targeted review only.
+RED reproduced19!=1; GREEN validates Number.isSafeInteger/revision>=1 and retains
+exact observed revision/actor/attempt. Two mocked Start cases preserve19/37 and
+1/MAX_SAFE_INTEGER into frozen closed-engine preparation;14 denials reject seven
+invalid forms for either learner without frame dispatch or second Start retry.
+Existing operational SDK six-denial/restoration/cancellation mocks now start at
+19/37 and PASS;13 transport mocks, exact-parent corruption checks and all seven
+private TypeScript files PASS. Only three private source files changed; product,
+SQL, sequence, caps, runner and execution gates remain unchanged/inert. Native
+permission consumed; no database query, Docker/SDK network, migration, readyCI,
+merge or rollout. Prior full1954/112/static evidence unchanged for product code;
+fresh documentation/workflow gate and one targeted independent review follow.
+Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
+standing workflow-stop waiver retained. Shared-local/prod/account/provider/
+activation and toolgoalPAUSED holds unchanged.

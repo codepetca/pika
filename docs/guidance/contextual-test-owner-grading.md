@@ -177,3 +177,26 @@ receipts remain historical, not evidence for the new001–259 candidate. The
 fixture correction changes proof setup, not product authorization or triggers.
 Main79a6f7994 records another task's separately approved production001–258
 application and polling release; this task performs no production operation.
+
+The fresh approved `cebc37d9d`/`pika_assignment_list_aee0568126a9` rehearsal
+passed complete001–259 history, corrected product rollback/ACL contracts and
+genuine CLI types identical to the committed generated types. It then stopped
+in the private SDK `startLearners` setup: a hard-coded draft revision1 assertion
+observed19. Migration244 allocates revisions from a global sequence; rollback
+proofs do not reset sequence allocations. The driver must validate and capture
+the actual safe positive revision, not require1 or reset the sequence. This
+does not establish a product defect. Closed-engine contracts, remaining owner
+SDK cases and cancellation were not reached; native acceptance remains absent.
+Exact owned teardown, global inventory/ports and whole canonical preservation
+passed. Permission is consumed, no retry occurred and entry gates are inert.
+No shared-local/production database, deployment or activation operation occurred.
+
+The authorized source-only driver correction now validates a positive safe
+integer and retains the exact product revision in the frozen observed attempt.
+Regression mocks reproduce revision19, preserve19/37 and1/MAX_SAFE_INTEGER
+through the closed-engine preparation manifest, reject seven invalid forms for
+either learner, and prohibit a second Start dispatch after success or failure.
+The existing full mock SDK/restoration path also starts at19/37. No sequence,
+SQL, product writer, identity binding, cap or execution gate changed. These checks
+do not establish native acceptance; a new rehearsal needs fresh exact-source
+and target permission after targeted review.
