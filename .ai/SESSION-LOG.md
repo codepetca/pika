@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Modal drawer closing current-main integration
-
-PR1557 original reviewed8f8f43baf passed all selected CI and PR Gate (38046714949). New main3fd887953 introduced a history-only archive conflict before landing. Returned PR to draft before synchronization; retained all archive receipts and identical common entries while importing reviewed main unchanged. The closing product files and all ten native source/dependency bindings remain byte-identical; previous 16-context native/reference and build evidence is reusable after verification. Current-base focused checks and one targeted independent integration review precede stable-SHA ready CI. Guide options/Blueprint follow-on remains frozen and independently clean locally on prospective parent, publication held behind1557 landing. No new backend/migration/dependency/production work; broad fluidity goal remains incomplete.
-
 ## 2026-10-10 — Modal closing CI documentation-contract repair
 
 PR1557 Test & Build run38076231987 reproduced the main-inherited attendance rollout documentation parser failure: CURRENT now uses `Prod DB001–256` and a dated quota-control receipt. Accept those explicit receipt formats while retaining migration floor160, attendance smoke and all rollout-preflight assertions. Focused red/green4tests and audit pass; no product or deployment changes. Parent publication remains draft until this delta is independently reviewed and exact-head CI passes.
@@ -559,3 +555,18 @@ authenticated token-route coverage; batch2/goal remain open and goaltoolPAUSED.
 Factual docs delta only; runtime/SQL/generated/CI evidence reused only after
 byte equivalence and targeted independent delta review. Original ledger10turns/
 2626measureds+unknown9/targeted7/final1/fix7 under delegated workflow authority.
+
+## 2026-10-11 — CI catches compact continuity contract wording
+
+Reviewed factual-doc descendantab7c native-source bytes identicald714; narrow
+Luna/medium receipt/history delta review CLEAN, no runtime re-review needed.
+Ready once at15:01UTC started exact-headCI38149543002. At15:12UTC Test/Build
+coverage job failed bara-attendance continuity assertion: compactCURRENT lost
+required Controls unchanged prefix. Restored incoming main wording, offset with
+equivalent shorter learner/next-owner summaries; no test/budget/control weakened.
+PR returned draft before correction. Native/source evidence remains exactd714;
+no product/schema/type/CI/private-source change or native retry. Other CI jobs
+still active; do not launch parallel heavyCI. Affected checks/currentfocused and
+one narrow docs-delta review precede the new stablehead ready event. Original
+ledger11completed/2626measureds+unknown9+11/targeted8/final1; fixbatch8 under
+direct delegated workflow authority, no repeated owner approval required.

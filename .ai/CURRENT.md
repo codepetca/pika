@@ -13,11 +13,11 @@ Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
 admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Quota OFF; production env key names unchanged Oct11.
+Controls unchanged: quota OFF; production env key names unchanged Oct11.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-1555/1561/1566 merged; learner workflow dormant; source CI38133165213 PASS.
-Next: owner Test grades/return dormant.
+1555/1561/1566 merged; learner dormant; CI38133165213 PASS.
+Next: owner grades/return dormant.
 251/252 native/review/CI PASS.
 LegacyPATCH/UI unchanged; local249+ held.
 No exit; `docs/guidance/contextual-test-publication.md`.
