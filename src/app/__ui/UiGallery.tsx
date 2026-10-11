@@ -74,6 +74,7 @@ import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentControllerPattern } from './AssignmentControllerPattern'
 import { TestControllerPattern } from './TestControllerPattern'
+import { CreateClassroomControllerPattern } from './CreateClassroomControllerPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
 import { SurveyEditSplitPattern } from './SurveyEditSplitPattern'
@@ -173,9 +174,10 @@ interface Props {
   role: Role
   assignmentControllerFixture?: boolean
   testControllerFixture?: boolean
+  createClassroomControllerFixture?: boolean
 }
 
-export function UiGallery({ role, assignmentControllerFixture = false, testControllerFixture = false }: Props) {
+export function UiGallery({ role, assignmentControllerFixture = false, testControllerFixture = false, createClassroomControllerFixture = false }: Props) {
   const { theme, mounted, toggleTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
@@ -746,6 +748,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'teacher' && assignmentControllerFixture && <AssignmentControllerPattern />}
             {role === 'teacher' && testControllerFixture && <TestControllerPattern />}
+            {role === 'teacher' && createClassroomControllerFixture && <CreateClassroomControllerPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
               title="Guided assignment Markdown" description="The production assignment renderer with a fixed coding reference for both classroom roles.">
