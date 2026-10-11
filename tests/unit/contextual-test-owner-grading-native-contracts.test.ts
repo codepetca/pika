@@ -59,7 +59,7 @@ describe('inert contextual owner grading proof', () => {
     expect(request.p_expected_test).toBe(test)
     expect(request.p_payload).toEqual({student_id:fixture.actors[1].id,grades:[{response_id:fixture.responses[0].id,
       question_id:fixture.questions[0].id,expected_response_revision:1,clear_grade:false,score:0,feedback:'Synthetic manual feedback'}]})
-    const result={student_id:fixture.actors[1].id,saved_count:1,cleared_count:0,responses:[{id:fixture.responses[0].id,revision:2,score:0,feedback:'Synthetic manual feedback'}]}
+    const result={student_id:fixture.actors[1].id,saved_count:1,cleared_count:0,clear_context:[],responses:[{id:fixture.responses[0].id,revision:2,score:0,feedback:'Synthetic manual feedback'}]}
     const raw={version:1,actor_id:fixture.actors[0].id,classroom_id:fixture.classroomId,test_id:fixture.testId,operation:'manual-save',test,result}
     expect(validateTestOwnerGradingWitness(fixture,request,raw).result).toEqual(result)
     for (const bad of [{...raw,actor_id:fixture.actors[1].id},{...raw,operation:'return'},
@@ -81,9 +81,23 @@ describe('inert contextual owner grading proof', () => {
       Object.freeze({...request.p_payload.grades![0],clear_grade:true,score:null,feedback:null}),
     ])})})
     const raw={version:1,actor_id:fixture.actors[0].id,classroom_id:fixture.classroomId,test_id:fixture.testId,operation:'manual-save',test,
-      result:{student_id:fixture.actors[1].id,saved_count:1,cleared_count:1,responses:[{id:fixture.responses[0].id,revision:1,score:null,feedback:null}]}}
+      result:{student_id:fixture.actors[1].id,saved_count:1,cleared_count:1,clear_context:[{response_id:fixture.responses[0].id,question_id:fixture.questions[0].id,question_type:'open_response',selected_option:null}],responses:[{id:fixture.responses[0].id,revision:1,score:null,feedback:null}]}}
     expect(validateTestOwnerGradingWitness(fixture,clearRequest,raw).result).toEqual(raw.result)
     expect(()=>validateTestOwnerGradingWitness(fixture,clearRequest,{...raw,result:{...raw.result,cleared_count:0}})).toThrow()
+    expect(()=>validateTestOwnerGradingWitness(fixture,clearRequest,{...raw,result:{...raw.result,clear_context:[]}})).toThrow()
+    expect(()=>validateTestOwnerGradingWitness(fixture,clearRequest,{...raw,result:{...raw.result,clear_context:[{...raw.result.clear_context[0],question_type:'multiple_choice',selected_option:0}],responses:[{...raw.result.responses[0],score:0}]}})).toThrow()
+  })
+  it('binds answered MC clear normalization to the exact fixed response/question',()=>{
+    const test={id:fixture.testId,classroom_id:fixture.classroomId},request=testOwnerGradingRequest(fixture,'manual-save',test,'2026-10-10T12:00:30.000Z')
+    const clear=Object.freeze({...request,p_payload:Object.freeze({student_id:null,grades:Object.freeze([{response_id:fixture.responses[1].id,question_id:fixture.questions[1].id,expected_response_revision:1,clear_grade:true,score:null,feedback:null}])})})
+    const result={student_id:null,saved_count:1,cleared_count:1,clear_context:[{response_id:fixture.responses[1].id,question_id:fixture.questions[1].id,question_type:'multiple_choice',selected_option:0}],responses:[{id:fixture.responses[1].id,revision:2,score:0,feedback:null}]}
+    const raw={version:1,actor_id:fixture.actors[0].id,classroom_id:fixture.classroomId,test_id:fixture.testId,operation:'manual-save',test,result}
+    expect(validateTestOwnerGradingWitness(fixture,clear,raw).result).toEqual(result)
+    for(const changed of [{...result,clear_context:[{...result.clear_context[0],question_id:fixture.questions[0].id}]},
+      {...result,clear_context:[{...result.clear_context[0],selected_option:null}]},
+      {...result,responses:[{...result.responses[0],score:null}]},
+      {...result,clear_context:[...result.clear_context,...result.clear_context]}])
+      expect(()=>validateTestOwnerGradingWitness(fixture,clear,{...raw,result:changed})).toThrow()
   })
   it('keeps result collections on exactly the current nonowner roster', () => {
     const test={id:fixture.testId,classroom_id:fixture.classroomId},request=testOwnerGradingRequest(fixture,'results',test,'2026-10-10T12:00:30.000Z')
@@ -100,6 +114,15 @@ describe('inert contextual owner grading proof', () => {
     for(const text of m.contracts.checks) expect(sql).toContain(text)
     expect(sql).toContain("repeat('x',1200000)")
     expect(sql).toContain('repeat(chr(1),180000)')
+    expect(sql).not.toMatch(/delete\s+from\s+public\.test_questions/i)
+    expect(sql).toContain("empty_test_id uuid:='a2580000-0000-4000-8000-000000000012'")
+    expect(sql).toContain("'Initially empty owner grading'")
+    expect(m.contracts.sql).toContain(fixture.emptyTestId)
+    expect(m.contracts.sql).toContain(fixture.emptyAttemptIds[0])
+    expect(m.contracts.sql).toContain(fixture.emptyAttemptIds[1])
+    expect(fixture.allocatedIds).toContain(fixture.emptyTestId)
+    expect(fixture.emptyAttemptIds.every(id=>fixture.allocatedIds.includes(id))).toBe(true)
+    expect(m.snapshot).toContain(fixture.emptyTestId)
     expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
     for(const sql of [m.setup,m.snapshot,m.contracts.sql,...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {
       expect(validateTestOwnerGradingNativePlanSql(m,sql)).toBe(true)

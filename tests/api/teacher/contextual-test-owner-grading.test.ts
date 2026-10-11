@@ -17,7 +17,7 @@ vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: mocks.client }))
 vi.mock('@/lib/server/contextual-test-owner-workflow', () => ({ createContextualTestOwnerWorkflow: () => ({ inspect: mocks.inspect, run: mocks.run }) }))
 vi.mock('@/lib/server/test-ai-grading-runs', () => ({ getActiveTestAiGradingRunSummary: vi.fn() }))
 const grade = { response_id: responseId, question_id: questionId, expected_response_revision: 1, score: 1, feedback: 'Good' }
-const saved = { saved_count: 1, cleared_count: 0, responses: [{ id: responseId, revision: 2, score: 1, feedback: 'Good' }] }
+const saved = { saved_count: 1, cleared_count: 0, clear_context: [], responses: [{ id: responseId, revision: 2, score: 1, feedback: 'Good' }] }
 const routes = [
   { name: 'results', route: results, body: undefined, operation: 'results', result: { questions: [], student_ids: [], responses: [], attempts: [], users: [], profiles: [], focus_events: [], availability: [], active_ai_grading_run: null } },
   { name: 'response', route: responseSave, body: grade, operation: 'manual-save', result: { ...saved, student_id: null } },
@@ -34,6 +34,24 @@ describe('five contextual owner grading route admission branches', () => {
     mocks.role.mockImplementation(() => { throw new ApiError(403, 'legacy role guard') })
   })
   afterEach(() => vi.unstubAllEnvs())
+  it.each(['single', 'batch'])('preserves public %s MC-clear output and excludes internal normalization context', async kind => {
+    const response = { id: responseId, revision: 2, score: 0, feedback: null }
+    mocks.run.mockResolvedValue({ result: { student_id: kind === 'single' ? null : student, saved_count: 1, cleared_count: 1,
+      clear_context: [{ response_id: responseId, question_id: questionId, question_type: 'multiple_choice', selected_option: 0 }], responses: [response] } })
+    const input = { response_id: responseId, question_id: questionId, expected_response_revision: 1, clear_grade: true }
+    const route = kind === 'single' ? responseSave : studentSave
+    const result = await route(request(kind === 'single' ? input : { grades: [input] }), { params: Promise.resolve(params) })
+    expect(result.status).toBe(200)
+    expect(await result.json()).toEqual(kind === 'single' ? { response } : { saved_count: 1, responses: [response] })
+    expect(mocks.role).not.toHaveBeenCalled(); expect(mocks.run).toHaveBeenCalledOnce()
+  })
+  it('fails closed without retry when a clear acknowledgement claims zero for an open response', async () => {
+    mocks.run.mockResolvedValue({ result: { student_id: null, saved_count: 1, cleared_count: 1,
+      clear_context: [{ response_id: responseId, question_id: questionId, question_type: 'open_response', selected_option: null }],
+      responses: [{ id: responseId, revision: 2, score: 0, feedback: null }] } })
+    const result = await responseSave(request({ expected_response_revision: 1, clear_grade: true }), { params: Promise.resolve(params) })
+    expect(result.status).toBe(503); expect(mocks.role).not.toHaveBeenCalled(); expect(mocks.run).toHaveBeenCalledOnce()
+  })
   for (const row of routes) {
     it.each(['student', 'teacher'])(`${row.name} admits current owner independent of historical %s role`, async role => {
       mocks.auth.mockResolvedValue({ id: actor, role }); mocks.run.mockResolvedValue({ test: { id: testId, title: 'Test', status: 'active', show_results: false }, result: row.result })

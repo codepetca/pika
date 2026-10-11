@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 
 export const TEST_OWNER_GRADING_REVIEWED_MIGRATION = Object.freeze({
   name: '258_contextual_test_owner_grading.sql',
-  sha256: '84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c',
+  sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540',
 })
 
 export function validateTestOwnerGradingReviewedMigration(migration: { name: string; sql: string; sha256: string }) {

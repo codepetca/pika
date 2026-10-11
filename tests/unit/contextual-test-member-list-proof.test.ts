@@ -168,8 +168,8 @@ describe('actual-source member migration profiles (offline)', () => {
       sha256: 'd4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a' })
     expect(digest(current[256].sql)).toBe('d4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a')
     expect(current.at(-1)).toMatchObject({ name: '258_contextual_test_owner_grading.sql',
-      sha256: '84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c' })
-    expect(digest(current.at(-1)!.sql)).toBe('84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c')
+      sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540' })
+    expect(digest(current.at(-1)!.sql)).toBe('698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540')
   })
   it.each([253, 254, 255, 256, 257, 258])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)

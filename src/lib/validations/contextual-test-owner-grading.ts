@@ -15,7 +15,14 @@ export const ownerClearGradesSchema = clearTestOpenGradesSchema.pipe(z.object({
   responses: z.array(z.object({ response_id: uuid, expected_response_revision: count.positive() }).strict()).max(1000),
 }).strict())
 export const ownerSavedResponseSchema = z.object({ id: uuid, revision: count.positive(), score: z.number().nonnegative().nullable(), feedback: z.string().max(10000).nullable() }).strict()
-export const ownerSaveResultSchema = z.object({ student_id: uuid.nullable(), saved_count: count, cleared_count: count, responses: z.array(ownerSavedResponseSchema).max(100) }).strict()
+// Transaction-only evidence for the inherited shape trigger's clear outcome.
+// An unanswered closure MC cannot be cleared by the inherited atomic writer.
+const clearContext = z.discriminatedUnion('question_type', [
+  z.object({ response_id: uuid, question_id: uuid, question_type: z.literal('multiple_choice'), selected_option: count }).strict(),
+  z.object({ response_id: uuid, question_id: uuid, question_type: z.literal('open_response'), selected_option: z.null() }).strict(),
+])
+export const ownerSaveResultSchema = z.object({ student_id: uuid.nullable(), saved_count: count, cleared_count: count,
+  clear_context: z.array(clearContext).max(100), responses: z.array(ownerSavedResponseSchema).max(100) }).strict()
 export const ownerClearResultSchema = z.object({ student_ids: z.array(uuid).max(100), cleared_students: count, skipped_students: count, cleared_responses: count }).strict()
 export const ownerReturnResultSchema = z.object({ student_ids: z.array(uuid).max(100), returned_count: count, already_returned_count: count, skipped_count: count, test_closed: z.literal(false) }).strict()
 

@@ -26,6 +26,23 @@ describe('contextual owner grading additive source contract (native proof requir
     expect(sql).toContain("p_operation in ('update','sync','manual-save','clear-open-grades','return')")
     expect(sql).toContain('v_result::text')
   })
+  it('binds inherited MC-clear normalization to locked current question/response evidence without changing writers', () => {
+    const sql = readFileSync(migrationPath, 'utf8')
+    const save = sql.slice(sql.indexOf("    if p_operation = 'manual-save' then"), sql.indexOf("      if p_payload - (case when p_operation = 'return'"))
+    expect(save).toContain('for update of r nowait for share of q nowait')
+    expect(save).toContain("'question_type',q.question_type,'selected_option',r.selected_option")
+    expect(save.indexOf('v_clear_context :=')).toBeLessThan(save.indexOf('public.save_test_response_grades_with_provenance_atomic'))
+    expect(save).toContain("context->>'question_type' = 'multiple_choice'")
+    expect(save).toContain("context->>'selected_option' is not null")
+    expect(save).toContain("'clear_context',v_clear_context")
+    expect(save).toContain("saved.feedback is not distinct from (g->>'feedback')")
+    expect(save).toContain("saved.revision between (g->>'expected_response_revision')::bigint and (g->>'expected_response_revision')::bigint + 1")
+    // Inherited writer/shape and revision triggers remain the authority for
+    // normalization, returned-marker retraction and meaningful revision bumps.
+    const inherited = readFileSync('supabase/migrations/244_test_attempt_revision_and_return_guards.sql', 'utf8')
+    expect(inherited).toContain('new.score = 0;')
+    expect(inherited).toContain('returned_at = null')
+  })
   it('measures expanded row JSON before array aggregation and declares the PostgREST-hoisted statement timeout', () => {
     const sql = readFileSync(migrationPath, 'utf8')
     const bounds = sql.slice(sql.indexOf('), bounds as ('), sql.indexOf('select bounds.invalid,bounds.bytes,'))
