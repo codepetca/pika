@@ -30,6 +30,20 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('PageMockups Calendar demonstrates teacher agenda actions and preserves Month and Term grids', () => {
+    renderGallery('teacher')
+    const mockups = within(document.getElementById('page-mockups')!)
+    fireEvent.click(mockups.getByRole('tab', { name: 'Calendar', exact: true }))
+    const agenda = mockups.getByRole('region', { name: 'Week agenda' })
+    expect(within(agenda).getAllByRole('article')).toHaveLength(7)
+    expect(within(agenda).getAllByRole('button', { name: 'Edit lesson' }).length).toBeGreaterThan(0)
+    fireEvent.click(mockups.getByRole('button', { name: 'Month', exact: true }))
+    expect(mockups.queryByRole('region', { name: 'Week agenda' })).not.toBeInTheDocument()
+    expect(mockups.queryByRole('button', { name: 'Edit lesson' })).not.toBeInTheDocument()
+    fireEvent.click(mockups.getByRole('button', { name: 'Term', exact: true }))
+    expect(mockups.queryByRole('region', { name: 'Week agenda' })).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('keeps AssignmentControllerPattern absent from ordinary %s references', role => {
     renderGallery(role)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()

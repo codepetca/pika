@@ -143,6 +143,24 @@ describe('TeacherLessonCalendarTab', () => {
     vi.restoreAllMocks()
   })
 
+  it('preserves teacher view selection and the existing Markdown sidebar action', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    expect(screen.getByRole('button', { name: 'Week', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const readCount = fetchMock.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit calendar in Markdown' }))
+    expect(sidebarState.toggle).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Month', exact: true }))
+    expect(screen.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Next', exact: true })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Term', exact: true }))
+    expect(screen.getByRole('button', { name: 'Term', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Next', exact: true })).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(readCount)
+  })
+
   it('does not fetch or display classroom features hidden from teachers', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
