@@ -31,12 +31,15 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
   })
 
-  it('gates AssignmentControllerPattern to the explicitly enabled teacher fixture', () => {
-    const teacher = renderGallery('teacher', true)
-    expect(screen.getByTestId('assignment-controller-fixture')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open controlled assignment' })).toBeVisible()
+  it('renders the explicitly enabled teacher fixture closed', () => {
+    renderGallery('teacher', true)
+    const fixture = within(screen.getByTestId('assignment-controller-fixture'))
+    expect(fixture.getByRole('button', { name: 'Open controlled assignment' })).toBeVisible()
+    // AssignmentModal portals outside the fixture section; keep this global assertion.
     expect(screen.queryByRole('dialog', { name: 'Edit Draft' })).not.toBeInTheDocument()
-    teacher.unmount()
+  })
+
+  it('keeps the enabled AssignmentControllerPattern absent for students', () => {
     renderGallery('student', true)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
   })
