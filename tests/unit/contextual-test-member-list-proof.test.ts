@@ -158,8 +158,8 @@ describe('finite member Test list fixture', () => {
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-  it('reproduces the former exact257 rejection of the complete current259 chain', () => {
-    expect(current).toHaveLength(259)
+  it('reproduces the former exact257 rejection of the complete current260 chain', () => {
+    expect(current).toHaveLength(260)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })
@@ -171,8 +171,10 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(digest(current[257].sql)).toBe('7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f')
     expect(current[258]).toMatchObject({ name: '259_contextual_test_owner_grading.sql', sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540' })
     expect(digest(current[258].sql)).toBe('698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540')
+    expect(current[259]).toMatchObject({ name: '260_contextual_test_owner_recovery.sql', sha256: '84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0' })
+    expect(digest(current[259].sql)).toBe('84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0')
   })
-  it.each([253, 254, 255, 256, 257, 258, 259])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
+  it.each([253, 254, 255, 256, 257, 258, 259, 260])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)
     expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248, ci = [...local, 'private.classroom_test_quota_settings'].sort()
@@ -180,10 +182,15 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(testMemberListReviewedIsolatedCatalog(local, migrations)).toEqual(ci)
     expect(testMemberListReviewedIsolatedCatalog(ci, migrations)).toEqual(ci)
   })
-  it.each(['future260', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
+  it.each(['future261', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
     'bad253name', 'self-hashed253bytes'] as const)('rejects unreviewed source profile: %s', defect => {
     const migrations = current.map(m => ({ ...m })), tail = migrations[253]
-    if (defect === 'future260') migrations.push({ name: '260_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future261') migrations.push({ name: '261_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    const recovery = migrations[259]
+    if (defect === 'bad260name') recovery.name = '260_unknown.sql'
+    if (defect === 'bad260digest') recovery.sha256 = 'f'.repeat(64)
+    if (defect === 'bad260bytes' || defect === 'self-hashed260bytes') recovery.sql += '\n'
+    if (defect === 'self-hashed260bytes') recovery.sha256 = digest(recovery.sql)
     const grading = migrations[258]
     if (defect === 'bad259name') grading.name = '259_unknown.sql'
     if (defect === 'bad259digest') grading.sha256 = 'f'.repeat(64)

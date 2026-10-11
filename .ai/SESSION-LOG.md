@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Form closing prospective-main synchronization
-
-Integrated current modal/drawer parent a5960643f with reviewed main3fd887953 into the frozen Guide options/Blueprint follow-on. Product/adopter/native dependency hashes remain unchanged from the completed local matrix and initial independent review f1e492aa1. Reconciled the duplicate Entry recovery archive body while preserving both parent histories and all receipts; imported upstream source and CI unchanged. Updated prospective-parent checks and proportional integration review follow. Publication remains behind PR1557 actual main landing; exact final SHA requires normal ready CI. The pre-existing shared-menu streamed-ID mismatch remains a separate open accessibility follow-up, not an owner-approved goal deferral. No migration application, backend write, new dependency or production work.
-
 ## 2026-10-10 — Form closing actual-main publication
 
 PR1557 merged to main3675a8a01 with all selected CI/PR Gate PASS; parent squash tree exactly matches reviewed b6eccc99a. Replayed only the Guide options/Blueprint form adoption onto actual main, preserved both source histories and owned synchronization notes, and retained all upstream implementation/test/dependency files. Eight own nonhistory files and ten native bindings remain unchanged from the accepted initial review/matrix. Canonical focused checks, draft publication and proportional actual-main integration review precede ready CI; no phase exit or production promotion claimed. Shared ActionBarMenu hydration follow-up remains open.
@@ -594,3 +590,20 @@ regressions are being added before a new reviewed source binding. No native PASS
 Tests phase exit, sharedlocal249+/prod259+ application, promotion, provider/account
 or admission/home/page/cutover activation. Task-scoped routine/budget waiver remains;
 actual counters/evidence retained, no reset.
+
+## 2026-10-11 — Recovery native pass and member-list forward seal
+
+PR1577 reviewed b11ff987a passed the fresh isolated001–260 rehearsal ec9995cfb906:
+16 acceptance groups,13 closed database labels,10 held schedules, genuine CLI
+types identical, mixed-role authority/revocations, unsubmit/single/bulk reset,
+observed8.012s57014 cancellation and positive settlement. Exact target-only cleanup,
+canonical183tables/settings/schema/cron and complete741-resource baseline passed.
+All seven previous failures and sources/receipts remain retained; no replay.
+Eighteen completed reviews1839s, seven accepted findings resolved, no reset.
+Ready CI38174577820 caught an older member-list fixture/profile still capped259;
+16759 full tests passed, one failed. Returned draft before correction; remaining
+lanes cancelled, no green CI/merge claim. Add only externally sealed260 acceptance
+to that proof, retain exact259 checks and unknown261/tampered260 rejection. This
+does not change recovery runtime, migrations, private verifier or application.
+Sharedlocal249+/prod259+/promotion/provider/account/cutover holds remain; Tests,
+Surveys/Grades and broader integration/rollout remain unfinished.
