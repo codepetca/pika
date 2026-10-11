@@ -2450,6 +2450,9 @@ export function TestDetailPanel({
                   </div>
                 ) : null}
                 <TeacherWorkSurfaceIconMenuButton
+                  key={documentEditorScopeKey}
+                  exitMotion="opacity"
+                  interactionActive={documentsOwnerKey === documentEditorScopeKey && !loading && !isClosing && !isPreparingPublish && !openingTestPreview}
                   icon={<ListPlus className="h-5 w-5" aria-hidden="true" />}
                   ariaLabel="Question actions"
                   tooltip="Question actions"
