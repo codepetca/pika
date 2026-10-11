@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 
 export const TEST_OWNER_GRADING_REVIEWED_MIGRATION = Object.freeze({
-  name: '258_contextual_test_owner_grading.sql',
+  name: '259_contextual_test_owner_grading.sql',
   sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540',
 })
 

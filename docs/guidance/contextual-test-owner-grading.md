@@ -124,7 +124,7 @@ per-route rollout flags, database tables or verification platform are needed.
 Generated database types must come from the actual CLI, never a handwritten
 claim about replayed schema.
 
-Canonical local249+, production257+, reset/seed/history repair, promotion,
+Canonical local249+, production259+, reset/seed/history repair, promotion,
 account/plan changes, provider/AI/billing work and quota/admission/home/page/cohort
 cutover remain held. Prior native permissions are consumed; another actual
 rehearsal needs fresh exact-source disposable-target authority. Ordinary source
@@ -169,3 +169,11 @@ updates it; no other Test field or graph row is omitted. Pure corruption tests
 and the injected SDK driver reject an incorrect restored category. These are
 source/mock checks, not native SQL execution or acceptance. The entry gate stays
 inert; no fresh rehearsal, shared-local/production write or rollout is authorized.
+
+Current source integration preserves main's independently sealed migration258
+student session-status projection and renames the unchanged owner grading SQL
+to259. Complete-chain guards must verify both exact tails; prior001–258 native
+receipts remain historical, not evidence for the new001–259 candidate. The
+fixture correction changes proof setup, not product authorization or triggers.
+Main79a6f7994 records another task's separately approved production001–258
+application and polling release; this task performs no production operation.

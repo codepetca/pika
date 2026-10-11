@@ -28,18 +28,22 @@ const catalog = testOwnerReorderTableCatalogFromCanonical(canonical)
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: names.map(table => ({ table, fingerprint: 'unchanged' })) })
 
-describe.each(['258_student_test_session_status_projection.sql', '258_contextual_test_owner_grading.sql'])('closed reorder lifecycle exact named source profile %s', tailName => {
-  const source = loadAssignmentListReviewedMigrations(process.cwd())
-  const tail = source.find(migration => migration.name === tailName)
-  if (!tail) throw new Error('Missing exact reviewed profile tail')
-  const current = [...source.slice(0, 257), tail]
-  it.each([254, 255, 256, 257, 258])('admits exact complete reviewed migration profile %i', count => {
+describe('closed reorder lifecycle exact actual-source profiles', () => {
+  const current = loadAssignmentListReviewedMigrations(process.cwd())
+  it.each([254, 255, 256, 257, 258, 259])('admits exact complete reviewed migration profile %i', count => {
     expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, count))).not.toThrow()
   })
-  it.each(['future259', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
+  it.each(['future260', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
     const migrations = current.map(m => ({ ...m }))
     const addition = migrations[255]
-    if (defect === 'future259') migrations.push({ name: '259_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    if (defect === 'future260') migrations.push({ name: '260_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    const grading = migrations[258]
+    if (defect === 'bad259name') grading.name = '259_unknown.sql'
+    if (defect === 'bad259digest') grading.sha256 = 'f'.repeat(64)
+    if (defect === 'bad259bytes' || defect === 'self-hashed259bytes') grading.sql += '\n'
+    if (defect === 'self-hashed259bytes') grading.sha256 = testOwnerDigest(grading.sql)
+    if (defect === 'missing258') migrations.splice(257, 1)
+    if (defect === 'replaced258') migrations[257] = { ...grading, name: '258_student_test_session_status_projection.sql' }
     const profileTail = migrations[257]
     if (defect === 'bad258name') profileTail.name = '258_unknown.sql'
     if (defect === 'bad258digest') profileTail.sha256 = 'f'.repeat(64)

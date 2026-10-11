@@ -6,20 +6,20 @@ import { newTestOwnerGradingFixture, testOwnerGradingRequest, validateTestOwnerG
 import { testOwnerGradingNativePlan, validateTestOwnerGradingNativePlanSql, runTestOwnerGradingNativeContracts, runTestOwnerGradingNativeRaces } from '../../scripts/contextual-test-owner-grading-native-contracts'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { buildTestOwnerGradingNativeContractsManifest, createTestOwnerGradingNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 
-// A synthetic seal exercises the driver contract without blessing unfinished258
+// A synthetic seal exercises the driver contract without blessing candidate259
 // bytes. The actual migration inventory and all native execution remain held.
-const mockSource=vi.hoisted(()=>({enabled:false,sql:'-- synthetic mock258\n'}))
+const mockSource=vi.hoisted(()=>({enabled:false,sql:'-- synthetic mock259\n'}))
 vi.mock('node:fs',async importOriginal=>{
   const actual=await importOriginal<typeof import('node:fs')>()
-  return {...actual,readFileSync:(...args:Parameters<typeof actual.readFileSync>)=>mockSource.enabled&&String(args[0]).endsWith('/258_contextual_test_owner_grading.sql')?mockSource.sql:actual.readFileSync(...args)}
+  return {...actual,readFileSync:(...args:Parameters<typeof actual.readFileSync>)=>mockSource.enabled&&String(args[0]).endsWith('/259_contextual_test_owner_grading.sql')?mockSource.sql:actual.readFileSync(...args)}
 })
 vi.mock('../../scripts/contextual-assignment-list-proof-platform',async importOriginal=>{
   const actual=await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
-  return {...actual,loadAssignmentListReviewedMigrations:(repository:string)=>mockSource.enabled?Array.from({length:258},(_,i)=>({
-    name:i===257?'258_contextual_test_owner_grading.sql':`${String(i+1).padStart(3,'0')}_mock.sql`,sql:mockSource.sql,
-    sha256:createHash('sha256').update(mockSource.sql).digest('hex'),
-  })):actual.loadAssignmentListReviewedMigrations(repository)}
+  return {...actual,loadAssignmentListReviewedMigrations:(repository:string)=>actual.loadAssignmentListReviewedMigrations(repository).map(migration=>
+    mockSource.enabled&&migration.name==='259_contextual_test_owner_grading.sql'?{...migration,sql:mockSource.sql,
+      sha256:createHash('sha256').update(mockSource.sql).digest('hex')}:migration)}
 })
 vi.mock('../../scripts/test-owner-grading-reviewed-migration',async importOriginal=>{
   const actual=await importOriginal<typeof import('../../scripts/test-owner-grading-reviewed-migration')>()
@@ -46,6 +46,25 @@ const targetFor = (m: ReturnType<typeof plan>, phase: 'contracts'|'concurrency')
 })
 
 describe('inert contextual owner grading proof', () => {
+  it.each(['projection258-only', 'future260', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes',
+    'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes'] as const)('refuses incomplete or altered owner source profile %s', defect => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
+    if (defect === 'projection258-only') migrations.pop()
+    if (defect === 'future260') migrations.push({ name: '260_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'missing258') migrations.splice(257, 1)
+    if (defect === 'replaced258') migrations[257] = { ...migrations[258], name: '258_student_test_session_status_projection.sql' }
+    for (const [number, index] of [[258, 257], [259, 258]] as const) {
+      const tail = migrations[index]
+      if (defect === `bad${number}name`) tail.name = `${number}_unknown.sql`
+      if (defect === `bad${number}digest`) tail.sha256 = 'f'.repeat(64)
+      if (defect === `bad${number}bytes` || defect === `self-hashed${number}bytes`) tail.sql += '\n'
+      if (defect === `self-hashed${number}bytes`) tail.sha256 = digest(tail.sql)
+    }
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValueOnce(migrations)
+    try { expect(plan).toThrow() }
+    finally { loader.mockRestore() }
+  })
   it('reuses the learner fixture and requires real observed attempt identities', () => {
     expect(fixture.actors.map(row=>row.role)).toEqual(['student','teacher','student','teacher'])
     expect(fixture.responses).toHaveLength(4)
@@ -109,7 +128,9 @@ describe('inert contextual owner grading proof', () => {
   })
   it('ships rollback-only SQL assertions bound to the coordinator source candidate', () => {
     const m=plan(),sql=readFileSync('scripts/check-contextual-test-owner-grading.sql','utf8')
-    expect(m.nativeVerified).toBe(false);expect(m.sourceSha256).toMatch(/^[a-f0-9]{64}$/);expect(m.migrations).toHaveLength(258)
+    expect(m.nativeVerified).toBe(false);expect(m.sourceSha256).toMatch(/^[a-f0-9]{64}$/);expect(m.migrations).toHaveLength(259)
+    expect(m.migrations[257]).toEqual({name:'258_student_test_session_status_projection.sql',sha256:'7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f'})
+    expect(m.migrations[258]).toEqual({name:'259_contextual_test_owner_grading.sql',sha256:'698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540'})
     expect(sql).toContain('rollback;');expect(sql).not.toMatch(/\bcommit\s*;/i)
     for(const text of m.contracts.checks) expect(sql).toContain(text)
     expect(sql).toContain("repeat('x',1200000)")

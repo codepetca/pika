@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
 import { TEST_OWNER_GRADING_REVIEWED_MIGRATION, validateTestOwnerGradingReviewedMigration } from './test-owner-grading-reviewed-migration'
+import { validateStudentTestSessionStatusReviewedMigration } from './student-test-session-status-reviewed-migration'
 import type { TestLearnerObservedAttempt } from './contextual-test-learner-proof-fixture'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
@@ -31,15 +32,16 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const sql=readFileSync(resolve(repository,'supabase/migrations',TEST_OWNER_GRADING_REVIEWED_MIGRATION.name),'utf8')
   const sourceSha256=hash(sql);validateTestOwnerGradingReviewedMigration({name:TEST_OWNER_GRADING_REVIEWED_MIGRATION.name,sql,sha256:sourceSha256})
-  const inventory=loadAssignmentListReviewedMigrations(repository);assert.equal(inventory.length,258)
-  validateTestOwnerGradingReviewedMigration(inventory[257])
+  const inventory=loadAssignmentListReviewedMigrations(repository);assert.equal(inventory.length,259)
+  validateStudentTestSessionStatusReviewedMigration(inventory[257])
+  validateTestOwnerGradingReviewedMigration(inventory[258])
   const migrations=inventory.map(({name,sha256})=>({name,sha256}));const migrationManifestSha256=hash(JSON.stringify(migrations))
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`,guard=testOwnerGuardSql(projectId)
   const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';",terminal="end;$guard$;select 'ok';rollback;"
   const identity=`current_setting('application_name')<>${q(projectId+'_fixture')}`
   assert(guard.startsWith(prefix)&&guard.endsWith(terminal)&&guard.split(identity).length===2)
   const inherited=guard.slice(prefix.length,-terminal.length).replace(identity,`current_setting('application_name') not in (${q(projectId+'_draft_holder')},${q(projectId+'_draft_contender')},${q(projectId+'_draft_contracts')})`)
-  const begin=`begin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='180s';${inherited}\nif current_database()<>'postgres' or current_user<>'postgres' or to_regprocedure('public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamptz)') is null then raise exception 'Migration258 disposable source differs';end if;end;$guard$;`
+  const begin=`begin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='180s';${inherited}\nif current_database()<>'postgres' or current_user<>'postgres' or to_regprocedure('public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamptz)') is null then raise exception 'Migration259 disposable source differs';end if;end;$guard$;`
   const tid=`${q(f.testId)}::uuid`,cid=`${q(f.classroomId)}::uuid`,owner=`${q(f.actors[0].id)}::uuid`,member=`${q(f.actors[1].id)}::uuid`
   const response=`${q(f.responses[0].id)}::uuid`,question=`${q(f.questions[0].id)}::uuid`
   const tables=[['public.users',`id in (${f.actors.map(a=>q(a.id)).join(',')})`],['public.classrooms',`id in (${q(f.classroomId)},${q(f.wrongClassroomId)})`],
@@ -57,7 +59,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
     or not exists(select 1 from public.test_questions where id=${q(f.questions[1].id)} and test_id=${tid} and question_type='multiple_choice' and points=1 and correct_option=0)
     or (select count(*) from public.classroom_enrollments where classroom_id=${cid} and student_id in (${f.actors.slice(0,3).map(a=>q(a.id)).join(',')}))<>3
     or (select count(*) from public.test_student_availability where test_id=${tid} and student_id in (${f.actors.slice(1,3).map(a=>q(a.id)).join(',')}) and state='closed')<>2
-    then raise exception 'Migration258 grading fixture presence differs';end if;end;$presence$;`
+    then raise exception 'Migration259 grading fixture presence differs';end if;end;$presence$;`
   const setup=bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}rollback;`)
   const template=readFileSync(resolve(repository,'scripts/check-contextual-test-owner-grading.sql'),'utf8')
   const marker='-- owner-grading-contracts-begin\n',end='-- owner-grading-contracts-end'

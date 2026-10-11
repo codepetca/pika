@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
 import { validateTestOwnerGradingReviewedMigration } from './test-owner-grading-reviewed-migration'
+import { validateStudentTestSessionStatusReviewedMigration } from './student-test-session-status-reviewed-migration'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { newTestLearnerWorkflowFixture, type TestLearnerObservedAttempt } from './contextual-test-learner-proof-fixture'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
@@ -33,8 +34,9 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
   })
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const reviewedMigrations=loadAssignmentListReviewedMigrations(repository)
-  assert([257,258].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
-  if(reviewedMigrations.length===258)validateTestOwnerGradingReviewedMigration(reviewedMigrations[257])
+  assert([257,258,259].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
+  if(reviewedMigrations.length>=258)validateStudentTestSessionStatusReviewedMigration(reviewedMigrations[257])
+  if(reviewedMigrations.length===259)validateTestOwnerGradingReviewedMigration(reviewedMigrations[258])
   const migrations=reviewedMigrations.map(({name,sha256})=>({name,sha256}))
   assert.deepEqual(migrations[256],{name:'257_contextual_test_learner_workflow.sql',sha256:TEST_LEARNER_NATIVE_SOURCE_SHA256})
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`, guard=testOwnerGuardSql(projectId)

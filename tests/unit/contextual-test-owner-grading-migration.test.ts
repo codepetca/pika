@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const migrationPath = 'supabase/migrations/258_contextual_test_owner_grading.sql'
+const migrationPath = 'supabase/migrations/259_contextual_test_owner_grading.sql'
 describe('contextual owner grading additive source contract (native proof required separately)', () => {
   it('preserves every historical branch while extending the existing service-only signature', () => {
     const sql = readFileSync(migrationPath, 'utf8')

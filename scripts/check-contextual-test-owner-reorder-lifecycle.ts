@@ -46,19 +46,13 @@ const APP_CAPS = Object.freeze({ controls: 4000, actions: 200, totalMs: 900000, 
 const CANONICAL_AFTER_CAPS = Object.freeze({ attempts: 1, bytes: 8 * 1024 * 1024 })
 export function validateTestOwnerReorderReviewedMigrations(migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>) {
   validateAssignmentListMigrationChain(migrations)
-  assert([254, 255, 256, 257, 258].includes(migrations.length), 'Unreviewed reorder migration profile')
+  assert([254, 255, 256, 257, 258, 259].includes(migrations.length), 'Unreviewed reorder migration profile')
   assert.equal(migrations[253]?.name, '254_contextual_test_owner_reorder.sql')
   if (migrations.length >= 255) validateTestUnpublicationReviewedMigration(migrations[254])
   if (migrations.length >= 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
   if (migrations.length >= 257) validateTestLearnerWorkflowReviewedMigration(migrations[256])
-  if (migrations.length === 258) {
-    const tail = migrations[257]
-    if (tail.name === '258_student_test_session_status_projection.sql') validateStudentTestSessionStatusReviewedMigration(tail)
-    else {
-      assert.equal(tail.name, '258_contextual_test_owner_grading.sql', 'Unreviewed reorder migration profile')
-      validateTestOwnerGradingReviewedMigration(tail)
-    }
-  }
+  if (migrations.length >= 258) validateStudentTestSessionStatusReviewedMigration(migrations[257])
+  if (migrations.length === 259) validateTestOwnerGradingReviewedMigration(migrations[258])
 }
 type Rows = Record<string, Array<Record<string, unknown>>>
 type Session = Parameters<AssignmentListLifecycleAdapters['executeSql']>[0]

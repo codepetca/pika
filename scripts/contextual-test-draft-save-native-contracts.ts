@@ -528,7 +528,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '258_contextual_test_owner_grading.sql';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '259_contextual_test_owner_grading.sql';
   label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading';
   learnerCancellation?: TestLearnerNativePlan['cancellation'];
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
@@ -562,7 +562,7 @@ export function createTestOwnerGradingNativeContracts(input: NativeOwnerInput & 
   const manifest = buildTestOwnerGradingNativeContractsManifest(input.original, input.observedAttempts,
     input.reviewedHead, input.repository)
   const engine = createNativeOwnerContracts(input, { manifest, project: manifest.projectId,
-    sourceFile: '258_contextual_test_owner_grading.sql', label: 'test-owner-grading', absoluteDeadline: input.absoluteDeadline,
+    sourceFile: '259_contextual_test_owner_grading.sql', label: 'test-owner-grading', absoluteDeadline: input.absoluteDeadline,
     singleMs: 12000, committedOuterPrivilege: true,
     validateSql: sql => [manifest.bootstrap, manifest.close, manifest.privilege.catalog, manifest.privilege.revoke].includes(sql)
       || validateTestOwnerGradingNativePlanSql(manifest, sql),

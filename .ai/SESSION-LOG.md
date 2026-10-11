@@ -11,46 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — SDK CI partition
-
-User authorized SDK speed work after browser PR1554 landed. Split the unchanged seven owner proof blocks into two isolated hosted jobs (detail/list/draft-save/create; draft-get/discard/publication), preserving all21 fresh modes, reviewed migration replay and exact failure/cleanup receipts. PR Gate requires both database-selected SDK results. Local database/SDK aliases retain complete serial coverage, including historical refs. No app/schema/harness/dependency changes or local DB mutation. GPT-6.1 Sol/high design verified; target169tests/5files PASS, raw proof-block hashes equal base e405fbfab. Focused605tests/54files and all static checks PASS; audit8changedTS PASS; independent fixed-SHA review and exact-head native CI pending. Latest unsplit SDK38m31/database36m46; projected SDK~21m14, full-gate gain~1m45 only, extra setup consumption to measure. Private receipts: ~/.codex/artifacts/pika/ci-sdk-optimization/.
-
-## 2026-10-09 — Classroom goal completion strategy
-
-Owner requested updating the goal to keep the architecture and simplify delivery,
-then orchestrating remaining work. Roadmap's Oct9 strategy supersedes stale
-component labels: member list delivered1541, reorder1543; batches2–5 incomplete.
-One bounded read-only Sol/high worker maps the next coherent Test workflow on
-763edbb18; coordinator owns this branch, plan, integration and acceptance. Weekly
-remaining45%; effective worker model, attributable usage and active time unknown.
-No new audit, rollout switch or billing work. Existing249+/activation/production
-holds and review-counter waiver retained. Goal tool is status-only and still
-reports paused; no false completion/replacement or unsupported resume attempted.
-Worktree creation succeeded but attachment retry hit the existing100-item cap;
-continue at its returned path without deleting attachments or duplicating it.
-Accepted source map; same Sol/high worker now owns dormant Test metadata/material
-and selected-access implementation (no Git/PR/shared DB writes). Coordinator
-verified RPC110 metadata support and244 conflict-before-inner-check dependency.
-Docs focused541/54 and startup79 PASS; one five-character startup-budget overflow
-corrected, no contract weakening. Frozen dependency install reused existing683
-packages; no lockfile/dependency change. Source delivery/independent review/native
-acceptance and main merge remain pending; no phase-exit claim.
-
-## 2026-10-09 — Owner Test workflow verification preparation
-
-Owner requested verification/review/CI/main merge until intervention. Worker source
-delivered eight method boundaries, service-only RPC and rollback fixture; worker167
-affected checks, no native/type generation/CI acceptance. Coordinator93/6 affected
-and29/2 post-reconcile PASS; architecture PASS. TypeScript has only the expected
-missing genuine test_owner_workflow_v1 signature; never synthesize generated types.
-Main ff3685d3e allocated255 to Test return-to-draft; rebase preserved incoming UI,
-source guard/hash and complete history, renamed own SQL unchanged to256. Safety
-stash retained after the resolved publication-test conflict; no reset/overwrite.
-Exact disposable001–256 replay permission is required; earlier255 question is
-superseded. Shared249+/production/activation holds intact, no PR readiness or merge.
-Weekly remaining39%; review launches0 for this workflow, counters not reset from
-other delivered scopes. Runtime/effective model and task tokens unknown.
-
 ## 2026-10-09 — Owner Test workflow disposable replay failure
 
 Direct owner approval covered one fresh isolated001–256 replay from1dc0891e7.
@@ -666,8 +626,12 @@ finally after Restore, including committed-Apply faults. Only the fixed Test's
 valid updated_at is omitted for the unchanged039 timestamp trigger; all other
 Test/category/work bytes must match. Pure helper corruption cases and production
 SDK fake-driver wrong-restored-category refusal PASS. No category writes, new
-tables, dependency, product/RPC/migration258 change or execution-control edits.
-Focused/static/audit and one targeted Sol/high source review precede publication
+tables, dependency or product/RPC/migration SQL byte change. Main872d1958 merged
+its sealed258 student session-status projection during source work; rebase keeps
+both histories/CI lanes and renames owner grading258→259 unchanged. Exact full259
+guards/private counts require both tails; old258 native receipts remain historical.
+Pre-rebase focused1891/112 and all static gates PASS; source-only current-base
+checks/audit and one targeted Sol/high source review precede publication
 acceptance. Cumulative ledger7turns1917s/targeted4/fix5/original02:58:39 retained;
 review-stop waiver active, actual native permission still consumed. Draft PR1569,
 normal-local/prod/activation/provider/account/toolgoalPAUSED holds unchanged.
