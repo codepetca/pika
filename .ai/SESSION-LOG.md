@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Learner proof preparation and current-main reconciliation
-
-All preparation writers stopped before rebase onto main3b7ae978e (#1559); one
-archive-marker conflict preserved both histories. No migration collision:257
-SQL digest unchanged. The existing executor gained a fixed learner profile,
-not a generic exported executor. Closed history/SDK/Storage/returned-roster/
-authority-race/ACL/cancellation source plans integrated; inherited private-type
-diagnostics fixed with narrow UUID/parsed-schema/literal-RPC adapters. No
-generated artifact was edited. Private source is disabled and unbound.
-Root offline checks:21source,73finite-case labels/168synthetic requests/336guards,
-2material cases/30requests/60guards and3fixed native-SDK probes PASS; private
-TypeScript PASS. Native evidence is still absent, not inferred from mocks.
-First post-rebase focused run exposed14 CI-inventory failures; retained actual
-new database split and added learner proof to its exact primary52-name seal,
-leaving lifecycle85 unchanged. Scoped192 CI checks PASS; final focused2330tests/
-113files plus architecture/UI/design/TypeScript/lint PASS (Fn0jp0 logs).
-Final cumulative review will use a separate detached candidate; initial source
-coverage retained, not a second initial wave. Ledger3launches/initial1/targeted1/
-fix1/final0 and original13:16:45 clock/task review extension remain. No257 replay,
-preflight/SDK network/Storage/Docker/CLI types, readyCI or production activation.
-Sharedlocal/prod249+/promotion/account/plan/quota/provider/billing/admission/
-home/page/cutover holds persist; no batch2 or goal exit.
-
 ## 2026-10-10 — Learner rehearsal failure and bounded fixture correction
 
 Final detached source review onf7aa completed clean; native acceptance was not
@@ -678,3 +655,18 @@ Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product chan
 PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
 ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
 sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
+
+## 2026-10-12 — Unpublication actual-writer contention fixtures
+
+69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
+Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
+wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
+Source mapping likely schedule11holderreceipt failure; direct availability and
+AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
+Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
+proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
+Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
+PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
+Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
+PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
+6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.

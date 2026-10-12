@@ -113,9 +113,10 @@ then raise exception 'Unpublication261 no-work fixture presence differs';end if;
     return { label,relation,code,holderSql:bounded(`${begin}\n${holder}\nselect jsonb_build_object('held',${held},'transaction',exists(select 1 from pg_stat_activity where pid=pg_backend_pid() and xact_start is not null),'scope',exists(select 1 from public.tests where id=${tid} and classroom_id=${cid}),'backend_pid',pg_backend_pid(),'application_name',current_setting('application_name'),'label',${q(label)},'relation',${q(relation)}) as result;`),
       rejectSql:bounded(`${begin}\ndo $reject$ declare baseline jsonb;code text;succeeded boolean:=false;begin baseline:=${graph};begin perform ${rejectedCall};succeeded:=true;exception when others then get stacked diagnostics code=returned_sqlstate;end;if succeeded or code is distinct from ${q(code)} then raise exception 'Unpublication contention code differs';end if;if ${graph} is distinct from baseline then raise exception 'Rejected unpublication changed whole graph';end if;end;$reject$;select jsonb_build_object('rejected',true,'code',${q(code)},'rows_unchanged',true,'label',${q(label)}) as result;`) }
   }
-  const aiInsert = `insert into public.test_ai_grading_runs(id,test_id,triggered_by,selection_hash,status) values(${q(f.rollbackIds['401'])},${tid},${owner},'unpublication-held','completed');`
-  const workInsert = `insert into public.test_student_availability(test_id,student_id,state,updated_by) values(${tid},${member},'open',${owner});`
-  const aiCreate = `public.create_test_ai_grading_run_atomic(${tid},${owner},'synthetic-contract',array[${member}],array[${member}],'held-unpublication-source',1,0,0,'[]'::jsonb,'[]'::jsonb,null)`
+  const workHolder = `do $write$ begin perform public.update_test_student_access_atomic(${tid},array[${member}]::uuid[],'open',${owner});end;$write$;`
+  const aiCreate = `public.create_test_ai_grading_run_atomic(${tid},${owner},'synthetic-contract',array[${member}]::uuid[],array[]::uuid[],'held-unpublication-source',0,0,0,'[]'::jsonb,'[]'::jsonb,null)`
+  // The actual no-work AI writer retains its lifecycle lock without creating a run.
+  const aiHolder = `do $write$ declare acknowledgment jsonb;begin acknowledgment:=${aiCreate};if acknowledgment is distinct from jsonb_build_object('outcome','noop','run_id',null) then raise exception 'Unpublication AI holder no-work outcome differs';end if;end;$write$;`
   const concurrency = freeze({ schedules: [
     schedule('settings',locked('public.managed_storage_settings','singleton'),'public.managed_storage_settings'),
     schedule('test-advisory',`select pg_advisory_xact_lock(${testKey});`,'public.tests',call,testKey),
@@ -127,8 +128,8 @@ then raise exception 'Unpublication261 no-work fixture presence differs';end if;
     schedule('test-parent',locked('public.tests',`id=${tid}`),'public.tests'),
     schedule('draft',locked('public.assessment_drafts',`assessment_type='test' and assessment_id=${tid}`),'public.assessment_drafts'),
     schedule('question',locked('public.test_questions',`id=${q(f.questions.find(x=>x.test_id===f.testId)!.id)}`),'public.test_questions'),
-    schedule('work-access-before-unpublish',workInsert,'public.test_student_availability',call,testKey),
-    schedule('ai-before-unpublish',aiInsert,'public.test_ai_grading_runs',call,testKey),
+    schedule('work-access-before-unpublish',workHolder,'public.test_student_availability',call,testKey),
+    schedule('ai-before-unpublish',aiHolder,'public.test_ai_grading_runs',call,testKey),
     schedule('unpublish-before-work-access',`do $write$ begin perform ${call};end;$write$;`,'public.tests',`public.start_test_attempt_revision_atomic(${tid},${member})`,testKey,'55P03'),
     schedule('unpublish-before-ai-create',`do $write$ begin perform ${call};end;$write$;`,'public.tests',aiCreate,testKey,'55P03'),
   ] })

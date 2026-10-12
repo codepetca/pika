@@ -244,6 +244,66 @@ describe('inert unpublication source proof', () => {
     expect(m.termination).toContain('backend_start');expect(m.termination).toContain('owned_pid')
     expect(m.privilege.restore).toContain('grant execute');expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
   })
+  it('uses actual access and no-work AI writer locks with valid fixed prerequisites in the unchanged race matrix',()=>{
+    const m=plan(),f=m.fixture,q=(v:string)=>`'${v}'::uuid`
+    const tid=q(f.testId),owner=q(f.actors[0].id),member=q(f.actors[2].id)
+    const work=m.concurrency.schedules[10],ai=m.concurrency.schedules[11],reverse=m.concurrency.schedules[13]
+    const aiCall=`public.create_test_ai_grading_run_atomic(${tid},${owner},'synthetic-contract',array[${member}]::uuid[],array[]::uuid[],'held-unpublication-source',0,0,0,'[]'::jsonb,'[]'::jsonb,null)`
+    expect(work.holderSql).toContain(`do $write$ begin perform public.update_test_student_access_atomic(${tid},array[${member}]::uuid[],'open',${owner});end;$write$;`)
+    expect(ai.holderSql).toContain(`do $write$ declare acknowledgment jsonb;begin acknowledgment:=${aiCall};if acknowledgment is distinct from jsonb_build_object('outcome','noop','run_id',null) then raise exception 'Unpublication AI holder no-work outcome differs';end if;end;$write$;`)
+    expect(reverse.rejectSql).toContain(`begin perform ${aiCall};succeeded:=true;`)
+    for(const holder of [work.holderSql,ai.holderSql]){
+      expect(holder).not.toMatch(/insert into public\.(?:test_student_availability|test_ai_grading_runs)|pg_advisory_xact_lock|start_test_attempt|set_config|set local (?!lock_timeout|statement_timeout|idle_in_transaction_session_timeout)/)
+      expect(holder.match(/select jsonb_build_object\('held'/g)).toHaveLength(1)
+      expect(holder).toContain(`hashtextextended('${f.testId}',0)`)
+      for(const witness of ['l.pid=pg_backend_pid()','l.granted',"l.locktype='advisory'",'l.objsubid=1']) expect(holder).toContain(witness)
+    }
+    expect(work).toMatchObject({label:'work-access-before-unpublish',relation:'public.test_student_availability',code:'PT409'})
+    expect(ai).toMatchObject({label:'ai-before-unpublish',relation:'public.test_ai_grading_runs',code:'PT409'})
+    expect(reverse).toMatchObject({label:'unpublish-before-ai-create',relation:'public.tests',code:'55P03'})
+    expect(f.actors[0].role).toBe('teacher');expect(f.actors[2].role).toBe('student')
+    expect(f.classes.find(c=>c.id===f.classroomId)).toMatchObject({owner:f.actors[0].id,archived:false})
+    expect(f.tests.find(t=>t.id===f.testId)).toMatchObject({classroom_id:f.classroomId,status:'closed',questions_locked_at:null,blueprint_archived_at:null})
+    expect(f.enrollments).toContainEqual(expect.objectContaining({classroom_id:f.classroomId,student_id:f.actors[2].id}))
+    expect(m.preparation).not.toMatch(/insert into public\.(?:test_attempts|test_responses|test_ai_grading_runs|test_ai_grading_run_items)\b/)
+    expect(m.setup).toContain('or exists(select 1 from public.test_attempts where test_id in (')
+    expect(m.setup).toContain("then raise exception 'Unpublication261 no-work fixture presence differs'")
+    const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd())
+    const definitions=(schema:string,name:string)=>inventory.filter(migration=>new RegExp(`create (?:or replace )?function ${schema}\\.${name}\\(`,'i').test(migration.sql))
+    const access=definitions('public','update_test_student_access_atomic').at(-1)!
+    const grading=definitions('public','create_test_ai_grading_run_atomic').at(-1)!
+    const parent=definitions('public','lock_test_parent_for_child_mutation').at(-1)!
+    const lifecycle=definitions('private','lock_test_lifecycle').at(-1)!
+    expect(access.name).toBe('248_test_conflict_http_status.sql');expect(grading.name).toBe('094_atomic_test_grading_contracts.sql')
+    expect(parent.name).toBe('220_allow_started_test_mc_choice_text.sql');expect(lifecycle.name).toBe('244_test_attempt_revision_and_return_guards.sql')
+    const body=(sql:string,name:string)=>sql.split(`function ${name}(`)[1].split('\n$$;')[0]
+    const accessBody=body(access.sql,'public.update_test_student_access_atomic'),aiBody=body(grading.sql,'public.create_test_ai_grading_run_atomic')
+    expect(accessBody).toContain('v_test := private.lock_test_lifecycle(p_test_id);')
+    expect(accessBody.indexOf('v_test := private.lock_test_lifecycle(p_test_id);')).toBeLessThan(accessBody.indexOf('teacher_id = p_updated_by'))
+    expect(accessBody).toContain("if v_test.status = 'draft' then");expect(accessBody).toContain('archived_at is null')
+    expect(accessBody).toContain('cardinality(v_locked_student_ids) <> cardinality(v_student_ids)')
+    const lifecycleBody=body(lifecycle.sql,'private.lock_test_lifecycle')
+    expect(lifecycleBody).toContain('perform pg_advisory_xact_lock(hashtextextended(p_test_id::text, 0));')
+    expect(lifecycleBody).toContain('from public.classrooms where id = v_classroom_id for update;')
+    expect(lifecycleBody).toContain('from public.tests where id = p_test_id and classroom_id = v_classroom_id for update;')
+    expect(lifecycleBody.indexOf('perform pg_advisory_xact_lock')).toBeLessThan(lifecycleBody.indexOf('from public.classrooms where id = v_classroom_id for update;'))
+    expect(lifecycleBody.indexOf('from public.classrooms where id = v_classroom_id for update;')).toBeLessThan(lifecycleBody.indexOf('from public.tests where id = p_test_id and classroom_id = v_classroom_id for update;'))
+    const parentBody=body(parent.sql,'public.lock_test_parent_for_child_mutation')
+    expect(parentBody).toMatch(/from public\.classrooms classroom[\s\S]*?for update;[\s\S]*?from public\.tests test[\s\S]*?for update;/)
+    expect(parentBody).not.toContain('pg_advisory_xact_lock')
+    expect(aiBody).toContain('perform pg_advisory_xact_lock(hashtextextended(p_test_id::text, 0));')
+    expect(aiBody.indexOf('perform pg_advisory_xact_lock')).toBeLessThan(aiBody.indexOf('into v_current_eligible_student_ids'))
+    expect(aiBody).toContain('classroom.teacher_id = p_teacher_id');expect(aiBody).toContain('classroom.archived_at is null')
+    expect(aiBody).toContain("raise exception 'Student is not enrolled in this classroom'")
+    expect(aiBody).toContain('and attempt.is_submitted = true;')
+    expect(aiBody).toContain('v_current_eligible_student_ids is distinct from v_eligible_student_ids')
+    expect(aiBody).toContain("if v_item_count = 0 then\n    return jsonb_build_object('outcome', 'noop', 'run_id', null);\n  end if;")
+    expect(aiBody.indexOf("'outcome', 'noop'")).toBeLessThan(aiBody.indexOf('insert into public.test_ai_grading_runs'))
+    expect(m.concurrency.schedules.map(s=>s.label)).toEqual(['settings','test-advisory','classroom-operation','membership-operation','owner-parent-archive',
+      'archive-revision','actor','test-parent','draft','question','work-access-before-unpublish','ai-before-unpublish','unpublish-before-work-access','unpublish-before-ai-create'])
+    expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBe(35)
+    for(const race of m.concurrency.schedules){expect(race.rejectSql).toContain('Rejected unpublication changed whole graph');expect(race.rejectSql).toContain('to_jsonb(r)')}
+  })
   it('requires exact fixed receipts and closes sessions on success or failure',async()=>{
     const m=plan(),t=target(m,'contracts'),close=vi.fn(async()=>{}),execute=vi.fn(async (sql:string,_timeout:number)=>{
       const frame=m.contracts.frames.find(frame=>frame.sql===sql)!

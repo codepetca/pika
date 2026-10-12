@@ -73,6 +73,13 @@ of an owned exclusive Test-relation lock. Dropping the trigger alone retains
 that lock until transaction end. This fixture correction does not prove the
 cause of a particular guard failure or replace fresh native acceptance.
 
+The availability and AI-before-unpublish holders must use the installed writer
+RPCs that acquire the Test lifecycle advisory lock; a direct child-table insert
+does not prove that RPC-level lock. The no-work AI holder requires the exact
+installed no-op response while retaining the writer transaction lock. It proves
+serialization, not durable AI creation or provider execution. Keep the separate
+AI-history rejection checks and all14 contention schedules unchanged.
+
 Independent security and compatibility review, focused checks and final
 reviewed-head CI/PR Gate precede protected-main merge. This document grants
 no database execution or activation authority. Shared local249+, production259+,

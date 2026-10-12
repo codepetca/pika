@@ -46167,3 +46167,27 @@ Weekly32%remaining reused; token/active/effectiveconfiguration unknown, no usage
 savings inferred. Private coordinator evidence pika-learner-test-map.G7k1ir.
 Sharedlocal/prod249+/promotion/account/plan/quota/billing/provider/runner/
 admission/home/page/cutover holds persist. Billing remains separate.
+
+<!-- pika-session-log-archive-batch:86e3243bbc2c0c0ff4743c5d6a78119abea3d0862ed26d18aa1fb5b598da07f4 -->
+## 2026-10-10 — Learner proof preparation and current-main reconciliation
+
+All preparation writers stopped before rebase onto main3b7ae978e (#1559); one
+archive-marker conflict preserved both histories. No migration collision:257
+SQL digest unchanged. The existing executor gained a fixed learner profile,
+not a generic exported executor. Closed history/SDK/Storage/returned-roster/
+authority-race/ACL/cancellation source plans integrated; inherited private-type
+diagnostics fixed with narrow UUID/parsed-schema/literal-RPC adapters. No
+generated artifact was edited. Private source is disabled and unbound.
+Root offline checks:21source,73finite-case labels/168synthetic requests/336guards,
+2material cases/30requests/60guards and3fixed native-SDK probes PASS; private
+TypeScript PASS. Native evidence is still absent, not inferred from mocks.
+First post-rebase focused run exposed14 CI-inventory failures; retained actual
+new database split and added learner proof to its exact primary52-name seal,
+leaving lifecycle85 unchanged. Scoped192 CI checks PASS; final focused2330tests/
+113files plus architecture/UI/design/TypeScript/lint PASS (Fn0jp0 logs).
+Final cumulative review will use a separate detached candidate; initial source
+coverage retained, not a second initial wave. Ledger3launches/initial1/targeted1/
+fix1/final0 and original13:16:45 clock/task review extension remain. No257 replay,
+preflight/SDK network/Storage/Docker/CLI types, readyCI or production activation.
+Sharedlocal/prod249+/promotion/account/plan/quota/provider/billing/admission/
+home/page/cutover holds persist; no batch2 or goal exit.
