@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Test Question actions closing consistency
-
-Extended the actual split Test authoring Question actions menu with shared semantic-fast opacity dismissal. Live commands, hover ownership, document listeners and stale focus work retire immediately; owner/loading/Close/Publish/Preview changes and reduced motion remove presentation immediately. Copied primitive fields and audited known Lucide icon kinds preserve existing icons without retaining caller React descendants. Shared menu defaults remain immediate and canonical useDropdownNav owns navigation; only the Test menu is keyed by existing scope. Business insertion/autosave/flush and structural rules unchanged.
-
-Added exact development E2E teacher controller fixture using real TeacherTestAuthoringDialog/TestDetailPanel, summary merges and intercepted transport. Actual Test matrix8, held-save6 and teacher/student UserMenu4 passed frozen-source native verification (100PNGs/18videos;13source bindings). Canonical focused1651tests/101files and static checks, audit11TS and four unchanged Pattern Lab goldens PASS; coordinator inspected11boards and prior Material reference parity. Two default-concurrency runs exposed unchanged Tart-host timing and gallery5s failures; isolated host51 and canonical focused with2workers passed without test/timeout weakening. Native harness selector/hydration/capture rework retained externally; no product fixes were needed for those attempts. Independent stable-SHA review/CI/main landing remain recorded in PR and external receipts. No backend writes, dependencies, migrations, production or stable-pattern promotion. Broad fluidity goal remains open; explicit holds and human task stop waiver persist. Governed brief: docs/guidance/ui/test-menu-closing-consistency.md. External evidence: product-fluidity/transition-consistency/test-menu in this chat visualization directory.
-
 ## 2026-10-11 Assignment publication chooser closing consistency
 
 Continues approved app fluidity after shared SplitButton/Material PR1567 landed6695630da. Reuses fast semantic opacity and immediate reduced motion. Assignment chooser composes parent/local overlay activity and existing external record generation, preserving Tiptap identity and autosave/publication lifetimes. Existing creation/edit Pattern Lab choosers opt in and align their bottom-anchored upward placement with production, resolving clipped downward menus and lost reduced-motion Preview clicks; controlled actual AssignmentModal fixture is teacher-only, explicitly query-gated under development E2E fixture mode and requires exact browser API interception. Unknown requests fail; synthetic PATCH acknowledgments are tracked separately from zero-mutation dismissal scenarios. No backend, dependency, migration or production change; broad product-experience epic remains open. Governed reference/roles/decisions: docs/guidance/ui/assignment-menu-closing-consistency.md. Validation: real modal suites100tests; gallery/gate53tests; canonical focused1044tests/66files plus all static checks; audit10changed TypeScript files and four unchanged Pattern Lab goldens PASS. Native24teacher contexts plus one edited Schedule handoff PASS; accepted117PNGs/25videos and source hashes verified. Clean cases attempt zero mutations; edited case acknowledges exactly one whitelisted synthetic PATCH. Coordinator inspected15open/preview/closing/scheduling matrix boards and approved reference parity. Initial hosted coverage identified a5s timeout in a new Gallery gate case. Scoped only the opener query to the actual fixture and separated role cases; the portal-dialog absence assertion, every role/gate condition and global timeout remain unchanged. Product source and accepted native evidence are unchanged. Independent review/CI/landing acceptance remains recorded in PR and external transition-consistency/assignment-menu receipts; broad epic remains open.
@@ -494,6 +488,22 @@ Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-c
 ## 2026-10-11 — Bound Week agenda desktop width
 
 Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
+
+## 2026-10-12 — Remaining classroom-access orchestration
+
+Owner requested parallel remaining-work orchestration and waived routine approval,
+workflow-review-budget and low-usage stops; serious/live holds and correctness
+gates remain. Startup/environment passed on main22efa4826 in a dedicated plan
+worktree; existing frozen offline dependencies only. Coordinated distinct source
+writers for coherent Survey owner/member routes and independent archive recovery
+reads/hot recovery-copy export, with shared types/schema/check plumbing retained
+by root. Sol/high chosen for tenant/lifecycle boundaries; effective configuration,
+attributable active time and tokens unknown. Account-wide weekly66% remaining and
+fresh322GB free observed; paused DeepSeek pilot honored. Test runner discriminator
+is source-only, CPU bridge/privacy PASS, native cause unknown. Prior c7 app attempt
+remains FAIL; exact synthetic resource recovery PASS with evidence retained.
+No shared-local/prod migration, account/provider/billing change, activation or
+phase exit. Updated existing classroom-access roadmap, not a parallel goal/task.
 
 ## 2026-10-12 — Dormant existing Tests screen adopter
 

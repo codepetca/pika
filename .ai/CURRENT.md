@@ -18,14 +18,13 @@ Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 1579 merged `8e9dabd597`/dormant; CI38204673501 PASS.
 1577 merged `18126e952`/dormant; CI38175680856 PASS.
 1578 merged `a37d03b3a`/dormant; CI38192450117 PASS.
-Next: Tests screen adoption.
+#1580 dormant; Tests proof, Survey/archive next. Roadmap holds unchanged.
 251/252 native/review/CI PASS.
-LegacyPATCH preserved; Tests adopter prepared; local249+ held.
+LegacyPATCH preserved; local249+ held.
 No exit; `docs/guidance/contextual-test-publication.md`.
 
 253#1524 OFF (CI37715526569 PASS).
 Quota notices: upgrade/tier only; creation-error deferred.
-Batch2 open.
 
 Worktrees: $HOME/.codex/worktrees/pika/; $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; .env.example.
