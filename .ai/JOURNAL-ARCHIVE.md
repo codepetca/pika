@@ -46399,3 +46399,15 @@ Product194focusedtestsPASS; proof248tests plus reorder187PASS; privateSDK,
 operationalfault andTypescript checksPASS. Audit26filesPASS. Initial aggregate
 exposed finite260guard andCItestinventory gaps; fixed without looseningseals.
 Final exact260sourceb60c53cb2; nativeexecution remainsinert pendingreview.
+
+<!-- pika-session-log-archive-batch:1aaa3aed12023d07830b7594dd2b576e416a8f99c51669b78c96c87cd2c3bcdd -->
+## 2026-10-11 PR1566 authorized main merge — minor journal sync
+
+Owner explicitly authorized merging PR1566 to main. Main advanced via1570/1571
+UI closing fixes; only journal archive conflicted. Rebased feature branch and
+restored both parent histories/markers, including an entry truncated by Git's
+session-log auto-merge. Feature source and all258 migration bytes unchanged;
+incoming UI retained exactly from main. Prior SQL/native/types proof reused by
+byte equality; focused checks, independent delta review and stable-head CI
+required before authorized squash merge. Shared/production DB and production
+deployment unchanged; no migration/promotion authority added.

@@ -8,6 +8,18 @@ import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } f
 import { createMockClassroom, createMockTest } from '../helpers/mocks'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import type { Classroom, TestAssessmentWithStats } from '@/types'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { contextualTestPublicationRequestSchema } from '@/lib/validations/contextual-test-publication'
+import { contextualTestReorderRequestSchema } from '@/lib/validations/contextual-test-reorder'
+
+const dragCapture = vi.hoisted(() => ({ end: undefined as ((event: DragEndEvent) => Promise<void>) | undefined }))
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@dnd-kit/core')>()
+  return { ...original, DndContext: (props: React.ComponentProps<typeof original.DndContext>) => {
+    dragCapture.end = props.onDragEnd as typeof dragCapture.end
+    return <original.DndContext {...props} />
+  } }
+})
 
 vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
   ClassroomBlueprintDraftSource: () => null,
@@ -445,6 +457,7 @@ describe('TeacherTestsTab', () => {
   })
 
   function renderTab(options?: {
+    testExperienceMode?: 'existing' | 'shared'
     classroom?: Classroom
     testsTabClickToken?: number
     selectedTestId?: string | null
@@ -466,6 +479,7 @@ describe('TeacherTestsTab', () => {
   }) {
     return render(
       <TeacherTestsTab
+        testExperienceMode={options?.testExperienceMode}
         classroom={options?.classroom ?? classroom}
         testsTabClickToken={options?.testsTabClickToken}
         selectedTestId={options?.selectedTestId}
@@ -493,6 +507,179 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' }))
   }
+
+  const dragTests = (active = 'test-1', over = 'test-2') => act(async () => {
+    await dragCapture.end?.({ active: { id: active }, over: { id: over } } as DragEndEvent)
+  })
+
+  it.each(['existing', 'shared'] as const)('reorders every current Test including retired rows with the %s endpoint', async (testExperienceMode) => {
+    const targetClassroom = createMockClassroom({ id: '11111111-1111-4111-8111-111111111111' })
+    const firstId = '22222222-2222-4222-8222-222222222222'
+    const secondId = '33333333-3333-4333-8333-333333333333'
+    const retiredId = '44444444-4444-4444-8444-444444444444'
+    const rows = [makeTest({ id: firstId, title: 'First', classroom_id: targetClassroom.id }), makeTest({ id: secondId, title: 'Second', classroom_id: targetClassroom.id }), makeTest({ id: retiredId, title: 'Retired', status: 'retired', classroom_id: targetClassroom.id })]
+    mockTestsResponse(rows)
+    const view = renderTab({ testExperienceMode, classroom: targetClassroom })
+    await screen.findByText('First')
+    toggleTestListControls()
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: rows }) })
+    await dragTests(firstId, secondId)
+    const body = { classroom_id: targetClassroom.id, test_ids: [secondId, firstId, retiredId] }
+    expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests/${testExperienceMode === 'shared' ? 'reorder/atomic' : 'reorder'}`, expect.objectContaining({ method: 'POST', body: JSON.stringify(body) }))
+    expect(contextualTestReorderRequestSchema.safeParse(body).success).toBe(true)
+    view.unmount()
+  })
+
+  it('recovers a shared reorder conflict with a canonical read and no second write', async () => {
+    const rows = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' })]
+    mockTestsResponse(rows)
+    renderTab({ testExperienceMode: 'shared' })
+    await screen.findByText('First')
+    toggleTestListControls()
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ error: 'Membership changed' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: [rows[1], rows[0]] }) })
+    await dragTests()
+    await waitFor(() => expect(listFetchCalls(fetchMock)).toHaveLength(2))
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+    expect(screen.getByText('Failed to save test order')).toBeInTheDocument()
+  })
+
+  it('rejects an unverified shared reorder acknowledgement and reloads once', async () => {
+    const rows = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' })]
+    mockTestsResponse(rows)
+    renderTab({ testExperienceMode: 'shared' })
+    await screen.findByText('First')
+    toggleTestListControls()
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: rows }) })
+    await dragTests()
+    await waitFor(() => expect(listFetchCalls(fetchMock)).toHaveLength(2))
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+    expect(screen.getByText('Failed to save test order')).toBeInTheDocument()
+  })
+
+  it.each([true, false])('ignores a late shared reorder success=%s after a Classroom change', async (ok) => {
+    const rows = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' })]
+    mockTestsResponse(rows)
+    const view = renderTab({ testExperienceMode: 'shared' })
+    await screen.findByText('First')
+    toggleTestListControls()
+    let finish!: (value: unknown) => void
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => init?.method
+      ? new Promise(resolve => { finish = resolve })
+      : Promise.resolve({ ok: true, json: async () => ({ tests: [makeTest({ id: 'new', title: 'New Class Test', classroom_id: secondClassroom.id })] }) }))
+    let pending!: Promise<void>
+    act(() => { pending = dragCapture.end!({ active: { id: 'test-1' }, over: { id: 'test-2' } } as DragEndEvent) })
+    view.rerender(<TeacherTestsTab classroom={secondClassroom} testExperienceMode="shared" />)
+    await screen.findByText('New Class Test')
+    const reads = listFetchCalls(fetchMock).length
+    await act(async () => { finish({ ok, json: async () => ({ success: ok }) }); await pending })
+    expect(listFetchCalls(fetchMock)).toHaveLength(reads)
+    expect(screen.queryByText('Failed to save test order')).not.toBeInTheDocument()
+  })
+
+  it('rejects shared reordering over the operating ceiling without a write', async () => {
+    const rows = Array.from({ length: 1001 }, (_, i) => makeTest({ id: `test-${i + 1}`, title: `Test ${i + 1}` }))
+    mockTestsResponse(rows)
+    renderTab({ testExperienceMode: 'shared' })
+    await screen.findByText('Test 1')
+    toggleTestListControls()
+    await dragTests()
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+    // This renders 1,001 real list rows; allow bounded headroom under the wider
+    // concurrent suite while preserving the exact rejection/no-write assertion.
+  }, 15000)
+
+  it('rejects shared reorder commands while the complete snapshot is refreshing or a write is pending', async () => {
+    const rows = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' })]
+    mockTestsResponse(rows)
+    renderTab({ testExperienceMode: 'shared' })
+    await screen.findByText('First')
+    toggleTestListControls()
+    let finishRead!: (value: unknown) => void
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finishRead = resolve }))
+    act(() => { window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })) })
+    await dragTests()
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method)).toHaveLength(0)
+    await act(async () => { finishRead({ ok: true, json: async () => ({ tests: rows }) }) })
+    let finishWrite!: (value: unknown) => void
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finishWrite = resolve }))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: rows }) })
+    let pending!: Promise<void>
+    act(() => {
+      const command = dragCapture.end!
+      pending = command({ active: { id: 'test-1' }, over: { id: 'test-2' } } as DragEndEvent)
+      void command({ active: { id: 'test-1' }, over: { id: 'test-2' } } as DragEndEvent)
+    })
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method)).toHaveLength(1)
+    await act(async () => { finishWrite({ ok: true, json: async () => ({ success: true }) }); await pending })
+  })
+
+  it.each(['id', 'classroom_id', 'status'])('refuses shared publication confirmation from a mismatched saved %s', async (field) => {
+    const test = makeTest({ id: 'test-1', title: 'First', status: 'draft' })
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('?classroom_id=')) return Promise.resolve({ ok: true, json: async () => ({ tests: [test] }) })
+      if (url.endsWith('/results')) return Promise.resolve(makeResultsResponse({ testStatus: 'draft' }))
+      return Promise.resolve({ ok: true, json: async () => ({ test: { ...test, [field]: field === 'status' ? 'closed' : 'foreign' }, draft_version: 7, questions: [{ id: 'q1', question_type: 'multiple_choice', question_text: 'Ready?', options: ['Yes', 'No'], correct_option: 0, points: 1 }] }) })
+    })
+    renderTab({ testExperienceMode: 'shared', selectedTestId: test.id, selectedTestMode: 'grading' })
+    await screen.findByText('Alice Zephyr')
+    fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
+    expect(await screen.findByText('Could not verify the saved test. Refresh and try again.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Publish test?' })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method)).toHaveLength(0)
+  })
+
+  async function prepareSharedPublish(writeResult: () => Promise<unknown>, mode: 'shared' | 'existing' = 'shared') {
+    const first = makeTest({ id: 'test-1', title: 'First', status: 'draft' })
+    const second = makeTest({ id: 'test-2', title: 'Second', status: 'draft' })
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method) return writeResult()
+      if (url.includes('?classroom_id=')) return Promise.resolve({ ok: true, json: async () => ({ tests: [first, second] }) })
+      if (url.endsWith('/results')) return Promise.resolve(makeResultsResponse({ testStatus: 'draft' }))
+      return Promise.resolve({ ok: true, json: async () => ({ test: first, draft_version: 7, questions: [{ id: 'q1', question_type: 'multiple_choice', question_text: 'Ready?', options: ['Yes', 'No'], correct_option: 0, points: 1 }] }) })
+    })
+    const view = renderTab({ testExperienceMode: mode, selectedTestId: first.id, selectedTestMode: 'grading' })
+    await screen.findByText('Alice Zephyr')
+    fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
+    const dialog = await screen.findByRole('dialog', { name: 'Publish test?' })
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish' }))
+    return view
+  }
+
+  it.each([403, 404, 409, 503])('shows shared publication failure %s with the original version and no retry/fallback', async (status) => {
+    await prepareSharedPublish(async () => ({ ok: false, status, json: async () => ({ error: 'Saved version unavailable' }) }))
+    expect(await screen.findByText('Saved version unavailable')).toBeInTheDocument()
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method)
+    expect(writes).toHaveLength(1)
+    expect(writes[0]).toEqual(['/api/teacher/tests/test-1/publish', expect.objectContaining({ method: 'POST', body: '{"status":"closed","draft_version":7}' })])
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument()
+  })
+
+  it.each(['test', 'classroom', 'status'])('rejects a shared publication acknowledgement with the wrong %s', async (problem) => {
+    await prepareSharedPublish(async () => ({ ok: true, json: async () => ({ test: { id: problem === 'test' ? 'test-2' : 'test-1', classroom_id: problem === 'classroom' ? 'foreign' : classroom.id, status: problem === 'status' ? 'draft' : 'closed' } }) }))
+    expect(await screen.findByText('Could not verify the saved test. Refresh and try again.')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method)).toHaveLength(1)
+  })
+
+  it.each(['selection', 'classroom', 'mode'])('ignores a late shared publication after %s changes', async (changed) => {
+    let finish!: (value: unknown) => void
+    const view = await prepareSharedPublish(() => new Promise(resolve => { finish = resolve }))
+    view.rerender(<TeacherTestsTab classroom={changed === 'classroom' ? secondClassroom : classroom} testExperienceMode={changed === 'mode' ? 'existing' : 'shared'} selectedTestId={changed === 'selection' ? 'test-2' : 'test-1'} selectedTestMode="grading" />)
+    await act(async () => { finish({ ok: true, json: async () => ({ test: { id: 'test-1', classroom_id: classroom.id, status: 'closed' } }) }) })
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument()
+    expect(screen.queryByText('Could not verify the saved test. Refresh and try again.')).not.toBeInTheDocument()
+  })
+
+  it('ignores a late existing publication after switching to shared mode', async () => {
+    let finish!: (value: unknown) => void
+    const view = await prepareSharedPublish(() => new Promise(resolve => { finish = resolve }), 'existing')
+    view.rerender(<TeacherTestsTab classroom={classroom} testExperienceMode="shared" selectedTestId="test-1" selectedTestMode="grading" />)
+    await act(async () => { finish({ ok: true, json: async () => ({ test: { id: 'test-1', classroom_id: classroom.id, status: 'closed' } }) }) })
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument()
+  })
 
   it('renders the tests list by default with no selected workspace', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
@@ -1376,7 +1563,7 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByText('Unit Test')).not.toBeInTheDocument()
   })
 
-  it('publishes an unpublished test closed from the student-table action bar and removes Publish', async () => {
+  it.each(['existing', 'shared'] as const)('publishes an unpublished test through the %s contract and removes Publish', async (testExperienceMode) => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -1386,7 +1573,7 @@ describe('TeacherTestsTab', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          test: { id: 'test-1', title: 'Unit Test' },
+          test: { id: 'test-1', classroom_id: classroom.id, title: 'Unit Test', status: 'draft' },
           draft_version: 7,
           questions: [
             {
@@ -1402,10 +1589,10 @@ describe('TeacherTestsTab', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ test: { id: 'test-1', status: 'closed' } }),
+        json: async () => ({ test: { id: 'test-1', classroom_id: classroom.id, status: 'closed' } }),
       })
 
-    renderTab()
+    renderTab({ testExperienceMode })
 
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
@@ -1416,18 +1603,17 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Publish test?' })).getByRole('button', { name: 'Publish' }))
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.objectContaining({ method: 'PATCH' }))
+      expect(fetchMock).toHaveBeenCalledWith(testExperienceMode === 'shared' ? '/api/teacher/tests/test-1/publish' : '/api/teacher/tests/test-1', expect.objectContaining({ method: testExperienceMode === 'shared' ? 'POST' : 'PATCH' }))
     })
 
     const patchCall = fetchMock.mock.calls.find(
       ([url, init]: [string, RequestInit | undefined]) =>
-        url === '/api/teacher/tests/test-1' && init?.method === 'PATCH'
+        url === (testExperienceMode === 'shared' ? '/api/teacher/tests/test-1/publish' : '/api/teacher/tests/test-1') && init?.method === (testExperienceMode === 'shared' ? 'POST' : 'PATCH')
     )
     expect(patchCall).toBeTruthy()
-    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({
-      status: 'closed',
-      draft_version: 7,
-    })
+    const publicationBody = JSON.parse((patchCall?.[1] as RequestInit).body as string)
+    expect(publicationBody).toEqual({ status: 'closed', draft_version: 7 })
+    expect(contextualTestPublicationRequestSchema.safeParse(publicationBody).success).toBe(true)
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()

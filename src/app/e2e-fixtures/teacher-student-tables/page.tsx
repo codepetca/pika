@@ -30,6 +30,12 @@ export default async function TeacherStudentTablesFixture({
   if (process.env.NODE_ENV === 'production' || process.env.PIKA_E2E_FIXTURES !== 'true') notFound()
   const query = await searchParams
   const role = query.role === 'student' ? 'student' : 'teacher'
+  // Synthetic relationship and endpoint-selection options only. This fixture
+  // never configures admission or bypasses API authorization; every browser
+  // request must be intercepted by its verification driver.
+  const classroomRole = query.relationship === 'owner' ? 'teacher'
+    : query.relationship === 'member' ? 'student' : role
+  const testExperienceMode = query.testExperience === 'shared' ? 'shared' : 'existing'
   if (query.guideContinuity === 'true') {
     return (
       <LayoutInitialStateProvider leftSidebarExpanded>
@@ -37,17 +43,18 @@ export default async function TeacherStudentTablesFixture({
       </LayoutInitialStateProvider>
     )
   }
-  const fixtureClassroom = role === 'student' && query.grades === 'true'
+  const fixtureClassroom = classroomRole === 'student' && query.grades === 'true'
     ? { ...classroom, feature_visibility: { ...classroom.feature_visibility, student_grades: true } }
     : classroom
   return (
     <LayoutInitialStateProvider leftSidebarExpanded>
       <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classroom={fixtureClassroom}
-        user={{ id: role === 'teacher' ? classroom.teacher_id : '30000000-0000-4000-8000-000000000015',
+        user={{ id: classroomRole === 'teacher' ? classroom.teacher_id : '30000000-0000-4000-8000-000000000015',
           email: `${role}@example.invalid`, role, first_name: 'Fixture', last_name: role }}
-        classroomRole={role}
-        teacherClassrooms={role === 'teacher' ? [classroom] : []}
+        classroomRole={classroomRole}
+        testExperienceMode={testExperienceMode}
+        teacherClassrooms={classroomRole === 'teacher' ? [classroom] : []}
         initialSearchParams={query}
         attendanceAvailable
         classroomQrAvailable

@@ -111,6 +111,7 @@ const getTestGradingStudentRowId = (studentId: string) => `test-grading-student-
 
 interface Props {
   classroom: Classroom
+  testExperienceMode?: 'existing' | 'shared'
   testsTabClickToken?: number
   selectedTestId?: string | null
   selectedTestMode?: WorkspaceTab | null
@@ -413,6 +414,7 @@ function readUnpublishAcknowledgement(
 
 export function TeacherTestsTab({
   classroom,
+  testExperienceMode = 'existing',
   testsTabClickToken = 0,
   selectedTestId: selectedTestIdProp,
   selectedTestMode,
@@ -446,6 +448,12 @@ export function TeacherTestsTab({
   const latestUnpublishRequestIdRef = useRef(0)
   const unpublishMountedRef = useRef(true)
   const currentClassroomIdRef = useRef(classroom.id)
+  const currentTestExperienceModeRef = useRef(testExperienceMode)
+  currentTestExperienceModeRef.current = testExperienceMode
+  const publicationRequestIdRef = useRef(0)
+  const publicationSelectionRef = useRef<string | null>(null)
+  const reorderRequestIdRef = useRef(0)
+  const reorderPendingRef = useRef(false)
   const testsRegionRef = useRef<HTMLDivElement>(null)
   const previousClassroomIdRef = useRef(classroom.id)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
@@ -509,6 +517,7 @@ export function TeacherTestsTab({
     selectedTestStudentId,
     updateSearchParams,
   })
+  publicationSelectionRef.current = selectedTestId
   const activeTestGradingSaveScopeKey =
     selectedTestId && selectedWorkspaceTab === 'grading' && selectedStudentId
       ? `${classroom.id}:${selectedTestId}:${selectedStudentId}`
@@ -586,8 +595,23 @@ export function TeacherTestsTab({
 
   useEffect(() => {
     unpublishMountedRef.current = true
-    return () => { unpublishMountedRef.current = false; latestUnpublishRequestIdRef.current += 1 }
+    return () => { unpublishMountedRef.current = false; latestUnpublishRequestIdRef.current += 1; publicationRequestIdRef.current += 1; reorderRequestIdRef.current += 1 }
   }, [])
+
+  useEffect(() => {
+    publicationRequestIdRef.current += 1
+    setStatusUpdating(false)
+    setCheckingPublication(false)
+    setPublicationDraftVersion(null)
+    setShowPublishConfirm(false)
+    setStatusActionError('')
+  }, [classroom.id, selectedTestId, testExperienceMode])
+
+  useEffect(() => {
+    reorderRequestIdRef.current += 1
+    reorderPendingRef.current = false
+    setIsReorderingTests(false)
+  }, [classroom.id, testExperienceMode])
 
   const testSortSensors = useSensors(
     useSensor(PointerSensor, {
@@ -1565,16 +1589,26 @@ export function TeacherTestsTab({
     async (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id || isReorderingTests || isReadOnly || !testEditMode) return
+      if (testExperienceMode === 'shared' && (loading || !hasTestsSnapshot || testsLoadError || reorderPendingRef.current || visibleTests.length !== tests.length || tests.length > 1000)) {
+        showMessage({ text: 'Failed to save test order', tone: 'warning' })
+        return
+      }
 
       const oldIndex = visibleTests.findIndex((test) => test.id === active.id)
       const newIndex = visibleTests.findIndex((test) => test.id === over.id)
       if (oldIndex === -1 || newIndex === -1) return
 
       const reordered = arrayMove(visibleTests, oldIndex, newIndex)
+      const requestedClassroomId = classroom.id
+      const requestedMode = testExperienceMode
+      const requestId = ++reorderRequestIdRef.current
+      const isCurrentRequest = () => unpublishMountedRef.current && reorderRequestIdRef.current === requestId
+        && currentClassroomIdRef.current === requestedClassroomId && currentTestExperienceModeRef.current === requestedMode
+      reorderPendingRef.current = true
       setTests(reordered)
       setIsReorderingTests(true)
       try {
-        const response = await fetch(`${apiBasePath}/reorder`, {
+        const response = await fetch(`${apiBasePath}/${requestedMode === 'shared' ? 'reorder/atomic' : 'reorder'}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1586,16 +1620,19 @@ export function TeacherTestsTab({
         if (!response.ok) {
           throw new Error(data.error || 'Failed to save test order')
         }
+        if (requestedMode === 'shared' && data.success !== true) throw new Error('Failed to save test order')
+        if (!isCurrentRequest()) return
 
         window.dispatchEvent(
           new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
         )
       } catch (error) {
+        if (!isCurrentRequest()) return
         console.error('Failed to reorder tests:', error)
         showMessage({ text: 'Failed to save test order', tone: 'warning' })
         void loadTests()
       } finally {
-        setIsReorderingTests(false)
+        if (isCurrentRequest()) { reorderPendingRef.current = false; setIsReorderingTests(false) }
       }
     },
     [
@@ -1608,6 +1645,11 @@ export function TeacherTestsTab({
       showMessage,
       testEditMode,
       visibleTests,
+      testExperienceMode,
+      loading,
+      hasTestsSnapshot,
+      testsLoadError,
+      tests,
     ]
   )
 
@@ -1874,7 +1916,12 @@ export function TeacherTestsTab({
 
   async function patchSelectedTest(payload: Record<string, unknown>) {
     if (!selectedTestId) return
-
+    const requestedTestId = selectedTestId
+    const requestedClassroomId = classroom.id
+    const requestId = ++publicationRequestIdRef.current
+    const isCurrentRequest = () => unpublishMountedRef.current && publicationRequestIdRef.current === requestId
+      && currentClassroomIdRef.current === requestedClassroomId && currentTestExperienceModeRef.current === 'existing'
+      && publicationSelectionRef.current === requestedTestId
     setStatusUpdating(true)
     setStatusActionError('')
     try {
@@ -1884,6 +1931,7 @@ export function TeacherTestsTab({
         body: JSON.stringify(payload),
       })
       const data = await response.json()
+      if (!isCurrentRequest()) return
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update test')
       }
@@ -1909,20 +1957,57 @@ export function TeacherTestsTab({
         setGradingServerTestId(selectedTestId)
       }
     } catch (error: any) {
-      setStatusActionError(error?.message || 'Failed to update test')
+      if (isCurrentRequest()) setStatusActionError(error?.message || 'Failed to update test')
     } finally {
-      setStatusUpdating(false)
-      setPublicationDraftVersion(null)
-      setShowPublishConfirm(false)
+      if (isCurrentRequest()) {
+        setStatusUpdating(false)
+        setPublicationDraftVersion(null)
+        setShowPublishConfirm(false)
+      }
     }
   }
 
   async function handleSelectedTestPublish() {
+    if (statusUpdating || !selectedTestId) return
     if (publicationDraftVersion === null) {
       setStatusActionError('Reload the saved Test draft before publishing')
       return
     }
-    await patchSelectedTest({ status: 'closed', draft_version: publicationDraftVersion })
+    if (testExperienceMode === 'existing') {
+      await patchSelectedTest({ status: 'closed', draft_version: publicationDraftVersion })
+      return
+    }
+    const requestedTestId = selectedTestId
+    const requestedClassroomId = classroom.id
+    const draftVersion = publicationDraftVersion
+    const requestId = ++publicationRequestIdRef.current
+    const isCurrentRequest = () => unpublishMountedRef.current && publicationRequestIdRef.current === requestId
+      && currentClassroomIdRef.current === requestedClassroomId && currentTestExperienceModeRef.current === 'shared'
+      && publicationSelectionRef.current === requestedTestId
+    setStatusUpdating(true)
+    setStatusActionError('')
+    try {
+      const response = await fetch(`${apiBasePath}/${requestedTestId}/publish`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'closed', draft_version: draftVersion }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!isCurrentRequest()) return
+      if (!response.ok) throw new Error(data.error || 'Failed to update test')
+      const saved = readTestFromPayload<TestAssessmentWithStats>(data)
+      if (!saved || saved.id !== requestedTestId || saved.classroom_id !== requestedClassroomId || saved.status !== 'closed') {
+        throw new Error('Could not verify the saved test. Refresh and try again.')
+      }
+      applyTestSummaryPatch(requestedTestId, { status: 'closed', title: saved.title, show_results: saved.show_results,
+        questions_count: saved.stats?.questions_count })
+      setGradingServerTestStatus('closed')
+      setGradingServerTestId(requestedTestId)
+      invalidateCachedJSON(`teacher-test-detail:${requestedTestId}`)
+      invalidateCachedJSON(`teacher-tests:${requestedClassroomId}`)
+    } catch (error: unknown) {
+      if (isCurrentRequest()) setStatusActionError(error instanceof Error ? error.message : 'Failed to update test')
+    } finally {
+      if (isCurrentRequest()) { setStatusUpdating(false); setPublicationDraftVersion(null); setShowPublishConfirm(false) }
+    }
   }
 
   async function handleSelectedTestUnpublish() {
@@ -2000,6 +2085,13 @@ export function TeacherTestsTab({
       return false
     }
 
+    const requestedTestId = selectedTest.id
+    const requestedClassroomId = classroom.id
+    const requestedMode = testExperienceMode
+    const requestId = ++publicationRequestIdRef.current
+    const isCurrentRequest = () => unpublishMountedRef.current && publicationRequestIdRef.current === requestId
+      && currentClassroomIdRef.current === requestedClassroomId && currentTestExperienceModeRef.current === requestedMode
+      && publicationSelectionRef.current === requestedTestId
     setCheckingPublication(true)
     setStatusActionError('')
     try {
@@ -2011,12 +2103,18 @@ export function TeacherTestsTab({
         },
         0,
       )
+      if (!isCurrentRequest()) return false
       if (!ok) {
         throw new Error(data.error || 'Failed to validate test')
       }
 
+      const savedTest = readTestFromPayload<TestAssessment>(data)
+      if (requestedMode === 'shared' && (!savedTest || savedTest.id !== requestedTestId
+        || savedTest.classroom_id !== requestedClassroomId || savedTest.status !== 'draft')) {
+        throw new Error('Could not verify the saved test. Refresh and try again.')
+      }
       const questions = Array.isArray(data.questions) ? data.questions : []
-      const testTitle = readTestFromPayload<TestAssessment>(data)?.title || ''
+      const testTitle = savedTest?.title || ''
       const draftVersion = Number(data.draft_version)
       if (!Number.isInteger(draftVersion) || draftVersion < 1) {
         setStatusActionError('Test draft version is unavailable. Reload and try again.')
@@ -2043,10 +2141,11 @@ export function TeacherTestsTab({
       setShowPublishConfirm(true)
       return true
     } catch (error: any) {
+      if (!isCurrentRequest()) return false
       setStatusActionError(error?.message || 'Failed to validate test')
       return false
     } finally {
-      setCheckingPublication(false)
+      if (isCurrentRequest()) setCheckingPublication(false)
     }
   }
 
