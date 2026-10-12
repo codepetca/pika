@@ -29,7 +29,12 @@ Owner reads retain archived Classroom inspection. Owner mutations and all member
 operations deny archived Classrooms. Member detail denies drafts; it retains
 answered history and closed results access. Member results remain visible before
 responding when configured and open, and strip classmate IDs/name/email while
-retaining response IDs, text and timestamps. Contextual current-roster stats
+retaining response IDs, text and timestamps.
+Every disclosed member aggregate response subject acquires the existing
+subject/pair fences in UUID order and is checked for a persisted purge fence in
+the same locked Classroom/revision transaction. A purge-fenced classmate causes
+retryable denial before aggregate disclosure, even when the requester is unfenced.
+This does not grant member requests owner authority. Contextual current-roster stats
 exclude the owner and include nonowner members of either global role. Legacy
 current-roster stats are unchanged. Contextual member list excludes drafts even
 if an inconsistent historical response exists; the legacy list is unchanged.
@@ -45,7 +50,14 @@ authority. Partial question PATCH and response submission capture the complete
 atomic question snapshot and pass it to the write transaction; changed question
 type, choices, text, limit, order or identity rejects the write instead of
 reinterpreting old normalized input. SQL independently checks answer coverage,
-discriminants, option range and UTF-16 text length. It reuses the existing private
+discriminants, option range and UTF-16 short-text length. Link answers carry
+server-produced `raw_utf16_length` from the exact validated trimmed raw string or
+`response_text`, bound to the complete expected question snapshot. SQL requires
+an integer from 1 through the current question cap, while checking normalized
+HTTP(S) syntax and trim separately. This preserves valid trailing-slash and
+Unicode URL serialization expansion at the raw-input cap. The metadata is never
+stored, returned or logged; legacy and shared canonical normalization are unchanged.
+It reuses the existing private
 scalar trim/UTF-16 helpers from migration 234. SQL HTTP(S) URL syntax is a
 supplemental check, not a reproduction of WHATWG URL normalization. The route's
 existing `normalizeSurveyUrl` remains authoritative. New service RPCs are never
@@ -93,7 +105,8 @@ composite input type.
 `scripts/contextual-surveys-db-contracts.sql` is a rollback-only cumulative-schema
 contract with synthetic mixed-role identities, actual catalog ACL checks,
 owner precedence, foreign parents/questions, publication/time/status, complete
-static/dynamic responses, UTF-16 overflow rollback, stale authoring snapshots,
+static/dynamic responses, UTF-16 overflow rollback, both raw-cap URL expansion
+vectors and invalid/missing/over-cap link length evidence, stale authoring snapshots,
 privacy, removal/archive/purge-fenced reads, cascade deletion and revision effects.
 Root runs it only in the separately authorized disposable acceptance target.
 
@@ -114,7 +127,11 @@ cover direct legacy child writes, owner replacement/archive/removal, subject and
 Classroom purge locks, question reparent/text/type/choice/limit changes, closure,
 static duplicate and dynamic replacement. The root's driver must observe actual
 lock states rather than rely on a sleep. The rollback contract separately checks
-committed active purge fences.
+committed active purge fences, including unfenced member B requesting fenced
+member A's responses. The cross-subject race uses a separate synthetic aggregate
+Survey with one committed A response and a distinct enrolled B reader; the SDK
+primary Survey retains its original empty response vector. The existing subject
+case is replaced, keeping fifteen cases/thirty directions and existing bounds.
 
 Focused source checks cover legacy Survey suites, contextual helper/route suites
 and unchanged classwork creation. Native proofs, genuine generated types,

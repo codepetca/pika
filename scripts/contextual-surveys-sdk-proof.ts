@@ -89,7 +89,7 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
     } else if (index === 1 || index === 5) {
       const decoded = contextualSurveyListSchema.parse(raw)
       assert.equal(decoded.classroom.id, cid); assert.equal(decoded.classroom.teacher_id, owner)
-      assert.equal(decoded.surveys.length, 1); assert.equal(decoded.surveys[0].id, sid)
+      assert.deepEqual(decoded.surveys.map(row => row.id).sort(), [sid, f.surveys[2].id].sort())
     } else if (index === 6) assert(isDeepStrictEqual(contextualSurveyRespondSchema.parse(raw), { success: true, updated: false }))
     else if (index === 7 || index === 8) {
       const decoded = index === 7 ? contextualSurveyMemberResultsSchema.parse(raw) : contextualSurveyOwnerResultsSchema.parse(raw)
@@ -99,7 +99,7 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       assert.equal(decoded.results[0].total_responses, 1); assert.equal(decoded.results[0].options.length, 0); assert.equal(decoded.results[0].counts.length, 0)
       assert.equal(decoded.results[0].responses[0].response_text, 'SDK response')
       if (index === 8) { const ownerResult = contextualSurveyOwnerResultsSchema.parse(raw)
-        assert.equal(ownerResult.stats.total_students, 1); assert.equal(ownerResult.stats.responded, 1)
+        assert.equal(ownerResult.stats.total_students, 2); assert.equal(ownerResult.stats.responded, 1)
         assert.equal(ownerResult.responders.length, 1); assert.equal(ownerResult.responders[0].student_id, member)
         assert.equal(ownerResult.responders[0].email, f.actors[1].email)
         assert.equal(ownerResult.results[0].responses[0].student_id, member)

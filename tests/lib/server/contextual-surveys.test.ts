@@ -3,6 +3,8 @@ import {
   authorizeSharedSurveyActor, readContextualSurveyDetail, readContextualSurveyList,
   readContextualSurveyResults, respondToContextualSurvey,
 } from '@/lib/server/contextual-surveys'
+import { validateSurveyResponses } from '@/lib/surveys'
+import type { SurveyQuestion } from '@/types'
 
 const auth = vi.hoisted(() => ({ requireAuth: vi.fn() }))
 vi.mock('@/lib/auth', () => auth)
@@ -71,8 +73,38 @@ describe('atomic Survey payload decoding', () => {
     await expect(readContextualSurveyList({ ...context, classroomId, permission: 'owner' })).rejects.toMatchObject({ statusCode: 503 })
   })
   it('rejects classmate identity in member result responses', async () => {
-    context.supabase.rpc.mockResolvedValue({ data: { survey: { id: surveyId, title: 'Feedback', status: 'active', show_results: true, dynamic_responses: true }, results: [{ question_id: questionId, question_type: 'short_text', question_text: 'Thoughts?', options: [], counts: [], total_responses: 1, responses: [{ response_id: memberId, response_text: 'Fine', submitted_at: time, updated_at: time, student_id: memberId }] }] }, error: null })
+    const payload = { classroom: { id: classroomId, teacher_id: memberId, archived_at: null }, survey: { id: surveyId, title: 'Feedback', status: 'active', show_results: true, dynamic_responses: true }, results: [{ question_id: questionId, question_type: 'short_text', question_text: 'Thoughts?', options: [], counts: [], total_responses: 1, responses: [{ response_id: memberId, response_text: 'Fine', submitted_at: time, updated_at: time }] }] }
+    context.supabase.rpc.mockResolvedValue({ data: payload, error: null })
+    expect(await readContextualSurveyResults(context)).toMatchObject({ results: payload.results })
+    context.supabase.rpc.mockResolvedValue({ data: { ...payload, results: [{ ...payload.results[0], responses: [{ ...payload.results[0].responses[0], student_id: memberId }] }] }, error: null })
     await expect(readContextualSurveyResults(context)).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it.each([
+    ['https://a.co', 'https://a.co/'],
+    ['https://example.com/é', 'https://example.com/%C3%A9'],
+  ])('preserves canonical raw link cap for %s in the contextual adapter', async (raw, serialized) => {
+    const link: SurveyQuestion = { ...question, question_type: 'link', response_max_chars: raw.length }
+    const canonical = validateSurveyResponses([link], { [questionId]: raw })
+    expect(canonical).toEqual({ valid: true, responses: { [questionId]: { question_type: 'link', response_text: serialized } } })
+    context.supabase.rpc.mockResolvedValue({ data: { success: true, updated: false }, error: null })
+    for (const value of [raw, { question_type: 'link', response_text: ` ${raw} `, raw_utf16_length: 1 }]) {
+      expect(await respondToContextualSurvey({ ...context, detail: { survey, questions: [link] }, responses: { [questionId]: value } })).toEqual({ success: true, updated: false })
+      expect(context.supabase.rpc).toHaveBeenLastCalledWith('respond_to_survey_for_member_v1', expect.objectContaining({
+        p_expected_questions: [link], p_responses: { [questionId]: { question_type: 'link', response_text: serialized, raw_utf16_length: raw.length } },
+      }))
+    }
+    context.supabase.rpc.mockClear()
+    const tooLong = { [questionId]: `${raw}a` }
+    expect(validateSurveyResponses([link], tooLong).valid).toBe(false)
+    await expect(respondToContextualSurvey({ ...context, detail: { survey, questions: [link] }, responses: tooLong })).rejects.toMatchObject({ statusCode: 400 })
+    expect(context.supabase.rpc).not.toHaveBeenCalled()
+  })
+  it('preserves short-text UTF16 overflow rejection before contextual persistence', async () => {
+    const short: SurveyQuestion = { ...question, question_type: 'short_text', response_max_chars: 3 }
+    const responses = { [questionId]: '😀😀' }
+    expect(validateSurveyResponses([short], responses).valid).toBe(false)
+    await expect(respondToContextualSurvey({ ...context, detail: { survey, questions: [short] }, responses })).rejects.toMatchObject({ statusCode: 400 })
+    expect(context.supabase.rpc).not.toHaveBeenCalled()
   })
   it('validates answers against the atomic detail and binds its expected questions', async () => {
     const detail = { survey, questions: [question], has_submitted: false, student_responses: {}, student_status: 'can_view_results' as const }

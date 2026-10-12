@@ -557,6 +557,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   reorderDiagnosticSql?: string;
   /** Only the concrete Survey factory can bind these private status credentials. */
   surveySdk?: Readonly<{ fixture: SurveyNativeFixture; status: ReturnType<typeof validateAssignmentListProofTarget> }>;
+  survey263Endpoint?: Readonly<{ host: string; identity: readonly [number, number, number, number] }>;
   runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
@@ -572,12 +573,18 @@ export function buildSurveyNativeContractsManifest(original: AssignmentListProof
   return freeze({ ...plan, bootstrap: boot, termination: draftSaveNativeTerminationSql(), close: 'rollback;',
     capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('survey') })
 }
-export function createContextualSurveysNativeContracts(input: NativeOwnerInput & { absoluteDeadline: number; statusTarget?: unknown }) {
+export function createContextualSurveysNativeContracts(input: NativeOwnerInput & { absoluteDeadline: number; statusTarget?: unknown;
+  survey263Endpoint: Readonly<{ host: string; identity: readonly [number, number, number, number] }> }) {
   const now = Date.now()
   assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
+  assert(input.survey263Endpoint && Object.keys(input.survey263Endpoint).every(key => ['kind', 'host', 'identity'].includes(key)))
+  assert(input.survey263Endpoint.host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(input.survey263Endpoint.host))
+  assert(input.survey263Endpoint.identity.length === 4 && input.survey263Endpoint.identity.every(n => Number.isSafeInteger(n) && n >= 0))
+  const survey263Endpoint = Object.freeze({ host: input.survey263Endpoint.host,
+    identity: Object.freeze([...input.survey263Endpoint.identity]) as readonly [number, number, number, number] })
   const manifest = buildSurveyNativeContractsManifest(input.original, input.reviewedHead, input.repository)
   const engine = createNativeOwnerContracts(input, { manifest, project: manifest.projectId,
-    sourceFile: '263_contextual_surveys_workflow.sql', label: 'survey263', absoluteDeadline: input.absoluteDeadline,
+    sourceFile: '263_contextual_surveys_workflow.sql', label: 'survey263', absoluteDeadline: input.absoluteDeadline, survey263Endpoint,
     singleMs: 35000,
     ...(input.statusTarget === undefined ? {} : { surveySdk: {
       fixture: manifest.fixture, status: validateAssignmentListProofTarget(input.statusTarget, manifest.projectId),
@@ -932,10 +939,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   }
   function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
     assert(++controls <= CAPS.controlCalls)
+    if (file === 'supabase') assert(profile.label === 'survey263' && endpoint)
     if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
     return new Promise((resolveResult, reject) => {
       let inputFailed = false
-      const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes }, (error, stdout, stderr) => {
+      const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes,
+        ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint!.host } } : {}) }, (error, stdout, stderr) => {
         if (profile.reorderDiagnosticSql && typeof stderr === 'string') {
           exchanged += Buffer.byteLength(stderr)
           if (Buffer.byteLength(stderr) > CAPS.stderrBytes || exchanged > CAPS.totalBytes) { reject(failure()); return }
@@ -968,6 +977,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     const canonical = realpathSync(path); assert(isAbsolute(canonical) && normalize(canonical) === canonical && !/[\x00-\x20\x7f%?#]/.test(canonical))
     const socket = statSync(canonical); assert(socket.isSocket())
     const observed = { host: `unix://${canonical}`, identity: [socket.dev, socket.ino, socket.mode, socket.rdev] }
+    if (profile.survey263Endpoint) assert.deepEqual(observed, profile.survey263Endpoint)
     if (endpoint) assert.deepEqual(observed, endpoint); else endpoint = observed
   }
   async function inventory(cleanup = false, observe = !cleanup) {
@@ -983,7 +993,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     for (const result of checks) if (result.status === 'rejected') throw result.reason
     assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
     assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations', profile.sourceFile), 'utf8')), manifest.sourceSha256)
-    const all = await draftSaveProofDockerInventory()
+    const all = await draftSaveProofDockerInventory({}, profile.label === 'survey263' ? endpoint : undefined)
     validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
     await verifyEndpoint()
     if (!cleanup) check(observe)
@@ -1262,9 +1272,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
             return command('git', [...args])
           }
           assert.equal(file, 'supabase'); assert.deepEqual(args, plan.args)
-          return command('supabase', [...args], undefined, Math.max(1, Math.min(60000,
-            (profile.absoluteDeadline ?? start + CAPS.totalMs) - Date.now())))
-        })
+          await verifyEndpoint()
+          try {
+            return await command('supabase', [...args], undefined, Math.max(1, Math.min(60000,
+              (profile.absoluteDeadline ?? start + CAPS.totalMs) - Date.now())))
+          } finally { await verifyEndpoint() }
+        }, async () => { assert(endpoint); return draftSaveProofDockerInventory({}, endpoint) })
         const source = readFileSync(receipt.path, 'utf8')
         assert.equal(Buffer.byteLength(source), receipt.bytes)
         validateSurveyGeneratedTypes(source, receipt.sha256); check()

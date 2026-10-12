@@ -171,6 +171,7 @@ returns jsonb language plpgsql security invoker set search_path = '' as $functio
 declare
   v_classroom public.classrooms; v_survey public.surveys; v_results jsonb; v_questions jsonb;
   v_responders jsonb; v_total integer; v_responded integer; v_result jsonb; v_now timestamptz:=clock_timestamp();
+  v_subject uuid;
 begin
   v_classroom:=private.lock_survey_context_v1(p_actor_id,null,p_survey_id,p_member,false);
   v_now:=clock_timestamp();
@@ -178,6 +179,23 @@ begin
   if p_member and (not v_survey.show_results or v_survey.status='draft'
     or (v_survey.status='active' and v_survey.opens_at>v_now)) then
     raise exception using errcode='PT403', message='survey_results_unavailable';
+  end if;
+  if p_member then
+    -- The requester fence covers their own detail only. Aggregates disclose
+    -- every current nonowner response subject; fence that same scope while
+    -- the Classroom/revision snapshot remains locked, without owner authority.
+    for v_subject in
+      select distinct response.student_id from public.survey_responses response
+        join public.classroom_enrollments enrollment
+          on enrollment.classroom_id=v_classroom.id and enrollment.student_id=response.student_id
+        where response.survey_id=p_survey_id and enrollment.student_id<>v_classroom.teacher_id
+        order by response.student_id
+    loop
+      perform private.try_lock_classroom_membership_change(v_classroom.id,v_subject);
+      if exists(select 1 from public.student_purge_fences where classroom_id=v_classroom.id and student_id=v_subject) then
+        raise exception using errcode='PT409', message='survey_subject_fenced';
+      end if;
+    end loop;
   end if;
   with scoped as (
     select response.* from public.survey_responses response join public.classroom_enrollments enrollment
@@ -222,6 +240,8 @@ begin
     raise exception using errcode='PT503', message='survey_payload_limit';
   end if;
   return v_result;
+exception when sqlstate '40001' or sqlstate '40P01' or sqlstate '55P03' or sqlstate '55000' then
+  raise exception using errcode='PT409', message='survey_operation_busy';
 end;
 $function$;
 revoke all on function private.survey_results_v1(uuid,uuid,boolean) from public,anon,authenticated,service_role;
@@ -397,7 +417,7 @@ create function public.respond_to_survey_for_member_v1(p_actor_id uuid,p_survey_
 returns jsonb language plpgsql security definer set search_path = '' set lock_timeout='1s' set statement_timeout='8s' as $function$
 declare
   v_classroom public.classrooms; v_survey public.surveys; v_questions jsonb; v_question public.survey_questions;
-  v_answer jsonb; v_text text; v_option numeric; v_answered boolean; v_now timestamptz:=clock_timestamp(); v_length integer;
+  v_answer jsonb; v_text text; v_option numeric; v_answered boolean; v_now timestamptz:=clock_timestamp(); v_length integer; v_raw_length numeric;
 begin
   v_classroom:=private.lock_survey_context_v1(p_actor_id,p_classroom_id,p_survey_id,true,true);
   v_now:=clock_timestamp();
@@ -422,13 +442,30 @@ begin
       v_option:=(v_answer->>'selected_option')::numeric;
       if v_option<>trunc(v_option) or v_option<0 or v_option>=jsonb_array_length(v_question.options) then raise exception using errcode='PT400', message='survey_invalid_option'; end if;
     else
-      if jsonb_typeof(v_answer->'response_text') is distinct from 'string' or (select count(*) from jsonb_object_keys(v_answer))<>2 then
+      if jsonb_typeof(v_answer->'response_text') is distinct from 'string'
+        or (select count(*) from jsonb_object_keys(v_answer))<>case when v_question.question_type='link' then 3 else 2 end then
         raise exception using errcode='PT400', message='survey_invalid_text';
       end if;
       v_text:=v_answer->>'response_text';
-      -- JS string.length is UTF-16 code units; PostgreSQL length counts codepoints.
-      v_length:=private.material_owner_write_utf16_length_v1(v_text);
-      if length(private.material_owner_write_title_v1(v_text))=0 or v_length>v_question.response_max_chars
+      if v_question.question_type='link' then
+        -- Service-only metadata comes from the canonical validator's trimmed
+        -- raw input. WHATWG URL serialization can expand that valid input.
+        -- The expected question snapshot binds its cap; only text is stored.
+        if jsonb_typeof(v_answer->'raw_utf16_length') is distinct from 'number' then
+          raise exception using errcode='PT400', message='survey_invalid_text';
+        end if;
+        v_raw_length:=(v_answer->>'raw_utf16_length')::numeric;
+        if v_raw_length<>trunc(v_raw_length) or v_raw_length<1 or v_raw_length>v_question.response_max_chars then
+          raise exception using errcode='PT400', message='survey_invalid_text';
+        end if;
+      else
+        -- JS string.length is UTF-16 code units; PostgreSQL length counts codepoints.
+        v_length:=private.material_owner_write_utf16_length_v1(v_text);
+        if v_length>v_question.response_max_chars then
+          raise exception using errcode='PT400', message='survey_invalid_text';
+        end if;
+      end if;
+      if length(private.material_owner_write_title_v1(v_text))=0
         or private.material_owner_write_title_v1(v_text) is distinct from v_text
         or (v_question.question_type='link' and v_text !~ '^https?://[^[:space:]]+$') then
         raise exception using errcode='PT400', message='survey_invalid_text';

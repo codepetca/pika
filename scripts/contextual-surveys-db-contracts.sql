@@ -12,6 +12,7 @@ declare
   v_payload jsonb; v_questions jsonb; v_answers jsonb; v_first_submitted timestamptz;
   v_archive bigint; v_blueprint bigint; v_function regprocedure;
   v_purge uuid:=gen_random_uuid();
+  v_link_cap integer; v_raw_metadata jsonb;
 begin
   -- Verify actual catalog ACLs, not migration text.
   foreach v_function in array array[
@@ -74,7 +75,7 @@ begin
   assert jsonb_array_length(public.get_survey_results_for_member_v1(v_member,v_survey)->'results')=3;
   v_answers:=jsonb_build_object(v_question::text,jsonb_build_object('question_type','short_text','response_text','😀😀'),
     v_choice::text,jsonb_build_object('question_type','multiple_choice','selected_option',1),
-    v_link::text,jsonb_build_object('question_type','link','response_text','https://example.invalid/'));
+    v_link::text,jsonb_build_object('question_type','link','response_text','https://example.invalid/','raw_utf16_length',24));
   begin perform public.respond_to_survey_for_member_v1(v_member,v_survey,v_foreign_classroom,v_questions,v_answers); raise exception 'parent substitution failed'; exception when sqlstate 'PT409' then null; end;
   begin perform public.respond_to_survey_for_member_v1(v_member,v_survey,v_classroom,v_questions,v_answers-v_choice::text); raise exception 'partial response failed'; exception when sqlstate 'PT400' then null; end;
   assert public.respond_to_survey_for_member_v1(v_member,v_survey,v_classroom,v_questions,v_answers)='{"success":true,"updated":false}'::jsonb;
@@ -89,6 +90,37 @@ begin
     raise exception 'UTF16 overflow failed';
   exception when sqlstate 'PT400' then null; end;
   assert (select response_text='😀😀' from public.survey_responses where question_id=v_question and student_id=v_member);
+
+  -- Canonical JS validates trimmed raw UTF16 before URL serialization: raw
+  -- https://a.co (12) becomes 13; https://example.com/é (21) becomes 26.
+  -- Service-only length evidence is question-bound and never stored/returned.
+  foreach v_link_cap in array array[12,21] loop
+    v_payload:=public.get_survey_for_owner_v1(v_owner,v_survey);
+    perform public.update_survey_question_for_owner_v1(v_owner,v_survey,v_link,
+      (select value from jsonb_array_elements(v_payload->'questions') where value->>'id'=v_link::text),
+      jsonb_build_object('question_type','link','question_text','Share','options','[]'::jsonb,'response_max_chars',v_link_cap));
+    v_questions:=public.get_survey_for_member_v1(v_member,v_survey)->'questions';
+    v_answers:=jsonb_set(v_answers,array[v_link::text],jsonb_build_object('question_type','link',
+      'response_text',case when v_link_cap=12 then 'https://a.co/' else 'https://example.com/%C3%A9' end,
+      'raw_utf16_length',v_link_cap));
+    assert public.respond_to_survey_for_member_v1(v_member,v_survey,v_classroom,v_questions,v_answers)->>'updated'='true';
+    assert (select response_text=v_answers->v_link::text->>'response_text'
+      and not (to_jsonb(response)?'raw_utf16_length') from public.survey_responses response where question_id=v_link and student_id=v_member);
+    assert not jsonb_path_exists(public.get_survey_for_member_v1(v_member,v_survey),'$.responses[*].raw_utf16_length');
+    begin
+      perform public.respond_to_survey_for_member_v1(v_member,v_survey,v_classroom,v_questions,
+        jsonb_set(v_answers,array[v_link::text],(v_answers->v_link::text)-'raw_utf16_length'));
+      raise exception 'missing raw link evidence failed';
+    exception when sqlstate 'PT400' then null; end;
+    for v_raw_metadata in select value from jsonb_array_elements(jsonb_build_array(null,'12',true,0,-1,v_link_cap+1,v_link_cap+0.5)) loop
+      begin
+        perform public.respond_to_survey_for_member_v1(v_member,v_survey,v_classroom,v_questions,
+          jsonb_set(v_answers,array[v_link::text,'raw_utf16_length'],v_raw_metadata));
+        raise exception 'invalid or over-cap raw link evidence failed';
+      exception when sqlstate 'PT400' then null; end;
+    end loop;
+    assert (select response_text=v_answers->v_link::text->>'response_text' from public.survey_responses where question_id=v_link and student_id=v_member);
+  end loop;
 
   -- Authoring after opening is preserved. Stale expected questions fail atomically.
   v_payload:=public.get_survey_for_owner_v1(v_owner,v_survey);
@@ -105,6 +137,12 @@ begin
   -- Existing committed purge fences deny reads even if the enrollment row
   -- remains. Merely acquiring the subject advisory lock is insufficient.
   execute 'reset role';
+  insert into public.classroom_enrollments(classroom_id,student_id) values(v_classroom,v_other);
+  execute 'set local role service_role';
+  v_payload:=public.get_survey_results_for_member_v1(v_other,v_survey);
+  assert v_payload->'results'->0->'total_responses'='1';
+  assert v_payload->'results'->0->'responses'->0->>'response_text'='😀😀';
+  execute 'reset role';
   insert into public.student_purge_operations(id,teacher_id,classroom_id,student_id,student_binding_sha256,request_sha256,source_revision)
     values(v_purge,v_owner,v_classroom,v_member,repeat('a',64),repeat('b',64),1);
   insert into public.student_purge_fences(classroom_id,student_id,operation_id,teacher_id)
@@ -112,11 +150,15 @@ begin
   execute 'set local role service_role';
   begin perform public.get_survey_for_member_v1(v_member,v_survey); raise exception 'purge member read failed'; exception when sqlstate 'PT409' then null; end;
   begin perform public.get_survey_results_for_member_v1(v_member,v_survey); raise exception 'purge member results failed'; exception when sqlstate 'PT409' then null; end;
+  begin perform public.get_survey_results_for_member_v1(v_other,v_survey); raise exception 'purge classmate response disclosure failed'; exception when sqlstate 'PT409' then null; end;
   begin perform public.get_survey_results_for_owner_v1(v_owner,v_survey); raise exception 'purge owner aggregate failed'; exception when sqlstate 'PT409' then null; end;
   execute 'reset role';
   delete from public.student_purge_fences where operation_id=v_purge;
   delete from public.student_purge_operations where id=v_purge;
   execute 'set local role service_role';
+  v_payload:=public.get_survey_results_for_member_v1(v_other,v_survey);
+  assert v_payload->'results'->0->'total_responses'='1';
+  assert v_payload->'results'->0->'responses'->0->>'response_text'='😀😀';
   perform public.update_survey_for_owner_v1(v_owner,v_survey,'{"status":"closed","show_results":false}');
   assert jsonb_array_length(public.get_survey_for_member_v1(v_member,v_survey)->'responses')=3;
   begin perform public.get_survey_results_for_member_v1(v_member,v_survey); raise exception 'hidden results failed'; exception when sqlstate 'PT403' then null; end;

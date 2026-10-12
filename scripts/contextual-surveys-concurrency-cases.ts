@@ -2,7 +2,7 @@
  * Root owns connection/target guards, transaction capture, rollback and receipts. */
 import { z } from 'zod'
 import type { Json } from '../src/types/database.generated'
-const identity = z.object({ ownerId: z.string().uuid(), memberId: z.string().uuid(), classroomId: z.string().uuid(), surveyId: z.string().uuid(), questionId: z.string().uuid(), foreignSurveyId: z.string().uuid() }).strict()
+const identity = z.object({ ownerId: z.string().uuid(), memberId: z.string().uuid(), resultReaderId: z.string().uuid(), resultSurveyId: z.string().uuid(), classroomId: z.string().uuid(), surveyId: z.string().uuid(), questionId: z.string().uuid(), foreignSurveyId: z.string().uuid() }).strict()
 export function contextualSurveysConcurrencyCases(raw: z.infer<typeof identity>, source: { expectedQuestions: Json; responses: Json }) {
   const f = identity.parse(raw)
   const ownerRead = `select public.get_survey_for_owner_v1('${f.ownerId}','${f.surveyId}');`
@@ -17,7 +17,7 @@ export function contextualSurveysConcurrencyCases(raw: z.infer<typeof identity>,
     { name: 'owner_replacement_after_snapshot', first: ownerRead, second: `update public.classrooms set teacher_id='${f.memberId}' where id='${f.classroomId}';`, expected: 'second blocks until first ends; old owner read subsequently returns PT403' },
     { name: 'archive_after_member_snapshot', first: memberRead, second: `update public.classrooms set archived_at=clock_timestamp() where id='${f.classroomId}';`, expected: 'second blocks until first ends; member read subsequently returns PT403' },
     { name: 'member_removal_after_snapshot', first: memberRead, second: `delete from public.classroom_enrollments where classroom_id='${f.classroomId}' and student_id='${f.memberId}';`, expected: 'second fails retryably through existing membership fence or blocks; after successful removal no member read succeeds' },
-    { name: 'subject_purge_before_member_snapshot', first: `select pg_advisory_xact_lock(hashtextextended('pika-student-purge-subject:${f.memberId}',0));`, second: memberRead, expected: 'second returns PT409, no data, no waiting lock cycle' },
+    { name: 'subject_purge_before_other_member_results', first: `select pg_advisory_xact_lock(hashtextextended('pika-student-purge-subject:${f.memberId}',0));`, second: `select public.get_survey_results_for_member_v1('${f.resultReaderId}','${f.resultSurveyId}');`, expected: 'separate aggregate Survey has committed member response and distinct enrolled result reader; second returns PT409 with no disclosure; after lock release retry returns the response without student identity; reverse subject lock waits until aggregate transaction ends' },
     { name: 'classroom_purge_before_owner_snapshot', first: `select pg_advisory_xact_lock(hashtextextended('pika-classroom-operation:${f.classroomId}',0));`, second: ownerRead, expected: 'second returns PT409, no data' },
     { name: 'question_reparent_after_snapshot', first: ownerRead, second: `update public.survey_questions set survey_id='${f.foreignSurveyId}' where id='${f.questionId}';`, expected: 'second blocks on revision fence; current Survey no longer discloses question after second commits' },
     { name: 'response_after_question_text_change', first: questionWrite, second: respond, expected: 'second initially PT409; after first commits stale expected questions still PT409; no answers persisted' },

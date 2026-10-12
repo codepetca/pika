@@ -29,6 +29,18 @@ function request(method = 'GET', body?: unknown) {
   return new NextRequest(`http://localhost/api/surveys/${surveyId}?classroom_id=${classroomId}`, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
 }
 function success(data: unknown) { return { data, error: null } }
+function legacyResponseFixture(activeQuestion: typeof question) {
+  mocks.requireRole.mockResolvedValue({ id: actorId, role: 'student' })
+  const persist = vi.fn().mockResolvedValue({ error: null })
+  mocks.from.mockImplementation((table: string) => {
+    const query = { select: vi.fn(), eq: vi.fn(), single: vi.fn(), limit: vi.fn(), order: vi.fn(), upsert: persist, insert: persist }
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query)
+    query.single.mockResolvedValue(success(table === 'surveys' ? { ...survey, classrooms: { ...classroom, teacher_id: otherId } } : { id: otherId }))
+    query.limit.mockResolvedValue(success([])); query.order.mockResolvedValue(success([activeQuestion]))
+    return query
+  })
+  return persist
+}
 
 beforeEach(() => {
   vi.clearAllMocks(); vi.unstubAllEnvs()
@@ -95,6 +107,42 @@ describe('existing Survey transports under shared admission', () => {
       ? success({ classroom: { ...classroom, teacher_id: otherId }, survey, questions: [question], responses: [] })
       : success({ success: true, updated: true }))
     expect((await memberRespond(request('POST', { responses: { [questionId]: 'Fine' } }), context)).status).toBe(200)
+  })
+  it.each([
+    ['https://a.co', 'https://a.co/'],
+    ['https://example.com/é', 'https://example.com/%C3%A9'],
+  ])('keeps shared and legacy raw link boundaries identical for %s', async (raw, serialized) => {
+    const link = { ...question, question_type: 'link', response_max_chars: raw.length }
+    mocks.rpc.mockImplementation(async name => name === 'get_survey_for_member_v1'
+      ? success({ classroom: { ...classroom, teacher_id: otherId }, survey, questions: [link], responses: [] })
+      : success({ success: true, updated: false }))
+    expect((await memberRespond(request('POST', { responses: { [questionId]: raw } }), context)).status).toBe(201)
+    expect(mocks.rpc).toHaveBeenLastCalledWith('respond_to_survey_for_member_v1', expect.objectContaining({
+      p_expected_questions: [link], p_responses: { [questionId]: { question_type: 'link', response_text: serialized, raw_utf16_length: raw.length } },
+    }))
+    mocks.rpc.mockClear()
+    expect((await memberRespond(request('POST', { responses: { [questionId]: `${raw}a` } }), context)).status).toBe(400)
+    expect(mocks.rpc).not.toHaveBeenCalledWith('respond_to_survey_for_member_v1', expect.anything())
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
+    const persist = legacyResponseFixture(link)
+    expect((await memberRespond(request('POST', { responses: { [questionId]: raw } }), context)).status).toBe(201)
+    const rows = persist.mock.calls[0][0]
+    expect(rows).toMatchObject([{ question_id: questionId, response_text: serialized }])
+    expect(rows[0]).not.toHaveProperty('raw_utf16_length')
+    persist.mockClear()
+    expect((await memberRespond(request('POST', { responses: { [questionId]: `${raw}a` } }), context)).status).toBe(400)
+    expect(persist).not.toHaveBeenCalled()
+  })
+  it('keeps shared and legacy short-text UTF16 overflow rejection', async () => {
+    const short = { ...question, response_max_chars: 3 }
+    mocks.rpc.mockImplementation(async () => success({ classroom: { ...classroom, teacher_id: otherId }, survey, questions: [short], responses: [] }))
+    const body = { responses: { [questionId]: '😀😀' } }
+    expect((await memberRespond(request('POST', body), context)).status).toBe(400)
+    expect(mocks.rpc).not.toHaveBeenCalledWith('respond_to_survey_for_member_v1', expect.anything())
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
+    const persist = legacyResponseFixture(short)
+    expect((await memberRespond(request('POST', body), context)).status).toBe(400)
+    expect(persist).not.toHaveBeenCalled()
   })
   it.each([['PT403', 403], ['PT404', 404], ['PT409', 409], ['PT400', 400], ['PGRST202', 503]])('contains database %s without falling back to a legacy query', async (code, status) => {
     mocks.rpc.mockResolvedValue({ data: null, error: { code, message: 'private contents' } })

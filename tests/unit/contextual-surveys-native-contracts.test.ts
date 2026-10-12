@@ -24,6 +24,7 @@ import { surveyNativePlan, validateSurveyNativeMigrationProfile, validateSurveyN
   runSurveyNativeRollbackRaces, runSurveyNativeRollbackContracts, validateSurveyGeneratedTypes,
   SURVEY_RPC_ARGUMENTS } from '../../scripts/contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+const surveyEndpoint = { kind: 'survey263' as const, host: 'unix:///offline-survey.sock', identity: [1, 2, 3, 4] as const }
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 
 const original = newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z'))
@@ -83,8 +84,16 @@ describe('source-only sealed Survey263 native reuse', () => {
   })
   it('retains mixed roles, owner self-enrollment and ownA/joinB without predecessor fixture SQL', () => {
     const m = plan(), f = m.fixture
-    expect(f.actors.map(row => row.role)).toEqual(['student', 'teacher', 'student'])
+    expect(f.actors.map(row => row.role)).toEqual(['student', 'teacher', 'student', 'student'])
     expect(f.enrollments).toContainEqual(expect.objectContaining({ actorId: f.actors[0].id, classroomId: f.classes[1].id }))
+    expect(f.enrollments).toContainEqual(expect.objectContaining({ actorId: f.actors[3].id, classroomId: f.classes[0].id }))
+    expect(f.enrollments.some(row => row.actorId === f.actors[2].id)).toBe(false)
+    expect(f.aggregateResponse.actorId).toBe(f.actors[1].id)
+    expect(f.aggregateResponse.surveyId).toBe(f.surveys[2].id)
+    expect(f.aggregateQuestion.survey_id).toBe(f.surveys[2].id)
+    expect(m.setup).toContain(f.aggregateResponse.text)
+    const aggregateRace = m.concurrency.schedules.find(row => row.label === 'subject_purge_before_other_member_results:forward')!
+    expect(aggregateRace.contender).toContain(`get_survey_results_for_member_v1('${f.actors[3].id}','${f.surveys[2].id}')`)
     expect(f.classes[0].owner).toBe(f.actors[0].id)
     expect(m.setup).not.toMatch(/insert into public\.(?:assignments|tests|assessment_drafts)/)
     expect(m.executionEnabled).toBe(false); expect(m.nativeVerified).toBe(false)
@@ -122,7 +131,8 @@ describe('source-only sealed Survey263 native reuse', () => {
   it('creates only an inert concrete engine facade, retaining existing session/action limits', () => {
     const m = buildSurveyNativeContractsManifest(original, head, repository)
     const engine = createContextualSurveysNativeContracts({ original, repository, reviewedHead: head,
-      capturedResources: [], containerId: 'a'.repeat(64), acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000 })
+      capturedResources: [], containerId: 'a'.repeat(64), acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000,
+      survey263Endpoint: surveyEndpoint })
     expect(Object.keys(engine).sort()).toEqual(['diagnostic', 'generateTypes263', 'manifest', 'nativeVerified', 'run', 'runSdkCommitted', 'setup', 'verifyTarget'])
     expect(m.capabilities.sessions).toBe(2); expect(m.capabilities.actions).toBe(200)
     expect(m.capabilities.totalMs).toBe(900000)
@@ -145,7 +155,7 @@ describe('source-only sealed Survey263 native reuse', () => {
     const statusTarget = { API_URL: 'http://127.0.0.1:54331', DB_URL: 'postgresql://postgres:offline@127.0.0.1:54332/postgres',
       SERVICE_ROLE_KEY: `header.${Buffer.from(JSON.stringify({ iss: 'supabase-demo', role: 'service_role' })).toString('base64url')}.signature` }
     const input = { original, repository, reviewedHead: head, capturedResources: [], containerId: 'a'.repeat(64),
-      acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000, statusTarget }
+      acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000, statusTarget, survey263Endpoint: surveyEndpoint }
     await expect(createContextualSurveysNativeContracts(input).runSdkCommitted()).rejects.toThrow()
     await expect(createContextualSurveysNativeContracts(input).generateTypes263()).rejects.toThrow()
     expect(() => createContextualSurveysNativeContracts({ ...input, statusTarget: { ...statusTarget, API_URL: 'https://example.invalid' } })).toThrow()
@@ -180,7 +190,7 @@ describe('source-only sealed Survey263 native reuse', () => {
     await expect(runSurveyNativeRollbackContracts(m, target, driver)).rejects.toThrow()
     expect(close).toHaveBeenCalledOnce()
   })
-  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure', 'types-failure', 'cleanup-failure'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
+  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure', 'types-failure', 'cleanup-failure', 'unsealed'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
     const m = plan(), projectId = m.projectId, workdir = assignmentListProofWorkdir(projectId)
     const migrations = loadAssignmentListReviewedMigrations(repository)
     const expected = assignmentListExpectedResources(projectId)
@@ -227,6 +237,7 @@ describe('source-only sealed Survey263 native reuse', () => {
     const mock = vi.spyOn(nativeEngine, 'createContextualSurveysNativeContracts').mockImplementation(input => ({
       ...factory(input), setup, run, runSdkCommitted, generateTypes263,
     }))
+    const gate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'requireSurvey263AdapterEndpoint').mockReturnValue(surveyEndpoint)
     const adapters: AssignmentListLifecycleAdapters = {
       canonicalSnapshot: vi.fn(async () => mode === 'cleanup-failure' && started === false && prepared === false
         && setup.mock.calls.length > 0 ? { ...canonical, rowDigests: 'different' } : canonical),
@@ -243,8 +254,15 @@ describe('source-only sealed Survey263 native reuse', () => {
       absoluteDeadline: Date.now() + 60000, rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true })
     try {
       const operation = runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir, migrations,
-        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' ? 'normal' : mode,
+        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' || mode === 'unsealed' ? 'normal' : mode,
         expectedResources: expected, restorationPolicies: [], surveyWorkload: workload }, adapters)
+      if (mode === 'unsealed') {
+        await expect(operation).rejects.toThrow('Survey263 requires the sealed local platform transport')
+        expect(adapters.canonicalSnapshot).not.toHaveBeenCalled(); expect(adapters.inventory).not.toHaveBeenCalled()
+        expect(adapters.command).not.toHaveBeenCalled(); expect(setup).not.toHaveBeenCalled()
+        expect(() => consumeSurveyNativeLifecycleWorkload(workload)).not.toThrow()
+        return
+      }
       if (mode === 'normal') await expect(operation).resolves.toMatchObject({ cases: 0, revocations: 0, nativeVerified: false,
         surveyProofScope: 'rollback-and-sdk-terminal', surveyTypes: generatedReceipt })
       else if (mode === 'cleanup-failure') await expect(operation).rejects.toMatchObject({ cleanupFailures: [{ stage: 'canonical-after' }] })
@@ -257,6 +275,6 @@ describe('source-only sealed Survey263 native reuse', () => {
       expect(adapters.teardown).toHaveBeenCalledWith(expect.objectContaining({ resources, projectId }))
       expect(adapters.removeWorkdir).toHaveBeenCalledOnce(); expect(adapters.canonicalSnapshot).toHaveBeenCalledTimes(2)
       expect(started).toBe(false); expect(prepared).toBe(false)
-    } finally { mock.mockRestore() }
+    } finally { mock.mockRestore(); gate?.mockRestore() }
   })
 })

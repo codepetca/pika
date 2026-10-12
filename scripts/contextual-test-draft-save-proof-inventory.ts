@@ -2,7 +2,7 @@
  * validation, global discovery, bulk volumes and the sealed parser. Import inert. */
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { request, type ClientRequest, type IncomingMessage, type RequestOptions } from 'node:http'
 import type { Socket } from 'node:net'
 import { isAbsolute, normalize } from 'node:path'
@@ -25,7 +25,21 @@ type Output = { text: string; lease: Lease }
 type Owned = { abort: () => void; closed: Promise<void> }
 type Job = { args?: string[]; id?: string; deadline: number; resolve: (output: Output) => void; reject: (error: Error) => void }
 
-export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnType<typeof testOwnerListDockerInventory> {
+export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263Endpoint?: Readonly<{ host: string; identity: readonly number[] }>): ReturnType<typeof testOwnerListDockerInventory> {
+  // Optional exact Survey263 expectation; native engine owns its capture. No
+  // additional command/HTTP executor surface and no renewed discovery budget.
+  const expected = survey263Endpoint ? Object.freeze({ host: survey263Endpoint.host,
+    identity: Object.freeze([...survey263Endpoint.identity]) }) : undefined
+  const verifyExpected = () => {
+    if (!expected) return
+    assert(expected.host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(expected.host))
+    const path = expected.host.slice(7); assert(isAbsolute(path) && normalize(path) === path)
+    assert.equal(realpathSync(path), path)
+    const socket = statSync(path); assert(socket.isSocket())
+    assert(expected.identity.length === 4 && expected.identity.every(n => Number.isSafeInteger(n) && n >= 0))
+    assert.deepEqual([socket.dev, socket.ino, socket.mode, socket.rdev], expected.identity)
+  }
+  verifyExpected()
   const env = Object.freeze({ ...(seams.env ?? process.env) })
   try {
     const declarations = [...readFileSync(new URL('./contextual-assignment-list-proof-platform.ts', import.meta.url), 'utf8')
@@ -62,6 +76,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     function done() {
       if (!finishing || !requestClosed || !responseClosed || sockets.size) return
       clearTimeout(timer)
+      try { verifyExpected() } catch { fail() }
       if (Date.now() >= deadline) fail()
       if (failed) { output?.lease.release(); output = undefined }
       active.delete(owned); release(); complete(output); pump()
@@ -76,6 +91,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     }
     try {
       assert(!failed && Date.now() < deadline)
+      verifyExpected()
       req = http({ socketPath, path, method: 'GET', agent: false,
         headers: { Accept: 'application/json', 'Accept-Encoding': 'identity', Connection: 'close' } }, incoming => {
         response = incoming; responseClosed = false
@@ -136,7 +152,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
   }
   function startCli(job: Job) {
     let child: ReturnType<typeof spawn>
-    try { child = spawn('docker', job.args!, { env, stdio: ['ignore', 'pipe', 'pipe'] }) }
+    try { verifyExpected(); child = spawn('docker', job.args!, { env, stdio: ['ignore', 'pipe', 'pipe'] }) }
     catch { job.reject(error()); fail(); return }
     let release!: () => void
     const owned: Owned = { closed: new Promise<void>(resolve => { release = resolve }), abort: () => { child.kill('SIGKILL') } }
@@ -156,6 +172,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     child.once('close', (code, signal) => {
       clearTimeout(timer); let output: Output | undefined; let joined: Lease | undefined
       try {
+        verifyExpected()
         assert(!failed && code === 0 && signal === null && Date.now() < job.deadline)
         const tailLease = reserve(9); leases.push(tailLease); const tail = decoder.end(); tailLease.shrink(textBytes(tail)); pieces.push(tail); size += textBytes(tail)
         joined = reserve(2 * size); const text = pieces.join('').trim(); joined.shrink(textBytes(text)); output = { text, lease: joined }; joined = undefined
@@ -187,6 +204,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
         assert(contextDone && args[0] === '--host' && typeof args[1] === 'string')
         const path = args[1].slice(7)
         assert(args[1].startsWith('unix:///') && isAbsolute(path) && normalize(path) === path && !/[\x00-\x20\x7f%?#]/.test(path))
+        if (expected) { assert.equal(args[1], expected.host); verifyExpected() }
         if (host) assert.equal(host, args[1]); else host = args[1]
         const command = args.slice(2)
         if (key(command) === key(['ps', '-aq', '--no-trunc'])) listing = 'container'
@@ -225,6 +243,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
       object(options.headers) && key(Object.keys(options).sort()) === key(['agent', 'headers', 'method', 'path', 'socketPath']) &&
       key(Object.keys(options.headers).sort()) === key(['Accept', 'Accept-Encoding', 'Connection']) &&
       options.headers.Accept === 'application/json' && options.headers['Accept-Encoding'] === 'identity' && options.headers.Connection === 'close' && reserved.size === 0 && !failed)
+    verifyExpected()
     let original: ClientRequest | undefined; let response: IncomingMessage | undefined
     // Keep the exact original volume request and parser; track only its transport
     // ownership and reserve concurrent raw/concat/decode/metadata allocations.
@@ -249,7 +268,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
   }) as typeof request
   try {
     const inventory = await testOwnerListDockerInventory(undefined, { ...seams, env, run, request: volumeRequest })
-    assert(!failed && allowed.size === 0); return inventory
+    verifyExpected(); assert(!failed && allowed.size === 0); return inventory
   } catch { fail(); throw error() }
-  finally { if (active.size || queue.length) fail(); await settle(); queue.length = 0; allowed.clear(); retained.forEach(lease => lease.release()) }
+  finally { if (active.size || queue.length) fail(); await settle(); queue.length = 0; allowed.clear(); retained.forEach(lease => lease.release()); verifyExpected() }
 }

@@ -14,11 +14,11 @@ import type { Database } from '../src/types/database'
 import { surveySdkProofManifest } from './contextual-surveys-sdk-proof'
 
 export const SURVEY_NATIVE_SOURCES = freeze({
-  migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: 'be2cb550bae748a0c6e2349f96aeb216bdc5bf7d710706fa07335c95fa1cd36c' },
-  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: '8039b765b62d53306a31dcfbbcbaba369286a7fec002e311bcc1909b34ced9b3' },
+  migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: '26f99a6a2b269f29f56b07455c5460f796d7b470876624aedc43de90906f6c25' },
+  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: 'c90aaa374baa25807da4bc481151c880c48dac09d112ec5e7d84fc7bea9676c0' },
   sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: 'f045c59fadd93a636bdaf8ec7fc447e54086e47c7ce7a6caae3817de37c54172' },
-  races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'b4022b653fcc84d20d403e5bee65ffdd76318fa46db2a86b630866134f33d22c' },
-  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'e36dee641af2aa731e8ed3d24da60b13651879bc9b23bb53bb150693a155c202' },
+  races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
+  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'eccf407ccc2b45a39cc1fbc0bbc485ad2428cdc7b238c98ee6ddcfd4b9f3e0de' },
 })
 export const SURVEY_NATIVE_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   schedules: 30, sessions: 2, actionMs: 35000, closeMs: 12000, sdkRequests: 16, sdkMs: 20000 })
@@ -108,19 +108,26 @@ export function newSurveyNativeFixture(original: AssignmentListProofFixture) {
   assert.match(original.manifest.syntheticTag, /^assignmentlist_[a-f0-9]{12}$/)
   const tag = `surveynative_${original.manifest.syntheticTag.slice(-12)}`
   const id = (label: string) => { const hex = digest(`${tag}:${label}`); return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}` }
-  const actors = (['student', 'teacher', 'student'] as const).map((role, index) => ({ id: id(`actor:${index}`), role, email: `${tag}_${index}@example.invalid` }))
+  const actors = (['student', 'teacher', 'student', 'student'] as const).map((role, index) => ({ id: id(`actor:${index}`), role, email: `${tag}_${index}@example.invalid` }))
   const classes = [0, 1].map(index => ({ id: id(`class:${index}`), owner: actors[index].id, code: `${tag}_${index}` }))
-  const enrollments = [[0, 0], [0, 1], [1, 0], [1, 1]].map(([c, a], index) => ({ id: id(`enrollment:${index}`), classroomId: classes[c].id, actorId: actors[a].id }))
-  const surveys = [0, 1].map(index => ({ id: id(`survey:${index}`), classroomId: classes[index].id, owner: actors[index].id }))
+  const enrollments = [[0, 0], [0, 1], [1, 0], [1, 1], [0, 3]].map(([c, a], index) => ({ id: id(`enrollment:${index}`), classroomId: classes[c].id, actorId: actors[a].id }))
+  const surveys = [0, 1, 2].map(index => ({ id: id(`survey:${index}`), classroomId: classes[index === 1 ? 1 : 0].id,
+    owner: actors[index === 1 ? 1 : 0].id }))
   const question = { id: id('question'), artifact_id: id('question-artifact'), source_artifact_id: null, source_blueprint_version_id: null,
     survey_id: surveys[0].id, question_type: 'short_text', question_text: 'Synthetic native question',
     options: [], response_max_chars: 500, position: 0, created_at: '2026-10-12T00:00:00+00:00', updated_at: '2026-10-12T00:00:00+00:00' } satisfies Database['public']['Tables']['survey_questions']['Row']
   const replacementEnrollment = { id: id('membership-replacement'), classroomId: classes[0].id, actorId: actors[1].id }
-  const allocatedIds = [...actors.map(row => row.id), ...classes.map(row => row.id), ...enrollments.map(row => row.id), ...surveys.map(row => row.id), question.id, question.artifact_id, replacementEnrollment.id]
+  const aggregateQuestion = { ...question, id: id('aggregate-question'), artifact_id: id('aggregate-question-artifact'),
+    survey_id: surveys[2].id, question_text: 'Synthetic shared result question' }
+  const aggregateResponse = { id: id('aggregate-response'), surveyId: surveys[2].id, questionId: aggregateQuestion.id,
+    actorId: actors[1].id, text: 'Synthetic shared result' }
+  const allocatedIds = [...actors.map(row => row.id), ...classes.map(row => row.id), ...enrollments.map(row => row.id), ...surveys.map(row => row.id),
+    question.id, question.artifact_id, aggregateQuestion.id, aggregateQuestion.artifact_id, aggregateResponse.id, replacementEnrollment.id]
   assert.equal(new Set(allocatedIds).size, allocatedIds.length)
   const originalIds = new Set<string>(original.allocatedIds)
   assert(allocatedIds.every(value => !originalIds.has(value)))
-  return freeze({ version: 1, tag, projectId: `pika_assignment_list_${tag.slice(-12)}`, actors, classes, enrollments, surveys, question, replacementEnrollment, allocatedIds })
+  return freeze({ version: 1, tag, projectId: `pika_assignment_list_${tag.slice(-12)}`, actors, classes, enrollments, surveys, question,
+    aggregateQuestion, aggregateResponse, replacementEnrollment, allocatedIds })
 }
 export type SurveyNativeFixture = ReturnType<typeof newSurveyNativeFixture>
 
@@ -137,7 +144,8 @@ do $collision$ begin
  if exists(select 1 from public.users where id in (${actors}) or email like ${q(f.tag + '%')})
  or exists(select 1 from public.classrooms where id in (${classes}) or class_code like ${q(f.tag + '%')})
  or exists(select 1 from public.surveys where id in (${f.surveys.map(row => q(row.id)).join(',')}) or classroom_id in (${classes}))
- or exists(select 1 from public.survey_questions where id=${q(f.question.id)})
+ or exists(select 1 from public.survey_questions where id in (${q(f.question.id)},${q(f.aggregateQuestion.id)}))
+ or exists(select 1 from public.survey_responses where id=${q(f.aggregateResponse.id)})
  then raise exception 'Survey namespace collision';end if;
 end;$collision$;
 insert into public.users(id,email,role) values ${f.actors.map(row => `(${q(row.id)},${q(row.email)},${q(row.role)})`).join(',')};
@@ -145,11 +153,14 @@ insert into public.classrooms(id,teacher_id,title,class_code) values ${f.classes
 insert into public.classroom_enrollments(id,classroom_id,student_id) values ${f.enrollments.map(row => `(${q(row.id)},${q(row.classroomId)},${q(row.actorId)})`).join(',')};
 insert into public.surveys(id,classroom_id,created_by,title,status,show_results,dynamic_responses,opens_at) values ${f.surveys.map(row => `(${q(row.id)},${q(row.classroomId)},${q(row.owner)},${q(f.tag)},'active',true,false,'2026-10-12T00:00:00Z')`).join(',')};
 insert into public.survey_questions(id,artifact_id,survey_id,question_type,question_text,options,response_max_chars,position,created_at,updated_at)
- values (${q(f.question.id)},${q(f.question.artifact_id)},${q(f.question.survey_id)},'short_text',${q(f.question.question_text)},'[]'::jsonb,500,0,'2026-10-12T00:00:00Z','2026-10-12T00:00:00Z');commit;`
+ values ${[f.question, f.aggregateQuestion].map(row => `(${q(row.id)},${q(row.artifact_id)},${q(row.survey_id)},'short_text',${q(row.question_text)},'[]'::jsonb,500,0,'2026-10-12T00:00:00Z','2026-10-12T00:00:00Z')`).join(',')};
+insert into public.survey_responses(id,survey_id,question_id,student_id,response_text,submitted_at,updated_at)
+ values (${q(f.aggregateResponse.id)},${q(f.aggregateResponse.surveyId)},${q(f.aggregateResponse.questionId)},${q(f.aggregateResponse.actorId)},${q(f.aggregateResponse.text)},'2026-10-12T00:00:00Z','2026-10-12T00:00:00Z');commit;`
   // Complete independent rows plus168 metadata/settings/cron, decoded by the
   // existing platform helper for the later concrete committed SDK operation.
   const snapshot = assignmentListSnapshotSql('rows')
-  const cases = contextualSurveysConcurrencyCases({ ownerId: f.actors[0].id, memberId: f.actors[1].id,
+  const cases = contextualSurveysConcurrencyCases({ ownerId: f.actors[0].id, memberId: f.actors[1].id, resultReaderId: f.actors[3].id,
+    resultSurveyId: f.surveys[2].id,
     classroomId: f.classes[0].id, surveyId: f.surveys[0].id, questionId: f.question.id, foreignSurveyId: f.surveys[1].id },
   { expectedQuestions: [f.question], responses: { [f.question.id]: { question_type: 'short_text', response_text: 'Synthetic response' } } })
   assert.equal(cases.length, 15)

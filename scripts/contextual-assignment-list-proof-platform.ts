@@ -5,8 +5,8 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, isAbsolute, join, normalize } from 'node:path'
 import { createServer } from 'node:net'
 import { createClient } from '@supabase/supabase-js'
 import { ApiError } from '../src/lib/api-error'
@@ -126,12 +126,12 @@ export function writeAssignmentListStartupDiagnostic(projectId: string, evidence
   writeFileSync(path, JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
   return path
 }
-async function command(file: string, args: string[], options: { input?: string; timeout?: number; startupProjectId?: string } = {}): Promise<string> {
+async function command(file: string, args: string[], options: { input?: string; timeout?: number; startupProjectId?: string; env?: NodeJS.ProcessEnv } = {}): Promise<string> {
   if (options.startupProjectId) {
     assert.equal(file, 'supabase'); assert.equal(args[0], 'start'); assignmentListProofWorkdir(options.startupProjectId)
   }
   return new Promise((resolve, reject) => {
-    const child = execFile(file, args, { timeout: options.timeout ?? 20000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' }, (error, stdout, stderr) => {
+    const child = execFile(file, args, { timeout: options.timeout ?? 20000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', ...(options.env ? { env: options.env } : {}) }, (error, stdout, stderr) => {
       if (error) {
         try {
           if (options.startupProjectId) {
@@ -146,6 +146,64 @@ async function command(file: string, args: string[], options: { input?: string; 
     child.stdin?.end(options.input)
   })
 }
+
+/** Survey263 only: root accepts this exact observed local endpoint before the
+ * existing lifecycle. Data-only binding; no command/executor injection. Never
+ * assign DOCKER_HOST to process.env (the existing native engine forbids it). */
+type Survey263Endpoint = Readonly<{ kind: 'survey263'; host: string; identity: readonly [number, number, number, number] }>
+const survey263AdapterEndpoints = new WeakMap<AssignmentListLifecycleAdapters, Survey263Endpoint>()
+/** Only an actual fixed-transport adapter admits the Survey lifecycle. A copied
+ * object or an ordinary predecessor adapter cannot claim this binding. */
+export function requireSurvey263AdapterEndpoint(adapters: AssignmentListLifecycleAdapters) {
+  const endpoint = survey263AdapterEndpoints.get(adapters)
+  assert(endpoint, 'Survey263 requires the sealed local platform transport')
+  return endpoint
+}
+function createSurvey263PlatformTransport(binding: Survey263Endpoint) {
+  assert.deepEqual(Object.keys(binding).sort(), ['host', 'identity', 'kind'])
+  assert.equal(binding.kind, 'survey263')
+  const endpoint = Object.freeze({ host: binding.host, identity: Object.freeze([...binding.identity]) })
+  assert(endpoint.host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(endpoint.host))
+  const path = endpoint.host.slice('unix://'.length)
+  assert(isAbsolute(path) && normalize(path) === path)
+  assert(endpoint.identity.length === 4 && endpoint.identity.every(n => Number.isSafeInteger(n) && n >= 0))
+  const verify = () => {
+    assert(!Object.keys(process.env).some(name =>
+      /^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)))
+    assert.equal(realpathSync(path), path)
+    const socket = statSync(path); assert(socket.isSocket())
+    assert.deepEqual([socket.dev, socket.ino, socket.mode, socket.rdev], endpoint.identity)
+  }
+  verify() // pin the accepted socket synchronously at adapter creation
+  const observe = async () => {
+    verify()
+    const raw = JSON.parse(await command('docker', ['context', 'inspect', '--format',
+      '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}']))
+    assert(raw && raw.endpoints && Object.keys(raw.endpoints).join(',') === 'docker')
+    assert(raw.tlsMaterial === null || (typeof raw.tlsMaterial === 'object' && Object.keys(raw.tlsMaterial).length === 0))
+    const docker = raw.endpoints.docker
+    assert(docker && Object.keys(docker).every(key => key === 'Host' || key === 'SkipTLSVerify'))
+    assert(docker.SkipTLSVerify === false || docker.SkipTLSVerify === undefined)
+    assert(typeof docker.Host === 'string' && docker.Host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(docker.Host))
+    assert.equal('unix://' + realpathSync(docker.Host.slice('unix://'.length)), endpoint.host)
+    verify()
+  }
+  const run: typeof command = async (file, args, options = {}) => {
+    assert(file === 'docker' || file === 'supabase')
+    assert(!options.env && !args.some(arg => arg === '--host' || arg === '-H' || arg.startsWith('--host=')))
+    await observe()
+    try {
+      // Docker always gets the captured host explicitly. Supabase receives the
+      // same host only in its private child environment, never via default context.
+      return await command(file, file === 'docker' ? ['--host', endpoint.host, ...args] : args, {
+        ...options, ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint.host } } : {}),
+      })
+    } finally { await observe() } // command failures and teardown stay pinned too
+  }
+  return Object.freeze({ run, observe, endpoint: Object.freeze({ kind: 'survey263' as const,
+    host: endpoint.host, identity: endpoint.identity as readonly [number, number, number, number] }) })
+}
+
 const containerTemplate = '{"id":{{json .Id}},"name":{{json .Name}},"labels":{{json .Config.Labels}},"mounts":{{json .Mounts}},"networks":{{json .NetworkSettings.Networks}},"bindings":{{json .HostConfig.PortBindings}},"created":{{json .Created}}}'
 /** Fresh complete global discovery; batching reduces process overhead, not scope. */
 export async function assignmentListDockerInventory(run: (file: string, args: string[]) => Promise<string> = command): Promise<AssignmentListResource[]> {
@@ -181,7 +239,6 @@ export async function assignmentListDockerInventory(run: (file: string, args: st
   for (const n of networks) result.push({ kind: 'network', id: n.Id, createdAt: n.Created, name: n.Name, labels: n.Labels ?? {}, ports: [], attachedIds: Object.keys(n.Containers ?? {}) })
   return result.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id))
 }
-const dockerInventory = () => assignmentListDockerInventory()
 async function occupied(port: number): Promise<boolean> {
   return new Promise(resolve => { const server = createServer(); server.once('error', () => resolve(true)); server.listen(port, '127.0.0.1', () => server.close(() => resolve(false))) })
 }
@@ -205,12 +262,12 @@ select 'select jsonb_build_object(''cron'',coalesce(jsonb_agg(to_jsonb(j) order 
 \\gexec
 rollback;`
 }
-async function sql(projectId: string, input: string, applicationName: string) {
+async function sql(projectId: string, input: string, applicationName: string, run: typeof command = command) {
   assert(projectId === 'pika' || /^pika_assignment_list_[a-f0-9]{12}$/.test(projectId))
-  const resources = await dockerInventory(); const db = resources.find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`)
+  const resources = await assignmentListDockerInventory(run); const db = resources.find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`)
   assert(db && db.labels['com.supabase.cli.project'] === projectId && db.labels['com.docker.compose.project'] === projectId)
   assert(db.ports.length > 0 && db.ports.every(p => p === (projectId === 'pika' ? 54322 : 54332)))
-  return command('docker', ['exec', '-i', '-e', `PGAPPNAME=${applicationName}`, db.id, 'psql', '-U', 'postgres', '-d', 'postgres', '-XqAt', '-v', 'ON_ERROR_STOP=1'], { input, timeout: 60000 })
+  return run('docker', ['exec', '-i', '-e', `PGAPPNAME=${applicationName}`, db.id, 'psql', '-U', 'postgres', '-d', 'postgres', '-XqAt', '-v', 'ON_ERROR_STOP=1'], { input, timeout: 60000 })
 }
 export function decodeAssignmentListSnapshot(output: string, scope: AssignmentListSnapshotScope) {
   assert(['rows', 'digests', 'metadata'].includes(scope))
@@ -221,8 +278,8 @@ export function decodeAssignmentListSnapshot(output: string, scope: AssignmentLi
   const metadata = lines.find(row => row.metadata)?.metadata; assert(metadata)
   return { tables, metadata: JSON.stringify(metadata), cron: JSON.stringify(lines.find(row => row.cron)?.cron ?? []) }
 }
-async function databaseSnapshot(projectId: string, scope: AssignmentListSnapshotScope) {
-  return decodeAssignmentListSnapshot(await sql(projectId, assignmentListSnapshotSql(scope), `${projectId}_snapshot`), scope)
+async function databaseSnapshot(projectId: string, scope: AssignmentListSnapshotScope, run: typeof command = command) {
+  return decodeAssignmentListSnapshot(await sql(projectId, assignmentListSnapshotSql(scope), `${projectId}_snapshot`, run), scope)
 }
 export function loadAssignmentListReviewedMigrations(repository: string) {
   // Entry points bind this inventory to an exact reviewed HEAD and clean root.
@@ -261,49 +318,55 @@ export function prepareAssignmentListProjectFiles(
   }
 }
 
-export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture, options: { ephemeralSnapshot?: 'digests' | 'metadata' } = {}): AssignmentListLifecycleAdapters {
+export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture, options: { ephemeralSnapshot?: 'digests' | 'metadata'; survey263Endpoint?: Survey263Endpoint } = {}): AssignmentListLifecycleAdapters {
   const ephemeralSnapshot = options.ephemeralSnapshot ?? 'digests'
   assert(ephemeralSnapshot === 'digests' || ephemeralSnapshot === 'metadata')
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
   const workdir = assignmentListProofWorkdir(projectId)
+  const transport = options.survey263Endpoint ? createSurvey263PlatformTransport(options.survey263Endpoint) : undefined
+  const run = transport?.run ?? command
+  const inventory = () => assignmentListDockerInventory(run)
+  const snapshot = (project: string, scope: AssignmentListSnapshotScope) => databaseSnapshot(project, scope, run)
+  const fixedSql = (project: string, text: string, name: string) => sql(project, text, name, run)
   const createdDirectories = new Set<string>()
   let beforeTransition: Rows | undefined
-  return {
+  const adapters: AssignmentListLifecycleAdapters = {
     async canonicalSnapshot() {
-      const baseline = await databaseSnapshot('pika', 'digests')
-      const resources = (await dockerInventory()).filter(r => r.labels['com.supabase.cli.project'] === 'pika')
+      const baseline = await snapshot('pika', 'digests')
+      const resources = (await inventory()).filter(r => r.labels['com.supabase.cli.project'] === 'pika')
       assert(resources.length > 0)
       return { rowDigests: JSON.stringify(baseline.tables), guard168Metadata: baseline.metadata, settings: baseline.metadata, cronJobs: baseline.cron, resources: JSON.stringify(resources) }
     },
     async inventory() {
-      return { resources: await dockerInventory(), occupiedPorts: (await Promise.all([54340, 54331, 54332].map(async port => ({ port, busy: await occupied(port) })))).filter(r => r.busy).map(r => r.port), workdirExists: existsSync(workdir) }
+      return { resources: await inventory(), occupiedPorts: (await Promise.all([54340, 54331, 54332].map(async port => ({ port, busy: await occupied(port) })))).filter(r => r.busy).map(r => r.port), workdirExists: existsSync(workdir) }
     },
     async prepare(plan, migrations) {
       assert.equal(plan.workdir, workdir)
+      await transport?.observe()
       const prepared = prepareAssignmentListProjectFiles(plan, migrations)
       createdDirectories.add(workdir)
       return prepared
     },
     async command(request) {
       assert.equal(request.workdir, workdir)
-      const output = await command('supabase', [...request.args], { timeout: request.timeoutMs, ...(request.args[0] === 'start' ? { startupProjectId: projectId } : {}) })
+      const output = await run('supabase', [...request.args], { timeout: request.timeoutMs, ...(request.args[0] === 'start' ? { startupProjectId: projectId } : {}) })
       return request.args[0] === 'status' ? JSON.parse(output) : undefined
     },
     async verifyEphemeral(input) {
-      const resources = await dockerInventory(); const db = resources.find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`); assert(db)
-      const gates = await sql(projectId, `select jsonb_build_object('guard',exists(select 1 from pg_trigger where tgrelid='private.pal_membership_generations'::regclass and tgname='guard_pal_membership_evidence' and tgenabled='O'),
+      const resources = await inventory(); const db = resources.find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`); assert(db)
+      const gates = await fixedSql(projectId, `select jsonb_build_object('guard',exists(select 1 from pg_trigger where tgrelid='private.pal_membership_generations'::regclass and tgname='guard_pal_membership_evidence' and tgenabled='O'),
         'off',not ((select enabled from private.pal_membership_settings where singleton) or (select enabled from private.pal_classroom_signal_settings where singleton) or (select enabled or live_enabled or automatic_enabled from private.student_provider_cleanup_settings where singleton) or (select enabled from private.removed_student_academic_settings where singleton) or (select strict_enforcement_enabled from private.classroom_creation_entitlement_settings where singleton)),
         'no_work',not exists(select 1 from public.test_ai_grading_runs) and not exists(select 1 from public.test_ai_grading_run_items),
         'no_secrets',not exists(select 1 from vault.secrets));`, input.applicationName)
-      const result = JSON.parse(gates); const snapshot = await databaseSnapshot(projectId, ephemeralSnapshot)
-      const jobs = JSON.parse(snapshot.cron) as Array<Record<string, unknown>>
+      const result = JSON.parse(gates); const evidence = await snapshot(projectId, ephemeralSnapshot)
+      const jobs = JSON.parse(evidence.cron) as Array<Record<string, unknown>>
       return { projectId, containerId: db.id, applicationName: input.applicationName, dbPort: 54332, guard168Enabled: result.guard === true, persistedGatesOff: result.off === true, activeNetworkCronAbsent: result.no_work === true && result.no_secrets === true && assignmentListSafeCronJobs(jobs) }
     },
     async executeSql(input) {
       assert.equal(input.projectId, projectId); assert.equal(input.applicationName, `${projectId}_fixture`)
-      const db = (await dockerInventory()).find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`)
+      const db = (await inventory()).find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`)
       assert.equal(db?.id, input.containerId)
-      await sql(projectId, input.sql, input.applicationName)
+      await fixedSql(projectId, input.sql, input.applicationName)
     },
     async runCase({ proofCase, target }) {
       assert(proofCase.expectedStatus === '200' || proofCase.expectedStatus === '403')
@@ -334,12 +397,12 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       return { actorId: proofCase.actorId, classroomId: proofCase.classroomId, status: proofCase.expectedStatus }
     },
     async runRevocation(input) {
-      beforeTransition = (await databaseSnapshot(projectId, 'rows')).tables as Rows
+      beforeTransition = (await snapshot(projectId, 'rows')).tables as Rows
       return observeAssignmentListRevocation({ ...input, originalFetch: fetch, transition: input.executeSql })
     },
     async verifyRestoration({ plan }) {
       assert(beforeTransition)
-      const after = (await databaseSnapshot(projectId, 'rows')).tables as Rows
+      const after = (await snapshot(projectId, 'rows')).tables as Rows
       const changes = assignmentListRowChanges(beforeTransition, after)
       const policy = assignmentListRestorationPolicy(fixture, plan)
       const permitted = (cell: Cell) => policy.allowedCells.some(allow => allow.schema === cell.schema && allow.table === cell.table && allow.id === cell.id && cell.columns.every(column => allow.columns.includes(column)))
@@ -355,20 +418,24 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
     },
     async teardown(input) {
       assert.equal(input.projectId, projectId)
-      const current = await dockerInventory()
+      const current = await inventory()
       for (const captured of input.resources) { const resource = current.find(r => r.id === captured.id && r.kind === captured.kind); assert(resource && JSON.stringify(resource) === JSON.stringify(captured)) }
-      if (input.stopArgs) await command('supabase', input.stopArgs, { timeout: 120000 })
+      if (input.stopArgs) await run('supabase', input.stopArgs, { timeout: 120000 })
       else {
         for (const kind of ['container', 'network', 'volume'] as const) for (const resource of input.resources.filter(r => r.kind === kind)) {
-          if (kind === 'container') await command('docker', ['rm', '-f', resource.id])
-          else if (kind === 'network') await command('docker', ['network', 'rm', resource.id])
-          else await command('docker', ['volume', 'rm', resource.name])
+          if (kind === 'container') await run('docker', ['rm', '-f', resource.id])
+          else if (kind === 'network') await run('docker', ['network', 'rm', resource.id])
+          else await run('docker', ['volume', 'rm', resource.name])
         }
       }
     },
     async removeWorkdir(input) {
       assert(createdDirectories.has(input.workdir)); assert.equal(input.workdir, workdir); assert.equal(input.realpath, realpathSync(workdir)); assert.equal(input.realpath, workdir)
+      await transport?.observe()
       rmSync(workdir, { recursive: true }); createdDirectories.delete(workdir)
+      await transport?.observe()
     },
   }
+  if (transport) survey263AdapterEndpoints.set(adapters, transport.endpoint)
+  return adapters
 }

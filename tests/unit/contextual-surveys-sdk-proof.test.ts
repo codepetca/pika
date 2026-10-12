@@ -34,14 +34,14 @@ function server() {
     expect(init?.redirect).toBe('error'); expect(init?.signal).toBeInstanceOf(AbortSignal)
     const index = calls++
     if (index === 0 || index === 4) return reply({ classroom, survey: survey(), questions: [f.question], responses: [] })
-    if (index === 1 || index === 5) return reply({ classroom, surveys: [survey()] })
+    if (index === 1 || index === 5) return reply({ classroom, surveys: [survey(), { ...survey(), id: f.surveys[2].id }] })
     if (index === 2 || index === 3) return reply({ code: 'PT403', details: null, hint: null, message: 'Synthetic denial' }, 403)
     if (index === 6) return reply({ success: true, updated: false })
     if (index === 7) return reply({ classroom, survey: summary, results: [result] })
     if (index === 8) return reply({ classroom, survey: summary, questions: [{ id: f.question.id, question_type: 'short_text',
       question_text: f.question.question_text, options: [], response_max_chars: 500, position: 0 }],
     results: [{ ...result, responses: [{ ...response, student_id: member, name: null, email: f.actors[1].email }] }],
-    responders: [{ student_id: member, name: null, email: f.actors[1].email }], stats: { total_students: 1, responded: 1 } })
+    responders: [{ student_id: member, name: null, email: f.actors[1].email }], stats: { total_students: 2, responded: 1 } })
     if (index === 9) return reply({ survey: { ...survey(), title: 'SDK renamed', updated_at: at } })
     if (index === 10) return reply({ question: created })
     if (index === 11) return reply({ question: { ...created, question_type: 'link', question_text: 'URL?', response_max_chars: 2048 } })

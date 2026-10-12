@@ -46430,3 +46430,20 @@ Continues approved app fluidity after shared SplitButton/Material PR1567 landed6
 Extended SplitButton with an opt-in semantic fast opacity exit for primitive labels without caller icons; replaced live controls with an inert owner-rendered projection immediately on dismissal. Material creation is the first production adopter, with preview, disabled and unmount boundaries. The existing teacher/student UiConsistency Pattern Lab menu exercises the shared contract without changing closed layout. Preserved immediate rich-menu fallback and WorkSurface latest-hover callback rollover. Committed lifetime guards cancel stale commands, Tab/focus work and expiry across reopening, availability, owner replacement and unmount. No persistence, permission, dependency, schema or production changes.
 
 Sol6.1/medium bounded lifetime audit and implementation accepted after coordinator source inspection; audit measured141.5 seconds, implementation recorded243-second interval excluding orientation, two coordinator corrections: hover rollover and keyboard-selection focus. Effective models/tokens and coordinator active time unknown; weekly24% remaining was account-wide at start, DeepSeek pause honored. Focused owner tests66/66 and gallery32/32 pass; four unchanged desktop/mobile/theme Pattern Lab contract goldens pass. Both-role normal/reduced native matrix, canonical focused gates and exact-head independent draft review/CI remain publication requirements. Initial independent full review211 seconds accepted two P2 fixes in one batch: preserve Shift-Tab close through hover-driven inline options updates, and advance committed generation for empty/all-disabled states after selection. Three failing regressions plus primary-action availability compatibility now pass; synthetic late-rAF delivery is a generation-fence check, not a reproduced browser race. Broad fluidity goal and held work remain open.
+
+<!-- pika-session-log-archive-batch:b741ca4414d178d8260515ffb35ec2120f43b190796135b9a72fe7a7bc6aa5e0 -->
+## 2026-10-11 — Whole learner native acceptance and genuine type installation
+
+Sixth separately approved one-shot rehearsal at46ceb93c9/base4f352b74b ran
+00:29:01–00:39:16UTC and passed all78 labels: full001–257, real SDK/Storage,
+ACL/cancellation/CAS/held-lock races and complete owned/global/canonical/source
+cleanup. result.success=true, cleanupFailures=[]; prior failed receipts retained.
+Permission consumed, enabled source archived nonexecuted, runnerfalse/null and
+all nine original source hashes restored. Installed only exact11-line RPC delta
+from fresh genuine438731-byte CLI artifactcc966 (full byte equality verified).
+Runtime SQL/proof/base unchanged; final focused checks, proportional type/receipt
+delta review, final-head CI and normal-main merge remain. No sharedlocal249+,
+prod257+, promotion, activation, batch2/goal exit or goal resume. Original review
+clock13:16:45UTC/counters13launch10target7fix1initial1final retained under direct
+workflow-stop waiver. Weekly24%remaining/ordinaryAllowed; DeepSeek paused;
+effective model, attributable active time and token telemetry unknown.

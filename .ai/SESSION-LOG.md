@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Whole learner native acceptance and genuine type installation
-
-Sixth separately approved one-shot rehearsal at46ceb93c9/base4f352b74b ran
-00:29:01–00:39:16UTC and passed all78 labels: full001–257, real SDK/Storage,
-ACL/cancellation/CAS/held-lock races and complete owned/global/canonical/source
-cleanup. result.success=true, cleanupFailures=[]; prior failed receipts retained.
-Permission consumed, enabled source archived nonexecuted, runnerfalse/null and
-all nine original source hashes restored. Installed only exact11-line RPC delta
-from fresh genuine438731-byte CLI artifactcc966 (full byte equality verified).
-Runtime SQL/proof/base unchanged; final focused checks, proportional type/receipt
-delta review, final-head CI and normal-main merge remain. No sharedlocal249+,
-prod257+, promotion, activation, batch2/goal exit or goal resume. Original review
-clock13:16:45UTC/counters13launch10target7fix1initial1final retained under direct
-workflow-stop waiver. Weekly24%remaining/ordinaryAllowed; DeepSeek paused;
-effective model, attributable active time and token telemetry unknown.
-
 ## 2026-10-11 — Learner CI continuity-marker correction
 
 Final delta review14 COMPLETE/sourceclean at53e43782; actual whole rehearsal and
@@ -660,3 +644,20 @@ no hand-written public database types, source PR, migration or live activation.
 The noDB browser experiment spent its sole attempt before any HTTP request;
 browser cleanup remains unverified while exact ownership recovery is prepared.
 Routine-approval waiver retained; serious holds and cumulative review counts stay.
+
+## 2026-10-12 Survey source-review correction batch
+
+Independent security/compatibility wave on ac0bec363 found pinned-Docker
+dispatch, cross-subject purge disclosure and raw-versus-normalized link-cap
+blockers. Batched source corrections retain legacy normalization, carry private
+link length evidence, fence every disclosed member subject, and bind the existing
+Survey lifecycle/generator/inventory to one Unix-socket epoch. Unsealed adapters
+reject before any platform command; old profiles remain unchanged. Added separate
+synthetic aggregate/B-reader fixture while retaining fifteen/thirty race bounds
+and the empty SDK primary Survey. Affected route/source/native-seam/predecessor
+checks PASS; genuine263 types and real native acceptance remain pending. No
+migration, PR, shared/prod state, provider or cutover activation. Targeted review
+is next; initial wave/counters retained, not reset under the routine waiver.
+The spent noDB experiment's exact eight-process family was independently reviewed
+and closed; separate absence/port checks pass and spent source/receipts remain.
+Its historical launch cause is still unknown; recovery is not successful proof.

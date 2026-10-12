@@ -162,6 +162,15 @@ export async function respondToContextualSurvey(input: Context & { detail: { sur
   const normalized = validateSurveyResponses(input.detail.questions, input.responses)
   if (!normalized.valid) throw new ApiError(400, normalized.error)
   if (!input.detail.questions.length) throw new ApiError(400, 'All questions must be answered')
+  const responses = Object.fromEntries(input.detail.questions.map(question => {
+    const answer = normalized.responses[question.id]
+    if (answer.question_type !== 'link') return [question.id, answer]
+    // Use the exact raw value already accepted by the shared canonical validator.
+    // This evidence belongs only to the service RPC, never persisted/returned.
+    const raw = input.responses[question.id]
+    const text = typeof raw === 'string' ? raw : z.object({ response_text: z.string() }).parse(raw).response_text
+    return [question.id, { ...answer, raw_utf16_length: text.trim().length }]
+  }))
   return invoke(input.supabase, 'respond_to_survey_for_member_v1', { ...identity(input), p_classroom_id: input.detail.survey.classroom_id,
-    p_expected_questions: z.json().parse(input.detail.questions), p_responses: normalized.responses }, contextualSurveyRespondSchema)
+    p_expected_questions: z.json().parse(input.detail.questions), p_responses: responses }, contextualSurveyRespondSchema)
 }

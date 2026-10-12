@@ -9,6 +9,7 @@ import { assignmentListRevocationDiagnostic, assignmentListRevocationPlans, type
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
 import { validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload, type SurveyNativeLifecycleWorkload } from './contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from './contextual-test-draft-save-native-contracts'
+import { requireSurvey263AdapterEndpoint } from './contextual-assignment-list-proof-platform'
 
 export function validateAssignmentListEphemeralIdentity(input: { projectId: string; workdir: string }) {
   assert.match(input.projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
@@ -178,6 +179,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   for (const r of input.expectedResources) assert.match(r.name, new RegExp(`^supabase_[a-z0-9_-]+_${identity.projectId}$`))
   assert.deepEqual([...expected].sort(), assignmentListExpectedResources(identity.projectId).map(resourceKey).sort())
   const surveyPlan = input.surveyWorkload ? validateSurveyNativeLifecycleWorkload(input.surveyWorkload, fixture) : undefined
+  const survey263Endpoint = surveyPlan ? requireSurvey263AdapterEndpoint(adapters) : undefined
   if (surveyPlan) assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), surveyPlan.migrationManifestSha256)
   if (input.surveyWorkload) consumeSurveyNativeLifecycleWorkload(input.surveyWorkload)
   const revocations = surveyPlan ? [] : assignmentListRevocationPlans(fixture)
@@ -279,7 +281,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       const nativeManifest = buildSurveyNativeContractsManifest(fixture, workload.reviewedHead, workload.repository)
       const native = createContextualSurveysNativeContracts({ original: fixture, repository: workload.repository, reviewedHead: workload.reviewedHead,
         capturedResources: resources, containerId: s.containerId, acceptedManifestSha256: sha(JSON.stringify(nativeManifest)),
-        absoluteDeadline: workload.absoluteDeadline, statusTarget: target })
+        absoluteDeadline: workload.absoluteDeadline, statusTarget: target, survey263Endpoint: survey263Endpoint! })
       stage = 'fixture'; checkWork(); await native.setup()
       if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
       stage = 'survey-rollback'; checkWork(); await native.run(); checkWork()
