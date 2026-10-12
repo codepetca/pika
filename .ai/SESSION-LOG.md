@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 Assignment publication chooser closing consistency
-
-Continues approved app fluidity after shared SplitButton/Material PR1567 landed6695630da. Reuses fast semantic opacity and immediate reduced motion. Assignment chooser composes parent/local overlay activity and existing external record generation, preserving Tiptap identity and autosave/publication lifetimes. Existing creation/edit Pattern Lab choosers opt in and align their bottom-anchored upward placement with production, resolving clipped downward menus and lost reduced-motion Preview clicks; controlled actual AssignmentModal fixture is teacher-only, explicitly query-gated under development E2E fixture mode and requires exact browser API interception. Unknown requests fail; synthetic PATCH acknowledgments are tracked separately from zero-mutation dismissal scenarios. No backend, dependency, migration or production change; broad product-experience epic remains open. Governed reference/roles/decisions: docs/guidance/ui/assignment-menu-closing-consistency.md. Validation: real modal suites100tests; gallery/gate53tests; canonical focused1044tests/66files plus all static checks; audit10changed TypeScript files and four unchanged Pattern Lab goldens PASS. Native24teacher contexts plus one edited Schedule handoff PASS; accepted117PNGs/25videos and source hashes verified. Clean cases attempt zero mutations; edited case acknowledges exactly one whitelisted synthetic PATCH. Coordinator inspected15open/preview/closing/scheduling matrix boards and approved reference parity. Initial hosted coverage identified a5s timeout in a new Gallery gate case. Scoped only the opener query to the actual fixture and separated role cases; the portal-dialog absence assertion, every role/gate condition and global timeout remain unchanged. Product source and accepted native evidence are unchanged. Independent review/CI/landing acceptance remains recorded in PR and external transition-consistency/assignment-menu receipts; broad epic remains open.
-
 ## 2026-10-11 — Split menu closing consistency
 
 Extended SplitButton with an opt-in semantic fast opacity exit for primitive labels without caller icons; replaced live controls with an inert owner-rendered projection immediately on dismissal. Material creation is the first production adopter, with preview, disabled and unmount boundaries. The existing teacher/student UiConsistency Pattern Lab menu exercises the shared contract without changing closed layout. Preserved immediate rich-menu fallback and WorkSurface latest-hover callback rollover. Committed lifetime guards cancel stale commands, Tab/focus work and expiry across reopening, availability, owner replacement and unmount. No persistence, permission, dependency, schema or production changes.
@@ -633,3 +629,27 @@ compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
 remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
 only attested dispatcher stripped; controls receipt restored. Targeted108checks
 PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
+
+## 2026-10-12 Remaining-work orchestration and bounded diagnostic
+
+Routine approval/workflow/low-usage waiver retained; serious shared/prod/provider/
+account/live/cutover holds unchanged. Root integrated Survey source17b9e1bf6;
+author96focused and root50route/server checks PASS, genuine263types/native pending.
+Survey concrete verifier delivered81unique CPU checks/strict targetedTS/lint PASS;
+finiteSDK/terminal+freshmembership oracles33checks and rootguardedSDK hook integrated.
+Final201 focused/startup checks and7-file lint PASS; nativeVerifiedfalse. Strict
+integration typecheck has only14 known missing genuineRPC names; no othererrors.
+Native/type proof remains pending. Existing lifecycle88checks independently PASS. Archive source
+6db01b35c retains100focused PASS; concrete native engine/byte/type hooks identified,
+serialization afterSurvey263 required. No source PR/push or phase acceptance yet.
+
+Private e761 single diagnostic candidate8bf8eac consumed after complete targeted
+review22; flow FAIL after10app0Storage/login200JSON. Native body witness confirms
+Chromium protocol-get-body rejection after requestfinished, page/context still
+observed open; actual protocol reason unknown. CleanupPASS independently verified:
+exact containers/volumes/network gone, four ports clear, temporarycheckout absent,
+frozenGitclean. Original evidence preserved; no replay or recovery required.
+Next source-only repair lane prepares bounded noDB protocol experiment rather than
+another blind full rehearsal. Original12:08 clock/counts22initial1target19fix18
+retained; effective/active/tokens unknown. Weekly64% remaining accountwide; actual
+322GB healthy, no cleanup. Private root handoff holds detailed ownership/receipts.

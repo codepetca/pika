@@ -48,6 +48,12 @@ import { testOwnerUnpublicationNativePlan, validateTestOwnerUnpublicationNativeP
   runTestOwnerUnpublicationNativeRaces } from './contextual-test-owner-unpublication-native-contracts'
 import { testOwnerDeletionNativePlan, validateTestOwnerDeletionNativePlanSql, runTestOwnerDeletionNativeContracts,
   runTestOwnerDeletionNativeRaces } from './contextual-test-owner-deletion-native-contracts'
+import { surveyNativePlan, validateSurveyNativeSql, runSurveyNativeRollbackContracts,
+  runSurveyNativeRollbackRaces, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
+import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
+import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
+import { decodeAssignmentListSnapshot } from './contextual-assignment-list-proof-platform'
+import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -97,7 +103,7 @@ function freeze<T>(value: T): T {
   return value
 }
 type PublicationPrivilegeKind = 'snapshot247' | 'publication252' | 'legacy139' | 'activation134'
-function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | 'learner' | 'owner-grading' | 'owner-recovery' | 'owner-unpublication' | 'owner-deletion' | PublicationPrivilegeKind = 'snapshot') {
+function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | 'learner' | 'owner-grading' | 'owner-recovery' | 'owner-unpublication' | 'owner-deletion' | 'survey' | PublicationPrivilegeKind = 'snapshot') {
   const signature = kind === 'snapshot' ? 'public.snapshot_test_draft_save_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'create' ? 'public.create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)'
     : kind === 'discard' ? 'public.discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)'
@@ -105,6 +111,7 @@ function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard
     : kind === 'reorder' ? 'public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)'
     : kind === 'learner' ? 'public.test_learner_workflow_v1(uuid,uuid,uuid,text,jsonb,timestamp with time zone)'
     : kind === 'owner-grading' || kind === 'owner-recovery' || kind === 'owner-unpublication' || kind === 'owner-deletion' ? 'public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamp with time zone)'
+    : kind === 'survey' ? 'public.get_survey_for_owner_v1(uuid,uuid)'
     : kind === 'snapshot247' ? 'public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'publication252' ? 'public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)'
     : kind === 'legacy139' ? 'public.publish_test_from_draft_atomic(uuid,uuid,integer)'
@@ -536,8 +543,8 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '259_contextual_test_owner_grading.sql' | '260_contextual_test_owner_recovery.sql' | '261_contextual_test_owner_unpublish.sql' | '262_contextual_test_owner_delete.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading' | 'test-owner-recovery' | 'test-owner-unpublication' | 'test-owner-deletion';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '259_contextual_test_owner_grading.sql' | '260_contextual_test_owner_recovery.sql' | '261_contextual_test_owner_unpublish.sql' | '262_contextual_test_owner_delete.sql' | '263_contextual_surveys_workflow.sql';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading' | 'test-owner-recovery' | 'test-owner-unpublication' | 'test-owner-deletion' | 'survey263';
   learnerCancellation?: TestLearnerNativePlan['cancellation'];
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
@@ -547,6 +554,8 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   committedOuterPrivilege?: true;
   reorderProgressSql?: Readonly<{ bulk: string; calibration: string }>;
   reorderDiagnosticSql?: string;
+  /** Only the concrete Survey factory can bind these private status credentials. */
+  surveySdk?: Readonly<{ fixture: SurveyNativeFixture; status: ReturnType<typeof validateAssignmentListProofTarget> }>;
   runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
@@ -554,6 +563,38 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   runContracts(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<C>;
   runRaces(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<R>;
 }>
+
+/** Exact263 addition only. The executor remains private and predecessor profiles
+ * retain their closed migration catalogs, SQL allowlists and capabilities. */
+export function buildSurveyNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
+  const plan = surveyNativePlan(original, reviewedHead, repository)
+  return freeze({ ...plan, bootstrap: boot, termination: draftSaveNativeTerminationSql(), close: 'rollback;',
+    capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('survey') })
+}
+export function createContextualSurveysNativeContracts(input: NativeOwnerInput & { absoluteDeadline: number; statusTarget?: unknown }) {
+  const now = Date.now()
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
+  const manifest = buildSurveyNativeContractsManifest(input.original, input.reviewedHead, input.repository)
+  const engine = createNativeOwnerContracts(input, { manifest, project: manifest.projectId,
+    sourceFile: '263_contextual_surveys_workflow.sql', label: 'survey263', absoluteDeadline: input.absoluteDeadline,
+    singleMs: 35000,
+    ...(input.statusTarget === undefined ? {} : { surveySdk: {
+      fixture: manifest.fixture, status: validateAssignmentListProofTarget(input.statusTarget, manifest.projectId),
+    } }),
+    validateSql: sql => [manifest.bootstrap, manifest.close].includes(sql) || validateSurveyNativeSql(manifest, sql),
+    contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    runContracts: (target, driver) => runSurveyNativeRollbackContracts(manifest, target, driver),
+    runRaces: (target, driver) => runSurveyNativeRollbackRaces(manifest, target, driver),
+  })
+  const { manifest: sealed, setup, verifyTarget, diagnostic, run } = engine
+  // This first bounded profile never asserts full Survey acceptance or exposes
+  // the inherited Test privilege/committed-transition programming surfaces.
+  return Object.freeze({ manifest: sealed, setup, verifyTarget, diagnostic, run,
+    async runSdkCommitted() {
+      assert(engine.runSurveySdkCommitted, 'Survey SDK private status binding is absent')
+      return engine.runSurveySdkCommitted()
+    }, nativeVerified: false as const })
+}
 
 /** One fixed grading profile reuses the native engine; there is no public SQL,
  * resource selector, migration callback or programmable cleanup surface. */
@@ -840,6 +881,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
   let learnerCancellationDone = false
+  let surveySdkRan = false
   type CancellationStage = 'none' | 'snapshot' | 'catalog' | 'install' | 'installed' | 'guard' | 'probe' | 'receipt' | 'timing' | 'restore' | 'restored-catalog' | 'restored-fixture' | 'complete'
   let cancellationStage: CancellationStage = 'none'
   let cancellationFirstFailure: CancellationStage | undefined
@@ -1161,6 +1203,45 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     finally { if (ownsProbe) probing = false }
   }
   return Object.freeze({ manifest,
+    ...(profile.surveySdk ? { async runSurveySdkCommitted() {
+      phase = 'transitions'
+      try {
+        assert.equal(profile.label, 'survey263')
+        assert(setupDone && ran && runDone && !surveySdkRan && !probing && sessions.size === 0)
+        surveySdkRan = true; check()
+        const decode = (rows: Awaited<ReturnType<typeof single>>) => decodeAssignmentListSnapshot(
+          rows.map(row => JSON.stringify(row.result)).join('\n'), 'rows')
+        const before = decode(await single(manifest.snapshot))
+        const transport = createSurveySdkProofTransport(profile.surveySdk!.fixture, profile.surveySdk!.status, fetch, guard)
+        const startedAt = new Date().toISOString()
+        transport.start(Math.min(start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs))
+        let sdkFailure: unknown, sdkComplete = false, endedAt: string | undefined
+        let sdk: ReturnType<typeof transport.complete> | undefined
+        let after: ReturnType<typeof decode> | undefined
+        try {
+          const fixture = profile.surveySdk!.fixture
+          await runContextualSurveysSdkContracts(transport.client, {
+            ownerId: fixture.actors[0].id, memberId: fixture.actors[1].id, outsiderId: fixture.actors[2].id,
+            classroomId: fixture.classes[0].id, surveyId: fixture.surveys[0].id,
+          }, guard)
+          sdk = transport.complete(); endedAt = new Date().toISOString(); sdkComplete = true
+        } catch (error) { sdkFailure = error }
+        finally {
+          // A failed/uncertain SDK still gets independent fixed state evidence;
+          // it never becomes success merely because its terminal rows look right.
+          after = decode(await single(manifest.snapshot))
+        }
+        if (!sdkComplete) throw sdkFailure ?? failure()
+        assert(after && sdk && endedAt); check(); assert.equal(sessions.size, 0)
+        assert.equal(after.metadata, before.metadata); assert.equal(after.cron, before.cron)
+        const effects = verifySurveySdkTerminalEffects(profile.surveySdk!.fixture, before.tables, after.tables,
+          { startedAt, endedAt })
+        phase = 'complete'
+        return freeze({ kind: 'survey-sdk-terminal-only' as const, sdk, effects, metadataUnchanged: true,
+          cronUnchanged: true, nativeVerified: false as const, manifestSha256: input.acceptedManifestSha256,
+          controls, actions, exchangeBytes: exchanged, remainingSessions: sessions.size })
+      } catch (error) { record('unknown'); throw error }
+    } } : {}),
     async verifyTarget() {
       await guard()
       return target(input.acceptedManifestSha256)

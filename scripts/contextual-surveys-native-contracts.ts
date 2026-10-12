@@ -1,0 +1,224 @@
+/** Survey263 source profile. Import is inert; no target or execution authority.
+ * Rollback evidence is deliberately distinct from outstanding committed proof. */
+import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
+import { loadAssignmentListReviewedMigrations, assignmentListSnapshotSql } from './contextual-assignment-list-proof-platform'
+import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
+import { contextualSurveysConcurrencyCases } from './contextual-surveys-concurrency-cases'
+import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
+import type { Database } from '../src/types/database'
+import { surveySdkProofManifest } from './contextual-surveys-sdk-proof'
+
+export const SURVEY_NATIVE_SOURCES = freeze({
+  migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: 'be2cb550bae748a0c6e2349f96aeb216bdc5bf7d710706fa07335c95fa1cd36c' },
+  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: '8039b765b62d53306a31dcfbbcbaba369286a7fec002e311bcc1909b34ced9b3' },
+  sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: 'f045c59fadd93a636bdaf8ec7fc447e54086e47c7ce7a6caae3817de37c54172' },
+  races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'b4022b653fcc84d20d403e5bee65ffdd76318fa46db2a86b630866134f33d22c' },
+  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'e36dee641af2aa731e8ed3d24da60b13651879bc9b23bb53bb150693a155c202' },
+})
+export const SURVEY_NATIVE_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
+  schedules: 30, sessions: 2, actionMs: 35000, closeMs: 12000, sdkRequests: 16, sdkMs: 20000 })
+const digest = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
+const q = (value: string) => `'${value.replaceAll("'", "''")}'`
+function freeze<T>(value: T): T {
+  if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) }
+  return value
+}
+function checked(repository: string, source: { file: string; sha256: string }) {
+  const bytes = readFileSync(resolve(repository, source.file))
+  assert.equal(digest(bytes), source.sha256, 'Survey reviewed source differs')
+  return bytes.toString('utf8')
+}
+const sourcePlans = new WeakMap<object, object>()
+function sealed(plan: SurveyNativePlan) {
+  const original = sourcePlans.get(plan.contracts)
+  return original !== undefined && Object.isFrozen(plan) && Object.keys(original).every(key =>
+    plan[key as keyof SurveyNativePlan] === (original as SurveyNativePlan)[key as keyof SurveyNativePlan])
+}
+export function validateSurveyNativeMigrationProfile(migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>) {
+  assert.equal(migrations.length, 263, 'Only exact Survey263 extension is admitted')
+  migrations.forEach((migration, index) => {
+    assert(migration.name.startsWith(`${String(index + 1).padStart(3, '0')}_`))
+    assert.equal(digest(migration.sql), migration.sha256, 'Survey migration bytes differ')
+  })
+  assert.equal(digest(JSON.stringify(migrations.slice(0, 262).map(({ name, sha256 }) => ({ name, sha256 })))),
+    'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac', 'Survey foundation differs')
+  const last = migrations[262]
+  assert.equal(last.name, '263_contextual_surveys_workflow.sql')
+  assert.equal(last.sha256, SURVEY_NATIVE_SOURCES.migration.sha256)
+  assert.equal(digest(last.sql), last.sha256)
+}
+
+export function newSurveyNativeFixture(original: AssignmentListProofFixture) {
+  assert.match(original.manifest.syntheticTag, /^assignmentlist_[a-f0-9]{12}$/)
+  const tag = `surveynative_${original.manifest.syntheticTag.slice(-12)}`
+  const id = (label: string) => { const hex = digest(`${tag}:${label}`); return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}` }
+  const actors = (['student', 'teacher', 'student'] as const).map((role, index) => ({ id: id(`actor:${index}`), role, email: `${tag}_${index}@example.invalid` }))
+  const classes = [0, 1].map(index => ({ id: id(`class:${index}`), owner: actors[index].id, code: `${tag}_${index}` }))
+  const enrollments = [[0, 0], [0, 1], [1, 0], [1, 1]].map(([c, a], index) => ({ id: id(`enrollment:${index}`), classroomId: classes[c].id, actorId: actors[a].id }))
+  const surveys = [0, 1].map(index => ({ id: id(`survey:${index}`), classroomId: classes[index].id, owner: actors[index].id }))
+  const question = { id: id('question'), artifact_id: id('question-artifact'), source_artifact_id: null, source_blueprint_version_id: null,
+    survey_id: surveys[0].id, question_type: 'short_text', question_text: 'Synthetic native question',
+    options: [], response_max_chars: 500, position: 0, created_at: '2026-10-12T00:00:00+00:00', updated_at: '2026-10-12T00:00:00+00:00' } satisfies Database['public']['Tables']['survey_questions']['Row']
+  const replacementEnrollment = { id: id('membership-replacement'), classroomId: classes[0].id, actorId: actors[1].id }
+  const allocatedIds = [...actors.map(row => row.id), ...classes.map(row => row.id), ...enrollments.map(row => row.id), ...surveys.map(row => row.id), question.id, question.artifact_id, replacementEnrollment.id]
+  assert.equal(new Set(allocatedIds).size, allocatedIds.length)
+  const originalIds = new Set<string>(original.allocatedIds)
+  assert(allocatedIds.every(value => !originalIds.has(value)))
+  return freeze({ version: 1, tag, projectId: `pika_assignment_list_${tag.slice(-12)}`, actors, classes, enrollments, surveys, question, replacementEnrollment, allocatedIds })
+}
+export type SurveyNativeFixture = ReturnType<typeof newSurveyNativeFixture>
+
+export function surveyNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
+  assert.match(reviewedHead, /^[a-f0-9]{40}$/)
+  const migrations = loadAssignmentListReviewedMigrations(repository)
+  validateSurveyNativeMigrationProfile(migrations)
+  for (const source of Object.values(SURVEY_NATIVE_SOURCES)) checked(repository, source)
+  const fixture = newSurveyNativeFixture(original), f = fixture
+  const guard = testOwnerGuardSql(f.projectId)
+  const actors = f.actors.map(row => q(row.id)).join(','), classes = f.classes.map(row => q(row.id)).join(',')
+  const setup = `${guard}\nbegin;set local timezone='UTC';set local statement_timeout='30s';set local lock_timeout='1s';
+do $collision$ begin
+ if exists(select 1 from public.users where id in (${actors}) or email like ${q(f.tag + '%')})
+ or exists(select 1 from public.classrooms where id in (${classes}) or class_code like ${q(f.tag + '%')})
+ or exists(select 1 from public.surveys where id in (${f.surveys.map(row => q(row.id)).join(',')}) or classroom_id in (${classes}))
+ or exists(select 1 from public.survey_questions where id=${q(f.question.id)})
+ then raise exception 'Survey namespace collision';end if;
+end;$collision$;
+insert into public.users(id,email,role) values ${f.actors.map(row => `(${q(row.id)},${q(row.email)},${q(row.role)})`).join(',')};
+insert into public.classrooms(id,teacher_id,title,class_code) values ${f.classes.map(row => `(${q(row.id)},${q(row.owner)},${q(f.tag)},${q(row.code)})`).join(',')};
+insert into public.classroom_enrollments(id,classroom_id,student_id) values ${f.enrollments.map(row => `(${q(row.id)},${q(row.classroomId)},${q(row.actorId)})`).join(',')};
+insert into public.surveys(id,classroom_id,created_by,title,status,show_results,dynamic_responses,opens_at) values ${f.surveys.map(row => `(${q(row.id)},${q(row.classroomId)},${q(row.owner)},${q(f.tag)},'active',true,false,'2026-10-12T00:00:00Z')`).join(',')};
+insert into public.survey_questions(id,artifact_id,survey_id,question_type,question_text,options,response_max_chars,position,created_at,updated_at)
+ values (${q(f.question.id)},${q(f.question.artifact_id)},${q(f.question.survey_id)},'short_text',${q(f.question.question_text)},'[]'::jsonb,500,0,'2026-10-12T00:00:00Z','2026-10-12T00:00:00Z');commit;`
+  // Complete independent rows plus168 metadata/settings/cron, decoded by the
+  // existing platform helper for the later concrete committed SDK operation.
+  const snapshot = assignmentListSnapshotSql('rows')
+  const cases = contextualSurveysConcurrencyCases({ ownerId: f.actors[0].id, memberId: f.actors[1].id,
+    classroomId: f.classes[0].id, surveyId: f.surveys[0].id, questionId: f.question.id, foreignSurveyId: f.surveys[1].id },
+  { expectedQuestions: [f.question], responses: { [f.question.id]: { question_type: 'short_text', response_text: 'Synthetic response' } } })
+  assert.equal(cases.length, 15)
+  const begin = "begin;set local timezone='UTC';set local statement_timeout='8s';set local lock_timeout='1s';set local idle_in_transaction_session_timeout='180s';"
+  const observe = `select jsonb_build_object('held',exists(select 1 from pg_catalog.pg_locks where pid=pg_backend_pid() and granted
+ and (locktype='advisory' or (locktype='relation' and relation in ('public.classrooms'::regclass,'public.classroom_archive_revisions'::regclass,'public.surveys'::regclass,'public.survey_questions'::regclass,'public.classroom_enrollments'::regclass) and mode in ('RowShareLock','RowExclusiveLock')))),
+ 'transaction',exists(select 1 from pg_catalog.pg_stat_activity where pid=pg_backend_pid() and xact_start is not null),
+ 'pid',pg_backend_pid(),'name',current_setting('application_name'));`
+  const perform = (sql: string) => sql.startsWith('select ') ? `perform ${sql.slice(7)}` : sql
+  const schedules = cases.flatMap((c, index) => (['forward', 'reverse'] as const).map(direction => {
+    const first = direction === 'forward' ? c.first : c.second
+    const second = direction === 'forward' ? c.second : c.first
+    const label = `${c.name}:${direction}`
+    // Both response contenders must use the dynamic fixture for this one case.
+    const dynamic = index === 14 ? `update public.surveys set dynamic_responses=true where id=${q(f.surveys[0].id)};` : ''
+    const holder = `${begin}${dynamic}do $holder$ begin ${perform(first)} end;$holder$;${observe}`
+    const contender = `${begin}do $reject$ declare code text;begin
+ begin ${perform(second)} raise exception 'Survey contender unexpectedly succeeded';
+ exception when sqlstate 'PT409' or sqlstate '55P03' then get stacked diagnostics code=returned_sqlstate;end;
+ if code is null then raise exception 'Survey contention evidence missing';end if;
+end;$reject$;select jsonb_build_object('rejected',true,'label',${q(label)});`
+    return { label, holder, contender, expectedAfterCommit: c.expected }
+  }))
+  const contracts = freeze({ sql: checked(repository, SURVEY_NATIVE_SOURCES.contracts), kind: 'rollback-sql' as const })
+  const concurrency = freeze({ schedules, close: 'rollback;', kind: 'rollback-contention-only' as const })
+  for (const sql of [setup, snapshot, contracts.sql, ...schedules.flatMap(row => [row.holder, row.contender])]) assert(Buffer.byteLength(sql) <= SURVEY_NATIVE_CAPS.sqlBytes)
+  const plan = freeze({ version: 1, reviewedHead, projectId: f.projectId, fixture, guard, setup, snapshot, contracts, concurrency,
+    sourceSha256: SURVEY_NATIVE_SOURCES.migration.sha256,
+    migrationManifestSha256: digest(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))),
+    sources: SURVEY_NATIVE_SOURCES, caps: SURVEY_NATIVE_CAPS, sdkProofPreparation: surveySdkProofManifest(fixture), executionEnabled: false as const, nativeVerified: false as const,
+    requiredBeforeAcceptance: ['genuine-cli-types263', 'fixed-real-sdk-14-calls', 'committed-two-direction-freshness-and-restoration',
+      'exact-backend-and-waiter-observations', 'eight-second-postgrest-cancellation', 'actual-payload-ceilings', 'complete-source-and-global-preservation'],
+  })
+  sourcePlans.set(plan.contracts, plan)
+  return plan
+}
+export type SurveyNativePlan = ReturnType<typeof surveyNativePlan>
+type SurveyWorkloadData = Readonly<{ kind: 'survey263-rollback-and-sdk-terminal'; repository: string; reviewedHead: string;
+  projectId: string; reviewedManifestSha256: string; absoluteDeadline: number; nativeVerified: false }>
+const workloads = new WeakSet<object>()
+const consumedWorkloads = new WeakSet<object>()
+/** Root must explicitly bind this data after fixed-source review. No callbacks,
+ * SQL, resource selectors or credentials can be smuggled through this hook. */
+export function bindSurveyNativeLifecycleWorkload(input: {
+  original: AssignmentListProofFixture; repository: string; reviewedHead: string;
+  reviewedManifestSha256: string; absoluteDeadline: number; rootReviewed: true; oneAttemptAuthorized: true; freshCapacityChecked: true;
+}) {
+  assert.equal(input.rootReviewed, true); assert.equal(input.oneAttemptAuthorized, true); assert.equal(input.freshCapacityChecked, true)
+  const plan = surveyNativePlan(input.original, input.reviewedHead, input.repository)
+  assert.match(input.reviewedManifestSha256, /^[a-f0-9]{64}$/)
+  const now = Date.now()
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + 900000)
+  assert.equal(input.reviewedManifestSha256, digest(JSON.stringify(plan)))
+  const workload = freeze({ kind: 'survey263-rollback-and-sdk-terminal' as const, repository: input.repository, reviewedHead: input.reviewedHead,
+    projectId: plan.projectId, reviewedManifestSha256: input.reviewedManifestSha256, absoluteDeadline: input.absoluteDeadline, nativeVerified: false as const })
+  workloads.add(workload)
+  return workload
+}
+export type SurveyNativeLifecycleWorkload = SurveyWorkloadData
+export function validateSurveyNativeLifecycleWorkload(workload: SurveyNativeLifecycleWorkload, original: AssignmentListProofFixture) {
+  assert(workloads.has(workload) && Object.isFrozen(workload), 'Survey workload is not source-bound')
+  const plan = surveyNativePlan(original, workload.reviewedHead, workload.repository)
+  assert.equal(workload.projectId, plan.projectId)
+  assert.equal(workload.reviewedManifestSha256, digest(JSON.stringify(plan)))
+  assert.equal(workload.kind, 'survey263-rollback-and-sdk-terminal')
+  return plan
+}
+export function consumeSurveyNativeLifecycleWorkload(workload: SurveyNativeLifecycleWorkload) {
+  assert(workloads.has(workload) && !consumedWorkloads.has(workload), 'Survey attempt already consumed or unbound')
+  assert(Date.now() < workload.absoluteDeadline, 'Survey work deadline expired')
+  consumedWorkloads.add(workload)
+}
+export function validateSurveyNativeSql(plan: SurveyNativePlan, sql: string) {
+  return sealed(plan) && typeof sql === 'string' && Buffer.byteLength(sql) <= SURVEY_NATIVE_CAPS.sqlBytes
+    && [plan.setup, plan.snapshot, plan.contracts.sql, plan.concurrency.close,
+      ...plan.concurrency.schedules.flatMap(row => [row.holder, row.contender])].includes(sql)
+}
+async function validateTarget(plan: SurveyNativePlan, target: DraftSaveTarget, driver: DraftSaveDriver, phase: 'contracts' | 'concurrency') {
+  assert(sealed(plan), 'Survey native plan is not source-sealed')
+  assert.equal(target.projectId, plan.projectId)
+  assert.equal(target.reviewedHead, plan.reviewedHead)
+  assert.equal(target.migrationManifestSha256, plan.migrationManifestSha256)
+  assert.equal(target.reviewedSourceSha256, plan.sourceSha256)
+  assert.equal(target.acceptedManifestSha256, digest(JSON.stringify(plan[phase])))
+  assert.equal(target.disposable, true)
+  assert.equal(target.apiUrl, 'http://127.0.0.1:54331'); assert.equal(target.databaseHost, '127.0.0.1'); assert.equal(target.databasePort, 54332)
+  assert.equal(target.containerProjectLabel, plan.projectId); assert.match(target.containerId, /^[a-f0-9]{64}$/)
+  assert.deepEqual(await driver.verifyTarget(), target)
+}
+export async function runSurveyNativeRollbackContracts(plan: SurveyNativePlan, target: DraftSaveTarget, driver: DraftSaveDriver) {
+  await validateTarget(plan, target, driver, 'contracts')
+  const session = await driver.openSession(`${plan.projectId}_draft_contracts`)
+  try { await session.execute(plan.contracts.sql, SURVEY_NATIVE_CAPS.actionMs) }
+  finally { await session.rollbackAndClose(SURVEY_NATIVE_CAPS.closeMs) }
+  return freeze({ kind: 'survey-rollback-sql', nativeVerified: false, sourceSha256: plan.sourceSha256 })
+}
+export async function runSurveyNativeRollbackRaces(plan: SurveyNativePlan, target: DraftSaveTarget, driver: DraftSaveDriver) {
+  await validateTarget(plan, target, driver, 'concurrency')
+  const completed: string[] = []
+  for (const schedule of plan.concurrency.schedules) {
+    let holder: DraftSaveSession | undefined, contender: DraftSaveSession | undefined
+    try {
+      holder = await driver.openSession(`${plan.projectId}_draft_holder`)
+      contender = await driver.openSession(`${plan.projectId}_draft_contender`)
+      await validateTarget(plan, target, driver, 'concurrency')
+      const rows = await holder.execute(schedule.holder, SURVEY_NATIVE_CAPS.actionMs)
+      assert.equal(rows.length, 1)
+      const observed = rows[0].result
+      assert(observed && typeof observed === 'object' && !Array.isArray(observed))
+      const witness = observed as Record<string, unknown>
+      assert.deepEqual(Object.keys(witness).sort(), ['held', 'name', 'pid', 'transaction'])
+      assert.equal(witness.held, true); assert.equal(witness.transaction, true)
+      assert.equal(witness.name, holder.name); assert(Number.isSafeInteger(witness.pid) && Number(witness.pid) > 0)
+      assert.deepEqual(await contender.execute(schedule.contender, SURVEY_NATIVE_CAPS.actionMs), [{ result: { rejected: true, label: schedule.label } }])
+      completed.push(schedule.label)
+    } finally {
+      const closed = await Promise.allSettled([holder, contender].filter((s): s is DraftSaveSession => Boolean(s)).map(s => s.rollbackAndClose(SURVEY_NATIVE_CAPS.closeMs)))
+      assert(closed.every(result => result.status === 'fulfilled'), 'Survey exact session cleanup unconfirmed')
+    }
+  }
+  assert.equal(completed.length, SURVEY_NATIVE_CAPS.schedules)
+  return freeze({ kind: 'survey-rollback-contention-only', schedules: completed, nativeVerified: false,
+    limitation: 'No committed freshness, exact waiter graph or SDK/cancellation/payload acceptance is claimed' })
+}
