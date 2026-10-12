@@ -547,6 +547,7 @@ export function TeacherTestsTab({
     loading,
     error: testsLoadError,
     hasLoadedSnapshot: hasTestsSnapshot,
+    isSnapshotReady,
     loadTests,
     retryTests,
   } = useTeacherTestList({
@@ -1589,7 +1590,7 @@ export function TeacherTestsTab({
     async (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id || isReorderingTests || isReadOnly || !testEditMode) return
-      if (testExperienceMode === 'shared' && (loading || !hasTestsSnapshot || testsLoadError || reorderPendingRef.current || visibleTests.length !== tests.length || tests.length > 1000)) {
+      if (testExperienceMode === 'shared' && (!isSnapshotReady() || loading || !hasTestsSnapshot || testsLoadError || reorderPendingRef.current || visibleTests.length !== tests.length || tests.length > 1000)) {
         showMessage({ text: 'Failed to save test order', tone: 'warning' })
         return
       }
@@ -1650,6 +1651,7 @@ export function TeacherTestsTab({
       hasTestsSnapshot,
       testsLoadError,
       tests,
+      isSnapshotReady,
     ]
   )
 

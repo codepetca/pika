@@ -24,8 +24,11 @@ Shared list reorder uses `/api/teacher/tests/reorder/atomic` with the complete
 current unfiltered Test snapshot, including Blueprint-retired rows. It is not a
 partial visible-list operation and not an order-version CAS. The existing1,000
 operating ceiling remains separate from subscription quotas. Loading, incomplete,
-failed or over-ceiling snapshots cannot dispatch a shared reorder. Rejected
-membership/conflict reloads the canonical list without repeating the mutation;
+failed or over-ceiling snapshots cannot dispatch a shared reorder.
+Every refresh synchronously invalidates eligibility using the list request
+generation. It becomes eligible only when that request's replacement snapshot
+has rendered, not when a queued loading flag or an older response completes.
+Rejected membership/conflict reloads the canonical list without repeating the mutation;
 late responses cannot replace another classroom's state. Existing-mode transport
 and ordinary list presentation remain compatible.
 

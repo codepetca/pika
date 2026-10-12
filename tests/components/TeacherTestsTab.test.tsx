@@ -599,8 +599,11 @@ describe('TeacherTestsTab', () => {
     toggleTestListControls()
     let finishRead!: (value: unknown) => void
     fetchMock.mockImplementationOnce(() => new Promise(resolve => { finishRead = resolve }))
-    act(() => { window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })) })
-    await dragTests()
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
+      // Do not let React rerender between refresh start and the drag command.
+      await dragCapture.end!({ active: { id: 'test-1' }, over: { id: 'test-2' } } as DragEndEvent)
+    })
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method)).toHaveLength(0)
     await act(async () => { finishRead({ ok: true, json: async () => ({ tests: rows }) }) })
     let finishWrite!: (value: unknown) => void

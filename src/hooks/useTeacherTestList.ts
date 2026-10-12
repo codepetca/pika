@@ -23,6 +23,7 @@ export type UseTeacherTestListResult = {
   loading: boolean
   error: string | null
   hasLoadedSnapshot: boolean
+  isSnapshotReady: () => boolean
   loadTests: () => Promise<void>
   retryTests: () => Promise<void>
 }
@@ -40,6 +41,7 @@ export function useTeacherTestList({
 
   const [tests, setTests] = useState<TestAssessmentWithStats[]>([])
   const [loadedTestsClassroomId, setLoadedTestsClassroomId] = useState<string | null>(null)
+  const [loadedSnapshotRequestId, setLoadedSnapshotRequestId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorState, setErrorState] = useState<{ classroomId: string; message: string } | null>(null)
 
@@ -87,6 +89,7 @@ export function useTeacherTestList({
           : loadedTests,
       )
       setLoadedTestsClassroomId(requestedClassroomId)
+      setLoadedSnapshotRequestId(requestId)
       setErrorState(null)
     } catch (error) {
       if (!isCurrentRequest()) return
@@ -101,6 +104,15 @@ export function useTeacherTestList({
       }
     }
   }, [apiBasePath, classroomId])
+
+  // Refresh invalidates latestRequestIdRef synchronously. Tie eligibility to
+  // the snapshot actually committed by this render, not a queued loading flag
+  // or a successful response whose replacement rows have not rendered yet.
+  const isSnapshotReady = useCallback(() => (
+    currentClassroomIdRef.current === classroomId
+    && hasCurrentTests && !loading && !error
+    && loadedSnapshotRequestId === latestRequestIdRef.current
+  ), [classroomId, hasCurrentTests, loading, error, loadedSnapshotRequestId])
 
   const retryTests = useCallback(async () => {
     invalidateCachedJSON(`teacher-tests:${classroomId}`)
@@ -137,6 +149,7 @@ export function useTeacherTestList({
     loading,
     error,
     hasLoadedSnapshot: hasCurrentTests,
+    isSnapshotReady,
     loadTests,
     retryTests,
   }

@@ -1,4 +1,4 @@
-# Checkpoint — 2026-10-11 UTC
+# Checkpoint — 2026-10-12 UTC
 
 Release `3b7ae978e`; audit27 accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
@@ -15,7 +15,7 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Controls unchanged: quota OFF; prod env key names unchanged Oct11.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-1569 merged `2cea88dc1`/dormant; CI38150651417 PASS.
+1579 merged `8e9dabd597`/dormant; CI38204673501 PASS.
 1577 merged `18126e952`/dormant; CI38175680856 PASS.
 1578 merged `a37d03b3a`/dormant; CI38192450117 PASS.
 Next: Tests screen adoption.

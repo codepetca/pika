@@ -501,17 +501,7 @@ Owner requested a comfortable desktop Week list. Reuse canonical PageLayout stan
 - Worker Sol/high delivered206 checks/5 suites and TypeScript. Coordinator integration238/7 PASS; wider focused976/66 plus architecture/UI/design/TypeScript/lint PASS. The1,001-real-row ceiling stress test needed bounded15s headroom in the concurrent suite (exact no-write assertion retained). One audit heuristic flags an unchanged intentional no-store results read; original accepted source contains the same statement, so no unrelated caching change or audit weakening.
 - Both historical account-role owners and members, desktop1440×900/mobile390×844, light/dark rendered using synthetic intercepted APIs; confirmed expected owner/member controls and no horizontal overflow. Existing publication confirmation/conflict, preview/fullscreen/return and keyboard reorder exercised. No authenticated persistence or Tests phase exit claimed; review and final-SHA CI remain required.
 - Explicitly superseded the historical whole-UI source freeze with direct existing/shared transport regression coverage; unchanged legacy API hash and precise dormant dispatcher normalization remain. Guidance: contextual-test-screen-adoption.md. Native deletion component evidence belongs to PR1579, not this browser fixture or newer source revision.
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+- PR1579 merged normally as8e9dabd597 after exact895 CI38204673501 all10 PASS; canonical clean main fast-forwarded and tree equality verified. PR1580 remains dormant/draft. Initial security review clean; compatibility found a same-batch refresh/reorder race. Coordinator reproduced RED1/115, then bound synchronous eligibility to the request generation of the rendered list, including successful replacement/failed refresh. No order-CAS or server contract change. All holds remain.
 
 ## 2026-10-12 — Bounded unpublication proof framing
 
