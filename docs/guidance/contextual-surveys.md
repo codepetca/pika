@@ -107,7 +107,11 @@ copied, replaced or getter-based adapters cannot enter the lifecycle. A single
 captured budget covers twelve minutes of work and three minutes of cleanup,
 including preflight, child dispatch, inventory, generation and final preservation.
 The workload must match that original work deadline before consumption. Cleanup
-does not renew either deadline; an unjoined child remains an explicit failure.
+does not renew either deadline. Work discovery admits no new readers after the
+work cutoff; already-owned transports may settle within the original cleanup
+reserve. Generator failure-finally explicitly uses settlement admission. Unjoined
+uncertainty is sticky through secondary checks and poisons outer cleanup, rather
+than permitting ordinary stop/removal while child closure remains unknown.
 The pinned native Supabase executable is invoked directly rather than through
 its Node wrapper. Existing predecessor profiles retain their original behavior.
 These are source/CPU guarantees, not native completion or cleanup evidence.

@@ -10,7 +10,7 @@ vi.mock('node:fs', async importOriginal => { const original = await importOrigin
   readFileSync: vi.fn(original.readFileSync), statSync: vi.fn(original.statSync),
   realpathSync: Object.assign(vi.fn(original.realpathSync), { native: original.realpathSync.native }),
 } })
-import { draftSaveProofDockerInventory } from '../../scripts/contextual-test-draft-save-proof-inventory'
+import { draftSaveProofDockerInventory, SurveyInventoryUnjoinedChildError } from '../../scripts/contextual-test-draft-save-proof-inventory'
 
 const context = ['context', 'inspect', '--format', '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}']
 const template = [...readFileSync('scripts/contextual-assignment-list-proof-platform.ts', 'utf8').matchAll(/^const containerTemplate = '([^'\r\n]+)'$/gm)][0][1]
@@ -68,6 +68,40 @@ async function discovery(names: string[]) { await flush(); children[0].complete(
 const requestedId = (call: Http) => String(call.options.path).split('/')[3]
 
 describe('PATCH-only full HTTP inventory (offline)', () => {
+  it('does not dispatch queued readers after work, but positively settles owned sockets in original reserve', async () => {
+    vi.useFakeTimers(); const names = configured(); holdClose = true; let done = false
+    const start = Date.now(), clocks = { dispatchDeadline: start + 100, settlementDeadline: start + 1000 }
+    const pending = draftSaveProofDockerInventory(options(), undefined, clocks).catch(error => { done = true; return error })
+    await discovery(names); expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(done).toBe(false); expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(500); calls.forEach(call => call.close()); await flush()
+    expect(await pending).toBeInstanceOf(Error); expect(done).toBe(true)
+    expect(calls).toHaveLength(2); expect(active + httpActive).toBe(0)
+    expect(Date.now()).toBeLessThan(clocks.settlementDeadline)
+  })
+  it('reports typed owned uncertainty at original total, with no reserve renewal or new readers', async () => {
+    vi.useFakeTimers(); const names = configured(); holdClose = true
+    const start = Date.now(), clocks = { dispatchDeadline: start + 100, settlementDeadline: start + 1000 }
+    const pending = draftSaveProofDockerInventory(options(), undefined, clocks).catch(error => error)
+    await discovery(names)
+    clocks.dispatchDeadline = start + 10000; clocks.settlementDeadline = start + 20000
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(await pending).toBeInstanceOf(SurveyInventoryUnjoinedChildError)
+    expect(calls).toHaveLength(2); expect(active + httpActive).toBeGreaterThan(0)
+    calls.forEach(call => call.close()); await flush()
+  })
+  it('denies an expired work clock even while settlement reserve remains', async () => {
+    await expect(draftSaveProofDockerInventory(options(), undefined,
+      { dispatchDeadline: Date.now(), settlementDeadline: Date.now() + 1000 })).rejects.toThrow()
+    expect(children).toHaveLength(0); expect(calls).toHaveLength(0)
+  })
+  it('accepts only original deadline data, never a getter callback', async () => {
+    const getter = vi.fn(() => Date.now() + 1000)
+    await expect(draftSaveProofDockerInventory(options(), undefined,
+      { get dispatchDeadline() { return getter() }, settlementDeadline: Date.now() + 2000 })).rejects.toThrow()
+    expect(getter).not.toHaveBeenCalled(); expect(children).toHaveLength(0)
+  })
   it('clips queued HTTP work to one original deadline and refuses unjoined expiry without renewing it', async () => {
     vi.useFakeTimers(); const names = configured(); holdClose = true
     const originalDeadline = Date.now() + 1000

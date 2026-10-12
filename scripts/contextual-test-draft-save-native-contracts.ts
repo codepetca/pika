@@ -8,7 +8,7 @@ import { StringDecoder } from 'node:string_decoder'
 import { isDeepStrictEqual } from 'node:util'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import type { AssignmentListResource } from './contextual-assignment-list-proof-lifecycle'
-import { draftSaveProofDockerInventory } from './contextual-test-draft-save-proof-inventory'
+import { draftSaveProofDockerInventory, SurveyInventoryUnjoinedChildError } from './contextual-test-draft-save-proof-inventory'
 import { validateIntegratedGuardResources } from './check-contextual-assignment-learner-integrated-lifecycle'
 import { testOwnerDigest, testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import {
@@ -927,7 +927,13 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       controls: Math.min(controls, CAPS.controlCalls + 1), actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) })
   }
   let endpoint: { host: string; identity: number[] } | undefined
+  function checkJoined() { if (surveyUnjoined) throw new Survey263UnjoinedChildError() }
+  function checkSettlement() {
+    checkJoined()
+    if (profile.survey263Budget) assert(Date.now() < profile.survey263Budget.cleanupDeadline)
+  }
   function check(observe = true) {
+    checkJoined()
     const raceExpired = publicationRaceDeadline !== undefined
       && ['races', 'races-verify', 'transitions'].includes(phase) && Date.now() >= publicationRaceDeadline
     if (observe && !failed && (Date.now() - start >= CAPS.totalMs
@@ -944,6 +950,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', profile.reorderDiagnosticSql && role(name) === 'contracts' ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate', ...variables]
   }
   function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role, cleanup = false): Promise<string> {
+    checkJoined()
     assert(++controls <= CAPS.controlCalls)
     if (file === 'supabase') assert(profile.label === 'survey263' && endpoint)
     if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
@@ -976,7 +983,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       })
       if (profile.survey263Budget) {
         const closeDeadline = Math.min(profile.survey263Budget.cleanupDeadline, Date.now() + timeout + CAPS.closeMs)
-        const timer = setTimeout(() => { failed = true; surveyUnjoined = true; child.kill('SIGKILL'); rejectClosed(new Survey263UnjoinedChildError()) }, closeDeadline - Date.now())
+        const timer = setTimeout(() => {
+          failed = true; surveyUnjoined = true
+          try { child.kill('SIGKILL') } catch { /* Signal delivery is not positive child closure. */ }
+          rejectClosed(new Survey263UnjoinedChildError())
+        }, closeDeadline - Date.now())
         child.once('close', () => { clearTimeout(timer); joined = true
           if (Date.now() >= closeDeadline || !outcome) { failed = true; surveyUnjoined = true; rejectClosed(new Survey263UnjoinedChildError()) }
           else settle()
@@ -987,6 +998,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     })
   }
   async function verifyEndpoint(cleanup = false) {
+    checkJoined()
     assert(!Object.keys(process.env).some(name => /^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)))
     const raw = JSON.parse(await command('docker', ['context', 'inspect', '--format', manifest.contextTemplate], undefined, CAPS.controlMs, undefined, cleanup)) as {
       endpoints?: { docker?: { Host?: unknown; SkipTLSVerify?: unknown } }; tlsMaterial?: unknown;
@@ -1004,7 +1016,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     if (endpoint) assert.deepEqual(observed, endpoint); else endpoint = observed
   }
   async function inventory(cleanup = false, observe = !cleanup) {
-    if (!cleanup) check(observe)
+    if (!cleanup) check(observe); else checkSettlement()
     // These fresh read-only children are independent. Settle all of them even
     // on rejection before resource discovery, SQL, or session work can begin.
     const checks = await Promise.allSettled([
@@ -1013,13 +1025,30 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       (async () => { assert.equal(await command('git', ['status', '--porcelain'], undefined, CAPS.controlMs, undefined, cleanup), '') })(),
       verifyEndpoint(cleanup),
     ])
+    checkJoined()
     for (const result of checks) if (result.status === 'rejected') throw result.reason
     assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
     assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations', profile.sourceFile), 'utf8')), manifest.sourceSha256)
-    const all = await draftSaveProofDockerInventory({}, profile.label === 'survey263' ? endpoint : undefined, profile.survey263Budget?.cleanupDeadline)
+    const all = await dockerInventory(cleanup, observe)
     validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
     await verifyEndpoint(cleanup)
     if (!cleanup) check(observe)
+  }
+  async function dockerInventory(cleanup = false, observe = !cleanup) {
+    // Recheck after preceding async Git/context children, before constructing a
+    // fresh inventory or queued reader. Only already-owned settlement borrows
+    // the original reserve during work; cleanup discovery uses the total clock.
+    if (profile.survey263Budget) { if (!cleanup) check(observe); else checkSettlement() }
+    try {
+      return await draftSaveProofDockerInventory({}, profile.label === 'survey263' ? endpoint : undefined,
+        profile.survey263Budget ? {
+          dispatchDeadline: cleanup ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline,
+          settlementDeadline: profile.survey263Budget.cleanupDeadline,
+        } : undefined)
+    } catch (error) {
+      if (error instanceof SurveyInventoryUnjoinedChildError) { failed = true; surveyUnjoined = true }
+      checkJoined(); throw error
+    }
   }
   async function guard(cleanup = false, ownedRole: Role = 'none', observe = !cleanup) {
     try {
@@ -1295,28 +1324,38 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         assert(surveySdkDone && !surveyTypesGenerated && !probing && sessions.size === 0)
         surveyTypesGenerated = true; check()
         const plan = testDraftSaveTypeGenerationPlan(input.repository, input.reviewedHead, project)
+        let generationSettling = false, generationSucceeded = false
         const receipt = await generateTestDraftSaveTypes({ repository: input.repository, reviewedHead: input.reviewedHead,
-          projectId: project, guard: async () => { check(); await guard(); check() } }, async (file, args) => {
-          check()
+          projectId: project, guard: async () => {
+            if (generationSettling) { checkSettlement(); await guard(true); checkSettlement(); if (generationSucceeded) check() }
+            else { check(); await guard(); check() }
+          } }, async (file, args) => {
+          if (generationSettling) checkSettlement(); else check()
           if (file === 'git') {
             assert(args[0] === '-C' && args[1] === input.repository)
             assert(['rev-parse HEAD', 'status --porcelain --untracked-files=all'].includes(args.slice(2).join(' ')))
-            return command('git', [...args])
+            return command('git', [...args], undefined, CAPS.controlMs, undefined, generationSettling)
           }
           assert.equal(file, 'supabase'); assert.deepEqual(args, plan.args)
           await verifyEndpoint()
           try {
-            return await command('supabase', [...args], undefined, Math.max(1, Math.min(60000,
+            const output = await command('supabase', [...args], undefined, Math.max(1, Math.min(60000,
               (profile.absoluteDeadline ?? start + CAPS.totalMs) - Date.now())))
-          } finally { await verifyEndpoint(true) }
-        }, async () => { assert(endpoint); return draftSaveProofDockerInventory({}, endpoint, profile.survey263Budget?.cleanupDeadline) })
+            generationSucceeded = true; return output
+          } finally {
+            generationSettling = true
+            // An unjoined child poisons even read-only secondary dispatch. Its
+            // typed signal must reach the outer lifecycle, not be overwritten.
+            checkJoined(); await verifyEndpoint(true); checkJoined()
+          }
+        }, async () => { assert(endpoint); return dockerInventory(generationSettling) })
         const source = readFileSync(receipt.path, 'utf8')
         assert.equal(Buffer.byteLength(source), receipt.bytes)
         validateSurveyGeneratedTypes(source, receipt.sha256); check()
         phase = 'complete'
         return freeze({ ...receipt, kind: 'genuine-survey263-types' as const, validatedRpcContracts: 12,
           nativeVerified: false as const })
-      } catch (error) { record('unknown'); throw error }
+      } catch (error) { record('unknown'); checkJoined(); throw error }
     } } : {}),
     async verifyTarget() {
       await guard()

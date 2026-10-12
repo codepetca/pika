@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Learner current-main UI synchronization
-
-External main6695630 (#1567 Material chooser/SplitButton dismissal) advanced while
-corrected CI38100575333 ran: eight completed jobs passed, light browser remained.
-Strict latest-main rule/history conflict requires synchronization; PR returned
-draft and remaining run canceled, not a new product failure. Rebased12commits in
-the owning clean worktree, resolved only archive markers while retaining both
-histories, then normal trim. All45 nonhistory feature blobs and8 incoming blobs
-match their intended versions; both history multisets missing0/loss0. No migration
-collision/rename: full001–257 manifest,257/regression, genuinecc966 types and all
-nine disabled private source hashes unchanged. Existing41 unrelated stashes
-untouched. Proportional exact-head base/UI/history interaction review must judge
-reuse of prior actual whole native/type coverage; no new rehearsal or native
-permission inferred. Focused and targeted marker/startup checks, draft publication,
-independent review then one final-head ready CI/PR Gate remain. Original clock/
-waiver/counters15turn12target9priorbatch1initial1final and all sharedlocal249+/
-prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.
-
 ## 2026-10-11 — Assignment chooser current-main synchronization
 
 PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.
@@ -663,3 +645,18 @@ follows; original counters and serious holds remain. Separate noDB diagnostic
 completed three requests with positive full cleanup: original body was readable
 without navigation, but navigation reproduced protocol resource-missing. This
 does not establish the historical app failure cause or product completion.
+
+## 2026-10-12 Survey engine composition correction
+
+Review4 found that native-engine discovery could borrow cleanup time and generator
+finally could mask unjoined-child uncertainty. Actual offline composition tests
+reproduced both against f4a; separate dispatch/settlement clocks and sticky engine
+poison now retain the work cutoff and block ordinary outer teardown after unknown
+closure. Generator joined failures may settle in the original reserve, but expired
+successful work cannot write a type artifact. Source tests retain actual engine,
+generic generator and inventory logic with transport/phase-oracle seams; they are
+not native evidence. Focused94/lint/architecture/audit/diff PASS; expanded strict
+check only14 missing genuine263 RPC metadata diagnostics. Targeted review remains
+required. No PR, migration, shared/prod/provider/activation action. Timing-matched
+three-request browser diagnostic also reproduced original-body resource loss on
+navigation with full positive cleanup; historical app causation remains unknown.

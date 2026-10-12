@@ -46462,3 +46462,22 @@ weakening or product/schema/proof change. Targeted regression/startup cap and
 focused checks precede narrow independent wording/history review. Original
 clock/waiver/counters14turn11target8priorbatch1initial1final retained; all six
 native permissions consumed; shared/prod/activation/toolgoal holds unchanged.
+
+<!-- pika-session-log-archive-batch:1f957707a33f9753bd3648ab62e272c6c45ec14bed7ef485efa2271442d936f8 -->
+## 2026-10-11 — Learner current-main UI synchronization
+
+External main6695630 (#1567 Material chooser/SplitButton dismissal) advanced while
+corrected CI38100575333 ran: eight completed jobs passed, light browser remained.
+Strict latest-main rule/history conflict requires synchronization; PR returned
+draft and remaining run canceled, not a new product failure. Rebased12commits in
+the owning clean worktree, resolved only archive markers while retaining both
+histories, then normal trim. All45 nonhistory feature blobs and8 incoming blobs
+match their intended versions; both history multisets missing0/loss0. No migration
+collision/rename: full001–257 manifest,257/regression, genuinecc966 types and all
+nine disabled private source hashes unchanged. Existing41 unrelated stashes
+untouched. Proportional exact-head base/UI/history interaction review must judge
+reuse of prior actual whole native/type coverage; no new rehearsal or native
+permission inferred. Focused and targeted marker/startup checks, draft publication,
+independent review then one final-head ready CI/PR Gate remain. Original clock/
+waiver/counters15turn12target9priorbatch1initial1final and all sharedlocal249+/
+prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.
