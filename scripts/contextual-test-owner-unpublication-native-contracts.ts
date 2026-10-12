@@ -12,6 +12,7 @@ import { validateStudentTestSessionStatusReviewedMigration } from './student-tes
 import { validateTestOwnerGradingReviewedMigration } from './test-owner-grading-reviewed-migration'
 import { validateTestOwnerRecoveryReviewedMigration } from './test-owner-recovery-reviewed-migration'
 import { TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION, validateTestOwnerUnpublicationReviewedMigration } from './test-owner-unpublication-reviewed-migration'
+import { validateTestOwnerDeletionReviewedMigration } from './test-owner-deletion-reviewed-migration'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 import { freezeOwnerGrading as freeze, ownerGradingDigest as hash } from './contextual-test-owner-grading-proof-fixture'
@@ -41,7 +42,7 @@ const plans = new WeakMap<object, TestOwnerUnpublicationNativePlan>()
 export function testOwnerUnpublicationNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
   const f = newTestOwnerUnpublicationFixture(original), inventory = loadAssignmentListReviewedMigrations(repository)
-  assert.equal(inventory.length, 261); validateAssignmentListMigrationChain(inventory)
+  assert([261,262].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
   assert.equal(inventory[252].name, '253_classroom_test_tier_caps.sql')
   assert.equal(inventory[252].sha256, '076bb9775a6959ecfc1012a652205968fda74b601daaad3ba6ef0e8f9975cc09')
   assert.equal(hash(inventory[252].sql), inventory[252].sha256)
@@ -52,6 +53,7 @@ export function testOwnerUnpublicationNativePlan(original: AssignmentListProofFi
   validateTestLearnerWorkflowReviewedMigration(inventory[256]);validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258]);validateTestOwnerRecoveryReviewedMigration(inventory[259])
   validateTestOwnerUnpublicationReviewedMigration(inventory[260])
+  if (inventory.length === 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
   const source = readFileSync(resolve(repository, 'supabase/migrations', TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name), 'utf8')
   validateTestOwnerUnpublicationReviewedMigration({ name: TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql: source, sha256: hash(source) })
   assert.equal(source, inventory[260].sql)

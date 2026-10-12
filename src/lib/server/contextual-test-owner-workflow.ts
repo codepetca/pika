@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { ApiError } from '@/lib/api-error'
 import type { getServiceRoleClient } from '@/lib/supabase'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
@@ -63,7 +64,8 @@ export function createContextualTestOwnerWorkflow(input: {
       const witness = parsed.data
       if (witness.actor_id !== actorId || witness.test_id !== testId || witness.operation !== operation
         || witness.test.id !== testId || witness.test.classroom_id !== witness.classroom_id
-        || (captured && witness.classroom_id !== captured.classroom_id)) throw unavailable()
+        || (captured && witness.classroom_id !== captured.classroom_id)
+        || (operation === 'delete' && (!captured || !isDeepStrictEqual(witness.test, captured)))) throw unavailable()
       // Keep one original CAS source. A reserve/verify acknowledgement may
       // observe a concurrent metadata edit but must never silently refresh the
       // snapshot attachment's expected Test.

@@ -6,6 +6,7 @@ import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
+import { handleContextualTestOwnerDeletionRequest } from '@/lib/server/contextual-test-owner-deletion'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 import { resolveTestDocumentUploadContentTypes } from '@/lib/server/test-document-content-types'
@@ -407,6 +408,8 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
 
 // DELETE /api/teacher/tests/[id] - Delete test
 export const DELETE = withErrorHandler('DeleteTest', async (_request, context) => {
+  const contextual = await handleContextualTestOwnerDeletionRequest(_request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id } = await context.params
 

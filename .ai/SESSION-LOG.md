@@ -11,46 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Fifth learner rehearsal and response-fixture schema correction
-
-ONE approved424 rehearsal completed001–257/history/rollbackACL/genuineCLItypes,
-ACL restoration, real57014 cancellation, three same-attempt CAS checks and ten
-held-lock/race checks; fixture unchanged and zero remaining sessions. Whole
-learner acceptance FAILED at meaningful-response injection: nonexistent response
-question_type column. Exact-owned/global inventory/ports/full canonical/source
-cleanup PASS(cleanupFailures=[]); consumed runner archived inerttxt, all nine
-false/null reviewed hashes restored. Genuinecc966438731 types remain private.
-Private source-only batch7 removes the one invalid column/value; schema-backed
-offline RED1→GREEN29, full73label/168request/336guard driver, materials30/60,
-SDK3+7timing and private tsc PASS. No product SQL/clock/guard expansion or retry.
-Rebase onto4f352b74b retains incoming CI/UI behavior, learner regression/inventory,
-both histories and41 unrelated stashes; no257 numbering collision. Final focused
-and proportional independent delta/base review follow before another exact-source
-native request. Originalclock/workflow waiver/cumulative12launch9target6priorfix/
-1final1initial retained; sharedlocal249+/prod257+/activation/goal holds unchanged.
-Weekly25%remaining; attributable tokens/effective configuration/active time unknown.
-First focused run had2413PASS/one startup-size failure(17001>17000); compacted
-CURRENT without weakening the gate. Corrected full focused result follows.
-
-## 2026-10-11 — Owner grading merged; next recovery group started
-
-PR1569 merged normally at15:45:58UTC as2cea88dc1; exact reviewedff65head
-CI38150651417all10/PRGatePASS. Prior exactd714native001–259acceptancePASS;
-laterdocs-onlydeltas independentlyreviewed. Clean canonicalmainFF verified.
-Next branchcodex/classroom-assessment-next starts2cea in namedmanagedroot;
-fullstartupPASS after frozenlockfile cachedinstall, no dependency/source change.
-Owner requested continuous reasonablework without routineapprovals. Sharedlocal/
-prod/promotion/provider/account/activation holds remain. Weekly95%remaining,
-DeepSeekpause retained. Sol/high boundedread-only Testmap identifies three
-ownerunsubmit/resetroutes; rootverified role/preflight+244writer boundaries.
-Sol/high soleproductwriter assigned coherent dormantthree-routegroup, no Git/
-native/external effects. Root owns docs/Git/proof/review. Unpublish and Test
-deletion remain explicit ordinarygaps; no Tests/batch2/goal completion claimed.
-Product194focusedtestsPASS; proof248tests plus reorder187PASS; privateSDK,
-operationalfault andTypescript checksPASS. Audit26filesPASS. Initial aggregate
-exposed finite260guard andCItestinventory gaps; fixed without looseningseals.
-Final exact260sourceb60c53cb2; nativeexecution remainsinert pendingreview.
-
 ## 2026-10-11 PR1566 authorized main merge — minor journal sync
 
 Owner explicitly authorized merging PR1566 to main. Main advanced via1570/1571
@@ -616,3 +576,53 @@ checks/independent review/fresh native/eligibleCI, not acceptance from prior pas
 PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
 Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
 production promotion/provider/account/admission/home/page/cohort/cutover holds.
+
+## 2026-10-12 — Unpublication merged; next deletion boundary
+
+PR1578 actual normalmatchedsquashmergea37d03b3ac4943b25b76e8dd30412c6a7ff8da9d
+at02:11:23Z fromreviewedab4a3d222. ExactCI38192450117 all10inclPRGatePASS;
+canonicalcleanmainff andfulltree9b3bcd92 parity verified. Corrected11frame/14race
+freshnativee034bc3b1f4c fullyPASS,503/one57014/8010ms/zeroRPC/restoration/types/
+exact8cleanup/global741/canonical183tables2cron preservation. Failedpriorreceipts
+retained; no migrationapplication/promotion/activation.18PRreviewturns2343s/
+3resolved/16batches10pushes; ancillary6/285separate, measuredCIqueue0/run2087s.
+NextTests-gapinventory318s read-only confirmed094 wholedeletepolicy, polymorphic
+Draftretention and deletion's needfor explicitabsentrow/pre-source acknowledgement.
+Newtest-owner-deleteworktreea37: startupmissingdepsfixed683cachedofflinefrozen/
+no lockdiff thenPASS. Compatibility-first dormantDELETE plan retainslegacypolicy,
+DTO/cascades/queueing/Draft/AI/formerwork; no retentionpolicy orchildCASclaim.
+Sol/high productwriter delivered254tests/13suites+tsc/diffPASS; rootverified78tests,
+literalnormal261 parity andactual262source c9f0991d. Rootremovedoneunreachable
+recoveryrestrictionaddition. Sourceworker486measureds excludingorientation; proof
+design393s accepted, effective/token/active telemetry unknown. Fixed262successor
+seal integrationTDDPASS166+273checks, CIstepRED→GREEN2, audit17TSPASS. Sameprivate
+enginecaps/executorunchanged; disjointpublicproof/privateSDKsources frozen.
+Public286tests/3suites+tsc/diffPASS; root actual4/7hashes verified, privateSDK
+15RPC22frames/operationalcontrols/privateTSc PASS.8frames/16heldschedules/40dispatch.
+Installed117 final cleanup-definition and221CASCADE corrections retained;
+root fixed164void-helper misuse before native; SDKboundaries useTest6, leaving
+materialraceTest5 intact. Source workers2168s/1179s measured, not review effort.
+First aggregate2280tests exposed CIinventory/startupbudget gaps and transient
+unchangedhost fixture misses under parallel load; fixedinventory/compactCURRENT
+without weakeninggates. Final2280tests/125suites, all architecture/UI/design/
+TypeScript/lint gates PASS; audit18TSPASS. DraftPR1579 head68382 initial independent
+security392s/compatibility531s reviews complete/clean; native/CI/merge outstanding.
+Rebased latestmain1aed8d190 (unrelated Week agenda) without code conflicts;
+complete histories retained and automatic log trim rerun. Product262/SQL/private
+sources unchanged, no migration renumbering. Reconciled head needs proportional
+base/log review and checks before any fresh exact disposable binding.
+Sharedlocal249+/prod259+,
+promotion/provider/account/admission/home/page/cohort/cutover holds remain.
+
+## 2026-10-12 Contextual Test deletion CI compatibility correction
+
+Fresh disposable262/38534 acceptance fully PASS: replay/types/rollbackACL,
+8contracts16heldraces/bothowner-role SDK closures/503one57014at8010ms/zeroRPC,
+restoration/exact8cleanup/global741/canonical183tables2cron/sourceports preserved.
+Runtimebinding consumed; failed prior attempt retained. Four clean review turns
+1471s. Exact-head CI38202975883 found2 compatibility tests failing while17050
+passed/8skipped: publication source seal missed the additive DELETE dispatcher;
+compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
+remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
+only attested dispatcher stripped; controls receipt restored. Targeted108checks
+PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
