@@ -46141,3 +46141,29 @@ User authorized next browser slice. Preserve all577 distinct cases/579 runtime s
 - Deferred trigger/menu ID relationships until hydration, following useDropdownNav; retained prior streamed-ID baseline evidence.
 - Recorded the governed UI brief and executable Pattern Lab reference. Focused lifetime/keyboard/SSR tests and both-role native verification cover the narrow static menu owner. Other menu families and broad fluidity completion remain open.
 - Risk: workspace-state presentation lifetime only. No dependencies, backend writes, production promotion or migration application.
+
+<!-- pika-session-log-archive-batch:0746008f9927e6d4cf0d071cf4311a947d8eca79be5ed531609ab4c6d9d01e76 -->
+## 2026-10-10 — Owner merged; learner source review and compatibility correction
+
+Owner1555 squashmerged730642666 at12:37UTC after exact552CI38050378092 all8
+checks/PRGate PASS; reviewed/merge trees equal, clean canonicalmain ff-synced.
+Native001–256/94SDK/genuine type receipts retained; earlier failures/counters
+not reset. No sharedlocal/prod migration or activation.
+Learner1561 draft21fc based730642: tenexistingroutes/elevenmethods, role-neutral
+enrollment, current-authority-before-conflict, separate best-effort history,
+returned current-roster aggregates/material rechecks and additive257 source.
+Focused1081/77files plus types/lint/architecture/UI/design PASS; audit PASS.
+Two independent Sol/high source reviews: security clean; compatibility P2
+historical HTML charset404. Root RED3→GREEN25 fixes link-only normalization,
+retains complete raw tuple/CSP and uploads;94contextual/doc+20legacychecks PASS.
+Pushed49802; targeted Sol/high correction review clean. Three completed turns,
+initialwave1/targeted1/fix1; original13:16:45 clock/task extensionwaiver retained.
+Earlier reviewers used fixed Git blobs in implementationcheckout; needed final
+cumulative review will use separate detached checkout to satisfy workflow.
+Inert native source preparation continues; existing fixed executor must be
+reused, not exported generically or replaced. No257 replay/SDK network/Storage/
+CLI typegeneration approval or attempt, no readiness/CI/merge/phaseexit claim.
+Weekly32%remaining reused; token/active/effectiveconfiguration unknown, no usage
+savings inferred. Private coordinator evidence pika-learner-test-map.G7k1ir.
+Sharedlocal/prod249+/promotion/account/plan/quota/billing/provider/runner/
+admission/home/page/cutover holds persist. Billing remains separate.

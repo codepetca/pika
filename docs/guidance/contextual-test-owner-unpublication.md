@@ -66,6 +66,13 @@ original combined SQL remains a reconstruction oracle, not an executable
 capability. Keep the12s request,180s aggregate,40-dispatch and full-graph bounds;
 framing alone is not evidence that any individual check meets its time limit.
 
+The late-fault trigger probe must release its DDL locks before the next frame:
+run its unchanged CREATE/probe/DROP in an exception subtransaction, deliberately
+roll it back, and prove full graph and trigger-catalog restoration plus absence
+of an owned exclusive Test-relation lock. Dropping the trigger alone retains
+that lock until transaction end. This fixture correction does not prove the
+cause of a particular guard failure or replace fresh native acceptance.
+
 Independent security and compatibility review, focused checks and final
 reviewed-head CI/PR Gate precede protected-main merge. This document grants
 no database execution or activation authority. Shared local249+, production259+,

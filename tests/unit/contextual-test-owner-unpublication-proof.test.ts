@@ -136,6 +136,50 @@ describe('inert unpublication source proof', () => {
     expect(sql).toContain("update public.tests set status='draft' where id=p_test")
     expect(sql).toContain('Rejected unpublication changed graph')
   })
+  it('rolls back only the unchanged late-fault DDL and full-graph55000 probe in one forced subtransaction',()=>{
+    const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const fault=sql.split('-- Release the late-fault trigger DDL locks before the next fixed frame.')[1]
+      .split('  begin\n    update public.tests set questions_locked_at=now()')[0]
+    const block=/  begin\n([\s\S]*?)\n  exception when sqlstate 'ZX261' then null;end;/.exec(fault)
+    expect(block).not.toBeNull()
+    expect(block![1]).toBe(`    execute $late_fault_ddl$create trigger reject_unpublication_status_update
+      before update on public.tests for each row
+      when (new.id='a2610000-0000-4000-8000-000000000031'::uuid
+        and old.status='closed' and new.status='draft')
+      execute function pg_temp.reject_unpublication_status_update()$late_fault_ddl$;
+    perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'55000','forced_unpublication_status_failure','partial draft write rollback');
+    execute 'drop trigger reject_unpublication_status_update on public.tests';
+    raise exception using errcode='ZX261',message='rollback late-fault trigger DDL';`)
+    for(const witness of ['before_graph := pg_temp.test_unpublication_graph(test_id);',
+      "into before_triggers\n    from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass;"]){
+      expect(fault).toContain(witness);expect(fault.indexOf(witness)).toBeLessThan(fault.indexOf(block![0]))
+    }
+    expect(fault.match(/exception when/g)).toHaveLength(1)
+    expect(fault).not.toMatch(/when others|disable trigger|session_replication_role/)
+    const helper=sql.split('as $reject$')[1].split('$reject$;')[0]
+    expect(helper).toContain('perform public.return_test_to_draft_atomic(p_actor,p_test);')
+    expect(helper).toContain('perform public.test_owner_workflow_v1(p_actor,p_test,')
+    expect(helper).toContain('if actual_code is distinct from p_code or actual_message is distinct from p_message then')
+    expect(helper).toContain('if actual_code is distinct from p_code then raise exception')
+    expect(helper).toContain('if after_graph is distinct from before_graph then')
+  })
+  it('fails closed on late-fault graph, exact trigger catalog, owned residue or retained exclusive lock before later probes',()=>{
+    const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const fault=sql.split('-- Release the late-fault trigger DDL locks before the next fixed frame.')[1]
+      .split('  begin\n    update public.tests set questions_locked_at=now()')[0]
+    const handler=fault.indexOf("exception when sqlstate 'ZX261' then null;end;")
+    const assertions=[
+      "if pg_temp.test_unpublication_graph(test_id) is distinct from before_graph then\n    raise exception 'Late-fault trigger rollback changed full graph';\n  end if;",
+      "if after_triggers is distinct from before_triggers then\n    raise exception 'Late-fault trigger rollback changed trigger catalog';\n  end if;",
+      "if exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass\n    and t.tgname='reject_unpublication_status_update') then\n    raise exception 'Late-fault trigger rollback retained owned trigger';\n  end if;",
+      "if exists(select 1 from pg_catalog.pg_locks l where l.locktype='relation'\n    and l.database=(select d.oid from pg_catalog.pg_database d where d.datname=current_database())\n    and l.relation='public.tests'::regclass and l.pid=pg_backend_pid()\n    and l.mode='AccessExclusiveLock' and l.granted) then\n    raise exception 'Late-fault trigger rollback retained owned AccessExclusiveLock';\n  end if;",
+    ]
+    for(const assertion of assertions){expect(fault).toContain(assertion);expect(fault.indexOf(assertion)).toBeGreaterThan(handler)}
+    expect(fault.match(/select coalesce\(jsonb_agg\(to_jsonb\(t\) order by t\.oid\),'\[\]'::jsonb\) into (?:before|after)_triggers\n    from pg_catalog\.pg_trigger t where t\.tgrelid='public\.tests'::regclass;/g)).toHaveLength(2)
+    expect(fault.indexOf('into after_triggers')).toBeGreaterThan(handler)
+    expect(sql.indexOf(assertions[3])).toBeLessThan(sql.indexOf("message='rollback irreversible question-lock probe'"))
+    expect(sql.indexOf(assertions[3])).toBeLessThan(sql.indexOf('do $limits261$'))
+  })
   it('keeps the wrong-parent fixture storage-valid under the installed134 identity CHECK',()=>{
     const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
     const limits=sql.split('do $limits261$')[1].split('end;$limits261$;')[0]
@@ -219,7 +263,7 @@ describe('inert unpublication source proof', () => {
   })
   it('reconstructs exact unchanged monolithic bytes from seven closed frames',()=>{
     const m=plan(),labels=['initialize','success','rejections','limits','provider','acl','contextual']
-    expect(digest(readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8'))).toBe('44916f153c25be7dd45c35416a879da78bdf59628cca18992e39ff1ce8fe4ceb')
+    expect(digest(readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8'))).toBe('a426262d9d588b277571858382b3a416e87336e5464f9eb142b975a9f300384b')
     expect(m.contracts.frames.map(frame=>frame.label)).toEqual(labels)
     const source=m.contracts.frames.map((frame,index)=>index===6?frame.sql:frame.sql.replace(
       `\nselect jsonb_build_object('frame','${labels[index]}','transaction',txid_current()::text) as result;`,''))

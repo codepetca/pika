@@ -225,6 +225,7 @@ declare
   test_id uuid := 'a2610000-0000-4000-8000-000000000031';
   classroom_id uuid := 'a2610000-0000-4000-8000-000000000010';
   before_graph jsonb;
+  before_triggers jsonb; after_triggers jsonb;
 begin
   perform pg_temp.expect_unpublication_rejection(other_id,test_id,'PT403','test_unpublish_forbidden','wrong teacher');
   update public.classrooms set archived_at=now() where id=classroom_id;
@@ -293,13 +294,38 @@ begin
   update public.test_questions set options='["A",""]'::jsonb where id='a2610000-0000-4000-8000-000000000302';
   perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_invalid_published_content','invalid published question');
   update public.test_questions set options='["A","B"]'::jsonb where id='a2610000-0000-4000-8000-000000000302';
-  execute $late_fault_ddl$create trigger reject_unpublication_status_update
-    before update on public.tests for each row
-    when (new.id='a2610000-0000-4000-8000-000000000031'::uuid
-      and old.status='closed' and new.status='draft')
-    execute function pg_temp.reject_unpublication_status_update()$late_fault_ddl$;
-  perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'55000','forced_unpublication_status_failure','partial draft write rollback');
-  execute 'drop trigger reject_unpublication_status_update on public.tests';
+  -- Release the late-fault trigger DDL locks before the next fixed frame.
+  before_graph := pg_temp.test_unpublication_graph(test_id);
+  select coalesce(jsonb_agg(to_jsonb(t) order by t.oid),'[]'::jsonb) into before_triggers
+    from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass;
+  begin
+    execute $late_fault_ddl$create trigger reject_unpublication_status_update
+      before update on public.tests for each row
+      when (new.id='a2610000-0000-4000-8000-000000000031'::uuid
+        and old.status='closed' and new.status='draft')
+      execute function pg_temp.reject_unpublication_status_update()$late_fault_ddl$;
+    perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'55000','forced_unpublication_status_failure','partial draft write rollback');
+    execute 'drop trigger reject_unpublication_status_update on public.tests';
+    raise exception using errcode='ZX261',message='rollback late-fault trigger DDL';
+  exception when sqlstate 'ZX261' then null;end;
+  if pg_temp.test_unpublication_graph(test_id) is distinct from before_graph then
+    raise exception 'Late-fault trigger rollback changed full graph';
+  end if;
+  select coalesce(jsonb_agg(to_jsonb(t) order by t.oid),'[]'::jsonb) into after_triggers
+    from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass;
+  if after_triggers is distinct from before_triggers then
+    raise exception 'Late-fault trigger rollback changed trigger catalog';
+  end if;
+  if exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass
+    and t.tgname='reject_unpublication_status_update') then
+    raise exception 'Late-fault trigger rollback retained owned trigger';
+  end if;
+  if exists(select 1 from pg_catalog.pg_locks l where l.locktype='relation'
+    and l.database=(select d.oid from pg_catalog.pg_database d where d.datname=current_database())
+    and l.relation='public.tests'::regclass and l.pid=pg_backend_pid()
+    and l.mode='AccessExclusiveLock' and l.granted) then
+    raise exception 'Late-fault trigger rollback retained owned AccessExclusiveLock';
+  end if;
   begin
     update public.tests set questions_locked_at=now() where id=test_id;
     perform pg_temp.expect_unpublication_rejection(owner_id,test_id,'PT409','test_unpublish_not_eligible','locked questions');

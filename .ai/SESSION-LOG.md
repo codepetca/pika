@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Owner merged; learner source review and compatibility correction
-
-Owner1555 squashmerged730642666 at12:37UTC after exact552CI38050378092 all8
-checks/PRGate PASS; reviewed/merge trees equal, clean canonicalmain ff-synced.
-Native001–256/94SDK/genuine type receipts retained; earlier failures/counters
-not reset. No sharedlocal/prod migration or activation.
-Learner1561 draft21fc based730642: tenexistingroutes/elevenmethods, role-neutral
-enrollment, current-authority-before-conflict, separate best-effort history,
-returned current-roster aggregates/material rechecks and additive257 source.
-Focused1081/77files plus types/lint/architecture/UI/design PASS; audit PASS.
-Two independent Sol/high source reviews: security clean; compatibility P2
-historical HTML charset404. Root RED3→GREEN25 fixes link-only normalization,
-retains complete raw tuple/CSP and uploads;94contextual/doc+20legacychecks PASS.
-Pushed49802; targeted Sol/high correction review clean. Three completed turns,
-initialwave1/targeted1/fix1; original13:16:45 clock/task extensionwaiver retained.
-Earlier reviewers used fixed Git blobs in implementationcheckout; needed final
-cumulative review will use separate detached checkout to satisfy workflow.
-Inert native source preparation continues; existing fixed executor must be
-reused, not exported generically or replaced. No257 replay/SDK network/Storage/
-CLI typegeneration approval or attempt, no readiness/CI/merge/phaseexit claim.
-Weekly32%remaining reused; token/active/effectiveconfiguration unknown, no usage
-savings inferred. Private coordinator evidence pika-learner-test-map.G7k1ir.
-Sharedlocal/prod249+/promotion/account/plan/quota/billing/provider/runner/
-admission/home/page/cutover holds persist. Billing remains separate.
-
 ## 2026-10-10 — Learner proof preparation and current-main reconciliation
 
 All preparation writers stopped before rebase onto main3b7ae978e (#1559); one
@@ -686,3 +661,20 @@ PR14completedreviews1615measureds/3resolved/13sourcefixbatches/6draftpushes befo
 next review; ancillary cleanup4turns219s/1resolved kept separate. Task-scoped
 routine-approval/review-budget waiver persists without counter resets. Tests phase,
 goal and existing local249+/prod259+/promotion/account/provider/cutover holds remain.
+
+## 2026-10-12 — Unpublication interframe DDL-lock isolation
+
+Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
+and cumulative integration review255s clean. Twelfth disposable200839eb18f5 passes
+001–261/rollbackACL/genuine438871Btypes, then contracts guard55P03 at actions16:
+rejections completed, limits not dispatched. Source confirms DROP trigger retains
+public.tests exclusive lock across frames; actual guard dependency remains unproven.
+Recovery12 independently reviewed exacte939eac clean28s; positive closure/ACL/
+canonical verification then one disposal PASS6803ms/8synthetic removed. Shared183
+table/2cron/global741/ports/source preserved; original failed evidence archived,
+not converted into acceptance. Narrow late-fault probe exception rollback must
+retain unchanged CREATE/probe/DROP, fullgraph/catalog restoration and lock absence.
+Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product change.
+PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
+ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
+sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
