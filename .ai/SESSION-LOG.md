@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Assignment chooser current-main synchronization
-
-PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.
-
 ## 2026-10-11 — Create Classroom path-menu transition consistency
 
 Teacher CreateClassroomModal opts its existing upward path chooser into shared semantic-fast opacity, explicit parent activity and nested initialBlueprintId ownership. Whole wizard/name/import/date/business state remains with the existing controller. Governed reuse/extend brief and exact development/E2E teacher-only real-controller fixture precede implementation; ordinary/student/production fixture exclusions are tested. Four actual-owner regressions prove inert command retirement, committed replacement, suspended/abandoned replacement and title/parent unavailability; shared primitive and existing business tests pass77. Gallery/route gates pass51. Focused application-browser checks pass965 tests/66files plus architecture/UI/design/TypeScript/lint, audit7 changed TS paths. Frozen-source native eight-context verification passes:32PNGs/8videos,136 intercepted reads,0mutations/errors/unexpected requests/overflow; ten before/after source bindings match. Four unchanged Pattern Lab goldens pass. Coordinator inspected the eight-open board, representative actual open/source/Calendar originals and unchanged Material reference. Existing source-step focus lands on BODY and remains stable; Calendar group/Back name ownership pass. Six failed/incomplete and two diagnostic contexts are excluded; two harness corrections retain evidence, no product source repair. Independent draft-first stable-SHA review/CI/main merge remain gates. No dependency, migration, production, Calendar1217 or privacypriority1 operation; broad fluidity goal remains open. External evidence retains failed harness attempts separately from accepted product behavior.
@@ -660,3 +656,19 @@ check only14 missing genuine263 RPC metadata diagnostics. Targeted review remain
 required. No PR, migration, shared/prod/provider/activation action. Timing-matched
 three-request browser diagnostic also reproduced original-body resource loss on
 navigation with full positive cleanup; historical app causation remains unknown.
+
+## 2026-10-12 Survey active-session poison correction
+
+Targeted review5 resolved inventory/generator fixes but found a cached active-SQL
+session cleanup rejection that could mask known unjoined poison. Three actual
+phase regressions reproduced ordinary errors before correction. Session cached
+cleanup and exposed phase catches now reassert sticky engine poison, preserving
+positive local closure without claiming a different control child closed. Setup,
+run, SDK and the actual race-wrapper finally are covered, including outer poison
+and no ordinary stop/removal. Root98 affected checks PASS; prior189 engine/legacy
+checks PASS; lint/diff/audit and expanded strict14known RPC metadata-only errors.
+Test rework: restored the temporary race mock between cases and bounded microtask
+settlement before the held-child assertion. No native/metadata acceptance, PR,
+shared/prod migration or live change. One targeted delta review follows; clocks
+and routine waiver retained. Browser commit-gate proposal is source-only pending
+review and its separately bounded diagnostic.

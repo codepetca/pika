@@ -1188,7 +1188,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         })
         sessions.delete(this); this.partial = ''
         if (remoteError) throw failure()
-      })()
+      })().catch(error => { checkJoined(); throw error })
       return this.closing
     }
     async rollbackAndClose(timeoutMs: number) {
@@ -1274,7 +1274,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       }
       completedProbes.add(kind)
       return Object.freeze({ privilegeRestored: true, fixtureUnchanged: true, snapshotAclSha256: testOwnerDigest(JSON.stringify(catalogBefore)) })
-    } catch (error) { record('unknown'); throw error }
+    } catch (error) { record('unknown'); checkJoined(); throw error }
     finally { if (ownsProbe) probing = false }
   }
   return Object.freeze({ manifest,
@@ -1316,7 +1316,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         return freeze({ kind: 'survey-sdk-terminal-only' as const, sdk, effects, metadataUnchanged: true,
           cronUnchanged: true, nativeVerified: false as const, manifestSha256: input.acceptedManifestSha256,
           controls, actions, exchangeBytes: exchanged, remainingSessions: sessions.size })
-      } catch (error) { record('unknown'); throw error }
+      } catch (error) { record('unknown'); checkJoined(); throw error }
     }, async generateSurveyTypes() {
       phase = 'transitions'
       try {
@@ -1375,7 +1375,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       assert(!setupDone && !ran); check()
       await single(manifest.setup, true); setupDone = true
       return Object.freeze({ fixtureSha256: testOwnerDigest(JSON.stringify(manifest.fixture)), setupSha256: testOwnerDigest(manifest.setup) })
-      } catch (error) { record('unknown'); throw error }
+      } catch (error) { record('unknown'); checkJoined(); throw error }
     },
     probeSnapshotPrivilegeDrift: (probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) => probePrivilege('outer', probe),
     probeInnerPrivilegeDrift: (probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) => probePrivilege('inner', probe),
@@ -1453,7 +1453,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         check(); assert.equal(sessions.size, 0); phase = 'complete'
         return freeze({ transitions, manifestSha256: input.acceptedManifestSha256,
           controls, actions, exchangeBytes: exchanged, remainingSessions: sessions.size })
-      } catch (error) { record('unknown'); throw error }
+      } catch (error) { record('unknown'); checkJoined(); throw error }
     },
     async run() {
       phase = 'snapshot'
@@ -1482,7 +1482,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       phase = 'complete'
       return Object.freeze({ contracts, races, fixtureUnchanged: true, manifestSha256: input.acceptedManifestSha256,
         controls,actions,exchangeBytes:exchanged,remainingSessions:sessions.size })
-      } catch (error) { record('unknown'); throw error }
+      } catch (error) { record('unknown'); checkJoined(); throw error }
     },
     ...(profile.reorderDiagnosticSql ? { async runDiagnostic() {
       phase = 'snapshot'
@@ -1501,7 +1501,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           manifestSha256: input.acceptedManifestSha256, controls, actions, exchangeBytes: exchanged, remainingSessions: 0 as const })
         validateTestOwnerReorderDiagnosticReceipt(receipt, manifest)
         return receipt
-      } catch (error) { record('unknown'); throw error }
+      } catch (error) { record('unknown'); checkJoined(); throw error }
     } } : {}),
   })
 }
