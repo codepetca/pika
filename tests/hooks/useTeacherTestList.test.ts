@@ -62,6 +62,7 @@ describe('useTeacherTestList', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.tests).toHaveLength(1)
+    expect(result.current.isSnapshotReady()).toBe(true)
     expect(result.current.visibleTests.map((test) => test.title)).toEqual(['Unit Test'])
   })
 
@@ -83,6 +84,7 @@ describe('useTeacherTestList', () => {
 
     expect(result.current.error).toBe('Database unavailable')
     expect(result.current.hasLoadedSnapshot).toBe(false)
+    expect(result.current.isSnapshotReady()).toBe(false)
     expect(result.current.visibleTests).toEqual([])
   })
 
@@ -119,6 +121,7 @@ describe('useTeacherTestList', () => {
 
     await waitFor(() => expect(result.current.error).toBe('Refresh failed'))
     expect(result.current.hasLoadedSnapshot).toBe(true)
+    expect(result.current.isSnapshotReady()).toBe(false)
     expect(result.current.visibleTests.map((test) => test.title)).toEqual(['Current Test'])
 
     await act(async () => {
@@ -126,8 +129,27 @@ describe('useTeacherTestList', () => {
     })
 
     expect(result.current.error).toBeNull()
+    expect(result.current.isSnapshotReady()).toBe(true)
     expect(result.current.visibleTests.map((test) => test.title)).toEqual(['Recovered Test'])
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('invalidates captured snapshot eligibility before a refresh can rerender', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ tests: [makeTest({ id: 'first' })] }) })
+    const { result } = renderHook(() => useTeacherTestList({ classroomId: 'classroom-1', selectedTestId: null, selectedTestDraftSummary: null }))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const oldEligibility = result.current.isSnapshotReady
+    expect(oldEligibility()).toBe(true)
+    let finish!: (value: unknown) => void
+    fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    act(() => {
+      window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: 'classroom-1' } }))
+      expect(oldEligibility()).toBe(false)
+    })
+    await act(async () => { finish({ ok: true, json: async () => ({ tests: [makeTest({ id: 'second' })] }) }) })
+    expect(oldEligibility()).toBe(false)
+    expect(result.current.isSnapshotReady()).toBe(true)
+    expect(result.current.visibleTests.map(test => test.id)).toEqual(['second'])
   })
 
   it('hides prior classroom tests while the next classroom is loading', async () => {

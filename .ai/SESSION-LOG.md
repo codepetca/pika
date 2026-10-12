@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 PR1566 authorized main merge — minor journal sync
-
-Owner explicitly authorized merging PR1566 to main. Main advanced via1570/1571
-UI closing fixes; only journal archive conflicted. Rebased feature branch and
-restored both parent histories/markers, including an entry truncated by Git's
-session-log auto-merge. Feature source and all258 migration bytes unchanged;
-incoming UI retained exactly from main. Prior SQL/native/types proof reused by
-byte equality; focused checks, independent delta review and stable-head CI
-required before authorized squash merge. Shared/production DB and production
-deployment unchanged; no migration/promotion authority added.
-
 ## 2026-10-11 — Test Question actions closing consistency
 
 Extended the actual split Test authoring Question actions menu with shared semantic-fast opacity dismissal. Live commands, hover ownership, document listeners and stale focus work retire immediately; owner/loading/Close/Publish/Preview changes and reduced motion remove presentation immediately. Copied primitive fields and audited known Lucide icon kinds preserve existing icons without retaining caller React descendants. Shared menu defaults remain immediate and canonical useDropdownNav owns navigation; only the Test menu is keyed by existing scope. Business insertion/autosave/flush and structural rules unchanged.
@@ -505,6 +494,14 @@ Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-c
 ## 2026-10-11 — Bound Week agenda desktop width
 
 Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
+
+## 2026-10-12 — Dormant existing Tests screen adopter
+
+- Extended server-derived strict admission mode through the actual classroom consumer; shared publish uses its dedicated original-version POST, complete shared reorder uses atomic transport, and standalone preview proves the current owner and requested parent. Existing transport is retained; no rollout/schema/provider/account changes.
+- Worker Sol/high delivered206 checks/5 suites and TypeScript. Coordinator integration238/7 PASS; wider focused976/66 plus architecture/UI/design/TypeScript/lint PASS. The1,001-real-row ceiling stress test needed bounded15s headroom in the concurrent suite (exact no-write assertion retained). One audit heuristic flags an unchanged intentional no-store results read; original accepted source contains the same statement, so no unrelated caching change or audit weakening.
+- Both historical account-role owners and members, desktop1440×900/mobile390×844, light/dark rendered using synthetic intercepted APIs; confirmed expected owner/member controls and no horizontal overflow. Existing publication confirmation/conflict, preview/fullscreen/return and keyboard reorder exercised. No authenticated persistence or Tests phase exit claimed; review and final-SHA CI remain required.
+- Explicitly superseded the historical whole-UI source freeze with direct existing/shared transport regression coverage; unchanged legacy API hash and precise dormant dispatcher normalization remain. Guidance: contextual-test-screen-adoption.md. Native deletion component evidence belongs to PR1579, not this browser fixture or newer source revision.
+- PR1579 merged normally as8e9dabd597 after exact895 CI38204673501 all10 PASS; canonical clean main fast-forwarded and tree equality verified. PR1580 remains dormant/draft. Initial security review clean; compatibility found a same-batch refresh/reorder race. Coordinator reproduced RED1/115, then bound synchronous eligibility to the request generation of the rendered list, including successful replacement/failed refresh. No order-CAS or server contract change. All holds remain.
 
 ## 2026-10-12 — Bounded unpublication proof framing
 

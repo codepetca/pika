@@ -92,13 +92,12 @@ describe('prepared owner publication route', () => {
   })
   it.each([
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
-    ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', 'e8653214921b5dbe9ab736fc70232f6d1427b69b97951b71fe23a1e734d9e7b0'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
     // Remove only the attested dormant metadata and deletion dispatchers/imports.
-    // The complete remaining legacy file retains the original attested hash;
-    // legacy publication and the current full UI remain byte-for-byte guarded.
-    // The UI hash includes the reviewed PR1552 edit-mode and PR1553 publish
-    // confirmation copy changes; neither alters legacy publication requests.
+    // The complete remaining legacy API file retains its original attested hash.
+    // The historical whole-UI seal is explicitly superseded by the screen adopter;
+    // direct existing/shared request tests now guard the intentional UI integration.
+    // See docs/guidance/contextual-test-screen-adoption.md, Compatibility evidence.
     let source = readFileSync(path, 'utf8')
     if (path.endsWith('/route.ts')) {
       source = source.replace(/^import .* from '@\/lib\/server\/contextual-test-owner-materials'\n/m, '')
