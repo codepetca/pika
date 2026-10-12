@@ -12,6 +12,11 @@ import type { DraftSaveDriver,DraftSaveTarget } from '../../scripts/check-contex
 import { validateTestDraftContent } from '../../src/lib/validations/assessment-drafts'
 import { TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION, validateTestOwnerUnpublicationReviewedMigration } from '../../scripts/test-owner-unpublication-reviewed-migration'
 
+vi.mock('node:fs',async importOriginal=>{
+  const actual=await importOriginal<typeof import('node:fs')>()
+  return {...actual,readFileSync:vi.fn(actual.readFileSync)}
+})
+
 const original = newAssignmentListProofFixture(new Date('2026-10-11T12:00:00Z'))
 const plan=()=>testOwnerUnpublicationNativePlan(original,'b'.repeat(40),process.cwd())
 const digest=(v:string)=>createHash('sha256').update(v).digest('hex')
@@ -79,7 +84,7 @@ describe('inert unpublication source proof', () => {
   })
   it('keeps every inert unpublication SQL frame within the actual fixed runner input cap',()=>{
     const m=buildTestOwnerUnpublicationNativeContractsManifest(original,'b'.repeat(40),process.cwd())
-    for(const sql of [m.bootstrap,m.guard,m.preparation,m.setup,m.snapshot,m.contracts.sql,m.privilege.catalog,m.privilege.revoke,m.privilege.restore,
+    for(const sql of [m.bootstrap,m.guard,m.preparation,m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),m.privilege.catalog,m.privilege.revoke,m.privilege.restore,
       ...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) expect(Buffer.byteLength(sql)).toBeLessThanOrEqual(256*1024)
   })
   it.each(['missing','duplicate','after-content'])('requires exactly one earlier bulk insertion witness: %s',defect=>{
@@ -96,11 +101,12 @@ describe('inert unpublication source proof', () => {
     const m = testOwnerUnpublicationNativePlan(original, 'b'.repeat(40), process.cwd())
     expect(m.migrations).toHaveLength(261)
     expect(m.nativeVerified).toBe(false)
-    for (const sql of [m.setup,m.snapshot,m.contracts.sql,...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {
+    for (const sql of [m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {
       expect(validateTestOwnerUnpublicationNativePlanSql(m,sql)).toBe(true)
       expect(validateTestOwnerUnpublicationNativePlanSql(m,sql+'select 1;')).toBe(false)
     }
     expect(validateTestOwnerUnpublicationNativePlanSql(m,m.preparation)).toBe(false)
+    expect(validateTestOwnerUnpublicationNativePlanSql(m,m.contracts.sql)).toBe(false)
     expect(validateTestOwnerUnpublicationNativePlanSql(Object.freeze({...m,setup:'select 1;'}),'select 1;')).toBe(false)
   })
   it.each(['name', 'digest', 'bytes'])('rejects unreviewed %s and self-hashed substitution', defect => {
@@ -195,14 +201,71 @@ describe('inert unpublication source proof', () => {
     expect(m.privilege.restore).toContain('grant execute');expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
   })
   it('requires exact fixed receipts and closes sessions on success or failure',async()=>{
-    const m=plan(),t=target(m,'contracts'),close=vi.fn(async()=>{}),execute=vi.fn(async()=>[{result:{checks:m.contracts.checks}}])
+    const m=plan(),t=target(m,'contracts'),close=vi.fn(async()=>{}),execute=vi.fn(async (sql:string,_timeout:number)=>{
+      const frame=m.contracts.frames.find(frame=>frame.sql===sql)!
+      return [{result:frame.label==='contextual'?{checks:m.contracts.checks}:{frame:frame.label,transaction:'17'}}]
+    })
     const d:DraftSaveDriver={verifyTarget:vi.fn(async()=>t),openSession:vi.fn(async name=>({name,execute,rollbackAndClose:close}))}
     expect(await runTestOwnerUnpublicationNativeContracts(m,t,d)).toEqual({checks:m.contracts.checks,nativeVerified:false})
+    expect(execute.mock.calls.map(([sql])=>sql)).toEqual(m.contracts.frames.map(frame=>frame.sql))
+    expect(d.openSession).toHaveBeenCalledTimes(1)
+    expect(execute.mock.calls.every(([,timeout])=>timeout<=12000)).toBe(true)
     execute.mockResolvedValueOnce([{result:{checks:[]}}]);await expect(runTestOwnerUnpublicationNativeContracts(m,t,d)).rejects.toThrow()
     expect(close).toHaveBeenCalledTimes(2);d.openSession=vi.fn()
     await expect(runTestOwnerUnpublicationNativeContracts(m,Object.freeze({...t,databasePort:54322}),d)).rejects.toThrow()
+    await expect(runTestOwnerUnpublicationNativeContracts(m,Object.freeze({...t,acceptedManifestSha256:'0'.repeat(64)}),d)).rejects.toThrow()
     await expect(runTestOwnerUnpublicationNativeContracts(Object.freeze({...m,sourceSha256:'0'.repeat(64)}),t,d)).rejects.toThrow()
     expect(d.openSession).not.toHaveBeenCalled()
+  })
+  it('reconstructs exact unchanged monolithic bytes from seven closed frames',()=>{
+    const m=plan(),labels=['initialize','success','rejections','limits','provider','acl','contextual']
+    expect(digest(readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8'))).toBe('44916f153c25be7dd45c35416a879da78bdf59628cca18992e39ff1ce8fe4ceb')
+    expect(m.contracts.frames.map(frame=>frame.label)).toEqual(labels)
+    const source=m.contracts.frames.map((frame,index)=>index===6?frame.sql:frame.sql.replace(
+      `\nselect jsonb_build_object('frame','${labels[index]}','transaction',txid_current()::text) as result;`,''))
+    expect(source.join('')).toBe(m.contracts.sql)
+    expect(source[0]).toMatch(/^begin;/)
+    expect(source.slice(1).every(sql=>!/^begin;/.test(sql))).toBe(true)
+    expect(source.slice(0,-1).every(sql=>!sql.trimEnd().endsWith('rollback;'))).toBe(true)
+    expect(source[6]).toMatch(/rollback;$/)
+    expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBeLessThanOrEqual(m.caps.dispatches)
+    expect(m.concurrency.schedules).toHaveLength(14)
+    expect(m.caps).toMatchObject({requestMs:12000,totalMs:180000,dispatches:40,sqlBytes:524288,responseBytes:8388608})
+    expect(Object.isFrozen(m.contracts.frames)).toBe(true)
+    expect(validateTestOwnerUnpublicationNativePlanSql(Object.freeze({...m,contracts:Object.freeze({...m.contracts,frames:[]})}),m.contracts.frames[0].sql)).toBe(false)
+  })
+  it.each(['missing','duplicate','order','outer-order'])('refuses fixed contract boundary %s drift',defect=>{
+    const source=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const marker='\ndo $reject_cases$\n',other='\n-- Additional255/261 parity limits run before the intentional late status fault.\n'
+    const altered=defect==='outer-order'?source.replace('-- owner-unpublication-contracts-begin','__outer_boundary__').replace('-- owner-unpublication-contracts-end','-- owner-unpublication-contracts-begin').replace('__outer_boundary__','-- owner-unpublication-contracts-end')
+      :defect==='missing'?source.replace(marker,'\ndo $changed$\n'):defect==='duplicate'?source.replace(marker,marker+marker)
+      :source.replace(marker,'__fixed_boundary__').replace(other,marker).replace('__fixed_boundary__',other)
+    const mocked=vi.mocked(readFileSync),actual=mocked.getMockImplementation()!
+    mocked.mockImplementation(((path,...args)=>
+      String(path).endsWith('/scripts/check-contextual-test-owner-unpublication.sql')?altered:actual(path,...args)) as typeof readFileSync)
+    try{expect(plan).toThrow()}finally{mocked.mockImplementation(actual)}
+  })
+  it.each(['malformed','order','transaction','throw','final'])('stops at failed contract frame and finally closes: %s',defect=>{
+    const m=plan(),close=vi.fn(async()=>{}),execute=vi.fn(async (sql:string)=>{
+      const index=m.contracts.frames.findIndex(frame=>frame.sql===sql),frame=m.contracts.frames[index]
+      if(index===(defect==='final'?6:2)){if(defect==='throw')throw Error('modeled frame failure')
+        if(defect==='final')return [{result:{checks:[]}}]
+        return [{result:defect==='malformed'?{frame:frame.label}:defect==='order'?{frame:'limits',transaction:'17'}:{frame:frame.label,transaction:'18'}}]}
+      return [{result:{frame:frame.label,transaction:'17'}}]
+    }),d:DraftSaveDriver={verifyTarget:async()=>target(m,'contracts'),openSession:async name=>({name,execute,rollbackAndClose:close})}
+    return expect(runTestOwnerUnpublicationNativeContracts(m,target(m,'contracts'),d)).rejects.toThrow().then(()=>{
+      expect(execute).toHaveBeenCalledTimes(defect==='final'?7:3);expect(close).toHaveBeenCalledTimes(1)
+    })
+  })
+  it('uses one aggregate180s clock instead of renewing time for each frame',async()=>{
+    const m=plan(),t=target(m,'contracts'),close=vi.fn(async()=>{});let now=1000
+    const clock=vi.spyOn(Date,'now').mockImplementation(()=>now),execute=vi.fn(async (sql:string)=>{
+      const frame=m.contracts.frames.find(frame=>frame.sql===sql)!;now+=11000
+      return[{result:{frame:frame.label,transaction:'17'}}]
+    }),d:DraftSaveDriver={verifyTarget:async()=>{now+=20000;return t},openSession:async name=>({name,execute,rollbackAndClose:close})}
+    try{await expect(runTestOwnerUnpublicationNativeContracts(m,t,d)).rejects.toThrow()
+      expect(execute).toHaveBeenCalledTimes(5);expect(close).toHaveBeenCalledTimes(1)
+    }finally{clock.mockRestore()}
   })
   it('validates reached-holder transaction/backend/scope receipts and closes both mock sessions',async()=>{
     const m=plan(),t=target(m,'concurrency'),close=vi.fn(async()=>{})

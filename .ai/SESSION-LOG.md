@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Shared page action menu closing
-
-- Extended PageActionBar More actions with the semantic fast opacity exit, immediate inert/hidden command retirement and focus return, owner/availability invalidation, reopen cancellation and reduced motion.
-- Deferred trigger/menu ID relationships until hydration, following useDropdownNav; retained prior streamed-ID baseline evidence.
-- Recorded the governed UI brief and executable Pattern Lab reference. Focused lifetime/keyboard/SSR tests and both-role native verification cover the narrow static menu owner. Other menu families and broad fluidity completion remain open.
-- Risk: workspace-state presentation lifetime only. No dependencies, backend writes, production promotion or migration application.
-
 ## 2026-10-10 — Owner merged; learner source review and compatibility correction
 
 Owner1555 squashmerged730642666 at12:37UTC after exact552CI38050378092 all8
@@ -674,3 +667,22 @@ exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
 marker. No cap/fixture case/product/migration changes. Counters12completedreviews
 1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
 fresh complete native acceptance remains pending, all holds retained.
+
+## 2026-10-12 — Bounded unpublication proof framing
+
+Reviewed e93 source passes2149 focused tests; private bounded engine diagnostics
+reviewed clean72s. Fresh replay verifies001–261/rollbackACL/genuine438871B types,
+then confirms combined contracts frame12s timeout after setup/privilege restoration.
+Two independently reviewed exact synthetic recoveries preserve global741/canonical
+183tables/2cron/ports/source and original failed evidence; no shared reset/schema,
+production, account, provider or activation operations. One intervening type-artifact
+collision resolved by recoverable archival of its verified prior output.
+Seven closed source-derived frames now preserve every original SQL byte/assertion
+and14schedules in one session/transaction/aggregate180s clock. Intermediate exact
+transaction witnesses; monolithic SQL is reconstruction-only.12s/40dispatch/SQL/
+response caps unchanged.80targeted tests/TypeScript/audit/diff PASS. Native timing,
+independent corrected-source review, fullfocused and eligible CI remain pending.
+PR14completedreviews1615measureds/3resolved/13sourcefixbatches/6draftpushes before
+next review; ancillary cleanup4turns219s/1resolved kept separate. Task-scoped
+routine-approval/review-budget waiver persists without counter resets. Tests phase,
+goal and existing local249+/prod259+/promotion/account/provider/cutover holds remain.

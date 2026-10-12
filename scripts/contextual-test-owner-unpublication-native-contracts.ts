@@ -21,6 +21,17 @@ import { newTestOwnerUnpublicationFixture, testOwnerUnpublicationSetupSql, testO
 const q = (v: string) => `'${v.replaceAll("'", "''")}'`
 const json = (v: unknown) => `${q(JSON.stringify(v))}::jsonb`
 const bounded = (sql: string) => { assert(Buffer.byteLength(sql) <= caps.sqlBytes); return sql }
+// Closed top-level source boundaries only: no SQL parser or caller selectors.
+// Each complete DO body and its surrounding role changes stay byte-identical.
+const contractBoundaries = Object.freeze([
+  '\n-- Invoke the success path as the actual granted role; the definer function\n',
+  '\ndo $reject_cases$\n',
+  '\n-- Additional255/261 parity limits run before the intentional late status fault.\n',
+  '\n-- Pending provider cleanup is only a relational fence; no provider is called.\n',
+  '\n-- service-only-empty-search-path / private-core-service-denial\n',
+  '\n-- mixed-role-current-owner / current-member-former-owner-foreign-creator-denial\n',
+])
+const contractLabels = Object.freeze(['initialize','success','rejections','limits','provider','acl','contextual'] as const)
 const plans = new WeakMap<object, TestOwnerUnpublicationNativePlan>()
 export function testOwnerUnpublicationNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
@@ -60,10 +71,24 @@ then raise exception 'Unpublication261 no-work fixture presence differs';end if;
   const template = readFileSync(resolve(repository, 'scripts/check-contextual-test-owner-unpublication.sql'), 'utf8')
   const marker = '-- owner-unpublication-contracts-begin\n', end = '-- owner-unpublication-contracts-end'
   assert(template.split(marker).length === 2 && template.split(end).length === 2)
+  assert(template.indexOf(marker)<template.indexOf(end),'Unpublication contract source marker order differs')
   let body = template.split(marker)[1].split(end)[0]
   for (const [number, id] of Object.entries(f.rollbackIds)) body = body.replaceAll(`a2610000-0000-4000-8000-${number.padStart(12, '0')}`, id)
   assert(!body.includes('a2610000-'))
-  const contracts = freeze({ checks, sql: bounded(`${begin}\n${body}\nselect jsonb_build_object('checks',${json(checks)}) as result;rollback;`) })
+  const positions = contractBoundaries.map(marker => {
+    assert.equal(body.split(marker).length, 2, 'Unpublication fixed contract boundary differs')
+    return body.indexOf(marker)
+  })
+  assert(positions.every((position,index) => position > (index === 0 ? 0 : positions[index-1])), 'Unpublication contract boundary order differs')
+  const contractTerminal = `\nselect jsonb_build_object('checks',${json(checks)}) as result;rollback;`
+  const sourceSlices = [0,...positions].map((position,index) =>
+    `${index === 0 ? begin+'\n' : ''}${body.slice(position,positions[index] ?? body.length)}${index === contractLabels.length-1 ? contractTerminal : ''}`)
+  const frames = sourceSlices.map((sourceSql,index) => ({ label:contractLabels[index],sql:bounded(sourceSql+(index === contractLabels.length-1 ? ''
+    : `\nselect jsonb_build_object('frame',${q(contractLabels[index])},'transaction',txid_current()::text) as result;`)) }))
+  assert.equal(frames.length,contractLabels.length)
+  // The monolith is a reconstruction oracle only, never an executable frame.
+  const contracts = freeze({ checks,sql:bounded(`${begin}\n${body}${contractTerminal}`),frames })
+  assert.equal(sourceSlices.join(''),contracts.sql)
   const classes = f.classes.map(c => q(c.id)).join(','), tests = f.tests.map(t => q(t.id)).join(',')
   const tables = [
     ['public.users', `id in (${f.actors.map(a=>q(a.id)).join(',')})`], ['public.classrooms', `id in (${classes})`],
@@ -107,6 +132,7 @@ then raise exception 'Unpublication261 no-work fixture presence differs';end if;
     schedule('unpublish-before-work-access',`do $write$ begin perform ${call};end;$write$;`,'public.tests',`public.start_test_attempt_revision_atomic(${tid},${member})`,testKey,'55P03'),
     schedule('unpublish-before-ai-create',`do $write$ begin perform ${call};end;$write$;`,'public.tests',aiCreate,testKey,'55P03'),
   ] })
+  assert(frames.length+2*concurrency.schedules.length<=caps.dispatches)
   const plan = freeze({ version:1,reviewedHead,projectId,fixture:f,migrations,migrationManifestSha256,sourceSha256,guard,setup,preparation,snapshot,contracts,concurrency,caps,nativeVerified:false as const,
     limitations:['Source/mock evidence is not native acceptance.','Committed SDK freshness, cancellation and generated types require independent exact-bound native evidence.'] })
   plans.set(plan.contracts,plan);return plan
@@ -114,7 +140,7 @@ then raise exception 'Unpublication261 no-work fixture presence differs';end if;
 export type TestOwnerUnpublicationNativePlan = ReturnType<typeof testOwnerUnpublicationNativePlan>
 function sourcePlan(m:TestOwnerUnpublicationNativePlan) { const p=plans.get(m.contracts);return p!==undefined&&Object.isFrozen(m)&&Object.keys(p).every(key=>m[key as keyof typeof m]===p[key as keyof typeof p]) }
 export function validateTestOwnerUnpublicationNativePlanSql(m:TestOwnerUnpublicationNativePlan,sql:string) {
-  return sourcePlan(m)&&Buffer.byteLength(sql)<=caps.sqlBytes&&[m.setup,m.snapshot,m.contracts.sql,...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])].includes(sql)
+  return sourcePlan(m)&&Buffer.byteLength(sql)<=caps.sqlBytes&&[m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])].includes(sql)
 }
 function target(m:TestOwnerUnpublicationNativePlan,t:DraftSaveTarget,phase:'contracts'|'concurrency') {
   assert(sourcePlan(m));assert.equal(m.sourceSha256,TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.sha256);assert(Object.isFrozen(t))
@@ -133,7 +159,21 @@ function driverRun(m:TestOwnerUnpublicationNativePlan,t:DraftSaveTarget,d:DraftS
 }
 export async function runTestOwnerUnpublicationNativeContracts(m:TestOwnerUnpublicationNativePlan,t:DraftSaveTarget,d:DraftSaveDriver) {
   target(m,t,'contracts');const r=driverRun(m,t,d);await r.verify();const name=`${m.projectId}_draft_contracts`,session=await d.openSession(name)
-  try {assert.equal(session.name,name);assert.deepEqual(await r.execute(session,m.contracts.sql),{checks:m.contracts.checks});return freeze({checks:m.contracts.checks,nativeVerified:false as const})}
+  try {assert.equal(session.name,name);let transaction:string|undefined
+    // One session, one transaction, one driver/180s clock for all seven frames.
+    // Failure stops the loop; the original owned-session closure still runs.
+    for(const [index,frame] of m.contracts.frames.entries()) {
+      const raw=await r.execute(session,frame.sql)
+      if(index === m.contracts.frames.length-1) assert.deepEqual(raw,{checks:m.contracts.checks})
+      else {
+        assert(raw&&typeof raw==='object'&&!Array.isArray(raw));const row=raw as Record<string,unknown>
+        assert.deepEqual(Object.keys(row).sort(),['frame','transaction']);assert.equal(row.frame,frame.label)
+        assert(typeof row.transaction==='string'&&/^[1-9][0-9]{0,19}$/.test(row.transaction))
+        if(transaction === undefined) transaction=row.transaction
+        else assert.equal(row.transaction,transaction,'Unpublication contract transaction differs')
+      }
+    }
+    return freeze({checks:m.contracts.checks,nativeVerified:false as const})}
   finally {await session.rollbackAndClose(caps.closeMs)}
 }
 export async function runTestOwnerUnpublicationNativeRaces(m:TestOwnerUnpublicationNativePlan,t:DraftSaveTarget,d:DraftSaveDriver) {

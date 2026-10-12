@@ -59,6 +59,13 @@ the existing finite engine, not a new verification framework. Each predecessor
 profile must recognize only the exact sealed261 successor and still refuse
 unknown, incomplete or altered migration inventories.
 
+The populated native rollback proof uses seven fixed source-derived frames in
+one persistent session and transaction. Every original SQL assertion remains;
+only tiny intermediate transaction acknowledgments separate the frames. The
+original combined SQL remains a reconstruction oracle, not an executable
+capability. Keep the12s request,180s aggregate,40-dispatch and full-graph bounds;
+framing alone is not evidence that any individual check meets its time limit.
+
 Independent security and compatibility review, focused checks and final
 reviewed-head CI/PR Gate precede protected-main merge. This document grants
 no database execution or activation authority. Shared local249+, production259+,
