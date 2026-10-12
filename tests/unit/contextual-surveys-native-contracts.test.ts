@@ -21,7 +21,8 @@ import { newAssignmentListProofFixture } from '../../scripts/contextual-assignme
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { surveyNativePlan, validateSurveyNativeMigrationProfile, validateSurveyNativeSql,
   bindSurveyNativeLifecycleWorkload, validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload,
-  runSurveyNativeRollbackRaces, runSurveyNativeRollbackContracts } from '../../scripts/contextual-surveys-native-contracts'
+  runSurveyNativeRollbackRaces, runSurveyNativeRollbackContracts, validateSurveyGeneratedTypes,
+  SURVEY_RPC_ARGUMENTS } from '../../scripts/contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 
@@ -122,7 +123,7 @@ describe('source-only sealed Survey263 native reuse', () => {
     const m = buildSurveyNativeContractsManifest(original, head, repository)
     const engine = createContextualSurveysNativeContracts({ original, repository, reviewedHead: head,
       capturedResources: [], containerId: 'a'.repeat(64), acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000 })
-    expect(Object.keys(engine).sort()).toEqual(['diagnostic', 'manifest', 'nativeVerified', 'run', 'runSdkCommitted', 'setup', 'verifyTarget'])
+    expect(Object.keys(engine).sort()).toEqual(['diagnostic', 'generateTypes263', 'manifest', 'nativeVerified', 'run', 'runSdkCommitted', 'setup', 'verifyTarget'])
     expect(m.capabilities.sessions).toBe(2); expect(m.capabilities.actions).toBe(200)
     expect(m.capabilities.totalMs).toBe(900000)
     expect(engine.nativeVerified).toBe(false)
@@ -146,7 +147,22 @@ describe('source-only sealed Survey263 native reuse', () => {
     const input = { original, repository, reviewedHead: head, capturedResources: [], containerId: 'a'.repeat(64),
       acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000, statusTarget }
     await expect(createContextualSurveysNativeContracts(input).runSdkCommitted()).rejects.toThrow()
+    await expect(createContextualSurveysNativeContracts(input).generateTypes263()).rejects.toThrow()
     expect(() => createContextualSurveysNativeContracts({ ...input, statusTarget: { ...statusTarget, API_URL: 'https://example.invalid' } })).toThrow()
+  })
+  it('checks all12 generated RPC Args/Json contracts without accepting hash, optional or substituted type drift', () => {
+    const jsonNames = new Set(['p_patch', 'p_question', 'p_expected_question', 'p_expected_questions', 'p_responses'])
+    const source = `type Json = string | null; export type Database = { public: { Functions: {${
+      Object.entries(SURVEY_RPC_ARGUMENTS).map(([name, args]) => `${name}: { Args: { ${args.map(arg =>
+        `${arg}: ${jsonNames.has(arg) ? 'Json' : 'string'}`).join(';')} }; Returns: Json }`).join(';')
+    }} } }`
+    const sha = (value: string) => createHash('sha256').update(value).digest('hex')
+    expect(validateSurveyGeneratedTypes(source, sha(source))).toBe(true)
+    expect(() => validateSurveyGeneratedTypes(source, 'a'.repeat(64))).toThrow()
+    for (const changed of [source.replace('get_surveys_for_owner_v1', 'unknown_owner_rpc'),
+      source.replace('p_actor_id: string', 'p_actor_id?: string'), source.replace('p_actor_id: string', 'p_actor_id: number'),
+      source.replace('p_patch: Json', 'p_patch: string'), source.replace('Returns: Json', 'Returns: string')])
+      expect(() => validateSurveyGeneratedTypes(changed, sha(changed))).toThrow()
   })
   it('does not claim closure success when either independent session close rejects', async () => {
     const m = plan(), target = targetFor(m, 'concurrency'), closed: string[] = []
@@ -164,7 +180,7 @@ describe('source-only sealed Survey263 native reuse', () => {
     await expect(runSurveyNativeRollbackContracts(m, target, driver)).rejects.toThrow()
     expect(close).toHaveBeenCalledOnce()
   })
-  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
+  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure', 'types-failure', 'cleanup-failure'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
     const m = plan(), projectId = m.projectId, workdir = assignmentListProofWorkdir(projectId)
     const migrations = loadAssignmentListReviewedMigrations(repository)
     const expected = assignmentListExpectedResources(projectId)
@@ -199,12 +215,21 @@ describe('source-only sealed Survey263 native reuse', () => {
       metadataUnchanged: true, cronUnchanged: true, nativeVerified: false as const,
       manifestSha256: '', controls: 0, actions: 0, exchangeBytes: 0, remainingSessions: 0,
     }))
+    const generatedReceipt = { path: 'offline-only.ts', sha256: 'a'.repeat(64), bytes: 0,
+      reviewedHead: head, migrationManifestSha256: m.migrationManifestSha256, configSha256: 'a'.repeat(64),
+      kind: 'genuine-survey263-types' as const, validatedRpcContracts: 12, nativeVerified: false as const,
+    }
+    const generateTypes263 = vi.fn(async () => {
+      if (mode === 'types-failure') throw new Error('Offline type generation failure')
+      return generatedReceipt
+    })
     const factory = nativeEngine.createContextualSurveysNativeContracts
     const mock = vi.spyOn(nativeEngine, 'createContextualSurveysNativeContracts').mockImplementation(input => ({
-      ...factory(input), setup, run, runSdkCommitted,
+      ...factory(input), setup, run, runSdkCommitted, generateTypes263,
     }))
     const adapters: AssignmentListLifecycleAdapters = {
-      canonicalSnapshot: vi.fn(async () => canonical),
+      canonicalSnapshot: vi.fn(async () => mode === 'cleanup-failure' && started === false && prepared === false
+        && setup.mock.calls.length > 0 ? { ...canonical, rowDigests: 'different' } : canonical),
       inventory: vi.fn(async () => ({ resources: started ? resources : [], occupiedPorts: started ? [54331, 54332] : [], workdirExists: prepared })),
       prepare: vi.fn(async p => { prepared = true; return { workdir, realpath: workdir, created: true,
         configSha256: createHash('sha256').update(p.config).digest('hex'), migrations: migrations.map(({ name, sha256 }) => ({ name, sha256 })), envFiles: [], symlinks: [] } }),
@@ -218,12 +243,16 @@ describe('source-only sealed Survey263 native reuse', () => {
       absoluteDeadline: Date.now() + 60000, rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true })
     try {
       const operation = runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir, migrations,
-        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' ? 'normal' : mode,
+        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' ? 'normal' : mode,
         expectedResources: expected, restorationPolicies: [], surveyWorkload: workload }, adapters)
-      if (mode === 'normal') await expect(operation).resolves.toMatchObject({ cases: 0, revocations: 0, nativeVerified: false, surveyProofScope: 'rollback-and-sdk-terminal' })
+      if (mode === 'normal') await expect(operation).resolves.toMatchObject({ cases: 0, revocations: 0, nativeVerified: false,
+        surveyProofScope: 'rollback-and-sdk-terminal', surveyTypes: generatedReceipt })
+      else if (mode === 'cleanup-failure') await expect(operation).rejects.toMatchObject({ cleanupFailures: [{ stage: 'canonical-after' }] })
       else await expect(operation).rejects.toMatchObject({ cleanupFailures: [] })
       expect(setup).toHaveBeenCalledOnce()
-      expect(runSdkCommitted).toHaveBeenCalledTimes(mode === 'normal' ? 1 : 0)
+      const reachesTypes = ['normal', 'types-failure', 'cleanup-failure'].includes(mode)
+      expect(runSdkCommitted).toHaveBeenCalledTimes(reachesTypes ? 1 : 0)
+      expect(generateTypes263).toHaveBeenCalledTimes(reachesTypes ? 1 : 0)
       expect(adapters.executeSql).not.toHaveBeenCalled(); expect(adapters.runCase).not.toHaveBeenCalled(); expect(adapters.runRevocation).not.toHaveBeenCalled()
       expect(adapters.teardown).toHaveBeenCalledWith(expect.objectContaining({ resources, projectId }))
       expect(adapters.removeWorkdir).toHaveBeenCalledOnce(); expect(adapters.canonicalSnapshot).toHaveBeenCalledTimes(2)

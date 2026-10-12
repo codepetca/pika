@@ -202,6 +202,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   const canonicalRequest = { projectId: 'pika' as const, dbPort: 54322 as const, applicationName: `${identity.projectId}_canonical_readonly`, readOnly: true as const }
   let baseline: Canonical | undefined; let before: Inventory | undefined; let target: Target | undefined
   let prepared: Awaited<ReturnType<AssignmentListLifecycleAdapters['prepare']>> | undefined
+  let surveyTypes: Awaited<ReturnType<ReturnType<typeof createContextualSurveysNativeContracts>['generateTypes263']>> | undefined
   let prepareAttempted = false; let startAttempted = false; let stage = 'canonical-before'; let primary: Failure | undefined
   let currentRevocation: AssignmentListRevocationPlan | undefined
   const cleanupFailures: Failure[] = []; const captured = new Map<string, AssignmentListResource>()
@@ -283,6 +284,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
       stage = 'survey-rollback'; checkWork(); await native.run(); checkWork()
       stage = 'survey-sdk-terminal'; checkWork(); await native.runSdkCommitted(); checkWork()
+      stage = 'survey-types'; checkWork(); surveyTypes = await native.generateTypes263(); checkWork()
     } else {
     stage = 'fixture'; checkWork(); await executeSql(assignmentListFixtureSetupSql(fixture, identity.projectId))
     if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
@@ -341,5 +343,5 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   }
   if (primary || cleanupFailures.length) throw new AssignmentListLifecycleError(primary, cleanupFailures)
   return { projectId: identity.projectId, mode: input.mode, cases: surveyPlan ? 0 : manifest.cases.length, revocations: revocations.length,
-    ...(surveyPlan ? { surveyProofScope: 'rollback-and-sdk-terminal' as const, nativeVerified: false as const } : {}) }
+    ...(surveyPlan ? { surveyProofScope: 'rollback-and-sdk-terminal' as const, nativeVerified: false as const, surveyTypes } : {}) }
 }

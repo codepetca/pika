@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Split menu closing consistency
-
-Extended SplitButton with an opt-in semantic fast opacity exit for primitive labels without caller icons; replaced live controls with an inert owner-rendered projection immediately on dismissal. Material creation is the first production adopter, with preview, disabled and unmount boundaries. The existing teacher/student UiConsistency Pattern Lab menu exercises the shared contract without changing closed layout. Preserved immediate rich-menu fallback and WorkSurface latest-hover callback rollover. Committed lifetime guards cancel stale commands, Tab/focus work and expiry across reopening, availability, owner replacement and unmount. No persistence, permission, dependency, schema or production changes.
-
-Sol6.1/medium bounded lifetime audit and implementation accepted after coordinator source inspection; audit measured141.5 seconds, implementation recorded243-second interval excluding orientation, two coordinator corrections: hover rollover and keyboard-selection focus. Effective models/tokens and coordinator active time unknown; weekly24% remaining was account-wide at start, DeepSeek pause honored. Focused owner tests66/66 and gallery32/32 pass; four unchanged desktop/mobile/theme Pattern Lab contract goldens pass. Both-role normal/reduced native matrix, canonical focused gates and exact-head independent draft review/CI remain publication requirements. Initial independent full review211 seconds accepted two P2 fixes in one batch: preserve Shift-Tab close through hover-driven inline options updates, and advance committed generation for empty/all-disabled states after selection. Three failing regressions plus primary-action availability compatibility now pass; synthetic late-rAF delivery is a generation-fence check, not a reproduced browser race. Broad fluidity goal and held work remain open.
-
 ## 2026-10-11 — Whole learner native acceptance and genuine type installation
 
 Sixth separately approved one-shot rehearsal at46ceb93c9/base4f352b74b ran
@@ -653,3 +647,16 @@ Next source-only repair lane prepares bounded noDB protocol experiment rather th
 another blind full rehearsal. Original12:08 clock/counts22initial1target19fix18
 retained; effective/active/tokens unknown. Weekly64% remaining accountwide; actual
 322GB healthy, no cleanup. Private root handoff holds detailed ownership/receipts.
+
+## 2026-10-12 Survey genuine-type lifecycle preparation
+
+Added one guarded Survey263 genuine-generator phase after successful finite SDK
+verification, sharing the original target guard, deadline and control counters.
+The twelve exact RPC AST contracts reject altered arguments/returns; the private
+type receipt is returned only after canonical/global/source preservation and
+cleanup succeed. Offline tests cover generator failure and post-generation
+cleanup rejection. Genuine artifact and remaining native contracts are pending;
+no hand-written public database types, source PR, migration or live activation.
+The noDB browser experiment spent its sole attempt before any HTTP request;
+browser cleanup remains unverified while exact ownership recovery is prepared.
+Routine-approval waiver retained; serious holds and cumulative review counts stay.

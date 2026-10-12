@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import ts from 'typescript'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { loadAssignmentListReviewedMigrations, assignmentListSnapshotSql } from './contextual-assignment-list-proof-platform'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
@@ -22,6 +23,57 @@ export const SURVEY_NATIVE_SOURCES = freeze({
 export const SURVEY_NATIVE_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   schedules: 30, sessions: 2, actionMs: 35000, closeMs: 12000, sdkRequests: 16, sdkMs: 20000 })
 const digest = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
+export const SURVEY_RPC_ARGUMENTS = freeze({
+  get_surveys_for_owner_v1: ['p_actor_id', 'p_classroom_id'],
+  get_surveys_for_member_v1: ['p_actor_id', 'p_classroom_id'],
+  get_survey_for_owner_v1: ['p_actor_id', 'p_survey_id'],
+  get_survey_for_member_v1: ['p_actor_id', 'p_survey_id'],
+  get_survey_results_for_owner_v1: ['p_actor_id', 'p_survey_id'],
+  get_survey_results_for_member_v1: ['p_actor_id', 'p_survey_id'],
+  delete_survey_for_owner_v1: ['p_actor_id', 'p_survey_id'],
+  update_survey_for_owner_v1: ['p_actor_id', 'p_survey_id', 'p_patch'],
+  create_survey_question_for_owner_v1: ['p_actor_id', 'p_survey_id', 'p_question'],
+  update_survey_question_for_owner_v1: ['p_actor_id', 'p_survey_id', 'p_question_id', 'p_expected_question', 'p_question'],
+  delete_survey_question_for_owner_v1: ['p_actor_id', 'p_survey_id', 'p_question_id'],
+  respond_to_survey_for_member_v1: ['p_actor_id', 'p_survey_id', 'p_classroom_id', 'p_expected_questions', 'p_responses'],
+})
+/** Same AST contract checks used by the existing owner publication verifier.
+ * Structure alone is not provenance: the guarded genuine generator owns it. */
+export function validateSurveyGeneratedTypes(source: string, expectedSha256: string) {
+  assert(Buffer.byteLength(source) <= SURVEY_NATIVE_CAPS.responseBytes)
+  assert.equal(digest(source), expectedSha256)
+  const syntax = ts.transpileModule(source, { reportDiagnostics: true,
+    compilerOptions: { target: ts.ScriptTarget.Latest, module: ts.ModuleKind.ESNext } })
+  assert(!syntax.diagnostics?.some(d => d.category === ts.DiagnosticCategory.Error))
+  const tree = ts.createSourceFile('generated.ts', source, ts.ScriptTarget.Latest, true)
+  const declarations = tree.statements.filter(ts.isTypeAliasDeclaration).filter(n => n.name.text === 'Database')
+  assert.equal(declarations.length, 1)
+  assert(declarations[0].modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword))
+  const field = (node: ts.TypeNode, name: string): ts.TypeNode => {
+    assert(ts.isTypeLiteralNode(node))
+    const found = node.members.filter(ts.isPropertySignature).filter(m => m.name.getText(tree) === name)
+    assert.equal(found.length, 1); assert(!found[0].questionToken && found[0].type)
+    return found[0].type
+  }
+  const functions = field(field(declarations[0].type, 'public'), 'Functions')
+  const jsonFields = new Set(['p_patch', 'p_question', 'p_expected_question', 'p_expected_questions', 'p_responses'])
+  for (const [name, expected] of Object.entries(SURVEY_RPC_ARGUMENTS)) {
+    const contract = field(functions, name)
+    assert(ts.isTypeLiteralNode(contract))
+    assert.deepEqual(contract.members.map(m => m.name?.getText(tree)).sort(), ['Args', 'Returns'])
+    const args = field(contract, 'Args'); assert(ts.isTypeLiteralNode(args))
+    assert.deepEqual(args.members.map(m => m.name?.getText(tree)).sort(), [...expected].sort())
+    for (const arg of args.members) {
+      assert(ts.isPropertySignature(arg) && !arg.questionToken && arg.type)
+      if (jsonFields.has(arg.name.getText(tree))) assert(ts.isTypeReferenceNode(arg.type)
+        && arg.type.typeName.getText(tree) === 'Json' && !arg.type.typeArguments)
+      else assert.equal(arg.type.kind, ts.SyntaxKind.StringKeyword)
+    }
+    const returns = field(contract, 'Returns')
+    assert(ts.isTypeReferenceNode(returns) && returns.typeName.getText(tree) === 'Json' && !returns.typeArguments)
+  }
+  return true
+}
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
 function freeze<T>(value: T): T {
   if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) }

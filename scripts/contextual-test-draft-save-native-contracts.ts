@@ -49,11 +49,12 @@ import { testOwnerUnpublicationNativePlan, validateTestOwnerUnpublicationNativeP
 import { testOwnerDeletionNativePlan, validateTestOwnerDeletionNativePlanSql, runTestOwnerDeletionNativeContracts,
   runTestOwnerDeletionNativeRaces } from './contextual-test-owner-deletion-native-contracts'
 import { surveyNativePlan, validateSurveyNativeSql, runSurveyNativeRollbackContracts,
-  runSurveyNativeRollbackRaces, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
+  runSurveyNativeRollbackRaces, validateSurveyGeneratedTypes, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
 import { decodeAssignmentListSnapshot } from './contextual-assignment-list-proof-platform'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
+import { generateTestDraftSaveTypes, testDraftSaveTypeGenerationPlan } from './generate-contextual-test-draft-save-types'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -593,6 +594,9 @@ export function createContextualSurveysNativeContracts(input: NativeOwnerInput &
     async runSdkCommitted() {
       assert(engine.runSurveySdkCommitted, 'Survey SDK private status binding is absent')
       return engine.runSurveySdkCommitted()
+    }, async generateTypes263() {
+      assert(engine.generateSurveyTypes, 'Survey types private status binding is absent')
+      return engine.generateSurveyTypes()
     }, nativeVerified: false as const })
 }
 
@@ -881,7 +885,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
   let learnerCancellationDone = false
-  let surveySdkRan = false
+  let surveySdkRan = false, surveySdkDone = false, surveyTypesGenerated = false
   type CancellationStage = 'none' | 'snapshot' | 'catalog' | 'install' | 'installed' | 'guard' | 'probe' | 'receipt' | 'timing' | 'restore' | 'restored-catalog' | 'restored-fixture' | 'complete'
   let cancellationStage: CancellationStage = 'none'
   let cancellationFirstFailure: CancellationStage | undefined
@@ -926,7 +930,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     return ['--host', endpoint.host, 'exec', '-i', '-e', `PGAPPNAME=${name}`, input.containerId, 'psql', '-U', 'postgres', '-d', 'postgres',
       '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', profile.reorderDiagnosticSql && role(name) === 'contracts' ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate', ...variables]
   }
-  function command(file: 'git' | 'docker', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
+  function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
     assert(++controls <= CAPS.controlCalls)
     if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
     return new Promise((resolveResult, reject) => {
@@ -1236,10 +1240,37 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         assert.equal(after.metadata, before.metadata); assert.equal(after.cron, before.cron)
         const effects = verifySurveySdkTerminalEffects(profile.surveySdk!.fixture, before.tables, after.tables,
           { startedAt, endedAt })
+        surveySdkDone = true
         phase = 'complete'
         return freeze({ kind: 'survey-sdk-terminal-only' as const, sdk, effects, metadataUnchanged: true,
           cronUnchanged: true, nativeVerified: false as const, manifestSha256: input.acceptedManifestSha256,
           controls, actions, exchangeBytes: exchanged, remainingSessions: sessions.size })
+      } catch (error) { record('unknown'); throw error }
+    }, async generateSurveyTypes() {
+      phase = 'transitions'
+      try {
+        assert.equal(profile.label, 'survey263')
+        assert(surveySdkDone && !surveyTypesGenerated && !probing && sessions.size === 0)
+        surveyTypesGenerated = true; check()
+        const plan = testDraftSaveTypeGenerationPlan(input.repository, input.reviewedHead, project)
+        const receipt = await generateTestDraftSaveTypes({ repository: input.repository, reviewedHead: input.reviewedHead,
+          projectId: project, guard: async () => { check(); await guard(); check() } }, async (file, args) => {
+          check()
+          if (file === 'git') {
+            assert(args[0] === '-C' && args[1] === input.repository)
+            assert(['rev-parse HEAD', 'status --porcelain --untracked-files=all'].includes(args.slice(2).join(' ')))
+            return command('git', [...args])
+          }
+          assert.equal(file, 'supabase'); assert.deepEqual(args, plan.args)
+          return command('supabase', [...args], undefined, Math.max(1, Math.min(60000,
+            (profile.absoluteDeadline ?? start + CAPS.totalMs) - Date.now())))
+        })
+        const source = readFileSync(receipt.path, 'utf8')
+        assert.equal(Buffer.byteLength(source), receipt.bytes)
+        validateSurveyGeneratedTypes(source, receipt.sha256); check()
+        phase = 'complete'
+        return freeze({ ...receipt, kind: 'genuine-survey263-types' as const, validatedRpcContracts: 12,
+          nativeVerified: false as const })
       } catch (error) { record('unknown'); throw error }
     } } : {}),
     async verifyTarget() {
