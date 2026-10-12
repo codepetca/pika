@@ -10,11 +10,21 @@ import {
 import { surveyResponseSchema } from '@/lib/validations/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { SurveyQuestion } from '@/types'
+import { authorizeSharedSurveyActor, readContextualSurveyDetail, respondToContextualSurvey } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const POST = withErrorHandler('PostStudentSurveyRespond', async (request, context) => {
+  const shared = await authorizeSharedSurveyActor()
+  if (shared.mode === 'shared') {
+    const { id: surveyId } = await context.params
+    const detail = await readContextualSurveyDetail({ actorId: shared.user.id, surveyId, permission: 'member' })
+    const { responses } = surveyResponseSchema.parse(await request.json())
+    const result = await respondToContextualSurvey({ actorId: shared.user.id, surveyId,
+      detail: { survey: detail.survey, questions: detail.questions as SurveyQuestion[] }, responses })
+    return NextResponse.json(result, { status: result.updated ? 200 : 201 })
+  }
   const user = await requireRole('student')
   const { id: surveyId } = await context.params
   const access = await assertStudentCanAccessSurvey(user.id, surveyId)

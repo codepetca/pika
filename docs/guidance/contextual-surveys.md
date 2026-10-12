@@ -1,0 +1,124 @@
+# Contextual Survey workflow — dormant source preparation
+
+Prepared against main `22efa4826300d5895b3549d7b74dd0ff4262e4a5` in
+`codex/contextual-surveys-workflow`. This is one owner/member Survey workflow
+group in batch 2. Tests app acceptance, Survey native/app acceptance, genuine
+generated types, independent review and protected-main CI remain required.
+No admission, migration, provider, billing or product navigation activation is
+authorized by this source receipt.
+
+The existing teacher/student Survey URLs and legacy branches remain. The shared
+experience admission contract is the sole cohort selector. Admitted users use
+current Classroom ownership or current nonowner membership, independent of
+their global role. Owners take precedence over historical self-enrollment.
+Current `surveys.created_by` is an immutable author field, not permission.
+Existing Survey creation still uses migration 193's mixed-classwork allocator.
+
+Migration `263_contextual_surveys_workflow.sql` adds explicit service-role-only
+read/write RPCs. Their private context helper acquires the existing Classroom
+operation and subject/pair fences, denies existing purge fences and archive
+maintenance, locks Classroom→archive revision→Survey with NOWAIT row locks,
+and rereads the fixed parent before acting. Existing legacy BEFORE `car_*`
+triggers update the same archive revision row before Survey/question/response
+changes, so the read snapshots and aggregates fence direct legacy writers too.
+The revision is locked, never manually bumped. Existing archive and Blueprint
+revision triggers remain authoritative. Row lock inversions fail retryably;
+native two-direction race proof is still required before accepting this design.
+
+Owner reads retain archived Classroom inspection. Owner mutations and all member
+operations deny archived Classrooms. Member detail denies drafts; it retains
+answered history and closed results access. Member results remain visible before
+responding when configured and open, and strip classmate IDs/name/email while
+retaining response IDs, text and timestamps. Contextual current-roster stats
+exclude the owner and include nonowner members of either global role. Legacy
+current-roster stats are unchanged. Contextual member list excludes drafts even
+if an inconsistent historical response exists; the legacy list is unchanged.
+
+Publication keeps draft→active, active→closed/draft, closed→active, first-question
+requirement and prohibition on returning an opened Survey to draft. Same-status
+PATCH remains invalid. Opening/reopening uses supplied date or now; explicit
+null during opening means now; draft clears `opens_at`. Owner question editing
+after opening remains allowed. No Test-style draft lock was introduced.
+
+Canonical JavaScript question/answer validators remain the normalization
+authority. Partial question PATCH and response submission capture the complete
+atomic question snapshot and pass it to the write transaction; changed question
+type, choices, text, limit, order or identity rejects the write instead of
+reinterpreting old normalized input. SQL independently checks answer coverage,
+discriminants, option range and UTF-16 text length. It reuses the existing private
+scalar trim/UTF-16 helpers from migration 234. SQL HTTP(S) URL syntax is a
+supplemental check, not a reproduction of WHATWG URL normalization. The route's
+existing `normalizeSurveyUrl` remains authoritative. New service RPCs are never
+browser-callable. Static duplicate responses stay 400; first response stays 201;
+dynamic update stays 200 and preserves original submitted timestamps for existing
+rows. The boundary rejects zero-question submission and rolls back incomplete
+or changed final response vectors.
+
+Each public RPC has empty search path, explicit PUBLIC/anon/authenticated revoke,
+service_role-only execute, 1-second lock timeout and 8-second statement timeout.
+PostgREST must hoist `statement_timeout` before its statement (its normal setting);
+direct native SQL callers must set a timeout before SELECT. Collections are
+limited to 10,000 and read JSON to 8 MiB; owner patches/questions are at most
+4 MiB and response/expected snapshots at most 8 MiB, failing closed without truncation. Native
+acceptance must check actual timeout cancellation and payload limits.
+
+## Genuine type integration
+
+All public functions return PostgreSQL `jsonb` (`Json` in genuine generated
+metadata). The owning coordinator regenerates `src/types/database.generated.ts`
+from the cumulative disposable schema after freeze. No hand-authored central
+function entries or unknown-RPC cast are used. The source currently cannot pass
+the whole-project typecheck until that generated contract contains:
+
+| RPC | Args |
+| --- | --- |
+| `get_surveys_for_owner_v1`, `get_surveys_for_member_v1` | `p_actor_id: uuid`, `p_classroom_id: uuid` |
+| `get_survey_for_owner_v1`, `get_survey_for_member_v1`, `get_survey_results_for_owner_v1`, `get_survey_results_for_member_v1`, `delete_survey_for_owner_v1` | `p_actor_id: uuid`, `p_survey_id: uuid` |
+| `update_survey_for_owner_v1` | actor, Survey, `p_patch: jsonb` |
+| `create_survey_question_for_owner_v1` | actor, Survey, `p_question: jsonb` |
+| `update_survey_question_for_owner_v1` | actor, Survey, `p_question_id: uuid`, `p_expected_question: jsonb`, `p_question: jsonb` |
+| `delete_survey_question_for_owner_v1` | actor, Survey, `p_question_id: uuid` |
+| `respond_to_survey_for_member_v1` | actor, Survey, `p_classroom_id: uuid`, `p_expected_questions: jsonb`, `p_responses: jsonb` |
+
+The TS server adapter indexes each name/Args in the central `Database` contract
+and independently decodes runtime output. Missing functions return 503 in the
+admitted path; they never cause legacy fallback. No new composer refinement is
+necessary for `Json` results unless genuine metadata requires a nullable-input
+refinement. SQL internal functions also appear in private schema metadata only
+if generated scope includes private; public function arguments contain no new
+composite input type.
+
+## Native evidence prepared, not executed
+
+`scripts/contextual-surveys-db-contracts.sql` is a rollback-only cumulative-schema
+contract with synthetic mixed-role identities, actual catalog ACL checks,
+owner precedence, foreign parents/questions, publication/time/status, complete
+static/dynamic responses, UTF-16 overflow rollback, stale authoring snapshots,
+privacy, removal/archive/purge-fenced reads, cascade deletion and revision effects.
+Root runs it only in the separately authorized disposable acceptance target.
+
+`scripts/contextual-surveys-sdk-contracts.ts` is inert on import and accepts the
+root's existing guarded disposable real SDK client. Its fixed active single-text
+question fixture exercises all twelve new public RPC names with a 16-request,
+20-second ceiling and verifies decoded owner/member payloads. Root owns target
+binding, fixture capture, restoration and preservation snapshots; the companion
+does not load environment credentials, create accounts or choose a target.
+
+`scripts/contextual-surveys-concurrency-cases.ts` supplies fifteen inert SQL race
+cases to the existing independent-connection driver. Capture the actual member
+detail's questions and canonical answers before semantic-change cases. Each case
+starts from restored synthetic source state. Run both lock directions and prove
+blocking/retryable outcomes, correct subsequent read/write, complete vector or
+rollback, unchanged timestamps and unrelated source preservation. The cases
+cover direct legacy child writes, owner replacement/archive/removal, subject and
+Classroom purge locks, question reparent/text/type/choice/limit changes, closure,
+static duplicate and dynamic replacement. The root's driver must observe actual
+lock states rather than rely on a sleep. The rollback contract separately checks
+committed active purge fences.
+
+Focused source checks cover legacy Survey suites, contextual helper/route suites
+and unchanged classwork creation. Native proofs, genuine generated types,
+independent cumulative review, final-SHA CI/PR Gate and reachable existing-screen
+mixed-role rehearsal are outstanding. UI changes require the Pika UI skills and
+visual matrix; this source group changes no UI. Root owns roadmap, continuity,
+shared types, package/classifier/CI integration and publication.
