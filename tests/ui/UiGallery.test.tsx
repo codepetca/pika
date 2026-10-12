@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
+import { CalendarMockup } from '@/app/__ui/PageMockups'
+import { StudentPageMockup } from '@/app/__ui/StudentPageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
@@ -30,6 +32,33 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('StudentPageMockups Calendar keeps agenda lessons read-only and day presentation available', () => {
+    const { container } = render(<ThemeProvider><TooltipProvider>
+      <StudentPageMockup page="calendar" onPrototypeAction={vi.fn()} />
+    </TooltipProvider></ThemeProvider>)
+    const calendar = within(container)
+    const agenda = calendar.getByRole('region', { name: 'Week agenda' })
+    expect(within(agenda).getAllByRole('article')).toHaveLength(7)
+    expect(calendar.queryByRole('button', { name: /Edit lesson|Add lesson/ })).not.toBeInTheDocument()
+    fireEvent.click(calendar.getByRole('button', { name: 'Open Monday, September 14, 2026' }))
+    expect(screen.getByRole('dialog', { name: 'Mon Sep 14, 2026' })).toBeInTheDocument()
+  })
+
+  it('PageMockups Calendar demonstrates teacher agenda actions and preserves Month and Term grids', () => {
+    const { container } = render(<ThemeProvider><TooltipProvider>
+      <CalendarMockup onPrototypeAction={vi.fn()} />
+    </TooltipProvider></ThemeProvider>)
+    const mockups = within(container)
+    const agenda = mockups.getByRole('region', { name: 'Week agenda' })
+    expect(within(agenda).getAllByRole('article')).toHaveLength(7)
+    expect(within(agenda).getAllByRole('button', { name: 'Edit lesson' }).length).toBeGreaterThan(0)
+    fireEvent.click(mockups.getByRole('button', { name: 'Month', exact: true }))
+    expect(mockups.queryByRole('region', { name: 'Week agenda' })).not.toBeInTheDocument()
+    expect(mockups.queryByRole('button', { name: 'Edit lesson' })).not.toBeInTheDocument()
+    fireEvent.click(mockups.getByRole('button', { name: 'Term', exact: true }))
+    expect(mockups.queryByRole('region', { name: 'Week agenda' })).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('keeps AssignmentControllerPattern absent from ordinary %s references', role => {
     renderGallery(role)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()

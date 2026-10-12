@@ -111,26 +111,25 @@ describe('LessonCalendar', () => {
       expect(style).toContain('grid-template-rows: auto')
     })
 
-    it('renders rows with 1fr in week view', () => {
-      const { container } = render(
-        <LessonCalendar
-          classroom={mockClassroom}
-          lessonPlans={[]}
-          viewMode="week"
-          currentDate={new Date('2026-03-15')}
-          editable={false}
-          onDateChange={vi.fn()}
-          onViewModeChange={vi.fn()}
-        />,
+    it('renders seven chronological days in the named Week agenda', () => {
+      render(
+        <LessonCalendar classroom={mockClassroom} lessonPlans={[]}
+          viewMode="week" currentDate={new Date('2026-03-16T12:00:00')}
+          editable={false} onDateChange={vi.fn()} onViewModeChange={vi.fn()} />,
         { wrapper: Wrapper }
       )
-
-      const grid = container.querySelector('[class*="grid"][class*="overflow-visible"]')
-      expect(grid).toBeTruthy()
-
-      const style = grid?.getAttribute('style')
-      // Week view uses 1fr
-      expect(style).toContain('grid-template-rows: 1fr')
+      const agenda = screen.getByRole('region', { name: 'Week agenda' })
+      const days = within(agenda).getAllByRole('article')
+      expect(days).toHaveLength(7)
+      const labels = [
+        'Sunday, March 15, 2026', 'Monday, March 16, 2026',
+        'Tuesday, March 17, 2026', 'Wednesday, March 18, 2026',
+        'Thursday, March 19, 2026', 'Friday, March 20, 2026',
+        'Saturday, March 21, 2026',
+      ]
+      days.forEach((day, index) => {
+        expect(within(day).getByRole('button', { name: `Open ${labels[index]}` })).toBeInTheDocument()
+      })
     })
 
     it('renders month rows with compact content-based minimum heights', () => {
@@ -154,6 +153,24 @@ describe('LessonCalendar', () => {
       expect(style).toContain('minmax(4.5rem, auto)')
       expect(style).not.toContain('minmax(0, 1fr)')
     })
+  })
+
+  it('routes Week agenda events through existing callbacks without opening a lesson editor', () => {
+    const onAssignmentClick = vi.fn()
+    const onAnnouncementClick = vi.fn()
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
+      assignments={[mondayAssignment]} announcements={[{ ...markdownAnnouncement, title: 'Course outline reminder' }]}
+      viewMode="week" currentDate={new Date('2026-03-16T12:00:00')} editable={true}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()}
+      onAssignmentClick={onAssignmentClick} onAnnouncementClick={onAnnouncementClick} />,
+      { wrapper: Wrapper })
+    const agenda = screen.getByRole('region', { name: 'Week agenda' })
+    fireEvent.click(within(agenda).getByRole('button', { name: 'Due: Week 11 test' }))
+    expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(mondayAssignment)
+    fireEvent.click(within(agenda).getByRole('button', { name: 'Course outline reminder' }))
+    expect(onAnnouncementClick).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('uses the date label as the return-to-today control in week view', () => {

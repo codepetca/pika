@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -326,5 +326,139 @@ describe('LessonDayCell', () => {
       'href',
       'https://example.com/outline',
     )
+  })
+})
+
+describe('LessonDayCell agenda', () => {
+  const agendaProps = {
+    date: '2026-03-13',
+    day: new Date('2026-03-13T12:00:00.000Z'),
+    lessonPlan,
+    isWeekend: false,
+    isToday: false,
+    editable: true,
+    layout: 'agenda' as const,
+  }
+
+  function AgendaHarness({ onContentChange }: { onContentChange: ReturnType<typeof vi.fn> }) {
+    const [plan, setPlan] = useState(lessonPlan)
+    return <LessonDayCell {...agendaProps} lessonPlan={plan} onContentChange={(date, markdown) => {
+      onContentChange(date, markdown)
+      setPlan((current) => ({ ...current, content_markdown: markdown }))
+    }} />
+  }
+
+  it('requires the explicit teacher action to enter edit mode', () => {
+    renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={{ ...lessonPlan,
+      content_markdown: 'Lesson text\n[Read notes](https://example.com/notes)',
+    }} />)
+    fireEvent.click(screen.getByText('Lesson text'))
+    fireEvent.click(screen.getByRole('link', { name: 'Read notes' }))
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    expect(screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })).toHaveTextContent('Lesson text')
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+  })
+
+  it('autosaves teacher changes and returns focus to Edit lesson on Escape', async () => {
+    const user = userEvent.setup()
+    const onContentChange = vi.fn()
+    renderWithTooltip(<AgendaHarness onContentChange={onContentChange} />)
+    await user.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    editor.focus()
+    await user.keyboard('{Control>}a{/Control}Updated agenda lesson')
+    expect(onContentChange).toHaveBeenLastCalledWith('2026-03-13', 'Updated agenda lesson')
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByText('Updated agenda lesson')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit lesson' })).toHaveFocus())
+  })
+
+  it('retains autosaved teacher content when the editor loses focus', async () => {
+    const user = userEvent.setup()
+    const onContentChange = vi.fn()
+    renderWithTooltip(<AgendaHarness onContentChange={onContentChange} />)
+    await user.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    const editor = screen.getByRole('textbox')
+    editor.focus()
+    await user.keyboard('{Control>}a{/Control}Saved on blur')
+    fireEvent.blur(editor)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByText('Saved on blur')).toBeInTheDocument()
+    expect(onContentChange).toHaveBeenLastCalledWith('2026-03-13', 'Saved on blur')
+  })
+
+  it('renders student rich content and links without an interactive lesson wrapper', () => {
+    renderWithTooltip(<LessonDayCell {...agendaProps} editable={false} lessonPlan={{
+      ...lessonPlan, content_markdown: '### Read together\nRead the [course outline](https://example.com/outline).',
+    }} />)
+    const heading = screen.getByRole('heading', { name: 'Read together' })
+    expect(heading.closest('button')).toBeNull()
+    expect(screen.getByRole('link', { name: 'course outline' })).toHaveAttribute('href', 'https://example.com/outline')
+    fireEvent.click(heading)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit lesson|add lesson/i })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { editable: true, placeholder: 'No lesson planned' },
+    { editable: false, placeholder: 'No lesson posted' },
+  ])('explains empty class days for editable=$editable', ({ editable, placeholder }) => {
+    renderWithTooltip(<LessonDayCell {...agendaProps} editable={editable} lessonPlan={null} isClassDay={true} />)
+    expect(screen.getByText(placeholder)).toBeInTheDocument()
+    if (editable) {
+      fireEvent.click(screen.getByRole('button', { name: 'Add lesson' }))
+      expect(screen.getByRole('textbox')).toHaveTextContent('')
+    } else {
+      expect(screen.queryByRole('button', { name: 'Add lesson' })).not.toBeInTheDocument()
+    }
+  })
+
+  it.each([false, true])('omits empty lesson placeholders on non-class days (weekend=%s)', (isWeekend) => {
+    renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={null} isClassDay={false} isWeekend={isWeekend} />)
+    expect(screen.getByText('No class')).toBeInTheDocument()
+    expect(screen.queryByText(/No lesson planned|No lesson posted/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('No class'))
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    if (isWeekend) {
+      expect(screen.queryByRole('button', { name: /edit lesson|add lesson/i })).not.toBeInTheDocument()
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'Add lesson' }))
+      expect(screen.getByRole('textbox')).toBeInTheDocument()
+    }
+  })
+
+  it('marks today and presents the focused day without starting an editor', () => {
+    const onPresentDay = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} isToday={true} onPresentDay={onPresentDay} />)
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /open friday, march 13, 2026/i }))
+    expect(onPresentDay).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('makes every weekend event readable and independently navigable without editing', () => {
+    const assignments = [
+      { id: 'assignment-1', title: 'First weekend assignment with a complete title', is_draft: false } as Assignment,
+      { id: 'assignment-2', title: 'Second weekend assignment', is_draft: false } as Assignment,
+    ]
+    const announcements = [titledAnnouncement, { ...longAnnouncement, id: 'announcement-other', title: 'Weekend reminder' }]
+    const onAssignmentClick = vi.fn()
+    const onAnnouncementClick = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} isWeekend={true} isClassDay={false}
+      assignments={assignments} announcements={announcements}
+      onAssignmentClick={onAssignmentClick} onAnnouncementClick={onAnnouncementClick} />)
+    for (const assignment of assignments) {
+      fireEvent.click(screen.getByRole('button', { name: `Due: ${assignment.title}` }))
+      expect(onAssignmentClick).toHaveBeenLastCalledWith(assignment)
+    }
+    for (const announcement of announcements) {
+      fireEvent.click(screen.getByRole('button', { name: announcement.title! }))
+    }
+    expect(onAssignmentClick).toHaveBeenCalledTimes(2)
+    expect(onAnnouncementClick).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit lesson|add lesson/i })).not.toBeInTheDocument()
   })
 })

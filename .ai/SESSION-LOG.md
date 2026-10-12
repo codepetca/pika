@@ -11,77 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Second learner rehearsal failure and proof correction
-
-ONE fresh owner-approved8ca rehearsal passed full001–257 replay, rollback/ACL
-contracts and genuine CLI types, then failed inside finite learner verification.
-Exact owned teardown/global/canonical/source preservation PASS; cleanupFailures
-empty. Approval consumed and runner disabled/unbound. No retained JS exception
-identifies the historical cause; generated438731-byte artifact remains private.
-Independent Sol/high source diagnosis accepted a P2 timing-sensitive collapse
-fixture. A controlled exact-last-row positive fixture, real10s refusal mocks,
-before-plan/between-plan latency regressions and expired-collapse rollback SQL
-contract preserve product257/guards/CAS. New private all-exception0600 diagnostics
-are bounded/cleanup-safe; transport exposes only fixed non-sensitive refusal
-stage/case/profile metadata. Private26pure,73finite/168requests/336guards and tsc
-PASS; scoped transport/migration95 PASS. New rollback contract not yet executed.
-Continuity-only rebase onto3fd887953 preserved main's independently applied
-prod001–256 release receipts and both histories; no product/migration drift.
-Ledger7launches/initial1/targeted4/fix3in progress/final1; original13:16:45clock,
-task review waiver and hard12/8/8 caps retained. Correction review/fresh native/
-types/finalCI remain. Sharedlocal249+/prod257+/activation/account/billing holds
-persist; no phase or goal exit.
-
-Targeted detached53f91 correction review complete: timing/expiry/hash/continuity
-scope clean, one P2 diagnostic witness lost through SDK/application masking.
-Root reproduced RED1, then retains first finite refusal in read-only proof report
-and private captured fetch/0600 receipt; product generic503 masking unchanged.
-End-to-end actualSDK→helper→private receipt before/afterguard checks PASS with
-synthetic fetch only;91transport/27privatepure/73finite PASS. Fresh inert rz5Sdz
-preserves frozenGAGt5W; no preflight/native permission. Batch4/launch8/targeted5/
-final1; next proportional correction review uses original clock/waiver/caps.
-
-## 2026-10-10 — Third learner rehearsal and cancellation clock correction
-
-ONE approved isolated28d rehearsal passed001–257 replay, rollback/ACL/expired
-history contracts and genuine438731-byte CLI types, then failed cancellation
-acceptance. Private stack locates the executor catch; exact original assertion
-remains unknown. Exact owned disposal/full canonical/global/source preservation
-PASS, no cleanup failures; permission consumed, historical runner false/null.
-No generated artifact installed, shared/prod application or activation. Bounded
-Sol/high diagnosis confirmed P2 guard time incorrectly measured as cancellation
-latency (both false rejection and false admission), not historical attribution.
-All three failures retain their receipts; no blind native retry.
-Source-only batch5 separates12s wire/body measurement from existing30s/absolute
-action, keeps product257/SQL8s and every full guard, and records finite first
-probe/restoration stages privately without underlying inputs/errors. RED4 engine
-regressions plus SDK timing regressions reproduced; corrected checks follow.
-Rebased onto03fca4506 unrelated UI; both continuity histories retained, no product/
-migration change and41 unrelated stashes preserved. Original13:16:45 clock,
-explicit review extension and hard12launch8target8fix remain; counts10launch/
-targeted7/fix5in progress/final1. Next proportional review includes base/correction;
-owner must approve exact clock semantics after review and ONE fresh exact-source
-isolated rehearsal. Final native/types/CI/merge and batch2/overall goal remain.
-
-## 2026-10-10 — Fourth learner rehearsal and restoration acknowledgement correction
-
-ONE approved isolated0cd rehearsal passed001–257/history/rollbackACL/genuine
-types, then failed cancellation restoration. Finite stage witness locates restore;
-underlying exception masked. All exact-owned/global/canonical/source preservation
-PASS(cleanupFailures=[]); permission consumed, runner restoredfalse/null and all
-nine source hashes verified. Genuine438731byte cc966 types remain private.
-Root source/actualguard check finds deterministic plain-ok→JSON decoder mismatch.
-Batch6 accepts only exactok for fixed learner restore, retains original SQL/full
-guards/catalog+fixture equality and every product/proof clock. Native-shaped mock
-RED3→GREEN; five malformed/absent output refusals and catalog/fixture drift added.
-182nativeprofile checks PASS;28privatepure and SDK timing/source checks follow.
-Prior explicit task override recovered via override-task-stops: workflow review
-limits, including locally absolute caps, waived; previous stop was incorrect.
-Original13:16:45clock/cumulative11launch/targeted8/fix6inprogress/final1 preserved,
-not reset. One proportional independent review follows focused/publication/freeze;
-no new native attempt, sharedlocal249+/prod257+, deployment or activation.
-Weekly27%remaining/ordinaryAllowed; effective/active/token telemetry unknown.
-
 ## 2026-10-10 — Fifth learner rehearsal and response-fixture schema correction
 
 ONE approved424 rehearsal completed001–257/history/rollbackACL/genuineCLItypes,
@@ -598,6 +527,24 @@ exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
 marker. No cap/fixture case/product/migration changes. Counters12completedreviews
 1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
 fresh complete native acceptance remains pending, all holds retained.
+
+## 2026-10-11 — Vertical Week design exploration
+
+Delivered three experimental standalone Week concepts (lesson agenda, day navigator, expandable week) for teacher/student; recommend agenda for rich lesson reading. Artifacts: /Users/stew/.codex/visualizations/2026/10/11/01a12a93-1a8c-7ed0-a906-1eab3ca18157/vertical-week/review.html (README, brief, provenance, reproducible CLI receipts alongside). Source caaa1c926; actual Pattern Lab owner captures include horizontal Week, Month, Term. No application code/data/DB/release changes or canon promotion.
+
+Final Playwright: 110 checks PASS, 24 concept×role×viewport×theme combinations, zero runtime errors; all matrix screenshots and representative full/long/edit/dialog states visually reviewed. Standalone file mode verified. GPT-6.1-sol medium worker supplied source inventory and bounded reviews; eight accepted findings fixed, including future custom-edit visibility and mobile sticky-title offset. Weekly remaining 99%; DeepSeek pause honored. Worker time/tokens unavailable, coordinator review ~3min estimate. Next: human design review; no implementation rollout authorized.
+
+## 2026-10-11 — Implement selected Week lesson agenda
+
+Owner chose concept A for teacher/student Week, preserving Month/Term. Worktree `vertical-week-prototypes/pika`, branch `codex/calendar-week-agenda`, based on main `872d195825e4053e18ba8ca49a42613b1f106e22`. Shared LessonCalendar now renders seven agenda days; LessonDayCell extends full lesson reading, explicit teacher Edit/Add, Today/no-class labels and independent event buttons. Existing visibility, date grouping, autosave queue, rich links and actual Markdown sidebar remain owned by the existing controllers. Week controls stick below the app header. No API, database, dependencies or auth changes. Scoped brief: `docs/guidance/ui/changes/calendar-week-agenda.md`.
+
+Orchestrate: native GPT-6.1-sol medium regression worker owned only two component tests, delivered 37/37 passing in 3.04s after initial red (12 new failures, 25 existing passes); one clarification of non-class weekday editability, no integration conflict. Coordinator accepted after inspecting diffs and running affected checks; account weekly remaining 98% at start, worker token/time telemetry beyond reported test times unknown, coordination messages about one minute estimated. DeepSeek paused and honored.
+
+Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-class/weekend events, editor, day dialog, existing Month/Term. Intercepted real ClassroomPageClient fixture APIs; no hosted writes. Screenshots under selected prototype artifact `vertical-week/output/playwright/implemented-*`. Caught and fixed mobile sticky-header overlap; editor autofocus remains shared caret-at-end. Checklist keyboard/state semantics covered, no manual follow-up. Component/owner/Pattern Lab regressions, type/lint, architecture, UI/design policies and precommit audit verified. Final focused checks and draft-first independent fixed-SHA review follow; exact reviewed SHA/verdict lives in PR and lifecycle log. No merge or production promotion authorized in this task.
+
+## 2026-10-11 — Bound Week agenda desktop width
+
+Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
 
 ## 2026-10-12 — Bounded unpublication proof framing
 

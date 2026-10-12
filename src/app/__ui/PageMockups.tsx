@@ -65,6 +65,7 @@ import {
   ConfirmDialog,
   ContentDialog,
   PageActionBar,
+  PageLayout,
   PageHeading,
   DataTable,
   DataTableBody,
@@ -1127,15 +1128,26 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
   )
 }
 
-function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
+export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [view, setView] = useState<CalendarViewMode>('week')
+  const [lessonPlans, setLessonPlans] = useState(LESSON_PLANS)
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
+  const handleContentChange = (lessonDate: string, markdown: string) => setLessonPlans((plans) => {
+    if (plans.some((plan) => plan.date === lessonDate)) {
+      return plans.map((plan) => plan.date === lessonDate ? { ...plan, content_markdown: markdown } : plan)
+    }
+    const plan: LessonPlan = {
+      ...LESSON_PLANS[0], id: `reference-${lessonDate}`, date: lessonDate,
+      content: { type: 'doc', content: [] }, content_markdown: markdown,
+    }
+    return [...plans, plan]
+  })
   const advance = (amount: -1 | 1) => setDate((current) => view === 'month' ? (amount < 0 ? subMonths(current, 1) : addMonths(current, 1)) : (amount < 0 ? subWeeks(current, 1) : addWeeks(current, 1)))
   const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : CLASSROOM.term_label || 'Term'
   const menuItems: TeacherWorkSurfaceActionItem[] = [
     { id: 'markdown', label: 'Edit calendar in Markdown', onSelect: () => onPrototypeAction('Edit calendar in Markdown') },
   ]
-  return <div className="space-y-3">
+  return <PageLayout bleedX={false} width={view === 'week' ? 'standard' : 'full'} className="space-y-3">
     <TeacherWorkSurfaceContextBar
       ariaLabel="Calendar mockup controls"
       context={<span className="hidden truncate sm:inline">Teaching calendar</span>}
@@ -1155,10 +1167,10 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
       actions={<MoreMenu label="Calendar" items={menuItems} />}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <LessonCalendar classroom={CLASSROOM} lessonPlans={LESSON_PLANS} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
+      <LessonCalendar classroom={CLASSROOM} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'week'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
-    <Description>The date and Week, Month, Term toggle share the center cluster. More actions owns Markdown editing.</Description>
-  </div>
+    <Description>Week uses the lesson agenda with a date rail, full lesson content and explicit editing. Month and Term retain their grids. The date and view toggle share the center cluster; More actions owns Markdown editing.</Description>
+  </PageLayout>
 }
 
 const ANNOUNCEMENTS = [

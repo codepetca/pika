@@ -85,6 +85,27 @@ describe('StudentLessonCalendarTab', () => {
     vi.restoreAllMocks()
   })
 
+  it('preserves student date navigation and Month/All selection without refetching term data', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
+    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    const week = screen.getByRole('button', { name: 'Week', exact: true })
+    expect(week).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
+    const readCount = fetchMock.mock.calls.length
+    week.focus()
+    fireEvent.keyDown(week, { key: 'ArrowRight' })
+    expect(screen.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Next', exact: true })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'All', exact: true }))
+    expect(screen.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Next', exact: true })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Go to today' })).not.toBeInTheDocument()
+    fireEvent.click(week)
+    expect(week).toHaveAttribute('aria-pressed', 'true')
+    expect(fetchMock).toHaveBeenCalledTimes(readCount)
+  })
+
   it('fires all 3 API calls in parallel via Promise.all (#306)', async () => {
     // Track the order calls were initiated
     const callOrder: string[] = []

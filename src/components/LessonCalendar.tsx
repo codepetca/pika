@@ -318,8 +318,6 @@ export function LessonCalendar({
     }
   }, [presentedDay, plansByDate, assignmentsByDate, announcementsByDate, today, classDays.length, classDayDates])
 
-  const weekHeaderDays = viewMode === 'week' ? (weeks[0] || []) : []
-
   // Format header label
   const headerLabel = useMemo(() => {
     if (viewMode === 'week' || viewMode === 'month') {
@@ -415,67 +413,51 @@ export function LessonCalendar({
         </div>
       )}
 
-      {/* Calendar viewport. Week mode keeps cells legible on small screens via
-          one aligned horizontal scroller for both headers and content. */}
-      <div
-        className={
-          viewMode === 'all'
-            ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto'
-            : viewMode === 'month'
-              ? 'min-h-0 flex-1 overflow-x-hidden'
-              : 'overflow-x-auto'
-        }
-      >
-        {/* Day headers - only shown outside the grid for non-all modes */}
+      {viewMode === 'week' ? (
+        <div role="region" aria-label="Week agenda" className="min-w-0 divide-y divide-border">
+          {weeks[0]?.map((day, index) => {
+            const dateString = format(day, 'yyyy-MM-dd')
+            const isWeekendDay = isWeekend(day)
+            return (
+              <div key={dateString} className={index % 2 === 0 ? 'bg-surface-2' : 'bg-surface'}>
+                <LessonDayCell
+                  layout="agenda"
+                  date={dateString}
+                  day={day}
+                  lessonPlan={plansByDate.get(dateString) || null}
+                  assignments={assignmentsByDate.get(dateString) || []}
+                  announcements={announcementsByDate.get(dateString) || []}
+                  isWeekend={isWeekendDay}
+                  isToday={isSameDay(day, today)}
+                  isClassDay={classDays.length > 0 ? classDayDates.has(dateString) : undefined}
+                  editable={editable && !isWeekendDay}
+                  onPresentDay={() => setPresentedDay(day)}
+                  onContentChange={onContentChange}
+                  onAssignmentClick={onAssignmentClick}
+                  onAnnouncementClick={onAnnouncementClick}
+                />
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+      <div className={viewMode === 'all' ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto' : 'min-h-0 flex-1 overflow-x-hidden'}>
         {viewMode !== 'all' && (
-          <div
-            className={`grid border-b-2 border-border ${
-              viewMode === 'week' ? 'min-w-[49rem] sm:min-w-0' : ''
-            }`}
-            style={{ gridTemplateColumns: GRID_COLUMNS_7 }}
-          >
-            {DAY_LABELS.map((label, idx) => {
-              const isWeekendDay = idx === 0 || idx === 6
-              const isCompactView = viewMode !== 'week'
-              const headerLabel = isWeekendDay ? label.charAt(0) : label
-              const headerDay = weekHeaderDays[idx]
-
-              if (viewMode === 'week' && headerDay) {
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setPresentedDay(headerDay)}
-                    className={`${isCompactView ? 'py-0.5' : 'py-2'} border-r border-border text-center text-sm font-medium text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default last:border-r-0`}
-                    aria-label={`Open ${format(headerDay, 'EEEE, MMMM d, yyyy')}`}
-                  >
-                    {headerLabel}
-                  </button>
-                )
-              }
-
-              return (
-                <div
-                  key={label}
-                  className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 text-text-muted`}
-                >
-                  {headerLabel}
-                </div>
-              )
-            })}
+          <div className="grid border-b-2 border-border" style={{ gridTemplateColumns: GRID_COLUMNS_7 }}>
+            {DAY_LABELS.map((label, idx) => (
+              <div key={label} className="py-0.5 text-center text-sm font-medium border-r border-border last:border-r-0 text-text-muted">
+                {idx === 0 || idx === 6 ? label.charAt(0) : label}
+              </div>
+            ))}
           </div>
         )}
 
         {/* Calendar grid - in all mode, includes header row */}
         <div
-          className={`grid ${viewMode !== 'all' ? 'overflow-visible' : ''} ${
-            viewMode === 'week' ? 'min-w-[49rem] sm:min-w-0' : ''
-          }`}
+          className={`grid ${viewMode !== 'all' ? 'overflow-visible' : ''}`}
           style={{
             gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
-            gridTemplateRows: viewMode === 'week'
-              ? '1fr'
-              : viewMode === 'all'
+            gridTemplateRows: viewMode === 'all'
                 // First row is sticky header, rest are auto
                 ? `auto ${weeks.map(() => 'auto').join(' ')}`
                 : weeks.map((_, idx) => {
@@ -483,8 +465,6 @@ export function LessonCalendar({
                     if (isExpanded) return `minmax(${MONTH_ROW_EXPANDED_MIN_HEIGHT}, auto)`
                     return `minmax(${MONTH_ROW_MIN_HEIGHT}, auto)`
                   }).join(' '),
-            height: viewMode === 'week' ? 'auto' : undefined,
-            minHeight: viewMode === 'week' ? '200px' : undefined,
           }}
         >
         {/* Day header row inside grid - only in all mode */}
@@ -537,7 +517,6 @@ export function LessonCalendar({
         {/* Render all day cells */}
         {weeks.map((week, weekIdx) => {
           const isExpanded = expandedWeekIdx === weekIdx
-          const isCompactView = viewMode !== 'week'
           // In all mode, rows start at 2 (row 1 is header)
           const rowStart = viewMode === 'all' ? weekIdx + 2 : weekIdx + 1
 
@@ -554,12 +533,12 @@ export function LessonCalendar({
             return (
               <div
                 key={dateString}
-                className={`border-r border-b border-border overflow-hidden ${isCompactView ? 'cursor-pointer' : ''}`}
+                className="border-r border-b border-border overflow-hidden cursor-pointer"
                 style={{
                   gridColumn: colStart,
                   gridRow: rowStart,
                 }}
-                onClick={isCompactView ? () => setExpandedWeekIdx(isExpanded ? null : weekIdx) : undefined}
+                onClick={() => setExpandedWeekIdx(isExpanded ? null : weekIdx)}
               >
                 <LessonDayCell
                   date={dateString}
@@ -571,7 +550,7 @@ export function LessonCalendar({
                   isToday={isToday}
                   isClassDay={isClassDay}
                   editable={editable && !isWeekendDay}
-                  compact={viewMode !== 'week' && !isExpanded}
+                  compact={!isExpanded}
                   plainTextOnly={viewMode === 'all'}
                   onContentChange={onContentChange}
                   onAssignmentClick={onAssignmentClick}
@@ -583,6 +562,7 @@ export function LessonCalendar({
         })}
         </div>
       </div>
+      )}
 
       <DialogPanel
         isOpen={presentedDayDetails !== null}

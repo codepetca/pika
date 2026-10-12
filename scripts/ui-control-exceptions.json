@@ -435,7 +435,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 7,
+          "count": 6,
           "reason": "legacy-form-control"
         }
       ]

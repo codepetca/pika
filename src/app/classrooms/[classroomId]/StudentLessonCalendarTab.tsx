@@ -375,8 +375,9 @@ export function StudentLessonCalendarTab({
   }
 
   return (
-    <PageLayout bleedX={false}>
+    <PageLayout bleedX={false} width={viewMode === 'week' ? 'standard' : 'full'}>
       <CalendarActionBar
+        className={viewMode === 'week' ? 'sticky top-12 z-sticky-table bg-page' : undefined}
         viewMode={viewMode}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
