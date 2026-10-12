@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-10 — Learner rehearsal failure and bounded fixture correction
-
-Final detached source review onf7aa completed clean; native acceptance was not
-inferred. Owner then approved ONE isolated full001–257 rehearsal. History replay
-passed; the first rollback SQL contract failed before SDK/Storage/types. Exact
-owned teardown and full canonical/global preservation passed, cleanupFailures
-empty. The attempted approval is consumed; no retry or shared/prod application.
-Historical stderr was discarded, so exact first-error attribution is not claimed.
-Bounded independent diagnosis found Closed recovery points_possible=0 violates
-039's retained positive constraint before RPC assertions. Root reproduced a
-RED source regression, then changed fixture0→1 for GREEN4checks;257 unchanged.
-A fresh disabled/unbound private candidate retains first-failure stderr privately
-with a16KiB bound/0600 receipt and cleanup-safe logging;23pure checks PASS.
-Private TypeScript initially rejected nullable child-process error.code; corrected
-the diagnostic input type, then PASS. No product/schema restriction was weakened.
-Focused2330PASS/one startup-budget failure17010>17000; compacted CURRENT without
-changing the limit. Corrected required focused run follows before publication.
-Ledger5launches/initial1/targeted2/fix2/final1; original13:16:45clock/task waiver
-and absolute12/8/8 caps retained. Source correction review and newly approved
-rehearsal/types/CI remain; all rollout/account/production holds persist.
-
 ## 2026-10-10 — Second learner rehearsal failure and proof correction
 
 ONE fresh owner-approved8ca rehearsal passed full001–257 replay, rollback/ACL
@@ -670,3 +649,23 @@ PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source pres
 Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
 PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
 6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
+
+## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
+
+Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
+targeted+cumulative review. Fresh14th06132387f727 fully PASS:001–261/rollbackACL/
+genuine438871B types, seven contracts/14heldraces/fullgraph equality, real SDK
+nonowner/fences/both owner roles/canonical/noop, cancellation503/one57014/8013ms/
+zeroRPC/restoration. Exact8synthetic cleanup/global741/canonical183tables2cron/
+ports/source preserved; prior failed evidence retained. No rollout or goal exit.
+Eligible CI38190378056 exactbacb fails Architecture DB at10000-question fixture
+INSERT in limitsDO (57014/blueprint per-row trigger); other7jobs cancelled by
+failfast and PR Gate fails. Returned1578 to draft before corrections, one watcher
+closed, no duplicateCI. Bounded source proposal keeps all10002rows/alltriggers/
+assertions: four fixed2500 INSERT statements under one savepoint, temporary graph
+baseline before savepoint and exact rollback equality. Eleven closed frames plus
+28races use39<=40dispatch;12s/180s/caps unchanged. Revised framing still needs
+checks/independent review/fresh native/eligibleCI, not acceptance from prior pass.
+PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
+Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
+production promotion/provider/account/admission/home/page/cohort/cutover holds.

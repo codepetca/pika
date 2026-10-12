@@ -22,16 +22,21 @@ const q = (v: string) => `'${v.replaceAll("'", "''")}'`
 const json = (v: unknown) => `${q(JSON.stringify(v))}::jsonb`
 const bounded = (sql: string) => { assert(Buffer.byteLength(sql) <= caps.sqlBytes); return sql }
 // Closed top-level source boundaries only: no SQL parser or caller selectors.
-// Each complete DO body and its surrounding role changes stay byte-identical.
+// Each complete top-level statement and surrounding role changes stay byte-identical.
 const contractBoundaries = Object.freeze([
   '\n-- Invoke the success path as the actual granted role; the definer function\n',
   '\ndo $reject_cases$\n',
   '\n-- Additional255/261 parity limits run before the intentional late status fault.\n',
+  '\n-- Count-only fixture rows2501-5000.\n',
+  '\n-- Count-only fixture rows5001-7500.\n',
+  '\n-- Count-only fixture rows7501-10000.\n',
+  '\n-- Count-only fixture rejection and savepoint restoration.\n',
   '\n-- Pending provider cleanup is only a relational fence; no provider is called.\n',
   '\n-- service-only-empty-search-path / private-core-service-denial\n',
   '\n-- mixed-role-current-owner / current-member-former-owner-foreign-creator-denial\n',
 ])
-const contractLabels = Object.freeze(['initialize','success','rejections','limits','provider','acl','contextual'] as const)
+const contractLabels = Object.freeze(['initialize','success','rejections','limits','limits-count-2501-5000',
+  'limits-count-5001-7500','limits-count-7501-10000','limits-count-restore','provider','acl','contextual'] as const)
 const plans = new WeakMap<object, TestOwnerUnpublicationNativePlan>()
 export function testOwnerUnpublicationNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
@@ -161,7 +166,7 @@ function driverRun(m:TestOwnerUnpublicationNativePlan,t:DraftSaveTarget,d:DraftS
 export async function runTestOwnerUnpublicationNativeContracts(m:TestOwnerUnpublicationNativePlan,t:DraftSaveTarget,d:DraftSaveDriver) {
   target(m,t,'contracts');const r=driverRun(m,t,d);await r.verify();const name=`${m.projectId}_draft_contracts`,session=await d.openSession(name)
   try {assert.equal(session.name,name);let transaction:string|undefined
-    // One session, one transaction, one driver/180s clock for all seven frames.
+    // One session, one transaction, one driver/180s clock for all eleven frames.
     // Failure stops the loop; the original owned-session closure still runs.
     for(const [index,frame] of m.contracts.frames.entries()) {
       const raw=await r.execute(session,frame.sql)

@@ -339,7 +339,7 @@ $reject_cases$;
 -- Additional255/261 parity limits run before the intentional late status fault.
 do $limits261$ declare owner_id uuid:='a2610000-0000-4000-8000-000000000001';
  tid uuid:='a2610000-0000-4000-8000-000000000031';cid uuid:='a2610000-0000-4000-8000-000000000010';
- student_id uuid:='a2610000-0000-4000-8000-000000000003';attempt_id uuid;flag text;prior text;baseline jsonb;restored integer;
+ student_id uuid:='a2610000-0000-4000-8000-000000000003';attempt_id uuid;restored integer;
 begin
  update public.tests t set status='closed',questions_locked_at=null where t.id=tid and t.classroom_id=cid;
  get diagnostics restored=row_count;
@@ -363,12 +363,52 @@ begin
  update public.test_questions set question_text=repeat('x',1100000) where test_id=tid;
  perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT503','test_unpublish_content_limit','published JSON beyond2MiB');
  update public.test_questions set question_text='Restored synthetic bounded prompt' where test_id=tid;
- begin
-  insert into public.test_questions(id,test_id,artifact_id,question_type,question_text,options,correct_option,points,position)
-  select md5('unpublish261-bound-row:'||g)::uuid,tid,md5('unpublish261-bound-artifact:'||g)::uuid,'open_response','Synthetic bound','[]',null,1,g+1 from generate_series(1,10000) g;
-  perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT503','test_unpublish_question_limit','more than10000 published rows');
-  raise exception using errcode='ZX261',message='rollback count-only source';
- exception when sqlstate 'ZX261' then null;end;
+end;$limits261$;
+create temporary table unpublication_count261_baseline(singleton boolean primary key check(singleton),graph jsonb not null) on commit drop;
+insert into pg_temp.unpublication_count261_baseline(singleton,graph)
+ select true,pg_temp.test_unpublication_graph('a2610000-0000-4000-8000-000000000031'::uuid);
+do $count_pristine261$ begin
+ if (select count(*) from public.test_questions where test_id='a2610000-0000-4000-8000-000000000031'::uuid)<>2
+ then raise exception 'Count fixture pristine question count differs';end if;
+end;$count_pristine261$;
+savepoint unpublication_count261;
+insert into public.test_questions(id,test_id,artifact_id,question_type,question_text,options,correct_option,points,position)
+ select md5('unpublish261-bound-row:'||g)::uuid,'a2610000-0000-4000-8000-000000000031'::uuid,md5('unpublish261-bound-artifact:'||g)::uuid,'open_response','Synthetic bound','[]',null,1,g+1 from generate_series(1,2500) g;
+
+-- Count-only fixture rows2501-5000.
+insert into public.test_questions(id,test_id,artifact_id,question_type,question_text,options,correct_option,points,position)
+ select md5('unpublish261-bound-row:'||g)::uuid,'a2610000-0000-4000-8000-000000000031'::uuid,md5('unpublish261-bound-artifact:'||g)::uuid,'open_response','Synthetic bound','[]',null,1,g+1 from generate_series(2501,5000) g;
+
+-- Count-only fixture rows5001-7500.
+insert into public.test_questions(id,test_id,artifact_id,question_type,question_text,options,correct_option,points,position)
+ select md5('unpublish261-bound-row:'||g)::uuid,'a2610000-0000-4000-8000-000000000031'::uuid,md5('unpublish261-bound-artifact:'||g)::uuid,'open_response','Synthetic bound','[]',null,1,g+1 from generate_series(5001,7500) g;
+
+-- Count-only fixture rows7501-10000.
+insert into public.test_questions(id,test_id,artifact_id,question_type,question_text,options,correct_option,points,position)
+ select md5('unpublish261-bound-row:'||g)::uuid,'a2610000-0000-4000-8000-000000000031'::uuid,md5('unpublish261-bound-artifact:'||g)::uuid,'open_response','Synthetic bound','[]',null,1,g+1 from generate_series(7501,10000) g;
+
+-- Count-only fixture rejection and savepoint restoration.
+do $count_limit261$ declare owner_id uuid:='a2610000-0000-4000-8000-000000000001';tid uuid:='a2610000-0000-4000-8000-000000000031';
+begin
+ if (select count(*) from public.test_questions where test_id=tid)<>10002
+ or (select count(*) from public.test_questions q join generate_series(1,10000) g on q.id=md5('unpublish261-bound-row:'||g)::uuid where q.test_id=tid)<>10000
+ then raise exception 'Count fixture generated question count differs';end if;
+ perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT503','test_unpublish_question_limit','more than10000 published rows');
+end;$count_limit261$;
+rollback to savepoint unpublication_count261;
+release savepoint unpublication_count261;
+do $count_restored261$ declare tid uuid:='a2610000-0000-4000-8000-000000000031';baseline jsonb;
+begin
+ select graph into strict baseline from pg_temp.unpublication_count261_baseline where singleton;
+ if pg_temp.test_unpublication_graph(tid) is distinct from baseline then raise exception 'Count fixture rollback changed full graph';end if;
+ if (select count(*) from public.test_questions where test_id=tid)<>2
+ or (select jsonb_agg(to_jsonb(q) order by q.id) from public.test_questions q where q.test_id=tid) is distinct from baseline->'questions'
+ then raise exception 'Count fixture rollback changed original question rows';end if;
+end;$count_restored261$;
+drop table pg_temp.unpublication_count261_baseline;
+do $limits_fences261$ declare owner_id uuid:='a2610000-0000-4000-8000-000000000001';
+ tid uuid:='a2610000-0000-4000-8000-000000000031';cid uuid:='a2610000-0000-4000-8000-000000000010';flag text;prior text;baseline jsonb;
+begin
  foreach flag in array array['pika.classroom_archive_restore','pika.classroom_archive_compaction','pika.identity_mapping','pika.classroom_purge_finalize','pika.course_blueprint_purge_finalize','pika.student_purge_finalize'] loop
   prior:=current_setting(flag,true);perform set_config(flag,'on',true);
   perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT403','test_unpublish_fenced',flag);
@@ -381,7 +421,7 @@ begin
  begin perform public.test_owner_workflow_v1(owner_id,tid,cid,'unpublish','{}',(baseline->'test')||'{"title":"stale inspected source"}',clock_timestamp()+interval '25 seconds');
  raise exception 'Stale full Test accepted';exception when sqlstate 'PT409' then null;end;
  if pg_temp.test_unpublication_graph(tid) is distinct from baseline then raise exception 'Stale-source rejection changed whole graph';end if;
-end;$limits261$;
+end;$limits_fences261$;
 
 -- Pending provider cleanup is only a relational fence; no provider is called.
 do $provider_fence261$ declare owner_id uuid:='a2610000-0000-4000-8000-000000000001';

@@ -59,12 +59,21 @@ the existing finite engine, not a new verification framework. Each predecessor
 profile must recognize only the exact sealed261 successor and still refuse
 unknown, incomplete or altered migration inventories.
 
-The populated native rollback proof uses seven fixed source-derived frames in
+The populated native rollback proof uses eleven fixed source-derived frames in
 one persistent session and transaction. Every original SQL assertion remains;
 only tiny intermediate transaction acknowledgments separate the frames. The
 original combined SQL remains a reconstruction oracle, not an executable
 capability. Keep the12s request,180s aggregate,40-dispatch and full-graph bounds;
 framing alone is not evidence that any individual check meets its time limit.
+
+The question-count boundary fixture retains all10000 generated questions plus
+the original two, with every ordinary trigger enabled. Four fixed2500-row
+top-level INSERTs share one savepoint inside the original rollback transaction;
+the count rejection is followed by savepoint rollback and complete graph/original
+row equality against a pre-savepoint temporary baseline. These are fixture
+statement boundaries, not smaller product limits or extra transactions. Eleven
+contract frames plus28 race dispatches use39 of the unchanged40-dispatch cap.
+The prior exact-head native pass does not establish acceptance of new framing.
 
 The late-fault trigger probe must release its DDL locks before the next frame:
 run its unchanged CREATE/probe/DROP in an exception subtransaction, deliberately

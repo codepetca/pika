@@ -224,6 +224,54 @@ describe('inert unpublication source proof', () => {
     expect(migration).toContain('create trigger guard_student_provider_binding before update or delete')
     expect(sql).not.toMatch(/disable trigger|session_replication_role/)
   })
+  it('preserves the exact10000-row projection in four top-level2500-row statements under one savepoint',()=>{
+    const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const count=sql.split('create temporary table unpublication_count261_baseline')[1].split('-- Pending provider cleanup')[0]
+    const batches=[...count.matchAll(/insert into public\.test_questions\(([^)]*)\)\n select ([\s\S]*?) from generate_series\((\d+),(\d+)\) g;/g)]
+    expect(batches).toHaveLength(4)
+    expect(batches.map(batch=>[Number(batch[3]),Number(batch[4])])).toEqual([[1,2500],[2501,5000],[5001,7500],[7501,10000]])
+    const generated=batches.flatMap(batch=>Array.from({length:Number(batch[4])-Number(batch[3])+1},(_,i)=>Number(batch[3])+i))
+    expect(generated).toEqual(Array.from({length:10000},(_,i)=>i+1))
+    for(const batch of batches){
+      expect(batch[1]).toBe('id,test_id,artifact_id,question_type,question_text,options,correct_option,points,position')
+      expect(batch[2]).toBe("md5('unpublish261-bound-row:'||g)::uuid,'a2610000-0000-4000-8000-000000000031'::uuid,md5('unpublish261-bound-artifact:'||g)::uuid,'open_response','Synthetic bound','[]',null,1,g+1")
+    }
+    expect(count.match(/^savepoint unpublication_count261;/gm)).toHaveLength(1)
+    expect(count.match(/^rollback to savepoint unpublication_count261;/gm)).toHaveLength(1)
+    expect(count.match(/^release savepoint unpublication_count261;/gm)).toHaveLength(1)
+    expect(count).not.toMatch(/disable trigger|session_replication_role|pg_advisory|\bset (?:local )?role\b|\bcommit;|rollback count-only source/)
+    const m=plan(),limits=m.contracts.frames.find(frame=>frame.label==='limits')!
+    expect(limits.sql).toMatch(/end;\$limits261\$;[\s\S]*?savepoint unpublication_count261;\ninsert into public\.test_questions/)
+    for(const label of ['limits-count-2501-5000','limits-count-5001-7500','limits-count-7501-10000']){
+      const frame=m.contracts.frames.find(frame=>frame.label===label)!
+      expect(frame.sql.match(/^insert into public\.test_questions/gm)).toHaveLength(1)
+      expect(frame.sql).not.toMatch(/\bdo \$|\bbegin;|\brollback|\brelease|set_config/)
+    }
+    const trigger=readFileSync('supabase/migrations/112_versioned_course_blueprint_identity.sql','utf8')
+    expect(trigger).toContain('create trigger touch_classroom_blueprint_source_from_test_questions_insert_delete\n  after insert or delete on public.test_questions\n  for each row execute function public.touch_classroom_blueprint_source_from_test_question();')
+  })
+  it('retains the pre-savepoint singleton full graph and restores exact original questions before unchanged fences',()=>{
+    const sql=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8')
+    const count=sql.split('create temporary table unpublication_count261_baseline')[1].split('-- Pending provider cleanup')[0]
+    expect(count).toContain('(singleton boolean primary key check(singleton),graph jsonb not null) on commit drop;')
+    const ordered=["insert into pg_temp.unpublication_count261_baseline(singleton,graph)\n select true,pg_temp.test_unpublication_graph('a2610000-0000-4000-8000-000000000031'::uuid);",
+      "then raise exception 'Count fixture pristine question count differs';end if;",'savepoint unpublication_count261;',
+      'generate_series(7501,10000)',"perform pg_temp.expect_unpublication_rejection(owner_id,tid,'PT503','test_unpublish_question_limit','more than10000 published rows');",
+      'rollback to savepoint unpublication_count261;','release savepoint unpublication_count261;',
+      'select graph into strict baseline from pg_temp.unpublication_count261_baseline where singleton;',
+      "if pg_temp.test_unpublication_graph(tid) is distinct from baseline then raise exception 'Count fixture rollback changed full graph';end if;",
+      "then raise exception 'Count fixture rollback changed original question rows';end if;",'drop table pg_temp.unpublication_count261_baseline;',
+      'do $limits_fences261$',"'PT403','test_unpublish_fenced',flag","raise exception 'Stale-source rejection changed whole graph'"]
+    let previous=-1
+    for(const witness of ordered){expect(count).toContain(witness);const position=count.indexOf(witness);expect(position).toBeGreaterThan(previous);previous=position}
+    expect(count).toContain('if (select count(*) from public.test_questions where test_id=tid)<>10002')
+    expect(count).toContain("join generate_series(1,10000) g on q.id=md5('unpublish261-bound-row:'||g)::uuid where q.test_id=tid)<>10000")
+    expect(count).toContain('if (select count(*) from public.test_questions where test_id=tid)<>2')
+    expect(count).toContain("(select jsonb_agg(to_jsonb(q) order by q.id) from public.test_questions q where q.test_id=tid) is distinct from baseline->'questions'")
+    expect(sql).toContain("n.nspname in('public','private','storage')")
+    const restore=plan().contracts.frames.find(frame=>frame.label==='limits-count-restore')!
+    expect(restore.sql).toContain('do $count_limit261$');expect(restore.sql).toContain('do $count_restored261$');expect(restore.sql).toContain('do $limits_fences261$')
+  })
   it.each(['gap','unknown262',...[253,254,255,256,257,258,259,260,261].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
     const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m}))
     if(defect==='gap') inventory.splice(100,1)
@@ -301,7 +349,7 @@ describe('inert unpublication source proof', () => {
     expect(aiBody.indexOf("'outcome', 'noop'")).toBeLessThan(aiBody.indexOf('insert into public.test_ai_grading_runs'))
     expect(m.concurrency.schedules.map(s=>s.label)).toEqual(['settings','test-advisory','classroom-operation','membership-operation','owner-parent-archive',
       'archive-revision','actor','test-parent','draft','question','work-access-before-unpublish','ai-before-unpublish','unpublish-before-work-access','unpublish-before-ai-create'])
-    expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBe(35)
+    expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBe(39)
     for(const race of m.concurrency.schedules){expect(race.rejectSql).toContain('Rejected unpublication changed whole graph');expect(race.rejectSql).toContain('to_jsonb(r)')}
   })
   it('requires exact fixed receipts and closes sessions on success or failure',async()=>{
@@ -321,21 +369,23 @@ describe('inert unpublication source proof', () => {
     await expect(runTestOwnerUnpublicationNativeContracts(Object.freeze({...m,sourceSha256:'0'.repeat(64)}),t,d)).rejects.toThrow()
     expect(d.openSession).not.toHaveBeenCalled()
   })
-  it('reconstructs exact unchanged monolithic bytes from seven closed frames',()=>{
-    const m=plan(),labels=['initialize','success','rejections','limits','provider','acl','contextual']
-    expect(digest(readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8'))).toBe('a426262d9d588b277571858382b3a416e87336e5464f9eb142b975a9f300384b')
+  it('reconstructs exact monolithic bytes from eleven closed frames',()=>{
+    const m=plan(),labels=['initialize','success','rejections','limits','limits-count-2501-5000','limits-count-5001-7500',
+      'limits-count-7501-10000','limits-count-restore','provider','acl','contextual']
+    expect(digest(readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8'))).toBe('96e7b1c58e456b0775b74d8511e3415ccc21e19d9aae7355f46f2806dc3edf88')
     expect(m.contracts.frames.map(frame=>frame.label)).toEqual(labels)
-    const source=m.contracts.frames.map((frame,index)=>index===6?frame.sql:frame.sql.replace(
+    const source=m.contracts.frames.map((frame,index)=>index===m.contracts.frames.length-1?frame.sql:frame.sql.replace(
       `\nselect jsonb_build_object('frame','${labels[index]}','transaction',txid_current()::text) as result;`,''))
     expect(source.join('')).toBe(m.contracts.sql)
     expect(source[0]).toMatch(/^begin;/)
     expect(source.slice(1).every(sql=>!/^begin;/.test(sql))).toBe(true)
     expect(source.slice(0,-1).every(sql=>!sql.trimEnd().endsWith('rollback;'))).toBe(true)
-    expect(source[6]).toMatch(/rollback;$/)
+    expect(source.at(-1)).toMatch(/rollback;$/)
     expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBeLessThanOrEqual(m.caps.dispatches)
     expect(m.concurrency.schedules).toHaveLength(14)
     expect(m.caps).toMatchObject({requestMs:12000,totalMs:180000,dispatches:40,sqlBytes:524288,responseBytes:8388608})
     expect(Object.isFrozen(m.contracts.frames)).toBe(true)
+    expect(m.contracts.frames.every(Object.isFrozen)).toBe(true)
     expect(validateTestOwnerUnpublicationNativePlanSql(Object.freeze({...m,contracts:Object.freeze({...m.contracts,frames:[]})}),m.contracts.frames[0].sql)).toBe(false)
   })
   it.each(['missing','duplicate','order','outer-order'])('refuses fixed contract boundary %s drift',defect=>{
@@ -349,16 +399,31 @@ describe('inert unpublication source proof', () => {
       String(path).endsWith('/scripts/check-contextual-test-owner-unpublication.sql')?altered:actual(path,...args)) as typeof readFileSync)
     try{expect(plan).toThrow()}finally{mocked.mockImplementation(actual)}
   })
-  it.each(['malformed','order','transaction','throw','final'])('stops at failed contract frame and finally closes: %s',defect=>{
-    const m=plan(),close=vi.fn(async()=>{}),execute=vi.fn(async (sql:string)=>{
+  it.each(['rows2501-5000.','rows5001-7500.','rows7501-10000.','rejection and savepoint restoration.'])('rejects every new closed count boundary drift: %s',suffix=>{
+    const source=readFileSync('scripts/check-contextual-test-owner-unpublication.sql','utf8'),marker=`\n-- Count-only fixture ${suffix}\n`
+    const other='\n-- Pending provider cleanup is only a relational fence; no provider is called.\n'
+    for(const defect of ['missing','duplicate','order']){
+      const altered=defect==='missing'?source.replace(marker,'\n-- Changed count boundary.\n'):defect==='duplicate'?source.replace(marker,marker+marker)
+        :source.replace(marker,'__fixed_count_boundary__').replace(other,marker).replace('__fixed_count_boundary__',other)
+      const mocked=vi.mocked(readFileSync),actual=mocked.getMockImplementation()!
+      mocked.mockImplementation(((path,...args)=>String(path).endsWith('/scripts/check-contextual-test-owner-unpublication.sql')?altered:actual(path,...args)) as typeof readFileSync)
+      try{expect(plan).toThrow()}finally{mocked.mockImplementation(actual)}
+    }
+  })
+  it.each(['malformed','order','transaction','throw','final','count-malformed','count-order','count-transaction','count-throw','count-restore-throw'])('stops at failed contract frame and finally closes: %s',defect=>{
+    const m=plan(),close=vi.fn(async()=>{}),kind=defect.replace(/^count-(?:restore-)?/,'')
+    const failed=defect==='final'?m.contracts.frames.length-1:failureFrame()
+    function failureFrame(){return defect==='count-restore-throw'?m.contracts.frames.findIndex(frame=>frame.label==='limits-count-restore')
+      :defect.startsWith('count-')?m.contracts.frames.findIndex(frame=>frame.label==='limits-count-2501-5000'):2}
+    const execute=vi.fn(async (sql:string)=>{
       const index=m.contracts.frames.findIndex(frame=>frame.sql===sql),frame=m.contracts.frames[index]
-      if(index===(defect==='final'?6:2)){if(defect==='throw')throw Error('modeled frame failure')
+      if(index===failed){if(kind==='throw')throw Error('modeled frame failure')
         if(defect==='final')return [{result:{checks:[]}}]
-        return [{result:defect==='malformed'?{frame:frame.label}:defect==='order'?{frame:'limits',transaction:'17'}:{frame:frame.label,transaction:'18'}}]}
+        return [{result:kind==='malformed'?{frame:frame.label}:kind==='order'?{frame:'limits',transaction:'17'}:{frame:frame.label,transaction:'18'}}]}
       return [{result:{frame:frame.label,transaction:'17'}}]
     }),d:DraftSaveDriver={verifyTarget:async()=>target(m,'contracts'),openSession:async name=>({name,execute,rollbackAndClose:close})}
     return expect(runTestOwnerUnpublicationNativeContracts(m,target(m,'contracts'),d)).rejects.toThrow().then(()=>{
-      expect(execute).toHaveBeenCalledTimes(defect==='final'?7:3);expect(close).toHaveBeenCalledTimes(1)
+      expect(execute).toHaveBeenCalledTimes(failed+1);expect(close).toHaveBeenCalledTimes(1)
     })
   })
   it('uses one aggregate180s clock instead of renewing time for each frame',async()=>{
