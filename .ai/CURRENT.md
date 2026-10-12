@@ -16,9 +16,9 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Controls unchanged: quota OFF; production env key names unchanged Oct11.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-1555/1561/1566 merged/dormant; CI38133165213 PASS.
 1569 merged `2cea88dc1`/dormant; CI38150651417 PASS.
-Next: owner recovery; unpublish/Test delete open.
+1577 merged `18126e952`/dormant; CI38175680856 PASS.
+Next: unpublish; whole-Test delete open.
 251/252 native/review/CI PASS.
 LegacyPATCH/UI unchanged; local249+ held.
 No exit; `docs/guidance/contextual-test-publication.md`.

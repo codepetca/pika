@@ -46123,3 +46123,93 @@ Focused affected semantic tests: 90/90 PASS. Native matrix: 8 teacher contexts/1
 ## 2026-10-10 — Form closing prospective-main synchronization
 
 Integrated current modal/drawer parent a5960643f with reviewed main3fd887953 into the frozen Guide options/Blueprint follow-on. Product/adopter/native dependency hashes remain unchanged from the completed local matrix and initial independent review f1e492aa1. Reconciled the duplicate Entry recovery archive body while preserving both parent histories and all receipts; imported upstream source and CI unchanged. Updated prospective-parent checks and proportional integration review follow. Publication remains behind PR1557 actual main landing; exact final SHA requires normal ready CI. The pre-existing shared-menu streamed-ID mismatch remains a separate open accessibility follow-up, not an owner-approved goal deferral. No migration application, backend write, new dependency or production work.
+
+<!-- pika-session-log-archive-batch:703d84d6e8164ead50cd751e85147d4b80787b0f2e5eb056d29adbe78ba39011 -->
+## 2026-10-10 — Form closing actual-main publication
+
+PR1557 merged to main3675a8a01 with all selected CI/PR Gate PASS; parent squash tree exactly matches reviewed b6eccc99a. Replayed only the Guide options/Blueprint form adoption onto actual main, preserved both source histories and owned synchronization notes, and retained all upstream implementation/test/dependency files. Eight own nonhistory files and ten native bindings remain unchanged from the accepted initial review/matrix. Canonical focused checks, draft publication and proportional actual-main integration review precede ready CI; no phase exit or production promotion claimed. Shared ActionBarMenu hydration follow-up remains open.
+
+<!-- pika-session-log-archive-batch:4a0440c4b39f5f7cd7ad5fdf55f375dfc86e7a3d6d53a470d3fbd59d99ccf3f1 -->
+## 2026-10-10 — Browser reliability and dark-family scheduling
+
+User authorized next browser slice. Preserve all577 distinct cases/579 runtime selections, native TTL waits, configured workers/retries/timeouts, snapshots and isolation. Separate dark Pattern Lab into an independently guarded hosted job to remove the pinned Playwright project phase barrier before dark Experience; PR Gate requires its success whenever browser selected. Local browser/dark aliases remain complete and serial across current and historical generations. Three native-artifact/source-supported waits preserve existing assertions: animated inspector geometry, remounted question-editor validation before navigation, survey publication settlement before Escape. No product/schema/dependency changes. Baseline PatternLab16PASS; changed PatternLab24PASS without retries. Cold survey attempt2timeouts/6passes before interruption retained for diagnosis, not accepted as full success; complete warmed survey matrix8PASS without retries and focused737tests/54files plus architecture/UI/design/types/lint PASS. Two bounded Sol6.1/high investigations plus one local-driver implementation delivered; 179 driver/preflight/policy and115 workflow tests PASS. DeepSeek pause honored, weekly28% remaining at start; effective models/tokens/active time unknown. Independent fixed-SHA review and actual hosted timing/retry acceptance remain required. Course Guide availability and focus-restoration flakes remain unresolved. No canonical DB, production promotion, provider/hardware or Clarity actions.
+
+<!-- pika-session-log-archive-batch:2dd060f92bb3daa8c0bf1a1ab5c846f5096fad7898ada821b54ac452533e3df4 -->
+## 2026-10-10 — Shared page action menu closing
+
+- Extended PageActionBar More actions with the semantic fast opacity exit, immediate inert/hidden command retirement and focus return, owner/availability invalidation, reopen cancellation and reduced motion.
+- Deferred trigger/menu ID relationships until hydration, following useDropdownNav; retained prior streamed-ID baseline evidence.
+- Recorded the governed UI brief and executable Pattern Lab reference. Focused lifetime/keyboard/SSR tests and both-role native verification cover the narrow static menu owner. Other menu families and broad fluidity completion remain open.
+- Risk: workspace-state presentation lifetime only. No dependencies, backend writes, production promotion or migration application.
+
+<!-- pika-session-log-archive-batch:0746008f9927e6d4cf0d071cf4311a947d8eca79be5ed531609ab4c6d9d01e76 -->
+## 2026-10-10 — Owner merged; learner source review and compatibility correction
+
+Owner1555 squashmerged730642666 at12:37UTC after exact552CI38050378092 all8
+checks/PRGate PASS; reviewed/merge trees equal, clean canonicalmain ff-synced.
+Native001–256/94SDK/genuine type receipts retained; earlier failures/counters
+not reset. No sharedlocal/prod migration or activation.
+Learner1561 draft21fc based730642: tenexistingroutes/elevenmethods, role-neutral
+enrollment, current-authority-before-conflict, separate best-effort history,
+returned current-roster aggregates/material rechecks and additive257 source.
+Focused1081/77files plus types/lint/architecture/UI/design PASS; audit PASS.
+Two independent Sol/high source reviews: security clean; compatibility P2
+historical HTML charset404. Root RED3→GREEN25 fixes link-only normalization,
+retains complete raw tuple/CSP and uploads;94contextual/doc+20legacychecks PASS.
+Pushed49802; targeted Sol/high correction review clean. Three completed turns,
+initialwave1/targeted1/fix1; original13:16:45 clock/task extensionwaiver retained.
+Earlier reviewers used fixed Git blobs in implementationcheckout; needed final
+cumulative review will use separate detached checkout to satisfy workflow.
+Inert native source preparation continues; existing fixed executor must be
+reused, not exported generically or replaced. No257 replay/SDK network/Storage/
+CLI typegeneration approval or attempt, no readiness/CI/merge/phaseexit claim.
+Weekly32%remaining reused; token/active/effectiveconfiguration unknown, no usage
+savings inferred. Private coordinator evidence pika-learner-test-map.G7k1ir.
+Sharedlocal/prod249+/promotion/account/plan/quota/billing/provider/runner/
+admission/home/page/cutover holds persist. Billing remains separate.
+
+<!-- pika-session-log-archive-batch:86e3243bbc2c0c0ff4743c5d6a78119abea3d0862ed26d18aa1fb5b598da07f4 -->
+## 2026-10-10 — Learner proof preparation and current-main reconciliation
+
+All preparation writers stopped before rebase onto main3b7ae978e (#1559); one
+archive-marker conflict preserved both histories. No migration collision:257
+SQL digest unchanged. The existing executor gained a fixed learner profile,
+not a generic exported executor. Closed history/SDK/Storage/returned-roster/
+authority-race/ACL/cancellation source plans integrated; inherited private-type
+diagnostics fixed with narrow UUID/parsed-schema/literal-RPC adapters. No
+generated artifact was edited. Private source is disabled and unbound.
+Root offline checks:21source,73finite-case labels/168synthetic requests/336guards,
+2material cases/30requests/60guards and3fixed native-SDK probes PASS; private
+TypeScript PASS. Native evidence is still absent, not inferred from mocks.
+First post-rebase focused run exposed14 CI-inventory failures; retained actual
+new database split and added learner proof to its exact primary52-name seal,
+leaving lifecycle85 unchanged. Scoped192 CI checks PASS; final focused2330tests/
+113files plus architecture/UI/design/TypeScript/lint PASS (Fn0jp0 logs).
+Final cumulative review will use a separate detached candidate; initial source
+coverage retained, not a second initial wave. Ledger3launches/initial1/targeted1/
+fix1/final0 and original13:16:45 clock/task review extension remain. No257 replay,
+preflight/SDK network/Storage/Docker/CLI types, readyCI or production activation.
+Sharedlocal/prod249+/promotion/account/plan/quota/provider/billing/admission/
+home/page/cutover holds persist; no batch2 or goal exit.
+
+<!-- pika-session-log-archive-batch:598b39009aa1ba7f73e4f32f41072b83a1117cc17bb573d08a14484cd39a7bed -->
+## 2026-10-10 — Learner rehearsal failure and bounded fixture correction
+
+Final detached source review onf7aa completed clean; native acceptance was not
+inferred. Owner then approved ONE isolated full001–257 rehearsal. History replay
+passed; the first rollback SQL contract failed before SDK/Storage/types. Exact
+owned teardown and full canonical/global preservation passed, cleanupFailures
+empty. The attempted approval is consumed; no retry or shared/prod application.
+Historical stderr was discarded, so exact first-error attribution is not claimed.
+Bounded independent diagnosis found Closed recovery points_possible=0 violates
+039's retained positive constraint before RPC assertions. Root reproduced a
+RED source regression, then changed fixture0→1 for GREEN4checks;257 unchanged.
+A fresh disabled/unbound private candidate retains first-failure stderr privately
+with a16KiB bound/0600 receipt and cleanup-safe logging;23pure checks PASS.
+Private TypeScript initially rejected nullable child-process error.code; corrected
+the diagnostic input type, then PASS. No product/schema restriction was weakened.
+Focused2330PASS/one startup-budget failure17010>17000; compacted CURRENT without
+changing the limit. Corrected required focused run follows before publication.
+Ledger5launches/initial1/targeted2/fix2/final1; original13:16:45clock/task waiver
+and absolute12/8/8 caps retained. Source correction review and newly approved
+rehearsal/types/CI remain; all rollout/account/production holds persist.

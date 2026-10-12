@@ -46,15 +46,15 @@ const targetFor = (m: ReturnType<typeof plan>, phase: 'contracts'|'concurrency')
 })
 
 describe('inert contextual owner grading proof', () => {
-  it.each(['projection258-only', 'future261', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes',
+  it.each(['projection258-only', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future262', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes',
     'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes'] as const)('refuses incomplete or altered owner source profile %s', defect => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
     const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
     if (defect === 'projection258-only') migrations.splice(258)
-    if (defect === 'future261') migrations.push({ name: '261_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future262') migrations.push({ name: '262_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
     if (defect === 'missing258') migrations.splice(257, 1)
     if (defect === 'replaced258') migrations[257] = { ...migrations[258], name: '258_student_test_session_status_projection.sql' }
-    for (const [number, index] of [[258, 257], [259, 258], [260, 259]] as const) {
+    for (const [number, index] of [[258, 257], [259, 258], [260, 259], [261, 260]] as const) {
       const tail = migrations[index]
       if (defect === `bad${number}name`) tail.name = `${number}_unknown.sql`
       if (defect === `bad${number}digest`) tail.sha256 = 'f'.repeat(64)
@@ -128,7 +128,7 @@ describe('inert contextual owner grading proof', () => {
   })
   it('ships rollback-only SQL assertions bound to the coordinator source candidate', () => {
     const m=plan(),sql=readFileSync('scripts/check-contextual-test-owner-grading.sql','utf8')
-    expect(m.nativeVerified).toBe(false);expect(m.sourceSha256).toMatch(/^[a-f0-9]{64}$/);expect(m.migrations).toHaveLength(260)
+    expect(m.nativeVerified).toBe(false);expect(m.sourceSha256).toMatch(/^[a-f0-9]{64}$/);expect(m.migrations).toHaveLength(261)
     expect(m.migrations[257]).toEqual({name:'258_student_test_session_status_projection.sql',sha256:'7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f'})
     expect(m.migrations[258]).toEqual({name:'259_contextual_test_owner_grading.sql',sha256:'698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540'})
     expect(sql).toContain('rollback;');expect(sql).not.toMatch(/\bcommit\s*;/i)
