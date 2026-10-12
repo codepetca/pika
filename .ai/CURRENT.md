@@ -12,7 +12,7 @@ Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
 admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Quota OFF; prod env key names unchanged Oct11.
+Controls unchanged: quota OFF; prod env key names unchanged Oct11.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 1569 merged `2cea88dc1`/dormant; CI38150651417 PASS.

@@ -94,7 +94,7 @@ describe('prepared owner publication route', () => {
     ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
     ['src/app/classrooms/[classroomId]/TeacherTestsTab.tsx', 'e8653214921b5dbe9ab736fc70232f6d1427b69b97951b71fe23a1e734d9e7b0'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
-    // Remove only the new dormant metadata dispatcher and its three imports.
+    // Remove only the attested dormant metadata and deletion dispatchers/imports.
     // The complete remaining legacy file retains the original attested hash;
     // legacy publication and the current full UI remain byte-for-byte guarded.
     // The UI hash includes the reviewed PR1552 edit-mode and PR1553 publish
@@ -108,6 +108,14 @@ describe('prepared owner publication route', () => {
       const legacyStart = source.indexOf("  const user = await requireRole('teacher')", prefixEnd)
       expect(source.slice(prefixEnd, legacyStart)).toContain('patchContextualTestOwnerMetadata')
       source = source.slice(0, prefixEnd) + source.slice(legacyStart)
+      const deletionImport = "import { handleContextualTestOwnerDeletionRequest } from '@/lib/server/contextual-test-owner-deletion'\n"
+      const deletionStart = "export const DELETE = withErrorHandler('DeleteTest', async (_request, context) => {\n"
+      const deletionDispatcher = deletionStart
+        + '  const contextual = await handleContextualTestOwnerDeletionRequest(_request, context.params)\n'
+        + '  if (contextual) return contextual\n'
+      expect(source.split(deletionImport)).toHaveLength(2)
+      expect(source.split(deletionDispatcher)).toHaveLength(2)
+      source = source.replace(deletionImport, '').replace(deletionDispatcher, deletionStart)
     }
     expect(createHash('sha256').update(source).digest('hex')).toBe(hash)
   })

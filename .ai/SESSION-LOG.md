@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading merged; next recovery group started
-
-PR1569 merged normally at15:45:58UTC as2cea88dc1; exact reviewedff65head
-CI38150651417all10/PRGatePASS. Prior exactd714native001–259acceptancePASS;
-laterdocs-onlydeltas independentlyreviewed. Clean canonicalmainFF verified.
-Next branchcodex/classroom-assessment-next starts2cea in namedmanagedroot;
-fullstartupPASS after frozenlockfile cachedinstall, no dependency/source change.
-Owner requested continuous reasonablework without routineapprovals. Sharedlocal/
-prod/promotion/provider/account/activation holds remain. Weekly95%remaining,
-DeepSeekpause retained. Sol/high boundedread-only Testmap identifies three
-ownerunsubmit/resetroutes; rootverified role/preflight+244writer boundaries.
-Sol/high soleproductwriter assigned coherent dormantthree-routegroup, no Git/
-native/external effects. Root owns docs/Git/proof/review. Unpublish and Test
-deletion remain explicit ordinarygaps; no Tests/batch2/goal completion claimed.
-Product194focusedtestsPASS; proof248tests plus reorder187PASS; privateSDK,
-operationalfault andTypescript checksPASS. Audit26filesPASS. Initial aggregate
-exposed finite260guard andCItestinventory gaps; fixed without looseningseals.
-Final exact260sourceb60c53cb2; nativeexecution remainsinert pendingreview.
-
 ## 2026-10-11 PR1566 authorized main merge — minor journal sync
 
 Owner explicitly authorized merging PR1566 to main. Main advanced via1570/1571
@@ -632,3 +613,16 @@ sources unchanged, no migration renumbering. Reconciled head needs proportional
 base/log review and checks before any fresh exact disposable binding.
 Sharedlocal249+/prod259+,
 promotion/provider/account/admission/home/page/cohort/cutover holds remain.
+
+## 2026-10-12 Contextual Test deletion CI compatibility correction
+
+Fresh disposable262/38534 acceptance fully PASS: replay/types/rollbackACL,
+8contracts16heldraces/bothowner-role SDK closures/503one57014at8010ms/zeroRPC,
+restoration/exact8cleanup/global741/canonical183tables2cron/sourceports preserved.
+Runtimebinding consumed; failed prior attempt retained. Four clean review turns
+1471s. Exact-head CI38202975883 found2 compatibility tests failing while17050
+passed/8skipped: publication source seal missed the additive DELETE dispatcher;
+compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
+remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
+only attested dispatcher stripped; controls receipt restored. Targeted108checks
+PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
