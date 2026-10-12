@@ -65,6 +65,7 @@ import {
   ConfirmDialog,
   ContentDialog,
   PageActionBar,
+  PageLayout,
   PageHeading,
   DataTable,
   DataTableBody,
@@ -1127,7 +1128,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
   )
 }
 
-function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
+export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [view, setView] = useState<CalendarViewMode>('week')
   const [lessonPlans, setLessonPlans] = useState(LESSON_PLANS)
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
@@ -1146,7 +1147,7 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
   const menuItems: TeacherWorkSurfaceActionItem[] = [
     { id: 'markdown', label: 'Edit calendar in Markdown', onSelect: () => onPrototypeAction('Edit calendar in Markdown') },
   ]
-  return <div className="space-y-3">
+  return <PageLayout bleedX={false} width={view === 'week' ? 'standard' : 'full'} className="space-y-3">
     <TeacherWorkSurfaceContextBar
       ariaLabel="Calendar mockup controls"
       context={<span className="hidden truncate sm:inline">Teaching calendar</span>}
@@ -1169,7 +1170,7 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
       <LessonCalendar classroom={CLASSROOM} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'week'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
     <Description>Week uses the lesson agenda with a date rail, full lesson content and explicit editing. Month and Term retain their grids. The date and view toggle share the center cluster; More actions owns Markdown editing.</Description>
-  </div>
+  </PageLayout>
 }
 
 const ANNOUNCEMENTS = [

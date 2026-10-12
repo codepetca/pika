@@ -93,7 +93,8 @@ describe('StudentLessonCalendarTab', () => {
     expect(week).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
     const readCount = fetchMock.mock.calls.length
-    fireEvent.click(screen.getByRole('button', { name: 'Month', exact: true }))
+    week.focus()
+    fireEvent.keyDown(week, { key: 'ArrowRight' })
     expect(screen.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Next', exact: true })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'All', exact: true }))
