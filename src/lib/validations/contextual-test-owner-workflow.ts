@@ -32,12 +32,16 @@ export const contextualTestOwnerReservationSchema = z.object({
 }).strict()
 export const contextualTestOwnerFinalizationSchema = z.object({ document_id: inputUuid, managed_object_id: inputUuid }).strict()
 export const contextualTestOwnerCancellationSchema = z.object({ managed_object_id: inputUuid }).strict()
-export const contextualTestOwnerOperationSchema = z.enum(['inspect', 'update', 'student-access', 'reserve', 'upload', 'verify', 'cancel', 'sync', 'document', 'results', 'manual-save', 'clear-open-grades', 'return', 'unsubmit-plan', 'unsubmit', 'delete-single', 'delete-bulk', 'unpublish'])
+export const contextualTestOwnerOperationSchema = z.enum(['inspect', 'update', 'student-access', 'reserve', 'upload', 'verify', 'cancel', 'sync', 'document', 'results', 'manual-save', 'clear-open-grades', 'return', 'unsubmit-plan', 'unsubmit', 'delete-single', 'delete-bulk', 'unpublish', 'delete'])
 export type TestOwnerOperation = z.infer<typeof contextualTestOwnerOperationSchema>
-export const contextualTestOwnerWitnessSchema = z.object({
+const contextualTestOwnerWitnessBaseSchema = z.object({
   version: z.literal(1), actor_id: inputUuid, classroom_id: inputUuid, test_id: inputUuid,
   operation: contextualTestOwnerOperationSchema, test: contextualTestListTestSchema, result: z.json(),
 }).strict()
+export const contextualTestOwnerWitnessSchema = z.union([
+  contextualTestOwnerWitnessBaseSchema.extend({ operation: contextualTestOwnerOperationSchema.exclude(['delete']) }).strict(),
+  contextualTestOwnerWitnessBaseSchema.extend({ operation: z.literal('delete'), test_absent: z.literal(true) }).strict(),
+])
 export const contextualTestOwnerRpcEnvelopeSchema = contextualTestDraftGetRpcEnvelopeSchema
 
 export async function resolveContextualTestOwnerParams<T>(request: Request, params: Promise<T>, deadline: number): Promise<T> {

@@ -46285,3 +46285,97 @@ changing the limit. Corrected required focused run follows before publication.
 Ledger5launches/initial1/targeted2/fix2/final1; original13:16:45clock/task waiver
 and absolute12/8/8 caps retained. Source correction review and newly approved
 rehearsal/types/CI remain; all rollout/account/production holds persist.
+
+<!-- pika-session-log-archive-batch:f7a3be0565b171e580fbdb90057acfa7222c82af93ae807e06c287a0ec37f6d5 -->
+## 2026-10-10 — Second learner rehearsal failure and proof correction
+
+ONE fresh owner-approved8ca rehearsal passed full001–257 replay, rollback/ACL
+contracts and genuine CLI types, then failed inside finite learner verification.
+Exact owned teardown/global/canonical/source preservation PASS; cleanupFailures
+empty. Approval consumed and runner disabled/unbound. No retained JS exception
+identifies the historical cause; generated438731-byte artifact remains private.
+Independent Sol/high source diagnosis accepted a P2 timing-sensitive collapse
+fixture. A controlled exact-last-row positive fixture, real10s refusal mocks,
+before-plan/between-plan latency regressions and expired-collapse rollback SQL
+contract preserve product257/guards/CAS. New private all-exception0600 diagnostics
+are bounded/cleanup-safe; transport exposes only fixed non-sensitive refusal
+stage/case/profile metadata. Private26pure,73finite/168requests/336guards and tsc
+PASS; scoped transport/migration95 PASS. New rollback contract not yet executed.
+Continuity-only rebase onto3fd887953 preserved main's independently applied
+prod001–256 release receipts and both histories; no product/migration drift.
+Ledger7launches/initial1/targeted4/fix3in progress/final1; original13:16:45clock,
+task review waiver and hard12/8/8 caps retained. Correction review/fresh native/
+types/finalCI remain. Sharedlocal249+/prod257+/activation/account/billing holds
+persist; no phase or goal exit.
+
+Targeted detached53f91 correction review complete: timing/expiry/hash/continuity
+scope clean, one P2 diagnostic witness lost through SDK/application masking.
+Root reproduced RED1, then retains first finite refusal in read-only proof report
+and private captured fetch/0600 receipt; product generic503 masking unchanged.
+End-to-end actualSDK→helper→private receipt before/afterguard checks PASS with
+synthetic fetch only;91transport/27privatepure/73finite PASS. Fresh inert rz5Sdz
+preserves frozenGAGt5W; no preflight/native permission. Batch4/launch8/targeted5/
+final1; next proportional correction review uses original clock/waiver/caps.
+
+<!-- pika-session-log-archive-batch:befc4d89336161869033ab1885ffd45338fb4f2333307391618740170bca1204 -->
+## 2026-10-10 — Third learner rehearsal and cancellation clock correction
+
+ONE approved isolated28d rehearsal passed001–257 replay, rollback/ACL/expired
+history contracts and genuine438731-byte CLI types, then failed cancellation
+acceptance. Private stack locates the executor catch; exact original assertion
+remains unknown. Exact owned disposal/full canonical/global/source preservation
+PASS, no cleanup failures; permission consumed, historical runner false/null.
+No generated artifact installed, shared/prod application or activation. Bounded
+Sol/high diagnosis confirmed P2 guard time incorrectly measured as cancellation
+latency (both false rejection and false admission), not historical attribution.
+All three failures retain their receipts; no blind native retry.
+Source-only batch5 separates12s wire/body measurement from existing30s/absolute
+action, keeps product257/SQL8s and every full guard, and records finite first
+probe/restoration stages privately without underlying inputs/errors. RED4 engine
+regressions plus SDK timing regressions reproduced; corrected checks follow.
+Rebased onto03fca4506 unrelated UI; both continuity histories retained, no product/
+migration change and41 unrelated stashes preserved. Original13:16:45 clock,
+explicit review extension and hard12launch8target8fix remain; counts10launch/
+targeted7/fix5in progress/final1. Next proportional review includes base/correction;
+owner must approve exact clock semantics after review and ONE fresh exact-source
+isolated rehearsal. Final native/types/CI/merge and batch2/overall goal remain.
+
+## 2026-10-10 — Fourth learner rehearsal and restoration acknowledgement correction
+
+ONE approved isolated0cd rehearsal passed001–257/history/rollbackACL/genuine
+types, then failed cancellation restoration. Finite stage witness locates restore;
+underlying exception masked. All exact-owned/global/canonical/source preservation
+PASS(cleanupFailures=[]); permission consumed, runner restoredfalse/null and all
+nine source hashes verified. Genuine438731byte cc966 types remain private.
+Root source/actualguard check finds deterministic plain-ok→JSON decoder mismatch.
+Batch6 accepts only exactok for fixed learner restore, retains original SQL/full
+guards/catalog+fixture equality and every product/proof clock. Native-shaped mock
+RED3→GREEN; five malformed/absent output refusals and catalog/fixture drift added.
+182nativeprofile checks PASS;28privatepure and SDK timing/source checks follow.
+Prior explicit task override recovered via override-task-stops: workflow review
+limits, including locally absolute caps, waived; previous stop was incorrect.
+Original13:16:45clock/cumulative11launch/targeted8/fix6inprogress/final1 preserved,
+not reset. One proportional independent review follows focused/publication/freeze;
+no new native attempt, sharedlocal249+/prod257+, deployment or activation.
+Weekly27%remaining/ordinaryAllowed; effective/active/token telemetry unknown.
+
+## 2026-10-10 — Fifth learner rehearsal and response-fixture schema correction
+
+ONE approved424 rehearsal completed001–257/history/rollbackACL/genuineCLItypes,
+ACL restoration, real57014 cancellation, three same-attempt CAS checks and ten
+held-lock/race checks; fixture unchanged and zero remaining sessions. Whole
+learner acceptance FAILED at meaningful-response injection: nonexistent response
+question_type column. Exact-owned/global inventory/ports/full canonical/source
+cleanup PASS(cleanupFailures=[]); consumed runner archived inerttxt, all nine
+false/null reviewed hashes restored. Genuinecc966438731 types remain private.
+Private source-only batch7 removes the one invalid column/value; schema-backed
+offline RED1→GREEN29, full73label/168request/336guard driver, materials30/60,
+SDK3+7timing and private tsc PASS. No product SQL/clock/guard expansion or retry.
+Rebase onto4f352b74b retains incoming CI/UI behavior, learner regression/inventory,
+both histories and41 unrelated stashes; no257 numbering collision. Final focused
+and proportional independent delta/base review follow before another exact-source
+native request. Originalclock/workflow waiver/cumulative12launch9target6priorfix/
+1final1initial retained; sharedlocal249+/prod257+/activation/goal holds unchanged.
+Weekly25%remaining; attributable tokens/effective configuration/active time unknown.
+First focused run had2413PASS/one startup-size failure(17001>17000); compacted
+CURRENT without weakening the gate. Corrected full focused result follows.
