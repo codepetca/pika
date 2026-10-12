@@ -24,7 +24,8 @@ import { surveyNativePlan, validateSurveyNativeMigrationProfile, validateSurveyN
   runSurveyNativeRollbackRaces, runSurveyNativeRollbackContracts, validateSurveyGeneratedTypes,
   SURVEY_RPC_ARGUMENTS } from '../../scripts/contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
-const surveyEndpoint = { kind: 'survey263' as const, host: 'unix:///offline-survey.sock', identity: [1, 2, 3, 4] as const }
+const surveyEndpoint = { kind: 'survey263' as const, host: 'unix:///offline-survey.sock', identity: [1, 2, 3, 4] as const,
+  budget: { startedAt: Date.now(), workDeadline: Date.now() + 720000, cleanupDeadline: Date.now() + 900000 }, nativeCli: platform.SURVEY263_NATIVE_CLI }
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 
 const original = newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z'))
@@ -131,7 +132,7 @@ describe('source-only sealed Survey263 native reuse', () => {
   it('creates only an inert concrete engine facade, retaining existing session/action limits', () => {
     const m = buildSurveyNativeContractsManifest(original, head, repository)
     const engine = createContextualSurveysNativeContracts({ original, repository, reviewedHead: head,
-      capturedResources: [], containerId: 'a'.repeat(64), acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000,
+      capturedResources: [], containerId: 'a'.repeat(64), acceptedManifestSha256: digest(m), absoluteDeadline: surveyEndpoint.budget.workDeadline,
       survey263Endpoint: surveyEndpoint })
     expect(Object.keys(engine).sort()).toEqual(['diagnostic', 'generateTypes263', 'manifest', 'nativeVerified', 'run', 'runSdkCommitted', 'setup', 'verifyTarget'])
     expect(m.capabilities.sessions).toBe(2); expect(m.capabilities.actions).toBe(200)
@@ -155,7 +156,7 @@ describe('source-only sealed Survey263 native reuse', () => {
     const statusTarget = { API_URL: 'http://127.0.0.1:54331', DB_URL: 'postgresql://postgres:offline@127.0.0.1:54332/postgres',
       SERVICE_ROLE_KEY: `header.${Buffer.from(JSON.stringify({ iss: 'supabase-demo', role: 'service_role' })).toString('base64url')}.signature` }
     const input = { original, repository, reviewedHead: head, capturedResources: [], containerId: 'a'.repeat(64),
-      acceptedManifestSha256: digest(m), absoluteDeadline: Date.now() + 60000, statusTarget, survey263Endpoint: surveyEndpoint }
+      acceptedManifestSha256: digest(m), absoluteDeadline: surveyEndpoint.budget.workDeadline, statusTarget, survey263Endpoint: surveyEndpoint }
     await expect(createContextualSurveysNativeContracts(input).runSdkCommitted()).rejects.toThrow()
     await expect(createContextualSurveysNativeContracts(input).generateTypes263()).rejects.toThrow()
     expect(() => createContextualSurveysNativeContracts({ ...input, statusTarget: { ...statusTarget, API_URL: 'https://example.invalid' } })).toThrow()
@@ -237,8 +238,12 @@ describe('source-only sealed Survey263 native reuse', () => {
     const mock = vi.spyOn(nativeEngine, 'createContextualSurveysNativeContracts').mockImplementation(input => ({
       ...factory(input), setup, run, runSdkCommitted, generateTypes263,
     }))
-    const gate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'requireSurvey263AdapterEndpoint').mockReturnValue(surveyEndpoint)
+    const now = Date.now(), boundEndpoint = { ...surveyEndpoint, budget: { startedAt: now - 660000, workDeadline: now + 60000, cleanupDeadline: now + 240000 } }
+    const gate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'requireSurvey263AdapterEndpoint').mockReturnValue(boundEndpoint)
+    const cleanupGate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'beginSurvey263AdapterCleanup').mockImplementation(() => {})
+    const totalGate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'checkSurvey263AdapterTotal').mockImplementation(() => {})
     const adapters: AssignmentListLifecycleAdapters = {
+      checkWork: vi.fn(),
       canonicalSnapshot: vi.fn(async () => mode === 'cleanup-failure' && started === false && prepared === false
         && setup.mock.calls.length > 0 ? { ...canonical, rowDigests: 'different' } : canonical),
       inventory: vi.fn(async () => ({ resources: started ? resources : [], occupiedPorts: started ? [54331, 54332] : [], workdirExists: prepared })),
@@ -251,7 +256,7 @@ describe('source-only sealed Survey263 native reuse', () => {
       teardown: vi.fn(async () => { started = false }), removeWorkdir: vi.fn(async () => { prepared = false }),
     }
     const workload = bindSurveyNativeLifecycleWorkload({ original, repository, reviewedHead: head, reviewedManifestSha256: digest(m),
-      absoluteDeadline: Date.now() + 60000, rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true })
+      absoluteDeadline: boundEndpoint.budget.workDeadline, rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true })
     try {
       const operation = runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir, migrations,
         reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' || mode === 'unsealed' ? 'normal' : mode,
@@ -275,6 +280,6 @@ describe('source-only sealed Survey263 native reuse', () => {
       expect(adapters.teardown).toHaveBeenCalledWith(expect.objectContaining({ resources, projectId }))
       expect(adapters.removeWorkdir).toHaveBeenCalledOnce(); expect(adapters.canonicalSnapshot).toHaveBeenCalledTimes(2)
       expect(started).toBe(false); expect(prepared).toBe(false)
-    } finally { mock.mockRestore(); gate?.mockRestore() }
+    } finally { mock.mockRestore(); gate?.mockRestore(); cleanupGate?.mockRestore(); totalGate?.mockRestore() }
   })
 })

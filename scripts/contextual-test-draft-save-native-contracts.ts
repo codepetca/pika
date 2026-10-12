@@ -52,7 +52,8 @@ import { surveyNativePlan, validateSurveyNativeSql, runSurveyNativeRollbackContr
   runSurveyNativeRollbackRaces, validateSurveyGeneratedTypes, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
-import { decodeAssignmentListSnapshot } from './contextual-assignment-list-proof-platform'
+import { decodeAssignmentListSnapshot, validateSurvey263Budget, verifySurvey263NativeCli, Survey263UnjoinedChildError,
+  type Survey263Budget, type Survey263NativeCli } from './contextual-assignment-list-proof-platform'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
 import { generateTestDraftSaveTypes, testDraftSaveTypeGenerationPlan } from './generate-contextual-test-draft-save-types'
 
@@ -558,6 +559,8 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   /** Only the concrete Survey factory can bind these private status credentials. */
   surveySdk?: Readonly<{ fixture: SurveyNativeFixture; status: ReturnType<typeof validateAssignmentListProofTarget> }>;
   survey263Endpoint?: Readonly<{ host: string; identity: readonly [number, number, number, number] }>;
+  survey263Budget?: Survey263Budget;
+  survey263NativeCli?: Survey263NativeCli;
   runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
@@ -574,17 +577,20 @@ export function buildSurveyNativeContractsManifest(original: AssignmentListProof
     capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('survey') })
 }
 export function createContextualSurveysNativeContracts(input: NativeOwnerInput & { absoluteDeadline: number; statusTarget?: unknown;
-  survey263Endpoint: Readonly<{ host: string; identity: readonly [number, number, number, number] }> }) {
+  survey263Endpoint: Readonly<{ host: string; identity: readonly [number, number, number, number]; budget: Survey263Budget; nativeCli: Survey263NativeCli }> }) {
   const now = Date.now()
   assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
-  assert(input.survey263Endpoint && Object.keys(input.survey263Endpoint).every(key => ['kind', 'host', 'identity'].includes(key)))
+  assert(input.survey263Endpoint && Object.keys(input.survey263Endpoint).every(key => ['kind', 'host', 'identity', 'budget', 'nativeCli'].includes(key)))
+  const survey263Budget = validateSurvey263Budget(input.survey263Endpoint.budget)
+  assert.equal(input.absoluteDeadline, survey263Budget.workDeadline, 'Survey original work deadline differs')
+  const survey263NativeCli = verifySurvey263NativeCli(input.survey263Endpoint.nativeCli)
   assert(input.survey263Endpoint.host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(input.survey263Endpoint.host))
   assert(input.survey263Endpoint.identity.length === 4 && input.survey263Endpoint.identity.every(n => Number.isSafeInteger(n) && n >= 0))
   const survey263Endpoint = Object.freeze({ host: input.survey263Endpoint.host,
     identity: Object.freeze([...input.survey263Endpoint.identity]) as readonly [number, number, number, number] })
   const manifest = buildSurveyNativeContractsManifest(input.original, input.reviewedHead, input.repository)
   const engine = createNativeOwnerContracts(input, { manifest, project: manifest.projectId,
-    sourceFile: '263_contextual_surveys_workflow.sql', label: 'survey263', absoluteDeadline: input.absoluteDeadline, survey263Endpoint,
+    sourceFile: '263_contextual_surveys_workflow.sql', label: 'survey263', absoluteDeadline: input.absoluteDeadline, survey263Endpoint, survey263Budget, survey263NativeCli,
     singleMs: 35000,
     ...(input.statusTarget === undefined ? {} : { surveySdk: {
       fixture: manifest.fixture, status: validateAssignmentListProofTarget(input.statusTarget, manifest.projectId),
@@ -884,7 +890,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   assert(isAbsolute(input.repository) && realpathSync(input.repository) === input.repository)
   const project = profile.project
   const closure = structuredClone(input.capturedResources)
-  const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
+  const start = profile.survey263Budget?.startedAt ?? Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
   const probed = new Set<'outer' | 'inner' | PublicationPrivilegeKind>()
   const completedProbes = new Set<'outer' | 'inner' | PublicationPrivilegeKind>()
   // The rollback and committed publication schedules share one race clock.
@@ -892,7 +898,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
   let learnerCancellationDone = false
-  let surveySdkRan = false, surveySdkDone = false, surveyTypesGenerated = false
+  let surveySdkRan = false, surveySdkDone = false, surveyTypesGenerated = false, surveyUnjoined = false
   type CancellationStage = 'none' | 'snapshot' | 'catalog' | 'install' | 'installed' | 'guard' | 'probe' | 'receipt' | 'timing' | 'restore' | 'restored-catalog' | 'restored-fixture' | 'complete'
   let cancellationStage: CancellationStage = 'none'
   let cancellationFirstFailure: CancellationStage | undefined
@@ -937,13 +943,22 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     return ['--host', endpoint.host, 'exec', '-i', '-e', `PGAPPNAME=${name}`, input.containerId, 'psql', '-U', 'postgres', '-d', 'postgres',
       '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', profile.reorderDiagnosticSql && role(name) === 'contracts' ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate', ...variables]
   }
-  function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
+  function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role, cleanup = false): Promise<string> {
     assert(++controls <= CAPS.controlCalls)
     if (file === 'supabase') assert(profile.label === 'survey263' && endpoint)
     if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
-    return new Promise((resolveResult, reject) => {
+    const executable = file === 'supabase' ? verifySurvey263NativeCli(profile.survey263NativeCli!).path : file
+    if (profile.survey263Budget) {
+      timeout = Math.min(timeout, (cleanup ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
+      assert(timeout > 0)
+    }
+    return new Promise((resolveClosed, rejectClosed) => {
+      let joined = !profile.survey263Budget, outcome: { value?: string; error?: unknown } | undefined
+      const settle = () => { if (joined && outcome) { if ('error' in outcome) rejectClosed(outcome.error); else resolveClosed(outcome.value!) } }
+      const resolveResult = (value: string) => { outcome = { value }; settle() }
+      const reject = (error: unknown) => { outcome = { error }; settle() }
       let inputFailed = false
-      const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes,
+      const child = execFile(executable, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes,
         ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint!.host } } : {}) }, (error, stdout, stderr) => {
         if (profile.reorderDiagnosticSql && typeof stderr === 'string') {
           exchanged += Buffer.byteLength(stderr)
@@ -959,13 +974,21 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         }
         else { exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes ? reject(failure()) : resolveResult(stdout.trim()) }
       })
+      if (profile.survey263Budget) {
+        const closeDeadline = Math.min(profile.survey263Budget.cleanupDeadline, Date.now() + timeout + CAPS.closeMs)
+        const timer = setTimeout(() => { failed = true; surveyUnjoined = true; child.kill('SIGKILL'); rejectClosed(new Survey263UnjoinedChildError()) }, closeDeadline - Date.now())
+        child.once('close', () => { clearTimeout(timer); joined = true
+          if (Date.now() >= closeDeadline || !outcome) { failed = true; surveyUnjoined = true; rejectClosed(new Survey263UnjoinedChildError()) }
+          else settle()
+        })
+      }
       child.stdin?.on('error', () => { inputFailed = true; child.kill('SIGKILL') })
       child.stdin?.end(sql)
     })
   }
-  async function verifyEndpoint() {
+  async function verifyEndpoint(cleanup = false) {
     assert(!Object.keys(process.env).some(name => /^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)))
-    const raw = JSON.parse(await command('docker', ['context', 'inspect', '--format', manifest.contextTemplate])) as {
+    const raw = JSON.parse(await command('docker', ['context', 'inspect', '--format', manifest.contextTemplate], undefined, CAPS.controlMs, undefined, cleanup)) as {
       endpoints?: { docker?: { Host?: unknown; SkipTLSVerify?: unknown } }; tlsMaterial?: unknown;
     }
     assert(raw.endpoints && Object.keys(raw.endpoints).join(',') === 'docker')
@@ -985,23 +1008,23 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     // These fresh read-only children are independent. Settle all of them even
     // on rejection before resource discovery, SQL, or session work can begin.
     const checks = await Promise.allSettled([
-      (async () => { assert.equal(await command('git', ['rev-parse', 'HEAD']), input.reviewedHead) })(),
-      (async () => { assert.equal(await command('git', ['rev-parse', '--show-toplevel']), input.repository) })(),
-      (async () => { assert.equal(await command('git', ['status', '--porcelain']), '') })(),
-      verifyEndpoint(),
+      (async () => { assert.equal(await command('git', ['rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), input.reviewedHead) })(),
+      (async () => { assert.equal(await command('git', ['rev-parse', '--show-toplevel'], undefined, CAPS.controlMs, undefined, cleanup), input.repository) })(),
+      (async () => { assert.equal(await command('git', ['status', '--porcelain'], undefined, CAPS.controlMs, undefined, cleanup), '') })(),
+      verifyEndpoint(cleanup),
     ])
     for (const result of checks) if (result.status === 'rejected') throw result.reason
     assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
     assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations', profile.sourceFile), 'utf8')), manifest.sourceSha256)
-    const all = await draftSaveProofDockerInventory({}, profile.label === 'survey263' ? endpoint : undefined)
+    const all = await draftSaveProofDockerInventory({}, profile.label === 'survey263' ? endpoint : undefined, profile.survey263Budget?.cleanupDeadline)
     validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
-    await verifyEndpoint()
+    await verifyEndpoint(cleanup)
     if (!cleanup) check(observe)
   }
   async function guard(cleanup = false, ownedRole: Role = 'none', observe = !cleanup) {
     try {
     await inventory(cleanup, observe)
-    assert.equal(await command('docker', dockerArgs(`${project}_fixture`), manifest.guard, CAPS.controlMs, observe ? ownedRole : undefined), 'ok')
+    assert.equal(await command('docker', dockerArgs(`${project}_fixture`), manifest.guard, CAPS.controlMs, observe ? ownedRole : undefined, cleanup), 'ok')
     if (!cleanup) check(observe)
     } catch (error) { if (observe) record('guard', ownedRole); throw error }
   }
@@ -1010,7 +1033,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   async function terminate(owned: Backend) {
     await guard(true)
     const variables = ['-v', `owned_pid=${owned.pid}`, '-v', `owned_started=${owned.started}`, '-v', `owned_name=${owned.name}`]
-    const text = await command('docker', dockerArgs(`${project}_fixture`, variables), manifest.termination, CAPS.closeMs)
+    const text = await command('docker', dockerArgs(`${project}_fixture`, variables), manifest.termination, CAPS.closeMs, undefined, true)
     const value = JSON.parse(text) as { present?: unknown; terminated?: unknown }
     assert.deepEqual(Object.keys(value).sort(), ['present', 'terminated'])
     assert(value.present === false || value.terminated === true, 'Remote termination unconfirmed')
@@ -1018,6 +1041,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   async function closeAll() {
     failed = true
     const results = await Promise.allSettled([...sessions].map(session => session.destroy()))
+    if (surveyUnjoined) throw new Survey263UnjoinedChildError()
     if (results.some(result => result.status === 'rejected')) throw failure()
   }
   class NativeSession implements DraftSaveSession {
@@ -1075,6 +1099,10 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number): Promise<readonly { result?: unknown }[]> {
+      if (profile.survey263Budget) {
+        timeoutMs = Math.min(timeoutMs, (this.cleaning ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
+        assert(timeoutMs > 0)
+      }
       assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= CAPS.actionMs)
       if (profile.reorderDiagnosticSql) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
       this.progressScope = !this.cleaning && !firstFault && profile.label === 'test-owner-reorder' && phase === 'contracts'
@@ -1122,7 +1150,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         catch (error) { remoteError = error }
         this.child.stdin.destroy(); this.child.stdout.destroy(); this.child.stderr.destroy(); this.child.kill('SIGKILL')
         await new Promise<void>((resolveClose, rejectClose) => {
-          const timer = setTimeout(() => rejectClose(failure()), CAPS.closeMs)
+          const time = Math.min(CAPS.closeMs, profile.survey263Budget ? profile.survey263Budget.cleanupDeadline - Date.now() : Infinity)
+          if (time <= 0) { surveyUnjoined = true; rejectClose(new Survey263UnjoinedChildError()); return }
+          const timer = setTimeout(() => { if (profile.survey263Budget) surveyUnjoined = true
+            rejectClose(profile.survey263Budget ? new Survey263UnjoinedChildError() : failure())
+          }, time)
           this.closed.then(() => { clearTimeout(timer); resolveClose() }, rejectClose)
         })
         sessions.delete(this); this.partial = ''
@@ -1171,7 +1203,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     // before the fixed restoration dispatch; this gate cannot authorize SQL.
     if (restorationAdmission) assert.equal(await restorationAdmission(), undefined)
     const name = `${project}_${sql === manifest.snapshot ? 'draft_contracts' : 'fixture'}`
-    const output = await command('docker', dockerArgs(name), sql, CAPS.closeMs)
+    const output = await command('docker', dockerArgs(name), sql, CAPS.closeMs, undefined, true)
     if (profile.learnerCancellation && sql === profile.learnerCancellation.restore) {
       // This exact fixed SQL includes its full guard's plain-text receipt;
       // its quiet trigger/function DROP and COMMIT emit no JSON result row.
@@ -1276,8 +1308,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           try {
             return await command('supabase', [...args], undefined, Math.max(1, Math.min(60000,
               (profile.absoluteDeadline ?? start + CAPS.totalMs) - Date.now())))
-          } finally { await verifyEndpoint() }
-        }, async () => { assert(endpoint); return draftSaveProofDockerInventory({}, endpoint) })
+          } finally { await verifyEndpoint(true) }
+        }, async () => { assert(endpoint); return draftSaveProofDockerInventory({}, endpoint, profile.survey263Budget?.cleanupDeadline) })
         const source = readFileSync(receipt.path, 'utf8')
         assert.equal(Buffer.byteLength(source), receipt.bytes)
         validateSurveyGeneratedTypes(source, receipt.sha256); check()

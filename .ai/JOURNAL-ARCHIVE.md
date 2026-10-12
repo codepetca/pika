@@ -46447,3 +46447,18 @@ prod257+, promotion, activation, batch2/goal exit or goal resume. Original revie
 clock13:16:45UTC/counters13launch10target7fix1initial1final retained under direct
 workflow-stop waiver. Weekly24%remaining/ordinaryAllowed; DeepSeek paused;
 effective model, attributable active time and token telemetry unknown.
+
+<!-- pika-session-log-archive-batch:53fa59b5e877ee62809385d6376360bfb71b2e52b18984178c570b66ac889c0b -->
+## 2026-10-11 — Learner CI continuity-marker correction
+
+Final delta review14 COMPLETE/sourceclean at53e43782; actual whole rehearsal and
+exact generated type installation accepted with unchanged runtime/base/private
+manifest. Eligible CI38099607449 failed one existing Bara rollout documentation
+contract(16376testsPASS/1FAIL/8skip); shortened CURRENT omitted required unchanged-
+controls marker. PR returned draft and remaining lanes canceled; no duplicate CI.
+Existing assertion reproduced locally RED1/3PASS. Source-only batch9 restores
+Controls unchanged wording with identical receipt meaning; no assertion/gate
+weakening or product/schema/proof change. Targeted regression/startup cap and
+focused checks precede narrow independent wording/history review. Original
+clock/waiver/counters14turn11target8priorbatch1initial1final retained; all six
+native permissions consumed; shared/prod/activation/toolgoal holds unchanged.

@@ -126,9 +126,31 @@ export function writeAssignmentListStartupDiagnostic(projectId: string, evidence
   writeFileSync(path, JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
   return path
 }
-async function command(file: string, args: string[], options: { input?: string; timeout?: number; startupProjectId?: string; env?: NodeJS.ProcessEnv } = {}): Promise<string> {
+async function command(file: string, args: string[], options: { input?: string; timeout?: number; startupProjectId?: string; env?: NodeJS.ProcessEnv;
+  survey?: { nativeCli: Survey263NativeCli; dispatchDeadline: number; closeDeadline: number } } = {}): Promise<string> {
   if (options.startupProjectId) {
     assert.equal(file, 'supabase'); assert.equal(args[0], 'start'); assignmentListProofWorkdir(options.startupProjectId)
+  }
+  if (options.survey) {
+    const executable = file === 'supabase' ? verifySurvey263NativeCli(options.survey.nativeCli).path : file
+    const timeout = Math.min(options.timeout ?? 20000, options.survey.dispatchDeadline - Date.now())
+    assert(timeout > 0, 'Survey original dispatch deadline expired')
+    const closeDeadline = options.survey.closeDeadline
+    assert(Date.now() < closeDeadline)
+    return new Promise((resolve, reject) => {
+      let outcome: { error: Error | null; stdout: string } | undefined, inputFailed = false
+      const child = execFile(executable, args, { timeout, killSignal: 'SIGKILL',
+        maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', ...(options.env ? { env: options.env } : {}) },
+      (error, stdout) => { outcome = { error, stdout } })
+      const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Survey263UnjoinedChildError()) }, closeDeadline - Date.now())
+      child.once('close', () => {
+        clearTimeout(timer)
+        if (!outcome || outcome.error || inputFailed || Date.now() >= closeDeadline) reject(new Error('Private Survey platform child rejected'))
+        else resolve(outcome.stdout.trim())
+      })
+      child.stdin?.on('error', () => { inputFailed = true; child.kill('SIGKILL') })
+      child.stdin?.end(options.input)
+    })
   }
   return new Promise((resolve, reject) => {
     const child = execFile(file, args, { timeout: options.timeout ?? 20000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', ...(options.env ? { env: options.env } : {}) }, (error, stdout, stderr) => {
@@ -151,15 +173,66 @@ async function command(file: string, args: string[], options: { input?: string; 
  * existing lifecycle. Data-only binding; no command/executor injection. Never
  * assign DOCKER_HOST to process.env (the existing native engine forbids it). */
 type Survey263Endpoint = Readonly<{ kind: 'survey263'; host: string; identity: readonly [number, number, number, number] }>
-const survey263AdapterEndpoints = new WeakMap<AssignmentListLifecycleAdapters, Survey263Endpoint>()
+export type Survey263Budget = Readonly<{ startedAt: number; workDeadline: number; cleanupDeadline: number }>
+export type Survey263NativeCli = Readonly<{ path: string; sha256: string }>
+export const SURVEY263_NATIVE_CLI = Object.freeze({
+  path: '/opt/homebrew/Cellar/supabase/2.109.1/libexec/lib/node_modules/supabase/node_modules/@supabase/cli-darwin-arm64/bin/supabase',
+  sha256: 'b7be23f4e211b75c00a3df5fcd1f96f3905983c74ff3189bfc69ad5b0f7132c4',
+})
+export class Survey263UnjoinedChildError extends Error { constructor() { super('Private Survey child closure unconfirmed') } }
+function surveyData(value: object, keys: string[]) {
+  assert(value && Object.getPrototypeOf(value) === Object.prototype)
+  assert.deepEqual(Object.keys(value).sort(), [...keys].sort())
+  assert(Object.values(Object.getOwnPropertyDescriptors(value)).every(descriptor => 'value' in descriptor))
+}
+export function verifySurvey263NativeCli(value: Survey263NativeCli) {
+  assert(!Object.hasOwn(process.env, 'SUPABASE_CLI_BINARY_OVERRIDE'))
+  surveyData(value, ['path', 'sha256'])
+  assert.deepEqual(value, SURVEY263_NATIVE_CLI)
+  assert.equal(realpathSync(value.path), value.path); assert(statSync(value.path).isFile())
+  const bytes = readFileSync(value.path)
+  assert(Buffer.isBuffer(bytes) && bytes.subarray(0, 4).equals(Buffer.from([0xcf, 0xfa, 0xed, 0xfe])))
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), value.sha256)
+  return SURVEY263_NATIVE_CLI
+}
+export function validateSurvey263Budget(value: Survey263Budget) {
+  surveyData(value, ['cleanupDeadline', 'startedAt', 'workDeadline'])
+  assert(Object.values(value).every(Number.isSafeInteger))
+  assert.equal(value.workDeadline, value.startedAt + 720000); assert.equal(value.cleanupDeadline, value.startedAt + 900000)
+  assert(value.startedAt <= Date.now() && Date.now() < value.workDeadline)
+  return Object.freeze({ ...value })
+}
+type Survey263Binding = Survey263Endpoint & Readonly<{ budget: Survey263Budget; nativeCli: Survey263NativeCli }>
+const survey263AdapterEndpoints = new WeakMap<AssignmentListLifecycleAdapters, {
+  binding: Survey263Binding; cleanup(): void; poison(): void; checkTotal(): void;
+}>()
 /** Only an actual fixed-transport adapter admits the Survey lifecycle. A copied
  * object or an ordinary predecessor adapter cannot claim this binding. */
 export function requireSurvey263AdapterEndpoint(adapters: AssignmentListLifecycleAdapters) {
-  const endpoint = survey263AdapterEndpoints.get(adapters)
-  assert(endpoint, 'Survey263 requires the sealed local platform transport')
-  return endpoint
+  const entry = survey263AdapterEndpoints.get(adapters)
+  assert(entry && Object.isFrozen(adapters), 'Survey263 requires the sealed local platform transport')
+  for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(adapters)))
+    assert('value' in descriptor && descriptor.writable === false && descriptor.configurable === false)
+  return entry.binding
 }
-function createSurvey263PlatformTransport(binding: Survey263Endpoint) {
+export function beginSurvey263AdapterCleanup(adapters: AssignmentListLifecycleAdapters, unjoined = false) {
+  requireSurvey263AdapterEndpoint(adapters)
+  const entry = survey263AdapterEndpoints.get(adapters)!
+  if (unjoined) entry.poison()
+  entry.cleanup()
+}
+export function checkSurvey263AdapterTotal(adapters: AssignmentListLifecycleAdapters) {
+  requireSurvey263AdapterEndpoint(adapters); survey263AdapterEndpoints.get(adapters)!.checkTotal()
+}
+function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBudget: Survey263Budget, nativeCli: Survey263NativeCli) {
+  surveyData(binding, ['host', 'identity', 'kind'])
+  const budget = validateSurvey263Budget(originalBudget)
+  nativeCli = verifySurvey263NativeCli(nativeCli)
+  let cleaning = false, poisoned = false
+  const checkTotal = () => { assert(!poisoned, 'Survey child closure unconfirmed'); assert(Date.now() < budget.cleanupDeadline, 'Survey total deadline expired') }
+  const checkWork = () => { checkTotal(); assert(!cleaning && Date.now() < budget.workDeadline, 'Survey work deadline expired') }
+  const cutoff = (settling = false) => { checkTotal(); return cleaning || settling ? budget.cleanupDeadline : budget.workDeadline }
+  const remaining = (settling = false) => { const time = cutoff(settling) - Date.now(); assert(time > 0, 'Survey original deadline expired'); return time }
   assert.deepEqual(Object.keys(binding).sort(), ['host', 'identity', 'kind'])
   assert.equal(binding.kind, 'survey263')
   const endpoint = Object.freeze({ host: binding.host, identity: Object.freeze([...binding.identity]) })
@@ -169,16 +242,18 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint) {
   assert(endpoint.identity.length === 4 && endpoint.identity.every(n => Number.isSafeInteger(n) && n >= 0))
   const verify = () => {
     assert(!Object.keys(process.env).some(name =>
-      /^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)))
+      /^(?:SUPABASE_CLI_BINARY_OVERRIDE|DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)))
     assert.equal(realpathSync(path), path)
     const socket = statSync(path); assert(socket.isSocket())
     assert.deepEqual([socket.dev, socket.ino, socket.mode, socket.rdev], endpoint.identity)
   }
   verify() // pin the accepted socket synchronously at adapter creation
-  const observe = async () => {
+  const observe = async (settling = false) => {
     verify()
     const raw = JSON.parse(await command('docker', ['context', 'inspect', '--format',
-      '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}']))
+      '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}'], {
+      timeout: Math.min(20000, remaining(settling)), survey: { nativeCli, dispatchDeadline: cutoff(settling), closeDeadline: Math.min(budget.cleanupDeadline, Date.now() + remaining(settling) + 12000) },
+    }).catch(error => { if (error instanceof Survey263UnjoinedChildError) poisoned = true; throw error }))
     assert(raw && raw.endpoints && Object.keys(raw.endpoints).join(',') === 'docker')
     assert(raw.tlsMaterial === null || (typeof raw.tlsMaterial === 'object' && Object.keys(raw.tlsMaterial).length === 0))
     const docker = raw.endpoints.docker
@@ -187,6 +262,7 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint) {
     assert(typeof docker.Host === 'string' && docker.Host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(docker.Host))
     assert.equal('unix://' + realpathSync(docker.Host.slice('unix://'.length)), endpoint.host)
     verify()
+    assert(Date.now() < cutoff(settling))
   }
   const run: typeof command = async (file, args, options = {}) => {
     assert(file === 'docker' || file === 'supabase')
@@ -195,13 +271,18 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint) {
     try {
       // Docker always gets the captured host explicitly. Supabase receives the
       // same host only in its private child environment, never via default context.
-      return await command(file, file === 'docker' ? ['--host', endpoint.host, ...args] : args, {
-        ...options, ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint.host } } : {}),
+      const timeout = Math.min(options.timeout ?? 20000, remaining())
+      const result = await command(file, file === 'docker' ? ['--host', endpoint.host, ...args] : args, {
+        ...options, timeout, survey: { nativeCli, dispatchDeadline: cutoff(), closeDeadline: Math.min(budget.cleanupDeadline, Date.now() + timeout + 12000) },
+        ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint.host } } : {}),
       })
-    } finally { await observe() } // command failures and teardown stay pinned too
+      assert(Date.now() < cutoff()); return result
+    } catch (error) { if (error instanceof Survey263UnjoinedChildError) poisoned = true; throw error }
+    finally { await observe(true) } // fixed original reserve, never a renewed clock
   }
-  return Object.freeze({ run, observe, endpoint: Object.freeze({ kind: 'survey263' as const,
-    host: endpoint.host, identity: endpoint.identity as readonly [number, number, number, number] }) })
+  return Object.freeze({ run, observe, checkWork, checkTotal, cleanup: () => { cleaning = true }, poison: () => { poisoned = true },
+    endpoint: Object.freeze({ kind: 'survey263' as const, host: endpoint.host,
+      identity: endpoint.identity as readonly [number, number, number, number], budget, nativeCli }) })
 }
 
 const containerTemplate = '{"id":{{json .Id}},"name":{{json .Name}},"labels":{{json .Config.Labels}},"mounts":{{json .Mounts}},"networks":{{json .NetworkSettings.Networks}},"bindings":{{json .HostConfig.PortBindings}},"created":{{json .Created}}}'
@@ -318,12 +399,18 @@ export function prepareAssignmentListProjectFiles(
   }
 }
 
-export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture, options: { ephemeralSnapshot?: 'digests' | 'metadata'; survey263Endpoint?: Survey263Endpoint } = {}): AssignmentListLifecycleAdapters {
+export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture, options: { ephemeralSnapshot?: 'digests' | 'metadata'; survey263Endpoint?: Survey263Endpoint;
+  survey263Budget?: Survey263Budget; survey263NativeCli?: Survey263NativeCli } = {}): AssignmentListLifecycleAdapters {
+  const descriptor = Object.getOwnPropertyDescriptor(options, 'survey263Endpoint')
+  if (!descriptor) assert(!('survey263Endpoint' in options), 'Survey options must be own data')
+  if (descriptor) assert('value' in descriptor, 'Survey options must be data')
+  if (descriptor?.value) assert(Object.values(Object.getOwnPropertyDescriptors(options)).every(field => 'value' in field), 'Survey options must be data')
   const ephemeralSnapshot = options.ephemeralSnapshot ?? 'digests'
   assert(ephemeralSnapshot === 'digests' || ephemeralSnapshot === 'metadata')
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
   const workdir = assignmentListProofWorkdir(projectId)
-  const transport = options.survey263Endpoint ? createSurvey263PlatformTransport(options.survey263Endpoint) : undefined
+  assert(Boolean(options.survey263Endpoint) === Boolean(options.survey263Budget) && Boolean(options.survey263Endpoint) === Boolean(options.survey263NativeCli))
+  const transport = options.survey263Endpoint ? createSurvey263PlatformTransport(options.survey263Endpoint, options.survey263Budget!, options.survey263NativeCli!) : undefined
   const run = transport?.run ?? command
   const inventory = () => assignmentListDockerInventory(run)
   const snapshot = (project: string, scope: AssignmentListSnapshotScope) => databaseSnapshot(project, scope, run)
@@ -331,6 +418,7 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
   const createdDirectories = new Set<string>()
   let beforeTransition: Rows | undefined
   const adapters: AssignmentListLifecycleAdapters = {
+    ...(transport ? { checkWork: transport.checkWork } : {}),
     async canonicalSnapshot() {
       const baseline = await snapshot('pika', 'digests')
       const resources = (await inventory()).filter(r => r.labels['com.supabase.cli.project'] === 'pika')
@@ -338,21 +426,27 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       return { rowDigests: JSON.stringify(baseline.tables), guard168Metadata: baseline.metadata, settings: baseline.metadata, cronJobs: baseline.cron, resources: JSON.stringify(resources) }
     },
     async inventory() {
-      return { resources: await inventory(), occupiedPorts: (await Promise.all([54340, 54331, 54332].map(async port => ({ port, busy: await occupied(port) })))).filter(r => r.busy).map(r => r.port), workdirExists: existsSync(workdir) }
+      const result = { resources: await inventory(), occupiedPorts: (await Promise.all([54340, 54331, 54332].map(async port => ({ port, busy: await occupied(port) })))).filter(r => r.busy).map(r => r.port), workdirExists: existsSync(workdir) }
+      if (transport) transport.checkTotal()
+      return result
     },
     async prepare(plan, migrations) {
+      transport?.checkWork()
       assert.equal(plan.workdir, workdir)
       await transport?.observe()
-      const prepared = prepareAssignmentListProjectFiles(plan, migrations)
+      const prepared = prepareAssignmentListProjectFiles(plan, migrations, transport ? () => transport.checkWork() : undefined)
       createdDirectories.add(workdir)
+      transport?.checkWork()
       return prepared
     },
     async command(request) {
+      transport?.checkWork()
       assert.equal(request.workdir, workdir)
       const output = await run('supabase', [...request.args], { timeout: request.timeoutMs, ...(request.args[0] === 'start' ? { startupProjectId: projectId } : {}) })
       return request.args[0] === 'status' ? JSON.parse(output) : undefined
     },
     async verifyEphemeral(input) {
+      transport?.checkWork()
       const resources = await inventory(); const db = resources.find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`); assert(db)
       const gates = await fixedSql(projectId, `select jsonb_build_object('guard',exists(select 1 from pg_trigger where tgrelid='private.pal_membership_generations'::regclass and tgname='guard_pal_membership_evidence' and tgenabled='O'),
         'off',not ((select enabled from private.pal_membership_settings where singleton) or (select enabled from private.pal_classroom_signal_settings where singleton) or (select enabled or live_enabled or automatic_enabled from private.student_provider_cleanup_settings where singleton) or (select enabled from private.removed_student_academic_settings where singleton) or (select strict_enforcement_enabled from private.classroom_creation_entitlement_settings where singleton)),
@@ -363,12 +457,14 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       return { projectId, containerId: db.id, applicationName: input.applicationName, dbPort: 54332, guard168Enabled: result.guard === true, persistedGatesOff: result.off === true, activeNetworkCronAbsent: result.no_work === true && result.no_secrets === true && assignmentListSafeCronJobs(jobs) }
     },
     async executeSql(input) {
+      transport?.checkWork()
       assert.equal(input.projectId, projectId); assert.equal(input.applicationName, `${projectId}_fixture`)
       const db = (await inventory()).find(r => r.kind === 'container' && r.name === `supabase_db_${projectId}`)
       assert.equal(db?.id, input.containerId)
       await fixedSql(projectId, input.sql, input.applicationName)
     },
     async runCase({ proofCase, target }) {
+      transport?.checkWork()
       assert(proofCase.expectedStatus === '200' || proofCase.expectedStatus === '403')
       const urls: URL[] = []
       const safeFetch = containedAssignmentListProofFetch(fetch, projectId)
@@ -397,10 +493,12 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       return { actorId: proofCase.actorId, classroomId: proofCase.classroomId, status: proofCase.expectedStatus }
     },
     async runRevocation(input) {
+      transport?.checkWork()
       beforeTransition = (await snapshot(projectId, 'rows')).tables as Rows
       return observeAssignmentListRevocation({ ...input, originalFetch: fetch, transition: input.executeSql })
     },
     async verifyRestoration({ plan }) {
+      transport?.checkWork()
       assert(beforeTransition)
       const after = (await snapshot(projectId, 'rows')).tables as Rows
       const changes = assignmentListRowChanges(beforeTransition, after)
@@ -436,6 +534,9 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       await transport?.observe()
     },
   }
-  if (transport) survey263AdapterEndpoints.set(adapters, transport.endpoint)
+  if (transport) {
+    Object.freeze(adapters)
+    survey263AdapterEndpoints.set(adapters, { binding: transport.endpoint, cleanup: transport.cleanup, poison: transport.poison, checkTotal: transport.checkTotal })
+  }
   return adapters
 }

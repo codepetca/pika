@@ -25,7 +25,8 @@ type Output = { text: string; lease: Lease }
 type Owned = { abort: () => void; closed: Promise<void> }
 type Job = { args?: string[]; id?: string; deadline: number; resolve: (output: Output) => void; reject: (error: Error) => void }
 
-export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263Endpoint?: Readonly<{ host: string; identity: readonly number[] }>): ReturnType<typeof testOwnerListDockerInventory> {
+export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263Endpoint?: Readonly<{ host: string; identity: readonly number[] }>, originalAbsoluteDeadline?: number): ReturnType<typeof testOwnerListDockerInventory> {
+  assert(originalAbsoluteDeadline === undefined || (Number.isSafeInteger(originalAbsoluteDeadline) && Date.now() < originalAbsoluteDeadline))
   // Optional exact Survey263 expectation; native engine owns its capture. No
   // additional command/HTTP executor surface and no renewed discovery budget.
   const expected = survey263Endpoint ? Object.freeze({ host: survey263Endpoint.host,
@@ -49,6 +50,12 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263
   let failed = false; let host: string | undefined; let contextDone = false; let allocated = 0
   const retained: Lease[] = []; const listed = new Set<string>(); const allowed = new Set<string>()
   const queue: Job[] = []; const active = new Set<Owned>(); const reserved = new Set<Owned>()
+  const pendingJobs = new Set<Job>()
+  let deadlineReject: ((reason: Error) => void) | undefined
+  const expiry = originalAbsoluteDeadline === undefined ? undefined : new Promise<never>((_, reject) => { deadlineReject = reject })
+  const totalTimer = originalAbsoluteDeadline === undefined ? undefined : setTimeout(() => {
+    fail(); for (const job of pendingJobs) job.reject(error()); deadlineReject!(new Error('Survey inventory closure unconfirmed'))
+  }, originalAbsoluteDeadline - Date.now())
   const http = seams.request ?? request
   function reserve(size: number): Lease {
     assert(Number.isSafeInteger(size) && size >= 0 && size <= BYTES - allocated)
@@ -61,7 +68,17 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263
     for (const job of queue.splice(0)) job.reject(error())
     for (const owned of [...active, ...reserved]) { try { owned.abort() } catch { /* Still await exact close/reaping; never release a live permit. */ } }
   }
-  async function settle() { await Promise.allSettled([...active, ...reserved].map(owned => owned.closed)) }
+  async function settle() {
+    const joined = Promise.allSettled([...active, ...reserved].map(owned => owned.closed))
+    if (originalAbsoluteDeadline === undefined) { await joined; return }
+    if (!active.size && !reserved.size) return
+    const remaining = originalAbsoluteDeadline - Date.now()
+    assert(remaining > 0, 'Survey inventory closure unconfirmed')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try { await Promise.race([joined, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Survey inventory closure unconfirmed')), remaining)
+    })]) } finally { if (timer) clearTimeout(timer) }
+  }
 
   /** Track exact request AND every assigned socket. Failure latches before destroy.
    * The volume request has its permanent third slot, never an own-reader permit. */
@@ -152,7 +169,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263
   }
   function startCli(job: Job) {
     let child: ReturnType<typeof spawn>
-    try { verifyExpected(); child = spawn('docker', job.args!, { env, stdio: ['ignore', 'pipe', 'pipe'] }) }
+    try { assert(Date.now() < job.deadline); verifyExpected(); child = spawn('docker', job.args!, { env, stdio: ['ignore', 'pipe', 'pipe'] }) }
     catch { job.reject(error()); fail(); return }
     let release!: () => void
     const owned: Owned = { closed: new Promise<void>(resolve => { release = resolve }), abort: () => { child.kill('SIGKILL') } }
@@ -192,10 +209,17 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263
     }
   }
   function enqueue(job: Omit<Job, 'resolve' | 'reject'>) {
-    return new Promise<Output>((resolve, reject) => { if (failed) { reject(error()); return }; queue.push({ ...job, resolve, reject }); pump() })
+    return new Promise<Output>((resolve, reject) => {
+      if (failed) { reject(error()); return }
+      const owned: Job = { ...job, resolve: output => { pendingJobs.delete(owned); resolve(output) },
+        reject: reason => { pendingJobs.delete(owned); reject(reason) } }
+      pendingJobs.add(owned); queue.push(owned); pump()
+    })
   }
   async function run(file: string, args: string[]) {
-    const deadline = Date.now() + MS; const timer = setTimeout(fail, MS); const outputs: Output[] = []
+    const deadline = Math.min(Date.now() + MS, originalAbsoluteDeadline ?? Infinity)
+    assert(Date.now() < deadline)
+    const timer = setTimeout(fail, deadline - Date.now()); const outputs: Output[] = []
     try {
       assert(!failed && file === 'docker' && args.every(value => typeof value === 'string'))
       let jobs: Array<Omit<Job, 'resolve' | 'reject'>>; let listing: 'container' | 'network' | 'volume' | undefined
@@ -267,8 +291,14 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263
     } catch { closed = true; fail(); done(); throw error() }
   }) as typeof request
   try {
-    const inventory = await testOwnerListDockerInventory(undefined, { ...seams, env, run, request: volumeRequest })
-    verifyExpected(); assert(!failed && allowed.size === 0); return inventory
+    const operation = testOwnerListDockerInventory(undefined, { ...seams, env, run, request: volumeRequest })
+    const inventory = await (expiry ? Promise.race([operation, expiry]) : operation)
+    verifyExpected(); assert(!failed && allowed.size === 0 && Date.now() < (originalAbsoluteDeadline ?? Infinity)); return inventory
   } catch { fail(); throw error() }
-  finally { if (active.size || queue.length) fail(); await settle(); queue.length = 0; allowed.clear(); retained.forEach(lease => lease.release()); verifyExpected() }
+  finally {
+    if (active.size || queue.length) fail()
+    try { await settle() } finally { if (totalTimer) clearTimeout(totalTimer); queue.length = 0; allowed.clear(); retained.forEach(lease => lease.release()) }
+    verifyExpected()
+    assert(Date.now() < (originalAbsoluteDeadline ?? Infinity), 'Survey inventory original deadline expired')
+  }
 }

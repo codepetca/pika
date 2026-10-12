@@ -9,7 +9,7 @@ import { assignmentListRevocationDiagnostic, assignmentListRevocationPlans, type
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
 import { validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload, type SurveyNativeLifecycleWorkload } from './contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from './contextual-test-draft-save-native-contracts'
-import { requireSurvey263AdapterEndpoint } from './contextual-assignment-list-proof-platform'
+import { requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup, checkSurvey263AdapterTotal, Survey263UnjoinedChildError } from './contextual-assignment-list-proof-platform'
 
 export function validateAssignmentListEphemeralIdentity(input: { projectId: string; workdir: string }) {
   assert.match(input.projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
@@ -180,6 +180,10 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   assert.deepEqual([...expected].sort(), assignmentListExpectedResources(identity.projectId).map(resourceKey).sort())
   const surveyPlan = input.surveyWorkload ? validateSurveyNativeLifecycleWorkload(input.surveyWorkload, fixture) : undefined
   const survey263Endpoint = surveyPlan ? requireSurvey263AdapterEndpoint(adapters) : undefined
+  if (input.surveyWorkload) {
+    assert.equal(survey263Endpoint?.budget.workDeadline, input.surveyWorkload.absoluteDeadline, 'Survey original work deadline differs')
+    adapters.checkWork!()
+  }
   if (surveyPlan) assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), surveyPlan.migrationManifestSha256)
   if (input.surveyWorkload) consumeSurveyNativeLifecycleWorkload(input.surveyWorkload)
   const revocations = surveyPlan ? [] : assignmentListRevocationPlans(fixture)
@@ -258,6 +262,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     if (!restoration) checkWork()
   }
   try {
+    checkWork()
     baseline = structuredClone(await adapters.canonicalSnapshot(canonicalRequest)); validateCanonical(baseline)
     stage = 'preflight'; checkWork(); before = structuredClone(await adapters.inventory(identity))
     assert(!before.workdirExists && !before.occupiedPorts.some(port => [54340, 54331, 54332].includes(port)))
@@ -318,6 +323,9 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   } catch (error) { primary = { stage, error, ...(currentRevocation ? { transition: currentRevocation.transition, boundary: currentRevocation.boundary } : {}) } }
   finally {
     const check = async (at: string, action: () => Promise<void>) => { try { await action() } catch (error) { cleanupFailures.push({ stage: at, error }) } }
+    if (surveyPlan) await check('survey-cleanup-admission', async () => {
+      beginSurvey263AdapterCleanup(adapters, primary?.error instanceof Survey263UnjoinedChildError)
+    })
     let closure: AssignmentListResource[] | undefined; let absent = !startAttempted
     if (startAttempted) {
       // Always discover in finally: handles unknown launch outcomes and committed
@@ -341,7 +349,9 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       assert(!(await adapters.inventory(identity)).workdirExists)
     })
     if (baseline) await check('canonical-after', async () => { const after = await adapters.canonicalSnapshot(canonicalRequest); validateCanonical(after); assert.deepEqual(after, baseline) })
-    if (input.surveyWorkload) await check('survey-source-after', async () => { validateSurveyNativeLifecycleWorkload(input.surveyWorkload!, fixture) })
+    if (input.surveyWorkload) await check('survey-source-after', async () => {
+      checkSurvey263AdapterTotal(adapters); validateSurveyNativeLifecycleWorkload(input.surveyWorkload!, fixture); checkSurvey263AdapterTotal(adapters)
+    })
   }
   if (primary || cleanupFailures.length) throw new AssignmentListLifecycleError(primary, cleanupFailures)
   return { projectId: identity.projectId, mode: input.mode, cases: surveyPlan ? 0 : manifest.cases.length, revocations: revocations.length,

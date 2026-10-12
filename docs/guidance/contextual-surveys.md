@@ -102,6 +102,16 @@ composite input type.
 
 ## Native evidence prepared, not executed
 
+The concrete Survey platform adapters are frozen before private registration;
+copied, replaced or getter-based adapters cannot enter the lifecycle. A single
+captured budget covers twelve minutes of work and three minutes of cleanup,
+including preflight, child dispatch, inventory, generation and final preservation.
+The workload must match that original work deadline before consumption. Cleanup
+does not renew either deadline; an unjoined child remains an explicit failure.
+The pinned native Supabase executable is invoked directly rather than through
+its Node wrapper. Existing predecessor profiles retain their original behavior.
+These are source/CPU guarantees, not native completion or cleanup evidence.
+
 `scripts/contextual-surveys-db-contracts.sql` is a rollback-only cumulative-schema
 contract with synthetic mixed-role identities, actual catalog ACL checks,
 owner precedence, foreign parents/questions, publication/time/status, complete

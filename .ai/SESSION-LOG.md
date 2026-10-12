@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Learner CI continuity-marker correction
-
-Final delta review14 COMPLETE/sourceclean at53e43782; actual whole rehearsal and
-exact generated type installation accepted with unchanged runtime/base/private
-manifest. Eligible CI38099607449 failed one existing Bara rollout documentation
-contract(16376testsPASS/1FAIL/8skip); shortened CURRENT omitted required unchanged-
-controls marker. PR returned draft and remaining lanes canceled; no duplicate CI.
-Existing assertion reproduced locally RED1/3PASS. Source-only batch9 restores
-Controls unchanged wording with identical receipt meaning; no assertion/gate
-weakening or product/schema/proof change. Targeted regression/startup cap and
-focused checks precede narrow independent wording/history review. Original
-clock/waiver/counters14turn11target8priorbatch1initial1final retained; all six
-native permissions consumed; shared/prod/activation/toolgoal holds unchanged.
-
 ## 2026-10-11 — Learner current-main UI synchronization
 
 External main6695630 (#1567 Material chooser/SplitButton dismissal) advanced while
@@ -661,3 +647,19 @@ is next; initial wave/counters retained, not reset under the routine waiver.
 The spent noDB experiment's exact eight-process family was independently reviewed
 and closed; separate absence/port checks pass and spent source/receipts remain.
 Its historical launch cause is still unknown; recovery is not successful proof.
+
+## 2026-10-12 Survey bounded transport correction
+
+Targeted cumulative review found mutable branded adapters and renewed work
+budgets. Frozen Survey-only adapters now retain the original twelve-minute work
+and three-minute cleanup deadlines through preflight, dispatch, native engine,
+inventory, genuine generation and finally. Direct pinned native Supabase avoids
+an orphanable Node wrapper; real child closure is required and uncertainty fails
+closed. Existing predecessor behavior stays unchanged. Root affected integration
+checks:181 PASS; seven-file lint/audit/diff PASS. Strict metadata check retains
+only14 missing genuine263 RPC-name errors, zero unexpected diagnostics. Source
+checkpoint is not ready for PR/native acceptance. Targeted independent review
+follows; original counters and serious holds remain. Separate noDB diagnostic
+completed three requests with positive full cleanup: original body was readable
+without navigation, but navigation reproduced protocol resource-missing. This
+does not establish the historical app failure cause or product completion.
