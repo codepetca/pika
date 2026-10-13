@@ -757,3 +757,12 @@ required cumulative integration review and final focused check before ready.
 Ledger3 launches, initial1 wave, targeted1 wave, remediation1 correction batch
 plus expected generated-contract checkpoint. Main22efa4826 unchanged. No main
 merge or production/migration authority inferred from disposable-local approval.
+
+Final generated schema exposed existing broad RPC ReturnType TS2589 in dormant
+contextual-assignment-learner-open. Narrowed only its result assertion/import to
+already-existing ContextualAssignmentDocOpenClient RPC type. TypeScriptPASS;
+transpileModule verifies identical emitted JavaScript before/after. No runtime
+query, boundary, gate, response or error behavior changed; no generated editing.
+Existing learner-open regression suites running plus full focused requirement.
+AuditPASS. This type-only completion delta joins final cumulative review; no
+extra full-diff initial wave and no revised SQL beyond approved digest.
