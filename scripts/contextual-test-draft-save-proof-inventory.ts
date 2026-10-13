@@ -2,7 +2,7 @@
  * validation, global discovery, bulk volumes and the sealed parser. Import inert. */
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { request, type ClientRequest, type IncomingMessage, type RequestOptions } from 'node:http'
 import type { Socket } from 'node:net'
 import { isAbsolute, normalize } from 'node:path'
@@ -24,8 +24,37 @@ type Lease = { release: () => void; shrink: (size: number) => void }
 type Output = { text: string; lease: Lease }
 type Owned = { abort: () => void; closed: Promise<void> }
 type Job = { args?: string[]; id?: string; deadline: number; resolve: (output: Output) => void; reject: (error: Error) => void }
+export class SurveyInventoryUnjoinedChildError extends Error {
+  constructor() { super('Survey inventory closure unconfirmed') }
+}
+export type SurveyInventoryDeadlines = Readonly<{ dispatchDeadline: number; settlementDeadline: number }>
 
-export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnType<typeof testOwnerListDockerInventory> {
+export async function draftSaveProofDockerInventory(seams: Seams = {}, survey263Endpoint?: Readonly<{ host: string; identity: readonly number[] }>, originalDeadlines?: number | SurveyInventoryDeadlines): ReturnType<typeof testOwnerListDockerInventory> {
+  // Copy immutable original clock DATA. Work admission never borrows the owned
+  // settlement reserve; numeric predecessor calls retain their one-clock policy.
+  if (originalDeadlines !== undefined && typeof originalDeadlines !== 'number') {
+    const descriptors = Object.getOwnPropertyDescriptors(originalDeadlines)
+    assert.deepEqual(Object.keys(descriptors).sort(), ['dispatchDeadline', 'settlementDeadline'])
+    assert(Object.values(descriptors).every(descriptor => 'value' in descriptor))
+  }
+  const dispatchDeadline = typeof originalDeadlines === 'number' ? originalDeadlines : originalDeadlines?.dispatchDeadline
+  const settlementDeadline = typeof originalDeadlines === 'number' ? originalDeadlines : originalDeadlines?.settlementDeadline
+  assert(originalDeadlines === undefined || (Number.isSafeInteger(dispatchDeadline) && Number.isSafeInteger(settlementDeadline)
+    && dispatchDeadline! <= settlementDeadline! && Date.now() < dispatchDeadline!))
+  // Optional exact Survey263 expectation; native engine owns its capture. No
+  // additional command/HTTP executor surface and no renewed discovery budget.
+  const expected = survey263Endpoint ? Object.freeze({ host: survey263Endpoint.host,
+    identity: Object.freeze([...survey263Endpoint.identity]) }) : undefined
+  const verifyExpected = () => {
+    if (!expected) return
+    assert(expected.host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(expected.host))
+    const path = expected.host.slice(7); assert(isAbsolute(path) && normalize(path) === path)
+    assert.equal(realpathSync(path), path)
+    const socket = statSync(path); assert(socket.isSocket())
+    assert(expected.identity.length === 4 && expected.identity.every(n => Number.isSafeInteger(n) && n >= 0))
+    assert.deepEqual([socket.dev, socket.ino, socket.mode, socket.rdev], expected.identity)
+  }
+  verifyExpected()
   const env = Object.freeze({ ...(seams.env ?? process.env) })
   try {
     const declarations = [...readFileSync(new URL('./contextual-assignment-list-proof-platform.ts', import.meta.url), 'utf8')
@@ -35,6 +64,11 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
   let failed = false; let host: string | undefined; let contextDone = false; let allocated = 0
   const retained: Lease[] = []; const listed = new Set<string>(); const allowed = new Set<string>()
   const queue: Job[] = []; const active = new Set<Owned>(); const reserved = new Set<Owned>()
+  let deadlineReject: ((reason: Error) => void) | undefined
+  const expiry = dispatchDeadline === undefined ? undefined : new Promise<never>((_, reject) => { deadlineReject = reject })
+  const workTimer = dispatchDeadline === undefined ? undefined : setTimeout(() => {
+    fail(); deadlineReject!(error())
+  }, dispatchDeadline - Date.now())
   const http = seams.request ?? request
   function reserve(size: number): Lease {
     assert(Number.isSafeInteger(size) && size >= 0 && size <= BYTES - allocated)
@@ -47,7 +81,17 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     for (const job of queue.splice(0)) job.reject(error())
     for (const owned of [...active, ...reserved]) { try { owned.abort() } catch { /* Still await exact close/reaping; never release a live permit. */ } }
   }
-  async function settle() { await Promise.allSettled([...active, ...reserved].map(owned => owned.closed)) }
+  async function settle() {
+    const joined = Promise.allSettled([...active, ...reserved].map(owned => owned.closed))
+    if (settlementDeadline === undefined) { await joined; return }
+    if (!active.size && !reserved.size) return
+    const remaining = settlementDeadline - Date.now()
+    if (remaining <= 0) throw new SurveyInventoryUnjoinedChildError()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try { await Promise.race([joined, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new SurveyInventoryUnjoinedChildError()), remaining)
+    })]) } finally { if (timer) clearTimeout(timer) }
+  }
 
   /** Track exact request AND every assigned socket. Failure latches before destroy.
    * The volume request has its permanent third slot, never an own-reader permit. */
@@ -62,6 +106,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     function done() {
       if (!finishing || !requestClosed || !responseClosed || sockets.size) return
       clearTimeout(timer)
+      try { verifyExpected() } catch { fail() }
       if (Date.now() >= deadline) fail()
       if (failed) { output?.lease.release(); output = undefined }
       active.delete(owned); release(); complete(output); pump()
@@ -76,6 +121,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     }
     try {
       assert(!failed && Date.now() < deadline)
+      verifyExpected()
       req = http({ socketPath, path, method: 'GET', agent: false,
         headers: { Accept: 'application/json', 'Accept-Encoding': 'identity', Connection: 'close' } }, incoming => {
         response = incoming; responseClosed = false
@@ -136,7 +182,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
   }
   function startCli(job: Job) {
     let child: ReturnType<typeof spawn>
-    try { child = spawn('docker', job.args!, { env, stdio: ['ignore', 'pipe', 'pipe'] }) }
+    try { assert(Date.now() < job.deadline); verifyExpected(); child = spawn('docker', job.args!, { env, stdio: ['ignore', 'pipe', 'pipe'] }) }
     catch { job.reject(error()); fail(); return }
     let release!: () => void
     const owned: Owned = { closed: new Promise<void>(resolve => { release = resolve }), abort: () => { child.kill('SIGKILL') } }
@@ -156,6 +202,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     child.once('close', (code, signal) => {
       clearTimeout(timer); let output: Output | undefined; let joined: Lease | undefined
       try {
+        verifyExpected()
         assert(!failed && code === 0 && signal === null && Date.now() < job.deadline)
         const tailLease = reserve(9); leases.push(tailLease); const tail = decoder.end(); tailLease.shrink(textBytes(tail)); pieces.push(tail); size += textBytes(tail)
         joined = reserve(2 * size); const text = pieces.join('').trim(); joined.shrink(textBytes(text)); output = { text, lease: joined }; joined = undefined
@@ -175,10 +222,15 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     }
   }
   function enqueue(job: Omit<Job, 'resolve' | 'reject'>) {
-    return new Promise<Output>((resolve, reject) => { if (failed) { reject(error()); return }; queue.push({ ...job, resolve, reject }); pump() })
+    return new Promise<Output>((resolve, reject) => {
+      if (failed) { reject(error()); return }
+      queue.push({ ...job, resolve, reject }); pump()
+    })
   }
   async function run(file: string, args: string[]) {
-    const deadline = Date.now() + MS; const timer = setTimeout(fail, MS); const outputs: Output[] = []
+    const deadline = Math.min(Date.now() + MS, dispatchDeadline ?? Infinity)
+    assert(Date.now() < deadline)
+    const timer = setTimeout(fail, deadline - Date.now()); const outputs: Output[] = []
     try {
       assert(!failed && file === 'docker' && args.every(value => typeof value === 'string'))
       let jobs: Array<Omit<Job, 'resolve' | 'reject'>>; let listing: 'container' | 'network' | 'volume' | undefined
@@ -187,6 +239,7 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
         assert(contextDone && args[0] === '--host' && typeof args[1] === 'string')
         const path = args[1].slice(7)
         assert(args[1].startsWith('unix:///') && isAbsolute(path) && normalize(path) === path && !/[\x00-\x20\x7f%?#]/.test(path))
+        if (expected) { assert.equal(args[1], expected.host); verifyExpected() }
         if (host) assert.equal(host, args[1]); else host = args[1]
         const command = args.slice(2)
         if (key(command) === key(['ps', '-aq', '--no-trunc'])) listing = 'container'
@@ -221,10 +274,12 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
   // Intercept only the original volume request to reserve its raw/transient
   // allocation allowance and immediate cancellation. Its parser is unchanged.
   const volumeRequest = ((options: RequestOptions, callback: (incoming: IncomingMessage) => void) => {
+    assert(Date.now() < (dispatchDeadline ?? Infinity))
     assert(object(options) && options.path === '/v1.45/volumes' && options.socketPath === host?.slice(7) && options.method === 'GET' && options.agent === false &&
       object(options.headers) && key(Object.keys(options).sort()) === key(['agent', 'headers', 'method', 'path', 'socketPath']) &&
       key(Object.keys(options.headers).sort()) === key(['Accept', 'Accept-Encoding', 'Connection']) &&
       options.headers.Accept === 'application/json' && options.headers['Accept-Encoding'] === 'identity' && options.headers.Connection === 'close' && reserved.size === 0 && !failed)
+    verifyExpected()
     let original: ClientRequest | undefined; let response: IncomingMessage | undefined
     // Keep the exact original volume request and parser; track only its transport
     // ownership and reserve concurrent raw/concat/decode/metadata allocations.
@@ -248,8 +303,14 @@ export async function draftSaveProofDockerInventory(seams: Seams = {}): ReturnTy
     } catch { closed = true; fail(); done(); throw error() }
   }) as typeof request
   try {
-    const inventory = await testOwnerListDockerInventory(undefined, { ...seams, env, run, request: volumeRequest })
-    assert(!failed && allowed.size === 0); return inventory
+    const operation = testOwnerListDockerInventory(undefined, { ...seams, env, run, request: volumeRequest })
+    const inventory = await (expiry ? Promise.race([operation, expiry]) : operation)
+    verifyExpected(); assert(!failed && allowed.size === 0 && Date.now() < (dispatchDeadline ?? Infinity)); return inventory
   } catch { fail(); throw error() }
-  finally { if (active.size || queue.length) fail(); await settle(); queue.length = 0; allowed.clear(); retained.forEach(lease => lease.release()) }
+  finally {
+    if (active.size || queue.length) fail()
+    try { await settle() } finally { if (workTimer) clearTimeout(workTimer); queue.length = 0; allowed.clear(); retained.forEach(lease => lease.release()) }
+    verifyExpected()
+    assert(Date.now() < (dispatchDeadline ?? Infinity), 'Survey inventory original deadline expired')
+  }
 }

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
+import type { Database } from '@/types/database'
 
 export type ClassroomCreationDatabaseError = {
   code?: string | null
@@ -102,7 +103,7 @@ export async function createClassroomAtomic(args: {
   // so source checks remain useful before generated DB types are refreshed.
   // SupabaseClient.rpc reads client state through `this`; preserve its receiver.
   // Plain function mocks do not expose this requirement, but the real client does.
-  const rpc = supabase.rpc.bind(supabase) as unknown as ClassroomCreationRpc
+  const rpc = (supabase.rpc<'create_classroom_atomic_v1', Database['public']['Functions']['create_classroom_atomic_v1']['Args']>).bind(supabase) as unknown as ClassroomCreationRpc
   const { data, error } = await rpc('create_classroom_atomic_v1', {
     p_operation_id: operationId,
     p_subject_user_id: args.teacherId,

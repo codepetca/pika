@@ -7,6 +7,9 @@ import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-p
 import { assignmentListFixtureSetupSql, type AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationDiagnostic, assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
+import { validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload, surveyRemainingNativePlan, type SurveyNativeLifecycleWorkload } from './contextual-surveys-native-contracts'
+import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from './contextual-test-draft-save-native-contracts'
+import { requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup, checkSurvey263AdapterTotal, Survey263UnjoinedChildError } from './contextual-assignment-list-proof-platform'
 
 export function validateAssignmentListEphemeralIdentity(input: { projectId: string; workdir: string }) {
   assert.match(input.projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
@@ -119,6 +122,10 @@ export type AssignmentListLifecycleInput = {
   reviewedManifestSha256: string; mode: Mode;
   expectedResources: Pick<AssignmentListResource, 'kind' | 'name'>[];
   restorationPolicies: { transition: AssignmentListRevocationPlan['transition']; boundary: AssignmentListRevocationPlan['boundary']; allowedCells: Cell[] }[];
+  /** Concrete source-bound263 hook; it cannot supply SQL or arbitrary runners. */
+  surveyWorkload?: SurveyNativeLifecycleWorkload;
+  /** Source-only progression selector. Incomplete inventory refuses admission. */
+  surveyRemainingOnly?: true;
 }
 export type AssignmentListLifecycleAdapters = {
   // Optional work-admission budget. Never gates exact-plan restoration or the
@@ -163,6 +170,8 @@ export function assignmentListExpectedResources(projectId: string): Pick<Assignm
 
 /** No CLI/DB dispatch at import. All platform authority stays in supplied hooks. */
 export async function runAssignmentListEphemeralLifecycle(input: AssignmentListLifecycleInput, adapters: AssignmentListLifecycleAdapters) {
+  // Admission and later dispatch must use the same caller-independent bindings.
+  const { surveyWorkload, surveyRemainingOnly } = input
   const identity = validateAssignmentListEphemeralIdentity(input); const plan = assignmentListEphemeralPlan(identity)
   const { fixture, migrations } = input; const manifest = decodeAssignmentListProofManifest(fixture.manifest)
   assert.equal(identity.projectId, `pika_assignment_list_${manifest.syntheticTag.slice(-12)}`)
@@ -173,7 +182,20 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   assert.equal(expected.size, input.expectedResources.length)
   for (const r of input.expectedResources) assert.match(r.name, new RegExp(`^supabase_[a-z0-9_-]+_${identity.projectId}$`))
   assert.deepEqual([...expected].sort(), assignmentListExpectedResources(identity.projectId).map(resourceKey).sort())
-  const revocations = assignmentListRevocationPlans(fixture)
+  const surveyPlan = surveyWorkload ? validateSurveyNativeLifecycleWorkload(surveyWorkload, fixture) : undefined
+  if (surveyRemainingOnly !== undefined) {
+    assert(surveyRemainingOnly === true && surveyWorkload)
+    const remaining = surveyRemainingNativePlan(fixture, surveyWorkload.reviewedHead, surveyWorkload.repository)
+    assert(remaining.inventoryComplete, 'Survey remaining-only complete native inventory is absent')
+  }
+  const survey263Endpoint = surveyPlan ? requireSurvey263AdapterEndpoint(adapters) : undefined
+  if (surveyWorkload) {
+    assert.equal(survey263Endpoint?.budget.workDeadline, surveyWorkload.absoluteDeadline, 'Survey original work deadline differs')
+    adapters.checkWork!()
+  }
+  if (surveyPlan) assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), surveyPlan.migrationManifestSha256)
+  if (surveyWorkload) consumeSurveyNativeLifecycleWorkload(surveyWorkload)
+  const revocations = surveyPlan ? [] : assignmentListRevocationPlans(fixture)
   assert.equal(input.restorationPolicies.length, revocations.length)
   const policyKeys = new Set(input.restorationPolicies.map(p => `${p.transition}:${p.boundary}`)); assert.equal(policyKeys.size, revocations.length)
   for (const p of revocations) assert(policyKeys.has(`${p.transition}:${p.boundary}`))
@@ -195,6 +217,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   const canonicalRequest = { projectId: 'pika' as const, dbPort: 54322 as const, applicationName: `${identity.projectId}_canonical_readonly`, readOnly: true as const }
   let baseline: Canonical | undefined; let before: Inventory | undefined; let target: Target | undefined
   let prepared: Awaited<ReturnType<AssignmentListLifecycleAdapters['prepare']>> | undefined
+  let surveyTypes: Awaited<ReturnType<ReturnType<typeof createContextualSurveysNativeContracts>['generateTypes263']>> | undefined
   let prepareAttempted = false; let startAttempted = false; let stage = 'canonical-before'; let primary: Failure | undefined
   let currentRevocation: AssignmentListRevocationPlan | undefined
   const cleanupFailures: Failure[] = []; const captured = new Map<string, AssignmentListResource>()
@@ -237,7 +260,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     assert.equal(s.containerId, db.id); assert(s.guard168Enabled && s.persistedGatesOff && s.activeNetworkCronAbsent)
     return { projectId: s.projectId, containerId: s.containerId, dbPort: s.dbPort, applicationName: s.applicationName }
   }
-  const approvedSql = new Set([assignmentListFixtureSetupSql(fixture, identity.projectId), ...revocations.flatMap(p => [p.revokeSql, p.restoreSql])])
+  const approvedSql = new Set(surveyPlan ? [] : [assignmentListFixtureSetupSql(fixture, identity.projectId), ...revocations.flatMap(p => [p.revokeSql, p.restoreSql])])
   const executeSql = async (sql: string) => {
     assert(approvedSql.has(sql))
     // The observer's finally may restore only the exact current plan. This
@@ -248,6 +271,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     if (!restoration) checkWork()
   }
   try {
+    checkWork()
     baseline = structuredClone(await adapters.canonicalSnapshot(canonicalRequest)); validateCanonical(baseline)
     stage = 'preflight'; checkWork(); before = structuredClone(await adapters.inventory(identity))
     assert(!before.workdirExists && !before.occupiedPorts.some(port => [54340, 54331, 54332].includes(port)))
@@ -264,6 +288,22 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     await adapters.command({ args: ['start', '--workdir', identity.workdir, '-x', 'analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'], workdir: identity.workdir, timeoutMs: 180000 })
     if (input.mode !== 'before-capture') { stage = 'capture'; checkWork(); await capture() }
     stage = 'status'; checkWork(); target = validateAssignmentListProofTarget(await adapters.command({ args: ['status', '--workdir', identity.workdir, '-o', 'json'], workdir: identity.workdir, timeoutMs: 15000 }), identity.projectId)
+    if (surveyWorkload) {
+      const workload = surveyWorkload
+      stage = 'survey-binding'; checkWork(); validateSurveyNativeLifecycleWorkload(workload, fixture)
+      const s = await session(); const resources = (await inspectFresh()).selected
+      const nativeManifest = buildSurveyNativeContractsManifest(fixture, workload.reviewedHead, workload.repository, surveyRemainingOnly)
+      const native = createContextualSurveysNativeContracts({ original: fixture, repository: workload.repository, reviewedHead: workload.reviewedHead,
+        capturedResources: resources, containerId: s.containerId, acceptedManifestSha256: sha(JSON.stringify(nativeManifest)),
+        absoluteDeadline: workload.absoluteDeadline, statusTarget: target, survey263Endpoint: survey263Endpoint!, remainingOnly: surveyRemainingOnly })
+      stage = 'fixture'; checkWork(); await native.setup()
+      if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
+      if (surveyRemainingOnly) {
+        stage = 'survey-remaining-committed'; checkWork(); assert(native.runRemainingCommitted); await native.runRemainingCommitted(); checkWork()
+      } else { stage = 'survey-rollback'; checkWork(); await native.run(); checkWork() }
+      stage = 'survey-sdk-terminal'; checkWork(); await native.runSdkCommitted(); checkWork()
+      stage = 'survey-types'; checkWork(); surveyTypes = await native.generateTypes263(); checkWork()
+    } else {
     stage = 'fixture'; checkWork(); await executeSql(assignmentListFixtureSetupSql(fixture, identity.projectId))
     if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
     stage = 'cases'
@@ -290,9 +330,13 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       await session(); checkWork(); const result = await adapters.runRevocation({ fixture, plan: p, target, executeSql: scopedSql, verifyRestoration }); checkWork()
       assert(restored); assert.deepEqual(result, { transition: p.transition, boundary: p.boundary, expectedStatus: p.expectedStatus })
     }
+    }
   } catch (error) { primary = { stage, error, ...(currentRevocation ? { transition: currentRevocation.transition, boundary: currentRevocation.boundary } : {}) } }
   finally {
     const check = async (at: string, action: () => Promise<void>) => { try { await action() } catch (error) { cleanupFailures.push({ stage: at, error }) } }
+    if (surveyPlan) await check('survey-cleanup-admission', async () => {
+      beginSurvey263AdapterCleanup(adapters, primary?.error instanceof Survey263UnjoinedChildError)
+    })
     let closure: AssignmentListResource[] | undefined; let absent = !startAttempted
     if (startAttempted) {
       // Always discover in finally: handles unknown launch outcomes and committed
@@ -306,6 +350,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
         const current = await adapters.inventory(identity)
         assert(!current.resources.some(r => captured.has(r.id) || isProjectResource(r, identity.projectId)))
         assert(!current.occupiedPorts.some(port => [54340, 54331, 54332].includes(port))); absent = true
+        if (surveyPlan) assert.deepEqual(current.resources, before?.resources, 'Survey global resource preservation differs')
       })
     }
     if (prepareAttempted) await check('workdir', async () => {
@@ -315,7 +360,11 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       assert(!(await adapters.inventory(identity)).workdirExists)
     })
     if (baseline) await check('canonical-after', async () => { const after = await adapters.canonicalSnapshot(canonicalRequest); validateCanonical(after); assert.deepEqual(after, baseline) })
+    if (surveyWorkload) await check('survey-source-after', async () => {
+      checkSurvey263AdapterTotal(adapters); validateSurveyNativeLifecycleWorkload(surveyWorkload, fixture); checkSurvey263AdapterTotal(adapters)
+    })
   }
   if (primary || cleanupFailures.length) throw new AssignmentListLifecycleError(primary, cleanupFailures)
-  return { projectId: identity.projectId, mode: input.mode, cases: manifest.cases.length, revocations: revocations.length }
+  return { projectId: identity.projectId, mode: input.mode, cases: surveyPlan ? 0 : manifest.cases.length, revocations: revocations.length,
+    ...(surveyPlan ? { surveyProofScope: 'rollback-and-sdk-terminal' as const, nativeVerified: false as const, surveyTypes } : {}) }
 }

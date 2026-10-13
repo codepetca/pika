@@ -1,6 +1,7 @@
 /** Inert, source-sealed learner schedules. This module opens no process, SDK,
  * SQL connection or Storage resource. Mock receipts never prove native acceptance. */
 import assert from 'node:assert/strict'
+import { validateSurveyWorkflowReviewedMigration } from './survey-workflow-reviewed-migration'
 import { validateTestOwnerUnpublicationReviewedMigration } from './test-owner-unpublication-reviewed-migration'
 import { validateTestOwnerDeletionReviewedMigration } from './test-owner-deletion-reviewed-migration'
 import { createHash } from 'node:crypto'
@@ -37,12 +38,13 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
   })
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const reviewedMigrations=loadAssignmentListReviewedMigrations(repository)
-  assert([257,258,259,260,261,262].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
+  assert([257,258,259,260,261,262,263].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
   if(reviewedMigrations.length>=258)validateStudentTestSessionStatusReviewedMigration(reviewedMigrations[257])
   if(reviewedMigrations.length>=259)validateTestOwnerGradingReviewedMigration(reviewedMigrations[258])
   if(reviewedMigrations.length>=260)validateTestOwnerRecoveryReviewedMigration(reviewedMigrations[259])
   if (reviewedMigrations.length >= 261) validateTestOwnerUnpublicationReviewedMigration(reviewedMigrations[260])
-  if (reviewedMigrations.length === 262) validateTestOwnerDeletionReviewedMigration(reviewedMigrations[261])
+  if (reviewedMigrations.length >= 262) validateTestOwnerDeletionReviewedMigration(reviewedMigrations[261])
+  if (reviewedMigrations.length === 263) validateSurveyWorkflowReviewedMigration(reviewedMigrations[262])
   const migrations=reviewedMigrations.map(({name,sha256})=>({name,sha256}))
   assert.deepEqual(migrations[256],{name:'257_contextual_test_learner_workflow.sql',sha256:TEST_LEARNER_NATIVE_SOURCE_SHA256})
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`, guard=testOwnerGuardSql(projectId)

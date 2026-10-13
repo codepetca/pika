@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
-import { readFileSync, type statSync } from 'node:fs'
+import { readFileSync, statSync, realpathSync } from 'node:fs'
 import type { request } from 'node:http'
 const mocks = vi.hoisted(() => ({ collect: vi.fn(), spawn: vi.fn() }))
 vi.mock('../../scripts/contextual-test-owner-list-proof-inventory', () => ({ testOwnerListDockerInventory: mocks.collect }))
 vi.mock('node:child_process', async importOriginal => ({ ...await importOriginal<typeof import('node:child_process')>(), spawn: mocks.spawn }))
-vi.mock('node:fs', async importOriginal => { const original = await importOriginal<typeof import('node:fs')>(); return { ...original, readFileSync: vi.fn(original.readFileSync) } })
-import { draftSaveProofDockerInventory } from '../../scripts/contextual-test-draft-save-proof-inventory'
+vi.mock('node:fs', async importOriginal => { const original = await importOriginal<typeof import('node:fs')>(); return { ...original,
+  readFileSync: vi.fn(original.readFileSync), statSync: vi.fn(original.statSync),
+  realpathSync: Object.assign(vi.fn(original.realpathSync), { native: original.realpathSync.native }),
+} })
+import { draftSaveProofDockerInventory, SurveyInventoryUnjoinedChildError } from '../../scripts/contextual-test-draft-save-proof-inventory'
 
 const context = ['context', 'inspect', '--format', '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}']
 const template = [...readFileSync('scripts/contextual-assignment-list-proof-platform.ts', 'utf8').matchAll(/^const containerTemplate = '([^'\r\n]+)'$/gm)][0][1]
@@ -38,7 +41,7 @@ beforeEach(() => {
     let reqClosed = false; let socketClosed = false; let counted = true
     const decrement = () => { if (reqClosed && socketClosed && counted) { counted = false; httpActive--; call.closed = true } }
     const socket = Object.assign(new EventEmitter(), { destroy: vi.fn(() => { if (!holdClose) queueMicrotask(() => { if (!socketClosed) { socketClosed = true; decrement(); socket.emit('close') } }) }) })
-    const response = Object.assign(new EventEmitter(), { statusCode: 200, headers: { 'content-type': 'application/json' }, complete: true,
+    const response: Http['response'] = Object.assign(new EventEmitter(), { statusCode: 200, headers: { 'content-type': 'application/json' }, complete: true,
       destroy: vi.fn(() => queueMicrotask(() => response.emit('close'))) })
     const req = Object.assign(new EventEmitter(), { destroy: vi.fn(() => { if (!holdClose) queueMicrotask(() => { if (!reqClosed) { reqClosed = true; decrement(); req.emit('close') } }) }),
       end: vi.fn(() => queueMicrotask(() => { if (socketAtEnd) req.emit('socket', socket); onRequest?.(call) })) })
@@ -65,6 +68,78 @@ async function discovery(names: string[]) { await flush(); children[0].complete(
 const requestedId = (call: Http) => String(call.options.path).split('/')[3]
 
 describe('PATCH-only full HTTP inventory (offline)', () => {
+  it('does not dispatch queued readers after work, but positively settles owned sockets in original reserve', async () => {
+    vi.useFakeTimers(); const names = configured(); holdClose = true; let done = false
+    const start = Date.now(), clocks = { dispatchDeadline: start + 100, settlementDeadline: start + 1000 }
+    const pending = draftSaveProofDockerInventory(options(), undefined, clocks).catch(error => { done = true; return error })
+    await discovery(names); expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(done).toBe(false); expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(500); calls.forEach(call => call.close()); await flush()
+    expect(await pending).toBeInstanceOf(Error); expect(done).toBe(true)
+    expect(calls).toHaveLength(2); expect(active + httpActive).toBe(0)
+    expect(Date.now()).toBeLessThan(clocks.settlementDeadline)
+  })
+  it('reports typed owned uncertainty at original total, with no reserve renewal or new readers', async () => {
+    vi.useFakeTimers(); const names = configured(); holdClose = true
+    const start = Date.now(), clocks = { dispatchDeadline: start + 100, settlementDeadline: start + 1000 }
+    const pending = draftSaveProofDockerInventory(options(), undefined, clocks).catch(error => error)
+    await discovery(names)
+    clocks.dispatchDeadline = start + 10000; clocks.settlementDeadline = start + 20000
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(await pending).toBeInstanceOf(SurveyInventoryUnjoinedChildError)
+    expect(calls).toHaveLength(2); expect(active + httpActive).toBeGreaterThan(0)
+    calls.forEach(call => call.close()); await flush()
+  })
+  it('denies an expired work clock even while settlement reserve remains', async () => {
+    await expect(draftSaveProofDockerInventory(options(), undefined,
+      { dispatchDeadline: Date.now(), settlementDeadline: Date.now() + 1000 })).rejects.toThrow()
+    expect(children).toHaveLength(0); expect(calls).toHaveLength(0)
+  })
+  it('accepts only original deadline data, never a getter callback', async () => {
+    const getter = vi.fn(() => Date.now() + 1000)
+    await expect(draftSaveProofDockerInventory(options(), undefined,
+      { get dispatchDeadline() { return getter() }, settlementDeadline: Date.now() + 2000 })).rejects.toThrow()
+    expect(getter).not.toHaveBeenCalled(); expect(children).toHaveLength(0)
+  })
+  it('clips queued HTTP work to one original deadline and refuses unjoined expiry without renewing it', async () => {
+    vi.useFakeTimers(); const names = configured(); holdClose = true
+    const originalDeadline = Date.now() + 1000
+    const pending = draftSaveProofDockerInventory(options(), undefined, originalDeadline).catch(error => error)
+    await discovery(names); expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(999); expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(String(await pending)).toContain('Survey inventory closure unconfirmed')
+    expect(calls).toHaveLength(2); expect(calls.every(call => call.req.destroy.mock.calls.length)).toBe(true)
+    expect(active + httpActive).toBeGreaterThan(0)
+    calls.forEach(call => call.close()); await flush()
+  })
+  it('allows positive failure settlement only within the same original remaining deadline', async () => {
+    vi.useFakeTimers(); const names = configured(1); holdClose = true; let done = false
+    const originalDeadline = Date.now() + 1000
+    const pending = draftSaveProofDockerInventory(options(), undefined, originalDeadline).catch(error => { done = true; return error })
+    await discovery(names); calls[0].respond('invalid', 500); await flush(); expect(done).toBe(false)
+    await vi.advanceTimersByTimeAsync(900); calls[0].close(); await pending
+    expect(done).toBe(true); expect(active + httpActive).toBe(0); expect(Date.now()).toBeLessThan(originalDeadline)
+  })
+  it('expired original deadline denies CLI construction, and live CLI expiry requires positive reaping', async () => {
+    vi.useFakeTimers(); configured()
+    await expect(draftSaveProofDockerInventory(options(), undefined, Date.now())).rejects.toThrow()
+    expect(children).toHaveLength(0)
+    const pending = draftSaveProofDockerInventory(options(), undefined, Date.now() + 10).catch(error => error)
+    await flush(); expect(children).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(10)
+    expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+    expect(String(await pending)).toContain('Survey inventory closure unconfirmed')
+    children[0].complete(''); await flush()
+  })
+  it('the original deadline also bounds an unsettled parent discovery promise', async () => {
+    vi.useFakeTimers(); mocks.collect.mockImplementation(async () => new Promise(() => {}))
+    const pending = draftSaveProofDockerInventory(options(), undefined, Date.now() + 10).catch(error => error)
+    await vi.advanceTimersByTimeAsync(10)
+    expect(String(await pending)).toContain('Survey inventory original deadline expired')
+    expect(children).toHaveLength(0); expect(calls).toHaveLength(0)
+  })
   it('uses two exact HTTP readers, original logical order and no container CLI child, stripping private fields', async () => {
     const names = configured(); const pending = draftSaveProofDockerInventory(options()); await discovery(names)
     expect(children).toHaveLength(2); expect(calls).toHaveLength(2)
@@ -226,8 +301,10 @@ describe('PATCH-only full HTTP inventory (offline)', () => {
           NetworkSettings: { Networks: projected.networks }, HostConfig: { PortBindings: projected.bindings } }))
       }
     }
-    const stat = vi.fn(() => ({ dev: 1, ino: 2, mode: 0o140600, rdev: 0, isSocket: () => true }) as ReturnType<typeof statSync>)
-    const actual = await draftSaveProofDockerInventory({ ...options(), readConfig: () => undefined, realpath: () => host[1].slice(7), stat })
+    const stats = Object.assign(statSync('package.json'), { dev: 1, ino: 2, mode: 0o140600, rdev: 0, isSocket: () => true })
+    const stat = vi.mocked(statSync).mockReturnValue(stats); stat.mockClear()
+    vi.mocked(realpathSync).mockReturnValue(host[1].slice(7))
+    const actual = await draftSaveProofDockerInventory({ ...options(), readConfig: () => undefined, realpath: realpathSync, stat: statSync })
     const expected = await platform.assignmentListDockerInventory(async (_file, args) => command(args))
     expect(actual).toEqual(expected); expect(actual).toHaveLength(769); expect(JSON.stringify(actual)).not.toContain('PRIVATE_SECRET')
     expect(children).toHaveLength(5); expect(calls).toHaveLength(130); expect(calls.filter(c => c.options.path === '/v1.45/volumes')).toHaveLength(1)

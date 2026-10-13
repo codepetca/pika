@@ -429,6 +429,53 @@ visual verification, final-SHA CI and PR Gate. Do not weaken safety gates to gai
 speed. Integrate against a current frozen base before readiness, not repeatedly
 recheck stale candidates. This changes delivery strategy, not correctness criteria.
 
+#### Remaining-work orchestration — 2026-10-12
+
+The owner requested orchestration with routine approvals waived except for serious
+situations. Continue scoped implementation, focused verification, independent
+review, remediation and normal protected-main merges without repeated routine
+approval requests. The task-scoped workflow-review-budget and low-usage stop
+waiver persists; retain cumulative effort and review counters. It does not weaken
+correctness gates, explicit native-attempt caps, permission boundaries or holds.
+Production activation/promotion, shared database applications, provider/billing or
+account changes, valuable irreversible deletion, unresolved ownership and material
+product/privacy decisions still require their applicable authority.
+
+Main `22efa4826300d5895b3549d7b74dd0ff4262e4a5` includes the dormant existing-Test
+screen adoption (#1580). Component delivery is not the integrated Tests exit:
+the latest isolated app attempt failed at login-response body acquisition and its
+exact synthetic project was subsequently recovered. Preserve both receipts;
+cleanup success does not convert the failed rehearsal into a product pass.
+
+Oct13 verification checkpoint: a subsequent synthetic browser attempt stopped
+before the case with unknown browser-family ownership/closure. That lane is
+parked pending verified recovery or an owner-controlled reset; do not infer
+closure from an absent listener or relaunch an equivalent trial. Independent
+Survey verification completed its one disposable 001–263 component at
+`d9223d7d68c7a9b5221cfa322f9c96b28dfeb36f`: PostgreSQL parsing, rollback and
+real-SDK contracts, genuine twelve-RPC metadata, restoration/preservation and
+owned teardown passed. Full committed concurrency/cancellation/payload and
+existing-screen acceptance remain pending. Details and immutable receipt hashes
+are in [contextual Survey guidance](contextual-surveys.md#native-component-verified-full-acceptance-pending).
+Neither receipt closes batch 2 or authorizes production/shared migration or
+activation. Routine source fixes and targeted review continue under the waiver.
+
+| Ready lane | Ownership and deliverable | Integration gate |
+| --- | --- | --- |
+| Tests critical path | Coordinator/private runner author: bounded privacy-safe original-request/body lifecycle diagnosis, then a justified repair or separately authorized fresh proof; preserve real auth, byte/JSON checks and request caps | Existing-screen owner/member lifecycle must pass; a diagnostic source test or login HTTP 200 is not sufficient |
+| Surveys, batch 2 | `codex/contextual-surveys-workflow`: coherent dormant owner authoring/results and current-member participation/results through existing routes | Fixed parent/current owner/member precedence, visibility, archive/removal/purge races, atomic writes/reads, genuine types and real SDK/database evidence before readiness; source preparation does not declare the Tests or batch-2 exit |
+| Independent lifecycle, batch 3 | `codex/contextual-archive-recovery`: dormant owner archive-recovery reads and verified hot recovery-copy export, reusing current format/reservation/private-object/lifecycle contracts | Fresh owner/revision binding, tenant isolation, legacy compatibility and real SDK/database/export evidence; hot archive/unarchive, cold restore and purge redesign remain outside this group |
+
+Each lane has a separate worktree and writer. The coordinator owns shared schema
+numbering/generated-type integration, check plumbing, roadmap, review and merge
+order. Surveys and archive preparation have no unresolved Test/Billing API
+dependency; keep their existing shared admission default-off. Do not invent
+per-route rollout flags or a second permission framework. The separately owned
+billing work is not duplicated. Finish Gradebook/returned Grades and remaining
+lifecycle/service boundaries after these coherent groups, then connect batch 4
+and perform batch 5. Reuse valid unchanged evidence rather than repeating accepted
+proof solely for a newer timestamp. Full goal and batches 2–5 remain open.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
