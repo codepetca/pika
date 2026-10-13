@@ -50,6 +50,10 @@ import { testOwnerDeletionNativePlan, validateTestOwnerDeletionNativePlanSql, ru
   runTestOwnerDeletionNativeRaces } from './contextual-test-owner-deletion-native-contracts'
 import { surveyNativePlan, validateSurveyNativeSql, runSurveyNativeRollbackContracts,
   runSurveyNativeRollbackRaces, validateSurveyGeneratedTypes, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
+import { surveyRemainingNativePlan, verifySurveyRemainingSources } from './contextual-surveys-native-contracts'
+import { validateSurveyCommittedSql, surveyCommittedObservationSql, validateSurveyCommittedObservationSql,
+  verifySurveyCommittedSeed, verifySurveyCommittedWitness, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
+  type SurveyCommittedProofManifest, type SurveyCommittedBootstrap, type SurveyCommittedTimes } from './contextual-surveys-committed-proof'
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
 import { decodeAssignmentListSnapshot, validateSurvey263Budget, verifySurvey263NativeCli, Survey263UnjoinedChildError,
@@ -561,6 +565,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   survey263Endpoint?: Readonly<{ host: string; identity: readonly [number, number, number, number] }>;
   survey263Budget?: Survey263Budget;
   survey263NativeCli?: Survey263NativeCli;
+  surveyCommitted?: SurveyCommittedProofManifest;
   runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
@@ -571,12 +576,21 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
 
 /** Exact263 addition only. The executor remains private and predecessor profiles
  * retain their closed migration catalogs, SQL allowlists and capabilities. */
-export function buildSurveyNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
-  const plan = surveyNativePlan(original, reviewedHead, repository)
+type SurveyEngineFields = { bootstrap: string; termination: string; close: string; capabilities: typeof CAPS;
+  framing: string; contextTemplate: string; privilege: ReturnType<typeof snapshotPrivilegeSql> }
+type SurveyManifest = ReturnType<typeof surveyNativePlan> & SurveyEngineFields
+type SurveyRemainingManifest = ReturnType<typeof surveyRemainingNativePlan> & SurveyEngineFields
+export function buildSurveyNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string, remainingOnly: true): SurveyRemainingManifest
+export function buildSurveyNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string, remainingOnly?: undefined): SurveyManifest
+export function buildSurveyNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string, remainingOnly: true | undefined): SurveyManifest | SurveyRemainingManifest
+export function buildSurveyNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string, remainingOnly?: true) {
+  assert(remainingOnly === undefined || remainingOnly === true)
+  const plan = remainingOnly ? surveyRemainingNativePlan(original, reviewedHead, repository) : surveyNativePlan(original, reviewedHead, repository)
   return freeze({ ...plan, bootstrap: boot, termination: draftSaveNativeTerminationSql(), close: 'rollback;',
     capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('survey') })
 }
 export function createContextualSurveysNativeContracts(input: NativeOwnerInput & { absoluteDeadline: number; statusTarget?: unknown;
+  remainingOnly?: true;
   survey263Endpoint: Readonly<{ host: string; identity: readonly [number, number, number, number]; budget: Survey263Budget; nativeCli: Survey263NativeCli }> }) {
   const now = Date.now()
   assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
@@ -588,10 +602,12 @@ export function createContextualSurveysNativeContracts(input: NativeOwnerInput &
   assert(input.survey263Endpoint.identity.length === 4 && input.survey263Endpoint.identity.every(n => Number.isSafeInteger(n) && n >= 0))
   const survey263Endpoint = Object.freeze({ host: input.survey263Endpoint.host,
     identity: Object.freeze([...input.survey263Endpoint.identity]) as readonly [number, number, number, number] })
-  const manifest = buildSurveyNativeContractsManifest(input.original, input.reviewedHead, input.repository)
+  const manifest = buildSurveyNativeContractsManifest(input.original, input.reviewedHead, input.repository, input.remainingOnly)
+  const remaining = 'committed' in manifest ? manifest : undefined
   const engine = createNativeOwnerContracts(input, { manifest, project: manifest.projectId,
     sourceFile: '263_contextual_surveys_workflow.sql', label: 'survey263', absoluteDeadline: input.absoluteDeadline, survey263Endpoint, survey263Budget, survey263NativeCli,
     singleMs: 35000,
+    ...(remaining ? { surveyCommitted: remaining.committed } : {}),
     ...(input.statusTarget === undefined ? {} : { surveySdk: {
       fixture: manifest.fixture, status: validateAssignmentListProofTarget(input.statusTarget, manifest.projectId),
     } }),
@@ -604,6 +620,10 @@ export function createContextualSurveysNativeContracts(input: NativeOwnerInput &
   // This first bounded profile never asserts full Survey acceptance or exposes
   // the inherited Test privilege/committed-transition programming surfaces.
   return Object.freeze({ manifest: sealed, setup, verifyTarget, diagnostic, run,
+    ...(remaining ? { async runRemainingCommitted() {
+      assert(engine.runSurveyRemainingCommitted)
+      return engine.runSurveyRemainingCommitted()
+    }, inventoryComplete: false as const } : {}),
     async runSdkCommitted() {
       assert(engine.runSurveySdkCommitted, 'Survey SDK private status binding is absent')
       return engine.runSurveySdkCommitted()
@@ -899,6 +919,42 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   const sessions = new Set<NativeSession>()
   let learnerCancellationDone = false
   let surveySdkRan = false, surveySdkDone = false, surveyTypesGenerated = false, surveyUnjoined = false
+  let surveyCommittedStarted = false, surveyCommittedDone = false
+  type SurveyGraph = Record<string, Record<string, unknown>[]>
+  type SurveyFrame = 'seed' | 'bootstrap' | 'observer' | 'holder' | 'contender' | 'release' | 'settle' | 'retry' | 'terminal'
+  // Neither these carriers nor the baseline marker escape this engine instance.
+  type SurveyCarrier = { session: NativeSession; label: string; side: 'holder' | 'contender'; frame: SurveyFrame; sql: string;
+    operationSha256?: string; backend?: Readonly<Backend>; marker?: string; dispatchedAt?: number; completedAt?: number;
+    rows?: readonly { result?: unknown }[]; dispatched: Promise<void>; didDispatch(): void; rejectDispatch(error: unknown): void;
+    completion: Promise<readonly { result?: unknown }[]> }
+  let surveyPair: SurveyCommittedBootstrap | undefined
+  let surveyBaseline: { seed: SurveyCarrier; graph: SurveyGraph } | undefined
+  const surveyCarriers = new WeakSet<SurveyCarrier>()
+  function validateSurveyCarrier(c: SurveyCarrier) {
+    const m = profile.surveyCommitted
+    assert(m && surveyCarriers.has(c) && sessions.has(c.session))
+    assert(c.session.name === `${project}_draft_${c.side}`)
+    if (c.frame === 'seed') assert(c.side === 'holder' && c.sql === m.seed)
+    else if (c.frame === 'bootstrap') assert(c.sql === m.bootstrap[c.side])
+    else if (c.frame === 'observer') {
+      assert(surveyPair && c.side === 'holder')
+      assert(validateSurveyCommittedObservationSql(m, c.label, surveyPair, c.sql))
+      assert(m.schedules.find(s => s.label === c.label)?.mode === 'wait')
+    } else {
+      assert(validateSurveyCommittedSql(m, c.label, c.side, c.frame, c.sql))
+      const s = m.schedules.find(s => s.label === c.label)!
+      if (c.frame === 'holder') assert.equal(c.operationSha256, s.firstOperationSha256)
+      if (c.frame === 'contender' || c.frame === 'retry') assert.equal(c.operationSha256, s.secondOperationSha256)
+    }
+    assert(Buffer.byteLength(c.sql) <= m.caps.sqlBytes)
+  }
+  function surveyResult(c: SurveyCarrier) {
+    assert(surveyCarriers.has(c) && c.backend && c.marker && c.dispatchedAt !== undefined && c.completedAt !== undefined)
+    assert(c.rows?.length === 1)
+    const value = c.rows[0].result
+    assert(value && typeof value === 'object' && !Array.isArray(value))
+    return value as Record<string, unknown>
+  }
   type CancellationStage = 'none' | 'snapshot' | 'catalog' | 'install' | 'installed' | 'guard' | 'probe' | 'receipt' | 'timing' | 'restore' | 'restored-catalog' | 'restored-fixture' | 'complete'
   let cancellationStage: CancellationStage = 'none'
   let cancellationFirstFailure: CancellationStage | undefined
@@ -1029,6 +1085,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     for (const result of checks) if (result.status === 'rejected') throw result.reason
     assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
     assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations', profile.sourceFile), 'utf8')), manifest.sourceSha256)
+    if (profile.surveyCommitted) verifySurveyRemainingSources(input.repository)
     const all = await dockerInventory(cleanup, observe)
     validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
     await verifyEndpoint(cleanup)
@@ -1127,7 +1184,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       })
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
-    private raw(sql: string, timeoutMs: number): Promise<readonly { result?: unknown }[]> {
+    private raw(sql: string, timeoutMs: number, carrier?: SurveyCarrier): Promise<readonly { result?: unknown }[]> {
       if (profile.survey263Budget) {
         timeoutMs = Math.min(timeoutMs, (this.cleaning ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
         assert(timeoutMs > 0)
@@ -1152,12 +1209,24 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
             if (this.progressScope === 'bulk') bulkProgress = this.progress.snapshot().checkpoint
             if (this.progressScope === 'calibration') progressCalibrated = this.progress.snapshot().calibrated
           }
-          try { resolveRows(active.lines.map(line => {
+          try { const rows = active.lines.map(line => {
             try { return { result: JSON.parse(line) as unknown } }
             catch { assert(/^[a-f0-9-]{36}$/.test(line) || /^-?[0-9]+$/.test(line) || line === 'ok'); return { result: line } }
-          })) } catch { this.fault('protocol'); reject(failure()); void closeAll().catch(() => {}) }
+          })
+            if (carrier) { assert(carrier.marker === marker && carrier.dispatchedAt !== undefined)
+              carrier.rows = freeze(structuredClone(rows)); carrier.completedAt = Date.now() }
+            resolveRows(rows)
+          } catch { this.fault('protocol'); reject(failure()); void closeAll().catch(() => {}) }
         } }
+        if (carrier) {
+          validateSurveyCarrier(carrier); check(); assert(this.owned && carrier.session === this)
+          verifySurveyRemainingSources(input.repository)
+          assert(surveyPair); assert.deepEqual(this.owned, surveyPair[carrier.side])
+          // Issue only at the actual guarded write, not at execute invocation.
+          carrier.backend = Object.freeze({ ...this.owned }); carrier.marker = marker; carrier.dispatchedAt = Date.now()
+        }
         this.child.stdin.write(`${sql}\n\\echo ${marker}\n`)
+        carrier?.didDispatch()
       })
     }
     async initialize() {
@@ -1166,8 +1235,27 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       assert.equal(rows.length, 1); this.owned = backend(rows[0].result, this.name)
     }
     async execute(sql: string, timeoutMs: number) {
-      try { check(!this.cleaning); assert(profile.validateSql(sql)); assert(++actions <= CAPS.actions); await guard(false, role(this.name), !this.cleaning); check(!this.cleaning); return await this.raw(sql, timeoutMs) }
+      return this.executeNative(sql, timeoutMs)
+    }
+    private async executeNative(sql: string, timeoutMs: number, carrier?: SurveyCarrier) {
+      try { check(!this.cleaning); if (carrier) validateSurveyCarrier(carrier); else assert(profile.validateSql(sql))
+        assert(++actions <= CAPS.actions); await guard(false, role(this.name), !this.cleaning); check(!this.cleaning)
+        return await this.raw(sql, timeoutMs, carrier) }
       catch { this.fault('unknown'); await closeAll(); throw failure() }
+    }
+    surveyOwned() { assert(profile.surveyCommitted && this.owned && sessions.has(this)); return Object.freeze({ ...this.owned }) }
+    surveyExecute(side: 'holder' | 'contender', frame: SurveyFrame, sql: string, label = '', operationSha256?: string): SurveyCarrier {
+      assert(profile.surveyCommitted)
+      let didDispatch!: () => void, rejectDispatch!: (error: unknown) => void
+      const dispatched = new Promise<void>((resolveDispatch, reject) => { didDispatch = resolveDispatch; rejectDispatch = reject })
+      // Install both rejection handlers before beginning asynchronous guards.
+      void dispatched.catch(() => {})
+      const carrier: SurveyCarrier = { session: this, side, frame, sql, label, operationSha256, dispatched, didDispatch, rejectDispatch,
+        completion: Promise.resolve([]) }
+      surveyCarriers.add(carrier)
+      carrier.completion = this.executeNative(sql, profile.singleMs ?? CAPS.actionMs, carrier).catch(error => { rejectDispatch(error); throw error })
+      void carrier.completion.catch(() => {})
+      return carrier
     }
     async destroy() {
       if (this.closing) return this.closing
@@ -1278,11 +1366,112 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     finally { if (ownsProbe) probing = false }
   }
   return Object.freeze({ manifest,
+    ...(profile.surveyCommitted ? { async runSurveyRemainingCommitted() {
+      phase = 'transitions'
+      const m = profile.surveyCommitted!
+      let holder: NativeSession | undefined, contender: NativeSession | undefined
+      const completed: string[] = []
+      try {
+        assert(profile.label === 'survey263' && setupDone && !ran && !surveyCommittedStarted && !probing && sessions.size === 0)
+        surveyCommittedStarted = true; check()
+        // Preserve the original rollback SQL contract without replaying its races.
+        const contractTarget = target(profile.contractsSha256)
+        await profile.runContracts(contractTarget, driver(contractTarget))
+        const d = driver(target(input.acceptedManifestSha256))
+        holder = await d.openSession(`${project}_draft_holder`) as NativeSession
+        contender = await d.openSession(`${project}_draft_contender`) as NativeSession
+        assert(holder instanceof NativeSession && contender instanceof NativeSession)
+        surveyPair = Object.freeze({ holder: holder.surveyOwned(), contender: contender.surveyOwned() })
+        const frame = async (session: NativeSession, side: 'holder' | 'contender', kind: SurveyFrame, sql: string, label = '', operationSha256?: string) => {
+          const c = session.surveyExecute(side, kind, sql, label, operationSha256)
+          await c.completion; return c
+        }
+        const seed = await frame(holder, 'holder', 'seed', m.seed)
+        const captured = surveyResult(seed)
+        const graph = (value: unknown): SurveyGraph => {
+          assert(value && typeof value === 'object' && !Array.isArray(value))
+          assert(Buffer.byteLength(JSON.stringify(value)) <= m.caps.responseBytes)
+          for (const rows of Object.values(value)) assert(Array.isArray(rows) && rows.every(r => r && typeof r === 'object' && !Array.isArray(r)))
+          return structuredClone(value) as SurveyGraph
+        }
+        const seedGraph = graph(captured.after)
+        verifySurveyCommittedSeed(m, graph(captured.before), seedGraph, {
+          startedAt: new Date(seed.dispatchedAt!).toISOString(), endedAt: new Date(seed.completedAt!).toISOString(), seedTimestamp: String(captured.seedTimestamp) })
+        surveyBaseline = { seed, graph: seedGraph }
+        await frame(holder, 'holder', 'bootstrap', m.bootstrap.holder)
+        await frame(contender, 'contender', 'bootstrap', m.bootstrap.contender)
+        for (const s of m.schedules) {
+          check(); assert(surveyBaseline?.seed === seed && surveyCarriers.has(seed) && seed.backend && seed.marker)
+          const before = structuredClone(surveyBaseline.graph), directionStarted = Date.now()
+          const first = await frame(holder, 'holder', 'holder', s.frames.holder, s.label, s.firstOperationSha256)
+          const held = surveyResult(first)
+          const second = contender.surveyExecute('contender', 'contender', s.frames.contender, s.label, s.secondOperationSha256)
+          await second.dispatched
+          assert(second.backend && second.dispatchedAt !== undefined && second.marker)
+          let observation: Record<string, unknown>, observedAt: number
+          if (s.mode === 'wait') {
+            assert(second.completedAt === undefined)
+            const observer = await frame(holder, 'holder', 'observer', surveyCommittedObservationSql(m, s.label, surveyPair), s.label)
+            observation = surveyResult(observer); observedAt = Date.parse(String(observation.observedAt))
+            assert(second.completedAt === undefined, 'Survey original contender settled before observation')
+          } else {
+            await second.completion
+            const rejected = surveyResult(second)
+            assert((rejected.operation as { code?: unknown })?.code === 'PT409')
+            observedAt = second.completedAt!
+            // NOWAIT evidence is the original completed response and local frame
+            // clock; no extra database observer or inferred tuple claim.
+            observation = { label: s.label, observedAt: new Date(observedAt).toISOString(), poll: 1,
+              holder: surveyPair.holder, contender: surveyPair.contender, held: held.heldWitness,
+              blockers: [], waiter: null, code: 'PT409', immediateMs: observedAt - second.dispatchedAt }
+          }
+          verifySurveyCommittedWitness(m, s.label, surveyPair, { ...observation,
+            contenderDispatch: { backend: second.backend, sqlSha256: testOwnerDigest(second.sql), operationSha256: second.operationSha256 } }, {
+            startedAt: directionStarted, workDeadline: profile.survey263Budget!.workDeadline,
+            dispatchedAt: second.dispatchedAt, observedAt, contenderPending: second.completedAt === undefined, poll: Number(observation.poll) })
+          await frame(holder, 'holder', 'release', s.frames.release, s.label)
+          await second.completion
+          const secondResult = surveyResult(second)
+          await frame(contender, 'contender', 'settle', s.frames.settle, s.label)
+          const retry = s.mode === 'nowait' ? await frame(contender, 'contender', 'retry', s.frames.retry, s.label, s.secondOperationSha256) : undefined
+          const retryResult = retry ? surveyResult(retry) : undefined
+          const terminal = await frame(holder, 'holder', 'terminal', s.frames.terminal, s.label)
+          const terminalResult = surveyResult(terminal), after = graph(terminalResult.graph)
+          const mutationFirst = s.index === 1 || s.index >= 8 && s.index <= 12
+          const mutationHolder = mutationFirst ? s.direction === 'forward' : s.direction === 'reverse'
+          const writer = s.index === 13 ? held : s.index === 14 ? retryResult ?? secondResult
+            : [5, 6].includes(s.index) || mutationHolder ? held : retryResult ?? secondResult
+          const response = after['public.survey_responses']?.find(r => r.survey_id === s.cohort.surveyId && r.student_id === m.actors[1].id)
+          const firstResponse = (held.responses as Record<string, unknown>[] | undefined)?.[0]
+          const times: SurveyCommittedTimes = { startedAt: new Date(directionStarted).toISOString(), endedAt: new Date(terminal.completedAt!).toISOString(),
+            writerTimestamp: String(writer.writerTimestamp), responseId: response ? String(response.id) : undefined,
+            responseSubmittedAt: response ? String(response.submitted_at) : undefined, responseTimestamp: response ? String(response.updated_at) : undefined,
+            firstResponse, archiveReceipt: writer.archiveReceipt as SurveyCommittedTimes['archiveReceipt'] }
+          verifySurveyCommittedEffects(m, s.label, before, after, times)
+          type Operation = Parameters<typeof verifySurveyCommittedEnvelopes>[4]['holder']
+          verifySurveyCommittedEnvelopes(m, s.label, before, after, { holder: held.operation as Operation, contender: secondResult.operation as Operation,
+            retry: retryResult?.operation as Operation | undefined, cachedQuestions: terminalResult.cached_questions,
+            freshRead: terminalResult.fresh_read as Operation, cachedResponseProbe: terminalResult.cached_response_probe as Operation | null })
+          surveyBaseline.graph = after; completed.push(s.label)
+        }
+      } catch (error) { record('unknown'); failed = true; checkJoined(); throw error }
+      finally {
+        const closed = await Promise.allSettled([holder, contender].filter((s): s is NativeSession => Boolean(s)).map(s => s.rollbackAndClose(CAPS.closeMs)))
+        checkJoined(); assert(closed.every(r => r.status === 'fulfilled'), 'Survey original persistent session closure unconfirmed')
+      }
+      check(); assert(completed.length === 30 && sessions.size === 0)
+      surveyCommittedDone = true
+      return freeze({ kind: 'survey-private-committed-binding-only' as const, directions: completed,
+        inventoryComplete: false as const, nativeVerified: false as const,
+        missing: ['survey-eight-second-postgrest-cancellation', 'actual-survey-payload-ceilings', 'helper-and-outer-dispatch-accounting',
+          'restoration-and-final-preservation-inventory', 'complete-input-output-and-helper-byte-accounting'],
+        controls, actions, exchangeBytes: exchanged, remainingSessions: sessions.size })
+    } } : {}),
     ...(profile.surveySdk ? { async runSurveySdkCommitted() {
       phase = 'transitions'
       try {
         assert.equal(profile.label, 'survey263')
-        assert(setupDone && ran && runDone && !surveySdkRan && !probing && sessions.size === 0)
+        assert(setupDone && (profile.surveyCommitted ? surveyCommittedDone : ran && runDone) && !surveySdkRan && !probing && sessions.size === 0)
         surveySdkRan = true; check()
         const decode = (rows: Awaited<ReturnType<typeof single>>) => decodeAssignmentListSnapshot(
           rows.map(row => JSON.stringify(row.result)).join('\n'), 'rows')
@@ -1458,6 +1647,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     async run() {
       phase = 'snapshot'
       try {
+      assert(!profile.surveyCommitted, 'Survey remaining-only profile cannot replay rollback races')
       assert(!profile.reorderDiagnosticSql)
       assert(setupDone && !ran && !probing)
       if (profile.innerPrivilege) assert(probed.has('outer') && probed.has('inner'))

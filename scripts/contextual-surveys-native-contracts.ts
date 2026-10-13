@@ -12,6 +12,7 @@ import { contextualSurveysConcurrencyCases } from './contextual-surveys-concurre
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 import type { Database } from '../src/types/database'
 import { surveySdkProofManifest } from './contextual-surveys-sdk-proof'
+import { surveyCommittedProofManifest } from './contextual-surveys-committed-proof'
 
 export const SURVEY_NATIVE_SOURCES = freeze({
   migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9' },
@@ -198,6 +199,28 @@ end;$reject$;select jsonb_build_object('rejected',true,'label',${q(label)});`
   return plan
 }
 export type SurveyNativePlan = ReturnType<typeof surveyNativePlan>
+/** Fixed reviewed leaf; this is an external source pin, not a recomputed approval. */
+export const SURVEY_COMMITTED_SOURCE = Object.freeze({ file: 'scripts/contextual-surveys-committed-proof.ts',
+  sha256: '16015ce0e0ea5a8f0e8173c14b5cccc750ce22c724f7a0aaf869e2b32ae74eb2' })
+export function surveyRemainingNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
+  const plan = surveyNativePlan(original, reviewedHead, repository)
+  checked(repository, SURVEY_COMMITTED_SOURCE)
+  const committed = surveyCommittedProofManifest(plan.fixture)
+  return freeze({ ...plan, committed, committedSource: SURVEY_COMMITTED_SOURCE,
+    kind: 'survey263-remaining-only' as const, inventoryComplete: false as const,
+    inventory: { committedActions: committed.inventory.minActions, setupActions: 2, rollbackContractActions: 2,
+      sdkSnapshotActions: 4, knownNativeActions: committed.inventory.minActions + 8, remainingNativeActions: 7,
+      persistentIdentityBootstrapDispatches: 2, auxiliaryIdentityBootstrapDispatches: 4,
+      knownIdentityBootstrapDispatches: 6, persistentSessionSpawns: 2, auxiliarySessionSpawns: 4,
+      knownSessionSpawns: 6, knownSessionCloses: 6, sdkRequests: 14,
+      committedEngineCommandControls: 1148, completeControls: null,
+      committedStaticSqlBytes: committed.inventory.staticSqlBytes,
+      completeExchangeBytes: null, engineExchangeByteCap: 64 * 1024 * 1024,
+      missing: ['survey-eight-second-postgrest-cancellation', 'actual-survey-payload-ceilings',
+        'helper-and-outer-dispatch-accounting', 'restoration-and-final-preservation-inventory',
+        'complete-input-output-and-helper-byte-accounting'] } })
+}
+export function verifySurveyRemainingSources(repository: string) { checked(repository, SURVEY_COMMITTED_SOURCE) }
 type SurveyWorkloadData = Readonly<{ kind: 'survey263-rollback-and-sdk-terminal'; repository: string; reviewedHead: string;
   projectId: string; reviewedManifestSha256: string; absoluteDeadline: number; nativeVerified: false }>
 const workloads = new WeakSet<object>()
@@ -207,8 +230,16 @@ const consumedWorkloads = new WeakSet<object>()
 export function bindSurveyNativeLifecycleWorkload(input: {
   original: AssignmentListProofFixture; repository: string; reviewedHead: string;
   reviewedManifestSha256: string; absoluteDeadline: number; rootReviewed: true; oneAttemptAuthorized: true; freshCapacityChecked: true;
+  remainingOnly?: true;
 }) {
   assert.equal(input.rootReviewed, true); assert.equal(input.oneAttemptAuthorized, true); assert.equal(input.freshCapacityChecked, true)
+  // Refuse before issuing/consuming a workload or entering resource admission.
+  // The private source binding is not complete acceptance inventory.
+  if (input.remainingOnly !== undefined) {
+    assert.equal(input.remainingOnly, true)
+    const remaining = surveyRemainingNativePlan(input.original, input.reviewedHead, input.repository)
+    assert(remaining.inventoryComplete, 'Survey remaining-only complete native inventory is absent')
+  }
   const plan = surveyNativePlan(input.original, input.reviewedHead, input.repository)
   assert.match(input.reviewedManifestSha256, /^[a-f0-9]{64}$/)
   const now = Date.now()

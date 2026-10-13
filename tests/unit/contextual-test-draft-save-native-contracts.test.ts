@@ -33,7 +33,11 @@ import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, 
   createTestOwnerPristineDiscardNativeContracts, buildTestOwnerPublicationNativeContractsManifest,
   createTestOwnerPublicationNativeContracts, buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts,
   buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts,
-  buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+  buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts,
+  buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+import { SURVEY263_NATIVE_CLI } from '../../scripts/contextual-assignment-list-proof-platform'
+import * as surveyCommittedProof from '../../scripts/contextual-surveys-committed-proof'
+import { surveyCommittedCpuFixtures, type SurveyCpuGraph } from '../helpers/survey-committed-cpu-fixtures'
 import { newTestLearnerWorkflowFixture } from '../../scripts/contextual-test-learner-proof-fixture'
 import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../../src/lib/validations/contextual-test-create'
 import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
@@ -166,6 +170,32 @@ describe('native persistent-session transport with offline child mocks', () => {
   let publicationManifest: ReturnType<typeof buildTestOwnerPublicationNativeContractsManifest> | undefined
   let reorderManifest: ReturnType<typeof buildTestOwnerReorderNativeContractsManifest> | undefined
   let learnerManifest: ReturnType<typeof buildTestLearnerNativeContractsManifest> | undefined
+  let surveyManifest: ReturnType<typeof buildSurveyNativeContractsManifest> | undefined
+  let surveySeedFault: 'malformed-graph' | 'missing-marker' | 'foreign-backend' = 'malformed-graph'
+  const surveyWrites: Array<{ name: string; sql: string; marker: string }> = []
+  let surveyPositive: 'normal' | 'early-contender' | 'foreign-marker' | undefined
+  let surveyGraph: SurveyCpuGraph | undefined, surveySeedStamp = ''
+  const surveyEvents: string[] = []
+  const surveyBackends = new Map<string, { pid: number; started: string; name: string; database: 'postgres'; user: 'postgres' }>()
+  type SurveySchedule = ReturnType<typeof surveyCommittedProof.surveyCommittedProofManifest>['schedules'][number]
+  let surveyDirection: { schedule: SurveySchedule; before: SurveyCpuGraph; holderAt: string; contenderAt?: string; retryAt?: string;
+    archiveAt?: string; archiveEndedAt?: string;
+    held?: Record<string, unknown> } | undefined
+  let pendingSurveyContender: (() => void) | undefined
+  function surveyAfter() {
+    const state = surveyDirection!, s = state.schedule
+    // Select the actual closed legacy-writer frame, independently of the
+    // production runner's index-based writer selection.
+    const legacy = (sql: string) => sql.includes('update public.') || sql.includes('delete from public.classroom_enrollments')
+    const writerAt = legacy(s.frames.holder) ? state.holderAt : legacy(s.frames.contender) ? state.retryAt ?? state.contenderAt ?? state.holderAt
+      : s.index === 14 ? state.retryAt ?? state.contenderAt ?? state.holderAt : state.holderAt
+    const stamp = Date.parse(writerAt)
+    const helpers = surveyCommittedCpuFixtures(surveyManifest!.fixture, { seedStamp: surveySeedStamp,
+      writeStamp: state.holderAt, changeStamp: writerAt, archiveStamp: state.archiveAt ?? new Date(stamp + 1).toISOString(),
+      archiveOperationEnd: state.archiveEndedAt ?? new Date(stamp + 2).toISOString(), endStamp: new Date(Date.now()).toISOString() })
+    const changed = helpers.changedCase(s, state.before)
+    return { ...changed, receipts: helpers.envelopes(s, state.before, changed.after) }
+  }
   let cancellationInstalled = false
   let cancellationRestoreOutput = 'ok'
   let cancellationCatalogChanged = false
@@ -232,6 +262,9 @@ describe('native persistent-session transport with offline child mocks', () => {
     setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined; publicationManifest = undefined
     reorderManifest = undefined; bulkChunks = []; bulkHang = false; bulkExit = false; emitCalibration = true
     learnerManifest = undefined; cancellationInstalled = false
+    surveyManifest = undefined; surveyWrites.length = 0; surveySeedFault = 'malformed-graph'
+    surveyPositive = undefined; surveyGraph = undefined; surveySeedStamp = ''; surveyEvents.length = 0
+    surveyBackends.clear(); surveyDirection = undefined; pendingSurveyContender = undefined
     cancellationRestoreOutput = 'ok'
     cancellationCatalogChanged = false
     bulkDispatched = undefined
@@ -265,6 +298,7 @@ describe('native persistent-session transport with offline child mocks', () => {
             || input === discardManifest?.privilege.catalog || input === discardManifest?.innerPrivilege.catalog || input === reorderManifest?.privilege.catalog || input === learnerManifest?.privilege.catalog || publicationSql(input, 'catalog')) callback(null, JSON.stringify(catalog()))
           else if (input === manifest.snapshot || input === createManifest?.snapshot || input === discardManifest?.snapshot || input === publicationManifest?.snapshot || input === reorderManifest?.snapshot || input === learnerManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
           else callback(null, 'ok')
+          if (surveyManifest) child.emit('close', 0)
         }); done()
       } })
       return child
@@ -278,12 +312,103 @@ describe('native persistent-session transport with offline child mocks', () => {
       child.stdin = new Writable({ write(chunk, _encoding, done) {
         const text = String(chunk); const end = text.match(/\\echo (__draft_save_end_[0-9]+__)/)![1]
         const sql = text.slice(0, text.indexOf('\n\\echo'))
+        if (surveyManifest) surveyWrites.push({ name, sql, marker: end })
         let response = ''
         if (diagnosticManifest && diagnosticContamination && sql !== diagnosticManifest.contracts.frames[1].sql)
           child.stderr.write('INFO: PDT01 1\nINFO: PDT02 2\nINFO: PDT03 3 private contamination\n')
         if (sql === manifest.bootstrap) {
           if (contaminateOtherFrames) child.stderr.write('INFO: PRG00\nINFO: PRG01\nINFO: PRG02\n')
-          response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
+          const owned = { pid, started: '2026-10-05T00:00:00+00:00',
+            name: surveyManifest && surveySeedFault === 'foreign-backend' && name.endsWith('_draft_holder') ? 'foreign-backend' : name,
+            database: 'postgres' as const, user: 'postgres' as const }
+          surveyBackends.set(name, owned); response = JSON.stringify(owned)
+        }
+        else if (surveyManifest && 'committed' in surveyManifest && surveyPositive) {
+          const m = surveyManifest.committed, now = new Date().toISOString()
+          const emit = (value: unknown, marker = end) => queueMicrotask(() => child.stdout.write(`${value === undefined ? '' : JSON.stringify(value) + '\n'}${marker}\n`))
+          if (sql === m.seed) {
+            surveySeedStamp = now
+            const helpers = surveyCommittedCpuFixtures(surveyManifest.fixture, { seedStamp: now })
+            surveyGraph = helpers.capturedSeed(m)
+            emit({ before: helpers.seedBefore(surveyGraph), after: surveyGraph, seedTimestamp: now }); done(); return
+          }
+          const current = surveyDirection?.schedule
+          const s = current && (sql === current.frames.release || sql === current.frames.settle) ? current
+            : m.schedules.find(s => sql === s.frames.holder || sql === s.frames.contender || sql === s.frames.retry || sql === s.frames.terminal)
+          if (s && sql === s.frames.holder) {
+            surveyDirection = { schedule: s, before: structuredClone(surveyGraph!), holderAt: now }
+            const first = surveyAfter(), bootstrap = surveyBackends.get(name)!, started = Date.now()
+            const heldWitness = { criterion: 'original-operation-and-owned-backend', backend: bootstrap,
+              transactionStartedAt: now, sourceSha256: s.firstOperationSha256,
+              operationStartedAt: new Date(started + 1).toISOString(), operationFinishedAt: new Date(started + 2).toISOString(), operation: first.receipts.holder }
+            const responseRow = first.after['public.survey_responses'].filter(r => r.survey_id === s.cohort.surveyId && r.student_id === m.actors[1].id)
+            const value = { label: s.label, writerTimestamp: now, heldWitness, operation: first.receipts.holder,
+              responses: responseRow, ...(s.index === 3 && sql.includes('archived_at=clock_timestamp()') ? { archiveReceipt: first.times.archiveReceipt } : {}) }
+            surveyDirection.held = value
+            surveyEvents.push(`holder:${s.label}`); vi.setSystemTime(started + 3); emit(value); done(); return
+          }
+          if (s && sql === s.frames.contender) {
+            surveyDirection!.contenderAt = now
+            const result = surveyAfter()
+            const value = { label: s.label, operation: result.receipts.contender, writerTimestamp: now,
+              ...(s.index === 3 && sql.includes('archived_at=clock_timestamp()') ? { archiveReceipt: result.times.archiveReceipt } : {}) }
+            surveyEvents.push(`contender:${s.label}`); vi.setSystemTime(Date.now() + 3)
+            const finish = () => {
+              // A blocked archive's wall-clock write occurs after release;
+              // transaction_timestamp still belongs to its original dispatch.
+              if (s.index === 3 && sql.includes('archived_at=clock_timestamp()')) {
+                surveyDirection!.archiveAt = new Date(Date.now() + 1).toISOString()
+                surveyDirection!.archiveEndedAt = new Date(Date.now() + 2).toISOString()
+                vi.setSystemTime(Date.now() + 3)
+              }
+              surveyEvents.push(`contender-settled:${s.label}`)
+              emit(s.index === 3 && sql.includes('archived_at=clock_timestamp()')
+                ? { ...value, archiveReceipt: surveyAfter().times.archiveReceipt } : value)
+            }
+            if (s.mode === 'wait' && surveyPositive !== 'early-contender') pendingSurveyContender = finish
+            else finish()
+            done(); return
+          }
+          if (s && sql === s.frames.release) {
+            surveyEvents.push(`release:${s.label}`); emit(undefined)
+            pendingSurveyContender?.(); pendingSurveyContender = undefined; done(); return
+          }
+          if (s && sql === s.frames.settle) { surveyEvents.push(`settle:${s.label}`); emit(undefined); done(); return }
+          if (s && sql === s.frames.retry) {
+            surveyDirection!.retryAt = now
+            const result = surveyAfter()
+            surveyEvents.push(`retry:${s.label}`); vi.setSystemTime(Date.now() + 3)
+            emit({ label: s.label, operation: result.receipts.retry, writerTimestamp: now,
+              ...(s.index === 3 && sql.includes('archived_at=clock_timestamp()') ? { archiveReceipt: result.times.archiveReceipt } : {}) })
+            done(); return
+          }
+          if (s && sql === s.frames.terminal) {
+            const result = surveyAfter(); surveyGraph = result.after
+            surveyEvents.push(`terminal:${s.label}`)
+            vi.setSystemTime(Date.now() + 3)
+            emit({ label: s.label, graph: result.after, cached_questions: result.receipts.cachedQuestions,
+              fresh_read: result.receipts.freshRead, cached_response_probe: result.receipts.cachedResponseProbe }); done(); return
+          }
+          if (surveyDirection && pendingSurveyContender) {
+            const pair = { holder: surveyBackends.get(`${project}_draft_holder`)!, contender: surveyBackends.get(`${project}_draft_contender`)! }
+            const direction = surveyDirection.schedule
+            if (sql === surveyCommittedProof.surveyCommittedObservationSql(m, direction.label, pair)) {
+              surveyEvents.push(`observer:${direction.label}`)
+              emit({ label: direction.label, observedAt: now, poll: 1, holder: pair.holder, contender: pair.contender,
+                held: surveyDirection.held!.heldWitness, blockers: [pair.holder.pid],
+                waiter: { wait_event_type: 'Lock', wait_event: direction.lock.kind === 'advisory' ? 'advisory' : 'transactionid', state: 'active' } },
+              surveyPositive === 'foreign-marker' ? `__draft_save_end_foreign__\n${end}` : end)
+              done(); return
+            }
+          }
+          // Source-fixed bootstrap/rollback/setup/contract frames have no JSON.
+          emit(undefined); done(); return
+        }
+        else if (surveyManifest && 'committed' in surveyManifest && sql === surveyManifest.committed.seed) {
+          response = JSON.stringify({ before: {}, after: {}, seedTimestamp: new Date().toISOString() })
+          if (surveySeedFault === 'missing-marker') {
+            queueMicrotask(() => { child.stdout.write(`${response}\n`); child.emit('close', 1) }); done(); return
+          }
         }
         else if (sql === manifest.setup && hangingSetup) { done(); return }
         else if ((sql === manifest.setup || sql === createManifest?.setup || sql === discardManifest?.setup || sql === publicationManifest?.setup || sql === reorderManifest?.setup) && setupExit) {
@@ -364,6 +489,77 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  it.each(['normal', 'early-contender', 'foreign-marker'] as const)('offline source-driven Survey private positive seed and original pending/frame progression: %s', async mode => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-13T04:00:00Z'))
+    surveyPositive = mode
+    surveyManifest = buildSurveyNativeContractsManifest(original, head, repository, true)
+    if (!('committed' in surveyManifest)) throw new Error('Expected remaining-only source profile')
+    const committed = surveyManifest.committed, now = Date.now()
+    const adapter = createContextualSurveysNativeContracts({ original, repository, reviewedHead: head, remainingOnly: true,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(surveyManifest)), absoluteDeadline: now + 720000,
+      survey263Endpoint: { host: 'unix:///private/tmp/pika-test-native-docker.sock', identity: [1, 2, 3, 4],
+        budget: { startedAt: now, workDeadline: now + 720000, cleanupDeadline: now + 900000 }, nativeCli: SURVEY263_NATIVE_CLI } })
+    // Call-through spies only: every production semantic validator runs unchanged.
+    const seed = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedSeed'), witness = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedWitness')
+    const effects = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedEffects'), envelopes = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedEnvelopes')
+    try {
+      await adapter.setup()
+      if (mode !== 'normal') {
+        await expect(adapter.runRemainingCommitted!()).rejects.toThrow()
+        expect(seed).toHaveBeenCalledOnce(); expect(witness).not.toHaveBeenCalled(); expect(effects).not.toHaveBeenCalled()
+        expect(surveyEvents.some(e => e.startsWith('release:'))).toBe(false)
+        expect(children.every(child => child.kill.mock.calls.length > 0)).toBe(true)
+        return
+      }
+      const receipt = await adapter.runRemainingCommitted!()
+      expect(receipt).toMatchObject({ directions: committed.schedules.map(s => s.label), actions: 189, controls: 1216,
+        remainingSessions: 0, nativeVerified: false, inventoryComplete: false })
+      expect(seed).toHaveBeenCalledOnce(); expect(witness).toHaveBeenCalledTimes(30)
+      expect(effects).toHaveBeenCalledTimes(30); expect(envelopes).toHaveBeenCalledTimes(30)
+      expect(surveyEvents.filter(e => e.startsWith('observer:'))).toHaveLength(13)
+      for (const s of committed.schedules) {
+        const stages = (s.mode === 'wait' ? ['holder', 'contender', 'observer', 'release', 'contender-settled', 'settle', 'terminal']
+          : ['holder', 'contender', 'contender-settled', 'release', 'settle', 'retry', 'terminal']).map(stage => surveyEvents.indexOf(`${stage}:${s.label}`))
+        expect(stages.every((position, index) => position >= 0 && (!index || position > stages[index - 1]))).toBe(true)
+      }
+      expect(children).toHaveLength(4); expect(children.every(child => child.kill.mock.calls.length > 0)).toBe(true)
+      expect(adapter.nativeVerified).toBe(false); expect(adapter.inventoryComplete).toBe(false)
+      expect(surveyWrites.filter(w => w.sql === committed.seed)).toHaveLength(1)
+      expect(surveyWrites.some(w => committed.schedules.some(s => w.sql === s.frames.cache))).toBe(false)
+      // CPU JSON/children remain synthetic; this is production-flow coverage,
+      // not evidence of real PID, SQL, authentication or native acceptance.
+    } finally { seed.mockRestore(); witness.mockRestore(); effects.mockRestore(); envelopes.mockRestore() }
+  })
+  it.each(['malformed-graph', 'missing-marker', 'foreign-backend'] as const)('offline Survey private seed requires actual owned bootstrap/write/frame marker: %s', async fault => {
+    surveySeedFault = fault
+    surveyManifest = buildSurveyNativeContractsManifest(original, head, repository, true)
+    if (!('committed' in surveyManifest)) throw new Error('Expected remaining-only source profile')
+    const committed = surveyManifest.committed
+    const now = Date.now()
+    const adapter = createContextualSurveysNativeContracts({ original, repository, reviewedHead: head, remainingOnly: true,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(surveyManifest)), absoluteDeadline: now + 720000,
+      survey263Endpoint: { host: 'unix:///private/tmp/pika-test-native-docker.sock', identity: [1, 2, 3, 4],
+        budget: { startedAt: now, workDeadline: now + 720000, cleanupDeadline: now + 900000 }, nativeCli: SURVEY263_NATIVE_CLI } })
+    const seedCheck = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedSeed')
+    try {
+      await adapter.setup()
+      await expect(adapter.runRemainingCommitted!()).rejects.toThrow()
+      expect(adapter.nativeVerified).toBe(false); expect(adapter.inventoryComplete).toBe(false)
+      const seeds = surveyWrites.filter(w => w.sql === committed.seed)
+      expect(seeds).toHaveLength(fault === 'foreign-backend' ? 0 : 1)
+      if (fault === 'malformed-graph') {
+        expect(seedCheck).toHaveBeenCalledOnce()
+        expect(seedCheck.mock.calls[0].slice(1, 3)).toEqual([{}, {}])
+        expect(seeds[0]).toMatchObject({ name: `${project}_draft_holder`, marker: '__draft_save_end_2__' })
+      } else expect(seedCheck).not.toHaveBeenCalled()
+      expect(surveyWrites.some(w => committed.schedules.some(s => w.sql === s.frames.holder || w.sql === s.frames.contender))).toBe(false)
+      expect(children.every(child => child.kill.mock.calls.length > 0)).toBe(true)
+      // These synthetic transports exercise private production control flow.
+      // They prove no real PID, SQL execution, target/auth or native acceptance.
+    } finally { seedCheck.mockRestore() }
+  })
   it('measures8s wire separately from14s guarded cancellation action', async () => {
     const adapter = learnerFactory(); await adapter.setup()
     await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))

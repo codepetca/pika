@@ -23,6 +23,7 @@ import { surveyNativePlan, validateSurveyNativeMigrationProfile, validateSurveyN
   bindSurveyNativeLifecycleWorkload, validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload,
   runSurveyNativeRollbackRaces, runSurveyNativeRollbackContracts, validateSurveyGeneratedTypes,
   SURVEY_RPC_ARGUMENTS } from '../../scripts/contextual-surveys-native-contracts'
+import { surveyRemainingNativePlan } from '../../scripts/contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 const surveyEndpoint = { kind: 'survey263' as const, host: 'unix:///offline-survey.sock', identity: [1, 2, 3, 4] as const,
   budget: { startedAt: Date.now(), workDeadline: Date.now() + 720000, cleanupDeadline: Date.now() + 900000 }, nativeCli: platform.SURVEY263_NATIVE_CLI }
@@ -40,6 +41,25 @@ const targetFor = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency
 })
 
 describe('source-only sealed Survey263 native reuse', () => {
+  it('keeps remaining-only private binding inert and refuses a workload before attempt consumption', async () => {
+    const remaining = surveyRemainingNativePlan(original, head, repository)
+    expect(remaining.executionEnabled).toBe(false); expect(remaining.nativeVerified).toBe(false)
+    expect(remaining.inventory).toMatchObject({ committedActions: 185, knownNativeActions: 193, remainingNativeActions: 7,
+      committedEngineCommandControls: 1148, completeControls: null, sdkRequests: 14,
+      knownIdentityBootstrapDispatches: 6, knownSessionSpawns: 6, knownSessionCloses: 6,
+      completeExchangeBytes: null, engineExchangeByteCap: 67108864 })
+    expect(remaining.inventoryComplete).toBe(false)
+    expect(() => bindSurveyNativeLifecycleWorkload({ original, repository, reviewedHead: head, reviewedManifestSha256: digest(remaining),
+      absoluteDeadline: Date.now() + 60000, rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true, remainingOnly: true }))
+      .toThrow('complete native inventory is absent')
+    const m = buildSurveyNativeContractsManifest(original, head, repository, true)
+    const engine = createContextualSurveysNativeContracts({ original, repository, reviewedHead: head, remainingOnly: true,
+      capturedResources: [], containerId: 'a'.repeat(64), acceptedManifestSha256: digest(m), absoluteDeadline: surveyEndpoint.budget.workDeadline,
+      survey263Endpoint: surveyEndpoint })
+    expect(engine.inventoryComplete).toBe(false)
+    expect(engine.runRemainingCommitted).toBeTypeOf('function')
+    await expect(engine.run()).rejects.toThrow('cannot replay rollback races')
+  })
   it('pins actual SDK proof implementation bytes and rejects changed source before binding', () => {
     const m = plan(), source = m.sources.sdkProof
     expect(createHash('sha256').update(readFileSync(`${repository}/${source.file}`)).digest('hex')).toBe(source.sha256)
@@ -191,7 +211,7 @@ describe('source-only sealed Survey263 native reuse', () => {
     await expect(runSurveyNativeRollbackContracts(m, target, driver)).rejects.toThrow()
     expect(close).toHaveBeenCalledOnce()
   })
-  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure', 'types-failure', 'cleanup-failure', 'unsealed'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
+  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure', 'types-failure', 'cleanup-failure', 'unsealed', 'remaining-admission'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
     const m = plan(), projectId = m.projectId, workdir = assignmentListProofWorkdir(projectId)
     const migrations = loadAssignmentListReviewedMigrations(repository)
     const expected = assignmentListExpectedResources(projectId)
@@ -259,8 +279,16 @@ describe('source-only sealed Survey263 native reuse', () => {
       absoluteDeadline: boundEndpoint.budget.workDeadline, rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true })
     try {
       const operation = runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir, migrations,
-        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' || mode === 'unsealed' ? 'normal' : mode,
-        expectedResources: expected, restorationPolicies: [], surveyWorkload: workload }, adapters)
+        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' || mode === 'unsealed' || mode === 'remaining-admission' ? 'normal' : mode,
+        expectedResources: expected, restorationPolicies: [], surveyWorkload: workload,
+        ...(mode === 'remaining-admission' ? { surveyRemainingOnly: true as const } : {}) }, adapters)
+      if (mode === 'remaining-admission') {
+        await expect(operation).rejects.toThrow('complete native inventory is absent')
+        expect(adapters.canonicalSnapshot).not.toHaveBeenCalled(); expect(adapters.inventory).not.toHaveBeenCalled()
+        expect(adapters.command).not.toHaveBeenCalled(); expect(setup).not.toHaveBeenCalled()
+        expect(() => consumeSurveyNativeLifecycleWorkload(workload)).not.toThrow()
+        return
+      }
       if (mode === 'unsealed') {
         await expect(operation).rejects.toThrow('Survey263 requires the sealed local platform transport')
         expect(adapters.canonicalSnapshot).not.toHaveBeenCalled(); expect(adapters.inventory).not.toHaveBeenCalled()

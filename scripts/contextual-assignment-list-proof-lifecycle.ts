@@ -7,7 +7,7 @@ import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-p
 import { assignmentListFixtureSetupSql, type AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationDiagnostic, assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
-import { validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload, type SurveyNativeLifecycleWorkload } from './contextual-surveys-native-contracts'
+import { validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload, surveyRemainingNativePlan, type SurveyNativeLifecycleWorkload } from './contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from './contextual-test-draft-save-native-contracts'
 import { requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup, checkSurvey263AdapterTotal, Survey263UnjoinedChildError } from './contextual-assignment-list-proof-platform'
 
@@ -124,6 +124,8 @@ export type AssignmentListLifecycleInput = {
   restorationPolicies: { transition: AssignmentListRevocationPlan['transition']; boundary: AssignmentListRevocationPlan['boundary']; allowedCells: Cell[] }[];
   /** Concrete source-bound263 hook; it cannot supply SQL or arbitrary runners. */
   surveyWorkload?: SurveyNativeLifecycleWorkload;
+  /** Source-only progression selector. Incomplete inventory refuses admission. */
+  surveyRemainingOnly?: true;
 }
 export type AssignmentListLifecycleAdapters = {
   // Optional work-admission budget. Never gates exact-plan restoration or the
@@ -179,6 +181,11 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   for (const r of input.expectedResources) assert.match(r.name, new RegExp(`^supabase_[a-z0-9_-]+_${identity.projectId}$`))
   assert.deepEqual([...expected].sort(), assignmentListExpectedResources(identity.projectId).map(resourceKey).sort())
   const surveyPlan = input.surveyWorkload ? validateSurveyNativeLifecycleWorkload(input.surveyWorkload, fixture) : undefined
+  if (input.surveyRemainingOnly !== undefined) {
+    assert(input.surveyRemainingOnly === true && input.surveyWorkload)
+    const remaining = surveyRemainingNativePlan(fixture, input.surveyWorkload.reviewedHead, input.surveyWorkload.repository)
+    assert(remaining.inventoryComplete, 'Survey remaining-only complete native inventory is absent')
+  }
   const survey263Endpoint = surveyPlan ? requireSurvey263AdapterEndpoint(adapters) : undefined
   if (input.surveyWorkload) {
     assert.equal(survey263Endpoint?.budget.workDeadline, input.surveyWorkload.absoluteDeadline, 'Survey original work deadline differs')
@@ -283,13 +290,15 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       const workload = input.surveyWorkload
       stage = 'survey-binding'; checkWork(); validateSurveyNativeLifecycleWorkload(workload, fixture)
       const s = await session(); const resources = (await inspectFresh()).selected
-      const nativeManifest = buildSurveyNativeContractsManifest(fixture, workload.reviewedHead, workload.repository)
+      const nativeManifest = buildSurveyNativeContractsManifest(fixture, workload.reviewedHead, workload.repository, input.surveyRemainingOnly)
       const native = createContextualSurveysNativeContracts({ original: fixture, repository: workload.repository, reviewedHead: workload.reviewedHead,
         capturedResources: resources, containerId: s.containerId, acceptedManifestSha256: sha(JSON.stringify(nativeManifest)),
-        absoluteDeadline: workload.absoluteDeadline, statusTarget: target, survey263Endpoint: survey263Endpoint! })
+        absoluteDeadline: workload.absoluteDeadline, statusTarget: target, survey263Endpoint: survey263Endpoint!, remainingOnly: input.surveyRemainingOnly })
       stage = 'fixture'; checkWork(); await native.setup()
       if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
-      stage = 'survey-rollback'; checkWork(); await native.run(); checkWork()
+      if (input.surveyRemainingOnly) {
+        stage = 'survey-remaining-committed'; checkWork(); assert(native.runRemainingCommitted); await native.runRemainingCommitted(); checkWork()
+      } else { stage = 'survey-rollback'; checkWork(); await native.run(); checkWork() }
       stage = 'survey-sdk-terminal'; checkWork(); await native.runSdkCommitted(); checkWork()
       stage = 'survey-types'; checkWork(); surveyTypes = await native.generateTypes263(); checkWork()
     } else {
