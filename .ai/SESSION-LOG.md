@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading corrected rollback passes; SDK revision setup stops
-
-Targeted source review8 CLEAN344s atcebc37d9d/base79a6f7994; cumulative8turns/
-2261seconds/targeted5/final1/fix5 retains original02:58:39 clock and waiver.
-Human approved ONE fresh exactcebc/full001–259/projectaee0568126a9 rehearsal.
-Fresh locked preflight/private bindings accepted; root sole native executor,
-no duplicate watcher or retry. Session11117 exit1: complete001–259 replay,
-corrected product rollback/ACL contracts and genuine CLI types identical PASS.
-Private SDK startLearners failed before closed-engine execution: fixed revision1
-assertion observed19. Retained244 global revision sequence and rollback proof's
-sequence caveat explain the driver assumption; no product defect established.
-Next source-only correction should validate/capture actual safe positive revisions
-with non-1 regression, then targeted review before fresh native authority.
-Exact owned teardown, global inventory/ports, whole canonical rows/settings/cron/
-resources and sourcefreeze PASS; cleanupFailures[]. Entry gates false/null again,
-seven inert hashes verified. Permission consumed; no sourcefix/CI/merge/shared
-migration/deployment/account/provider/activation or toolgoal resume occurred.
-
-## 2026-10-11 — Owner grading SDK captures real Start revisions
-
-Human authorized private driver correction/regressions/targeted review only.
-RED reproduced19!=1; GREEN validates Number.isSafeInteger/revision>=1 and retains
-exact observed revision/actor/attempt. Two mocked Start cases preserve19/37 and
-1/MAX_SAFE_INTEGER into frozen closed-engine preparation;14 denials reject seven
-invalid forms for either learner without frame dispatch or second Start retry.
-Existing operational SDK six-denial/restoration/cancellation mocks now start at
-19/37 and PASS;13 transport mocks, exact-parent corruption checks and all seven
-private TypeScript files PASS. Only three private source files changed; product,
-SQL, sequence, caps, runner and execution gates remain unchanged/inert. Native
-permission consumed; no database query, Docker/SDK network, migration, readyCI,
-merge or rollout. Prior full1954/112/static evidence unchanged for product code;
-fresh documentation/workflow gate and one targeted independent review follow.
-Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
-standing workflow-stop waiver retained. Shared-local/prod/account/provider/
-activation and toolgoalPAUSED holds unchanged.
-
 ## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
 
 Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
@@ -766,3 +730,29 @@ No restart/retry/unknown signals. Permission consumed; pause further native
 attempts for source diagnosis and a supported verification decision. CURRENT
 failure summary corrected; startup-doc79PASS, prior full gate still not green.
 Production/shared-local/cutover and provider-refused Survey scopes remain held.
+
+## 2026-10-13 CLI body retrieval source investigation
+
+Human approved source-only diagnosis, not another native run. Retained Astra/high
+traced pinned CLI/VM/channel/routing paths: no cancellation/global serialization
+cause supported. Early body Promise creation lacks a happens-before guarantee
+against browser navigation; native cause remains unknown. Private source report
+4c9b3891... and cleanup report b6343181... preserved. Cleanup catch discards typed
+process causes; fixed12s deadline versus identity rejection cannot be recovered.
+Next proposed work is bounded body-state/cleanup-cause observability with CPU
+checks and review, not a claimed fix or fresh execution. No code/runtime/production
+change, retry, restart or signal. Original review42/fix32 and all holds retained.
+
+## 2026-10-13 Source-only body and cleanup diagnostics prepared
+
+Human approved narrow diagnostics plus CPU verification/review, not another
+browser run. Fresh private032b383fa26c source33 observes the same original body
+Promise and labels snapshots document-entry/url-failure; no fulfillment credit
+or changed navigation gate. Cleanup records allowlisted cause/provenance/original
+budget while rethrowing the same failure. No raw payload/error/argv/environment.
+Root caught missing snapshot provenance before review; phase field corrected.
+Final25diagnostic CPU checks/four serialized VM scenarios,6case,21packaging,
+19privacy and exact compiler/inverse checks PASS; root independently replayed.
+Same original ownership, byte/witness/request and deadline bounds; no new hooks,
+dependencies, acceptance/runtime or native proof. Targeted review next; prior
+full PR gate remains failed. Production/shared-local/cutover/provider holds stay.

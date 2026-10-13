@@ -46645,3 +46645,41 @@ Sol/high source review follows frozen publication. Cumulative ledger7turns1917s/
 targeted4/fix5/original02:58:39 retained;
 review-stop waiver active, actual native permission still consumed. Draft PR1569,
 normal-local/prod/activation/provider/account/toolgoalPAUSED holds unchanged.
+
+<!-- pika-session-log-archive-batch:c890228489c66686cfcf6394323818056378099c442214113b80c9cc0a80f2d2 -->
+## 2026-10-11 — Owner grading corrected rollback passes; SDK revision setup stops
+
+Targeted source review8 CLEAN344s atcebc37d9d/base79a6f7994; cumulative8turns/
+2261seconds/targeted5/final1/fix5 retains original02:58:39 clock and waiver.
+Human approved ONE fresh exactcebc/full001–259/projectaee0568126a9 rehearsal.
+Fresh locked preflight/private bindings accepted; root sole native executor,
+no duplicate watcher or retry. Session11117 exit1: complete001–259 replay,
+corrected product rollback/ACL contracts and genuine CLI types identical PASS.
+Private SDK startLearners failed before closed-engine execution: fixed revision1
+assertion observed19. Retained244 global revision sequence and rollback proof's
+sequence caveat explain the driver assumption; no product defect established.
+Next source-only correction should validate/capture actual safe positive revisions
+with non-1 regression, then targeted review before fresh native authority.
+Exact owned teardown, global inventory/ports, whole canonical rows/settings/cron/
+resources and sourcefreeze PASS; cleanupFailures[]. Entry gates false/null again,
+seven inert hashes verified. Permission consumed; no sourcefix/CI/merge/shared
+migration/deployment/account/provider/activation or toolgoal resume occurred.
+
+<!-- pika-session-log-archive-batch:8b307357e2770c53f24348956b3ed11e1213a65834e066de41829ed6e0f2424c -->
+## 2026-10-11 — Owner grading SDK captures real Start revisions
+
+Human authorized private driver correction/regressions/targeted review only.
+RED reproduced19!=1; GREEN validates Number.isSafeInteger/revision>=1 and retains
+exact observed revision/actor/attempt. Two mocked Start cases preserve19/37 and
+1/MAX_SAFE_INTEGER into frozen closed-engine preparation;14 denials reject seven
+invalid forms for either learner without frame dispatch or second Start retry.
+Existing operational SDK six-denial/restoration/cancellation mocks now start at
+19/37 and PASS;13 transport mocks, exact-parent corruption checks and all seven
+private TypeScript files PASS. Only three private source files changed; product,
+SQL, sequence, caps, runner and execution gates remain unchanged/inert. Native
+permission consumed; no database query, Docker/SDK network, migration, readyCI,
+merge or rollout. Prior full1954/112/static evidence unchanged for product code;
+fresh documentation/workflow gate and one targeted independent review follow.
+Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
+standing workflow-stop waiver retained. Shared-local/prod/account/provider/
+activation and toolgoalPAUSED holds unchanged.
