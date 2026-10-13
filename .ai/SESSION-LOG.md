@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Material Markdown approved main integration
-
-Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
-
 ## 2026-10-11 — Material Markdown final log sync
 
 Final reviewed be7674d4 CI38136077644 and all ten lanes including PR Gate PASS (35m09s). Main79a6f7994 landed a production continuity receipt during CI; rebase again resolves only archive/log overlap, retaining distinct history. Feature/UI/test blobs unchanged; prior focused969/65 and teacher/student desktop/mobile light/dark proof remain applicable. No application migration, production promotion or feature correction. Proportional sync review and exact final-head CI precede the authorized main merge.
@@ -771,3 +767,34 @@ pending (Chrome baseline,test-onlypgrowlocks ifavailable). Final broader focused
 /var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Xd8d1g.
 No native/application acceptance; privatebootstrap/control/cancel/payload gaps
 remain. Three clean detachedreviewcheckouts removed; commits/reports preserved.
+
+## 2026-10-13 — Approved browser baseline and bounded row diagnostic gap
+
+Human approved Chrome155.0.8059.40 and test-onlypgrowlocksIFavailable onlyin
+disposable rehearsals. RootrecheckedChrome428dccc1/codesignPASS; readonlypackage
+inspectionfound1.2in pinnedPG17.6.1.044, control95be083d/SQL6645e58b/library6298dac1.
+No extension install, sharedlocal/prod SQL, account/provider/activation changes.
+Sol/high disjointprivatebrowserauthor updatesapprovedpin/inducedseals/cache
+packaging; no acceptance/runtime/attempt yet. Protocol36/fix30 clocks retained.
+
+RetainedSol/high rowauthor ends boundedsourcefix13withconcretegap, no repoedits:
+REL_17_6 subcommitreleaseschildXIDlock, waitersfollowparent, holder-owncurrent
+updatedtuple notreportedbypgrowlocks. Rootreadgap/officialanchors; thisis source
+analysis, notnativebuildreceipt. NofakePID0parentmapping/observer/cap widening.
+Root asks seriousverificationcriteria adjustment to actualRPC/freshread/exact
+state/backendblocking evidence withoutopaquechildrow attribution; noappauth/
+permissions/caps/rollout change. Source23reviews/fix13, priorclocks unchanged.
+Storage341.10GBhealthy; weekly100%remaining accountwide, attributionunknown.
+
+Browserpackage reviews37 Astra/high and38 Sol/high COMPLETEPASS (requested;
+effectiveunknown), samefrozen373287launcher/a363ca82closure,21CPU/fivecompiler
+closures. Rootoneboundedf0attemptCLOSED1/SPENT:query/discovery-argv/query-error,
+HTTP0/ownershipunknown;CLIchildrenclosed/browserclosureunconfirmed. Receipt
+0e58246b...durableprivate; no retry/signals/appacceptance. Supplementalstartup
+suite34PASS/45timeoutFAIL over4050s; sourcecauseunconfirmed, notcleanPASS.
+Humanapprovedpracticalconcurrencyverification:actualRPC/freshreads/exacteffects/
+ownedbackendblocking insteadofopaquechildrow attribution. Auth/permissions/caps/
+rolloutunchanged. SameSol/high sourceauthor deliveredtwofiles sourcefix14:
+41CPU/TSC0/lint/audit PASS, source16015ce0/testb600d3df; nativecarriers explicitly
+unbound. Targetedindependentreview24 pending; no extension/native/sharedlocal/
+prod/activation change.

@@ -25,7 +25,7 @@ type Cohort = Readonly<{ classroomId: string; foreignClassroomId: string; survey
 type Effects = Readonly<{ archive: number; blueprint: number; foreignArchive: number; responseWrites: number;
   responseCount: number; membershipRemoved: boolean; questionPatch: Readonly<Record<string, unknown>>; classroomPatch: Readonly<Record<string, unknown>>; surveyPatch: Readonly<Record<string, unknown>> }>
 type Schedule = Readonly<{ label: string; index: number; direction: 'forward' | 'reverse'; mode: 'wait' | 'nowait';
-  cohort: Cohort; lock: Lock; effects: Effects; retryCode: string | null; frames: Readonly<Record<'cache' | 'holder' | 'contender' | 'release' | 'settle' | 'retry' | 'terminal', string>> }>
+  cohort: Cohort; lock: Lock; firstOperationSha256: string; secondOperationSha256: string; effects: Effects; retryCode: string | null; frames: Readonly<Record<'cache' | 'holder' | 'contender' | 'release' | 'settle' | 'retry' | 'terminal', string>> }>
 const issued = new WeakSet<object>()
 const seedGraphs = new WeakMap<object, Graph>()
 const acceptedEffects = new WeakMap<object, Map<string, Readonly<{ before: Graph; after: Graph }>>>()
@@ -75,13 +75,13 @@ function operations(f: SurveyNativeFixture, c: Cohort, label: string) {
 function performed(sql: string) { return sql.startsWith('select ') ? `perform ${sql.slice(7)}` : sql }
 function attempted(sql: string, expected: string | null) {
   const jsonRpc = sql.startsWith('select public.')
-  return `create temporary table if not exists survey_committed_operation(result jsonb,started_at timestamptz not null,finished_at timestamptz not null) on commit preserve rows;delete from survey_committed_operation;
+  return `create temporary table if not exists survey_committed_operation(result jsonb,started_at timestamptz not null,finished_at timestamptz not null,source_sha256 text not null) on commit preserve rows;delete from survey_committed_operation;
  do $operation$ declare code text;r jsonb;n integer;started timestamptz:=clock_timestamp();begin begin ${jsonRpc ? `r:=${sql.slice(7).replace(/;$/, '')};` : performed(sql)}
  ${sql.startsWith('update ') || sql.startsWith('delete ') ? "get diagnostics n=row_count;if n<>1 then raise exception 'Exact legacy affected-row count differs';end if;" : ''}
  ${expected ? "raise exception 'Expected Survey denial missing';" : ''}
  exception when others then get stacked diagnostics code=returned_sqlstate;
  ${expected ? `if code is distinct from ${q(expected)} then raise exception 'Survey exact SQLSTATE differs';end if;` : 'raise;'} end;
- insert into survey_committed_operation values(jsonb_build_object('code',code,'result',r),started,clock_timestamp());end;$operation$;`
+ insert into survey_committed_operation values(jsonb_build_object('code',code,'result',r),started,clock_timestamp(),${q(hash(sql))});end;$operation$;`
 }
 function archiveReceiptSql(sql: string, label: string, c: Cohort) {
   if (!sql.includes('archived_at=clock_timestamp()')) return ''
@@ -89,17 +89,13 @@ function archiveReceiptSql(sql: string, label: string, c: Cohort) {
  'transactionTimestamp',transaction_timestamp(),'operationStartedAt',o.started_at,'operationFinishedAt',o.finished_at)
  from public.classrooms r cross join survey_committed_operation o where r.id=${q(c.classroomId)})`
 }
-function heldWitnessSql(lock: Lock) {
-  const k = `hashtextextended(${q(lock.key)},0)`, predicate = lock.kind === 'advisory'
-    ? `locktype='advisory' and mode=${q(lock.mode)} and classid::bigint=((${k}>>32)&4294967295) and objid::bigint=(${k}&4294967295) and objsubid=1`
-    : "locktype='transactionid' and transactionid::text=pg_current_xact_id()::text and mode='ExclusiveLock'"
-  const rowIdentity = `select ctid::text from ${lock.relation} where ${lock.targetColumn}=${q(lock.targetId)}`
-  const rowHeld = lock.kind === 'advisory' ? 'true' : `exists(select 1 from ${lock.relation} r where ${lock.targetColumn}=${q(lock.targetId)} and (r.xmin::text=pg_current_xact_id()::text or r.xmax::text=pg_current_xact_id()::text))`
-  return `jsonb_build_object('backend',(select jsonb_build_object('pid',pid,'started',backend_start,'name',application_name,'database',datname,'user',usename) from pg_stat_activity where pid=pg_backend_pid()),
- 'kind',${q(lock.kind)},'relation',${q(lock.relation)},'targetColumn',${q(lock.targetColumn)},'targetId',${q(lock.targetId)},'key',${q(lock.key)},'mode',${q(lock.mode)},
- 'xid',pg_current_xact_id()::text,'relationOid',${q(lock.relation)}::regclass::oid,'tuple',(${rowIdentity}),
- 'owned',exists(select 1 from pg_locks where pid=pg_backend_pid() and granted and ${predicate}) and ${rowHeld},
- 'identity',(select jsonb_build_object('locktype',locktype,'transactionid',transactionid::text,'classid',classid,'objid',objid,'objsubid',objsubid) from pg_locks where pid=pg_backend_pid() and granted and ${predicate} limit 1))`
+function heldWitnessSql() {
+  return `jsonb_build_object('criterion','original-operation-and-owned-backend',
+ 'backend',(select jsonb_build_object('pid',pid,'started',backend_start,'name',application_name,'database',datname,'user',usename) from pg_stat_activity where pid=pg_backend_pid()),
+ 'transactionStartedAt',(select xact_start from pg_stat_activity where pid=pg_backend_pid()),
+ 'sourceSha256',(select source_sha256 from survey_committed_operation),
+ 'operationStartedAt',(select started_at from survey_committed_operation),'operationFinishedAt',(select finished_at from survey_committed_operation),
+ 'operation',(select result from survey_committed_operation))`
 }
 function effects(index: number, direction: 'forward' | 'reverse'): Effects {
   const questionPatch: Record<string, unknown> = {}, classroomPatch: Record<string, unknown> = {}, surveyPatch: Record<string, unknown> = {}
@@ -150,7 +146,7 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
       : index === 12 && direction === 'forward' || index === 13 ? 'PT400' : null
     const cache = `${guard(f, 'holder', true)}${graphFunctions()}insert into survey_committed_cache
  select ${q(label)},coalesce(jsonb_agg(to_jsonb(r) order by position,id),'[]'::jsonb),pg_temp.survey_committed_graph() from public.survey_questions r where survey_id=${q(c.surveyId)};commit;`
-    const holder = `${guard(f, 'holder', true)}${attempted(first, null)}select jsonb_build_object('label',${q(label)},'writerTimestamp',transaction_timestamp(),'heldWitness',${heldWitnessSql(lock)},'operation',(select result from survey_committed_operation),
+    const holder = `${guard(f, 'holder', true)}${attempted(first, null)}select jsonb_build_object('label',${q(label)},'writerTimestamp',transaction_timestamp(),'heldWitness',${heldWitnessSql()},'operation',(select result from survey_committed_operation),
  'responses',(select coalesce(jsonb_agg(to_jsonb(r) order by question_id),'[]'::jsonb) from public.survey_responses r where survey_id=${q(c.surveyId)} and student_id=${q(f.actors[1].id)})${archiveReceiptSql(first, label, c)}) as result;`
     // Blocking contender begins and executes BEFORE its holder releases; its
     // promise remains outstanding. No sleep is used to establish that state.
@@ -167,7 +163,7 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
  'cached_questions',(select questions from survey_committed_cache where label=${q(label)}),
  'fresh_read',(select result from ${probeCode ? 'survey_committed_fresh_read' : 'survey_committed_operation'}),
  'cached_response_probe',${probeCode ? '(select result from survey_committed_operation)' : 'null'}) as result;commit;`
-    schedules.push(freeze({ label, index, direction, mode, cohort: c, lock, effects: effects(index, direction), retryCode,
+    schedules.push(freeze({ label, index, direction, mode, cohort: c, lock, firstOperationSha256: hash(first), secondOperationSha256: hash(second), effects: effects(index, direction), retryCode,
       frames: { cache, holder, contender, release: `${guard(f, 'holder', false)}commit;`, settle: `${guard(f, 'contender', false)}commit;`, retry, terminal } }))
   }
   assert.equal(new Set(allocatedIds).size, allocatedIds.length)
@@ -199,6 +195,8 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
   sqlFrames.forEach(sql => assert(Buffer.byteLength(sql) <= SURVEY_COMMITTED_CAPS.sqlBytes))
   const m = freeze({ version: 1, projectId: f.projectId, sourceSha256: SURVEY_NATIVE_SOURCES.migration.sha256,
     actors: f.actors, originalFixtureSha256: hash(JSON.stringify(f)), allocatedIds, seed, bootstrap, schedules,
+    verificationCriterion: 'practical-original-operation-backend-edge-and-committed-effects' as const,
+    exactTupleOwnershipClaimed: false as const,
     caps: SURVEY_COMMITTED_CAPS, inventory: { directions: 30, wait, nowait, sessions: 2, opens: 2, closes: 2,
       seedFrames: 1, bootstrapFrames: 2, holderWitnessFrames: 0, observerFrames: wait, minObserverPolls: wait, maxObserverPolls: wait * 3,
       minActions, maxActions, staticSqlBytes: sqlFrames.reduce((n, sql) => n + Buffer.byteLength(sql), 0),
@@ -206,7 +204,7 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
       remainingOnlyFits: minActions <= 200, controlCount: null,
       controlCountReason: 'Concrete private engine guard/bootstrap/settlement controls are not bound; no exact control count or executable admission is claimed.' },
     unresolved: ['Concrete private backend bootstrap binding, fresh source seals and guard dispatch inventory are not implemented.',
-      'Exact tuple ownership for EXCEPTION child transactions/MultiXact is unresolved; the flat top-level XID witness is not native-compatible proof.',
+      'Actual sealed NativeSession dispatch/operation/observation carriers are not bound; matching public DTOs are not native provenance.',
       'Membership removal forward must demonstrate the exact enrollment row wait; immediate 40001 is not accepted as a waiter.',
       'Consolidated committed proposal uses185 actions; only15 remain for all other required actions. Complete remaining acceptance inventory is not sealed, so this module is not executable admission.'],
     executionEnabled: false as const, nativeVerified: false as const })
@@ -235,17 +233,9 @@ function backend(m: SurveyCommittedProofManifest, b: SurveyCommittedBootstrap) {
 export function surveyCommittedObservationSql(m: SurveyCommittedProofManifest, label: string, b: SurveyCommittedBootstrap) {
   const s = schedule(m, label); backend(m, b)
   const activity = (side: Side) => `(select jsonb_build_object('pid',pid,'started',backend_start,'name',application_name,'database',datname,'user',usename) from pg_stat_activity where pid=${b[side].pid})`
-  const k = `hashtextextended(${q(s.lock.key)},0)`
-  const held = s.lock.kind === 'advisory' ? `exists(select 1 from pg_locks where pid=pg_backend_pid() and granted and locktype='advisory' and mode=${q(s.lock.mode)} and classid::bigint=((${k}>>32)&4294967295) and objid::bigint=(${k}&4294967295) and objsubid=1)`
-    : `exists(select 1 from pg_locks where pid=pg_backend_pid() and granted and locktype='transactionid' and transactionid::text=pg_current_xact_id()::text and mode='ExclusiveLock') and exists(select 1 from ${s.lock.relation} r where ${s.lock.targetColumn}=${q(s.lock.targetId)} and (r.xmin::text=pg_current_xact_id()::text or r.xmax::text=pg_current_xact_id()::text))`
-  const lockIdentity = (pid: number, granted: boolean) => `(select jsonb_build_object('locktype',locktype,'transactionid',transactionid::text,'classid',classid,'objid',objid,'objsubid',objsubid)
- from pg_locks where pid=${pid} and granted=${granted} and ${s.lock.kind === 'advisory'
-    ? `locktype='advisory' and classid::bigint=((${k}>>32)&4294967295) and objid::bigint=(${k}&4294967295) and objsubid=1`
-    : "locktype='transactionid' and transactionid::text=pg_current_xact_id()::text"} limit 1)`
   const observation = `jsonb_build_object('label',${q(label)},'observedAt',clock_timestamp(),'holder',${activity('holder')},'contender',${activity('contender')},
- 'held',jsonb_build_object('kind',${q(s.lock.kind)},'relation',${q(s.lock.relation)},'targetColumn',${q(s.lock.targetColumn)},'targetId',${q(s.lock.targetId)},'key',${q(s.lock.key)},'mode',${q(s.lock.mode)},
- 'xid',pg_current_xact_id()::text,'relationOid',${q(s.lock.relation)}::regclass::oid,'tuple',(select ctid::text from ${s.lock.relation} where ${s.lock.targetColumn}=${q(s.lock.targetId)}),'owned',${held},'identity',${lockIdentity(b.holder.pid, true)}),
- 'blockers',to_jsonb(pg_blocking_pids(${b.contender.pid})),'waiter',(select to_jsonb(a)||jsonb_build_object('identity',${lockIdentity(b.contender.pid, false)}) from (select wait_event_type,wait_event,state from pg_stat_activity where pid=${b.contender.pid} and wait_event_type='Lock') a))`
+ 'held',${heldWitnessSql()},'blockers',to_jsonb(pg_blocking_pids(${b.contender.pid})),
+ 'waiter',(select jsonb_build_object('wait_event_type',wait_event_type,'wait_event',wait_event,'state',state) from pg_stat_activity where pid=${b.contender.pid} and wait_event_type='Lock'))`
   const sql = `${guard({ projectId: m.projectId } as SurveyNativeFixture, 'holder', false)}
  do $backend$ begin if pg_backend_pid()<>${b.holder.pid} or not exists(select 1 from pg_stat_activity where pid=pg_backend_pid()
  and backend_start=${q(b.holder.started)}::timestamptz and application_name=${q(b.holder.name)} and datname='postgres' and usename='postgres')
@@ -272,18 +262,30 @@ export function verifySurveyCommittedWitness(m: SurveyCommittedProofManifest, la
   const r = raw as Record<string, unknown>; assert(r && r.label === label); assert.equal(r.poll, clock.poll); assert.equal(Date.parse(String(r.observedAt)), clock.observedAt)
   const normalize = (v: unknown) => { const a = v as Record<string, unknown>; return { ...a, started: new Date(String(a.started)).toISOString() } }
   assert(isDeepStrictEqual(normalize(r.holder), normalize(b.holder))); assert(isDeepStrictEqual(normalize(r.contender), normalize(b.contender)))
-  const held = r.held as Record<string, unknown>; assert(held && held.owned === true)
-  for (const [key, value] of Object.entries(s.lock)) assert.equal(held[key], value)
-  assert(typeof held.xid === 'string' && /^\d+$/.test(held.xid)); assert(Number.isSafeInteger(held.relationOid) && Number(held.relationOid) > 0)
-  assert(typeof held.tuple === 'string' && /^\(\d+,\d+\)$/.test(held.tuple))
-  const identity = held.identity as Record<string, unknown>
-  assert(identity && identity.locktype === (s.lock.kind === 'row' ? 'transactionid' : 'advisory'))
-  if (s.lock.kind === 'row') assert.equal(identity.transactionid, held.xid)
-  else { assert(Number.isSafeInteger(identity.classid) && Number(identity.classid) >= 0); assert(Number.isSafeInteger(identity.objid) && Number(identity.objid) >= 0); assert.equal(identity.objsubid, 1) }
+  // Private engine carriers must join this actual observer DTO with the sealed
+  // original contender dispatch receipt. These shape/source checks never bind
+  // that provenance or claim exact tuple/child-XID ownership.
+  const dispatch=r.contenderDispatch as Record<string,unknown>;assert(dispatch)
+  assert.deepEqual(Object.keys(dispatch).sort(),['backend','operationSha256','sqlSha256'])
+  assert(isDeepStrictEqual(normalize(dispatch.backend),normalize(b.contender)))
+  assert.equal(dispatch.sqlSha256,hash(s.frames.contender));assert.equal(dispatch.operationSha256,s.secondOperationSha256)
+  const held = r.held as Record<string, unknown>; assert(held)
+  assert.deepEqual(Object.keys(held).sort(),['backend','criterion','operation','operationFinishedAt','operationStartedAt','sourceSha256','transactionStartedAt'])
+  assert.equal(held.criterion,'original-operation-and-owned-backend');assert(isDeepStrictEqual(normalize(held.backend),normalize(b.holder)))
+  assert.equal(held.sourceSha256,s.firstOperationSha256)
+  const transaction=Date.parse(String(held.transactionStartedAt)),operationStart=Date.parse(String(held.operationStartedAt)),operationEnd=Date.parse(String(held.operationFinishedAt))
+  assert([transaction,operationStart,operationEnd].every(Number.isFinite))
+  assert(Date.parse(b.holder.started)<=transaction&&transaction<=operationStart&&clock.startedAt<=operationStart&&operationStart<=operationEnd&&operationEnd<=clock.dispatchedAt,'Original holder transaction/operation window differs')
+  const before=acceptedEffects.get(m)?.get(label)?.before??seedGraphs.get(m);assert(before,'Missing authenticated committed baseline')
+  const firstRead=s.index<=7&&([1,5,6].includes(s.index)?s.direction==='reverse':s.direction==='forward')
+  const firstRespond=s.index>=13||s.index>=8&&s.direction==='reverse'
+  const result=firstRead?(s.index===5?aggregate(before,s.cohort):detail(before,s.cohort,[3,4].includes(s.index),m.actors[1].id)):firstRespond?{success:true,updated:false}:null
+  assert(isDeepStrictEqual(held.operation,{code:null,result}),'Original successful holder operation differs')
   if (s.mode === 'wait') { assert(clock.contenderPending); assert.deepEqual(r.blockers, [b.holder.pid]); const w = r.waiter as Record<string, unknown>;
-    assert(w && w.wait_event_type === 'Lock' && w.state === 'active'); assert.equal(w.wait_event, s.lock.kind === 'advisory' ? 'advisory' : 'transactionid'); assert(isDeepStrictEqual(w.identity, identity), 'Actual waiter lock identity differs') }
+    assert(w && w.wait_event_type === 'Lock' && w.state === 'active'); assert.equal(w.wait_event, s.lock.kind === 'advisory' ? 'advisory' : 'transactionid') }
   else { assert(!clock.contenderPending); assert.deepEqual(r.blockers, []); assert.equal(r.waiter, null); assert.equal(r.code, 'PT409'); assert(typeof r.immediateMs === 'number' && r.immediateMs >= 0 && r.immediateMs < m.caps.observationMs) }
-  return freeze({ label, heldBackendVerified: true, blockingEdgeVerified: s.mode === 'wait', nativeVerified: false as const })
+  return freeze({ label, heldBackendVerified: true, holderOperationVerified: true, contenderSourceMatches: true,
+    blockingEdgeVerified: s.mode === 'wait', exactTupleOwnershipClaimed: false as const, nativeVerified: false as const })
 }
 
 function row(g: Graph, table: string, column: string, value: string) { assert(Array.isArray(g[table])); const rows = g[table].filter(r => r[column] === value); assert.equal(rows.length, 1, 'Exact committed row differs'); return rows[0] }

@@ -15,8 +15,9 @@ Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 1579/1577/1578 dormant merged8e9dabd597/18126e952/a37d03b3a;
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant; Tests fail; Survey/archive proof pending; holds unchanged.
-Survey001–263 component/12RPC metadata,38CPU PASS; full native/app pending.
-Reboot ended old family;12 artifacts recovered; receipts/seed missing. Chrome hold.
+Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
+Reboot ended old family;12 artifacts recovered; receipts/seed missing.
+Chrome/concurrency criteria approved; browser failed (0 HTTP). No app exit.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.

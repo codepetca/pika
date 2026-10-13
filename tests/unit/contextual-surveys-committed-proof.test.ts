@@ -63,6 +63,25 @@ function changedCase(s:ReturnType<typeof manifest>['schedules'][number],before:G
     archiveReceipt:index===3?{label:s.label,classroomId:c.classroomId,archivedAt,transactionTimestamp:timestamp,operationStartedAt:timestamp,operationFinishedAt:'2026-10-13T03:00:01.500Z'}:undefined}
   return {after,one,times,delta}
 }
+function practicalFixture(m:ReturnType<typeof manifest>,s:ReturnType<typeof manifest>['schedules'][number],before:Graph){
+  const bootstrap={holder:{pid:101,started:'2026-10-13T03:00:00Z',name:m.projectId+'_draft_holder',database:'postgres' as const,user:'postgres' as const},
+    contender:{pid:102,started:'2026-10-13T03:00:01Z',name:m.projectId+'_draft_contender',database:'postgres' as const,user:'postgres' as const}}
+  const c=s.cohort,one=(t:string,key:string,value:string)=>before[t].find(r=>r[key]===value)!,cl=one('public.classrooms','id',c.classroomId)
+  const detail={classroom:{id:cl.id,teacher_id:cl.teacher_id,archived_at:cl.archived_at},survey:one('public.surveys','id',c.surveyId),
+    questions:before['public.survey_questions'].filter(r=>r.survey_id===c.surveyId),responses:[3,4].includes(s.index)?before['public.survey_responses'].filter(r=>r.survey_id===c.surveyId&&r.student_id===f.actors[1].id):[]}
+  const survey=one('public.surveys','id',c.resultSurveyId),r=one('public.survey_responses','id',c.aggregateResponseId)
+  const aggregate={classroom:detail.classroom,survey:{id:survey.id,title:survey.title,status:survey.status,show_results:survey.show_results,dynamic_responses:survey.dynamic_responses},
+    results:[{question_id:c.aggregateQuestion.id,question_type:'short_text',question_text:c.aggregateQuestion.question_text,options:[],counts:[],total_responses:1,responses:[{response_id:r.id,response_text:r.response_text,submitted_at:r.submitted_at,updated_at:r.updated_at}]}]}
+  const firstRead=s.index<=7&&([1,5,6].includes(s.index)?s.direction==='reverse':s.direction==='forward')
+  const now=Date.parse('2026-10-13T03:00:02Z'),clock={startedAt:now-500,workDeadline:now+100,dispatchedAt:now-10,observedAt:now,contenderPending:s.mode==='wait',poll:1}
+  const witness={label:s.label,poll:1,observedAt:'2026-10-13T03:00:02Z',holder:bootstrap.holder,contender:bootstrap.contender,
+    contenderDispatch:{backend:bootstrap.contender,sqlSha256:createHash('sha256').update(s.frames.contender).digest('hex'),operationSha256:s.secondOperationSha256},
+    held:{criterion:'original-operation-and-owned-backend',backend:bootstrap.holder,transactionStartedAt:'2026-10-13T03:00:01.500Z',sourceSha256:s.firstOperationSha256,
+      operationStartedAt:'2026-10-13T03:00:01.600Z',operationFinishedAt:'2026-10-13T03:00:01.700Z',operation:{code:null,result:firstRead?(s.index===5?aggregate:detail):s.index>=13||s.index>=8&&s.direction==='reverse'?{success:true,updated:false}:null}},
+    blockers:s.mode==='wait'?[101]:[],waiter:s.mode==='wait'?{wait_event_type:'Lock',wait_event:s.lock.kind==='advisory'?'advisory':'transactionid',state:'active'}:null,
+    code:s.mode==='nowait'?'PT409':undefined,immediateMs:s.mode==='nowait'?10:undefined}
+  return {bootstrap,clock,witness}
+}
 describe('source-only Survey committed directions', () => {
   it('derives separate closed cohorts for all original pairs and both directions', () => {
     const m = manifest()
@@ -85,7 +104,7 @@ describe('source-only Survey committed directions', () => {
     expect(() => validateSurveyCommittedSource(m, { migration: 'substituted', races: 'substituted' })).toThrow('Stale Survey migration SQL')
     expect(() => surveyCommittedProofManifest({ ...f, question: { ...f.question, updated_at: '2026-10-01T00:00:00Z' } })).toThrow()
   })
-  it('does not invent a waiter for NOWAIT, but requires the actual held target', () => {
+  it('does not invent a waiter for NOWAIT, but requires the successful original held operation', () => {
     const m = manifest(), s = m.schedules.find(s => s.mode === 'nowait')!
     const bootstrap = { holder: { pid: 101, started: '2026-10-13T03:00:00Z', name: m.projectId + '_draft_holder', database: 'postgres' as const, user: 'postgres' as const },
       contender: { pid: 102, started: '2026-10-13T03:00:01Z', name: m.projectId + '_draft_contender', database: 'postgres' as const, user: 'postgres' as const } }
@@ -95,27 +114,31 @@ describe('source-only Survey committed directions', () => {
     expect(sql).not.toContain('pg_sleep')
     expect(() => surveyCommittedObservationSql(m, s.label, { ...bootstrap, contender: { ...bootstrap.contender, name: 'foreign' } })).toThrow()
     const now = Date.parse('2026-10-13T03:00:02Z')
-    const witness = { label: s.label, poll: 1, observedAt: '2026-10-13T03:00:02Z', holder: bootstrap.holder, contender: bootstrap.contender,
-      held: { ...s.lock, xid: '900', relationOid: 123, tuple: '(0,1)', owned: true, identity: { locktype: 'transactionid', transactionid: '900' } }, blockers: [], waiter: null, code: 'PT409', immediateMs: 10 }
+    const before=capturedSeed(m);admitSeed(m,before)
+    const {witness}=practicalFixture(m,s,before)
     const clock = { startedAt: now - 500, workDeadline: now + 100, dispatchedAt: now - 10, observedAt: now, contenderPending: false, poll: 1 }
     expect(verifySurveyCommittedWitness(m, s.label, bootstrap, witness, clock).nativeVerified).toBe(false)
-    expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, { ...witness, held: { ...witness.held, targetId: f.classes[0].id } }, clock)).toThrow()
+    expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, { ...witness, held: { ...witness.held, sourceSha256:'0'.repeat(64) } }, clock)).toThrow()
+    expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, { ...witness, held: { ...witness.held, operation:{code:'PT409',result:null} } }, clock)).toThrow()
+    expect(sql).not.toContain('xmin');expect(sql).not.toContain('xmax');expect(sql).not.toContain('ctid');expect(sql).not.toContain('pgrowlocks')
     expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, witness, { ...clock, workDeadline: now })).toThrow()
     expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, { ...witness, holder: { ...bootstrap.holder, started: '2026-10-13T02:00:00Z' } }, clock)).toThrow()
     expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, { ...witness, blockers: [101], waiter: { wait_event_type: 'Lock' } }, clock)).toThrow()
   })
-  it('requires an actual pending edge to the exact backend and correct lock type', () => {
+  it('requires the original successful holder and actual fixed-pair pending backend edge', () => {
     const m = manifest(), s = m.schedules[0], now = Date.parse('2026-10-13T03:00:02Z')
     const bootstrap = { holder: { pid: 101, started: '2026-10-13T03:00:00Z', name: m.projectId + '_draft_holder', database: 'postgres' as const, user: 'postgres' as const },
       contender: { pid: 102, started: '2026-10-13T03:00:01Z', name: m.projectId + '_draft_contender', database: 'postgres' as const, user: 'postgres' as const } }
-    const w = { label: s.label, poll: 1, observedAt: '2026-10-13T03:00:02Z', holder: bootstrap.holder, contender: bootstrap.contender,
-      held: { ...s.lock, xid: '900', relationOid: 123, tuple: '(0,1)', owned: true, identity: { locktype: 'transactionid', transactionid: '900' } }, blockers: [101],
-      waiter: { wait_event_type: 'Lock', wait_event: 'transactionid', state: 'active', identity: { locktype: 'transactionid', transactionid: '900' } } }
+    const before=capturedSeed(m);admitSeed(m,before)
+    const {witness:w}=practicalFixture(m,s,before)
     const clock = { startedAt: now - 500, workDeadline: now + 100, dispatchedAt: now - 10, observedAt: now, contenderPending: true, poll: 1 }
     expect(verifySurveyCommittedWitness(m, s.label, bootstrap, w, clock).blockingEdgeVerified).toBe(true)
-    for (const defect of [{ ...w, blockers: [999] }, { ...w, held: { ...w.held, owned: false } },
+    for (const defect of [{ ...w, blockers: [999] }, { ...w, held: { ...w.held, sourceSha256:'0'.repeat(64) } },
+      { ...w, contenderDispatch:{...w.contenderDispatch,sqlSha256:'0'.repeat(64)} },{ ...w, held:{...w.held,operation:{code:null,result:{}}} },
+      { ...w, held:{...w.held,backend:{...bootstrap.holder,started:'2026-10-13T02:00:00Z'}} },
+      { ...w, held:{...w.held,transactionStartedAt:'2026-10-13T03:00:02Z'} },
       { ...w, waiter: { ...w.waiter, wait_event: 'advisory' } },
-      { ...w, waiter: { ...w.waiter, identity: { locktype: 'transactionid', transactionid: '901' } } }]) expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, defect, clock)).toThrow()
+      { ...w, waiter: { ...w.waiter, state:'idle in transaction' } }]) expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, defect, clock)).toThrow()
     expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, w, { ...clock, contenderPending: false })).toThrow()
     expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, w, { ...clock, poll: 4 })).toThrow()
     expect(() => verifySurveyCommittedWitness(m, s.label, bootstrap, w, { ...clock, dispatchedAt: now - 1000, startedAt: now - 1000 })).toThrow()
@@ -241,6 +264,8 @@ describe('source-only Survey committed directions', () => {
     const probe=index>=8&&index<=11?'PT409':index===12||index===13?'PT400':null
     const receipts={holder,contender,retry,cachedQuestions:[one(before,'public.survey_questions','id',c.question.id)],freshRead:[2,3,4].includes(index)?denied('PT403'):success(index===5?aggregate(after):detail(after,![0,1,2,6,7].includes(index))),cachedResponseProbe:probe?denied(probe):null}
     expect(verifySurveyCommittedEnvelopes(m,s.label,before,after,receipts).nativeVerified).toBe(false)
+    const practical=practicalFixture(m,s,before)
+    expect(verifySurveyCommittedWitness(m,s.label,practical.bootstrap,practical.witness,practical.clock)).toMatchObject({holderOperationVerified:true,blockingEdgeVerified:s.mode==='wait',nativeVerified:false})
     expect(()=>verifySurveyCommittedEnvelopes(m,s.label,before,after,{...receipts,freshRead:success({})})).toThrow()
     expect(()=>verifySurveyCommittedEnvelopes(m,s.label,before,after,{...receipts,cachedQuestions:[c.question]})).toThrow()
     const launderedBefore=structuredClone(before),launderedAfter=structuredClone(after)

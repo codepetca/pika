@@ -46517,3 +46517,8 @@ Compact legacy session polling uses one domain query instead of five, with fresh
 - Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
 - Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
 - Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.
+
+<!-- pika-session-log-archive-batch:1b8dcce3bea5416b886d72b650960a789fcbdcdf3caa40deaad6960c9f088d5b -->
+## 2026-10-11 — Material Markdown approved main integration
+
+Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
