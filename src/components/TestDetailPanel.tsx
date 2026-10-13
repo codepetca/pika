@@ -257,6 +257,7 @@ export function TestDetailPanel({
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
   const testUpdatedAtRef = useRef(testAssessment.updated_at)
+  const clearCalendarDateRef = useRef<HTMLButtonElement>(null)
   const calendarDate = useTestCalendarDate({
     test: testAssessment,
     classroomId,
@@ -2268,7 +2269,7 @@ export function TestDetailPanel({
           {calendarDate.error ? (
             <Button variant="ghost" size="sm" disabled={calendarDate.saving} onClick={() => { void calendarDate.flush() }}>Retry</Button>
           ) : calendarDate.value ? (
-            <Button variant="ghost" size="sm" disabled={calendarDate.saving || isClosing || isPreparingPublish} onClick={() => { void calendarDate.save('') }}>Clear</Button>
+            <Button ref={clearCalendarDateRef} variant="ghost" size="sm" disabled={calendarDate.saving || isClosing || isPreparingPublish} onPointerDown={(event) => event.preventDefault()} onClick={() => { void calendarDate.save('') }}>Clear</Button>
           ) : null}
         </div>
       )}
@@ -2278,7 +2279,9 @@ export function TestDetailPanel({
         value={calendarDate.value}
         disabled={calendarDate.saving || isClosing || isPreparingPublish}
         onChange={(event) => calendarDate.edit(event.currentTarget.value, event.currentTarget.validity.valid)}
-        onBlur={() => { void calendarDate.flush() }}
+        onBlur={(event) => {
+          if (!clearCalendarDateRef.current || event.relatedTarget !== clearCalendarDateRef.current) void calendarDate.flush()
+        }}
       />
     </FormField>
   )

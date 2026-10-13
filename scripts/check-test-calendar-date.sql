@@ -20,7 +20,8 @@ declare
  outsider uuid := 'a2630000-0000-4000-8000-000000000002';
  witness jsonb; before_row jsonb; after_row jsonb; test_id uuid; draft_id uuid;
  draft_version integer; updated timestamptz; denied boolean:=false;
- test_status text; attempt_before jsonb;
+ test_status text; attempt_before jsonb; archive_operation uuid := 'a2630000-0000-4000-8000-000000000020';
+ archived_row jsonb; staged_result jsonb;
 begin
  witness:=public.create_test_for_owner_v1(actor,classroom,'Untitled',clock_timestamp()+interval '20 seconds');
  test_id:=(witness->'test'->>'id')::uuid; draft_id:=(witness->'draft'->>'id')::uuid;
@@ -56,5 +57,27 @@ begin
   if (select to_jsonb(a) from public.test_attempts a where a.test_id=test_id) is distinct from attempt_before then raise exception 'Date metadata changed participation';end if;
  end loop;
  if not exists(select 1 from public.assessment_drafts where id=draft_id and version=draft_version) then raise exception 'Calendar operations changed the content draft';end if;
+ -- Exercise the real v2 exact-column staging path for both old and dated archives.
+ insert into public.classroom_archive_operations(id,teacher_id,classroom_id,operation_type,
+   request_sha256,status,source_revision,source_schema_migration,source_app_commit,retention,
+   resource_counts,source_resource_counts,snapshot_created_at,snapshot_expires_at,
+   target_schema_migration,adapter_chain,source_contract_version,archive_format_version,restore_contract_version)
+ values(archive_operation,actor,classroom,'restore',repeat('a',64),'snapshot_ready',1,'262','calendar-date-fixture','{}',
+   '{"classrooms":1,"tests":2}','{"classrooms":1,"tests":2}',clock_timestamp(),clock_timestamp()+interval '1 hour',
+   '263','[]',2,2,2);
+ select to_jsonb(c) || jsonb_build_object('archived_at',clock_timestamp()) into archived_row from public.classrooms c where id=classroom;
+ staged_result := public.stage_classroom_archive_restore_rows_v2(archive_operation,actor,'classrooms',jsonb_build_array(archived_row),2);
+ if staged_result->'ok' is distinct from 'true'::jsonb then raise exception 'Archive root did not stage';end if;
+ select to_jsonb(t) into archived_row from public.tests t where id=test_id;
+ staged_result := public.stage_classroom_archive_restore_rows_v2(archive_operation,actor,'tests',jsonb_build_array(
+   archived_row - 'test_date', archived_row || jsonb_build_object('id','a2630000-0000-4000-8000-000000000021','test_date','2028-02-29')),2);
+ if staged_result->'ok' is distinct from 'true'::jsonb or staged_result->>'staged_count'<>'2' then raise exception 'Old and dated archives did not stage';end if;
+ if (select row_data->'test_date' from public.classroom_archive_restore_staging where operation_id=archive_operation and table_name='tests' and row_id=test_id)
+   is distinct from 'null'::jsonb then raise exception 'Old archive did not default date to null';end if;
+ if (select row_data->>'test_date' from public.classroom_archive_restore_staging where operation_id=archive_operation and table_name='tests' and row_id='a2630000-0000-4000-8000-000000000021')
+   is distinct from '2028-02-29' then raise exception 'Dated archive lost date';end if;
+ if has_function_privilege('service_role','public.normalize_classroom_archive_restore_row_pre_v263(uuid,text,jsonb)','EXECUTE')
+   or has_function_privilege('authenticated','public.normalize_classroom_archive_restore_row(uuid,text,jsonb)','EXECUTE')
+   or not has_function_privilege('service_role','public.normalize_classroom_archive_restore_row(uuid,text,jsonb)','EXECUTE') then raise exception 'Archive normalizer privileges widened';end if;
 end;$test$;
 rollback;

@@ -2,6 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
+import { invalidateCachedJSON } from '@/lib/request-cache'
 import type { TestAssessment } from '@/types'
 
 /** Calendar metadata saves separately from questions and publication. */
@@ -78,6 +79,7 @@ export function useTestCalendarDate({
         }
         owner.saved = next
         setSavedValue(next)
+        invalidateCachedJSON(`teacher-tests:${classroomId}`)
         onSavedRef.current(data.test)
         window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId } }))
         return true

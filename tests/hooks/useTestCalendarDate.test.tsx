@@ -2,6 +2,8 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTestCalendarDate } from '@/hooks/useTestCalendarDate'
 import { createMockTest } from '../helpers/mocks'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 
 describe('Test calendar date saves', () => {
   const test = createMockTest({ test_date: null })
@@ -38,6 +40,29 @@ describe('Test calendar date saves', () => {
     await act(async () => { expect(await result.current.save('')).toBe(true) })
     expect(JSON.parse(vi.mocked(fetch).mock.calls[1][1]!.body as string)).toEqual({ test_date: null })
     expect(options.onSaved).toHaveBeenCalledTimes(2)
+  })
+
+  it('invalidates the calendar cache before callback and Tests listeners refresh', async () => {
+    const key = `teacher-tests:${test.classroom_id}`
+    const oldList = { tests: [{ ...test, test_date: '2026-11-01' }] }
+    const freshList = { tests: [{ ...test, test_date: '2026-11-08' }] }
+    await fetchJSONWithCache(key, async () => oldList, 20_000)
+    const reads: Array<Promise<typeof freshList>> = []
+    const loadTests = () => { reads.push(fetchJSONWithCache(key, async () => freshList, 0)) }
+    const calendarListener = () => { invalidateCachedJSON(key); loadTests() }
+    window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, loadTests)
+    window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, calendarListener)
+    try {
+      vi.mocked(fetch).mockResolvedValueOnce(response('2026-11-08') as Response)
+      const { result } = renderHook(() => useTestCalendarDate({ ...options, onSaved: loadTests }))
+      await act(async () => { expect(await result.current.save('2026-11-08')).toBe(true) })
+      expect(reads).toHaveLength(3)
+      expect(await Promise.all(reads)).toEqual([freshList, freshList, freshList])
+    } finally {
+      window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, loadTests)
+      window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, calendarListener)
+      invalidateCachedJSON(key)
+    }
   })
 
   it('keeps a failed date visible and retries it during close/publish flush', async () => {

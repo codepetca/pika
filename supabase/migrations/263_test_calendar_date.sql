@@ -6,6 +6,25 @@ begin;
 alter table public.tests add column test_date date;
 comment on column public.tests.test_date is 'Optional classroom calendar display date; not an availability or submission deadline.';
 
+-- Preserve exact current-schema restoration for archives created before 263.
+alter function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  rename to normalize_classroom_archive_restore_row_pre_v263;
+revoke all on function public.normalize_classroom_archive_restore_row_pre_v263(uuid, text, jsonb)
+  from public, anon, authenticated, service_role;
+create function public.normalize_classroom_archive_restore_row(p_operation_id uuid, p_table_name text, p_row jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $function$
+begin
+  p_row := public.normalize_classroom_archive_restore_row_pre_v263(p_operation_id, p_table_name, p_row);
+  if p_table_name = 'tests' and not (p_row ? 'test_date') then
+    p_row := p_row || pg_catalog.jsonb_build_object('test_date', null);
+  end if;
+  return p_row;
+end;
+$function$;
+revoke all on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb) to service_role;
+
 create or replace function public.create_test_for_owner_v1(
   p_actor_id uuid, p_classroom_id uuid, p_title text, p_deadline timestamptz
 )

@@ -715,3 +715,30 @@ starts only after this stable source checkpoint; scope/budget remain2 Sol/high,
 60minute session, 30minute hard per-reviewer, max4 remediation batches. Local
 stack/schema backup and all private artifacts retained. Main unchanged22efa4826;
 no competing branch writer or remote branch exists.
+
+Independent review follow-up: both Sol/high reviewers completed base22efa4826
+through3d17aad19. Accepted2 blockers: pre263 archive normalizer lacked test_date
+and date save refreshed Tests from calendar's still-valid shared cache. Root
+additionally reproduced dirty focused date→Clear saving the edit instead.
+Single remediation batch extends the archive normalizer chain with absent-only
+null, preserves ACLs, invalidates classroom Tests cache before notifications,
+and coordinates Clear pointer/keyboard focus with blur. New rollback probe
+stages old/current rows through actual v2 exact-column staging and checks ACLs.
+78 editor/hook/schema regressionsPASS; corrected editor4case browserPASS with
+direct dirty-field Clear. PoliciesPASS. Revised263 seal is
+aaf75c9de07d3933f196149b7198e4bd581a503d18a69697803ef27405cc6b08.
+Previous one-time local apply approval consumed; requested new001–263 replay
+in fresh pika-test-calendar-date-review. Awaiting owner approval; revised SQL
+not applied. Initial2 launches/1 full-diff wave, remediation1 batch in progress;
+no targeted launch yet. Initial review launch-to-observed completion timings
+are approximate coordinator intervals, not attributable active/token costs.
+
+Remediation checks follow-up: actual focused editor/hook/schema78PASS, seven
+native source-admission suites278PASS, architecture/UI/designPASS, lint0errors
+(existing panel hook warning), TypeScriptPASS. Browser4case revised editor
+matrixPASS including pointer Clear from dirty field, ShiftTab→Clear→Enter,
+native input clearing with null relatedTarget, failure/retry/close. No SQL apply
+yet: fresh review project started with empty migrations and no migration history
+or hosted link, awaiting exact replay approval. Initial calendar8case evidence
+reused only for unchanged Calendar owners; corrected editor evidence replaces
+prior subset receipts. No source/layout changes to calendars during remediation.

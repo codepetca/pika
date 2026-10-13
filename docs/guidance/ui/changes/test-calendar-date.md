@@ -23,3 +23,10 @@ Compact Month/Term grids use the shared control-size and spacing tokens for mini
 Verification evidence and independent review are recorded in the session log and PR after completion.
 
 Visual verification passed for both roles × desktop/mobile × light/dark, including Month/Term target measurements and scroll reachability. Date editor save, clear, failure, retry, and close passed with intercepted metadata writes. Shared composite-widget checklist reviewed: existing date/view controls and dialog owners retained; Test links remain individually named buttons, native date input retains its label/error association, and close waits for the date save. Keyboard/day navigation and safe detail selection are covered; no new composite keyboard model is introduced. Owner-approved isolated-local replay001–263, nullable date contract probe, preserved owner/learner native contracts, generated type generation/check, and TypeScript pass. Independent review and PR/CI remain. Original unpublish setup timed out at2500 rows; supplemental identical10000-row setup split into500-row statements passed all original assertions and caps. No shared or hosted database changes.
+
+Review remediation: save invalidates the shared classroom Tests cache before
+refresh notifications. Clear handles a focused edited date without its blur
+saving that edit first; pointer and keyboard regressions pass. Migration263
+now extends the archive normalizer explicitly for older Tests. The earlier
+replay validates the initial revision only; corrected replay/types and targeted
+independent review remain pending.
