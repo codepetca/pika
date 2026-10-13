@@ -742,3 +742,18 @@ yet: fresh review project started with empty migrations and no migration history
 or hosted link, awaiting exact replay approval. Initial calendar8case evidence
 reused only for unchanged Calendar owners; corrected editor evidence replaces
 prior subset receipts. No source/layout changes to calendars during remediation.
+
+Owner approved revised exact001–263 once in pika-test-calendar-date-review.
+Confirmed fresh empty local history/no hosted binding, all263 dry-run filenames,
+and approved263 digest before db push --local --yes; replayPASS. Migration list
+matched001–263 afterward. Updated rollback probePASS including real v2 staging
+of pre263 and dated Tests, exact values and wrapper ACL checks. Users0 verified;
+all test data rolled back. Generated types generate/checkPASS, exactly4 added
+lines for renamed pre263 normalizer signature; no manual generated edits.
+Targeted Sol/high review at46546a47e complete/no new finding; known runtime gap
+now closed. Own preview3027 and new disposable stack stopped (schema backup
+retained), unrelated services untouched. Final typed checkpoint will undergo
+required cumulative integration review and final focused check before ready.
+Ledger3 launches, initial1 wave, targeted1 wave, remediation1 correction batch
+plus expected generated-contract checkpoint. Main22efa4826 unchanged. No main
+merge or production/migration authority inferred from disposable-local approval.

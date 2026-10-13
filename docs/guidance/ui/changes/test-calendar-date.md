@@ -30,3 +30,10 @@ saving that edit first; pointer and keyboard regressions pass. Migration263
 now extends the archive normalizer explicitly for older Tests. The earlier
 replay validates the initial revision only; corrected replay/types and targeted
 independent review remain pending.
+
+Corrected replay001–263 in separately approved disposable project
+pika-test-calendar-date-review passed. Real v2 staging proves absent dates
+normalize to null and existing dates survive; ACL probe passes. Generated
+contract/check passes with4 additional wrapper-signature lines. Targeted
+review of the correction batch is complete without further findings; final
+cumulative review and CI remain. Shared/hosted databases remain unchanged.
