@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Minor Assignment-menu upstream sync before approved integration review
-
-PR #1566 syncs main77d5095e (#1568). Journal-only conflict resolved preserving both parent entry/batch-marker histories. All non-continuity feature bytes and entire migration chain unchanged versus reviewed-check candidate11d6b3034; disposable001–258 proof/type evidence remains valid. Fresh focused checks and the owner-approved single integration review cover the final combined revision before requiredCI. Shared local/production unchanged; no merge/promotion authority added.
-
 ## 2026-10-11 — Offline fixed learner-profile fixture compatibility
 
 PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.
@@ -686,3 +682,19 @@ shared/prod migration or activation inferred. Routine workflow-budget approvals
 waived by the owner; correctness and serious-operation holds remain. Separate
 synthetic browser diagnostic now retains inner post-read failure with a completed
 CLI command and positive full cleanup; exact cause is under read-only diagnosis.
+
+## 2026-10-13 Survey response predicate SQL grouping
+
+Fresh disposable startup now retains a private diagnostic: migration263 failed
+at response-submission statement24 with SQLSTATE42601/end-of-input. Group only
+the CASE expression in the text-response IF condition and update its two exact
+digest pins; link3/text2 key counts, PT400, locks, validation and grants remain
+unchanged. The source regression reproduced RED then GREEN; root52 affected
+checks/lint/diff PASS. Independent targeted review15 PASS; native PostgreSQL
+parsing and genuine263 metadata remain gates. Prior SQL reconstructs byte-exact
+after removing the two parentheses. Both previous disposable candidates stay
+spent with preserved receipts and positively checked cleanup; no retry/rebind,
+shared/prod migration or activation. Source-only preparation of a fresh reviewed
+component follows, not a ready/merge/phase-exit claim. Browser diagnostics now
+confirm URL-wait timeout but not a body error; completion-boundary observation
+remains source-only, with original reader/gate/traffic controls intact.

@@ -25,7 +25,7 @@ export function createOfflineTestLearnerRepository(repository: string, count: 25
   if (inventory.length >= 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
   if (inventory.length === 263) {
     const survey = inventory[262]
-    const expected = '26f99a6a2b269f29f56b07455c5460f796d7b470876624aedc43de90906f6c25'
+    const expected = '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9'
     assert.equal(survey.name, '263_contextual_surveys_workflow.sql')
     assert.equal(survey.sha256, expected)
     assert.equal(createHash('sha256').update(survey.sql).digest('hex'), expected)

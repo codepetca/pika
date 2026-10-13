@@ -443,7 +443,7 @@ begin
       if v_option<>trunc(v_option) or v_option<0 or v_option>=jsonb_array_length(v_question.options) then raise exception using errcode='PT400', message='survey_invalid_option'; end if;
     else
       if jsonb_typeof(v_answer->'response_text') is distinct from 'string'
-        or (select count(*) from jsonb_object_keys(v_answer))<>case when v_question.question_type='link' then 3 else 2 end then
+        or (select count(*) from jsonb_object_keys(v_answer))<>(case when v_question.question_type='link' then 3 else 2 end) then
         raise exception using errcode='PT400', message='survey_invalid_text';
       end if;
       v_text:=v_answer->>'response_text';
