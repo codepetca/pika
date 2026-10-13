@@ -1,29 +1,25 @@
 # Checkpoint — 2026-10-12 UTC
 
-Release `3b7ae978e`; audit27 accepted.
-[Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
+Release `3b7ae978e`; audit27 accepted (docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Prod `5a3cb8967` LIVE Oct11 11:55UTC; #1573 CI38136281882 PASS.
-Login200/anonymous401/hiddenfixtures404; savings unknown.
-Prod DB001–258 verified(run38136681044); owner approved257/258 once.
-Four bodies/ACLs PASS; no write canary.
-Poll reads5→1; fresh auth; admission absent.
-Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
+200/401/hidden404; DB001–258 verified38136681044;257/258 once-approved.
+Bodies/ACLs PASS; no write canary. Poll5→1, fresh auth.
+Braces deferred: docs/core/roadmap.md.
 
 admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Controls unchanged: quota OFF; prod env key names unchanged Oct11.
-Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
+Quota OFF; prod env unchanged Oct11.
+Access1 exit;2/3 active;4/5 dormant;164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-1579 merged `8e9dabd597`/dormant; CI38204673501 PASS.
-1577 merged `18126e952`/dormant; CI38175680856 PASS.
-1578 merged `a37d03b3a`/dormant; CI38192450117 PASS.
-#1580 dormant; Tests fail; Survey/archive proof. Roadmap holds unchanged.
-Oct13: Survey001–263 component/genuine12RPC metadata PASS; full native/app pending.
-Browser proof parked: unknown family closure; no equivalent retry/cutover.
+1579/1577/1578 dormant merged8e9dabd597/18126e952/a37d03b3a;
+CI38204673501/38175680856/38192450117 PASS.
+#1580 dormant; Tests fail; Survey/archive proof pending; holds unchanged.
+Survey001–263 component/12RPC metadata,38CPU PASS; full native/app pending.
+Reboot ended old family;12 artifacts recovered; receipts/seed missing. Chrome hold.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
-No exit; `docs/guidance/contextual-test-publication.md`.
+No exit: docs/guidance/contextual-test-publication.md.
 
 253#1524 OFF (CI37715526569 PASS).
 Quota notices: upgrade/tier only; creation-error deferred.

@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Production polling optimization and reviewed UI batch
-
-Owner authorized production app deployment and one application of257/258. Promotion1573 merged reviewed872d19582 into production5a3cb8967; exact reviewed tree retained. Cumulative security/compatibility reviews CLEAN; source CI38133165213 all10 PASS, abbreviated promotion CI38136281882 PASS. Apply38136681044 returned applied-verified/history258; read-only catalog verifies all four bodies against reviewed SQL, owners/search paths and service-only public/private helper ACLs. Vercel deploymentdpl_6YwCcNdD3Xa5waAzy6UTPRY2GkNG READY and production aliases assigned Oct11 11:55UTC. Anonymous login200/status401/Pattern Lab and fixture404 PASS. No authenticated learner/write canary.
-
-Compact legacy session polling uses one domain query instead of five, with fresh authentication retained. Invocation/CPU savings unmeasured. Dormant learner admission absent; production env key inventory unchanged. No provider-plan/control/credential changes or phase exit. Two Sol6.1/high review attempts, one known332s inspection duration; other elapsed/tokens/active coordination unavailable. One promotion CI attempt,863s workflow wall; no retry. Evidence in RESPMax evidence-custody output/verification/pika-production-release-20261011. RESPMax hosted saving remains OFF; release record only.
-
-## 2026-10-11 — Classwork Material Markdown editing
-
-- Added Visual/Markdown editing, current/proposed review, explicit Apply/Discard, separate Save/Post, conversion-loss acknowledgment and per-material draft isolation. No API/schema or authority changes.
-- Governed brief: docs/guidance/ui/changes/material-markdown.md. Existing Material Pattern Lab owner extended; shared controls/converters reused.
-- Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
-- Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
-- Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.
-
 ## 2026-10-11 — Material Markdown approved main integration
 
 Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
@@ -733,3 +719,55 @@ two-session waiter observation and closed cancellation/payload budgets; accepted
 component is not replayed. Sol/high source-only committed-plan preparation owns
 two new inert module/test paths; root owns integration/dispatch and unchanged
 caps. No native target or live permission was granted by that source assignment.
+
+## 2026-10-13 Restart recovery and preserved source
+
+Human confirmed restart; kernel boot1791859016 (Oct12 22:36:56 Toronto) postdates
+all prior attempts. This resolves preboot detached-browser lifetime uncertainty,
+not failed-app acceptance or permission to retry a spent candidate. Root clean
+29c4eca71/source tree preserved; genuine440703-byte metadata still82324a71.
+The three /private/tmp evidence roots cleared on reboot. Own durable session logs
+survive; exact-byte review/source/receipt recovery is bounded and provenance-
+checked, never fabricated from summaries or executing recorded tool scripts.
+Coordinator handoff relocated to private0700/0600 .codex/verification/classroom-
+access/2026-10-12-restart-recovery; future evidence must survive restarts. Existing
+Survey22:04/review18/fix8 and Protocol12:08/review36/fix29 counters stay unchanged.
+
+Startup verified; fresh342.03GB available/healthy. Canonical Pika Docker services
+running, old Survey disposable projects absent; other/stopped projects untouched.
+Old workers gone, proposed committed-proof source/test files absent; one fresh
+Sol/high read-only recovery worker and one disjoint Sol/high pure committed-plan
+writer continue agreed work. Whole phase/native/app/CI/merge remains unaccepted.
+No shared/prod migration, account/provider/billing/release/admission/home/cutover
+or valuable cleanup. Routine approvals waived; serious holds persist. Weekly49%
+remaining is account-wide, not attributable cost; effective worker usage unknown.
+
+## 2026-10-13 — Restart source recovery and integration checks
+
+Twelve historical source/review artifacts recovered hash-exact from own durable
+transcripts; actual old result JSON/seed carrier remain missing. No fabrication,
+spent retry or native/app acceptance. Fresh inert browser proposal has13 hashes
+and7-file CJS closure independently verified; private0700/0600, no acceptance or
+runtime. Chrome155.0.8059.40 changed from reviewed pin; Google signature verifies,
+human baseline decision requested before native use. Other binary/CLI seals match.
+
+Survey committed proposal checkpoint5bd9b14f8:38CPU tests,actualoptionsTSC/lint/
+audit PASS;185actions but full guard/control/remaining inventory still unbound.
+Sol/high security/oracle and SQL reviewers inspect fixed detachedcheckouts as
+launches19/20, sourcefix9; original22:04UTCclock retained under workflowstop waiver.
+Broader focused failed83tests:81stale262profile checks,1startupbudget,1platform
+source assertion. Root compacted CURRENT;79startupchecksPASS after preserving
+literal worktree/env guidance. Separate retainedSol/high read-only source map
+prepares exact263-tail compatibility group; no inventory truncation or relaxed
+future-tail/seal gates. No PR/CI/merge, shared/prod apply or rollout this checkpoint.
+
+Compatibility299eec7 checkpoint:531/10CPU PASS; exact263leaf54PASS; full17-path
+review21 CLEAN114s observed. Expanded17rootTSC29baseline-identical/introduction0
+(not absolute scriptsPASS); leafTSC0. Review19/20 accepted4P1. Sourcefix11 safely
+fixes wholegraph progression/nestedJSON/archive clocks:41CPU/sourceTSC0/lintPASS.
+Exactrow childXID/MultiXact proof remainsblocked; two async serious decisions are
+pending (Chrome baseline,test-onlypgrowlocks ifavailable). Final broader focused
+2909PASS/8skipped/150files,architecture/UI/design/appTSC/lintPASS, logs at
+/var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Xd8d1g.
+No native/application acceptance; privatebootstrap/control/cancel/payload gaps
+remain. Three clean detachedreviewcheckouts removed; commits/reports preserved.

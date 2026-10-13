@@ -46501,3 +46501,19 @@ PR #1566 syncs main77d5095e (#1568). Journal-only conflict resolved preserving b
 ## 2026-10-11 — Offline fixed learner-profile fixture compatibility
 
 PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.
+
+<!-- pika-session-log-archive-batch:ec9588c6f87efe0a76e65e3b23eafb5257430f086eb7da18306c3cad06a9617d -->
+## 2026-10-11 — Production polling optimization and reviewed UI batch
+
+Owner authorized production app deployment and one application of257/258. Promotion1573 merged reviewed872d19582 into production5a3cb8967; exact reviewed tree retained. Cumulative security/compatibility reviews CLEAN; source CI38133165213 all10 PASS, abbreviated promotion CI38136281882 PASS. Apply38136681044 returned applied-verified/history258; read-only catalog verifies all four bodies against reviewed SQL, owners/search paths and service-only public/private helper ACLs. Vercel deploymentdpl_6YwCcNdD3Xa5waAzy6UTPRY2GkNG READY and production aliases assigned Oct11 11:55UTC. Anonymous login200/status401/Pattern Lab and fixture404 PASS. No authenticated learner/write canary.
+
+Compact legacy session polling uses one domain query instead of five, with fresh authentication retained. Invocation/CPU savings unmeasured. Dormant learner admission absent; production env key inventory unchanged. No provider-plan/control/credential changes or phase exit. Two Sol6.1/high review attempts, one known332s inspection duration; other elapsed/tokens/active coordination unavailable. One promotion CI attempt,863s workflow wall; no retry. Evidence in RESPMax evidence-custody output/verification/pika-production-release-20261011. RESPMax hosted saving remains OFF; release record only.
+
+<!-- pika-session-log-archive-batch:3ac1f2d805cdc94bc712ec49d916baac426084030f3ca9cc560de28b5979b026 -->
+## 2026-10-11 — Classwork Material Markdown editing
+
+- Added Visual/Markdown editing, current/proposed review, explicit Apply/Discard, separate Save/Post, conversion-loss acknowledgment and per-material draft isolation. No API/schema or authority changes.
+- Governed brief: docs/guidance/ui/changes/material-markdown.md. Existing Material Pattern Lab owner extended; shared controls/converters reused.
+- Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
+- Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
+- Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.

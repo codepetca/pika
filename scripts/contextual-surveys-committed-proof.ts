@@ -28,6 +28,7 @@ type Schedule = Readonly<{ label: string; index: number; direction: 'forward' | 
   cohort: Cohort; lock: Lock; effects: Effects; retryCode: string | null; frames: Readonly<Record<'cache' | 'holder' | 'contender' | 'release' | 'settle' | 'retry' | 'terminal', string>> }>
 const issued = new WeakSet<object>()
 const seedGraphs = new WeakMap<object, Graph>()
+const acceptedEffects = new WeakMap<object, Map<string, Readonly<{ before: Graph; after: Graph }>>>()
 
 function fixture(f: SurveyNativeFixture) {
   assert(Object.isFrozen(f)); assert.match(f.tag, /^surveynative_[a-f0-9]{12}$/)
@@ -74,13 +75,19 @@ function operations(f: SurveyNativeFixture, c: Cohort, label: string) {
 function performed(sql: string) { return sql.startsWith('select ') ? `perform ${sql.slice(7)}` : sql }
 function attempted(sql: string, expected: string | null) {
   const jsonRpc = sql.startsWith('select public.')
-  return `create temporary table if not exists survey_committed_operation(result jsonb) on commit preserve rows;delete from survey_committed_operation;
- do $operation$ declare code text;r jsonb;n integer;begin begin ${jsonRpc ? `r:=${sql.slice(7).replace(/;$/, '')};` : performed(sql)}
+  return `create temporary table if not exists survey_committed_operation(result jsonb,started_at timestamptz not null,finished_at timestamptz not null) on commit preserve rows;delete from survey_committed_operation;
+ do $operation$ declare code text;r jsonb;n integer;started timestamptz:=clock_timestamp();begin begin ${jsonRpc ? `r:=${sql.slice(7).replace(/;$/, '')};` : performed(sql)}
  ${sql.startsWith('update ') || sql.startsWith('delete ') ? "get diagnostics n=row_count;if n<>1 then raise exception 'Exact legacy affected-row count differs';end if;" : ''}
  ${expected ? "raise exception 'Expected Survey denial missing';" : ''}
  exception when others then get stacked diagnostics code=returned_sqlstate;
  ${expected ? `if code is distinct from ${q(expected)} then raise exception 'Survey exact SQLSTATE differs';end if;` : 'raise;'} end;
- insert into survey_committed_operation values(jsonb_build_object('code',code,'result',r));end;$operation$;`
+ insert into survey_committed_operation values(jsonb_build_object('code',code,'result',r),started,clock_timestamp());end;$operation$;`
+}
+function archiveReceiptSql(sql: string, label: string, c: Cohort) {
+  if (!sql.includes('archived_at=clock_timestamp()')) return ''
+  return `,'archiveReceipt',(select jsonb_build_object('label',${q(label)},'classroomId',${q(c.classroomId)},'archivedAt',r.archived_at,
+ 'transactionTimestamp',transaction_timestamp(),'operationStartedAt',o.started_at,'operationFinishedAt',o.finished_at)
+ from public.classrooms r cross join survey_committed_operation o where r.id=${q(c.classroomId)})`
 }
 function heldWitnessSql(lock: Lock) {
   const k = `hashtextextended(${q(lock.key)},0)`, predicate = lock.kind === 'advisory'
@@ -104,7 +111,7 @@ function effects(index: number, direction: 'forward' | 'reverse'): Effects {
   if (Object.keys(questionPatch).length) { archive = 2; blueprint = 1 }
   if (index === 7) { questionPatch.survey_id = '__foreign'; archive = 1; foreignArchive = 1 }
   if (index === 2) { classroomPatch.teacher_id = '__member'; archive = 1 }
-  if (index === 3) { classroomPatch.archived_at = '__writer_timestamp'; archive = 1 }
+  if (index === 3) { classroomPatch.archived_at = '__archive_receipt'; archive = 1 }
   if (index === 4) archive = 1
   if (index === 12) { surveyPatch.status = 'closed'; archive = 1 }
   if ((index >= 8 && index <= 12 && direction === 'reverse') || index >= 13) { responseWrites = 1; responseCount = 1; archive++ }
@@ -144,11 +151,11 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
     const cache = `${guard(f, 'holder', true)}${graphFunctions()}insert into survey_committed_cache
  select ${q(label)},coalesce(jsonb_agg(to_jsonb(r) order by position,id),'[]'::jsonb),pg_temp.survey_committed_graph() from public.survey_questions r where survey_id=${q(c.surveyId)};commit;`
     const holder = `${guard(f, 'holder', true)}${attempted(first, null)}select jsonb_build_object('label',${q(label)},'writerTimestamp',transaction_timestamp(),'heldWitness',${heldWitnessSql(lock)},'operation',(select result from survey_committed_operation),
- 'responses',(select coalesce(jsonb_agg(to_jsonb(r) order by question_id),'[]'::jsonb) from public.survey_responses r where survey_id=${q(c.surveyId)} and student_id=${q(f.actors[1].id)})) as result;`
+ 'responses',(select coalesce(jsonb_agg(to_jsonb(r) order by question_id),'[]'::jsonb) from public.survey_responses r where survey_id=${q(c.surveyId)} and student_id=${q(f.actors[1].id)})${archiveReceiptSql(first, label, c)}) as result;`
     // Blocking contender begins and executes BEFORE its holder releases; its
     // promise remains outstanding. No sleep is used to establish that state.
-    const contender = `${guard(f, 'contender', true)}${attempted(second, mode === 'nowait' ? 'PT409' : null)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()) as result;`
-    const retry = `${guard(f, 'contender', true)}${attempted(second, retryCode)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()) as result;commit;`
+    const contender = `${guard(f, 'contender', true)}${attempted(second, mode === 'nowait' ? 'PT409' : null)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()${archiveReceiptSql(second, label, c)}) as result;`
+    const retry = `${guard(f, 'contender', true)}${attempted(second, retryCode)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()${archiveReceiptSql(second, label, c)}) as result;commit;`
     const read = index === 5 ? `select public.get_survey_results_for_member_v1(${q(f.actors[3].id)},${q(c.resultSurveyId)});`
       : `select public.get_survey_for_${[0, 1, 2, 6, 7].includes(index) ? 'owner' : 'member'}_v1(${q(f.actors[[0, 1, 2, 6, 7].includes(index) ? 0 : 1].id)},${q(c.surveyId)});`
     const terminalCode = [2, 3, 4].includes(index) ? 'PT403' : null
@@ -199,6 +206,7 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
       remainingOnlyFits: minActions <= 200, controlCount: null,
       controlCountReason: 'Concrete private engine guard/bootstrap/settlement controls are not bound; no exact control count or executable admission is claimed.' },
     unresolved: ['Concrete private backend bootstrap binding, fresh source seals and guard dispatch inventory are not implemented.',
+      'Exact tuple ownership for EXCEPTION child transactions/MultiXact is unresolved; the flat top-level XID witness is not native-compatible proof.',
       'Membership removal forward must demonstrate the exact enrollment row wait; immediate 40001 is not accepted as a waiter.',
       'Consolidated committed proposal uses185 actions; only15 remain for all other required actions. Complete remaining acceptance inventory is not sealed, so this module is not executable admission.'],
     executionEnabled: false as const, nativeVerified: false as const })
@@ -282,7 +290,19 @@ function row(g: Graph, table: string, column: string, value: string) { assert(Ar
 function put(g: Graph, table: string, column: string, value: string, replacement: Record<string, unknown> | null) {
   g[table] = g[table].filter(r => r[column] !== value); if (replacement) g[table].push(replacement)
 }
-function canonical(g: Graph) { return Object.fromEntries(Object.keys(g).sort().map(t => [t, g[t].map(r => JSON.stringify(Object.fromEntries(Object.entries(r).sort(([a], [b]) => a.localeCompare(b))))).sort()])) }
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue)
+  if (value !== null && typeof value === 'object') {
+    assert(Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null, 'Non-JSON committed object')
+    return Object.fromEntries(Object.keys(value).sort().map(k => [k, canonicalValue((value as Record<string, unknown>)[k])]))
+  }
+  assert(value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value), 'Non-JSON committed value')
+  return value
+}
+function canonical(g: Graph) { return Object.fromEntries(Object.keys(g).sort().map(t => {
+  assert(Array.isArray(g[t]), 'Committed catalog is not a row array')
+  return [t, g[t].map(r => JSON.stringify(canonicalValue(r))).sort()]
+})) }
 /** Independent fixed defaults from006/058/081/108/112/128/147/150/205/222.
  * Only generated artifact/category UUIDs and168 Pal references are observed;
  * every relationship/value/counter/timestamp is specified independently. */
@@ -325,7 +345,8 @@ function expectedSeed(m: SurveyCommittedProofManifest, actual: Graph, timestamp:
   return g
 }
 export function verifySurveyCommittedSeed(m: SurveyCommittedProofManifest, before: Graph, after: Graph, times: {startedAt:string;endedAt:string;seedTimestamp:string}) {
-  assert(issued.has(m)); const st=Date.parse(times.seedTimestamp);assert(Date.parse(times.startedAt)<=st&&st<=Date.parse(times.endedAt))
+  assert(issued.has(m)); assert(!seedGraphs.has(m), 'Captured committed seed already authenticated')
+  const st=Date.parse(times.seedTimestamp);assert(Date.parse(times.startedAt)<=st&&st<=Date.parse(times.endedAt))
   assert(Date.parse(times.endedAt)-Date.parse(times.startedAt)<=m.caps.workMs)
   assert(isDeepStrictEqual(Object.keys(before).sort(),Object.keys(after).sort()))
   const additions=expectedSeed(m,after,times.seedTimestamp),expected=structuredClone(before),freshIds:string[]=[],freshReferences:string[]=[]
@@ -344,16 +365,13 @@ export function verifySurveyCommittedSeed(m: SurveyCommittedProofManifest, befor
   assert.equal(new Set(freshReferences).size,freshReferences.length)
   assert(isDeepStrictEqual(canonical(expected),canonical(after)),'Exact committed seed/full non-target graph differs')
   seedGraphs.set(m,structuredClone(after))
+  acceptedEffects.set(m,new Map())
   return freeze({seededClasses:60,seededSurveys:90,seededQuestions:60,seededResponses:30,seededEnrollments:60,freshGenerations:60,
     defaultGradebookCategories:180,mainArchiveRevision:15,foreignArchiveRevision:6,mainBlueprintRevision:5,foreignBlueprintRevision:2,nativeVerified:false as const})
 }
-function assertBaseline(m:SurveyCommittedProofManifest,s:Schedule,before:Graph) {
+function assertBaseline(m:SurveyCommittedProofManifest,before:Graph) {
   const seed=seedGraphs.get(m);assert(seed,'Missing validated captured seed graph')
-  const c=s.cohort,identities=[c.classroomId,c.foreignClassroomId,c.surveyId,c.foreignSurveyId,c.resultSurveyId,c.question.id,c.aggregateQuestion.id,c.aggregateResponseId,c.enrollmentId,c.readerEnrollmentId]
-  for(const [table,rows] of Object.entries(seed)) {
-    const target=(r:Record<string,unknown>)=>identities.some(value=>[r.id,r.generation_id,r.classroom_id].includes(value))
-    assert(isDeepStrictEqual(canonical({[table]:rows.filter(target)}),canonical({[table]:before[table].filter(target)})),'Captured cohort seed baseline differs')
-  }
+  assert(isDeepStrictEqual(canonical(seed),canonical(before)),'Authenticated full committed baseline differs')
 }
 type Operation = Readonly<{code:string|null;result:unknown}>
 function detail(g:Graph,c:Cohort,member:boolean,actor:string) {
@@ -370,7 +388,9 @@ function aggregate(g:Graph,c:Cohort) {
       responses:[Object.fromEntries(['response_text','submitted_at','updated_at'].map(k=>[k,response[k]]).concat([['response_id',response.id]]))]}]}
 }
 export function verifySurveyCommittedEnvelopes(m:SurveyCommittedProofManifest,label:string,before:Graph,after:Graph,raw:{holder:Operation;contender:Operation;retry?:Operation;cachedQuestions:unknown;freshRead:Operation;cachedResponseProbe:Operation|null}) {
-  const s=schedule(m,label),c=s.cohort;assertBaseline(m,s,before)
+  const s=schedule(m,label),c=s.cohort,accepted=acceptedEffects.get(m)?.get(label)
+  assert(accepted,'Missing authenticated committed effects')
+  assert(isDeepStrictEqual(canonical(accepted.before),canonical(before))&&isDeepStrictEqual(canonical(accepted.after),canonical(after)),'Authenticated envelope graphs differ')
   const readMember=[3,4].includes(s.index),readOwner=[0,1,2,6,7].includes(s.index),read=s.index===5?'aggregate':readMember?'member':readOwner?'owner':null
   const firstRead=read&&((s.index===1||s.index===5||s.index===6)?s.direction==='reverse':s.direction==='forward')
   const envelope=(g:Graph)=>read==='aggregate'?aggregate(g,c):detail(g,c,read==='member',m.actors[1].id)
@@ -389,12 +409,15 @@ export function verifySurveyCommittedEnvelopes(m:SurveyCommittedProofManifest,la
   assert(isDeepStrictEqual(raw.cachedResponseProbe,probe?denied(probe):null),'Cached response freshness probe differs')
   return freeze({label,cachedSourceVerified:true,operationEnvelopesVerified:true,freshReadVerified:true,nativeVerified:false as const})
 }
-export type SurveyCommittedTimes = Readonly<{ startedAt: string; endedAt: string; writerTimestamp: string; responseTimestamp?: string; responseId?: string; responseSubmittedAt?: string; firstResponse?: Readonly<Record<string, unknown>> }>
-/** Exact independent effect ledger; all other catalog tables/rows must match.
- * Baseline is the captured genuine seeded cohort, never a reconstructed receipt. */
+export type SurveyCommittedArchiveReceipt = Readonly<{ label: string; classroomId: string; archivedAt: string; transactionTimestamp: string; operationStartedAt: string; operationFinishedAt: string }>
+export type SurveyCommittedTimes = Readonly<{ startedAt: string; endedAt: string; writerTimestamp: string; responseTimestamp?: string; responseId?: string; responseSubmittedAt?: string; firstResponse?: Readonly<Record<string, unknown>>; archiveReceipt?: SurveyCommittedArchiveReceipt }>
+/** Exact independent effect ledger; all catalog tables/rows must match the
+ * captured seed advanced only by previously authenticated direction effects.
+ * Accepted before/after pairs remain private for later envelope validation. */
 export function verifySurveyCommittedEffects(m: SurveyCommittedProofManifest, label: string, before: Graph, after: Graph, times: SurveyCommittedTimes) {
   const s = schedule(m, label), c = s.cohort, e = s.effects
-  assertBaseline(m,s,before)
+  assertBaseline(m,before)
+  const accepted=acceptedEffects.get(m);assert(accepted&&!accepted.has(label),'Committed direction effects already authenticated')
   const started = Date.parse(times.startedAt), ended = Date.parse(times.endedAt), written = Date.parse(times.writerTimestamp)
   assert(Number.isFinite(started) && Number.isFinite(ended) && Number.isFinite(written)); assert(started <= written && written <= ended && ended - started <= m.caps.workMs)
   assert(Buffer.byteLength(JSON.stringify(before)) <= m.caps.responseBytes && Buffer.byteLength(JSON.stringify(after)) <= m.caps.responseBytes)
@@ -417,7 +440,16 @@ export function verifySurveyCommittedEffects(m: SurveyCommittedProofManifest, la
   if (Object.keys(e.questionPatch).length) { const patch = { ...e.questionPatch }; if (patch.survey_id === '__foreign') patch.survey_id = c.foreignSurveyId;
     put(expected, 'public.survey_questions', 'id', c.question.id, { ...question, ...patch, updated_at: stamp(question.updated_at, times.writerTimestamp) }) }
   if (e.blueprint || Object.keys(e.classroomPatch).length) { const patch = { ...e.classroomPatch };
-    if (patch.teacher_id === '__member') patch.teacher_id = m.actors[1].id; if (patch.archived_at === '__writer_timestamp') patch.archived_at = times.writerTimestamp;
+    if (patch.teacher_id === '__member') patch.teacher_id = m.actors[1].id
+    if (patch.archived_at === '__archive_receipt') {
+      const receipt=times.archiveReceipt;assert(receipt,'Missing actual archive writer receipt')
+      assert.deepEqual(Object.keys(receipt).sort(),['archivedAt','classroomId','label','operationFinishedAt','operationStartedAt','transactionTimestamp'])
+      assert.equal(receipt.label,label);assert.equal(receipt.classroomId,c.classroomId);assert.equal(receipt.transactionTimestamp,times.writerTimestamp)
+      const archiveTime=Date.parse(receipt.archivedAt),operationStart=Date.parse(receipt.operationStartedAt),operationEnd=Date.parse(receipt.operationFinishedAt)
+      assert([archiveTime,operationStart,operationEnd].every(Number.isFinite))
+      assert(started<=operationStart&&operationStart<=archiveTime&&archiveTime<=operationEnd&&operationEnd<=ended,'Archive clock receipt outside actual operation window')
+      patch.archived_at=receipt.archivedAt
+    }
     assert(Number.isSafeInteger(classroom.blueprint_source_revision)); put(expected, 'public.classrooms', 'id', c.classroomId,
       { ...classroom, ...patch, blueprint_source_revision: Number(classroom.blueprint_source_revision) + e.blueprint, updated_at: stamp(classroom.updated_at, times.writerTimestamp) }) }
   if (Object.keys(e.surveyPatch).length) put(expected, 'public.surveys', 'id', c.surveyId, { ...survey, ...e.surveyPatch, updated_at: stamp(survey.updated_at, times.writerTimestamp) })
@@ -437,6 +469,8 @@ export function verifySurveyCommittedEffects(m: SurveyCommittedProofManifest, la
   }
   bump(c.classroomId, e.archive); bump(c.foreignClassroomId, e.foreignArchive)
   assert(isDeepStrictEqual(canonical(expected), canonical(after)), 'Survey exact terminal graph differs')
+  accepted.set(label,{before:structuredClone(before),after:structuredClone(after)})
+  seedGraphs.set(m,structuredClone(after))
   return freeze({ label, archiveRevisionDelta: e.archive, blueprintRevisionDelta: e.blueprint,
     foreignArchiveRevisionDelta: e.foreignArchive, membershipGenerationRemoved: e.membershipRemoved, responseCount: e.responseCount,
     fullGraphVerified: true, nativeVerified: false as const })
