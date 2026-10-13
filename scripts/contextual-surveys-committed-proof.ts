@@ -1,0 +1,443 @@
+/** Inert Survey263 remaining-only proposal. No executor, target, entropy, IO,
+ * admission, deadline renewal or native acceptance is supplied by this module.
+ * The owner must bind actual private NativeSession bootstrap identities and
+ * validate every frame immediately before its guarded dispatch. */
+import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
+import { contextualSurveysConcurrencyCases } from './contextual-surveys-concurrency-cases'
+import { newSurveyNativeFixture, SURVEY_NATIVE_SOURCES, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
+import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
+import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
+
+const hash = (s: string) => createHash('sha256').update(s).digest('hex')
+const q = (s: string) => `'${s.replaceAll("'", "''")}'`
+const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+const id = (tag: string, label: string) => { const h = hash(`${tag}:${label}`); return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}` }
+function freeze<T>(v: T): T { if (v && typeof v === 'object') { Object.values(v).forEach(freeze); Object.freeze(v) }; return v }
+export const SURVEY_COMMITTED_CAPS = Object.freeze({ actions: 200, controls: 4000, sessions: 2, workMs: 720000,
+  cleanupMs: 180000, sqlBytes: 262144, responseBytes: 8388608, polls: 3, observationMs: 750, legacyLockMs: 1000 })
+type Side = 'holder' | 'contender'
+type Graph = Record<string, Record<string, unknown>[]>
+type Lock = Readonly<{ kind: 'row' | 'advisory'; relation: string; targetColumn: 'id' | 'classroom_id'; targetId: string; key: string; mode: 'ExclusiveLock' | 'ShareLock' }>
+type Cohort = Readonly<{ classroomId: string; foreignClassroomId: string; surveyId: string; foreignSurveyId: string;
+  resultSurveyId: string; enrollmentId: string; readerEnrollmentId: string; scopeDigest: string; question: SurveyNativeFixture['question']; aggregateQuestion: SurveyNativeFixture['question']; aggregateResponseId: string }>
+type Effects = Readonly<{ archive: number; blueprint: number; foreignArchive: number; responseWrites: number;
+  responseCount: number; membershipRemoved: boolean; questionPatch: Readonly<Record<string, unknown>>; classroomPatch: Readonly<Record<string, unknown>>; surveyPatch: Readonly<Record<string, unknown>> }>
+type Schedule = Readonly<{ label: string; index: number; direction: 'forward' | 'reverse'; mode: 'wait' | 'nowait';
+  cohort: Cohort; lock: Lock; effects: Effects; retryCode: string | null; frames: Readonly<Record<'cache' | 'holder' | 'contender' | 'release' | 'settle' | 'retry' | 'terminal', string>> }>
+const issued = new WeakSet<object>()
+const seedGraphs = new WeakMap<object, Graph>()
+
+function fixture(f: SurveyNativeFixture) {
+  assert(Object.isFrozen(f)); assert.match(f.tag, /^surveynative_[a-f0-9]{12}$/)
+  assert.equal(f.projectId, `pika_assignment_list_${f.tag.slice(-12)}`)
+  assert.equal(f.actors.length, 4)
+  f.actors.forEach((a, i) => { assert(Object.isFrozen(a)); assert.equal(a.id, id(f.tag, `actor:${i}`)); assert.equal(a.role, ['student', 'teacher', 'student', 'student'][i]); assert.equal(a.email, `${f.tag}_${i}@example.invalid`) })
+  f.classes.forEach((c, i) => { assert.equal(c.id, id(f.tag, `class:${i}`)); assert.equal(c.owner, f.actors[i].id) })
+  assert.equal(f.question.id, id(f.tag, 'question')); assert.equal(f.question.artifact_id, id(f.tag, 'question-artifact'))
+  assert.equal(f.question.survey_id, id(f.tag, 'survey:0'))
+  assert.equal(new Set(f.allocatedIds).size, f.allocatedIds.length)
+  const expected = newSurveyNativeFixture({ manifest: { syntheticTag: `assignmentlist_${f.tag.slice(-12)}` }, allocatedIds: [] } as unknown as AssignmentListProofFixture)
+  assert(isDeepStrictEqual(f, expected), 'Survey actor/cohort source differs')
+}
+function guard(f: SurveyNativeFixture, side: Side, begin: boolean) {
+  const prefix = "begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
+  const terminal = "end;$guard$;select 'ok';rollback;"
+  const original = testOwnerGuardSql(f.projectId)
+  assert(original.startsWith(prefix) && original.endsWith(terminal))
+  const identity = `current_setting('application_name')<>${q(f.projectId + '_fixture')}`
+  assert.equal(original.split(identity).length, 2)
+  const inherited = original.slice(prefix.length, -terminal.length).replace(identity, `current_setting('application_name')<>${q(f.projectId + '_draft_' + side)}`)
+  return `${begin ? "begin;set local lock_timeout='1s';set local statement_timeout='8s';set local idle_in_transaction_session_timeout='180s';" : ''}${inherited}
+ if current_database()<>'postgres' or current_user<>'postgres' or to_regprocedure('public.respond_to_survey_for_member_v1(uuid,uuid,uuid,jsonb,jsonb)') is null then raise exception 'Survey263 committed source differs';end if;end;$guard$;`
+}
+function graphFunctions() {
+  return `create or replace function pg_temp.survey_committed_graph() returns jsonb language plpgsql as $graph$
+ declare g jsonb:='{}'::jsonb;rows jsonb;t record;begin
+ for t in select n.nspname,c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
+ where c.relkind in ('r','p') and n.nspname in ('public','private','storage') order by n.nspname,c.relname loop
+ execute format('select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb) from %I.%I r',t.nspname,t.relname) into rows;
+ g:=g||jsonb_build_object(t.nspname||'.'||t.relname,rows);end loop;return g;end;$graph$;
+ create temporary table if not exists survey_committed_cache(label text primary key,questions jsonb not null,graph jsonb not null) on commit preserve rows;`
+}
+function operations(f: SurveyNativeFixture, c: Cohort, label: string) {
+  const cases = contextualSurveysConcurrencyCases({ ownerId: f.actors[0].id, memberId: f.actors[1].id,
+    resultReaderId: f.actors[3].id, resultSurveyId: c.resultSurveyId, classroomId: c.classroomId,
+    surveyId: c.surveyId, questionId: c.question.id, foreignSurveyId: c.foreignSurveyId }, { expectedQuestions: [c.question], responses: {} })
+  // Cache actual committed seed rows, including their genuine transaction timestamps.
+  const respond = `select public.respond_to_survey_for_member_v1(${q(f.actors[1].id)},${q(c.surveyId)},${q(c.classroomId)},
+ (select questions from survey_committed_cache where label=${q(label)}),${q(JSON.stringify({ [c.question.id]: { question_type: 'short_text', response_text: 'Synthetic response' } }))}::jsonb);`
+  return cases.map(r => ({ ...r, first: r.first.includes('respond_to_survey') ? respond : r.first,
+    second: r.second.includes('respond_to_survey') ? respond : r.second }))
+}
+function performed(sql: string) { return sql.startsWith('select ') ? `perform ${sql.slice(7)}` : sql }
+function attempted(sql: string, expected: string | null) {
+  const jsonRpc = sql.startsWith('select public.')
+  return `create temporary table if not exists survey_committed_operation(result jsonb) on commit preserve rows;delete from survey_committed_operation;
+ do $operation$ declare code text;r jsonb;n integer;begin begin ${jsonRpc ? `r:=${sql.slice(7).replace(/;$/, '')};` : performed(sql)}
+ ${sql.startsWith('update ') || sql.startsWith('delete ') ? "get diagnostics n=row_count;if n<>1 then raise exception 'Exact legacy affected-row count differs';end if;" : ''}
+ ${expected ? "raise exception 'Expected Survey denial missing';" : ''}
+ exception when others then get stacked diagnostics code=returned_sqlstate;
+ ${expected ? `if code is distinct from ${q(expected)} then raise exception 'Survey exact SQLSTATE differs';end if;` : 'raise;'} end;
+ insert into survey_committed_operation values(jsonb_build_object('code',code,'result',r));end;$operation$;`
+}
+function heldWitnessSql(lock: Lock) {
+  const k = `hashtextextended(${q(lock.key)},0)`, predicate = lock.kind === 'advisory'
+    ? `locktype='advisory' and mode=${q(lock.mode)} and classid::bigint=((${k}>>32)&4294967295) and objid::bigint=(${k}&4294967295) and objsubid=1`
+    : "locktype='transactionid' and transactionid::text=pg_current_xact_id()::text and mode='ExclusiveLock'"
+  const rowIdentity = `select ctid::text from ${lock.relation} where ${lock.targetColumn}=${q(lock.targetId)}`
+  const rowHeld = lock.kind === 'advisory' ? 'true' : `exists(select 1 from ${lock.relation} r where ${lock.targetColumn}=${q(lock.targetId)} and (r.xmin::text=pg_current_xact_id()::text or r.xmax::text=pg_current_xact_id()::text))`
+  return `jsonb_build_object('backend',(select jsonb_build_object('pid',pid,'started',backend_start,'name',application_name,'database',datname,'user',usename) from pg_stat_activity where pid=pg_backend_pid()),
+ 'kind',${q(lock.kind)},'relation',${q(lock.relation)},'targetColumn',${q(lock.targetColumn)},'targetId',${q(lock.targetId)},'key',${q(lock.key)},'mode',${q(lock.mode)},
+ 'xid',pg_current_xact_id()::text,'relationOid',${q(lock.relation)}::regclass::oid,'tuple',(${rowIdentity}),
+ 'owned',exists(select 1 from pg_locks where pid=pg_backend_pid() and granted and ${predicate}) and ${rowHeld},
+ 'identity',(select jsonb_build_object('locktype',locktype,'transactionid',transactionid::text,'classid',classid,'objid',objid,'objsubid',objsubid) from pg_locks where pid=pg_backend_pid() and granted and ${predicate} limit 1))`
+}
+function effects(index: number, direction: 'forward' | 'reverse'): Effects {
+  const questionPatch: Record<string, unknown> = {}, classroomPatch: Record<string, unknown> = {}, surveyPatch: Record<string, unknown> = {}
+  let archive = 0, blueprint = 0, foreignArchive = 0, responseWrites = 0, responseCount = 0
+  if ([0, 1, 8].includes(index)) Object.assign(questionPatch, { question_text: 'Concurrent question' })
+  if (index === 9) Object.assign(questionPatch, { question_type: 'multiple_choice', options: ['A', 'B'] })
+  if (index === 10) Object.assign(questionPatch, { question_type: 'multiple_choice', options: ['Changed A', 'Changed B'] })
+  if (index === 11) questionPatch.response_max_chars = 1
+  if (Object.keys(questionPatch).length) { archive = 2; blueprint = 1 }
+  if (index === 7) { questionPatch.survey_id = '__foreign'; archive = 1; foreignArchive = 1 }
+  if (index === 2) { classroomPatch.teacher_id = '__member'; archive = 1 }
+  if (index === 3) { classroomPatch.archived_at = '__writer_timestamp'; archive = 1 }
+  if (index === 4) archive = 1
+  if (index === 12) { surveyPatch.status = 'closed'; archive = 1 }
+  if ((index >= 8 && index <= 12 && direction === 'reverse') || index >= 13) { responseWrites = 1; responseCount = 1; archive++ }
+  // ON CONFLICT fires both BEFORE INSERT and BEFORE UPDATE archive triggers.
+  if (index === 14) { responseWrites = 3; archive += 2 }
+  return freeze({ archive, blueprint, foreignArchive, responseWrites, responseCount, membershipRemoved: index === 4,
+    questionPatch, classroomPatch, surveyPatch })
+}
+
+export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
+  fixture(f)
+  const allocatedIds: string[] = []
+  const schedules: Schedule[] = []
+  for (let index = 0; index < 15; index++) for (const direction of ['forward', 'reverse'] as const) {
+    const namespace = `${f.tag}:committed:${index}:${direction}`
+    const sourceId = (label: string) => { const value = id(namespace, label); allocatedIds.push(value); return value }
+    const classroomId = sourceId('class'), foreignClassroomId = sourceId('foreign-class'), surveyId = sourceId('survey')
+    const c: Cohort = freeze({ classroomId, foreignClassroomId, surveyId, foreignSurveyId: sourceId('foreign-survey'), resultSurveyId: sourceId('result-survey'),
+      enrollmentId: sourceId('enrollment'), readerEnrollmentId: sourceId('reader-enrollment'),
+      scopeDigest: hash(`pika-membership-scope-v1:${classroomId}:${f.actors[1].id}`),
+      question: { ...f.question, id: sourceId('question'), artifact_id: sourceId('artifact'), survey_id: surveyId },
+      aggregateQuestion: { ...f.question, id: sourceId('aggregate-question'), artifact_id: sourceId('aggregate-artifact'), survey_id: id(namespace, 'result-survey') },
+      aggregateResponseId: sourceId('aggregate-response') })
+    const provisional = operations(f, c, 'pending')[index]
+    const label = `${provisional.name}:${direction}`, pair = operations(f, c, label)[index]
+    const first = direction === 'forward' ? pair.first : pair.second, second = direction === 'forward' ? pair.second : pair.first
+    const waitForward = [0, 2, 3, 4, 7].includes(index), waitReverse = [1, 5, 6, 8, 9, 10, 11, 12].includes(index)
+    const mode = direction === 'forward' ? waitForward ? 'wait' : 'nowait' : waitReverse ? 'wait' : 'nowait'
+    const enrollmentRow = index === 4 && direction === 'forward'
+    const advisory = index === 4 && direction === 'reverse' || index === 5 || index === 6
+    const key = index === 5 ? `pika-student-purge-subject:${f.actors[1].id}` : `pika-classroom-operation:${c.classroomId}`
+    const classRow = index === 2 || index === 3
+    const lock: Lock = freeze({ kind: advisory ? 'advisory' : 'row', relation: enrollmentRow ? 'public.classroom_enrollments' : classRow ? 'public.classrooms' : 'public.classroom_archive_revisions',
+      targetColumn: enrollmentRow || classRow ? 'id' : 'classroom_id', targetId: enrollmentRow ? c.enrollmentId : c.classroomId, key: advisory ? key : enrollmentRow ? c.enrollmentId : c.classroomId, mode: 'ExclusiveLock' })
+    const retryCode = [2, 3, 4].includes(index) && direction === 'reverse' ? 'PT403' : index >= 8 && index <= 11 && direction === 'forward' ? 'PT409'
+      : index === 12 && direction === 'forward' || index === 13 ? 'PT400' : null
+    const cache = `${guard(f, 'holder', true)}${graphFunctions()}insert into survey_committed_cache
+ select ${q(label)},coalesce(jsonb_agg(to_jsonb(r) order by position,id),'[]'::jsonb),pg_temp.survey_committed_graph() from public.survey_questions r where survey_id=${q(c.surveyId)};commit;`
+    const holder = `${guard(f, 'holder', true)}${attempted(first, null)}select jsonb_build_object('label',${q(label)},'writerTimestamp',transaction_timestamp(),'heldWitness',${heldWitnessSql(lock)},'operation',(select result from survey_committed_operation),
+ 'responses',(select coalesce(jsonb_agg(to_jsonb(r) order by question_id),'[]'::jsonb) from public.survey_responses r where survey_id=${q(c.surveyId)} and student_id=${q(f.actors[1].id)})) as result;`
+    // Blocking contender begins and executes BEFORE its holder releases; its
+    // promise remains outstanding. No sleep is used to establish that state.
+    const contender = `${guard(f, 'contender', true)}${attempted(second, mode === 'nowait' ? 'PT409' : null)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()) as result;`
+    const retry = `${guard(f, 'contender', true)}${attempted(second, retryCode)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()) as result;commit;`
+    const read = index === 5 ? `select public.get_survey_results_for_member_v1(${q(f.actors[3].id)},${q(c.resultSurveyId)});`
+      : `select public.get_survey_for_${[0, 1, 2, 6, 7].includes(index) ? 'owner' : 'member'}_v1(${q(f.actors[[0, 1, 2, 6, 7].includes(index) ? 0 : 1].id)},${q(c.surveyId)});`
+    const terminalCode = [2, 3, 4].includes(index) ? 'PT403' : null
+    const probeCode = index >= 8 && index <= 11 ? 'PT409' : index === 12 || index === 13 ? 'PT400' : null
+    const probe = probeCode ? `create temporary table survey_committed_fresh_read(result jsonb) on commit drop;insert into survey_committed_fresh_read select result from survey_committed_operation;
+ ${attempted(operations(f, c, label)[index].first.includes('respond_to_survey') ? operations(f, c, label)[index].first : operations(f, c, label)[index].second, probeCode)}` : ''
+    const terminal = `${guard(f, 'holder', true)}${attempted(read, terminalCode)}${probe}
+ select jsonb_build_object('label',${q(label)},'graph',pg_temp.survey_committed_graph(),
+ 'cached_questions',(select questions from survey_committed_cache where label=${q(label)}),
+ 'fresh_read',(select result from ${probeCode ? 'survey_committed_fresh_read' : 'survey_committed_operation'}),
+ 'cached_response_probe',${probeCode ? '(select result from survey_committed_operation)' : 'null'}) as result;commit;`
+    schedules.push(freeze({ label, index, direction, mode, cohort: c, lock, effects: effects(index, direction), retryCode,
+      frames: { cache, holder, contender, release: `${guard(f, 'holder', false)}commit;`, settle: `${guard(f, 'contender', false)}commit;`, retry, terminal } }))
+  }
+  assert.equal(new Set(allocatedIds).size, allocatedIds.length)
+  assert(allocatedIds.every(value => !f.allocatedIds.includes(value)))
+  const seed = `${guard(f, 'holder', true)}${graphFunctions()}
+ create temporary table survey_committed_seed_before(graph jsonb) on commit drop;insert into survey_committed_seed_before values(pg_temp.survey_committed_graph());
+ do $collision$ begin
+ if exists(select 1 from public.classrooms where id in (${allocatedIds.map(q).join(',')}))
+ or exists(select 1 from private.pal_membership_generations where generation_id in (${allocatedIds.map(q).join(',')})) then raise exception 'Committed cohort collision';end if;end;$collision$;
+ ${schedules.map(({ index, cohort: c }) => `insert into public.classrooms(id,teacher_id,title,class_code) values (${q(c.classroomId)},${q(f.actors[0].id)},${q(f.tag)},${q(c.classroomId)}),(${q(c.foreignClassroomId)},${q(f.actors[1].id)},${q(f.tag)},${q(c.foreignClassroomId)});
+ insert into public.classroom_enrollments(id,classroom_id,student_id) values (${q(c.enrollmentId)},${q(c.classroomId)},${q(f.actors[1].id)}),(${q(c.readerEnrollmentId)},${q(c.classroomId)},${q(f.actors[3].id)});
+ insert into public.surveys(id,classroom_id,created_by,title,status,show_results,dynamic_responses,position) values
+ (${q(c.surveyId)},${q(c.classroomId)},${q(f.actors[0].id)},${q(f.tag)},'active',true,${index === 14},0),
+ (${q(c.foreignSurveyId)},${q(c.foreignClassroomId)},${q(f.actors[1].id)},${q(f.tag)},'active',true,false,0),
+ (${q(c.resultSurveyId)},${q(c.classroomId)},${q(f.actors[0].id)},${q(f.tag)},'active',true,false,1);
+ insert into public.survey_questions(id,artifact_id,survey_id,question_type,question_text,options,response_max_chars,position) values
+ ${[c.question, c.aggregateQuestion].map(r => `(${q(r.id)},${q(r.artifact_id)},${q(r.survey_id)},'short_text',${q(r.question_text)},'[]',500,0)`).join(',')};
+ insert into public.survey_responses(id,survey_id,question_id,student_id,response_text) values (${q(c.aggregateResponseId)},${q(c.resultSurveyId)},${q(c.aggregateQuestion.id)},${q(f.actors[1].id)},'Synthetic shared result');`).join('\n')}
+ select jsonb_build_object('before',(select graph from survey_committed_seed_before),'after',pg_temp.survey_committed_graph(),'seedTimestamp',transaction_timestamp()) as result;commit;`
+  const bootstrap = Object.fromEntries((['holder', 'contender'] as const).map(side => [side, `${guard(f, side, true)}${graphFunctions()}
+ ${schedules.map(s => `insert into survey_committed_cache select ${q(s.label)},coalesce(jsonb_agg(to_jsonb(r) order by position,id),'[]'::jsonb),pg_temp.survey_committed_graph() from public.survey_questions r where survey_id=${q(s.cohort.surveyId)};`).join('\n')}commit;`])) as Record<Side, string>
+  const nowait = schedules.filter(s => s.mode === 'nowait').length, wait = 30 - nowait
+  // Held witness shares the holder execute. Each blocking observation is ONE
+  // source-fixed frame containing 1..3 actual-state polls (never sleep-as-proof).
+  // Per direction: holder, contender, release, settlement, terminal; NOWAIT
+  // adds retry; blocking adds one observer dispatch. Two closes execute rollback.
+  const minActions = 3 + 30 * 5 + nowait + wait + 2, maxActions = minActions
+  const sqlFrames = [seed, ...Object.values(bootstrap), ...schedules.flatMap(s => Object.values(s.frames))]
+  sqlFrames.forEach(sql => assert(Buffer.byteLength(sql) <= SURVEY_COMMITTED_CAPS.sqlBytes))
+  const m = freeze({ version: 1, projectId: f.projectId, sourceSha256: SURVEY_NATIVE_SOURCES.migration.sha256,
+    actors: f.actors, originalFixtureSha256: hash(JSON.stringify(f)), allocatedIds, seed, bootstrap, schedules,
+    caps: SURVEY_COMMITTED_CAPS, inventory: { directions: 30, wait, nowait, sessions: 2, opens: 2, closes: 2,
+      seedFrames: 1, bootstrapFrames: 2, holderWitnessFrames: 0, observerFrames: wait, minObserverPolls: wait, maxObserverPolls: wait * 3,
+      minActions, maxActions, staticSqlBytes: sqlFrames.reduce((n, sql) => n + Buffer.byteLength(sql), 0),
+      minimumRollbackReplayActions: 134, withRollbackReplayFits: minActions + 134 <= 200,
+      remainingOnlyFits: minActions <= 200, controlCount: null,
+      controlCountReason: 'Concrete private engine guard/bootstrap/settlement controls are not bound; no exact control count or executable admission is claimed.' },
+    unresolved: ['Concrete private backend bootstrap binding, fresh source seals and guard dispatch inventory are not implemented.',
+      'Membership removal forward must demonstrate the exact enrollment row wait; immediate 40001 is not accepted as a waiter.',
+      'Consolidated committed proposal uses185 actions; only15 remain for all other required actions. Complete remaining acceptance inventory is not sealed, so this module is not executable admission.'],
+    executionEnabled: false as const, nativeVerified: false as const })
+  issued.add(m); return m
+}
+export type SurveyCommittedProofManifest = ReturnType<typeof surveyCommittedProofManifest>
+export function validateSurveyCommittedSource(m: SurveyCommittedProofManifest, source: { migration: string; races: string }) {
+  assert(issued.has(m)); assert.equal(hash(source.migration), m.sourceSha256, 'Stale Survey migration SQL')
+  assert.equal(hash(source.races), SURVEY_NATIVE_SOURCES.races.sha256, 'Stale Survey pair source')
+  return true
+}
+function schedule(m: SurveyCommittedProofManifest, label: string) { assert(issued.has(m) && Object.isFrozen(m), 'Unsealed committed manifest'); const s = m.schedules.find(s => s.label === label); assert(s, 'Unknown committed direction'); return s }
+export function validateSurveyCommittedSql(m: SurveyCommittedProofManifest, label: string, side: Side, frame: keyof Schedule['frames'], sql: string) {
+  try { const s = schedule(m, label); const expectedSide = ['cache', 'holder', 'release', 'terminal'].includes(frame) ? 'holder' : 'contender';
+    return side === expectedSide && typeof sql === 'string' && Buffer.byteLength(sql) <= m.caps.sqlBytes && sql === s.frames[frame] } catch { return false }
+}
+
+/** This DTO must come from actual NativeSession.owned bootstrap; names/queries
+ * selected by callers are not provenance. The owner binds it privately. */
+export type SurveyCommittedBootstrap = Readonly<Record<Side, Readonly<{ pid: number; started: string; name: string; database: 'postgres'; user: 'postgres' }>>>
+function backend(m: SurveyCommittedProofManifest, b: SurveyCommittedBootstrap) {
+  for (const side of ['holder', 'contender'] as const) { const r = b[side]; assert.deepEqual(Object.keys(r).sort(), ['database', 'name', 'pid', 'started', 'user']);
+    assert(Number.isSafeInteger(r.pid) && r.pid > 0); assert(Number.isFinite(Date.parse(r.started))); assert.equal(r.name, `${m.projectId}_draft_${side}`); assert.equal(r.database, 'postgres'); assert.equal(r.user, 'postgres') }
+  assert.notEqual(b.holder.pid, b.contender.pid)
+}
+export function surveyCommittedObservationSql(m: SurveyCommittedProofManifest, label: string, b: SurveyCommittedBootstrap) {
+  const s = schedule(m, label); backend(m, b)
+  const activity = (side: Side) => `(select jsonb_build_object('pid',pid,'started',backend_start,'name',application_name,'database',datname,'user',usename) from pg_stat_activity where pid=${b[side].pid})`
+  const k = `hashtextextended(${q(s.lock.key)},0)`
+  const held = s.lock.kind === 'advisory' ? `exists(select 1 from pg_locks where pid=pg_backend_pid() and granted and locktype='advisory' and mode=${q(s.lock.mode)} and classid::bigint=((${k}>>32)&4294967295) and objid::bigint=(${k}&4294967295) and objsubid=1)`
+    : `exists(select 1 from pg_locks where pid=pg_backend_pid() and granted and locktype='transactionid' and transactionid::text=pg_current_xact_id()::text and mode='ExclusiveLock') and exists(select 1 from ${s.lock.relation} r where ${s.lock.targetColumn}=${q(s.lock.targetId)} and (r.xmin::text=pg_current_xact_id()::text or r.xmax::text=pg_current_xact_id()::text))`
+  const lockIdentity = (pid: number, granted: boolean) => `(select jsonb_build_object('locktype',locktype,'transactionid',transactionid::text,'classid',classid,'objid',objid,'objsubid',objsubid)
+ from pg_locks where pid=${pid} and granted=${granted} and ${s.lock.kind === 'advisory'
+    ? `locktype='advisory' and classid::bigint=((${k}>>32)&4294967295) and objid::bigint=(${k}&4294967295) and objsubid=1`
+    : "locktype='transactionid' and transactionid::text=pg_current_xact_id()::text"} limit 1)`
+  const observation = `jsonb_build_object('label',${q(label)},'observedAt',clock_timestamp(),'holder',${activity('holder')},'contender',${activity('contender')},
+ 'held',jsonb_build_object('kind',${q(s.lock.kind)},'relation',${q(s.lock.relation)},'targetColumn',${q(s.lock.targetColumn)},'targetId',${q(s.lock.targetId)},'key',${q(s.lock.key)},'mode',${q(s.lock.mode)},
+ 'xid',pg_current_xact_id()::text,'relationOid',${q(s.lock.relation)}::regclass::oid,'tuple',(select ctid::text from ${s.lock.relation} where ${s.lock.targetColumn}=${q(s.lock.targetId)}),'owned',${held},'identity',${lockIdentity(b.holder.pid, true)}),
+ 'blockers',to_jsonb(pg_blocking_pids(${b.contender.pid})),'waiter',(select to_jsonb(a)||jsonb_build_object('identity',${lockIdentity(b.contender.pid, false)}) from (select wait_event_type,wait_event,state from pg_stat_activity where pid=${b.contender.pid} and wait_event_type='Lock') a))`
+  const sql = `${guard({ projectId: m.projectId } as SurveyNativeFixture, 'holder', false)}
+ do $backend$ begin if pg_backend_pid()<>${b.holder.pid} or not exists(select 1 from pg_stat_activity where pid=pg_backend_pid()
+ and backend_start=${q(b.holder.started)}::timestamptz and application_name=${q(b.holder.name)} and datname='postgres' and usename='postgres')
+ then raise exception 'Actual committed holder bootstrap differs';end if;end;$backend$;
+ create temporary table survey_committed_observation(result jsonb) on commit drop;
+ do $observe$ declare r jsonb;poll integer;started timestamptz:=clock_timestamp();begin
+ for poll in 1..${m.caps.polls} loop
+ if clock_timestamp()-started>interval '750 milliseconds' then raise exception 'Survey finite observer deadline';end if;
+ perform pg_stat_clear_snapshot();r:=${observation}||jsonb_build_object('poll',poll);
+ exit when ${s.mode === 'nowait' ? 'true' : `r->'blockers'=jsonb_build_array(${b.holder.pid}) and r->'waiter'<>'null'::jsonb`};end loop;
+ insert into survey_committed_observation values(r);end;$observe$;select result from survey_committed_observation;`
+  assert(Buffer.byteLength(sql) <= m.caps.sqlBytes); return sql
+}
+export function validateSurveyCommittedObservationSql(m: SurveyCommittedProofManifest, label: string, b: SurveyCommittedBootstrap, sql: string) {
+  try { return sql === surveyCommittedObservationSql(m, label, b) } catch { return false }
+}
+export type SurveyCommittedClock = Readonly<{ startedAt: number; workDeadline: number; dispatchedAt: number; observedAt: number; contenderPending: boolean; poll: number }>
+export function verifySurveyCommittedWitness(m: SurveyCommittedProofManifest, label: string, b: SurveyCommittedBootstrap, raw: unknown, clock: SurveyCommittedClock) {
+  const s = schedule(m, label); backend(m, b)
+  assert(Object.values(clock).every(v => typeof v === 'boolean' || Number.isFinite(v)))
+  assert(clock.startedAt <= clock.dispatchedAt && clock.dispatchedAt <= clock.observedAt && clock.observedAt < clock.workDeadline)
+  assert(clock.workDeadline - clock.startedAt <= m.caps.workMs && clock.observedAt - clock.dispatchedAt <= m.caps.observationMs)
+  assert(Number.isInteger(clock.poll) && clock.poll >= 1 && clock.poll <= m.caps.polls)
+  const r = raw as Record<string, unknown>; assert(r && r.label === label); assert.equal(r.poll, clock.poll); assert.equal(Date.parse(String(r.observedAt)), clock.observedAt)
+  const normalize = (v: unknown) => { const a = v as Record<string, unknown>; return { ...a, started: new Date(String(a.started)).toISOString() } }
+  assert(isDeepStrictEqual(normalize(r.holder), normalize(b.holder))); assert(isDeepStrictEqual(normalize(r.contender), normalize(b.contender)))
+  const held = r.held as Record<string, unknown>; assert(held && held.owned === true)
+  for (const [key, value] of Object.entries(s.lock)) assert.equal(held[key], value)
+  assert(typeof held.xid === 'string' && /^\d+$/.test(held.xid)); assert(Number.isSafeInteger(held.relationOid) && Number(held.relationOid) > 0)
+  assert(typeof held.tuple === 'string' && /^\(\d+,\d+\)$/.test(held.tuple))
+  const identity = held.identity as Record<string, unknown>
+  assert(identity && identity.locktype === (s.lock.kind === 'row' ? 'transactionid' : 'advisory'))
+  if (s.lock.kind === 'row') assert.equal(identity.transactionid, held.xid)
+  else { assert(Number.isSafeInteger(identity.classid) && Number(identity.classid) >= 0); assert(Number.isSafeInteger(identity.objid) && Number(identity.objid) >= 0); assert.equal(identity.objsubid, 1) }
+  if (s.mode === 'wait') { assert(clock.contenderPending); assert.deepEqual(r.blockers, [b.holder.pid]); const w = r.waiter as Record<string, unknown>;
+    assert(w && w.wait_event_type === 'Lock' && w.state === 'active'); assert.equal(w.wait_event, s.lock.kind === 'advisory' ? 'advisory' : 'transactionid'); assert(isDeepStrictEqual(w.identity, identity), 'Actual waiter lock identity differs') }
+  else { assert(!clock.contenderPending); assert.deepEqual(r.blockers, []); assert.equal(r.waiter, null); assert.equal(r.code, 'PT409'); assert(typeof r.immediateMs === 'number' && r.immediateMs >= 0 && r.immediateMs < m.caps.observationMs) }
+  return freeze({ label, heldBackendVerified: true, blockingEdgeVerified: s.mode === 'wait', nativeVerified: false as const })
+}
+
+function row(g: Graph, table: string, column: string, value: string) { assert(Array.isArray(g[table])); const rows = g[table].filter(r => r[column] === value); assert.equal(rows.length, 1, 'Exact committed row differs'); return rows[0] }
+function put(g: Graph, table: string, column: string, value: string, replacement: Record<string, unknown> | null) {
+  g[table] = g[table].filter(r => r[column] !== value); if (replacement) g[table].push(replacement)
+}
+function canonical(g: Graph) { return Object.fromEntries(Object.keys(g).sort().map(t => [t, g[t].map(r => JSON.stringify(Object.fromEntries(Object.entries(r).sort(([a], [b]) => a.localeCompare(b))))).sort()])) }
+/** Independent fixed defaults from006/058/081/108/112/128/147/150/205/222.
+ * Only generated artifact/category UUIDs and168 Pal references are observed;
+ * every relationship/value/counter/timestamp is specified independently. */
+function expectedSeed(m: SurveyCommittedProofManifest, actual: Graph, timestamp: string): Graph {
+  const g: Graph = Object.fromEntries(['public.classrooms','public.classroom_archive_revisions','public.classroom_enrollments',
+    'public.surveys','public.survey_questions','public.survey_responses','public.gradebook_categories','private.pal_membership_generations'].map(t => [t, []]))
+  for (const s of m.schedules) { const c = s.cohort
+    for (const [cid, owner, blueprint, archive] of [[c.classroomId,m.actors[0].id,5,15],[c.foreignClassroomId,m.actors[1].id,2,6]] as const) {
+      g['public.classrooms'].push({ id: cid, teacher_id: owner, title: `surveynative_${m.projectId.slice(-12)}`, class_code: cid,
+        term_label: null, created_at: timestamp, updated_at: timestamp, start_date: null, end_date: null, archived_at: null,
+        position: 0, allow_enrollment: true, join_policy: 'roster', lesson_plan_visibility: 'current_week', theme_color: 'blue',
+        source_blueprint_id: null, source_blueprint_origin: null, source_blueprint_version_id: null, authoring_guidance_version_id: null,
+        actual_site_slug: null, actual_site_published: false, actual_site_config: { overview: true, outline: true, resources: true,
+          assignments: true, tests: true, lesson_plans: true, announcements: true, lesson_plan_scope: 'current_week' },
+        course_overview_markdown: '', course_outline_markdown: '', blueprint_source_revision: blueprint,
+        manual_attendance_source_mode: 'manual', manual_attendance_revision: 1, manual_attendance_session_starts_local: null, manual_attendance_session_ends_local: null,
+        feature_visibility: { attendance: true, classwork: true, tests: true, gradebook: true, student_grades: false, calendar: true, syllabus: true, announcements: true, achievements: true } })
+      g['public.classroom_archive_revisions'].push({ classroom_id: cid, revision: archive, updated_at: timestamp })
+      for (const [name, percentage, position, is_default] of [['Attendance',10,0,false],['Term',65,1,true],['Final',25,2,false]] as const) {
+        const rows = actual['public.gradebook_categories'].filter(r => r.classroom_id === cid && r.name === name); assert.equal(rows.length,1)
+        g['public.gradebook_categories'].push({ id: rows[0].id, classroom_id: cid, name, percentage, position, is_default,
+          default_assessment_weight: 10, created_at: timestamp, updated_at: timestamp })
+      }
+    }
+    for (const [eid, actor] of [[c.enrollmentId,m.actors[1].id],[c.readerEnrollmentId,m.actors[3].id]]) {
+      g['public.classroom_enrollments'].push({ id: eid, classroom_id: c.classroomId, student_id: actor, created_at: timestamp, manual_attendance_marks: {} })
+      g['private.pal_membership_generations'].push({ generation_id: eid, scope_digest: hash(`pika-membership-scope-v1:${c.classroomId}:${actor}`),
+        pal_reference: row(actual,'private.pal_membership_generations','generation_id',eid).pal_reference, state: 'active' })
+    }
+    for (const [sid,cid,owner,position,dynamic] of [[c.surveyId,c.classroomId,m.actors[0].id,0,s.index===14],
+      [c.foreignSurveyId,c.foreignClassroomId,m.actors[1].id,0,false],[c.resultSurveyId,c.classroomId,m.actors[0].id,1,false]] as const) {
+      g['public.surveys'].push({ id:sid,classroom_id:cid,created_by:owner,position,dynamic_responses:dynamic,title:`surveynative_${m.projectId.slice(-12)}`,
+        artifact_id:row(actual,'public.surveys','id',sid).artifact_id,source_artifact_id:null,source_blueprint_version_id:null,blueprint_archived_at:null,
+        status:'active',show_results:true,opens_at:null,created_at:timestamp,updated_at:timestamp })
+    }
+    g['public.survey_questions'].push(...[c.question,c.aggregateQuestion].map(r=>({...r,created_at:timestamp,updated_at:timestamp})))
+    g['public.survey_responses'].push({id:c.aggregateResponseId,survey_id:c.resultSurveyId,question_id:c.aggregateQuestion.id,student_id:m.actors[1].id,
+      selected_option:null,response_text:'Synthetic shared result',submitted_at:timestamp,updated_at:timestamp})
+  }
+  return g
+}
+export function verifySurveyCommittedSeed(m: SurveyCommittedProofManifest, before: Graph, after: Graph, times: {startedAt:string;endedAt:string;seedTimestamp:string}) {
+  assert(issued.has(m)); const st=Date.parse(times.seedTimestamp);assert(Date.parse(times.startedAt)<=st&&st<=Date.parse(times.endedAt))
+  assert(Date.parse(times.endedAt)-Date.parse(times.startedAt)<=m.caps.workMs)
+  assert(isDeepStrictEqual(Object.keys(before).sort(),Object.keys(after).sort()))
+  const additions=expectedSeed(m,after,times.seedTimestamp),expected=structuredClone(before),freshIds:string[]=[],freshReferences:string[]=[]
+  const priorIds=new Set(Object.values(before).flat().flatMap(r=>[r.id,r.artifact_id,r.generation_id].filter(v=>typeof v==='string')))
+  const priorReferences=new Set((before['private.pal_membership_generations']??[]).map(r=>r.pal_reference))
+  for(const [table,rows] of Object.entries(additions)) {
+    assert(Array.isArray(before[table])); for(const r of rows) {
+      for(const field of ['id','artifact_id','generation_id']) if(typeof r[field]==='string') { const value=String(r[field]);assert(uuid.test(value)&&!priorIds.has(value));freshIds.push(value) }
+      if(table==='private.pal_membership_generations') {assert(typeof r.pal_reference==='string'&&/^pika-membership-v1-[a-f0-9]{32}$/.test(r.pal_reference)&&!priorReferences.has(r.pal_reference));freshReferences.push(String(r.pal_reference))}
+    }
+    expected[table].push(...rows)
+  }
+  // Enrollment UUID is legitimately repeated once as its generation primary key.
+  const enrollmentIds=new Set(additions['public.classroom_enrollments'].map(r=>r.id))
+  assert.equal(freshIds.length-new Set(freshIds).size,enrollmentIds.size)
+  assert.equal(new Set(freshReferences).size,freshReferences.length)
+  assert(isDeepStrictEqual(canonical(expected),canonical(after)),'Exact committed seed/full non-target graph differs')
+  seedGraphs.set(m,structuredClone(after))
+  return freeze({seededClasses:60,seededSurveys:90,seededQuestions:60,seededResponses:30,seededEnrollments:60,freshGenerations:60,
+    defaultGradebookCategories:180,mainArchiveRevision:15,foreignArchiveRevision:6,mainBlueprintRevision:5,foreignBlueprintRevision:2,nativeVerified:false as const})
+}
+function assertBaseline(m:SurveyCommittedProofManifest,s:Schedule,before:Graph) {
+  const seed=seedGraphs.get(m);assert(seed,'Missing validated captured seed graph')
+  const c=s.cohort,identities=[c.classroomId,c.foreignClassroomId,c.surveyId,c.foreignSurveyId,c.resultSurveyId,c.question.id,c.aggregateQuestion.id,c.aggregateResponseId,c.enrollmentId,c.readerEnrollmentId]
+  for(const [table,rows] of Object.entries(seed)) {
+    const target=(r:Record<string,unknown>)=>identities.some(value=>[r.id,r.generation_id,r.classroom_id].includes(value))
+    assert(isDeepStrictEqual(canonical({[table]:rows.filter(target)}),canonical({[table]:before[table].filter(target)})),'Captured cohort seed baseline differs')
+  }
+}
+type Operation = Readonly<{code:string|null;result:unknown}>
+function detail(g:Graph,c:Cohort,member:boolean,actor:string) {
+  const cl=row(g,'public.classrooms','id',c.classroomId),survey=row(g,'public.surveys','id',c.surveyId)
+  return {classroom:{id:cl.id,teacher_id:cl.teacher_id,archived_at:cl.archived_at},survey,
+    questions:g['public.survey_questions'].filter(r=>r.survey_id===c.surveyId).sort((a,b)=>Number(a.position)-Number(b.position)||String(a.id).localeCompare(String(b.id))),
+    responses:member?g['public.survey_responses'].filter(r=>r.survey_id===c.surveyId&&r.student_id===actor).sort((a,b)=>String(a.question_id).localeCompare(String(b.question_id))):[]}
+}
+function aggregate(g:Graph,c:Cohort) {
+  const cl=row(g,'public.classrooms','id',c.classroomId),survey=row(g,'public.surveys','id',c.resultSurveyId)
+  const question=row(g,'public.survey_questions','id',c.aggregateQuestion.id),response=row(g,'public.survey_responses','id',c.aggregateResponseId)
+  return {classroom:{id:cl.id,teacher_id:cl.teacher_id,archived_at:cl.archived_at},survey:Object.fromEntries(['id','title','status','show_results','dynamic_responses'].map(k=>[k,survey[k]])),
+    results:[{question_id:question.id,question_type:question.question_type,question_text:question.question_text,options:[],counts:[],total_responses:1,
+      responses:[Object.fromEntries(['response_text','submitted_at','updated_at'].map(k=>[k,response[k]]).concat([['response_id',response.id]]))]}]}
+}
+export function verifySurveyCommittedEnvelopes(m:SurveyCommittedProofManifest,label:string,before:Graph,after:Graph,raw:{holder:Operation;contender:Operation;retry?:Operation;cachedQuestions:unknown;freshRead:Operation;cachedResponseProbe:Operation|null}) {
+  const s=schedule(m,label),c=s.cohort;assertBaseline(m,s,before)
+  const readMember=[3,4].includes(s.index),readOwner=[0,1,2,6,7].includes(s.index),read=s.index===5?'aggregate':readMember?'member':readOwner?'owner':null
+  const firstRead=read&&((s.index===1||s.index===5||s.index===6)?s.direction==='reverse':s.direction==='forward')
+  const envelope=(g:Graph)=>read==='aggregate'?aggregate(g,c):detail(g,c,read==='member',m.actors[1].id)
+  const success=(result:unknown):Operation=>({code:null,result}),denied=(code:string):Operation=>({code,result:null})
+  const holderRespond=s.index>=13||s.index>=8&&s.direction==='reverse'
+  assert(isDeepStrictEqual(raw.holder,success(firstRead?envelope(before):holderRespond?{success:true,updated:false}:null)),'Holder operation envelope differs')
+  const secondRead=Boolean(read)&&!firstRead
+  const contenderRespond=s.index>=13||s.index>=8&&s.direction==='forward'
+  assert(isDeepStrictEqual(raw.contender,s.mode==='nowait'?denied('PT409'):success(secondRead?envelope(after):contenderRespond?{success:true,updated:false}:null)),'Contender operation envelope differs')
+  if(s.mode==='nowait')assert(isDeepStrictEqual(raw.retry,s.retryCode?denied(s.retryCode):success(secondRead?envelope(after):contenderRespond?{success:true,updated:s.index===14}:null)),'Retry envelope differs')
+  else assert.equal(raw.retry,undefined)
+  assert(isDeepStrictEqual(raw.cachedQuestions,[row(before,'public.survey_questions','id',c.question.id)]),'Cached committed question source differs')
+  const fresh=[2,3,4].includes(s.index)?denied('PT403'):success(s.index===5?aggregate(after,c):detail(after,c,![0,1,2,6,7].includes(s.index),m.actors[1].id))
+  assert(isDeepStrictEqual(raw.freshRead,fresh),'Fresh committed read envelope differs')
+  const probe=s.index>=8&&s.index<=11?'PT409':s.index===12||s.index===13?'PT400':null
+  assert(isDeepStrictEqual(raw.cachedResponseProbe,probe?denied(probe):null),'Cached response freshness probe differs')
+  return freeze({label,cachedSourceVerified:true,operationEnvelopesVerified:true,freshReadVerified:true,nativeVerified:false as const})
+}
+export type SurveyCommittedTimes = Readonly<{ startedAt: string; endedAt: string; writerTimestamp: string; responseTimestamp?: string; responseId?: string; responseSubmittedAt?: string; firstResponse?: Readonly<Record<string, unknown>> }>
+/** Exact independent effect ledger; all other catalog tables/rows must match.
+ * Baseline is the captured genuine seeded cohort, never a reconstructed receipt. */
+export function verifySurveyCommittedEffects(m: SurveyCommittedProofManifest, label: string, before: Graph, after: Graph, times: SurveyCommittedTimes) {
+  const s = schedule(m, label), c = s.cohort, e = s.effects
+  assertBaseline(m,s,before)
+  const started = Date.parse(times.startedAt), ended = Date.parse(times.endedAt), written = Date.parse(times.writerTimestamp)
+  assert(Number.isFinite(started) && Number.isFinite(ended) && Number.isFinite(written)); assert(started <= written && written <= ended && ended - started <= m.caps.workMs)
+  assert(Buffer.byteLength(JSON.stringify(before)) <= m.caps.responseBytes && Buffer.byteLength(JSON.stringify(after)) <= m.caps.responseBytes)
+  assert(isDeepStrictEqual(Object.keys(before).sort(), Object.keys(after).sort()))
+  const expected = structuredClone(before)
+  const classroom = row(before, 'public.classrooms', 'id', c.classroomId), survey = row(before, 'public.surveys', 'id', c.surveyId)
+  assert.equal(classroom.teacher_id, m.actors[0].id); assert.equal(classroom.archived_at, null); assert.equal(survey.classroom_id, c.classroomId)
+  assert.equal(survey.status, 'active'); assert.equal(survey.dynamic_responses, s.index === 14)
+  const enrollment = row(before, 'public.classroom_enrollments', 'id', c.enrollmentId)
+  assert.equal(enrollment.classroom_id, c.classroomId); assert.equal(enrollment.student_id, m.actors[1].id)
+  const generation = row(before, 'private.pal_membership_generations', 'generation_id', c.enrollmentId)
+  assert.equal(generation.state, 'active'); assert.equal(generation.scope_digest, c.scopeDigest)
+  assert(typeof generation.pal_reference === 'string' && /^pika-membership-v1-[a-f0-9]{32}$/.test(generation.pal_reference))
+  const question = row(before, 'public.survey_questions', 'id', c.question.id)
+  assert(isDeepStrictEqual({ ...question, created_at: c.question.created_at, updated_at: c.question.updated_at }, c.question))
+  assert.equal(before['public.survey_responses'].filter(r => r.survey_id === c.surveyId).length, 0)
+  const stamp = (previous: unknown, value: string) => { assert(typeof previous === 'string' && Date.parse(previous) <= Date.parse(value)); return value }
+  const bump = (cid: string, amount: number) => { if (!amount) return; const r = row(expected, 'public.classroom_archive_revisions', 'classroom_id', cid);
+    assert(Number.isSafeInteger(r.revision)); put(expected, 'public.classroom_archive_revisions', 'classroom_id', cid, { ...r, revision: Number(r.revision) + amount, updated_at: stamp(r.updated_at, times.writerTimestamp) }) }
+  if (Object.keys(e.questionPatch).length) { const patch = { ...e.questionPatch }; if (patch.survey_id === '__foreign') patch.survey_id = c.foreignSurveyId;
+    put(expected, 'public.survey_questions', 'id', c.question.id, { ...question, ...patch, updated_at: stamp(question.updated_at, times.writerTimestamp) }) }
+  if (e.blueprint || Object.keys(e.classroomPatch).length) { const patch = { ...e.classroomPatch };
+    if (patch.teacher_id === '__member') patch.teacher_id = m.actors[1].id; if (patch.archived_at === '__writer_timestamp') patch.archived_at = times.writerTimestamp;
+    assert(Number.isSafeInteger(classroom.blueprint_source_revision)); put(expected, 'public.classrooms', 'id', c.classroomId,
+      { ...classroom, ...patch, blueprint_source_revision: Number(classroom.blueprint_source_revision) + e.blueprint, updated_at: stamp(classroom.updated_at, times.writerTimestamp) }) }
+  if (Object.keys(e.surveyPatch).length) put(expected, 'public.surveys', 'id', c.surveyId, { ...survey, ...e.surveyPatch, updated_at: stamp(survey.updated_at, times.writerTimestamp) })
+  if (e.membershipRemoved) { put(expected, 'public.classroom_enrollments', 'id', c.enrollmentId, null);
+    put(expected, 'private.pal_membership_generations', 'generation_id', c.enrollmentId, { ...generation, state: 'removed' }) }
+  if (e.responseCount) { assert(times.responseId && uuid.test(times.responseId) && !m.allocatedIds.includes(times.responseId));
+    assert(!Object.values(before).flat().some(r => r.id === times.responseId)); assert(times.responseTimestamp && times.responseSubmittedAt);
+    const rt = Date.parse(times.responseTimestamp), st = Date.parse(times.responseSubmittedAt); assert(started <= st && st <= rt && rt <= ended);
+    const response = row(after, 'public.survey_responses', 'id', times.responseId)
+    assert(isDeepStrictEqual(response, { id: times.responseId, survey_id: c.surveyId, question_id: c.question.id, student_id: m.actors[1].id,
+      selected_option: null, response_text: 'Synthetic response', submitted_at: times.responseSubmittedAt, updated_at: times.responseTimestamp }))
+    if (s.index === 14) { const first = times.firstResponse; assert(first, 'Missing actual first committed response witness');
+      assert(isDeepStrictEqual({ ...response, updated_at: first.updated_at }, first)); assert.equal(first.updated_at, first.submitted_at)
+      assert(typeof first.updated_at === 'string' && Date.parse(first.updated_at) <= rt)
+    }
+    expected['public.survey_responses'].push(response)
+  }
+  bump(c.classroomId, e.archive); bump(c.foreignClassroomId, e.foreignArchive)
+  assert(isDeepStrictEqual(canonical(expected), canonical(after)), 'Survey exact terminal graph differs')
+  return freeze({ label, archiveRevisionDelta: e.archive, blueprintRevisionDelta: e.blueprint,
+    foreignArchiveRevisionDelta: e.foreignArchive, membershipGenerationRemoved: e.membershipRemoved, responseCount: e.responseCount,
+    fullGraphVerified: true, nativeVerified: false as const })
+}
