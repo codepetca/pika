@@ -35,7 +35,8 @@ function capturedSeed(m:ReturnType<typeof manifest>) {
 }
 import {createHash} from 'node:crypto'
 const scopeDigest=(cid:string,actor:string)=>createHash('sha256').update(`pika-membership-scope-v1:${cid}:${actor}`).digest('hex')
-function admitSeed(m:ReturnType<typeof manifest>,g:Graph){const before=Object.fromEntries(Object.entries(g).map(([t,rows])=>[t,['public.untouched','public.users'].includes(t)?rows:[]]));verifySurveyCommittedSeed(m,before,g,{startedAt:seedStamp,endedAt:seedStamp,seedTimestamp:seedStamp});return before}
+function seedBefore(g:Graph){return Object.fromEntries(Object.entries(g).map(([t,rows])=>[t,['public.untouched','public.users'].includes(t)?rows:[]]))}
+function admitSeed(m:ReturnType<typeof manifest>,g:Graph){const before=seedBefore(g);verifySurveyCommittedSeed(m,before,g,{startedAt:seedStamp,endedAt:seedStamp,seedTimestamp:seedStamp});return before}
 function changedCase(s:ReturnType<typeof manifest>['schedules'][number],before:Graph){
   const {index,direction,cohort:c}=s
   const after=structuredClone(before),one=(g:Graph,t:string,key:string,value:string)=>g[t].find(r=>r[key]===value)!
@@ -124,15 +125,15 @@ describe('source-only Survey committed directions', () => {
     const c = s.cohort
     const g = capturedSeed(m);admitSeed(m,g)
     const times = { startedAt: '2026-10-13T03:00:00Z', endedAt: '2026-10-13T03:00:01Z', writerTimestamp: '2026-10-13T03:00:00Z' }
-    expect(verifySurveyCommittedEffects(m, s.label, g, g, times).nativeVerified).toBe(false)
     expect(() => verifySurveyCommittedEffects(m, s.label, g, { ...g, 'public.foreign': [] }, times)).toThrow()
     const altered = structuredClone(g); altered['private.pal_membership_generations'][0].state = 'removed'
-    expect(() => verifySurveyCommittedEffects(m, s.label, g, altered, times)).toThrow()
+    expect(() => verifySurveyCommittedEffects(m, s.label, g, altered, times)).toThrow('Survey exact terminal graph differs')
     expect(() => verifySurveyCommittedEffects(m, s.label, g, g, { ...times, writerTimestamp: '2026-10-12T00:00:00Z' })).toThrow()
     const stale = structuredClone(g); stale['public.classrooms'][0].blueprint_source_revision=999
-    expect(() => verifySurveyCommittedEffects(m, s.label, g, stale, times)).toThrow()
+    expect(() => verifySurveyCommittedEffects(m, s.label, g, stale, times)).toThrow('Survey exact terminal graph differs')
     const substituted = structuredClone(g); substituted['public.classroom_enrollments'][0].id = f.enrollments[1].id
-    expect(() => verifySurveyCommittedEffects(m, s.label, g, substituted, times)).toThrow()
+    expect(() => verifySurveyCommittedEffects(m, s.label, g, substituted, times)).toThrow('Survey exact terminal graph differs')
+    expect(verifySurveyCommittedEffects(m, s.label, g, g, times).nativeVerified).toBe(false)
   })
   it('counts Blueprint/archive and duplicate response effects from actual triggers', () => {
     const m = manifest()
@@ -155,14 +156,15 @@ describe('source-only Survey committed directions', () => {
     expect(typeof verifySurveyCommittedSeed).toBe('function')
   })
   it('rejects seed drift, non-target changes, repeated generations, stale epochs and default-category drift',()=>{
-    const m=manifest(),g=capturedSeed(m),before=admitSeed(m,g)
-    for(const defect of ['non-target','category','generation','stamp','revision'] as const){const bad=structuredClone(g)
+    for(const defect of ['non-target','category','generation','stamp','revision'] as const){
+      const m=manifest(),g=capturedSeed(m),before=seedBefore(g),bad=structuredClone(g)
       if(defect==='non-target')bad['public.untouched'][0].value='changed'
       if(defect==='category')bad['public.gradebook_categories'][0].percentage=99
       if(defect==='generation')bad['private.pal_membership_generations'][0].state='removed'
       if(defect==='stamp')bad['public.classroom_enrollments'][0].created_at='2026-10-12T00:00:00Z'
       if(defect==='revision')bad['public.classroom_archive_revisions'][0].revision=999
-      expect(()=>verifySurveyCommittedSeed(m,before,bad,{startedAt:seedStamp,endedAt:seedStamp,seedTimestamp:seedStamp})).toThrow()
+      expect(()=>verifySurveyCommittedSeed(m,before,bad,{startedAt:seedStamp,endedAt:seedStamp,seedTimestamp:seedStamp})).toThrow('Exact committed seed/full non-target graph differs')
+      expect(verifySurveyCommittedSeed(m,before,g,{startedAt:seedStamp,endedAt:seedStamp,seedTimestamp:seedStamp}).nativeVerified).toBe(false)
     }
   })
   it('authenticates the entire next baseline, including unchanged corruption in both graphs',()=>{
@@ -222,6 +224,10 @@ describe('source-only Survey committed directions', () => {
       expect(()=>verifySurveyCommittedEffects(m,s.label,before,after,{...times,archiveReceipt:{...times.archiveReceipt!,transactionTimestamp:times.archiveReceipt!.archivedAt}})).toThrow()
       expect(()=>verifySurveyCommittedEffects(m,s.label,before,after,{...times,archiveReceipt:{...times.archiveReceipt!,operationFinishedAt:times.writerTimestamp}})).toThrow('outside actual operation window')
     }
+    const unrelated=structuredClone(after);unrelated['public.untouched'][0].value='changed'
+    expect(()=>verifySurveyCommittedEffects(m,s.label,before,unrelated,times)).toThrow('Survey exact terminal graph differs')
+    const revision=structuredClone(after);one(revision,'public.classroom_archive_revisions','classroom_id',c.classroomId).revision=1000
+    expect(()=>verifySurveyCommittedEffects(m,s.label,before,revision,times)).toThrow('Survey exact terminal graph differs')
     expect(verifySurveyCommittedEffects(m,s.label,before,after,times)).toMatchObject({archiveRevisionDelta:delta,nativeVerified:false})
     const detail=(g:Graph,member:boolean)=>{const klass=one(g,'public.classrooms','id',c.classroomId);return{classroom:{id:klass.id,teacher_id:klass.teacher_id,archived_at:klass.archived_at},survey:one(g,'public.surveys','id',c.surveyId),questions:g['public.survey_questions'].filter(r=>r.survey_id===c.surveyId),responses:member?g['public.survey_responses'].filter(r=>r.survey_id===c.surveyId&&r.student_id===f.actors[1].id):[]}}
     const aggregate=(g:Graph)=>{const klass=one(g,'public.classrooms','id',c.classroomId),survey=one(g,'public.surveys','id',c.resultSurveyId),r=one(g,'public.survey_responses','id',c.aggregateResponseId);return{classroom:{id:klass.id,teacher_id:klass.teacher_id,archived_at:klass.archived_at},survey:{id:survey.id,title:survey.title,status:survey.status,show_results:survey.show_results,dynamic_responses:survey.dynamic_responses},results:[{question_id:c.aggregateQuestion.id,question_type:'short_text',question_text:c.aggregateQuestion.question_text,options:[],counts:[],total_responses:1,responses:[{response_id:r.id,response_text:r.response_text,submitted_at:r.submitted_at,updated_at:r.updated_at}]}]}}
@@ -240,9 +246,5 @@ describe('source-only Survey committed directions', () => {
     const launderedBefore=structuredClone(before),launderedAfter=structuredClone(after)
     launderedBefore['public.users'][0].role='teacher';launderedAfter['public.users'][0].role='teacher'
     expect(()=>verifySurveyCommittedEnvelopes(m,s.label,launderedBefore,launderedAfter,receipts)).toThrow('Authenticated envelope graphs differ')
-    const unrelated=structuredClone(after);unrelated['public.untouched'][0].value='changed'
-    expect(()=>verifySurveyCommittedEffects(m,s.label,before,unrelated,times)).toThrow()
-    const revision=structuredClone(after);one(revision,'public.classroom_archive_revisions','classroom_id',c.classroomId).revision=1000
-    expect(()=>verifySurveyCommittedEffects(m,s.label,before,revision,times)).toThrow()
   })
 })
