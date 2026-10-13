@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading disposable native acceptance passes
-
-Exact reviewedd714cb2f/full001–259/project01067ea3558c run16809 completed exit0,
-success/nativeVerified true and cleanupFailures[]. History, rollback/ACLs,
-genuine CLI types identical, closed-engine privilege/restoration/held schedules,
-real SDK manual-zero/provenance/answered-MC clear/return/disclosure/retraction
-and six committed owner/parent/roster/archive/source/AI denials PASS. Captured
-PostgREST hoisting and actual8s57014 cancellation preserved fullfixture/catalog
-and settled zeroRPC backends. Exact owned cleanup/global inventory/ports/whole
-canonical app rows/settings/cron/resources/sourcefreeze PASS. Receipt result
-mtime14:57:33UTC; exact process exit timestamp unknown. Two entry flags inert
-again and all seven reviewed hashes match. No duplicate run/shared migration/
-production/provider/account/activation. Seeded produced metadata is not later
-authenticated token-route coverage; batch2/goal remain open and goaltoolPAUSED.
-Factual docs delta only; runtime/SQL/generated/CI evidence reused only after
-byte equivalence and targeted independent delta review. Original ledger10turns/
-2626measureds+unknown9/targeted7/final1/fix7 under delegated workflow authority.
-
 ## 2026-10-11 — CI catches compact continuity contract wording
 
 Reviewed factual-doc descendantab7c native-source bytes identicald714; narrow
@@ -751,3 +733,22 @@ check approval consumed. Next requires separately authorized bounded cleanup of
 that verified test family and source diagnosis of snapshot rejection before any
 fresh run. Review46/fix35 carry; PR1581 draft/full gate failed, native/app exit
 absent. Production/shared-local/cutover/provider/account holds stay unchanged.
+
+## 2026-10-13 Separate cf7 recovery closes only verified test family
+
+Human approved a separate12s cleanup and source-only diagnosis, not another run.
+Fresh exact daemon argv/cwd/kernel identities and reconciled family passed;
+unchanged reviewed PID-specific settlement completed in819ms with24 bounded
+queries and one SIGTERM to verified daemon21384. Positive recorded-family absence,
+no SIGKILL/group/unrelated signals; separate receipt0bd99a67 retained0600. Original
+failed7f24a0c1 receipt and all SPENT sources unchanged; no retroactive acceptance.
+Source/receipt comparison narrows cleanup rejection to reconciliation/retention
+after rows returned: caught query/parser failure would append a cleanup query
+entry, but only final ownership entry exists. This does not identify the exact
+guard or prove discovery's earlier cause. Untyped invariants/executable allowlist/
+publication failures remain source-compatible; rejected snapshot not retained.
+Private diagnosis recommends safe guard-step/cause diagnostics before any new
+run, with strict identity/ancestry/absence/deadline gates unchanged; no codefix
+implemented. Independent inference/continuity review48 next; original clock/
+fix35 carry. PR1581 draft/full gate failed, production/shared-local/cutover/
+provider/account holds unchanged; no files/evidence deleted or browser rerun.
