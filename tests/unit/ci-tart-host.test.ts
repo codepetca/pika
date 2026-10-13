@@ -345,11 +345,21 @@ describe('serial Tart host admission (offline)', () => {
     listener.write_text('#!'+sys.executable+'\nimport pathlib,sys\n'+body); listener.chmod(0o700)
     code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
     payload={'client':str(client),'name':'pika-ci-job-offline','idle':3 if kind=='lifetime' else 2 if kind=='update' else 0.3,'lifetime':0.3 if kind=='lifetime' else 3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    if kind!='update':
+        # Count actual launches even when the budget expires before the child
+        # finishes interpreter startup. Preserve real Popen and all deadlines.
+        hook='    def capture_listener(*args,**kwargs):\n        child=subprocess.Popen(*args,**kwargs)\n        launches=client/"launches"\n        launches.write_text(launches.read_text()+"x" if launches.exists() else "x")\n        (client/"listener-group").write_text(str(child.pid))\n        return child\n'
+        anchor='    baseline=activity()\n'
+        launch='runner=subprocess.Popen([str(client / \'bin/Runner.Listener\'),\'run\']'
+        assert code.count(anchor)==1 and code.count(launch)==1
+        code=code.replace(anchor,anchor+hook).replace(launch,launch.replace('subprocess.Popen','capture_listener'))
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
     if kind=='update': assert result.returncode==0 and (client/'attempts').read_text()=='xx'
     else:
         assert result.returncode != 0 and ('PIKA_HOST_GUARD:'+kind+'-timeout') in result.stdout
-        assert (client/'attempts').read_text()=='x'
+        assert (client/'launches').read_text()=='x'
+        assert not h.Backend.group_running(int((client/'listener-group').read_text()))
+        if (client/'attempts').exists(): assert (client/'attempts').read_text()=='x'
 `)
   })
 

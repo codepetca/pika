@@ -46576,3 +46576,20 @@ initial1/targeted0/final0/fixbatch1, original review clock02:58:39UTC retained.
 Base-synced1890/112 and static gates PASS. Targeted/final review and fresh exact-source disposable
 001–258 permission remain before native acceptance, ready CI or merge. Draft,
 overall goal pause and all shared/production/activation/provider holds unchanged.
+
+<!-- pika-session-log-archive-batch:c68e0cf676f31cffd9820a0eb2895b98cad88640df49bee5346e38c3e532065c -->
+## 2026-10-11 — Owner grading native failure and diagnostic preparation
+
+PR1569 source/security/compatibility and private settlement reviews completed;
+six recorded turns1530s, launches6/initial1/targeted3/final1/fix3, original02:58:39
+clock retained. Human authorized one exact08389a934/full001–258 disposable run.
+Preflight PASS; actual run replayed001–258 then failed its rollback-proof SQL
+child before types/closed-engine/SDK/cancellation. Exact owned teardown, global
+inventory/ports and whole canonical rows/settings/cron/resources all PASS;
+nativeVerified=false. SQL stderr was discarded, so cause remains undiagnosed.
+Permission consumed; no retry or shared-local/production migration/activation.
+Root added bounded mode600 private error capture, RED→GREEN operational suite
+and private TypeScript PASS; independent correction review pending. Rebased only
+UI1570/1571 onto caaa1c926, preserving both archive bodies; backend/proof/migration
+bytes unchanged and258 numbering retained. Current-base checks, delta review and
+fresh exact-source native permission precede readyCI/merge. Overall goal PAUSED.

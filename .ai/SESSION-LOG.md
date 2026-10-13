@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading native failure and diagnostic preparation
-
-PR1569 source/security/compatibility and private settlement reviews completed;
-six recorded turns1530s, launches6/initial1/targeted3/final1/fix3, original02:58:39
-clock retained. Human authorized one exact08389a934/full001–258 disposable run.
-Preflight PASS; actual run replayed001–258 then failed its rollback-proof SQL
-child before types/closed-engine/SDK/cancellation. Exact owned teardown, global
-inventory/ports and whole canonical rows/settings/cron/resources all PASS;
-nativeVerified=false. SQL stderr was discarded, so cause remains undiagnosed.
-Permission consumed; no retry or shared-local/production migration/activation.
-Root added bounded mode600 private error capture, RED→GREEN operational suite
-and private TypeScript PASS; independent correction review pending. Rebased only
-UI1570/1571 onto caaa1c926, preserving both archive bodies; backend/proof/migration
-bytes unchanged and258 numbering retained. Current-base checks, delta review and
-fresh exact-source native permission precede readyCI/merge. Overall goal PAUSED.
-
 ## 2026-10-11 — Owner grading diagnostic rehearsal confirms fixture mismatch
 
 Targeted diagnostic/base-sync source review CLEAN993c62949,387s; seven actual
@@ -785,3 +769,17 @@ lint/diffPASS. Budget-exhaustion candidate removed after CPU5s timeout; coverage
 still missing, no counter bypass or native cap changes. No production/helper
 change or native acceptance. Root audit/checkpoint/independent review next;
 overall inventory, native/app and production/cutover holds unchanged.
+
+## 2026-10-13 Offline host lifetime fixture correction
+
+Surveyresource review30 PASS0findings. Fullfocused5b34:2922PASS/8skip/1FAIL in
+unchanged offline Tart lifetime fixture, independently reproduced. Its0.3s
+deadline can contain the actual child before interpreter code writes an attempt
+marker. Test-only capture now records actual Popen dispatch/count/group, retains
+the timeout refusal, asserts one launch and no surviving group, and validates
+child marker when present. Production host code/deadlines unchanged; targeted
+update/idle/lifetime3PASS, lint/diffPASS. Final append-count refinement rerun,
+audit/independent review/full checks next. No VM activation or provider scope change.
+Human approved fresh isolated diagnostic recovery gate; source-only new proposal
+7593614f0787 prepares privacy-safe failure logging, oldSPENT attempt preserved.
+No new browser execution/acceptance until source review and current preflight.
