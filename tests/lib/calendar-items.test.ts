@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getCalendarAnnouncementDate,
   getCalendarAssignmentDate,
+  getCalendarTestDate,
   isCalendarAnnouncementScheduled,
 } from '@/lib/calendar-items'
 
@@ -39,5 +40,14 @@ describe('calendar item date mapping', () => {
   it('ignores malformed timestamps instead of breaking the calendar', () => {
     expect(getCalendarAssignmentDate({ due_at: 'not-a-date' })).toBeNull()
     expect(getCalendarAnnouncementDate({ scheduled_for: null, created_at: 'not-a-date' })).toBeNull()
+  })
+})
+
+describe('test reminder date mapping', () => {
+  it.each(['2026-03-08', '2026-11-01', '2024-02-29'])('preserves civil date %s without a Toronto conversion', (test_date) => {
+    expect(getCalendarTestDate({ test_date })).toBe(test_date)
+  })
+  it.each([null, undefined, '', '2026-02-29', '2026-02-30', '2026-13-01', '2026-1-01', '2026-03-08T00:00:00Z'])('omits absent or invalid date %s', (test_date) => {
+    expect(getCalendarTestDate({ test_date })).toBeNull()
   })
 })

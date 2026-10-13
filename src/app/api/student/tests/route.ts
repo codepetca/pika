@@ -18,7 +18,7 @@ import { contextualStudentTestListQuerySchema } from '@/lib/validations/contextu
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const STUDENT_TEST_LIST_COLUMNS = 'id, classroom_id, title, status, show_results, documents, position, points_possible, include_in_final, gradebook_weight, created_by, created_at, updated_at' as const
+const STUDENT_TEST_LIST_COLUMNS = 'id, classroom_id, test_date, title, status, show_results, documents, position, points_possible, include_in_final, gradebook_weight, created_by, created_at, updated_at' as const
 
 // GET /api/student/tests?classroom_id=xxx - List tests for student
 export const GET = withErrorHandler('GetStudentTests', async (request, context) => {

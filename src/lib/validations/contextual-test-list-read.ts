@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { testCalendarDateSchema } from '@/lib/validations/test-calendar-date'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import { contextualTestDetailDraftSchema } from '@/lib/validations/contextual-test-detail-read'
 
@@ -25,7 +26,7 @@ export const contextualTestListTestSchema = contextualTestListControlSchema.exte
   artifact_id: uuid, blueprint_archived_at: timestamp.nullable(), created_at: timestamp, created_by: uuid, documents: json,
   gradebook_category_id: uuid.nullable(), gradebook_maximum_override: z.number().finite().nullable(), gradebook_score_scale: z.number().finite(),
   gradebook_weight: z.number().finite(), include_in_final: z.boolean(), points_possible: z.number().finite(), position: z.number().int(),
-  questions_locked_at: timestamp.nullable(), show_results: z.boolean(), source_artifact_id: uuid.nullable(), source_blueprint_version_id: uuid.nullable(), title: z.string(),
+  questions_locked_at: timestamp.nullable(), show_results: z.boolean(), source_artifact_id: uuid.nullable(), source_blueprint_version_id: uuid.nullable(), test_date: testCalendarDateSchema, title: z.string(),
 }).strict()
 export const contextualTestListQuestionSchema = z.object({ id: uuid, test_id: uuid }).strict()
 const student = z.object({

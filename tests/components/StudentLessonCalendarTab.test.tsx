@@ -28,16 +28,19 @@ vi.mock('@/lib/cookies', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, announcements }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, announcements, tests = [], currentDate, onDateChange }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-current-date={currentDate.toISOString().slice(0, 10)}
       data-lesson-count={lessonPlans.length}
       data-assignment-count={assignments.length}
+      data-test-count={tests.length}
+      data-test-ids={tests.map((test: { id: string }) => test.id).join(',')}
       data-announcement-count={announcements.length}
       data-lesson-ids={lessonPlans.map((lesson: { id: string }) => lesson.id).join(',')}
       data-assignment-ids={assignments.map((assignment: { id: string }) => assignment.id).join(',')}
       data-announcement-ids={announcements.map((announcement: { id: string }) => announcement.id).join(',')}
-    />
+    ><button onClick={() => onDateChange(new Date(2025, 2, 2, 12))}>Navigate future reminder</button></div>
   ),
   CalendarViewMode: {},
 }))
@@ -60,9 +63,11 @@ describe('StudentLessonCalendarTab', () => {
 
   beforeEach(() => {
     invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-tests:${classroom.id}`)
     invalidateCachedJSON(`student-assignments:${classroom.id}`)
     invalidateCachedJSON(`student-announcements:${classroom.id}`)
     invalidateCachedJSON(`student-lesson-plans:${secondClassroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`student-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`student-announcements:${secondClassroom.id}`)
     classDaysState.classDays = []
@@ -76,9 +81,11 @@ describe('StudentLessonCalendarTab', () => {
 
   afterEach(() => {
     invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-tests:${classroom.id}`)
     invalidateCachedJSON(`student-assignments:${classroom.id}`)
     invalidateCachedJSON(`student-announcements:${classroom.id}`)
     invalidateCachedJSON(`student-lesson-plans:${secondClassroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`student-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`student-announcements:${secondClassroom.id}`)
     vi.unstubAllGlobals()
@@ -87,7 +94,7 @@ describe('StudentLessonCalendarTab', () => {
 
   it('preserves student date navigation and Month/All selection without refetching term data', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
-    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
     const week = screen.getByRole('button', { name: 'Week', exact: true })
     expect(week).toHaveAttribute('aria-pressed', 'true')
@@ -128,7 +135,7 @@ describe('StudentLessonCalendarTab', () => {
       })
     })
 
-    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     // All 3 fetches should be initiated before any resolve
     await waitFor(() => {
@@ -152,7 +159,7 @@ describe('StudentLessonCalendarTab', () => {
       json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }),
     })
 
-    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(3)
@@ -170,7 +177,7 @@ describe('StudentLessonCalendarTab', () => {
     })
 
     render(
-      <StudentLessonCalendarTab
+      <StudentLessonCalendarTab showTests={false}
         classroom={classroom}
         showClasswork={false}
         showAnnouncements={false}
@@ -198,7 +205,7 @@ describe('StudentLessonCalendarTab', () => {
       },
     }))
 
-    const first = render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const first = render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(3)
@@ -210,7 +217,7 @@ describe('StudentLessonCalendarTab', () => {
     })
 
     first.unmount()
-    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
@@ -244,7 +251,7 @@ describe('StudentLessonCalendarTab', () => {
       }
     })
 
-    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
@@ -278,7 +285,7 @@ describe('StudentLessonCalendarTab', () => {
       })
     })
 
-    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     const retryButton = await screen.findByRole('button', { name: 'Retry assignments' })
     await waitFor(() => {
@@ -317,27 +324,27 @@ describe('StudentLessonCalendarTab', () => {
       },
     }))
 
-    const view = render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     const retryButton = await screen.findByRole('button', { name: 'Retry class days' })
     retryButton.focus()
     fireEvent.click(retryButton)
 
     classDaysState.isLoading = true
-    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+    view.rerender(<StudentLessonCalendarTab showTests={false} classroom={classroom} />)
     expect(screen.getByRole('button', { name: 'Retrying class days' })).toBeDisabled()
     expect(document.activeElement).toBe(retryButton)
 
     classDaysState.isLoading = false
-    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+    view.rerender(<StudentLessonCalendarTab showTests={false} classroom={classroom} />)
     expect(screen.getByRole('button', { name: 'Retry class days' })).toBeInTheDocument()
     expect(document.activeElement).toBe(retryButton)
 
     fireEvent.click(retryButton)
     classDaysState.isLoading = true
-    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+    view.rerender(<StudentLessonCalendarTab showTests={false} classroom={classroom} />)
     classDaysState.isLoading = false
     classDaysState.error = null
-    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+    view.rerender(<StudentLessonCalendarTab showTests={false} classroom={classroom} />)
 
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
@@ -349,7 +356,7 @@ describe('StudentLessonCalendarTab', () => {
     classDaysState.hasLoadedSnapshot = false
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: 'Failed' }) })
 
-    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     expect(await screen.findByRole('heading', { name: "Calendar couldn't load" })).toBeInTheDocument()
     expect(screen.queryByTestId('lesson-calendar')).not.toBeInTheDocument()
@@ -383,13 +390,13 @@ describe('StudentLessonCalendarTab', () => {
       throw new Error(`Unhandled fetch: ${url}`)
     })
 
-    const view = render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     const retryButton = await screen.findByRole('button', { name: 'Retry assignments' })
     retryButton.focus()
     fireEvent.click(retryButton)
     expect(await screen.findByRole('button', { name: 'Retrying assignments' })).toBeDisabled()
 
-    view.rerender(<StudentLessonCalendarTab classroom={secondClassroom} />)
+    view.rerender(<StudentLessonCalendarTab showTests={false} classroom={secondClassroom} />)
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-ids', 'classroom-2-lesson')
     })
@@ -438,13 +445,13 @@ describe('StudentLessonCalendarTab', () => {
       })
     }
 
-    const view = render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(3)
     })
 
-    view.rerender(<StudentLessonCalendarTab classroom={secondClassroom} />)
+    view.rerender(<StudentLessonCalendarTab showTests={false} classroom={secondClassroom} />)
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(6)
@@ -463,4 +470,51 @@ describe('StudentLessonCalendarTab', () => {
       expect(calendar).toHaveAttribute('data-announcement-ids', 'classroom-2-announcement')
     })
   })
+  it('loads test reminders only when Tests is enabled and reports a retryable source failure', async () => {
+    let testReads = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/tests?')) {
+        testReads += 1
+        return testReads === 1
+          ? { ok: false, json: async () => ({ error: 'Unavailable' }) }
+          : { ok: true, json: async () => ({ tests: [{ id: 'dated-test', title: 'Dated', test_date: '2025-03-01' }] }) }
+      }
+      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+    })
+    render(<StudentLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
+    expect(await screen.findByRole('button', { name: 'Retry tests' })).toBeInTheDocument()
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-count', '0')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry tests' }))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'dated-test'))
+    expect(testReads).toBe(2)
+  })
+
+  it('isolates late test list responses from a previous classroom', async () => {
+    let resolveFirst!: (value: any) => void
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes(`/tests?classroom_id=${classroom.id}`)) return new Promise(resolve => { resolveFirst = resolve })
+      return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [], tests: [{ id: 'second-test' }] }) })
+    })
+    const view = render(<StudentLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
+    await waitFor(() => expect(resolveFirst).toBeTypeOf('function'))
+    view.rerender(<StudentLessonCalendarTab classroom={secondClassroom} showTests />)
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test'))
+    await act(async () => { resolveFirst({ ok: true, json: async () => ({ tests: [{ id: 'old-test' }] }) }) })
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test')
+  })
+  it.each([true, false])('allows future reminder navigation only with the permitted Tests source (%s)', async (showTests) => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({
+      lesson_plans: [{ id: 'permitted-lesson' }], max_date: '2025-01-05',
+      tests: [{ id: 'future-test', test_date: '2025-03-08' }], assignments: [], announcements: [],
+    }) })
+    render(<StudentLessonCalendarTab classroom={classroom} showTests={showTests} />, { wrapper: Wrapper })
+    const calendar = await screen.findByTestId('lesson-calendar')
+    const initialDate = calendar.getAttribute('data-current-date')
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate future reminder' }))
+    expect(calendar).toHaveAttribute('data-current-date', showTests ? '2025-03-02' : initialDate)
+    expect(calendar).toHaveAttribute('data-lesson-ids', 'permitted-lesson')
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/lesson-plans'))).toHaveLength(1)
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/tests?'))).toHaveLength(showTests ? 1 : 0)
+  })
+
 })

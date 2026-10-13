@@ -699,3 +699,46 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 })
+
+describe('PATCH Test calendar date metadata', () => {
+  beforeEach(() => vi.clearAllMocks())
+  const requestDate = (body: unknown) => PATCH(new NextRequest('http://localhost/api/teacher/tests/test-1', {
+    method: 'PATCH', body: JSON.stringify(body),
+  }), { params: Promise.resolve({ id: 'test-1' }) })
+
+  it.each(['draft', 'active', 'closed'])('updates date on a %s Test without touching participation or drafts', async status => {
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({ ok: true, test: { id: 'test-1', classroom_id: 'classroom-1', status } as any })
+    const query: any = { eq: vi.fn(() => query), select: vi.fn(() => query), single: vi.fn(async () => ({ data: { id: 'test-1', status, test_date: '2026-10-20' }, error: null })) }
+    const update = vi.fn(() => query)
+    mockSupabaseClient.from.mockReturnValueOnce({ update })
+    const response = await requestDate({ test_date: '2026-10-20' })
+    expect(response.status).toBe(200)
+    expect(update).toHaveBeenCalledWith({ test_date: '2026-10-20' })
+    expect(query.eq).toHaveBeenCalledWith('classroom_id', 'classroom-1')
+    expect(getAssessmentDraftByType).not.toHaveBeenCalled()
+    expect(publishTestFromDraftAtomic).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+  })
+
+  it('clears the calendar date', async () => {
+    const query: any = { eq: vi.fn(() => query), select: vi.fn(() => query), single: vi.fn(async () => ({ data: { id: 'test-1', test_date: null }, error: null })) }
+    const update = vi.fn(() => query)
+    mockSupabaseClient.from.mockReturnValueOnce({ update })
+    expect((await requestDate({ test_date: null })).status).toBe(200)
+    expect(update).toHaveBeenCalledWith({ test_date: null })
+  })
+
+  it.each(['0000-01-01', '2026-02-30', '2026-2-01', '2026-10-20T00:00:00Z', '', 123])('rejects malformed calendar date %s', async value => {
+    expect((await requestDate({ test_date: value })).status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+  it('rejects combined publication metadata', async () => {
+    expect((await requestDate({ test_date: '2026-10-20', status: 'closed' })).status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+  it('preserves ownership/archive authorization', async () => {
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({ ok: false, status: 403, error: 'Forbidden' })
+    expect((await requestDate({ test_date: '2026-10-20' })).status).toBe(403)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+})

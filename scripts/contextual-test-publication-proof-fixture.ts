@@ -65,7 +65,7 @@ export function newTestOwnerPublicationFixture(original: AssignmentListProofFixt
     show_results: false, documents: [{ id: id(`document:${label}`), source: 'link', title: 'Synthetic source', url: 'https://example.invalid/source' }],
     position, points_possible: 17, include_in_final: false, created_at: now, updated_at: now, source_artifact_id: null,
     source_blueprint_version_id: null, blueprint_archived_at: label === 'retired-test-denied' ? now : null, questions_locked_at: null,
-    gradebook_category_id: null, gradebook_weight: 23, gradebook_maximum_override: 19, gradebook_score_scale: 1.25 }))
+    gradebook_category_id: null, gradebook_weight: 23, gradebook_maximum_override: 19, test_date:null,gradebook_score_scale:1.25 }))
   const blueprint = { id: id('blueprint'), teacher_id: actors[0].id, title: `${tag} lineage`, latest_version_number: 1 }
   const blueprintVersionId = id('blueprint-version')
   const questions: Question[] = tests.flatMap((test, index) => Array.from({ length: index === 2 ? 1001 : index === 1 ? 4 : 1 }, (_, position) => {

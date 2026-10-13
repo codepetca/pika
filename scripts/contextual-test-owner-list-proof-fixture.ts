@@ -31,7 +31,7 @@ export function newTestOwnerListFixture(original: AssignmentListProofFixture) {
     created_by: classes[i === 3 ? 1 : 0].owner, title: `${tag} test ${i}`, status, show_results: false, position: i === 0 ? 17 : 9,
     points_possible: 100, include_in_final: i !== 2, created_at: new Date(Date.parse(original.manifest.now) - i * 1000).toISOString(), updated_at: original.manifest.now,
     artifact_id: id(`test-artifact${i}`), source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
-    gradebook_maximum_override: 25, gradebook_score_scale: 2, gradebook_weight: 11 + i, questions_locked_at: null,
+    gradebook_maximum_override: 25, test_date:null,gradebook_score_scale:2, gradebook_weight: 11 + i, questions_locked_at: null,
     documents: i === 1 ? [{ id: id('text-document'), title: '  Instructions  ', source: 'text', content: 'Synthetic instructions.' }] : [] }))
   const enrollments = [[0, 0], [0, 2], [0, 3], [0, 4], [1, 1]].map(([c, a], i) => ({ id: id(`enrollment${i}`), classroomId: classes[c].id, actorId: actors[a].id }))
   const questions = [0, 1, 1, 2].map((t, i) => ({ id: id(`question${i}`), artifact_id: id(`question-artifact${i}`), test_id: tests[t].id,

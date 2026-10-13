@@ -7,7 +7,7 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString().padStart(12,
 const actorId = uuid(1); const classroomId = uuid(2); const ownerId = uuid(3)
 const time = '2026-10-08T12:00:00.000Z'
 const classroom = { id: classroomId, teacher_id: ownerId, archived_at: null }
-const test = (n = 10) => ({ id: uuid(n), classroom_id: classroomId, title: 'Canonical', status: 'active',
+const test = (n = 10) => ({ id: uuid(n), classroom_id: classroomId, test_date: null, title: 'Canonical', status: 'active',
   show_results: false, documents: [], position: n, points_possible: 10, include_in_final: true, gradebook_weight: 1,
   created_by: ownerId, created_at: time, updated_at: time })
 type Row = Record<string, unknown>

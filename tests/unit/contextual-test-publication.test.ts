@@ -21,7 +21,7 @@ const content = () => ({ title: 'Ready Test', show_results: true, question_ident
 const test = () => ({ id: testId, classroom_id: classroomId, title: 'Ready Test', status: 'closed', show_results: true, position: 7,
   points_possible: 100, include_in_final: false, created_by: otherId, created_at: stamp, updated_at: stamp, documents: [], artifact_id: artifactId,
   source_artifact_id: otherId, blueprint_archived_at: null, source_blueprint_version_id: otherId, questions_locked_at: null,
-  gradebook_category_id: otherId, gradebook_weight: 37, gradebook_maximum_override: 80, gradebook_score_scale: 2 })
+  gradebook_category_id: otherId, gradebook_weight: 37, gradebook_maximum_override: 80, test_date: null, gradebook_score_scale: 2 })
 const snapshot = () => ({ version: 1, actor_id: actorId, classroom: { id: classroomId, teacher_id: actorId, archived_at: null },
   test: { id: testId, classroom_id: classroomId, title: 'Old', show_results: false, status: 'draft', blueprint_archived_at: null, questions_locked_at: null },
   draft: { id: draftId, assessment_type: 'test', assessment_id: testId, classroom_id: classroomId, content: content(), version: 7,

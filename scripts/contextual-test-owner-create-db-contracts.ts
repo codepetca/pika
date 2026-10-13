@@ -7,7 +7,7 @@ import type { TestOwnerCreateFixture } from './contextual-test-owner-create-proo
 export const TEST_OWNER_CREATE_DB_CAPS = Object.freeze({ sqlBytes: 256 * 1024, actionMs: 35_000, requestMs: 12_000 })
 const catalogFailures = Object.freeze({
   'catalog-function': 'Function owner/SECDEF/search_path/locktimeout/ACL catalog differs',
-  'catalog-test-columns': 'Exact21 Test columns differ', 'catalog-draft-columns': 'Exact10 draft columns differ',
+  'catalog-test-columns': 'Exact22 Test columns differ', 'catalog-draft-columns': 'Exact10 draft columns differ',
   'catalog-test-types': 'Test column types/nullability differ', 'catalog-draft-types': 'Draft column types/nullability differ',
   'catalog-test-defaults': 'Exact Test default columns differ', 'catalog-draft-defaults': 'Exact draft default columns differ',
   'catalog-default-values': 'Defaults differ', 'catalog-test-constraints': 'Exact Test constraints differ',
@@ -52,7 +52,7 @@ function validateFixture(f: TestOwnerCreateFixture) {
   assert.equal(new Set(f.allocatedIds).size, f.allocatedIds.length)
 }
 
-const expectedTestColumns = ['id','classroom_id','title','status','show_results','position','points_possible','include_in_final','created_by','created_at','updated_at','documents','artifact_id','source_artifact_id','blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_weight','gradebook_maximum_override','gradebook_score_scale']
+const expectedTestColumns = ['test_date','id','classroom_id','title','status','show_results','position','points_possible','include_in_final','created_by','created_at','updated_at','documents','artifact_id','source_artifact_id','blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_weight','gradebook_maximum_override','gradebook_score_scale']
 const expectedDraftColumns = ['id','assessment_type','assessment_id','classroom_id','content','version','created_by','updated_by','created_at','updated_at']
 const expectedTestDefaultColumns = ['id','status','show_results','position','points_possible','include_in_final','created_at','updated_at','documents','artifact_id','gradebook_weight','gradebook_score_scale']
 const expectedDraftDefaultColumns = ['id','content','version','created_at','updated_at']
@@ -78,6 +78,7 @@ const triggerPairs = [
 ] as const
 
 const testColumnTypes = [
+  ['test_date','date',false],
   ['id','uuid',true],['classroom_id','uuid',true],['title','text',true],['status','text',true],['show_results','boolean',true],
   ['position','integer',true],['points_possible','numeric(6,2)',true],['include_in_final','boolean',true],['created_by','uuid',true],
   ['created_at','timestamp with time zone',true],['updated_at','timestamp with time zone',true],['documents','jsonb',true],['artifact_id','uuid',true],
@@ -200,7 +201,7 @@ function catalogSql() {
    where acl.privilege_type='EXECUTE' and acl.grantee not in (p.proowner,'service_role'::regrole))
  then raise exception 'Function owner/SECDEF/search_path/locktimeout/ACL catalog differs';end if;
  select pg_catalog.array_agg(a.attname::text order by a.attname::text collate "C") into actual from pg_attribute a where a.attrelid='public.tests'::regclass and a.attnum>0 and not a.attisdropped;
- if actual is distinct from ${tests} then raise exception 'Exact21 Test columns differ';end if;
+ if actual is distinct from ${tests} then raise exception 'Exact22 Test columns differ';end if;
  select pg_catalog.array_agg(a.attname::text order by a.attname::text collate "C") into actual from pg_attribute a where a.attrelid='public.assessment_drafts'::regclass and a.attnum>0 and not a.attisdropped;
  if actual is distinct from ${drafts} then raise exception 'Exact10 draft columns differ';end if;
  select count(*) into bad from (${types(testColumnTypes)}) expected(name,type_name,not_null)
@@ -289,7 +290,7 @@ function strictPairHelper() {
  select t.* into strict test_row from public.tests t where t.id=(r->>'test_id')::uuid;
  select d.* into strict draft_row from public.assessment_drafts d where d.assessment_type='test' and d.assessment_id=test_row.id;
  if pg_catalog.to_jsonb(test_row) is distinct from r->'test' or pg_catalog.to_jsonb(draft_row) is distinct from r->'draft'
- or (select count(*) from pg_catalog.jsonb_object_keys(r->'test'))<>21 or (select count(*) from pg_catalog.jsonb_object_keys(r->'draft'))<>10
+ or (select count(*) from pg_catalog.jsonb_object_keys(r->'test'))<>22 or (select count(*) from pg_catalog.jsonb_object_keys(r->'draft'))<>10
  or test_row.classroom_id is distinct from classroom or test_row.created_by is distinct from actor or test_row.title is distinct from title or test_row.status is distinct from 'draft' or test_row.show_results is distinct from false
  or test_row.position is distinct from prior_position+1 or test_row.points_possible is distinct from 100 or test_row.include_in_final is distinct from true or test_row.documents is distinct from '[]'::jsonb
  or draft_row.classroom_id is distinct from classroom or draft_row.created_by is distinct from actor or draft_row.updated_by is distinct from actor or draft_row.version is distinct from 1

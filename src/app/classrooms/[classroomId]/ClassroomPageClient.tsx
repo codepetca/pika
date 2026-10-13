@@ -2010,6 +2010,15 @@ function ClassroomPageContent({
                         classroom={classroom}
                         showClasswork={availableTabs.includes('assignments')}
                         showAnnouncements={availableTabs.includes('announcements')}
+                        showTests={availableTabs.includes('tests')}
+                        onNavigateToTests={(testId) => navigateInClassroom((params) => {
+                          params.set('tab', 'tests')
+                          params.set('testId', testId)
+                          params.delete('testMode')
+                          params.delete('testStudentId')
+                          params.delete('assignmentId')
+                          params.delete('assignmentStudentId')
+                        })}
                         onSidebarStateChange={setCalendarSidebarState}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
@@ -2121,7 +2130,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
-                      <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} />
+                      <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} selectedTestId={testIdParam} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.grades && (
@@ -2135,6 +2144,15 @@ function ClassroomPageContent({
                         classroom={classroom}
                         showClasswork={availableTabs.includes('assignments')}
                         showAnnouncements={availableTabs.includes('announcements')}
+                        showTests={availableTabs.includes('tests')}
+                        onNavigateToTests={(testId) => navigateInClassroom((params) => {
+                          params.set('tab', 'tests')
+                          params.set('testId', testId)
+                          params.delete('testMode')
+                          params.delete('testStudentId')
+                          params.delete('assignmentId')
+                          params.delete('assignmentStudentId')
+                        })}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'assignments')

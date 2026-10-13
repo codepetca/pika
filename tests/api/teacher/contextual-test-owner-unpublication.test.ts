@@ -5,7 +5,7 @@ const actor = '11111111-1111-4111-8111-111111111111'
 const id = '22222222-2222-4222-8222-222222222222'
 const classroom = '33333333-3333-4333-8333-333333333333'
 const stamp = '2026-10-09T12:00:00Z'
-const test = { id, classroom_id: classroom, title: 'Test', status: 'closed', show_results: false, documents: [], position: 0, points_possible: 100, include_in_final: true, created_by: actor, created_at: stamp, updated_at: stamp, artifact_id: actor, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null, gradebook_category_id: null, gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
+const test = { id, classroom_id: classroom, title: 'Test', status: 'closed', show_results: false, documents: [], position: 0, points_possible: 100, include_in_final: true, created_by: actor, created_at: stamp, updated_at: stamp, artifact_id: actor, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null, gradebook_category_id: null, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), inspect: vi.fn(), run: vi.fn(), client: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth, requireRole: mocks.role }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: mocks.client }))

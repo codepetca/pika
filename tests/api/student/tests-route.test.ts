@@ -701,3 +701,35 @@ describe('GET /api/student/tests', () => {
     })
   })
 })
+
+describe('student Test calendar date list payload', () => {
+  beforeEach(() => vi.clearAllMocks())
+  it('selects and returns persisted dates for active and closed Tests', async () => {
+    const selected: string[] = []
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      if (table === 'tests') {
+        let status = 'active'; let columns: string[] = []
+        const query: any = {
+          select: vi.fn((value: string) => { selected.push(value); columns = value.split(',').map(column => column.trim()); return query }),
+          eq: vi.fn((column: string, value: string) => { if (column === 'status') status = value; return query }),
+          order: vi.fn(() => query),
+          then: (resolve: any) => {
+            const row = { id: `test-${status}`, classroom_id: 'classroom-1', title: status, status, show_results: false,
+              test_date: status === 'active' ? '2026-10-20' : '2026-10-21', position: 0, documents: [] }
+            // Match PostgREST projection: an omitted select field must disappear.
+            resolve({ data: [Object.fromEntries(Object.entries(row).filter(([key]) => columns.includes(key)))], error: null })
+          },
+        }
+        return query
+      }
+      const query: any = { select: vi.fn(() => query), eq: vi.fn(() => query), in: vi.fn(async () => ({ data: [], error: null })) }
+      return query
+    })
+    const response = await GET(new NextRequest('http://localhost/api/student/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(200)
+    const { tests } = await response.json()
+    expect(tests.map((test: any) => [test.status, test.test_date])).toEqual([['active', '2026-10-20'], ['closed', '2026-10-21']])
+    expect(selected).toHaveLength(2)
+    expect(selected.every(columns => columns.split(',').map(column => column.trim()).includes('test_date'))).toBe(true)
+  })
+})

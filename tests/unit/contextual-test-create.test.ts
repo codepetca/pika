@@ -15,7 +15,7 @@ const content = () => ({ title: 'Custom', show_results: false, question_identity
 const test = () => ({ id: testId, classroom_id: classroomId, title: 'Custom', status: 'draft', show_results: false, position: 7,
   points_possible: 100, include_in_final: true, created_by: actorId, created_at: stamp, updated_at: stamp, documents: [], artifact_id: artifactId,
   source_artifact_id: null, blueprint_archived_at: null, source_blueprint_version_id: null, questions_locked_at: null,
-  gradebook_category_id: null, gradebook_weight: 10, gradebook_maximum_override: null, gradebook_score_scale: 1 })
+  gradebook_category_id: null, gradebook_weight: 10, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1 })
 const draft = () => ({ id: draftId, assessment_type: 'test', assessment_id: testId, classroom_id: classroomId, content: content(), version: 1,
   created_by: actorId, updated_by: actorId, created_at: stamp, updated_at: stamp })
 const witness = () => ({ version: 1, actor_id: actorId, classroom_id: classroomId, test_id: testId, test: test(), draft: draft() })

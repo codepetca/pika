@@ -32,6 +32,20 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('PageMockups Calendar routes its dated Test through the example action', () => {
+    const onAction = vi.fn()
+    render(<ThemeProvider><TooltipProvider><CalendarMockup onPrototypeAction={onAction} /></TooltipProvider></ThemeProvider>)
+    const agenda = screen.getByRole('region', { name: 'Week agenda' })
+    fireEvent.click(within(agenda).getByRole('button', { name: 'Test: Ecosystems test' }))
+    expect(onAction).toHaveBeenCalledWith('Open Ecosystems test')
+    expect(within(agenda).getAllByRole('button', { name: /^Test:/ })).toHaveLength(1)
+  })
+
+  it('StudentPageMockups Calendar includes the same accessible Test date reference', () => {
+    render(<ThemeProvider><TooltipProvider><StudentPageMockup page="calendar" onPrototypeAction={vi.fn()} /></TooltipProvider></ThemeProvider>)
+    expect(within(screen.getByRole('region', { name: 'Week agenda' })).getByRole('button', { name: 'Test: Ecosystems test' })).toBeVisible()
+  })
+
   it('StudentPageMockups Calendar keeps agenda lessons read-only and day presentation available', () => {
     const { container } = render(<ThemeProvider><TooltipProvider>
       <StudentPageMockup page="calendar" onPrototypeAction={vi.fn()} />

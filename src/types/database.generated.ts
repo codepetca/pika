@@ -8931,6 +8931,7 @@ export type Database = {
           source_artifact_id: string | null
           source_blueprint_version_id: string | null
           status: string
+          test_date: string | null
           title: string
           updated_at: string
         }
@@ -8954,6 +8955,7 @@ export type Database = {
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
           status?: string
+          test_date?: string | null
           title: string
           updated_at?: string
         }
@@ -8977,6 +8979,7 @@ export type Database = {
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
           status?: string
+          test_date?: string | null
           title?: string
           updated_at?: string
         }

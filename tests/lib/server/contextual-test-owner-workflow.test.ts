@@ -12,7 +12,7 @@ const stamp = '2026-10-09T12:00:00Z'
 const test = { id: testId, classroom_id: classroom, title: 'Test', status: 'closed', show_results: false, documents: [],
   position: 0, points_possible: 100, include_in_final: true, created_by: learner, created_at: stamp, updated_at: stamp,
   artifact_id: learner, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
-  gradebook_category_id: null, gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
+  gradebook_category_id: null, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
 let reply: unknown
 let error: { code: string; message: string } | null
 let network: ReturnType<typeof vi.fn<typeof fetch>>

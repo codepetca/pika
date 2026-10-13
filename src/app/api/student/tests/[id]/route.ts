@@ -188,6 +188,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     id: test.id,
     classroom_id: test.classroom_id,
     title: test.title,
+    test_date: test.test_date ?? null,
     assessment_type: 'test' as const,
     status: test.status,
     show_results: test.show_results,

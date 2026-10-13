@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { testCalendarDateSchema } from '@/lib/validations/test-calendar-date'
 import { ApiError } from '@/lib/api-error'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import { contextualTestListTestSchema } from '@/lib/validations/contextual-test-list-read'
@@ -21,8 +22,10 @@ const documents = z.unknown().transform((value, ctx) => {
   return validated.documents
 })
 export const contextualTestOwnerMetadataSchema = z.object({
+  test_date: testCalendarDateSchema.optional(),
   title: z.string().trim().min(1).max(10000).optional(), show_results: z.boolean().optional(), documents: documents.optional(),
 }).strict().refine(value => Object.keys(value).length > 0, 'No updates provided')
+  .refine(value => value.test_date === undefined || Object.keys(value).length === 1, 'Save Test date separately from other metadata')
 export const contextualTestOwnerStudentAccessSchema = z.object({
   state: z.enum(['open', 'closed']), student_ids: z.array(inputUuid).min(1).max(100).transform(ids => [...new Set(ids)]),
 }).strict()

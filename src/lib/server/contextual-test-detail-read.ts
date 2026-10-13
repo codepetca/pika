@@ -23,7 +23,7 @@ const unavailable = () => new ApiError(503, 'Unable to verify test detail')
 const classroomFields = 'id,teacher_id,archived_at'
 const classroomRelation = 'classrooms!tests_classroom_id_fkey!inner'
 const controlFields = `id,classroom_id,${classroomRelation}(${classroomFields})`
-const testFields = 'id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,created_by,created_at,updated_at'
+const testFields = 'id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,created_by,created_at,updated_at'
 const payloadFields = `${testFields},${classroomRelation}(${classroomFields})`
 const questionFields = 'id,test_id,artifact_id,source_artifact_id,question_type,question_text,options,correct_option,answer_key,sample_solution,points,response_max_chars,response_monospace,position,created_at,updated_at,ai_reference_cache_answers,ai_reference_cache_generated_at,ai_reference_cache_key,ai_reference_cache_model'
 const draftRelation = 'drafts:assessment_drafts!assessment_drafts_classroom_id_fkey(id,assessment_id,assessment_type,classroom_id,version,content)'

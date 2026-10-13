@@ -9,12 +9,15 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
+import { getCalendarTestDate } from '@/lib/calendar-items'
 import { nowInToronto } from '@/lib/timezone'
-import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
+import type { Classroom, LessonPlan, Assignment, Announcement, TestAssessment } from '@/types'
 import { Button, PageState, RefreshingIndicator } from '@/ui'
 
 interface Props {
   classroom: Classroom
+  showTests?: boolean
+  onNavigateToTests?: (testId: string) => void
   showClasswork?: boolean
   showAnnouncements?: boolean
   onNavigateToAssignments?: (assignmentId: string) => void
@@ -25,7 +28,7 @@ type StudentLessonPlansResponse = { lesson_plans?: LessonPlan[]; max_date?: stri
 type StudentAssignmentsResponse = { assignments?: Assignment[] }
 type StudentAnnouncementsResponse = { announcements?: Announcement[] }
 
-type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements'
+type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements' | 'tests'
 type CalendarRetrySource = CalendarSource | 'classDays'
 type SourceStatus = {
   classroomId: string | null
@@ -37,22 +40,27 @@ type SourceStatus = {
 const initialSourceStatus = (): Record<CalendarSource, SourceStatus> => ({
   lessonPlans: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   assignments: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  tests: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   announcements: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
 })
 
 export function StudentLessonCalendarTab({
   classroom,
+  showTests = true,
+  onNavigateToTests = () => {},
   showClasswork = true,
   showAnnouncements = true,
   onNavigateToAssignments = () => {},
   onNavigateToAnnouncements = () => {},
 }: Props) {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
+  const [tests, setTests] = useState<TestAssessment[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [sourceStatus, setSourceStatus] = useState(initialSourceStatus)
   const loadRequestIdsRef = useRef<Record<CalendarSource, number>>({
     lessonPlans: 0,
+    tests: 0,
     assignments: 0,
     announcements: 0,
   })
@@ -86,6 +94,8 @@ export function StudentLessonCalendarTab({
   useLayoutEffect(() => {
     currentClassroomIdRef.current = classroom.id
     loadRequestIdsRef.current.lessonPlans += 1
+    loadRequestIdsRef.current.tests += 1
+    setTests([])
     loadRequestIdsRef.current.assignments += 1
     loadRequestIdsRef.current.announcements += 1
     setLessonPlans([])
@@ -134,6 +144,52 @@ export function StudentLessonCalendarTab({
       }))
     }
   }, [classroom.id, fetchRange.end, fetchRange.start])
+
+  const loadTests = useCallback(async (force = false) => {
+    const source: CalendarSource = 'tests'
+    const requestedClassroomId = classroom.id
+    const requestId = loadRequestIdsRef.current[source] + 1
+    loadRequestIdsRef.current[source] = requestId
+    if (!showTests) {
+      setTests([])
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+      return
+    }
+    const cacheKey = `student-tests:${requestedClassroomId}`
+    if (force) invalidateCachedJSON(cacheKey)
+    setSourceStatus((current) => ({
+      ...current,
+      [source]: {
+        classroomId: requestedClassroomId,
+        error: current[source].classroomId === requestedClassroomId && current[source].error,
+        hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
+        isLoading: true,
+      },
+    }))
+    try {
+      const data = await fetchCachedJSON<{ tests?: TestAssessment[] }>(
+        cacheKey,
+        `/api/student/tests?classroom_id=${requestedClassroomId}`,
+        { ttlMs: 20_000, errorMessage: 'Failed to load tests' },
+      )
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      setTests(data.tests || [])
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+    } catch (err) {
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      console.error('Error loading calendar tests:', err)
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
+      }))
+    }
+  }, [classroom.id, showTests])
 
   const loadAssignments = useCallback(async (force = false) => {
     const source: CalendarSource = 'assignments'
@@ -228,16 +284,18 @@ export function StudentLessonCalendarTab({
   }, [classroom.id, showAnnouncements])
 
   useEffect(() => {
-    void Promise.all([loadLessonPlans(), loadAssignments(), loadAnnouncements()])
-  }, [loadAnnouncements, loadAssignments, loadLessonPlans])
+    void Promise.all([loadLessonPlans(), loadAssignments(), loadAnnouncements(), loadTests()])
+  }, [loadAnnouncements, loadAssignments, loadLessonPlans, loadTests])
 
   const lessonPlansStatus = sourceStatus.lessonPlans
+  const testsStatus = sourceStatus.tests
   const assignmentsStatus = sourceStatus.assignments
   const announcementsStatus = sourceStatus.announcements
   const currentLessonPlans = lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.hasLoadedSnapshot ? lessonPlans : []
+  const currentTests = showTests && testsStatus.classroomId === classroom.id && testsStatus.hasLoadedSnapshot ? tests : []
   const currentAssignments = assignmentsStatus.classroomId === classroom.id && assignmentsStatus.hasLoadedSnapshot ? assignments : []
   const currentAnnouncements = announcementsStatus.classroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
-  const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus]
+  const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus, ...(showTests ? [testsStatus] : [])]
   const hasAnyLocalSnapshot = localStatuses.some((status) => (
     status.classroomId === classroom.id && status.hasLoadedSnapshot
   ))
@@ -251,6 +309,10 @@ export function StudentLessonCalendarTab({
     retryingSourcesRef.current.add('lessonPlans')
     void loadLessonPlans(true)
   }, [loadLessonPlans])
+  const retryTests = useCallback(() => {
+    retryingSourcesRef.current.add('tests')
+    void loadTests(true)
+  }, [loadTests])
   const retryAssignments = useCallback(() => {
     retryingSourcesRef.current.add('assignments')
     void loadAssignments(true)
@@ -267,6 +329,7 @@ export function StudentLessonCalendarTab({
   useEffect(() => {
     const statuses: Record<CalendarRetrySource, { error: boolean; isLoading: boolean }> = {
       lessonPlans: lessonPlansStatus,
+      tests: testsStatus,
       assignments: assignmentsStatus,
       announcements: announcementsStatus,
       classDays: { error: Boolean(classDaysError), isLoading: classDaysLoading },
@@ -277,7 +340,7 @@ export function StudentLessonCalendarTab({
       retryingSourcesRef.current.delete(source)
       if (!status.error) calendarWorkspaceRef.current?.focus()
     }
-  }, [announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
+  }, [testsStatus, announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
 
   const failures: CalendarSourceFailure[] = []
   if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
@@ -289,16 +352,20 @@ export function StudentLessonCalendarTab({
   if (announcementsStatus.classroomId === classroom.id && announcementsStatus.error) {
     failures.push({ id: 'announcements', label: 'announcements', isRetrying: announcementsStatus.isLoading, onRetry: retryAnnouncements })
   }
+  if (showTests && testsStatus.classroomId === classroom.id && testsStatus.error) {
+    failures.push({ id: 'tests', label: 'tests', isRetrying: testsStatus.isLoading, onRetry: retryTests })
+  }
   if (classDaysError) {
     failures.push({ id: 'class-days', label: 'class days', isRetrying: classDaysLoading, onRetry: retryClassDays })
   }
 
   const retryAll = useCallback(() => {
     retryLessonPlans()
+    retryTests()
     retryAssignments()
     retryAnnouncements()
     retryClassDays()
-  }, [retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
+  }, [retryTests, retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
 
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
@@ -313,17 +380,22 @@ export function StudentLessonCalendarTab({
     onNavigateToAnnouncements()
   }, [onNavigateToAnnouncements])
 
-  // Prevent navigation beyond max date
+  const calendarMaxDate = maxDate ? currentTests.reduce<string | null>((latest, test) => {
+    const date = getCalendarTestDate(test)
+    return date && (!latest || date > latest) ? date : latest
+  }, maxDate) : null
+
+  // Lesson visibility remains owned by the server; permitted reminders extend navigation only.
   const handleDateChange = useCallback((newDate: Date) => {
-    if (maxDate) {
+    if (calendarMaxDate) {
       const newDateStr = format(startOfWeek(newDate, { weekStartsOn: 0 }), 'yyyy-MM-dd')
-      if (newDateStr > maxDate) {
+      if (newDateStr > calendarMaxDate) {
         // Don't allow navigation past max date
         return
       }
     }
     setCurrentDate(newDate)
-  }, [maxDate])
+  }, [calendarMaxDate])
 
   const handlePreviousDate = useCallback(() => {
     if (viewMode === 'week') {
@@ -395,6 +467,8 @@ export function StudentLessonCalendarTab({
             <LessonCalendar
               classroom={classroom}
               lessonPlans={currentLessonPlans}
+              tests={currentTests}
+              onTestClick={test => onNavigateToTests(test.id)}
               assignments={currentAssignments}
               announcements={currentAnnouncements}
               classDays={classDays}

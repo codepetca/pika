@@ -78,7 +78,7 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
   it('binds the complete current260 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(262)
+    expect(current).toHaveLength(263)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))

@@ -8,12 +8,12 @@ import { LessonDayCell } from './LessonDayCell'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { normalizeAnnouncementTitle } from '@/lib/announcements'
-import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
+import { getCalendarAnnouncementDate, getCalendarAssignmentDate, getCalendarTestDate } from '@/lib/calendar-items'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { useTorontoToday } from '@/hooks/use-toronto-today'
-import { DialogPanel, SegmentedControl, Tooltip } from '@/ui'
-import type { Announcement, Assignment, ClassDay, Classroom, LessonPlan } from '@/types'
+import { Button, DialogPanel, SegmentedControl, Tooltip } from '@/ui'
+import type { Announcement, Assignment, ClassDay, Classroom, LessonPlan, TestAssessment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 
@@ -23,6 +23,7 @@ interface LessonCalendarProps {
   classroom: Classroom
   lessonPlans: LessonPlan[]
   assignments?: Assignment[]
+  tests?: TestAssessment[]
   announcements?: Announcement[]
   classDays?: ClassDay[]
   viewMode: CalendarViewMode
@@ -34,6 +35,7 @@ interface LessonCalendarProps {
   onViewModeChange: (mode: CalendarViewMode) => void
   onContentChange?: (date: string, contentMarkdown: string) => void
   onAssignmentClick?: (assignment: Assignment) => void
+  onTestClick?: (test: TestAssessment) => void
   onAnnouncementClick?: () => void
   onMarkdownToggle?: () => void
   isSidebarOpen?: boolean
@@ -41,11 +43,11 @@ interface LessonCalendarProps {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Grid columns using fr units for consistent alignment
-// Weekends get 0.5fr, weekdays get 2fr each
-const GRID_COLUMNS_7 = '0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
-// Grid with month column: 24px for month, then same proportions
-const GRID_COLUMNS_8 = '24px 0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
+// Preserve weekday/weekend proportions while reserving a touch target plus cell gutters.
+const GRID_DAY_MIN_WIDTH = 'calc(var(--size-control-min) + var(--space-control))'
+const GRID_COLUMNS_7 = [0.5, 2, 2, 2, 2, 2, 0.5]
+  .map(fraction => `minmax(${GRID_DAY_MIN_WIDTH}, ${fraction}fr)`).join(' ')
+const GRID_COLUMNS_8 = `24px ${GRID_COLUMNS_7}`
 const MONTH_ROW_MIN_HEIGHT = '4.5rem'
 const MONTH_ROW_EXPANDED_MIN_HEIGHT = '9rem'
 // Determine which month a week belongs to (month with 3+ days wins)
@@ -77,6 +79,7 @@ export function LessonCalendar({
   classroom,
   lessonPlans,
   assignments = [],
+  tests = [],
   announcements = [],
   classDays = [],
   viewMode,
@@ -88,6 +91,7 @@ export function LessonCalendar({
   onViewModeChange,
   onContentChange,
   onAssignmentClick,
+  onTestClick,
   onAnnouncementClick,
   onMarkdownToggle,
   isSidebarOpen = false,
@@ -140,6 +144,15 @@ export function LessonCalendar({
     })
     return map
   }, [assignments])
+
+  const testsByDate = useMemo(() => {
+    const map = new Map<string, TestAssessment[]>()
+    for (const test of tests) {
+      const date = getCalendarTestDate(test)
+      if (date) map.set(date, [...(map.get(date) || []), test])
+    }
+    return map
+  }, [tests])
 
   // Build a map of date -> announcements for quick lookup
   // Announcements stay on the date they are published, including after a
@@ -310,13 +323,14 @@ export function LessonCalendar({
       dateString,
       lessonPlan,
       lessonMarkdown,
+      tests: testsByDate.get(dateString) || [],
       assignments: assignmentsByDate.get(dateString) || [],
       announcements: announcementsByDate.get(dateString) || [],
       isWeekend: isWeekendDay,
       isToday: isSameDay(presentedDay, today),
       isClassDay: classDays.length > 0 ? classDayDates.has(dateString) : undefined,
     }
-  }, [presentedDay, plansByDate, assignmentsByDate, announcementsByDate, today, classDays.length, classDayDates])
+  }, [presentedDay, plansByDate, assignmentsByDate, testsByDate, announcementsByDate, today, classDays.length, classDayDates])
 
   // Format header label
   const headerLabel = useMemo(() => {
@@ -425,6 +439,7 @@ export function LessonCalendar({
                   date={dateString}
                   day={day}
                   lessonPlan={plansByDate.get(dateString) || null}
+                  tests={testsByDate.get(dateString) || []}
                   assignments={assignmentsByDate.get(dateString) || []}
                   announcements={announcementsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
@@ -433,6 +448,7 @@ export function LessonCalendar({
                   editable={editable && !isWeekendDay}
                   onPresentDay={() => setPresentedDay(day)}
                   onContentChange={onContentChange}
+                  onTestClick={onTestClick}
                   onAssignmentClick={onAssignmentClick}
                   onAnnouncementClick={onAnnouncementClick}
                 />
@@ -441,7 +457,7 @@ export function LessonCalendar({
           })}
         </div>
       ) : (
-      <div className={viewMode === 'all' ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto' : 'min-h-0 flex-1 overflow-x-hidden'}>
+      <div className={viewMode === 'all' ? 'min-h-0 flex-1 overflow-x-auto overflow-y-auto' : 'min-h-0 flex-1 overflow-x-auto'}>
         {viewMode !== 'all' && (
           <div className="grid border-b-2 border-border" style={{ gridTemplateColumns: GRID_COLUMNS_7 }}>
             {DAY_LABELS.map((label, idx) => (
@@ -544,6 +560,7 @@ export function LessonCalendar({
                   date={dateString}
                   day={day}
                   lessonPlan={lessonPlan}
+                  tests={testsByDate.get(dateString) || []}
                   assignments={assignmentsByDate.get(dateString) || []}
                   announcements={announcementsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
@@ -553,6 +570,7 @@ export function LessonCalendar({
                   compact={!isExpanded}
                   plainTextOnly={viewMode === 'all'}
                   onContentChange={onContentChange}
+                  onTestClick={onTestClick}
                   onAssignmentClick={onAssignmentClick}
                   onAnnouncementClick={onAnnouncementClick}
                 />
@@ -632,6 +650,22 @@ export function LessonCalendar({
                       >
                         {assignment.title}
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {presentedDayDetails.tests.length > 0 && (
+                <div className="mt-10">
+                  <h3 className="text-sm font-semibold text-text-muted">Tests</h3>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {presentedDayDetails.tests.map(test => (
+                      <Button key={test.id} variant="ghost" onClick={() => {
+                        setPresentedDay(null)
+                        onTestClick?.(test)
+                      }} className="max-w-full whitespace-normal bg-info-bg text-primary">
+                        Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}
+                      </Button>
                     ))}
                   </div>
                 </div>

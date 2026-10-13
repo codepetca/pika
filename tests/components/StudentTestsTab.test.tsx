@@ -120,6 +120,23 @@ describe('StudentTestsTab exam mode', () => {
     })
   }
 
+  it('opens a permitted calendar deep link without starting the test', async () => {
+    queueTestList()
+    queueTestDetail()
+    render(<StudentTestsTab classroom={classroom} selectedTestId="test-1" />)
+    expect(await screen.findByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true)
+  })
+
+  it('does not request detail for a calendar deep link absent from the permitted list', async () => {
+    queueTestList()
+    render(<StudentTestsTab classroom={classroom} selectedTestId="hidden-test" />)
+    expect(await screen.findByText('Midterm Test')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: 'Start the Test' })).not.toBeInTheDocument()
+  })
+
   async function renderActiveTest() {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-10T12:00:00Z'))

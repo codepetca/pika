@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Test Question actions closing consistency
-
-Extended the actual split Test authoring Question actions menu with shared semantic-fast opacity dismissal. Live commands, hover ownership, document listeners and stale focus work retire immediately; owner/loading/Close/Publish/Preview changes and reduced motion remove presentation immediately. Copied primitive fields and audited known Lucide icon kinds preserve existing icons without retaining caller React descendants. Shared menu defaults remain immediate and canonical useDropdownNav owns navigation; only the Test menu is keyed by existing scope. Business insertion/autosave/flush and structural rules unchanged.
-
-Added exact development E2E teacher controller fixture using real TeacherTestAuthoringDialog/TestDetailPanel, summary merges and intercepted transport. Actual Test matrix8, held-save6 and teacher/student UserMenu4 passed frozen-source native verification (100PNGs/18videos;13source bindings). Canonical focused1651tests/101files and static checks, audit11TS and four unchanged Pattern Lab goldens PASS; coordinator inspected11boards and prior Material reference parity. Two default-concurrency runs exposed unchanged Tart-host timing and gallery5s failures; isolated host51 and canonical focused with2workers passed without test/timeout weakening. Native harness selector/hydration/capture rework retained externally; no product fixes were needed for those attempts. Independent stable-SHA review/CI/main landing remain recorded in PR and external receipts. No backend writes, dependencies, migrations, production or stable-pattern promotion. Broad fluidity goal remains open; explicit holds and human task stop waiver persist. Governed brief: docs/guidance/ui/test-menu-closing-consistency.md. External evidence: product-fluidity/transition-consistency/test-menu in this chat visualization directory.
-
 ## 2026-10-11 Assignment publication chooser closing consistency
 
 Continues approved app fluidity after shared SplitButton/Material PR1567 landed6695630da. Reuses fast semantic opacity and immediate reduced motion. Assignment chooser composes parent/local overlay activity and existing external record generation, preserving Tiptap identity and autosave/publication lifetimes. Existing creation/edit Pattern Lab choosers opt in and align their bottom-anchored upward placement with production, resolving clipped downward menus and lost reduced-motion Preview clicks; controlled actual AssignmentModal fixture is teacher-only, explicitly query-gated under development E2E fixture mode and requires exact browser API interception. Unknown requests fail; synthetic PATCH acknowledgments are tracked separately from zero-mutation dismissal scenarios. No backend, dependency, migration or production change; broad product-experience epic remains open. Governed reference/roles/decisions: docs/guidance/ui/assignment-menu-closing-consistency.md. Validation: real modal suites100tests; gallery/gate53tests; canonical focused1044tests/66files plus all static checks; audit10changed TypeScript files and four unchanged Pattern Lab goldens PASS. Native24teacher contexts plus one edited Schedule handoff PASS; accepted117PNGs/25videos and source hashes verified. Clean cases attempt zero mutations; edited case acknowledges exactly one whitelisted synthetic PATCH. Coordinator inspected15open/preview/closing/scheduling matrix boards and approved reference parity. Initial hosted coverage identified a5s timeout in a new Gallery gate case. Scoped only the opener query to the actual fixture and separated role cases; the portal-dialog absence assertion, every role/gate condition and global timeout remain unchanged. Product source and accepted native evidence are unchanged. Independent review/CI/landing acceptance remains recorded in PR and external transition-consistency/assignment-menu receipts; broad epic remains open.
@@ -623,3 +617,101 @@ compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
 remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
 only attested dispatcher stripped; controls receipt restored. Targeted108checks
 PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
+
+## 2026-10-13 — Optional Test calendar date prepared; isolated replay approval pending
+
+Owner requested a Test publication/due date so written Tests appear in Calendar;
+confirmed calendar date only, no submission cutoff. This task owns
+codex/test-calendar-date in /Users/stew/.codex/worktrees/pika/test-calendar-date,
+base22efa4826. Optional tests.test_date (civil date) is separate metadata, with
+strict date-only PATCH, active/closed support, clear/retry/close flush, and dated
+pristine-draft retention. Teacher drafts remain teacher-only; student calendars
+use authorized Tests and safe detail navigation without Start. Week/Month/Term
+and day presentation show links; permitted future dates extend student calendar
+navigation without broadening lesson reads. Blueprint reuse omits the classroom
+date; archive full-row restore retains it. Migration263 preserves latest262 owner
+operations and strict create/reorder/learner witnesses; exact263 source seals keep
+native inventories fail-closed. No migration, hosted write, gate, or deployment
+change executed.
+
+Used orchestrate with two GPT-6.1-sol/medium bounded workers for backend contracts
+and calendar integration, then targeted fixture fixes. DeepSeek dated pause
+honored. Initial weekly remaining93%; storage healthy338GB. Worker elapsed/tokens
+and coordinator attributable usage unknown. Backend residual11 suites708PASS
+serial74.59s; initial/contextual844PASS, UI152PASS, editor/hooks69PASS, UI fixture
+remediation180PASS, Gallery/hook/schema48PASS then4 isolated Calendar reference testsPASS.
+Two broad parallel runs showed strict-fixture drift then timing contention; fixed
+real fixture drift, isolated affected suites passed. Final focused test union with --max-workers1 passed4371/4372; sole unchanged
+ci-tart-host idle-budget timing case failed, while standalone51 and final
+ci-tart-host/DayCell78PASS. Log /tmp/pika-test-date-focused-serial.log. Generated
+database test_date remains the known TypeScript dependency after approved replay.
+Independent review/PR lifecycle not started while that gate is pending. No savings
+claim; coordination included fixture remediation, active student-list projection
+correction, and one visual touch-target correction.
+
+Pika UI change brief: docs/guidance/ui/changes/test-calendar-date.md. Final real
+production-owner browser matrix teacher/student×1440/390×light/dark covers all
+views, keyboard/day navigation, draft exclusion, and direct Test navigation;
+every new grid Test link measured >=44×44 with reachable bounded scrolling.
+Four unchanged editor cases cover save/clear/failure/retry/close. Synthetic API
+interception only. Artifacts and provenance:
+/Users/stew/.codex/visualizations/2026/10/13/01a135ed-8089-7400-9777-01ed30245db2/test-calendar-date/receipt.json.
+Visual inspection accepted. Audit's missing Pattern Lab reference coverage fixed
+with two focused owner tests and four DayCell Test-link semantic cases. Final
+auditPASS; architecture/UI/design policiesPASS. Targeted ESLint0errors, two
+existing warnings; diff checkPASS. Native schema replay/type generation and
+independent review are still unexecuted and required.
+
+Required user input pending: direct one-time approval for migrations001–263 in a
+NEW disposable local Supabase project pika-test-calendar-date only; existing
+shared local and production databases excluded. Requested through async input;
+no reply yet. After approval: prepare empty isolated project, inspect exact
+migration list/dry-run, one approved apply, native rollback probe
+scripts/check-test-calendar-date.sql and relevant preserved owner/learner/create/
+reorder contracts, regenerate/check database.generated.ts through standard script
+against isolated project. Then finish focused checks, independent high-risk
+security/correctness + compatibility review, draft-first PR, stable-SHA ready CI.
+Merge and production promotion retain their separate authority gates.
+
+Approval follow-up: owner explicitly approved isolated-local replay001–263 in
+pika-test-calendar-date. New /tmp/pika-test-calendar-date-20261013 binds project
+id pika-test-calendar-date to DB55342/container supabase_db_pika-test-calendar-date;
+no hosted link, source startup empty, seed disabled. Exact manifest/dry-run263
+verified before one db push --local --yes; applyPASS, history001–263 and date|YES
+verified. Permission consumed, no shared/hosted apply. Rollback date probePASS
+(create null witness, date save/clear, dated draft retention, outsider denial,
+read witness, reorder, active/closed with unchanged submitted participation).
+Owner/learner/grading/recovery/deletion native SQLPASS. Unpublication's unchanged
+2500-row setup statement hit12s timeout; supplemental local-only setup rechunked
+the SAME10000 rows into20×500 statements, all original assertions/runtime caps
+preserved, entire fixturePASS. Repository fixture/source unchanged; not a claim
+that its original2500-row setup met the local12s budget. All fixture rows rolled
+back; users0 verified. Standard generated types generate/check against isolated
+projectPASS; exactly3 additive lines. TypeScriptPASS; lint0errors with existing
+warnings. Final focused check --max-workers1 is still running; native and visual
+outputs remain valid for unchanged source. Review ledger planned high risk,
+2 Sol/high fresh-context reviewers (security/correctness; compatibility), 0
+launches/0 waves/0 remediation, session budget60min, reviewer hard30min each.
+Current weekly remaining91%, account-wide; worker telemetry unknown.
+
+Final pre-review follow-up: generated contract3lines, tscPASS and full lint0errors.
+Focused union4371/4378PASS; 7 failures were existing host timing or test timeouts
+in3 suites. Residual suites rerun255/257PASS; remaining2 exact cases individually
+PASS. After stopping ONLY this task's preview3027 and disposable Supabase project
+(default backup retained), both timing-sensitive suites230/230PASS. PageMockups
+27/27PASS in residual run. No deadlines/assertions weakened and no baseline host
+implementation edits. Retain broad-run limitations honestly; no full-command
+PASS claimed. Aggregate local coverage includes all selected tests and serial
+supplements at unchanged source.
+
+Additional owned UI correction before review: native date typing now edits local
+metadata and saves on blur/close/publish; an incomplete native value blocks flush
+without erasing the saved date. Successful saves update saved React state even
+when batched, so SaveStatus settles correctly. Editor/hook/controller80PASS;
+4 final editor browser casesPASS (no intermediate typing request), final tscPASS
+and targeted lint0errors. Calendar8case evidence reused for unchanged owners;
+provenance receipt updated. No SQL/DTO changes after approved replay. Review
+starts only after this stable source checkpoint; scope/budget remain2 Sol/high,
+60minute session, 30minute hard per-reviewer, max4 remediation batches. Local
+stack/schema backup and all private artifacts retained. Main unchanged22efa4826;
+no competing branch writer or remote branch exists.

@@ -41,7 +41,8 @@ export async function patchContextualTestOwnerMetadata(input: Input & { body: z.
   const flow = createContextualTestOwnerWorkflow(input); const before = await flow.inspect()
   const payload = { ...input.body, ...(input.body.documents === undefined ? {} : { documents: preserveCurrentTestDocumentSnapshots(before.documents, input.body.documents) }) }
   const witness = await flow.run('update', z.json().parse(payload))
-  if ((payload.title !== undefined && witness.test.title !== payload.title)
+  if ((payload.test_date !== undefined && witness.test.test_date !== payload.test_date)
+    || (payload.title !== undefined && witness.test.title !== payload.title)
     || (payload.show_results !== undefined && witness.test.show_results !== payload.show_results)
     || !isDeepStrictEqual(witness.test.documents, payload.documents ?? before.documents)) throw unavailable()
   // The database's existing durable cleanup ledgers own removed objects; an

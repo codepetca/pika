@@ -30,6 +30,7 @@ import { Button, EmptyState, FormField, IconButton, Input, SaveStatus, SplitButt
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
+import { useTestCalendarDate } from '@/hooks/useTestCalendarDate'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
 import {
@@ -256,6 +257,16 @@ export function TestDetailPanel({
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
   const testUpdatedAtRef = useRef(testAssessment.updated_at)
+  const calendarDate = useTestCalendarDate({
+    test: testAssessment,
+    classroomId,
+    apiBasePath,
+    onSaved: (savedTest) => {
+      testUpdatedAtRef.current = savedTest.updated_at
+      notifyTestUpdate()
+    },
+  })
+  const { flush: flushCalendarDate } = calendarDate
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
@@ -944,6 +955,7 @@ export function TestDetailPanel({
   )
 
   const flushPendingDraft = useCallback(async (): Promise<boolean> => {
+    if (!await flushCalendarDate()) return false
     if (splitEditorFlushRef.current && !splitEditorFlushRef.current()) return false
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -958,7 +970,7 @@ export function TestDetailPanel({
     const pendingDraft = pendingDraftRef.current
     if (!pendingDraft) return true
     return saveDraft(pendingDraft, { forceFull: true, documents })
-  }, [conflictDraft, documents, saveDraft])
+  }, [flushCalendarDate, conflictDraft, documents, saveDraft])
 
   useEffect(() => {
     onDraftFlushReady?.(flushPendingDraft)
@@ -979,11 +991,12 @@ export function TestDetailPanel({
         && (pendingDraft?.questions.length ?? 0) === 0
         && documentsRef.current.length === 0
         && !markdownDirtyRef.current
+        && !calendarDate.value
       ),
       draftVersion: draftVersionRef.current,
       testUpdatedAt: testUpdatedAtRef.current,
     }
-  }, [draftShowResults, editTitle, questions])
+  }, [calendarDate.value, draftShowResults, editTitle, questions])
 
   useEffect(() => {
     onDraftPristineCheckReady?.(getDraftPristineState)
@@ -2245,6 +2258,31 @@ export function TestDetailPanel({
     </div>
   )
 
+  const calendarDateField = (
+    <FormField
+      label="Test date"
+      error={calendarDate.error}
+      labelAccessory={(
+        <div className="flex items-center gap-1">
+          <SaveStatus status={calendarDate.saving ? 'saving' : calendarDate.error || calendarDate.dirty ? 'unsaved' : 'saved'} />
+          {calendarDate.error ? (
+            <Button variant="ghost" size="sm" disabled={calendarDate.saving} onClick={() => { void calendarDate.flush() }}>Retry</Button>
+          ) : calendarDate.value ? (
+            <Button variant="ghost" size="sm" disabled={calendarDate.saving || isClosing || isPreparingPublish} onClick={() => { void calendarDate.save('') }}>Clear</Button>
+          ) : null}
+        </div>
+      )}
+    >
+      <Input
+        type="date"
+        value={calendarDate.value}
+        disabled={calendarDate.saving || isClosing || isPreparingPublish}
+        onChange={(event) => calendarDate.edit(event.currentTarget.value, event.currentTarget.validity.valid)}
+        onBlur={() => { void calendarDate.flush() }}
+      />
+    </FormField>
+  )
+
   const testsSplitPanel = (
     <div data-testid="test-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
       <div data-testid="test-editor-details-pane" className="flex flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
@@ -2304,6 +2342,8 @@ export function TestDetailPanel({
             onBlur={() => { void handleTitleSave(editTitle) }}
           />
         </FormField>
+
+        {calendarDateField}
 
         <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
           <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
@@ -2631,6 +2671,7 @@ export function TestDetailPanel({
         ) : viewMode === 'questions' ? (
           <div className="space-y-3">
             {editableTitle}
+            {calendarDateField}
             <div className="text-xs text-text-muted">
               {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
             </div>

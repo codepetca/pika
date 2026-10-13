@@ -1,5 +1,7 @@
 'use client'
 
+import { CALENDAR_REFERENCE_TEST } from './calendar-test-fixtures'
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addMonths, addWeeks, format, subMonths, subWeeks } from 'date-fns'
 import {
@@ -1167,7 +1169,7 @@ export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (acti
       actions={<MoreMenu label="Calendar" items={menuItems} />}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <LessonCalendar classroom={CLASSROOM} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'week'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
+      <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'week'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
     <Description>Week uses the lesson agenda with a date rail, full lesson content and explicit editing. Month and Term retain their grids. The date and view toggle share the center cluster; More actions owns Markdown editing.</Description>
   </PageLayout>

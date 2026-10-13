@@ -24,7 +24,7 @@ type Root = z.infer<typeof contextualTestListRootSchema>
 type ChildKind = 'questions' | 'attempts' | 'responses' | 'availability'
 const unavailable = () => new ApiError(503, 'Unable to verify classroom tests')
 const rootFields = 'id,teacher_id,archived_at'
-const testFields = 'id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,created_by,created_at,updated_at,artifact_id,source_artifact_id,source_blueprint_version_id,blueprint_archived_at,gradebook_category_id,gradebook_maximum_override,gradebook_score_scale,gradebook_weight,questions_locked_at'
+const testFields = 'id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,created_by,created_at,updated_at,artifact_id,source_artifact_id,source_blueprint_version_id,blueprint_archived_at,gradebook_category_id,gradebook_maximum_override,gradebook_score_scale,gradebook_weight,questions_locked_at'
 const controlFields = 'id,classroom_id,status,updated_at'
 const testRelation = 'tests:tests!tests_classroom_id_fkey'
 const enrollmentRelation = 'enrollments:classroom_enrollments!classroom_enrollments_classroom_id_fkey(classroom_id,student_id)'

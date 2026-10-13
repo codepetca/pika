@@ -1,3 +1,4 @@
+import { validateTestCalendarDateReviewedMigration } from './test-calendar-date-reviewed-migration'
 /** Fixed inert SQL frames for the existing closed native engine. This module
  * opens no process, SQL connection, SDK, Storage or network resource. */
 import assert from 'node:assert/strict'
@@ -35,12 +36,13 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const sql=readFileSync(resolve(repository,'supabase/migrations',TEST_OWNER_GRADING_REVIEWED_MIGRATION.name),'utf8')
   const sourceSha256=hash(sql);validateTestOwnerGradingReviewedMigration({name:TEST_OWNER_GRADING_REVIEWED_MIGRATION.name,sql,sha256:sourceSha256})
-  const inventory=loadAssignmentListReviewedMigrations(repository);assert([259,260,261,262].includes(inventory.length),'Unreviewed owner grading migration profile')
+  const inventory=loadAssignmentListReviewedMigrations(repository);assert([259,260,261,262,263].includes(inventory.length),'Unreviewed owner grading migration profile')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
   if(inventory.length>=260)validateTestOwnerRecoveryReviewedMigration(inventory[259])
   if (inventory.length >= 261) validateTestOwnerUnpublicationReviewedMigration(inventory[260])
-  if (inventory.length === 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
+  if (inventory.length >= 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
+  if (inventory.length === 263) validateTestCalendarDateReviewedMigration(inventory[262])
   const migrations=inventory.map(({name,sha256})=>({name,sha256}));const migrationManifestSha256=hash(JSON.stringify(migrations))
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`,guard=testOwnerGuardSql(projectId)
   const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';",terminal="end;$guard$;select 'ok';rollback;"
