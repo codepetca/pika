@@ -31,6 +31,25 @@ describe('returnTestToDraft RPC boundary', () => {
     expect(rpc).toHaveBeenCalledWith('return_test_to_draft_atomic', { p_teacher_id: teacherId, p_test_id: testId })
   })
 
+  it.each([undefined, null, '2026-10-20'])('accepts the pre/post migration calendar date %s', async (testDate) => {
+    const acknowledged: Omit<typeof row, 'test_date'> & { test_date?: string | null } = { ...row, test_date: testDate }
+    if (testDate === undefined) delete acknowledged.test_date
+    rpc.mockResolvedValue({ data: { test: acknowledged, draft_version: 8 }, error: null })
+    expect(await returnTestToDraft(teacherId, testId, classroomId)).toEqual({
+      test: { ...acknowledged, assessment_type: 'test' }, draft_version: 8,
+    })
+  })
+
+  it.each(['2026-02-30', '0000-01-01', '2026-10-20T00:00:00Z', 123])('rejects malformed calendar metadata %s', async (testDate) => {
+    rpc.mockResolvedValue({ data: { test: { ...row, test_date: testDate }, draft_version: 8 }, error: null })
+    await expect(returnTestToDraft(teacherId, testId, classroomId)).rejects.toMatchObject({ statusCode: 503 })
+  })
+
+  it('still rejects unrecognized acknowledgement fields', async () => {
+    rpc.mockResolvedValue({ data: { test: { ...row, unexpected: true }, draft_version: 8 }, error: null })
+    await expect(returnTestToDraft(teacherId, testId, classroomId)).rejects.toMatchObject({ statusCode: 503 })
+  })
+
   it.each([['PT403', 403], ['PT404', 404], ['PT409', 409], ['55P03', 409], ['PGRST202', 503], ['42501', 503]])('maps %s without exposing SQL text', async (code, status) => {
     rpc.mockResolvedValue({ data: null, error: { code, message: 'private SQL detail' } })
     await expect(returnTestToDraft(teacherId, testId, classroomId)).rejects.toMatchObject({ statusCode: status })

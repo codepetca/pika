@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-09 — Owner Test workflow disposable replay failure
-
-Direct owner approval covered one fresh isolated001–256 replay from1dc0891e7.
-Sol/high native worker used reviewed existing platform/type helpers and a private
-runner; coordinator corrected a fixture document-ID mismatch before dispatch.
-The single replay failed at256 with SQLSTATE42601 (unparenthesized CASE in IF,
-inner THEN).21.251s; no SQL fixture/SDK/type-generation result accepted. Exact
-owned Docker teardown/full global741-resource closure/canonical complete
-row+control+cron baseline/source/port checks PASS; shared local/prod untouched.
-Receipts:/private/tmp/pika-owner-workflow-proof.ylCUiF/result.json. Native worker
-usage/effective config unknown, requestedGPT-6.1Sol/high; weekly37% reused.
-Coordinator parentheses-only SQL repair and explicit regression RED→GREEN5/5;
-same rollback contract registered in existing ephemeral Database Contract lane.
-Workflow541/54, audit and diff checks PASS. One bounded Sol/high independent
-correction/pre-replay review planned; workflow review launches0 before dispatch,
-full-diff waves0/fix batches0 (native parser repair1). No type artifact/PR/CI/merge.
-One-time application permission consumed; fresh exact corrected-source approval
-required before another disposable replay. Existing holds/cumulative counters kept.
-
-Bounded independent Sol/high correction review completed at50016e316: CASE/CI
-delta, full256 structure and immediate dependencies covered; one acceptedP1 in
-rollback SQL49 (JSON extraction/subtraction precedence), no other structural
-blocker. Parenthesize extracted witness; second regression RED→GREEN6/6.
-Review ledger:1 completed bounded source turn/full-diff waves0/remediation1,
-native parser repair1 retained separately. Effective tokens/time unknown.
-Targeted delta review and fresh native approval remain; no full-PR acceptance.
-
 ## 2026-10-09 — Owner Test workflow native verification accepted
 
 Direct fresh approval covered one replay001–256 froma1bcab47e. Sol/high worker's
@@ -528,3 +501,7 @@ Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582
 ## 2026-10-11 — Material Markdown final log sync
 
 Final reviewed be7674d4 CI38136077644 and all ten lanes including PR Gate PASS (35m09s). Main79a6f7994 landed a production continuity receipt during CI; rebase again resolves only archive/log overlap, retaining distinct history. Feature/UI/test blobs unchanged; prior focused969/65 and teacher/student desktop/mobile light/dark proof remain applicable. No application migration, production promotion or feature correction. Proportional sync review and exact final-head CI precede the authorized main merge.
+
+## 2026-10-13 — Test date rollout compatibility
+
+Production release review reproduced a schema-first gap: legacy return-to-draft commits then rejects the full Test row after migration263 adds test_date. The legacy acknowledgement now accepts a missing, null or validated calendar date while preserving strict unknown-key/status/identity validation. Targeted 16-case regression passes before/after the column; no SQL or UI change. A minimal production compatibility slice must deploy before exact authorized259–263 application, then the cumulative main calendar release may follow. Owner requested production publication and required migration; exact complete pending-set permission remains separate.
