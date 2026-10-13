@@ -31,4 +31,12 @@ describe('Test calendar metadata storage contract', () => {
     expect(migration).toContain("'status','test_date','title','updated_at'")
     expect(migration).toContain("'test_date',v_test.test_date")
   })
+  it('preserves the latest publication routine while admitting only the additional date column', () => {
+    const prior = readFileSync('supabase/migrations/252_contextual_test_owner_publication.sql', 'utf8')
+    const start = prior.indexOf('create function public.publish_test_from_draft_for_owner_v1(')
+    const expected = prior.slice(start, prior.lastIndexOf('commit;'))
+      .replace('create function public.publish_test_from_draft_for_owner_v1(', 'create or replace function public.publish_test_from_draft_for_owner_v1(')
+      .replace("'status','title','updated_at'", "'status','test_date','title','updated_at'")
+    expect(migration).toContain(expected)
+  })
 })

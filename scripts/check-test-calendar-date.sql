@@ -21,7 +21,8 @@ declare
  witness jsonb; before_row jsonb; after_row jsonb; test_id uuid; draft_id uuid;
  draft_version integer; updated timestamptz; denied boolean:=false;
  test_status text; attempt_before jsonb; archive_operation uuid := 'a2630000-0000-4000-8000-000000000020';
- archived_row jsonb; staged_result jsonb;
+ archived_row jsonb; staged_result jsonb; publication_date text; publication_id uuid; publication_draft_id uuid;
+ publication_content jsonb; publication_draft_before jsonb; publication_source jsonb;
 begin
  witness:=public.create_test_for_owner_v1(actor,classroom,'Untitled',clock_timestamp()+interval '20 seconds');
  test_id:=(witness->'test'->>'id')::uuid; draft_id:=(witness->'draft'->>'id')::uuid;
@@ -57,6 +58,24 @@ begin
   if (select to_jsonb(a) from public.test_attempts a where a.test_id=test_id) is distinct from attempt_before then raise exception 'Date metadata changed participation';end if;
  end loop;
  if not exists(select 1 from public.assessment_drafts where id=draft_id and version=draft_version) then raise exception 'Calendar operations changed the content draft';end if;
+ foreach publication_date in array array['2028-02-29',null]::text[] loop
+   witness:=public.create_test_for_owner_v1(actor,classroom,'Calendar publication',clock_timestamp()+interval '20 seconds');
+   publication_id:=(witness->'test'->>'id')::uuid;publication_draft_id:=(witness->'draft'->>'id')::uuid;
+   select to_jsonb(t) into before_row from public.tests t where id=publication_id;
+   perform public.test_owner_workflow_v1(actor,publication_id,classroom,'update',jsonb_build_object('test_date',publication_date),before_row,clock_timestamp()+interval '20 seconds');
+   publication_content:=jsonb_build_object('title','Calendar publication','show_results',false,'question_identity_version',1,'questions',jsonb_build_array(
+     jsonb_build_object('id',gen_random_uuid(),'question_type','open_response','question_text','Explain a food web.','options','[]'::jsonb,
+       'correct_option',null,'answer_key',null,'sample_solution',null,'points',1,'response_max_chars',500,'response_monospace',false)));
+   update public.assessment_drafts set content=publication_content where id=publication_draft_id;
+   select to_jsonb(d) into publication_draft_before from public.assessment_drafts d where id=publication_draft_id;
+   publication_source:=public.snapshot_test_draft_for_owner_v1(actor,publication_id,clock_timestamp()+interval '20 seconds');
+   witness:=public.publish_test_from_draft_for_owner_v1(actor,publication_id,classroom,publication_source->>'source_sha256',
+     (publication_source->'draft'->>'version')::integer,publication_content,clock_timestamp()+interval '20 seconds');
+   if witness->'test'->>'status' is distinct from 'closed' or witness->'test'->'test_date' is distinct from coalesce(to_jsonb(publication_date),'null'::jsonb)
+     then raise exception 'Publication did not retain optional calendar date';end if;
+   if (select to_jsonb(d) from public.assessment_drafts d where id=publication_draft_id) is distinct from publication_draft_before
+     or exists(select 1 from public.test_attempts where test_id=publication_id) then raise exception 'Publication widened Draft or participation effects';end if;
+ end loop;
  -- Exercise the real v2 exact-column staging path for both old and dated archives.
  insert into public.classroom_archive_operations(id,teacher_id,classroom_id,operation_type,
    request_sha256,status,source_revision,source_schema_migration,source_app_commit,retention,

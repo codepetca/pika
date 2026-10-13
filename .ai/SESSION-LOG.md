@@ -766,3 +766,21 @@ query, boundary, gate, response or error behavior changed; no generated editing.
 Existing learner-open regression suites running plus full focused requirement.
 AuditPASS. This type-only completion delta joins final cumulative review; no
 extra full-diff initial wave and no revised SQL beyond approved digest.
+
+CI follow-up: first eligible ready run38447949548 failed native reorder races;
+PR returned to draft, which cancelled sibling lanes through configured CI
+concurrency. One targeted rerun reproduced PT503 holder at controls1514/actions89.
+Read-only Sol/medium backend investigation identified action89 as publication252
+holder; root independently confirmed252 exact Tests catalog omits test_date.
+Only252 and254 contain current strict physical Tests catalog seals;254 was
+already updated. Correction preserves complete252 publication routine/ACLs in263,
+adding only test_date to sorted Tests column admission. Parent full-row expected
+postimage automatically retains date. Native rollback probe now publishes both
+non-null/null dated Tests, checking closed witness, retained Draft and no attempt.
+Source preservation, publication/reorder admission18testsPASS; auditPASS. Revised
+263 digest f01e1284139151436a034d929c6fa44b1aecf976a62d661cc760d7f7eff1bbe5.
+Asked one-time exact001–263 replay in fresh pika-test-calendar-date-publication;
+not applied yet. Last permitted default correction commit (4 total) includes
+this batch; targeted delta re-review follows before any ready event. Review
+session began18:10:36UTC;60min wall cap remains. No extra CI rerun is justified
+until this confirmed blocker is fixed and revalidated. No product/gate changes.
