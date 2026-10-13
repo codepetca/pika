@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
-
-Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
-all10 incoming nonhistory paths byte-for-byte; owner product/SQL/generated types
-unchanged. One append-only journal conflict kept both sides; complete dated
-body/multiplicity deficits zero for pre-rebase02d1d2a10 and incomingbb778e389.
-No stash created or consumed; existing stashes retained. Full current-base
-focused1954/112 plus architecture/UI/design/TypeScript/lint PASS at40152a3c1;
-three private revision-source changes and all seven private types/mock suites
-remain PASS. Earlier docs-only739/56 PASS. No UI implementation or native query.
-One independent targeted Sol/high review covers last-reviewedcebc→final candidate,
-three private diffs, Start→observed manifest and unchanged incoming material UI.
-Cumulative counters original02:58:39/8completedturn2261s/targeted5/final1/fix6
-retained under waiver; native acceptance/readyCI/merge still blocked. PR1569 stays
-draft; shared-local/prod/provider/account/activation/toolgoalPAUSED holds remain.
-
 ## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
 
 Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
@@ -756,3 +740,19 @@ Final25diagnostic CPU checks/four serialized VM scenarios,6case,21packaging,
 Same original ownership, byte/witness/request and deadline bounds; no new hooks,
 dependencies, acceptance/runtime or native proof. Targeted review next; prior
 full PR gate remains failed. Production/shared-local/cutover/provider holds stay.
+
+## 2026-10-13 Reviewed body diagnostics identify pending native read
+
+Human approved ONE fresh isolated Source33 check after review43 PASS0. Exact
+source/compiler/import closure and current CLI/Chrome signature/process/port
+preflight PASS. Sole032b383fa26c launcher51294 closed1/SPENT after24.959s:
+receipt33f2bfbb... shows original body Promise pending at document entry and
+URL failure, HTTP2of3, URLdeadline. This establishes pending state, not Chrome's
+internal cause or a product auth defect. Owned browser/CLI/server/requests all
+closed within this run; cleanupFailures[], queryDiagnostic/cleanupDiagnostic
+null.16durable witnesses max588B retained privately. No retry, restart, unrelated
+signals, payload logging or spent evidence alteration. Earlier93 cleanup failure
+is not rewritten by this separate success. PR1581 stays draft; native/app
+acceptance and full failed PR gate remain unresolved. Next decision must address
+body-read/navigation ordering before another run; no source criteria changed.
+Original review43/fix33 and production/shared-local/cutover/provider holds remain.
