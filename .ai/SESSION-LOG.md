@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Roster fixture respects irreversible membership generation
-
-Bounded Sol/high writer delivered exactly three private SDK/offline source files;
-root verified snapshots/hashes/diff and reran transport+operational fake effects
-PASS. Retained168 same-ID reinsertion regression RED; fixed fresh-generation
-reenrollment GREEN. Before/after full18-table academic/enrollment/membership/
-outbox graph accepts only exact enrollment ID successor, old active→removed,
-one fresh scoped active generation and validated novel Pal reference. Original
-work/timestamps/attendance marks/non-target identities stay exact. Uncommitted
-Apply leaves original untouched; failed Restore and16 corruption cases fail
-closed. Six committed-denial/postguard faults and cancellation mocks retained;
-full success31/32frames. No trigger/maintenance bypass, product/SQL/generated/
-dependency/runner/control change or native operation. Worker start unknown,
-first observation14:32:47/final checks14:38:52; effective/tokens unknown.
-Full current-base gate95217 PASS1954/112 plus allstatic; final factualdocs delta
-receives targeted checks. One targeted independent review covers three private
-diffs, native168/169 interaction, source equivalence and whole documentation
-delta. Original clock/9completedturns/prior2261measureds+unknown9 retained;
-fixbatch7/standingworkflow waiver. PR1569 stays draft; actual native acceptance
-still absent, shared local/prod and activation holds remain.
-
 ## 2026-10-11 — Owner grading disposable native acceptance passes
 
 Exact reviewedd714cb2f/full001–259/project01067ea3558c run16809 completed exit0,
@@ -754,3 +733,21 @@ entry8f790940...; acceptance/runtime absent. Targeted review46 next under standi
 workflow waiver, original clock/review46/fix35 carry; no new run authorized.
 PR1581 remains draft, full gate failed; app/auth/production/shared-local/cutover/
 provider-held Survey scopes unchanged.
+
+## 2026-10-13 Source35 isolated check stops before HTTP on ownership
+
+Human approved ONE exact reviewed cf7e896de992 native check. Source/import/
+compiled pins and current Chrome/CLI signature/kernel/port preflight PASS.
+Sole launcher21433 closed1/SPENT after4.565s, HTTP0: first failure capture/
+ownership. Receipt7f24a0c1... reports CLI/server/requests closed but browserfalse;
+cleanup unknown/untyped at initial-snapshot, deadlineExpiredfalse with11.7s
+window/85.455s original budget remaining, queryDiagnosticnull. No original-body
+or navigation acceptance was exercised. Later separate read-only observation
+23:10:27.270UTC matched recorded root21384 plus7live Chrome descendants and
+reconciled their identities; this is not historical cleanup success or proof of
+the initial rejection cause. Port3197free, signals0. Evidence retained privately;
+no retry, deadline renewal, blind kill, restart or source criteria change. New
+check approval consumed. Next requires separately authorized bounded cleanup of
+that verified test family and source diagnosis of snapshot rejection before any
+fresh run. Review46/fix35 carry; PR1581 draft/full gate failed, native/app exit
+absent. Production/shared-local/cutover/provider/account holds stay unchanged.
