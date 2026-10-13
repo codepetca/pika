@@ -46593,3 +46593,25 @@ and private TypeScript PASS; independent correction review pending. Rebased only
 UI1570/1571 onto caaa1c926, preserving both archive bodies; backend/proof/migration
 bytes unchanged and258 numbering retained. Current-base checks, delta review and
 fresh exact-source native permission precede readyCI/merge. Overall goal PAUSED.
+
+<!-- pika-session-log-archive-batch:f8dee86d71d29ab904de474122ea6e0db942f3cfc5da1c537d99c004a5d6c0df -->
+## 2026-10-11 — Owner grading diagnostic rehearsal confirms fixture mismatch
+
+Targeted diagnostic/base-sync source review CLEAN993c62949,387s; seven actual
+turns1917s/initial1/targeted4/final1/fix4, original02:58:39 clock retained.
+Human approved one fresh exact993/full001–258/projectbd4b1eb551ad rehearsal.
+Old377 receipts preserved privately; fresh preflight/binding PASS. Actual run
+82020 replayed001–258 then failed rollback; private mode0600 capture worked.
+Observed statement is check-contextual-test-owner-grading.sql268: moving the
+Test classroom alone leaves its category in the old classroom. Retained207
+assign_default_gradebook_category correctly raises category-parent mismatch
+before the intended changed-parent PT409 assertion. Source inspection finds
+analogous private SDK parentApply/Restore; that path was not reached. Keep the
+product invariant; next source-only fix must use matching target categories and
+restore the original category exactly, with regressions/targeted review before
+another fresh native permission. No fix or retry in this rehearsal turn.
+Exact owned cleanup, global inventory/ports and whole canonical rows/settings/
+cron/resources/sourcefreeze PASS; cleanupFailures[]. Types/closed-engine/SDK/
+cancellation not reached, nativeVerified=false. Permission consumed; entry gate
+false/null again, receipts retained. PR1569 remains draft/unmerged. Normal-local,
+production, account/provider/activation and toolgoalPAUSED holds unchanged.

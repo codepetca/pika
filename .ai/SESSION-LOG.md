@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading diagnostic rehearsal confirms fixture mismatch
-
-Targeted diagnostic/base-sync source review CLEAN993c62949,387s; seven actual
-turns1917s/initial1/targeted4/final1/fix4, original02:58:39 clock retained.
-Human approved one fresh exact993/full001–258/projectbd4b1eb551ad rehearsal.
-Old377 receipts preserved privately; fresh preflight/binding PASS. Actual run
-82020 replayed001–258 then failed rollback; private mode0600 capture worked.
-Observed statement is check-contextual-test-owner-grading.sql268: moving the
-Test classroom alone leaves its category in the old classroom. Retained207
-assign_default_gradebook_category correctly raises category-parent mismatch
-before the intended changed-parent PT409 assertion. Source inspection finds
-analogous private SDK parentApply/Restore; that path was not reached. Keep the
-product invariant; next source-only fix must use matching target categories and
-restore the original category exactly, with regressions/targeted review before
-another fresh native permission. No fix or retry in this rehearsal turn.
-Exact owned cleanup, global inventory/ports and whole canonical rows/settings/
-cron/resources/sourcefreeze PASS; cleanupFailures[]. Types/closed-engine/SDK/
-cancellation not reached, nativeVerified=false. Permission consumed; entry gate
-false/null again, receipts retained. PR1569 remains draft/unmerged. Normal-local,
-production, account/provider/activation and toolgoalPAUSED holds unchanged.
-
 ## 2026-10-11 — Owner grading category-consistent fixture correction
 
 Human requested rollback/SDK correction, restoration checks and review only;
@@ -783,3 +762,19 @@ audit/independent review/full checks next. No VM activation or provider scope ch
 Human approved fresh isolated diagnostic recovery gate; source-only new proposal
 7593614f0787 prepares privacy-safe failure logging, oldSPENT attempt preserved.
 No new browser execution/acceptance until source review and current preflight.
+
+## 2026-10-13 Fresh isolated browser diagnostic localizes destination stall
+
+Human approved preserving oldf0 as permanently failed while admitting a new,
+separately reviewed isolated diagnostic without another reboot. Private source31
+reviews39Sol/high and40Astra/high passed; source/compiled hashes, pinned Chrome
+signature/CLI and actual ownership preflight passed. One7593614f0787 invocation
+closed1/SPENT in observed32.947s: process discovery/publication and owned browser,
+CLI/server/request closure confirmed, but destination URL timed out after2of3
+server requests. Original POST finished; original body read pending while
+destination navigation was intercepted. Exact Chrome cause not proven; diagnosis
+continues, no blind retry/restart/unrelated signals. Receipt75973a27 retained
+privately. PR1581 remains draft at342a: final focused2921PASS/8skip/2CPUtimeouts,
+both isolated cases PASS; architecture/UI/design/appType/lint PASS separately.
+Full gate not green and native/app acceptance incomplete. Production/cutover
+and provider-refused Survey probe planning remain held; no migrations applied.
