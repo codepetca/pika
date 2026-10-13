@@ -1,4 +1,4 @@
-# Checkpoint — 2026-10-12 UTC
+# Checkpoint — 2026-10-13 UTC
 
 Release `3b7ae978e`; audit27 accepted (docs/guidance/codebase-audit-remediation-2026-10.md).
 
@@ -16,6 +16,8 @@ Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant; Tests fail; Survey/archive proof pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
+Draft1581: private committed runner CPU-covered; incomplete native inventory blocks admission.
+Practical cancellation/SQL-size/wire-overflow scope approved; production/cutover held.
 Reboot ended old family;12 artifacts recovered; receipts/seed missing.
 Chrome/concurrency criteria approved; browser failed (0 HTTP). No app exit.
 251/252 native/review/CI PASS.

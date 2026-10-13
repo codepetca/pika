@@ -15,7 +15,7 @@ import * as platform from '../../scripts/contextual-assignment-list-proof-platfo
 import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
 import * as nativeEngine from '../../scripts/contextual-test-draft-save-native-contracts'
 import { assignmentListExpectedResources, runAssignmentListEphemeralLifecycle,
-  type AssignmentListLifecycleAdapters, type AssignmentListResource } from '../../scripts/contextual-assignment-list-proof-lifecycle'
+  type AssignmentListLifecycleAdapters, type AssignmentListLifecycleInput, type AssignmentListResource } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
@@ -211,7 +211,8 @@ describe('source-only sealed Survey263 native reuse', () => {
     await expect(runSurveyNativeRollbackContracts(m, target, driver)).rejects.toThrow()
     expect(close).toHaveBeenCalledOnce()
   })
-  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure', 'types-failure', 'cleanup-failure', 'unsealed', 'remaining-admission'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
+  it.each(['normal', 'after-fixture', 'before-capture', 'run-failure', 'types-failure', 'cleanup-failure', 'unsealed', 'remaining-admission',
+    'mutated-selector', 'mutated-workload', 'mutated-both'] as const)('keeps original outer cleanup while skipping every predecessor acceptance case: %s', async mode => {
     const m = plan(), projectId = m.projectId, workdir = assignmentListProofWorkdir(projectId)
     const migrations = loadAssignmentListReviewedMigrations(repository)
     const expected = assignmentListExpectedResources(projectId)
@@ -262,10 +263,16 @@ describe('source-only sealed Survey263 native reuse', () => {
     const gate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'requireSurvey263AdapterEndpoint').mockReturnValue(boundEndpoint)
     const cleanupGate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'beginSurvey263AdapterCleanup').mockImplementation(() => {})
     const totalGate = mode === 'unsealed' ? undefined : vi.spyOn(platform, 'checkSurvey263AdapterTotal').mockImplementation(() => {})
+    const mutatesInput = mode.startsWith('mutated-')
+    let releaseFirstSnapshot: (() => void) | undefined
     const adapters: AssignmentListLifecycleAdapters = {
       checkWork: vi.fn(),
-      canonicalSnapshot: vi.fn(async () => mode === 'cleanup-failure' && started === false && prepared === false
-        && setup.mock.calls.length > 0 ? { ...canonical, rowDigests: 'different' } : canonical),
+      canonicalSnapshot: vi.fn(async () => {
+        if (mutatesInput && releaseFirstSnapshot === undefined)
+          await new Promise<void>(resolve => { releaseFirstSnapshot = resolve })
+        return mode === 'cleanup-failure' && started === false && prepared === false
+          && setup.mock.calls.length > 0 ? { ...canonical, rowDigests: 'different' } : canonical
+      }),
       inventory: vi.fn(async () => ({ resources: started ? resources : [], occupiedPorts: started ? [54331, 54332] : [], workdirExists: prepared })),
       prepare: vi.fn(async p => { prepared = true; return { workdir, realpath: workdir, created: true,
         configSha256: createHash('sha256').update(p.config).digest('hex'), migrations: migrations.map(({ name, sha256 }) => ({ name, sha256 })), envFiles: [], symlinks: [] } }),
@@ -278,10 +285,17 @@ describe('source-only sealed Survey263 native reuse', () => {
     const workload = bindSurveyNativeLifecycleWorkload({ original, repository, reviewedHead: head, reviewedManifestSha256: digest(m),
       absoluteDeadline: boundEndpoint.budget.workDeadline, rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true })
     try {
-      const operation = runAssignmentListEphemeralLifecycle({ fixture: original, projectId, workdir, migrations,
-        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' || mode === 'unsealed' || mode === 'remaining-admission' ? 'normal' : mode,
+      const lifecycleInput: AssignmentListLifecycleInput = { fixture: original, projectId, workdir, migrations,
+        reviewedManifestSha256: digest(original.manifest), mode: mode === 'run-failure' || mode === 'types-failure' || mode === 'cleanup-failure' || mode === 'unsealed' || mode === 'remaining-admission' || mutatesInput ? 'normal' : mode as 'normal' | 'after-fixture' | 'before-capture',
         expectedResources: expected, restorationPolicies: [], surveyWorkload: workload,
-        ...(mode === 'remaining-admission' ? { surveyRemainingOnly: true as const } : {}) }, adapters)
+        ...(mode === 'remaining-admission' ? { surveyRemainingOnly: true as const } : {}) }
+      const operation = runAssignmentListEphemeralLifecycle(lifecycleInput, adapters)
+      if (mutatesInput) {
+        expect(releaseFirstSnapshot).toBeTypeOf('function')
+        if (mode !== 'mutated-workload') lifecycleInput.surveyRemainingOnly = true
+        if (mode !== 'mutated-selector') lifecycleInput.surveyWorkload = undefined
+        releaseFirstSnapshot!()
+      }
       if (mode === 'remaining-admission') {
         await expect(operation).rejects.toThrow('complete native inventory is absent')
         expect(adapters.canonicalSnapshot).not.toHaveBeenCalled(); expect(adapters.inventory).not.toHaveBeenCalled()
@@ -296,12 +310,16 @@ describe('source-only sealed Survey263 native reuse', () => {
         expect(() => consumeSurveyNativeLifecycleWorkload(workload)).not.toThrow()
         return
       }
-      if (mode === 'normal') await expect(operation).resolves.toMatchObject({ cases: 0, revocations: 0, nativeVerified: false,
+      if (mode === 'normal' || mutatesInput) await expect(operation).resolves.toMatchObject({ cases: 0, revocations: 0, nativeVerified: false,
         surveyProofScope: 'rollback-and-sdk-terminal', surveyTypes: generatedReceipt })
       else if (mode === 'cleanup-failure') await expect(operation).rejects.toMatchObject({ cleanupFailures: [{ stage: 'canonical-after' }] })
       else await expect(operation).rejects.toMatchObject({ cleanupFailures: [] })
       expect(setup).toHaveBeenCalledOnce()
-      const reachesTypes = ['normal', 'types-failure', 'cleanup-failure'].includes(mode)
+      const reachesTypes = ['normal', 'types-failure', 'cleanup-failure'].includes(mode) || mutatesInput
+      if (mutatesInput) {
+        expect(mock).toHaveBeenCalledWith(expect.objectContaining({ remainingOnly: undefined }))
+        expect(run).toHaveBeenCalledOnce()
+      }
       expect(runSdkCommitted).toHaveBeenCalledTimes(reachesTypes ? 1 : 0)
       expect(generateTypes263).toHaveBeenCalledTimes(reachesTypes ? 1 : 0)
       expect(adapters.executeSql).not.toHaveBeenCalled(); expect(adapters.runCase).not.toHaveBeenCalled(); expect(adapters.runRevocation).not.toHaveBeenCalled()
