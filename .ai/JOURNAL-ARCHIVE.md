@@ -46527,3 +46527,52 @@ Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582
 ## 2026-10-11 — Material Markdown final log sync
 
 Final reviewed be7674d4 CI38136077644 and all ten lanes including PR Gate PASS (35m09s). Main79a6f7994 landed a production continuity receipt during CI; rebase again resolves only archive/log overlap, retaining distinct history. Feature/UI/test blobs unchanged; prior focused969/65 and teacher/student desktop/mobile light/dark proof remain applicable. No application migration, production promotion or feature correction. Proportional sync review and exact final-head CI precede the authorized main merge.
+
+<!-- pika-session-log-archive-batch:d1ddca66c4f5009a53ad46d17ff4e2e0ba92ac65d05702161f09e2b14f3f49df -->
+## 2026-10-11 — Test learner merge and next owner grading group
+
+Learner1561 merged normally at reviewed1aedb4156 as squash517d272ab; exact-head
+CI38102771099 all10/PRGate PASS, merge tree equals reviewed tree and clean
+canonical main fast-forwarded. Whole001–257 native/type/cleanup/preservation
+evidence accepted; six old one-off approvals consumed, no shared/prod apply or
+activation. Original review receipts/counters retained; batch2 and goal open.
+
+Owner requested orchestration of recommended next coherent group. New clean
+codex/test-owner-inspect-grade-return at517d272ab; frozen dependency install and
+startup PASS before edits. Sol/high bounded read-only map accepted: exactly five
+existing results/single-grade/batch-grade/clear/return routes, no new attempt GET,
+unsubmit/deletion/UI/provider work. One mapper correction preserves accepted
+learner disclosure without a new show_results gate. Observed208s wall, tokens
+unknown. Astra/high sole product writer and Sol/high separate inert proof writer
+work in disjoint paths; root owns integration, docs, CI, review and main merge.
+Weekly22% remaining at start; DeepSeek pause honored. No attributed usage claim.
+
+Reuse existing owner transaction/admission and inherited grade/provenance/review/
+return writers. Additive258 source must bind current owner/parent/nonowner roster,
+archive/purge/membership/protocol and queued/running AI exclusion. Source and
+mock checks are not actual database acceptance. CI wiring RED→GREEN250 checks;
+one rollback step in existing primary lane, exact53-name seal, secondary85 intact.
+Product/inert proof source frozen; expanded JSON bounds and PostgREST-hoisted8s
+timeout corrected before review. Final258 SHA84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c.
+Full focused1880/112, architecture/types/lint/UI/design policy and27TS audit PASS.
+Two source integration failures (workflow inventory/startup budget) fixed; prior
+failed receipts retained. Independent review, actual disposable SDK/concurrency/
+types and final-head CI/merge remain; private SDK adapter preparation is inert.
+Canonical local249+, prod257+, reset/seed/promotion/accounts/providers/quota and
+admission/home/page/cohort/cutover holds unchanged. Overall tool goal PAUSED;
+specific owner-group source work authorized, no fresh native permission inferred.
+
+PR1569 initial security review found two accepted source blockers: locked-question
+deletion in the no-question proof, and answered-MC clear normalization. One batch
+uses a separate initially empty rollback Test and locked internal clear_context;
+MC clears keep inherited zero, open clears null, public envelopes unchanged.
+Product148 focused checks and proof/profile89 PASS; full1890/112 plus static gates
+and11TS audit PASS before base sync. SQL258 now698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540.
+Private inert SDK/timeout/cleanup source types and13 fake-SDK checks PASS; no
+native execution. Rebased onto77d5095e6 (unrelated Assignment UI1568); retained
+both archive histories at the append conflict. No migration numbering change.
+Initial source reviewer turns recorded376s/2 findings and265s/0; launches2,
+initial1/targeted0/final0/fixbatch1, original review clock02:58:39UTC retained.
+Base-synced1890/112 and static gates PASS. Targeted/final review and fresh exact-source disposable
+001–258 permission remain before native acceptance, ready CI or merge. Draft,
+overall goal pause and all shared/production/activation/provider holds unchanged.

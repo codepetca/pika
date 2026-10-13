@@ -182,6 +182,8 @@ describe('native persistent-session transport with offline child mocks', () => {
     archiveAt?: string; archiveEndedAt?: string;
     held?: Record<string, unknown> } | undefined
   let pendingSurveyContender: (() => void) | undefined
+  let surveyLateFrame: 'observer' | 'terminal' | undefined, surveyWorkDeadline = 0
+  let surveyUnjoinedHolder = false
   function surveyAfter() {
     const state = surveyDirection!, s = state.schedule
     // Select the actual closed legacy-writer frame, independently of the
@@ -265,6 +267,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     surveyManifest = undefined; surveyWrites.length = 0; surveySeedFault = 'malformed-graph'
     surveyPositive = undefined; surveyGraph = undefined; surveySeedStamp = ''; surveyEvents.length = 0
     surveyBackends.clear(); surveyDirection = undefined; pendingSurveyContender = undefined
+    surveyLateFrame = undefined; surveyWorkDeadline = 0; surveyUnjoinedHolder = false
     cancellationRestoreOutput = 'ok'
     cancellationCatalogChanged = false
     bulkDispatched = undefined
@@ -308,7 +311,10 @@ describe('native persistent-session transport with offline child mocks', () => {
       const name = args.find(arg => arg.startsWith('PGAPPNAME='))!.slice('PGAPPNAME='.length)
       const pid = children.length + 1000
       child.stdout = new PassThrough(); child.stderr = new PassThrough()
-      child.kill = vi.fn(() => { queueMicrotask(() => child.emit('close', 0)); return true })
+      child.kill = vi.fn(() => {
+        if (!(surveyUnjoinedHolder && name === `${project}_draft_holder`)) queueMicrotask(() => child.emit('close', 0))
+        return true
+      })
       child.stdin = new Writable({ write(chunk, _encoding, done) {
         const text = String(chunk); const end = text.match(/\\echo (__draft_save_end_[0-9]+__)/)![1]
         const sql = text.slice(0, text.indexOf('\n\\echo'))
@@ -383,6 +389,7 @@ describe('native persistent-session transport with offline child mocks', () => {
             done(); return
           }
           if (s && sql === s.frames.terminal) {
+            if (surveyLateFrame === 'terminal') vi.setSystemTime(surveyWorkDeadline)
             const result = surveyAfter(); surveyGraph = result.after
             surveyEvents.push(`terminal:${s.label}`)
             vi.setSystemTime(Date.now() + 3)
@@ -394,7 +401,8 @@ describe('native persistent-session transport with offline child mocks', () => {
             const direction = surveyDirection.schedule
             if (sql === surveyCommittedProof.surveyCommittedObservationSql(m, direction.label, pair)) {
               surveyEvents.push(`observer:${direction.label}`)
-              emit({ label: direction.label, observedAt: now, poll: 1, holder: pair.holder, contender: pair.contender,
+              if (surveyLateFrame === 'observer') vi.setSystemTime(surveyWorkDeadline)
+              emit({ label: direction.label, observedAt: surveyLateFrame === 'observer' ? new Date().toISOString() : now, poll: 1, holder: pair.holder, contender: pair.contender,
                 held: surveyDirection.held!.heldWitness, blockers: [pair.holder.pid],
                 waiter: { wait_event_type: 'Lock', wait_event: direction.lock.kind === 'advisory' ? 'advisory' : 'transactionid', state: 'active' } },
               surveyPositive === 'foreign-marker' ? `__draft_save_end_foreign__\n${end}` : end)
@@ -489,6 +497,65 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  function surveyResourceFailureAdapter() {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-13T04:00:00Z'))
+    surveyPositive = 'normal'
+    surveyManifest = buildSurveyNativeContractsManifest(original, head, repository, true)
+    if (!('committed' in surveyManifest)) throw new Error('Expected remaining-only source profile')
+    const now = Date.now(); surveyWorkDeadline = now + 720000
+    const adapter = createContextualSurveysNativeContracts({ original, repository, reviewedHead: head, remainingOnly: true,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(surveyManifest)), absoluteDeadline: surveyWorkDeadline,
+      survey263Endpoint: { host: 'unix:///private/tmp/pika-test-native-docker.sock', identity: [1, 2, 3, 4],
+        budget: { startedAt: now, workDeadline: surveyWorkDeadline, cleanupDeadline: now + 900000 }, nativeCli: SURVEY263_NATIVE_CLI } })
+    return { adapter, committed: surveyManifest.committed }
+  }
+  it.each(['observer', 'terminal'] as const)('offline Survey resource failure rejects a late completed %s at the original work cutoff', async frame => {
+    const { adapter, committed } = surveyResourceFailureAdapter()
+    surveyLateFrame = frame
+    const witness = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedWitness')
+    const effects = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedEffects')
+    try {
+      await adapter.setup()
+      await expect(adapter.runRemainingCommitted!()).rejects.toThrow()
+      expect(witness).toHaveBeenCalledOnce()
+      expect(witness.mock.calls[0][4].workDeadline).toBe(surveyWorkDeadline)
+      expect(effects).toHaveBeenCalledTimes(frame === 'terminal' ? 1 : 0)
+      expect(surveyEvents.filter(e => e.startsWith('holder:'))).toEqual([`holder:${committed.schedules[0].label}`])
+      expect(surveyEvents.some(e => e.startsWith('release:'))).toBe(frame === 'terminal')
+      expect(Date.now()).toBeGreaterThanOrEqual(surveyWorkDeadline)
+      expect(Date.now()).toBeLessThan(surveyWorkDeadline + 180000)
+      expect(children.every(child => child.kill.mock.calls.length > 0)).toBe(true)
+      const dispatched = mocks.execFile.mock.calls.length, writes = surveyWrites.length
+      await expect(adapter.verifyTarget()).rejects.toThrow()
+      await expect(adapter.runRemainingCommitted!()).rejects.toThrow()
+      expect(mocks.execFile).toHaveBeenCalledTimes(dispatched); expect(surveyWrites).toHaveLength(writes)
+      expect(adapter.nativeVerified).toBe(false); expect(adapter.inventoryComplete).toBe(false)
+    } finally { witness.mockRestore(); effects.mockRestore() }
+  })
+  it('offline Survey resource failure poisons progression when the owned child close is unconfirmed', async () => {
+    const { adapter, committed } = surveyResourceFailureAdapter()
+    surveyPositive = 'foreign-marker'; surveyUnjoinedHolder = true
+    const seed = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedSeed')
+    const witness = vi.spyOn(surveyCommittedProof, 'verifySurveyCommittedWitness')
+    try {
+      await adapter.setup()
+      const pending = adapter.runRemainingCommitted!()
+      const rejected = expect(pending).rejects.toThrow('Private Survey child closure unconfirmed')
+      await vi.advanceTimersByTimeAsync(12001)
+      await rejected
+      expect(seed).toHaveBeenCalledOnce(); expect(witness).not.toHaveBeenCalled()
+      expect(surveyEvents.filter(e => e.startsWith('holder:'))).toEqual([`holder:${committed.schedules[0].label}`])
+      expect(surveyEvents.some(e => e.startsWith('release:'))).toBe(false)
+      expect(terminations.filter(args => args.includes(`owned_name=${project}_draft_holder`))).toHaveLength(1)
+      expect(children.every(child => child.kill.mock.calls.length > 0)).toBe(true)
+      const dispatched = mocks.execFile.mock.calls.length, writes = surveyWrites.length
+      await expect(adapter.verifyTarget()).rejects.toThrow('Private Survey child closure unconfirmed')
+      await expect(adapter.runRemainingCommitted!()).rejects.toThrow('Private Survey child closure unconfirmed')
+      expect(mocks.execFile).toHaveBeenCalledTimes(dispatched); expect(surveyWrites).toHaveLength(writes)
+      expect(adapter.nativeVerified).toBe(false); expect(adapter.inventoryComplete).toBe(false)
+    } finally { seed.mockRestore(); witness.mockRestore() }
+  })
   it.each(['normal', 'early-contender', 'foreign-marker'] as const)('offline source-driven Survey private positive seed and original pending/frame progression: %s', async mode => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-13T04:00:00Z'))
     surveyPositive = mode
