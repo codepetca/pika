@@ -13,7 +13,7 @@ function envelope() {
   const test = { id: ids[0], artifact_id: ids[1], classroom_id: success.classroomId, created_by: success.actorId,
     title: success.input.title!, show_results: false, status: 'draft', documents: [], position: 0, points_possible: 100, include_in_final: true,
     created_at: stamp, updated_at: stamp, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null, questions_locked_at: null,
-    gradebook_category_id: null as string | null, gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 10 }
+    gradebook_category_id: null as string | null, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 10 }
   return { version: 1, actor_id: success.actorId, classroom_id: success.classroomId, test_id: test.id, test,
     draft: { id: ids[2], assessment_type: 'test', assessment_id: test.id, classroom_id: success.classroomId, version: 1,
       content: { title: test.title, show_results: false, question_identity_version: 1, questions: [], source_format: 'markdown' },

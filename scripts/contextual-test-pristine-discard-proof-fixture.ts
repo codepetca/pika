@@ -34,7 +34,7 @@ export function newTestOwnerPristineDiscardFixture(original:AssignmentListProofF
     created_by:actors[label==='different-historical-creator'?3:ci===1?1:0].id,title:label==='title-changed'?'Edited title':label.startsWith('bulk')?`${tag} ${label}`:'Untitled',
     status:'draft' as const,show_results:false,documents:[],position:i,points_possible:100,include_in_final:true,created_at:now,updated_at:now,
     source_artifact_id:null,source_blueprint_version_id:null,blueprint_archived_at:label==='retired-test-denied'?now:null,questions_locked_at:null,
-    gradebook_category_id:null,gradebook_weight:10,gradebook_maximum_override:null,gradebook_score_scale:1})
+    gradebook_category_id:null,gradebook_weight:10,gradebook_maximum_override:null,test_date:null,gradebook_score_scale:1})
   const tests=[...targetLabels.map((l,i)=>makeTest(l,i,ciFor(l))),...Array.from({length:1001-targetLabels.length},(_,i)=>makeTest(`bulk${i}`,i,3))]
   const drafts=targetLabels.filter(l=>l!=='missing-draft').map(label=>({id:id(`draft:${label}`),assessment_type:'test' as const,
     assessment_id:testId(label),classroom_id:classes[ciFor(label)].id,version:label==='later-version-pristine'?7:1,

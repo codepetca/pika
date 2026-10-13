@@ -8931,6 +8931,7 @@ export type Database = {
           source_artifact_id: string | null
           source_blueprint_version_id: string | null
           status: string
+          test_date: string | null
           title: string
           updated_at: string
         }
@@ -8954,6 +8955,7 @@ export type Database = {
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
           status?: string
+          test_date?: string | null
           title: string
           updated_at?: string
         }
@@ -8977,6 +8979,7 @@ export type Database = {
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
           status?: string
+          test_date?: string | null
           title?: string
           updated_at?: string
         }
@@ -12327,6 +12330,10 @@ export type Database = {
         Returns: Json
       }
       normalize_classroom_archive_restore_row_pre_v222: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      normalize_classroom_archive_restore_row_pre_v263: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }

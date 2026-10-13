@@ -21,7 +21,7 @@ const questionId = '55555555-5555-4555-8555-555555555555'
 const test = { id: testId, classroom_id: '66666666-6666-4666-8666-666666666666', title: 'Test', status: 'active' as const, show_results: false, documents: [],
   position: 0, points_possible: 10, include_in_final: true, created_by: actor, created_at: stamp, updated_at: stamp,
   artifact_id: testId, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
-  gradebook_category_id: null, gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
+  gradebook_category_id: null, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
 function source() { return { student_ids: [student], questions: [{ id: questionId, test_id: testId, question_type: 'open_response', question_text: 'Explain', options: [], correct_option: null,
   points: 10, response_max_chars: 10000, response_monospace: false, position: 0, created_at: stamp, updated_at: stamp }],
   users: [{ id: student, email: 'member@example.test' }], profiles: [{ user_id: student, first_name: ' Member ', last_name: ' Student ' }],

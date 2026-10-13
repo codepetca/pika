@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { LessonDayCell } from '@/components/LessonDayCell'
+import { createMockTest } from '../helpers/mocks'
 import { TooltipProvider } from '@/ui'
 import type { Announcement, Assignment, LessonPlan, TiptapContent } from '@/types'
 
@@ -63,6 +64,24 @@ function renderWithTooltip(ui: ReactElement) {
 }
 
 describe('LessonDayCell', () => {
+  it.each([
+    { layout: 'agenda' as const, isWeekend: false },
+    { layout: 'agenda' as const, isWeekend: true },
+    { layout: 'grid' as const, isWeekend: false },
+    { layout: 'grid' as const, isWeekend: true },
+  ])('opens a named Test link without editing the lesson in $layout, weekend=$isWeekend', ({ layout, isWeekend }) => {
+    const test = createMockTest({ title: 'Ecosystems test', status: 'active', test_date: lessonPlan.date })
+    const onTestClick = vi.fn()
+    const onContentChange = vi.fn()
+    renderWithTooltip(<LessonDayCell date={lessonPlan.date} day={new Date(`${lessonPlan.date}T12:00:00`)}
+      lessonPlan={lessonPlan} tests={[test]} layout={layout} isWeekend={isWeekend} isToday={false}
+      editable onTestClick={onTestClick} onContentChange={onContentChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Test: Ecosystems test' }))
+    expect(onTestClick).toHaveBeenCalledWith(test)
+    expect(onContentChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
   function Harness() {
     const [plan, setPlan] = useState<LessonPlan | null>(lessonPlan)
 

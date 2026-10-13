@@ -42,7 +42,7 @@ describe('contextual Test owner-create rollback database contracts', () => {
       'classroom_purge_fence_assessment_drafts', 'touch_classroom_blueprint_source_from_drafts',
       'update_assessment_drafts_updated_at', 'Exact noninternal trigger closure differs', 'Trigger enable/deferral mode differs',
       'format_type', 'Exact Test constraints differ', 'Exact draft constraints differ',
-      "array['id','classroom_id','title','status','show_results','position','points_possible','include_in_final','created_by','created_at','updated_at','documents','artifact_id','source_artifact_id','blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_weight','gradebook_maximum_override','gradebook_score_scale']",
+      "array['test_date','id','classroom_id','title','status','show_results','position','points_possible','include_in_final','created_by','created_at','updated_at','documents','artifact_id','source_artifact_id','blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_weight','gradebook_maximum_override','gradebook_score_scale']",
       "array['id','assessment_type','assessment_id','classroom_id','content','version','created_by','updated_by','created_at','updated_at']",
     ]) expect(sql).toContain(token)
   })

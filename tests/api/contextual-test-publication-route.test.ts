@@ -100,11 +100,13 @@ describe('prepared owner publication route', () => {
     // See docs/guidance/contextual-test-screen-adoption.md, Compatibility evidence.
     let source = readFileSync(path, 'utf8')
     if (path.endsWith('/route.ts')) {
+      source = source.replace("import { testCalendarDatePatchSchema } from '@/lib/validations/test-calendar-date'\n", '')
+        .replace('    test_date: test.test_date ?? null,\n', '')
       source = source.replace(/^import .* from '@\/lib\/server\/contextual-test-owner-materials'\n/m, '')
         .replace(/^import .* from '@\/lib\/validations\/contextual-test-owner-workflow'\n/gm, '')
       const start = source.indexOf("export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context) => {\n")
       const prefixEnd = start + "export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context) => {\n".length
-      const legacyStart = source.indexOf("  const user = await requireRole('teacher')", prefixEnd)
+      const legacyStart = source.indexOf("  const user = await requireRole('teacher')\n  const { id } = await context.params\n  const body = await request.json()", prefixEnd)
       expect(source.slice(prefixEnd, legacyStart)).toContain('patchContextualTestOwnerMetadata')
       source = source.slice(0, prefixEnd) + source.slice(legacyStart)
       const deletionImport = "import { handleContextualTestOwnerDeletionRequest } from '@/lib/server/contextual-test-owner-deletion'\n"

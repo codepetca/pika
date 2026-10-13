@@ -14,7 +14,7 @@ describe('contextual pristine Test discard rollback database contracts', () => {
     expect(TEST_OWNER_PRISTINE_DISCARD_TEST_COLUMNS).toEqual(['id','classroom_id','title','status','show_results','position',
       'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id',
       'source_artifact_id','blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id',
-      'gradebook_maximum_override','gradebook_score_scale'])
+      'gradebook_maximum_override','gradebook_score_scale','test_date'])
     expect(TEST_OWNER_PRISTINE_DISCARD_DRAFT_COLUMNS).toEqual(['id','assessment_type','assessment_id','classroom_id',
       'content','version','created_by','updated_by','created_at','updated_at'])
     expect(sql).toContain('pg_catalog.array_agg(a.attname::text order by a.attnum)')

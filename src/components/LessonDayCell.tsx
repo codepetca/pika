@@ -11,7 +11,7 @@ import { isCalendarAnnouncementScheduled } from '@/lib/calendar-items'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Button, Tooltip } from '@/ui'
-import type { Announcement, Assignment, LessonPlan } from '@/types'
+import type { Announcement, Assignment, LessonPlan, TestAssessment } from '@/types'
 
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
@@ -43,6 +43,7 @@ interface LessonDayCellProps {
   date: string // YYYY-MM-DD
   day: Date
   lessonPlan: LessonPlan | null
+  tests?: TestAssessment[]
   assignments?: Assignment[]
   announcements?: Announcement[]
   isWeekend: boolean
@@ -54,6 +55,7 @@ interface LessonDayCellProps {
   layout?: 'grid' | 'agenda'
   onPresentDay?: () => void
   onContentChange?: (date: string, contentMarkdown: string) => void
+  onTestClick?: (test: TestAssessment) => void
   onAssignmentClick?: (assignment: Assignment) => void
   onAnnouncementClick?: () => void
 }
@@ -62,6 +64,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   date,
   day,
   lessonPlan,
+  tests = [],
   assignments = [],
   announcements = [],
   isWeekend,
@@ -73,6 +76,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   layout = 'grid',
   onPresentDay,
   onContentChange,
+  onTestClick,
   onAssignmentClick,
   onAnnouncementClick,
 }: LessonDayCellProps) {
@@ -131,6 +135,16 @@ export const LessonDayCell = memo(function LessonDayCell({
     ? 'text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap'
     : 'text-sm leading-snug text-text-muted whitespace-pre-wrap'
 
+  const testLinks = tests.map(test => (
+    <Tooltip key={test.id} content={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}>
+      <Button variant="ghost" size="sm" aria-label={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}
+        onClick={event => { event.stopPropagation(); onTestClick?.(test) }}
+        className="w-full overflow-hidden bg-info-bg px-0.5 text-primary">
+        <span className="truncate">Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}</span>
+      </Button>
+    </Tooltip>
+  ))
+
   if (layout === 'agenda') {
     const nonClassDay = isWeekend || isClassDay === false
     const canEdit = editable && !isWeekend
@@ -143,7 +157,7 @@ export const LessonDayCell = memo(function LessonDayCell({
       <article
         aria-labelledby={agendaHeadingId}
         className={`flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
-          nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 ? 'py-3' : 'py-5'
+          nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 ? 'py-3' : 'py-5'
         } ${isToday ? 'border-l-2 border-primary' : 'border-l-2 border-transparent'}`}
       >
         <div className="flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24">
@@ -200,8 +214,14 @@ export const LessonDayCell = memo(function LessonDayCell({
             ) : null}
           </div>
 
-          {(assignments.length > 0 || announcements.length > 0) && (
+          {(assignments.length > 0 || announcements.length > 0 || tests.length > 0) && (
             <div className="flex min-w-0 flex-wrap gap-2">
+              {tests.map(test => (
+                <Button key={test.id} variant="ghost" size="sm" onClick={() => onTestClick?.(test)}
+                  className="max-w-full whitespace-normal bg-info-bg px-3 py-2 text-left text-primary">
+                  <span className="min-w-0 break-words">Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}</span>
+                </Button>
+              ))}
               {assignments.map(assignment => (
                 <Button key={assignment.id} variant="ghost" size="sm" onClick={() => onAssignmentClick?.(assignment)}
                   className="h-auto min-w-0 max-w-full whitespace-normal bg-info-bg px-3 py-2 text-left text-primary">
@@ -244,6 +264,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             {format(day, 'd')}
           </span>
         </div>
+        {tests.length > 0 && <div className="space-y-0.5 px-0.5">{testLinks}</div>}
         {/* Weekend assignment pill - no text, tooltip on hover */}
         {assignments.length > 0 && (
           <div className="px-0.5 flex items-start justify-center">
@@ -325,6 +346,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         </span>
       </div>
 
+      {tests.length > 0 && <div className="space-y-0.5 px-0.5">{testLinks}</div>}
       {/* Assignment due dates - shown first */}
       {assignments.length > 0 && (
         <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>

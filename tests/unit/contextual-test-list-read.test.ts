@@ -9,7 +9,7 @@ const classroom = { id: classroomId, teacher_id: actorId, archived_at: null }
 const test = (n = 10) => ({ id: uuid(n), classroom_id: classroomId, title: 'Canonical', status: 'active' as const,
   show_results: false, documents: [], position: n, points_possible: 10, include_in_final: true, created_by: actorId, created_at: time, updated_at: time,
   artifact_id: uuid(n + 100), source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
-  gradebook_category_id: null, gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 1, questions_locked_at: null })
+  gradebook_category_id: null, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 1, questions_locked_at: null })
 type Operation = [string, ...unknown[]]
 type Call = { select: string; ops: Operation[] }
 type Row = Record<string, unknown>

@@ -55,7 +55,7 @@ describe('contextual learner Test narrow transport', () => {
     expect(() => parseTestLearnerPayload('save', { responses: {}, expected_revision: 1, paste_word_count: Infinity })).toThrow()
   })
   it('rejects a grades/results acknowledgement without current returned disclosure authority', async () => {
-    const f = flow(); await f.inspect(); reply = witness('results', { state: { test: { id: testId, classroom_id: classroom, title: 'T', status: 'active',
+    const f = flow(); await f.inspect(); reply = witness('results', { state: { test: { id: testId, classroom_id: classroom, test_date: null, title: 'T', status: 'active',
       show_results: true, documents: [], position: 0, created_at: stamp, updated_at: stamp }, attempt: { id: attemptId, is_submitted: true,
       returned_at: null, closed_for_grading_at: null, draft_revision: 11 }, access_state: 'closed', has_submitted: true },
     results: [], my_responses: {}, question_results: [], summary: { earned_points: 5, possible_points: 5, percent: 100 } })

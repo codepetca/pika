@@ -888,6 +888,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(mockStudentTestsTabProps).toHaveBeenLastCalledWith({
         classroom,
         isActive: true,
+        selectedTestId: null,
       })
     })
   })

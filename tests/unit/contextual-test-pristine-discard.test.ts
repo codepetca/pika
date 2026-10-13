@@ -15,7 +15,7 @@ const body = () => ({ expected_draft_version: 7, expected_test_updated_at: stamp
 const test = () => ({ id: testId, classroom_id: classroomId, title: 'Untitled 2026-10-05 23:25:00', status: 'draft', show_results: false, position: -1,
   points_possible: 100, include_in_final: true, created_by: otherId, created_at: stamp, updated_at: stamp, documents: [], artifact_id: artifactId,
   source_artifact_id: null, blueprint_archived_at: null, source_blueprint_version_id: null, questions_locked_at: null,
-  gradebook_category_id: null, gradebook_weight: 10, gradebook_maximum_override: null, gradebook_score_scale: 1 })
+  gradebook_category_id: null, gradebook_weight: 10, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1 })
 const draft = () => ({ id: draftId, assessment_type: 'test', assessment_id: testId, classroom_id: classroomId,
   content: { title: 'Untitled 2026-10-05 23:25:00', show_results: false, question_identity_version: 1, questions: [], source_format: 'markdown' }, version: 7,
   created_by: otherId, updated_by: otherId, created_at: stamp, updated_at: stamp })

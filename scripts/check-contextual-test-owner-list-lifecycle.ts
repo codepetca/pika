@@ -22,7 +22,7 @@ import { newTestOwnerListFixture, testOwnerListSetupSql, testOwnerListSnapshotSq
 
 const API = 'http://127.0.0.1:54331'
 const root = 'id,teacher_id,archived_at'
-const fields = 'id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,created_by,created_at,updated_at,artifact_id,source_artifact_id,source_blueprint_version_id,blueprint_archived_at,gradebook_category_id,gradebook_maximum_override,gradebook_score_scale,gradebook_weight,questions_locked_at'
+const fields = 'id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,created_by,created_at,updated_at,artifact_id,source_artifact_id,source_blueprint_version_id,blueprint_archived_at,gradebook_category_id,gradebook_maximum_override,gradebook_score_scale,gradebook_weight,questions_locked_at'
 const controls = 'id,classroom_id,status,updated_at'
 const relation = 'tests:tests!tests_classroom_id_fkey'
 const draft = 'drafts:assessment_drafts!assessment_drafts_classroom_id_fkey(id,assessment_id,assessment_type,classroom_id,version,content)'

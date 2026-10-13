@@ -9,7 +9,7 @@ const testId = '33333333-3333-4333-8333-333333333333'
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const stamp = '2026-10-01T12:00:00Z'
 const classroom = { id: classroomId, teacher_id: actorId, archived_at: null }
-const test = { id: testId, classroom_id: classroomId, title: 'Canonical', status: 'closed', show_results: false,
+const test = { id: testId, classroom_id: classroomId, test_date: null, title: 'Canonical', status: 'closed', show_results: false,
   documents: [], position: 0, points_possible: 10, include_in_final: true, created_by: actorId, created_at: stamp, updated_at: stamp, classrooms: classroom }
 const question = (n = 1) => ({ id: uuid(n), test_id: testId, artifact_id: uuid(n + 10000), source_artifact_id: null,
   question_type: 'open_response', question_text: 'Explain', options: [], correct_option: null, answer_key: 'Answer', sample_solution: 'Solution',

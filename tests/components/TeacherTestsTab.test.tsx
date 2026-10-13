@@ -285,6 +285,7 @@ function makeTest(overrides: Partial<TestAssessmentWithStats> = {}): TestAssessm
   return {
     ...base,
     assessment_type: 'test',
+    test_date: null,
     stats: { total_students: 10, responded: 5, questions_count: 3 },
     ...overrides,
   } as TestAssessmentWithStats

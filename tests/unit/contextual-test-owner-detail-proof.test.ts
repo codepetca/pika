@@ -38,7 +38,7 @@ function sourceFetch(f: ReturnType<typeof newTestOwnerDetailFixture>): typeof fe
     const control = { id: test.id, classroom_id: test.classroomId, classrooms: { id: test.classroomId, teacher_id: test.owner, archived_at: null } }
     const select = url.searchParams.get('select')
     if (select === TEST_OWNER_PROJECTIONS.control) return reply([control])
-    const row = { ...control, title: test.title, status: test.status, show_results: false,
+    const row = { ...control, test_date: null, title: test.title, status: test.status, show_results: false,
       documents: f.objects.filter(object => object.testId === test.id).map(object => ({ id: object.documentId, title: 'Synthetic PNG', source: 'upload', storage_bucket: 'test-documents', storage_path: testOwnerObjectPath(f, object), managed_object_id: object.id })),
       position: 0, points_possible: 0, include_in_final: true, created_by: test.owner, created_at: f.now, updated_at: f.now }
     if (select === TEST_OWNER_PROJECTIONS.questions) return reply([{ ...row, questions: f.questions.filter(q => q.testId === test.id && (!url.searchParams.has('questions.id') || q.id > url.searchParams.get('questions.id')!.slice(3))).sort((a, b) => a.id.localeCompare(b.id)).map(q => ({

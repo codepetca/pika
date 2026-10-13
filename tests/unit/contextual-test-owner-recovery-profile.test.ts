@@ -32,7 +32,7 @@ const target = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency'):
 describe('fixed recovery260 profile reuses the closed native engine', () => {
   it('binds complete260 inventory, real observed identities and fixed finite SQL', () => {
     const m = plan()
-    expect(m.migrations).toHaveLength(262); expect(m.nativeVerified).toBe(false)
+    expect(m.migrations).toHaveLength(263); expect(m.nativeVerified).toBe(false)
     expect(m.contracts.checks).toHaveLength(13); expect(m.concurrency.schedules).toHaveLength(10)
     expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
     expect(m.preparation).toContain(`draft_revision=${observed[0].revision}`)

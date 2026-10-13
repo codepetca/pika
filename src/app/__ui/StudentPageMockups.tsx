@@ -1,5 +1,7 @@
 'use client'
 
+import { CALENDAR_REFERENCE_TEST } from './calendar-test-fixtures'
+
 import { useState } from 'react'
 import { addWeeks, format, subWeeks } from 'date-fns'
 import { BookOpen, ChevronRight, FileText, Link as LinkIcon } from 'lucide-react'
@@ -151,7 +153,7 @@ function StudentCalendarMockup() {
           primary={<DateNavigator joined label={`Week of ${format(date, 'MMM d')}`} onPrev={() => setDate((current) => subWeeks(current, 1))} onNext={() => setDate((current) => addWeeks(current, 1))} onLabelClick={() => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel="Return to reference week" />}
         />
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
-          <LessonCalendar classroom={STUDENT_CLASSROOM} lessonPlans={STUDENT_LESSONS} classDays={STUDENT_CLASS_DAYS} viewMode="week" currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={() => {}} />
+          <LessonCalendar classroom={STUDENT_CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} lessonPlans={STUDENT_LESSONS} classDays={STUDENT_CLASS_DAYS} viewMode="week" currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={() => {}} />
         </div>
       </div>
     </PageLayout>

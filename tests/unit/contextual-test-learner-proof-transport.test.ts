@@ -41,7 +41,7 @@ describe('exact learner installed-SDK source transport (offline, no native accep
     const deadline = new Date(Date.now()+10000).toISOString(), ownAttempt = { ...attempt,student_id: f.actors[c.subject].id,
       ...(['save','submit'].includes(c.operation) ? { draft_revision: 2 } : {}),
       ...(c.label.startsWith('start-first-') ? { id: '99887766-5544-4321-8765-112233445566' } : {}) }
-    const state = { test: { id: f.testId,classroom_id: f.classroomId,title: 'Synthetic',status: 'active',show_results: true,
+    const state = { test: { id: f.testId,classroom_id: f.classroomId,test_date: null,title: 'Synthetic',status: 'active',show_results: true,
       documents: [],position: 0,created_at: f.now,updated_at: f.now }, attempt: { id: f.attemptId,is_submitted: false,
       returned_at: null,closed_for_grading_at: null,draft_revision: 1 }, access_state: 'open',has_submitted: false }
     const questions = testLearnerCollectionQuestions(f,1001)

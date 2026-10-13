@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { testCalendarDateSchema } from '@/lib/validations/test-calendar-date'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import { resolveContextualTestOwnerParams, readContextualTestOwnerBody } from '@/lib/validations/contextual-test-owner-workflow'
 import { saveTestAttemptSchema, submitTestResponsesSchema } from '@/lib/validations/test-submissions'
@@ -34,7 +35,7 @@ const focusEvent = z.object({ event_type: z.enum(['away_start','away_end','route
 const lifecycle = z.object({ id: uuid, is_submitted: z.boolean(), returned_at: nullableStamp,
   closed_for_grading_at: nullableStamp, draft_revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict()
 const documentCollection = z.array(json).max(MAX_TEST_DOCUMENTS).refine(value => validateTestDocumentsPayload(value).valid, 'Invalid Test document collection')
-const test = z.object({ id: uuid, classroom_id: uuid, title: z.string(), status: z.enum(['draft','active','closed']),
+const test = z.object({ id: uuid, classroom_id: uuid, test_date: testCalendarDateSchema, title: z.string(), status: z.enum(['draft','active','closed']),
   show_results: z.boolean(), documents: documentCollection, position: z.number().int(), created_at: stamp, updated_at: stamp }).strict()
 export const testLearnerStateSchema = z.object({ test, attempt: lifecycle.nullable(), access_state: z.enum(['open','closed']).nullable(),
   has_submitted: z.boolean() }).strict()

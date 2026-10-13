@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { TeacherLessonCalendarTab } from '@/app/classrooms/[classroomId]/TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from '@/app/classrooms/[classroomId]/StudentLessonCalendarTab'
-import { TooltipProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import * as cookies from '@/lib/cookies'
 import type { Classroom } from '@/types'
 import type { ReactNode } from 'react'
@@ -58,7 +58,7 @@ function mockFetchResponse(data: unknown, ok = true) {
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return <TooltipProvider>{children}</TooltipProvider>
+  return <AppMessageProvider><TooltipProvider>{children}</TooltipProvider></AppMessageProvider>
 }
 
 function getCalendarViewButtons(name: 'week' | 'month' | 'all') {
@@ -103,7 +103,7 @@ describe('Calendar view mode persistence', () => {
     it('initializes to week view when no cookie exists', async () => {
       readCookieSpy.mockReturnValue(null)
 
-      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<TeacherLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('week')
@@ -113,7 +113,7 @@ describe('Calendar view mode persistence', () => {
     it('initializes to saved view mode from cookie', async () => {
       readCookieSpy.mockReturnValue('month')
 
-      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<TeacherLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('month')
@@ -123,7 +123,7 @@ describe('Calendar view mode persistence', () => {
     it('initializes to all view from cookie', async () => {
       readCookieSpy.mockReturnValue('all')
 
-      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<TeacherLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('all')
@@ -133,7 +133,7 @@ describe('Calendar view mode persistence', () => {
     it('persists view mode to cookie when changed', async () => {
       readCookieSpy.mockReturnValue(null)
 
-      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<TeacherLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(getCalendarViewButtons('week').length).toBeGreaterThan(0)
@@ -147,7 +147,7 @@ describe('Calendar view mode persistence', () => {
     it('ignores invalid cookie values and defaults to week', async () => {
       readCookieSpy.mockReturnValue('invalid-value')
 
-      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<TeacherLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('week')
@@ -157,7 +157,7 @@ describe('Calendar view mode persistence', () => {
     it('reads cookie with classroom-specific key', async () => {
       readCookieSpy.mockReturnValue(null)
 
-      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<TeacherLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(readCookieSpy).toHaveBeenCalledWith('calendarViewMode:cls-123')
@@ -167,7 +167,7 @@ describe('Calendar view mode persistence', () => {
     it('renders the teacher Markdown control in More actions', async () => {
       readCookieSpy.mockReturnValue(null)
 
-      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<TeacherLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument()
@@ -181,7 +181,7 @@ describe('Calendar view mode persistence', () => {
     it('initializes to week view when no cookie exists', async () => {
       readCookieSpy.mockReturnValue(null)
 
-      render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<StudentLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('week')
@@ -191,7 +191,7 @@ describe('Calendar view mode persistence', () => {
     it('initializes to saved view mode from cookie', async () => {
       readCookieSpy.mockReturnValue('month')
 
-      render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<StudentLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('month')
@@ -201,7 +201,7 @@ describe('Calendar view mode persistence', () => {
     it('persists view mode to cookie when changed', async () => {
       readCookieSpy.mockReturnValue(null)
 
-      render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<StudentLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(getCalendarViewButtons('week').length).toBeGreaterThan(0)
@@ -215,7 +215,7 @@ describe('Calendar view mode persistence', () => {
     it('ignores invalid cookie values and defaults to week', async () => {
       readCookieSpy.mockReturnValue('garbage')
 
-      render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<StudentLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('week')
@@ -225,7 +225,7 @@ describe('Calendar view mode persistence', () => {
     it('does not render the teacher edit control', async () => {
       readCookieSpy.mockReturnValue(null)
 
-      render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+      render(<StudentLessonCalendarTab showTests={false} classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expectCalendarViewSelected('week')

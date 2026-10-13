@@ -1,5 +1,5 @@
 import { formatInTimeZone } from 'date-fns-tz'
-import type { Announcement, Assignment } from '@/types'
+import type { Announcement, Assignment, TestAssessment } from '@/types'
 
 export const CLASSROOM_CALENDAR_TIMEZONE = 'America/Toronto'
 
@@ -39,4 +39,12 @@ export function getCalendarAnnouncementDate(
     CLASSROOM_CALENDAR_TIMEZONE,
     'yyyy-MM-dd',
   )
+}
+
+/** A calendar reminder is a civil date, never an instant or an access cutoff. */
+export function getCalendarTestDate(test: Pick<TestAssessment, 'test_date'>): string | null {
+  const value = test.test_date
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const date = new Date(`${value}T12:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null
 }

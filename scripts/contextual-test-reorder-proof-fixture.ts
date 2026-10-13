@@ -53,7 +53,7 @@ export function newTestOwnerReorderFixture(original: AssignmentListProofFixture)
     position: i, points_possible: 17, include_in_final: false, created_at: now, updated_at: now,
     source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: label === 'retired' ? now : null,
     questions_locked_at: label === 'started' ? now : null, gradebook_category_id: null, gradebook_weight: 23,
-    gradebook_maximum_override: 19, gradebook_score_scale: 1.25 })))
+    gradebook_maximum_override: 19, test_date:null,gradebook_score_scale:1.25 })))
   const questions = tests.flatMap(t => [0, 1].map(position => ({ id: id(`question:${t.id}:${position}`), test_id: t.id,
     artifact_id: id(`question-artifact:${t.id}:${position}`), source_artifact_id: position === 0 ? id(`historical-question:${t.id}`) : null,
     source_blueprint_version_id: null, question_type: position === 0 ? 'open_response' : 'multiple_choice',
@@ -137,7 +137,7 @@ export function testOwnerReorderBulkTest(f: TestOwnerReorderFixture, label: stri
     created_by: f.actors[4].id, title: `${f.tag} ${label} ${ordinal}`, status: 'draft' as const, show_results: false, documents: [], position: ordinal,
     points_possible: 17, include_in_final: false, created_at: f.now, updated_at: f.now, source_artifact_id: null,
     source_blueprint_version_id: null, blueprint_archived_at: null, questions_locked_at: null, gradebook_category_id: null,
-    gradebook_weight: 23, gradebook_maximum_override: 19, gradebook_score_scale: 1.25 }
+    gradebook_weight: 23, gradebook_maximum_override: 19, test_date:null,gradebook_score_scale:1.25 }
 }
 export function testOwnerReorderRequest(f: TestOwnerReorderFixture, label: string): { classroom_id: string; test_ids: string[] } {
   const c = [...f.cases, ...f.privilegeProbes].find(c => c.label === label); assert(c)

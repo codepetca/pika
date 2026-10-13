@@ -60,7 +60,7 @@ function sourceFetch(f: ReturnType<typeof newTestMemberListFixture>): typeof fet
     const after = (key: string, id: string) => { const value = url.searchParams.get(key); return !value || id > value.slice(3) }
     const tests = rows['public.tests'].filter(t => t.classroom_id === c!.id && t.status !== 'draft').sort((a, b) => a.id.localeCompare(b.id))
     if (select === TEST_MEMBER_LIST_PROJECTIONS.tests) root.tests = tests.filter(t => after('tests.id', t.id))
-      .map(t => Object.fromEntries('id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'.split(',').map(k => [k, t[k as keyof typeof t]])))
+      .map(t => Object.fromEntries('id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'.split(',').map(k => [k, t[k as keyof typeof t]])))
     else if (select !== TEST_MEMBER_LIST_PROJECTIONS.root) {
       const kind = (['attempts', 'responses', 'availability'] as const).find(k => select === TEST_MEMBER_LIST_PROJECTIONS[k])
       root.tests = tests.map(t => ({ id: t.id, classroom_id: t.classroom_id, status: t.status, updated_at: t.updated_at,
@@ -152,14 +152,14 @@ describe('finite member Test list fixture', () => {
     expect(result.tests.some(t => t.id === f.tests[4].id)).toBe(true)
     expect(result.tests.find(t => t.id === f.tests[1].id)?.documents).toEqual([])
     expect(result.tests.find(t => t.id === f.tests[2].id)?.student_status).toBe('can_view_results')
-    for (const row of result.tests) expect(Object.keys(row).sort()).toEqual('id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at,assessment_type,student_status,access_state,effective_access'.split(',').sort())
+    for (const row of result.tests) expect(Object.keys(row).sort()).toEqual('id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at,assessment_type,student_status,access_state,effective_access'.split(',').sort())
   })
 })
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
   it('reproduces the former exact257 rejection of the complete current262 chain', () => {
-    expect(current).toHaveLength(262)
+    expect(current).toHaveLength(263)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })

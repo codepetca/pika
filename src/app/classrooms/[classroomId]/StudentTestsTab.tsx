@@ -45,6 +45,7 @@ import type {
 interface Props {
   classroom: Classroom
   isActive?: boolean
+  selectedTestId?: string | null
 }
 
 interface RouteExitAttemptDetail {
@@ -276,7 +277,7 @@ function getRemoteClosureDescription(
   return 'This test is no longer available.'
 }
 
-export function StudentTestsTab({ classroom, isActive = true }: Props) {
+export function StudentTestsTab({ classroom, isActive = true, selectedTestId: requestedTestId = null }: Props) {
   const notifications = useStudentNotifications()
   const [tests, setTests] = useState<StudentTestView[]>([])
   const [loading, setLoading] = useState(true)
@@ -605,6 +606,23 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       }
     }
   }
+
+  const selectRequestedTestRef = useRef(handleSelectTest)
+  selectRequestedTestRef.current = handleSelectTest
+  const appliedRequestedTestRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!requestedTestId) {
+      appliedRequestedTestRef.current = null
+      return
+    }
+    const requestKey = `${classroom.id}:${requestedTestId}`
+    if (!isActive || focusEnabled || loadedTestsScope !== classroom.id || loading
+      || appliedRequestedTestRef.current === requestKey) return
+    // Resolve only from the classroom's permitted list; selecting detail never starts a test.
+    if (!tests.some(test => test.id === requestedTestId)) return
+    appliedRequestedTestRef.current = requestKey
+    void selectRequestedTestRef.current(requestedTestId)
+  }, [classroom.id, requestedTestId, isActive, focusEnabled, loadedTestsScope, loading, tests])
 
   const revalidateActiveTestSession = useCallback(async () => {
     if (!focusEnabledRef.current) return
