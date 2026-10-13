@@ -109,7 +109,7 @@ export async function readContextualSurveyDetail(input: Context & { permission: 
  * The writer repeats all parent checks under its own transaction fence. */
 export async function readContextualSurveyOwnerForMutation(input: Context) {
   const detail = await readContextualSurveyDetail({ ...input, permission: 'owner' })
-  if (!('classroom' in detail)) throw unavailable()
+  if (!('classroom' in detail) || !detail.classroom) throw unavailable()
   if (detail.classroom.archived_at !== null) throw new ApiError(403, 'Classroom is archived')
   return detail
 }

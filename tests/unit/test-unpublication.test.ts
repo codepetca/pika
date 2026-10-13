@@ -29,6 +29,7 @@ describe('returnTestToDraft RPC boundary', () => {
     expect(await returnTestToDraft(teacherId, testId, classroomId)).toEqual({ test: { ...row, assessment_type: 'test' }, draft_version: 8 })
     expect(await returnTestToDraft(teacherId, testId, classroomId)).toEqual({ test: { ...row, assessment_type: 'test' }, draft_version: 8 })
     expect(rpc).toHaveBeenCalledWith('return_test_to_draft_atomic', { p_teacher_id: teacherId, p_test_id: testId })
+    expect(rpc).toHaveBeenCalledTimes(2)
   })
 
   it.each([['PT403', 403], ['PT404', 404], ['PT409', 409], ['55P03', 409], ['PGRST202', 503], ['42501', 503]])('maps %s without exposing SQL text', async (code, status) => {

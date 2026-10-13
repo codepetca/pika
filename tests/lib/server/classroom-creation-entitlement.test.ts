@@ -157,6 +157,15 @@ describe('atomic classroom creation adapter', () => {
 
     expect(outcome).toEqual({ kind: 'database_error', error: result.error })
     expect(client.rpc).toHaveBeenCalledOnce()
+    expect(client.rpc).toHaveBeenCalledWith('create_classroom_atomic_v1', {
+      p_operation_id: operationId,
+      p_subject_user_id: teacherId,
+      p_request_sha256: hashClassroomCreationRequest({ title: 'Math' }),
+      p_title: 'Math',
+      p_class_code: 'ABC123',
+      p_term_label: null,
+      p_theme_color: 'blue',
+    })
   })
 
   it('fails closed on missing migrations, malformed results, or mismatched operations', async () => {

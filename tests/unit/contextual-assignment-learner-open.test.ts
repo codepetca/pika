@@ -46,10 +46,10 @@ const imageArtifact = (n: number, path?: string, managed = true) => {
 function fixture(options: { doc?: typeof doc; requirements?: any[]; artifacts?: any[]; feedback?: any[]; identity?: any; cap?: number;
   rpcError?: string; rpcChange?: (result: any) => any; intercept?: (row: any, url: URL, index: number) => any;
   signing?: (paths: string[]) => unknown; storageError?: 'network' | 'api' | 'invalid-json'; holdAt?: number } = {}) {
-  const urls: URL[] = []; const methods: string[] = []; const bodies: any[] = []; const rpcBodies: any[] = []; let rpcCalls = 0
+  const urls: URL[] = []; const methods: string[] = []; const bodies: any[] = []; const rpcBodies: any[] = []; const signals: (AbortSignal | null | undefined)[] = []; let rpcCalls = 0
   const baseDoc = options.doc ?? doc
   const fetcher = vi.fn(async (request: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(request)); urls.push(url); methods.push(init?.method ?? 'GET')
+    const url = new URL(String(request)); urls.push(url); methods.push(init?.method ?? 'GET'); signals.push(init?.signal)
     if (urls.length - 1 === options.holdAt) return new Promise<Response>(() => {})
     if (url.pathname.includes('/storage/')) {
       const body = JSON.parse(String(init?.body)); bodies.push(body)
@@ -89,10 +89,18 @@ function fixture(options: { doc?: typeof doc; requirements?: any[]; artifacts?: 
     return new Response(JSON.stringify(row), { status: 200, headers: { 'content-type': 'application/json' } })
   })
   const supabase = createClient<Database>('http://127.0.0.1:54321', 'fake-key', { global: { fetch: fetcher }, auth: { persistSession: false, autoRefreshToken: false } })
-  return { urls, methods, bodies, rpcBodies, fetcher, rpcCalls: () => rpcCalls, read: () => openSharedAssignmentLearnerDoc({ supabase, actorId, assignmentId }) }
+  return { urls, methods, bodies, rpcBodies, signals, fetcher, rpcCalls: () => rpcCalls, read: () => openSharedAssignmentLearnerDoc({ supabase, actorId, assignmentId }) }
 }
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); vi.useRealTimers(); pal.enabled.mockReturnValue(false); pal.classroom.mockReturnValue(true); pal.delivery.mockClear() })
 describe('statement-bound own learner open', () => {
+  it('retains the fixed real SDK RPC body and same deadline signal through the narrow type boundary', async () => {
+    const f = fixture(); await f.read()
+    const index = f.urls.findIndex(url => url.pathname === '/rest/v1/rpc/open_assignment_doc_for_member_v1')
+    expect(index).toBe(2); expect(f.methods[index]).toBe('POST'); expect(f.rpcCalls()).toBe(1)
+    expect(f.rpcBodies[0]).toEqual({ p_actor_id: actorId, p_assignment_id: assignmentId, p_viewed_at: expect.any(String), p_pal_event: null })
+    expect(f.signals[index]).toBeInstanceOf(AbortSignal); expect(f.signals[index]).toBe(f.signals[0])
+    expect(f.signals[index]?.aborted).toBe(false)
+  })
   it('returns only fresh explicit fields and retains transactional flags', async () => {
     const f = fixture(); const result = await f.read()
     expect(result).toMatchObject({ assignment: { title: 'Essay', instructions_markdown: 'Write' }, doc: { id: doc.id, content: { type: 'doc', content: [] }, score_completion: null, feedback: null }, wasFirstView: true })
@@ -315,6 +323,7 @@ describe('statement-bound own learner open', () => {
     const f = fixture({ holdAt: 2 }); const assertion = expect(f.read()).rejects.toMatchObject({ statusCode: 503 })
     await vi.advanceTimersByTimeAsync(20000); await assertion
     expect(f.urls).toHaveLength(3); expect(f.methods.filter(method => method !== 'GET')).toHaveLength(1)
+    expect(f.signals[2]).toBeInstanceOf(AbortSignal); expect(f.signals[2]?.aborted).toBe(true)
   })
   it.each(['unvalidated', 'inaccessible'])('preserves current GitHub validation state %s', async validation_status => {
     expect((await fixture({ identity: { ...identity, validation_status } }).read()).github_identity?.validation_status).toBe(validation_status)

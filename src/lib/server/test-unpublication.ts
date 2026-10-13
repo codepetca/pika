@@ -2,12 +2,14 @@ import { ApiError } from '@/lib/api-error'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { testUnpublicationResultSchema } from '@/lib/validations/test-unpublication'
+import type { PostgrestSingleResponse } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 
 const unavailable = () => new ApiError(503, 'Unable to verify Test return to draft')
 
 /** SQL owns the locked eligibility decision and source-to-draft synchronization. */
 export async function returnTestToDraft(teacherId: string, testId: string, classroomId: string) {
-  let result: Awaited<ReturnType<ReturnType<typeof getServiceRoleClient>['rpc']>>
+  let result: PostgrestSingleResponse<Database['public']['Functions']['return_test_to_draft_atomic']['Returns']>
   try {
     result = await getServiceRoleClient().rpc('return_test_to_draft_atomic', {
       p_teacher_id: teacherId,

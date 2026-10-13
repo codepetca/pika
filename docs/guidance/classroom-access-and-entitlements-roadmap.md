@@ -447,6 +447,19 @@ the latest isolated app attempt failed at login-response body acquisition and it
 exact synthetic project was subsequently recovered. Preserve both receipts;
 cleanup success does not convert the failed rehearsal into a product pass.
 
+Oct13 verification checkpoint: a subsequent synthetic browser attempt stopped
+before the case with unknown browser-family ownership/closure. That lane is
+parked pending verified recovery or an owner-controlled reset; do not infer
+closure from an absent listener or relaunch an equivalent trial. Independent
+Survey verification completed its one disposable 001–263 component at
+`d9223d7d68c7a9b5221cfa322f9c96b28dfeb36f`: PostgreSQL parsing, rollback and
+real-SDK contracts, genuine twelve-RPC metadata, restoration/preservation and
+owned teardown passed. Full committed concurrency/cancellation/payload and
+existing-screen acceptance remain pending. Details and immutable receipt hashes
+are in [contextual Survey guidance](contextual-surveys.md#native-component-verified-full-acceptance-pending).
+Neither receipt closes batch 2 or authorizes production/shared migration or
+activation. Routine source fixes and targeted review continue under the waiver.
+
 | Ready lane | Ownership and deliverable | Integration gate |
 | --- | --- | --- |
 | Tests critical path | Coordinator/private runner author: bounded privacy-safe original-request/body lifecycle diagnosis, then a justified repair or separately authorized fresh proof; preserve real auth, byte/JSON checks and request caps | Existing-screen owner/member lifecycle must pass; a diagnostic source test or login HTTP 200 is not sufficient |

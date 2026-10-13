@@ -2,8 +2,9 @@
 
 Prepared against main `22efa4826300d5895b3549d7b74dd0ff4262e4a5` in
 `codex/contextual-surveys-workflow`. This is one owner/member Survey workflow
-group in batch 2. Tests app acceptance, Survey native/app acceptance, genuine
-generated types, independent review and protected-main CI remain required.
+group in batch 2. Genuine generated types and one disposable database component
+have been verified. Full Tests/Survey native and app acceptance, independent
+cumulative review and protected-main CI remain required.
 No admission, migration, provider, billing or product navigation activation is
 authorized by this source receipt.
 
@@ -77,10 +78,10 @@ acceptance must check actual timeout cancellation and payload limits.
 ## Genuine type integration
 
 All public functions return PostgreSQL `jsonb` (`Json` in genuine generated
-metadata). The owning coordinator regenerates `src/types/database.generated.ts`
-from the cumulative disposable schema after freeze. No hand-authored central
-function entries or unknown-RPC cast are used. The source currently cannot pass
-the whole-project typecheck until that generated contract contains:
+metadata). The owning coordinator generated `src/types/database.generated.ts`
+from cumulative disposable migrations 001–263 and copied the complete genuine
+artifact, rather than hand-authoring function entries or using unknown-RPC casts.
+The generated contract contains:
 
 | RPC | Args |
 | --- | --- |
@@ -100,7 +101,25 @@ refinement. SQL internal functions also appear in private schema metadata only
 if generated scope includes private; public function arguments contain no new
 composite input type.
 
-## Native evidence prepared, not executed
+## Native component verified; full acceptance pending
+
+The sole disposable component attempt on `pika_assignment_list_8f764d70dbd5`
+closed successfully against source `d9223d7d68c7a9b5221cfa322f9c96b28dfeb36f`.
+It accepted migration 263 in PostgreSQL and completed the rollback contract,
+guarded real-SDK contract, terminal checks, genuine type generation and
+restoration/preservation checks. The coordinator independently confirmed absence
+of its containers, volumes, networks, reserved ports and work directory.
+
+The retained component receipt SHA-256 is
+`f848e3426d1b1d7874f27977146f5fef86464d998a98b75ec265a5b539e02d14`.
+The 440,703-byte genuine type artifact SHA-256 is
+`82324a71d207e1317cb1f3066f71d0be3cffb27fc9f0bf224e80893e1079bf48`.
+Its twelve public RPC contracts were independently validated before integration.
+This component is spent and cannot be retried or rebound. Its receipt retains
+`nativeVerified=false`: committed race directions, backend/waiter observations,
+actual timeout cancellation and payload limits, and existing-screen mixed-role
+application verification remain outstanding. It does not authorize a shared
+database migration, production release or cohort activation.
 
 The concrete Survey platform adapters are frozen before private registration;
 copied, replaced or getter-based adapters cannot enter the lifecycle. A single
@@ -114,7 +133,8 @@ uncertainty is sticky through secondary checks and poisons outer cleanup, rather
 than permitting ordinary stop/removal while child closure remains unknown.
 The pinned native Supabase executable is invoked directly rather than through
 its Node wrapper. Existing predecessor profiles retain their original behavior.
-These are source/CPU guarantees, not native completion or cleanup evidence.
+These source/CPU guarantees apply independently of the bounded component receipt
+above; they do not substitute for the remaining native acceptance cases.
 
 `scripts/contextual-surveys-db-contracts.sql` is a rollback-only cumulative-schema
 contract with synthetic mixed-role identities, actual catalog ACL checks,
@@ -148,7 +168,7 @@ primary Survey retains its original empty response vector. The existing subject
 case is replaced, keeping fifteen cases/thirty directions and existing bounds.
 
 Focused source checks cover legacy Survey suites, contextual helper/route suites
-and unchanged classwork creation. Native proofs, genuine generated types,
+and unchanged classwork creation. Remaining full native proofs,
 independent cumulative review, final-SHA CI/PR Gate and reachable existing-screen
 mixed-role rehearsal are outstanding. UI changes require the Pika UI skills and
 visual matrix; this source group changes no UI. Root owns roadmap, continuity,

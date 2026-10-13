@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Offline fixed learner-profile fixture compatibility
-
-PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.
-
 ## 2026-10-11 — Production polling optimization and reviewed UI batch
 
 Owner authorized production app deployment and one application of257/258. Promotion1573 merged reviewed872d19582 into production5a3cb8967; exact reviewed tree retained. Cumulative security/compatibility reviews CLEAN; source CI38133165213 all10 PASS, abbreviated promotion CI38136281882 PASS. Apply38136681044 returned applied-verified/history258; read-only catalog verifies all four bodies against reviewed SQL, owners/search paths and service-only public/private helper ACLs. Vercel deploymentdpl_6YwCcNdD3Xa5waAzy6UTPRY2GkNG READY and production aliases assigned Oct11 11:55UTC. Anonymous login200/status401/Pattern Lab and fixture404 PASS. No authenticated learner/write canary.
@@ -698,3 +694,42 @@ shared/prod migration or activation. Source-only preparation of a fresh reviewed
 component follows, not a ready/merge/phase-exit claim. Browser diagnostics now
 confirm URL-wait timeout but not a body error; completion-boundary observation
 remains source-only, with original reader/gate/traffic controls intact.
+
+## 2026-10-13 Survey genuine metadata and bounded RPC typing
+
+Sole disposable8f component at d9223d7d68 closed0; SQL001–263 parsing, rollback,
+guarded real SDK, terminal/generation/restoration/preservation and exact teardown
+completed. Root independently checked target containers/volumes/networks/ports/
+workdir absent and validated twelve genuine RPC contracts. Whole440703-byte
+generated artifact82324a71 copied mechanically; only60 generated lines added.
+Receipt f848e342 retains nativeVerified=false: full committed races, backend/
+waiter observations, actual cancellation/payload and existing-screen proof remain.
+All spent candidates and executed seals preserved; no retry/rebind.
+
+New metadata exposed broad SDK RPC-union type recursion. Narrow only learner-open
+and integrated proof binding to the genuine fixed RPC Args/Returns. Runtime
+behavior unchanged; actual SDK seam retains fixed path/body/shared abort signal.
+Worker180/5 focused checks and strict scripts TSC PASS; root verification and
+targeted review precede integration. Sol/high source worker, approximately7min
+before exact binding extension; effective telemetry/tokens unknown. Original
+Survey22:04/review16/sourcefix7 counter continues, no reset. Browser sourcefix29
+attempt failed before its case with unknown family closure; lane parked pending
+verified recovery/owner reset. No blind signals, new browser trial, PR/main merge,
+shared/prod migration, provider/account/billing or activation. Routine approvals
+waived; serious holds and batch2/whole-goal acceptance remain.
+
+Root actual180/5 and strict scripts TSC PASS; independent targeted review17
+36a6eda0 complete PASS for metadata/leaf/bind source,228s observed. Broader app
+TSC then exposed two broad RPC-union sites (creation binding/unpublication result)
+and optional owner classroom narrowing. Batch sourcefix8 narrows only actual RPC
+types, preserves receiver/runtime bytes and explicitly fails closed on missing
+owner evidence; real archived/absent-parent and exact-body/count checks retained.
+Root full app TSC0,66/5 affected checks/lint/audit10/diff PASS; targeted review18
+dba10aa5 complete PASS,150s observed; prior17 pins unchanged. No passing scripts
+check was substituted for the broader failure. Both reviews cover source only,
+not remaining native/application/CI/merge/phase acceptance.
+Remaining acceptance map540b215d requires committed fresh case cohorts, exact
+two-session waiter observation and closed cancellation/payload budgets; accepted
+component is not replayed. Sol/high source-only committed-plan preparation owns
+two new inert module/test paths; root owns integration/dispatch and unchanged
+caps. No native target or live permission was granted by that source assignment.

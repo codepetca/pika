@@ -1,5 +1,7 @@
 import { z } from 'zod'
+import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { ApiError } from '@/lib/api-error'
+import type { Database } from '@/types/database'
 import type { getServiceRoleClient } from '@/lib/supabase'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { parseContentField } from '@/lib/tiptap-content'
@@ -19,6 +21,7 @@ import { assignmentLearnerOpenIdentitySchema, learnerOpenControlSchema, learnerO
 } from '@/lib/validations/contextual-assignment-learner-open'
 
 type Client = ReturnType<typeof getServiceRoleClient>
+type OpenDocRpc = Database['public']['Functions']['open_assignment_doc_for_member_v1']
 const unavailable = () => new ApiError(503, 'Unable to verify learner assignment document')
 const fields = (schema: z.ZodObject) => Object.keys(schema.shape).join(',')
 const classroomRelation = 'classrooms!assignments_classroom_id_fkey!inner'
@@ -108,11 +111,11 @@ export async function openSharedAssignmentLearnerDoc(input: { supabase: Client; 
       releasedAt: initial.released_at ?? initial.created_at }) : null
     // Bound the raw RPC envelope before its existing parser traverses passthrough JSON.
     const opened = await openContextualAssignmentDoc({ supabase: { rpc: async (name, args) => {
-      const result = await execute(input.supabase.rpc(name, args).abortSignal(controller.signal))
+      const result = await execute(input.supabase.rpc<'open_assignment_doc_for_member_v1', OpenDocRpc['Args']>(name, args).abortSignal(controller.signal))
       const raw = result as { data?: { assignment?: { rich_instructions?: unknown }; doc?: { content?: unknown } } }
       if (raw.data?.assignment && !boundedAssignmentListJson(raw.data.assignment.rich_instructions, 2 * 1024 * 1024)) throw unavailable()
       if (raw.data?.doc && !boundedAssignmentListJson(raw.data.doc.content, 2 * 1024 * 1024)) throw unavailable()
-      return result as Awaited<ReturnType<Client['rpc']>>
+      return result as PostgrestSingleResponse<OpenDocRpc['Returns']>
     } }, actorId, assignmentId, viewedAt: now.toISOString(), event })
     if (opened.assignment.classroom_id !== classroomId) throw unavailable()
     let palDelivery: PalImmediateDeliveryStatus | undefined

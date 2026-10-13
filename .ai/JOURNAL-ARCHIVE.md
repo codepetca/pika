@@ -46496,3 +46496,8 @@ Teacher CreateClassroomModal opts its existing upward path chooser into shared s
 ## 2026-10-11 — Minor Assignment-menu upstream sync before approved integration review
 
 PR #1566 syncs main77d5095e (#1568). Journal-only conflict resolved preserving both parent entry/batch-marker histories. All non-continuity feature bytes and entire migration chain unchanged versus reviewed-check candidate11d6b3034; disposable001–258 proof/type evidence remains valid. Fresh focused checks and the owner-approved single integration review cover the final combined revision before requiredCI. Shared local/production unchanged; no merge/promotion authority added.
+
+<!-- pika-session-log-archive-batch:4d3107ea37d57a38fd2d2333ae544b37ac50aa4b19f87f34883778d954098ec7 -->
+## 2026-10-11 — Offline fixed learner-profile fixture compatibility
+
+PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.

@@ -305,7 +305,7 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
     const a=f.assignments[index]; transport.readContext(a.id,actorId)
     // Register the actual application's fresh timestamp body; delegate unchanged
     // to the real SDK builder. This intercepts intent, never fabricates a result.
-    const originalRpc=client.rpc.bind(client)
+    const originalRpc=(client.rpc<'open_assignment_doc_for_member_v1', Database['public']['Functions']['open_assignment_doc_for_member_v1']['Args']>).bind(client)
     const wrapped=Object.create(client) as typeof client
     wrapped.rpc=((name:string,values:Record<string,unknown>)=>{
       assert.equal(name,'open_assignment_doc_for_member_v1'); assert.deepEqual(Object.keys(values).sort(),['p_actor_id','p_assignment_id','p_pal_event','p_viewed_at'])

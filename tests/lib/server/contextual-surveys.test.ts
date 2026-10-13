@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   authorizeSharedSurveyActor, readContextualSurveyDetail, readContextualSurveyList,
-  readContextualSurveyResults, respondToContextualSurvey,
+  readContextualSurveyResults, readContextualSurveyOwnerForMutation, respondToContextualSurvey,
 } from '@/lib/server/contextual-surveys'
 import { validateSurveyResponses } from '@/lib/surveys'
 import type { SurveyQuestion } from '@/types'
@@ -43,6 +43,22 @@ describe('shared Survey admission', () => {
 })
 
 describe('atomic Survey payload decoding', () => {
+  it('retains owner mutation preflight with the fixed owner RPC and parent', async () => {
+    const classroom = { id: classroomId, teacher_id: actorId, archived_at: null }
+    context.supabase.rpc.mockResolvedValue({ data: { survey, classroom, questions: [question], responses: [] }, error: null })
+    expect(await readContextualSurveyOwnerForMutation(context)).toMatchObject({ classroom, survey: { id: surveyId } })
+    expect(context.supabase.rpc).toHaveBeenCalledExactlyOnceWith('get_survey_for_owner_v1', { p_actor_id: actorId, p_survey_id: surveyId })
+  })
+  it('denies an archived owner mutation before any write', async () => {
+    context.supabase.rpc.mockResolvedValue({ data: { survey, classroom: { id: classroomId, teacher_id: actorId, archived_at: time }, questions: [question], responses: [] }, error: null })
+    await expect(readContextualSurveyOwnerForMutation(context)).rejects.toMatchObject({ statusCode: 403, message: 'Classroom is archived' })
+    expect(context.supabase.rpc).toHaveBeenCalledOnce()
+  })
+  it.each([undefined, null])('fails closed on missing owner classroom evidence (%s)', async classroom => {
+    context.supabase.rpc.mockResolvedValue({ data: { survey, classroom, questions: [question], responses: [] }, error: null })
+    await expect(readContextualSurveyOwnerForMutation(context)).rejects.toMatchObject({ statusCode: 503, message: 'Survey operation unavailable' })
+    expect(context.supabase.rpc).toHaveBeenCalledOnce()
+  })
   it('rejects foreign parent evidence before disclosing questions', async () => {
     context.supabase.rpc.mockResolvedValue({ data: { survey, classroom: { id: memberId, teacher_id: memberId, archived_at: null }, questions: [question], responses: [] }, error: null })
     await expect(readContextualSurveyDetail(context)).rejects.toMatchObject({ statusCode: 503 })

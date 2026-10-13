@@ -19,6 +19,8 @@ Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 1577 merged `18126e952`/dormant; CI38175680856 PASS.
 1578 merged `a37d03b3a`/dormant; CI38192450117 PASS.
 #1580 dormant; Tests fail; Survey/archive proof. Roadmap holds unchanged.
+Oct13: Survey001–263 component/genuine12RPC metadata PASS; full native/app pending.
+Browser proof parked: unknown family closure; no equivalent retry/cutover.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit; `docs/guidance/contextual-test-publication.md`.
