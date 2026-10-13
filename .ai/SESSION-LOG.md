@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
-
-Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
-pika_assignment_list_ef9c8ece7a72. Locked preflight accepted; sole root run38015
-started14:05:27UTC, observed complete exit1 at14:10:12UTC, no retry. Full history,
-product rollback/ACLs, genuine CLI types identical and closed-engine privilege/
-rollback/held-schedule checks PASS. SDK acceptance stopped in rosterRestore:
-bounded private0600 diagnostic pal_membership_generation_closed. Fixture deletes
-an enrollment then reinserts its same id; retained168 records DELETE as removed
-and forbids reactivating that generation. This is invalid restoration setup, not
-evidence that the product guard should change. Remaining SDK/hoisting/cancellation
-acceptance absent. Exact owned teardown, global inventory/ports, whole canonical
-rows/settings/cron/resources and sourcefreeze PASS; cleanupFailures[]. Runner
-entry flags false/null again; all seven inert hashes match reviewed sources.
-Permission consumed; PR1569 remains OPEN/DRAFTa3c5, goalPAUSED. No sourcefix,
-additional native command, CI/merge/shared migration/deployment/account/provider/
-activation. Next source-only fixture correction must respect generation closure,
-verify lifecycle-aware cleanup/restoration, and receive targeted review before
-another exact-candidate rehearsal. Review ledger/counters/waiver not reset.
-
 ## 2026-10-11 — Owner delegates reasonable workflow approvals
 
 Human requested faster completion and explicitly delegated reasonable approvals
@@ -756,3 +736,20 @@ is not rewritten by this separate success. PR1581 stays draft; native/app
 acceptance and full failed PR gate remain unresolved. Next decision must address
 body-read/navigation ordering before another run; no source criteria changed.
 Original review43/fix33 and production/shared-local/cutover/provider holds remain.
+
+## 2026-10-13 Pre-navigation original-body validation prepared
+
+Human approved source-only synthetic timing change and review, not a new run.
+Fresh private8ad06f8f7a3c source34 retains one original POST body invocation and
+exact byte/JSON validation, then settles that same task through the original
+deadline gate before a separate navigation evaluation. The owned document gate
+requires positive validated-task admission and pending0; empty tasks alone do
+not authorize unsolicited navigation. Existing request/ownership/privacy/deadline
+bounds, diagnostics and seven-module packaging remain unchanged. TDD old-order
+RED, new13direct/14serialized/35observability/21package/19privacy checks PASS;
+root independently replayed and verified compiler/inverse/import closure. No
+semantic full-graph TypeScript or native claim. Firstfreeze22:39:25UTC, entry
+8f38845b...; acceptance/runtime absent, oldSPENT unchanged. Targeted independent
+review45 next; author handoff calls44, but actual44 already completed metadata
+scope, counters never reset. PR1581 remains draft with full gate still failed.
+Production/shared-local/cutover/provider holds remain; no app/auth/source rollout.
