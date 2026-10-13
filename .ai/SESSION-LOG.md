@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading category-consistent fixture correction
-
-Human requested rollback/SDK correction, restoration checks and review only;
-no fresh native permission. Root batch5 corrects the parent move with a strictly
-selected existing destination default category; nested PT409 scope restores the
-whole Test row and an explicit comparison rejects restoration drift. RED→GREEN
-13 focused source checks retain ordinary147/207/039 triggers. Private SDK checks
-both default-category baselines, moves parent/category together, reads both
-classrooms' categories and compares exact original category plus work graph in
-finally after Restore, including committed-Apply faults. Only the fixed Test's
-valid updated_at is omitted for the unchanged039 timestamp trigger; all other
-Test/category/work bytes must match. Pure helper corruption cases and production
-SDK fake-driver wrong-restored-category refusal PASS. No category writes, new
-tables, dependency or product/RPC/migration SQL byte change. Main872d1958 merged
-its sealed258 student session-status projection during source work; rebase keeps
-both histories/CI lanes and renames owner grading258→259 unchanged. Exact full259
-guards/private counts require both tails; old258 native receipts remain historical.
-Pre-rebase focused1891/112 and all static gates PASS; source-only current-base
-checks completed1954/112+all static gates PASS;13TS audit/private7filetypes,
-transport/restoration/operational mocks PASS. WorkerSol/high300s delivered exact
-259 profiles and454targeted tests; effective/tokens unknown. Latest main79a6f7994
-history-only production receipts preserved, with zero parent history deficits.
-Initial current-base gate1953/1954 failed only startup17030/17000; compacted
-CURRENT while retaining release receipts and passed full rerun. One targeted
-Sol/high source review follows frozen publication. Cumulative ledger7turns1917s/
-targeted4/fix5/original02:58:39 retained;
-review-stop waiver active, actual native permission still consumed. Draft PR1569,
-normal-local/prod/activation/provider/account/toolgoalPAUSED holds unchanged.
-
 ## 2026-10-11 — Owner grading corrected rollback passes; SDK revision setup stops
 
 Targeted source review8 CLEAN344s atcebc37d9d/base79a6f7994; cumulative8turns/
@@ -778,3 +749,20 @@ privately. PR1581 remains draft at342a: final focused2921PASS/8skip/2CPUtimeouts
 both isolated cases PASS; architecture/UI/design/appType/lint PASS separately.
 Full gate not green and native/app acceptance incomplete. Production/cutover
 and provider-refused Survey probe planning remain held; no migrations applied.
+
+## 2026-10-13 Approved eager-body diagnostic remains failed
+
+Human approved earlier original POST body acquisition and one reviewed isolated
+check. Private source32 changes only that scheduling and fresh bindings; six
+compiled-case CPU scenarios,21packaging/19privacy and exact compiler/inverse
+checks PASS. Independent targeted41Astra/high complete PASS0; unchanged39/40
+coverage reused after inverses. One93c31efc1f68 run closed1/SPENT after37.593s,
+again HTTP2/URLdeadline with original body verification incomplete. Generated
+case code confirms the approved early read was used; no product defect proved.
+Receipt603319e... reports CLI/server/request closure, but browser cleanup ownership
+unconfirmed. Separate readonly kernel observation at17:35:27UTC found all eight
+recorded identities absent, signals0; not retrospective in-budget cleanupPASS.
+No restart/retry/unknown signals. Permission consumed; pause further native
+attempts for source diagnosis and a supported verification decision. CURRENT
+failure summary corrected; startup-doc79PASS, prior full gate still not green.
+Production/shared-local/cutover and provider-refused Survey scopes remain held.
