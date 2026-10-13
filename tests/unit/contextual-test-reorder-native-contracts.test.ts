@@ -122,7 +122,7 @@ describe('closed inert native reorder profile', () => {
     expect(source.indexOf('committedRan = true; check()')).toBeLessThan(source.indexOf('await profile.runCommitted('))
     expect(source.indexOf('runDone = true')).toBeGreaterThan(source.indexOf("'Rollback schedule whole-row equality differs'"))
     expect(source.indexOf('completedProbes.add(kind)')).toBeGreaterThan(source.indexOf('assert.deepEqual(await restorationControl(manifest.snapshot), rowsBefore)'))
-    expect(source).toContain("assert.equal(await command('git', ['status', '--porcelain']), '')")
+    expect(source).toContain("assert.equal(await command('git', ['status', '--porcelain'], undefined, CAPS.controlMs, undefined, cleanup), '')")
     expect(source).not.toMatch(/export (?:type|interface) NativeOwnerProfile/)
   })
   it('rejects premature committed dispatch without invoking any native process or caller SQL', async () => {

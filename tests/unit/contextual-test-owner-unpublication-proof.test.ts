@@ -99,7 +99,7 @@ describe('inert unpublication source proof', () => {
     const name = TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql = readFileSync(`supabase/migrations/${name}`, 'utf8')
     expect(() => validateTestOwnerUnpublicationReviewedMigration({ name, sql, sha256: createHash('sha256').update(sql).digest('hex') })).not.toThrow()
     const m = testOwnerUnpublicationNativePlan(original, 'b'.repeat(40), process.cwd())
-    expect(m.migrations).toHaveLength(262)
+    expect(m.migrations).toHaveLength(263)
     expect(m.nativeVerified).toBe(false)
     for (const sql of [m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {
       expect(validateTestOwnerUnpublicationNativePlanSql(m,sql)).toBe(true)
@@ -272,10 +272,10 @@ describe('inert unpublication source proof', () => {
     const restore=plan().contracts.frames.find(frame=>frame.label==='limits-count-restore')!
     expect(restore.sql).toContain('do $count_limit261$');expect(restore.sql).toContain('do $count_restored261$');expect(restore.sql).toContain('do $limits_fences261$')
   })
-  it.each(['gap','unknown263',...[253,254,255,256,257,258,259,260,261,262].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
+  it.each(['gap','duplicate263',...[253,254,255,256,257,258,259,260,261,262].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
     const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m}))
     if(defect==='gap') inventory.splice(100,1)
-    if(defect==='unknown263') inventory.push({name:'263_unknown.sql',sql:'select 1;',sha256:digest('select 1;')})
+    if(defect==='duplicate263') inventory.push({name:'263_unknown.sql',sql:'select 1;',sha256:digest('select 1;')})
     for(const n of [253,254,255,256,257,258,259,260,261,262]){
       if(defect===`name${n}`) inventory[n-1].name=`${n}_unknown.sql`
       if(defect===`digest${n}`) inventory[n-1].sha256='f'.repeat(64)
