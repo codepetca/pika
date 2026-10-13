@@ -4,17 +4,26 @@ import { EventEmitter } from 'node:events'
 import { createHash } from 'node:crypto'
 const seam = vi.hoisted(() => ({ host: 'unix:///offline-survey.sock', ino: 2, context: 'unix:///offline-survey.sock',
   fail: false, replaceAfter: false, retargetAfter: false, now: 0, startedAt: 0, advanceAfter: 0, holdNativeClose: false,
+  stdout: '{"offline":true}', stderr: '', writeFailure: false,
+  writes: [] as Array<{ path: string; text: string; options: { mode: number; flag: string } }>,
+  nativeChildren: [] as EventEmitter[],
   calls: [] as Array<{ file: string; args: string[]; options: Record<string, unknown> }> }))
 vi.mock('node:fs', async original => {
   const actual = await original<typeof import('node:fs')>()
   return { ...actual, realpathSync: ((path: string) => path === '/offline-survey.sock' ? path : actual.realpathSync(path)) as typeof actual.realpathSync,
     statSync: ((path: string) => path === '/offline-survey.sock'
-      ? { dev: 1, ino: seam.ino, mode: 3, rdev: 4, isSocket: () => true } : actual.statSync(path)) as typeof actual.statSync }
+      ? { dev: 1, ino: seam.ino, mode: 3, rdev: 4, isSocket: () => true } : actual.statSync(path)) as typeof actual.statSync,
+    writeFileSync: vi.fn((path: string, text: string, options: { mode: number; flag: string }) => {
+      if (!path.endsWith('-startup.json') || seam.writeFailure) throw new Error('Offline write rejected')
+      seam.writes.push({ path, text, options })
+    }),
+  }
 })
 vi.mock('node:child_process', async original => {
   const actual = await original<typeof import('node:child_process')>()
   return { ...actual, execFile: vi.fn((file: string, args: string[], options: Record<string, unknown>, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
     const child = Object.assign(new EventEmitter(), { stdin: { on: vi.fn(), end: vi.fn() }, kill: vi.fn() })
+    if (file.endsWith('supabase')) seam.nativeChildren.push(child)
     seam.calls.push({ file, args: [...args], options })
     queueMicrotask(() => {
       if (file === 'docker' && args[0] === 'context') {
@@ -25,7 +34,8 @@ vi.mock('node:child_process', async original => {
       if (seam.replaceAfter) seam.ino = 99
       if (seam.retargetAfter) seam.context = 'unix:///different.sock'
       seam.now += seam.advanceAfter
-      callback(seam.fail ? new Error('Offline command failure') : null, file.endsWith('supabase') ? '{"offline":true}' : '', '')
+      callback(seam.fail ? Object.assign(new Error('Offline command failure'), { code: 1, killed: false }) : null,
+        file.endsWith('supabase') ? seam.stdout : '', file.endsWith('supabase') ? seam.stderr : '')
       if (!seam.holdNativeClose || file === 'docker') child.emit('close', 0, null)
     })
     return child
@@ -42,6 +52,8 @@ vi.mock('node:net', async original => {
 })
 import { createAssignmentListNativeAdapters, requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup,
   SURVEY263_NATIVE_CLI, verifySurvey263NativeCli } from '../../scripts/contextual-assignment-list-proof-platform'
+import { AssignmentListStartupError, assignmentListStartupDiagnostic, Survey263UnjoinedChildError,
+  writeAssignmentListStartupDiagnostic } from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
 import { assignmentListExpectedResources, runAssignmentListEphemeralLifecycle } from '../../scripts/contextual-assignment-list-proof-lifecycle'
@@ -56,12 +68,78 @@ const make = () => createAssignmentListNativeAdapters(fixture, { survey263Endpoi
 beforeEach(() => {
   seam.context = seam.host; seam.ino = 2; seam.fail = false; seam.replaceAfter = false; seam.retargetAfter = false; seam.calls.length = 0
   seam.now = seam.startedAt = Date.now(); seam.advanceAfter = 0; seam.holdNativeClose = false
+  seam.stdout = '{"offline":true}'; seam.stderr = ''; seam.writeFailure = false; seam.writes.length = 0; seam.nativeChildren.length = 0
   vi.spyOn(Date, 'now').mockImplementation(() => seam.now)
   for (const name of Object.keys(process.env)) if (/^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)) vi.stubEnv(name, undefined)
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 describe('sealed Survey platform factory (offline actual seams)', () => {
+  it('retains bounded private failed-start callback facts only after actual positive close', async () => {
+    const adapters = make(); seam.fail = true; seam.holdNativeClose = true
+    seam.stdout = '漢'.repeat(6000) + 'synthetic tail'; seam.stderr = 'x'.repeat(20000) + 'failed to pull docker image: synthetic private tail'
+    const pending = adapters.command({ args: ['start', '--workdir', workdir], workdir, timeoutMs: 1000 }).catch(error => error)
+    for (let n = 0; n < 100; n++) await Promise.resolve()
+    expect(seam.nativeChildren).toHaveLength(1); expect(seam.writes).toHaveLength(0)
+    seam.nativeChildren[0].emit('close', 1, null)
+    const error = await pending
+    expect(error).toBeInstanceOf(AssignmentListStartupError); expect(seam.writes).toHaveLength(1)
+    const write = seam.writes[0], receipt = JSON.parse(write.text)
+    expect(write.path).toBe(`${workdir}-startup.json`); expect(write.options).toEqual({ mode: 0o600, flag: 'wx' })
+    expect(receipt).toMatchObject({ stage: 'start', code: 1, killed: false })
+    expect(Buffer.byteLength(receipt.stdout)).toBeLessThanOrEqual(16384); expect(Buffer.byteLength(receipt.stderr)).toBeLessThanOrEqual(16384)
+    expect(receipt.stdout).toContain('synthetic tail'); expect(receipt.stderr).toContain('synthetic private tail')
+    expect(assignmentListStartupDiagnostic(error)).toBe('DIAG isolated assignment startup command=exit exit=1 killed=false observed-markers=image-pull.\n')
+    expect(String(error)).not.toContain('synthetic private tail')
+  })
+  it('keeps the branded failed-start cause if secondary closed context observation differs', async () => {
+    const adapters = make(); seam.fail = true; seam.retargetAfter = true; seam.stderr = 'failed to parse config: synthetic private tail'
+    const error = await adapters.command({ args: ['start', '--workdir', workdir], workdir, timeoutMs: 1000 }).catch(error => error)
+    expect(error).toBeInstanceOf(AssignmentListStartupError)
+    expect(assignmentListStartupDiagnostic(error)).toContain('observed-markers=config-invalid.')
+    expect(seam.writes).toHaveLength(1)
+  })
+  it('uncertain failed startup is typed poison with no diagnostic or later ordinary dispatch, even on late close', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const adapters = make(); seam.fail = true; seam.holdNativeClose = true
+    const pending = adapters.command({ args: ['start', '--workdir', workdir], workdir, timeoutMs: 10 }).catch(error => error)
+    for (let n = 0; n < 100; n++) await Promise.resolve()
+    seam.now += 12010; await vi.advanceTimersByTimeAsync(12010)
+    expect(await pending).toBeInstanceOf(Survey263UnjoinedChildError); expect(seam.writes).toHaveLength(0)
+    const calls = seam.calls.length
+    seam.nativeChildren[0].emit('close', 1, null); await Promise.resolve(); expect(seam.writes).toHaveLength(0)
+    await expect(adapters.command({ args: ['status', '--workdir', workdir, '-o', 'json'], workdir, timeoutMs: 1000 })).rejects.toThrow()
+    expect(seam.calls).toHaveLength(calls)
+  })
+  it('failed diagnostic exclusive write fails closed without exposing tails or success', async () => {
+    const adapters = make(); seam.fail = true; seam.writeFailure = true; seam.stderr = 'synthetic private tail'
+    const error = await adapters.command({ args: ['start', '--workdir', workdir], workdir, timeoutMs: 1000 }).catch(error => error)
+    expect(error).not.toBeInstanceOf(AssignmentListStartupError); expect(String(error)).toContain('Private startup diagnostic failed')
+    expect(String(error)).not.toContain('synthetic private tail'); expect(seam.writes).toHaveLength(0)
+  })
+  it('positive child close at original timebox cannot write startup evidence or admit later dispatch', async () => {
+    const adapters = make(); seam.fail = true; seam.advanceAfter = 12010
+    const error = await adapters.command({ args: ['start', '--workdir', workdir], workdir, timeoutMs: 10 }).catch(error => error)
+    expect(error).toBeInstanceOf(Survey263UnjoinedChildError); expect(seam.writes).toHaveLength(0)
+    expect(seam.calls).toHaveLength(2)
+  })
+  it('existing private diagnostic helper refuses writing beyond the original close deadline', () => {
+    expect(() => writeAssignmentListStartupDiagnostic(project, { code: 1, killed: false, stdout: 'synthetic', stderr: 'synthetic' }, seam.now)).toThrow()
+    expect(seam.writes).toHaveLength(0)
+  })
+  it('successful Survey start writes no diagnostic and preserves direct-native command bounds', async () => {
+    await make().command({ args: ['start', '--workdir', workdir], workdir, timeoutMs: 1000 })
+    expect(seam.writes).toHaveLength(0)
+    const child = seam.calls.find(call => call.file === SURVEY263_NATIVE_CLI.path)!
+    expect(child.options).toMatchObject({ timeout: 1000, maxBuffer: 64 * 1024 * 1024, killSignal: 'SIGKILL' })
+  })
+  it('legacy failed-start callback still uses the original bounded diagnostic without Survey binding', async () => {
+    seam.fail = true; seam.stderr = 'address already in use synthetic private tail'
+    const error = await createAssignmentListNativeAdapters(fixture).command({ args: ['start'], workdir, timeoutMs: 180000 }).catch(error => error)
+    expect(error).toBeInstanceOf(AssignmentListStartupError); expect(assignmentListStartupDiagnostic(error)).toContain('observed-markers=port-conflict.')
+    expect(seam.writes).toHaveLength(1); expect(seam.calls).toHaveLength(1); expect(seam.calls[0].file).toBe('supabase')
+    expect(seam.calls[0].options.timeout).toBe(180000)
+  })
   it('brands only the actual socket-bound factory result, not a legacy or copied adapter', () => {
     const adapters = make()
     expect(requireSurvey263AdapterEndpoint(adapters)).toEqual({ ...endpoint(), budget: budget(), nativeCli: SURVEY263_NATIVE_CLI })

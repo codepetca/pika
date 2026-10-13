@@ -3,7 +3,7 @@
  * stderr remain private. Never call this against an existing fixture project.
  */
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
+import { execFile, type ExecFileException } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, normalize } from 'node:path'
@@ -118,11 +118,12 @@ function boundedStartupTail(value: string) {
   return bytes.subarray(start).toString('utf8')
 }
 /** Startup-only output never includes canonical snapshot rows; do not print it. */
-export function writeAssignmentListStartupDiagnostic(projectId: string, evidence: StartupEvidence) {
+export function writeAssignmentListStartupDiagnostic(projectId: string, evidence: StartupEvidence, originalCloseDeadline?: number) {
   const path = `${assignmentListProofWorkdir(projectId)}-startup.json`
   assert.equal(realpathSync(dirname(path)), dirname(path))
   const receipt = { stage: 'start', code: typeof evidence.code === 'string' || typeof evidence.code === 'number' ? evidence.code : null,
     killed: evidence.killed, stdout: boundedStartupTail(evidence.stdout), stderr: boundedStartupTail(evidence.stderr) }
+  if (originalCloseDeadline !== undefined) assert(Number.isSafeInteger(originalCloseDeadline) && Date.now() < originalCloseDeadline)
   writeFileSync(path, JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
   return path
 }
@@ -138,15 +139,32 @@ async function command(file: string, args: string[], options: { input?: string; 
     const closeDeadline = options.survey.closeDeadline
     assert(Date.now() < closeDeadline)
     return new Promise((resolve, reject) => {
-      let outcome: { error: Error | null; stdout: string } | undefined, inputFailed = false
+      let outcome: { error: ExecFileException | null; stdout: string; stderr: string } | undefined, inputFailed = false, unjoined = false
       const child = execFile(executable, args, { timeout, killSignal: 'SIGKILL',
         maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', ...(options.env ? { env: options.env } : {}) },
-      (error, stdout) => { outcome = { error, stdout } })
-      const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Survey263UnjoinedChildError()) }, closeDeadline - Date.now())
+      (error, stdout, stderr) => { outcome = { error, stdout, stderr } })
+      const timer = setTimeout(() => {
+        unjoined = true
+        try { child.kill('SIGKILL') } catch { /* Signal delivery is not positive closure. */ }
+        reject(new Survey263UnjoinedChildError())
+      }, closeDeadline - Date.now())
       child.once('close', () => {
         clearTimeout(timer)
-        if (!outcome || outcome.error || inputFailed || Date.now() >= closeDeadline) reject(new Error('Private Survey platform child rejected'))
-        else resolve(outcome.stdout.trim())
+        if (unjoined || Date.now() >= closeDeadline) { reject(new Survey263UnjoinedChildError()); return }
+        if (!outcome) { reject(new Error('Private Survey platform child rejected')); return }
+        if (outcome.error || inputFailed) {
+          try {
+            if (options.startupProjectId) {
+              // Callback facts remain private. Never persist before actual close,
+              // after an unjoined timebox, or outside its original close reserve.
+              const evidence = { code: outcome.error?.code, killed: outcome.error?.killed === true,
+                stdout: outcome.stdout, stderr: outcome.stderr }
+              reject(new AssignmentListStartupError(writeAssignmentListStartupDiagnostic(options.startupProjectId, evidence, closeDeadline), evidence)); return
+            }
+          } catch { reject(new Error('Private startup diagnostic failed')); return }
+          reject(new Error('Private Survey platform child rejected')); return
+        }
+        resolve(outcome.stdout.trim())
       })
       child.stdin?.on('error', () => { inputFailed = true; child.kill('SIGKILL') })
       child.stdin?.end(options.input)
@@ -268,6 +286,7 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBu
     assert(file === 'docker' || file === 'supabase')
     assert(!options.env && !args.some(arg => arg === '--host' || arg === '-H' || arg.startsWith('--host=')))
     await observe()
+    let dispatchFailure: unknown
     try {
       // Docker always gets the captured host explicitly. Supabase receives the
       // same host only in its private child environment, never via default context.
@@ -277,8 +296,16 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBu
         ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint.host } } : {}),
       })
       assert(Date.now() < cutoff()); return result
-    } catch (error) { if (error instanceof Survey263UnjoinedChildError) poisoned = true; throw error }
-    finally { await observe(true) } // fixed original reserve, never a renewed clock
+    } catch (error) { dispatchFailure = error; if (error instanceof Survey263UnjoinedChildError) poisoned = true; throw error }
+    finally {
+      // Poison is authoritative: no ordinary context child after uncertain join.
+      if (poisoned && dispatchFailure instanceof Survey263UnjoinedChildError) throw dispatchFailure
+      try { await observe(true) } catch (error) {
+        if (error instanceof Survey263UnjoinedChildError) throw error
+        if (dispatchFailure instanceof AssignmentListStartupError) throw dispatchFailure
+        throw error
+      }
+    } // fixed original reserve, never a renewed clock
   }
   return Object.freeze({ run, observe, checkWork, checkTotal, cleanup: () => { cleaning = true }, poison: () => { poisoned = true },
     endpoint: Object.freeze({ kind: 'survey263' as const, host: endpoint.host,

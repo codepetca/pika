@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Create Classroom path-menu transition consistency
-
-Teacher CreateClassroomModal opts its existing upward path chooser into shared semantic-fast opacity, explicit parent activity and nested initialBlueprintId ownership. Whole wizard/name/import/date/business state remains with the existing controller. Governed reuse/extend brief and exact development/E2E teacher-only real-controller fixture precede implementation; ordinary/student/production fixture exclusions are tested. Four actual-owner regressions prove inert command retirement, committed replacement, suspended/abandoned replacement and title/parent unavailability; shared primitive and existing business tests pass77. Gallery/route gates pass51. Focused application-browser checks pass965 tests/66files plus architecture/UI/design/TypeScript/lint, audit7 changed TS paths. Frozen-source native eight-context verification passes:32PNGs/8videos,136 intercepted reads,0mutations/errors/unexpected requests/overflow; ten before/after source bindings match. Four unchanged Pattern Lab goldens pass. Coordinator inspected the eight-open board, representative actual open/source/Calendar originals and unchanged Material reference. Existing source-step focus lands on BODY and remains stable; Calendar group/Back name ownership pass. Six failed/incomplete and two diagnostic contexts are excluded; two harness corrections retain evidence, no product source repair. Independent draft-first stable-SHA review/CI/main merge remain gates. No dependency, migration, production, Calendar1217 or privacypriority1 operation; broad fluidity goal remains open. External evidence retains failed harness attempts separately from accepted product behavior.
-
 ## 2026-10-11 — Minor Assignment-menu upstream sync before approved integration review
 
 PR #1566 syncs main77d5095e (#1568). Journal-only conflict resolved preserving both parent entry/batch-marker histories. All non-continuity feature bytes and entire migration chain unchanged versus reviewed-check candidate11d6b3034; disposable001–258 proof/type evidence remains valid. Fresh focused checks and the owner-approved single integration review cover the final combined revision before requiredCI. Shared local/production unchanged; no merge/promotion authority added.
@@ -672,3 +668,21 @@ settlement before the held-child assertion. No native/metadata acceptance, PR,
 shared/prod migration or live change. One targeted delta review follows; clocks
 and routine waiver retained. Browser commit-gate proposal is source-only pending
 review and its separately bounded diagnostic.
+
+## 2026-10-13 Survey positively closed startup diagnostics
+
+The first admitted disposable Survey attempt failed at startup and was fully
+spent; its stderr was not retained by the Survey-specific command branch, so
+the cause remains unknown. Preserve existing bounded private startup receipts
+after actual positive close, with an original-deadline check immediately before
+the exclusive0600 write. Late/unjoined closure remains typed sticky poison,
+blocks late writes and ordinary post-command observation, and cannot be masked
+by secondary observation. Legacy startup and successful Survey behavior hold.
+Independent targeted review13 PASS at exact platform6591dc5b/test36e8cfb0; prior
+source security coverage reused. Root actual40 tests/2 files, lint, audit and
+diff checks PASS; whole-script types still have14 known genuine263 RPC metadata
+gaps and are not passing. No past stderr recovery, native acceptance, PR,
+shared/prod migration or activation inferred. Routine workflow-budget approvals
+waived by the owner; correctness and serious-operation holds remain. Separate
+synthetic browser diagnostic now retains inner post-read failure with a completed
+CLI command and positive full cleanup; exact cause is under read-only diagnosis.
