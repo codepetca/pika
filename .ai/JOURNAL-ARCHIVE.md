@@ -47106,3 +47106,17 @@ Next source-only repair lane prepares bounded noDB protocol experiment rather th
 another blind full rehearsal. Original12:08 clock/counts22initial1target19fix18
 retained; effective/active/tokens unknown. Weekly64% remaining accountwide; actual
 322GB healthy, no cleanup. Private root handoff holds detailed ownership/receipts.
+
+<!-- pika-session-log-archive-batch:535224104b865f7c104698843e04d99af78247855b817d7b4a76b60ec105dd3c -->
+## 2026-10-12 Survey genuine-type lifecycle preparation
+
+Added one guarded Survey263 genuine-generator phase after successful finite SDK
+verification, sharing the original target guard, deadline and control counters.
+The twelve exact RPC AST contracts reject altered arguments/returns; the private
+type receipt is returned only after canonical/global/source preservation and
+cleanup succeed. Offline tests cover generator failure and post-generation
+cleanup rejection. Genuine artifact and remaining native contracts are pending;
+no hand-written public database types, source PR, migration or live activation.
+The noDB browser experiment spent its sole attempt before any HTTP request;
+browser cleanup remains unverified while exact ownership recovery is prepared.
+Routine-approval waiver retained; serious holds and cumulative review counts stay.

@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 Survey genuine-type lifecycle preparation
-
-Added one guarded Survey263 genuine-generator phase after successful finite SDK
-verification, sharing the original target guard, deadline and control counters.
-The twelve exact RPC AST contracts reject altered arguments/returns; the private
-type receipt is returned only after canonical/global/source preservation and
-cleanup succeed. Offline tests cover generator failure and post-generation
-cleanup rejection. Genuine artifact and remaining native contracts are pending;
-no hand-written public database types, source PR, migration or live activation.
-The noDB browser experiment spent its sole attempt before any HTTP request;
-browser cleanup remains unverified while exact ownership recovery is prepared.
-Routine-approval waiver retained; serious holds and cumulative review counts stay.
-
 ## 2026-10-12 Survey source-review correction batch
 
 Independent security/compatibility wave on ac0bec363 found pinned-Docker
@@ -778,3 +765,20 @@ including full-app reporter retention and installed reporter composition. Review
 and full gate pending. One fresh bounded rehearsal authorized but not allocated;
 prior failures stay spent. Production and other holds remain unchanged. Preserve
 post-run dependency evidence before coordinator tests rewrite their local cache.
+
+## 2026-10-14 Serialized fixture reporting reviewed; fresh attempt failed
+
+Runtimecceb99318 passes3171 focused tests/8skip and all policies/TypeScript/lint.
+Review67 complete/clean; installed serializer and private launcher covered, earlier
+unchanged coverage reused. One freshcc38348ac353/eCMyEm failed before first spec-
+entry marker; two errors still classify unknown. The initial timeout setter is
+before that marker, so body-never-entered/browser-launch claims are not proved.
+App ready; server0/0/0/all flagsfalse.239.666s from original start/30.848s cleanup.
+ControllerownedSettledtrue; root confirms project resources/workdir/SQL marker
+absent and four ports clear. BEFOREpost-run tests, independent dependency digest
+and all7624 source-file hashes/identities match preparation; private receipt kept.
+No separate canonical DB equality attestation or native acceptance. Private evidence,
+spent token and reviews preserved; temporary clean reviewer copy removed normally.
+No retry, phase exit or production change. Next evidence should use fixed envelope
+shape/code-site labels and an earlier body marker, not further signature guessing.
+Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
