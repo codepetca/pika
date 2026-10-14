@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 Contextual Test deletion CI compatibility correction
-
-Fresh disposable262/38534 acceptance fully PASS: replay/types/rollbackACL,
-8contracts16heldraces/bothowner-role SDK closures/503one57014at8010ms/zeroRPC,
-restoration/exact8cleanup/global741/canonical183tables2cron/sourceports preserved.
-Runtimebinding consumed; failed prior attempt retained. Four clean review turns
-1471s. Exact-head CI38202975883 found2 compatibility tests failing while17050
-passed/8skipped: publication source seal missed the additive DELETE dispatcher;
-compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
-remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
-only attested dispatcher stripped; controls receipt restored. Targeted108checks
-PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
-
 ## 2026-10-12 Remaining-work orchestration and bounded diagnostic
 
 Routine approval/workflow/low-usage waiver retained; serious shared/prod/provider/
@@ -787,3 +774,18 @@ and proves offline paths plus retained denial latch. Native acceptance pending.
 Fresh private launcher adds inherited077 permissions and permanent one-use token;
 no target/admission/clock allocated or attempt dispatched yet. Old failed attempts
 remain spent; original protocol/review/fix histories and routine waiver carry.
+
+## 2026-10-14 Reviewed version fix; one fresh full-app attempt failed
+
+Runtimefb4296dac passes3167 focused tests/8skip and all policies/TypeScript/lint.
+Review66 complete/clean covers optional lookup, immediate guard/cache consumers,
+and private one-use launcher; unchanged earlier coverage reused. No guard weakened.
+Freshbe904b644403/YOtpAr failed during Playwright fixture setup, before spec entry;
+app readiness completed and server ledger counts0/0/0/all flagsfalse. Retained
+startup report discovers/starts/ends1, passes0, records2unknown sanitized errors;
+actual fixture cause remains unknown.196.494s from original start; cleanup28.687s.
+ControllerownedSettledtrue; root confirms workdir/SQL marker absent, no exact
+project Docker resources by both label schemes/name, four ports clear, frozen
+source clean. This failed receipt does not separately attest canonical equality.
+Private0700/0600 evidence and spent token kept; no retry or phase exit. Production,
+shared-local, provider-Survey, account/billing and activation holds unchanged.

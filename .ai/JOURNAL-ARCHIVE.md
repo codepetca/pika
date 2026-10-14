@@ -47067,3 +47067,17 @@ sources unchanged, no migration renumbering. Reconciled head needs proportional
 base/log review and checks before any fresh exact disposable binding.
 Sharedlocal249+/prod259+,
 promotion/provider/account/admission/home/page/cohort/cutover holds remain.
+
+<!-- pika-session-log-archive-batch:52561993213ccc3bf88d6ccebb82e001a74f2d9b5cb33edebb82259c91b4364f -->
+## 2026-10-12 Contextual Test deletion CI compatibility correction
+
+Fresh disposable262/38534 acceptance fully PASS: replay/types/rollbackACL,
+8contracts16heldraces/bothowner-role SDK closures/503one57014at8010ms/zeroRPC,
+restoration/exact8cleanup/global741/canonical183tables2cron/sourceports preserved.
+Runtimebinding consumed; failed prior attempt retained. Four clean review turns
+1471s. Exact-head CI38202975883 found2 compatibility tests failing while17050
+passed/8skipped: publication source seal missed the additive DELETE dispatcher;
+compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
+remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
+only attested dispatcher stripped; controls receipt restored. Targeted108checks
+PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
