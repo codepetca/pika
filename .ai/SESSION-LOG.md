@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading SDK captures real Start revisions
-
-Human authorized private driver correction/regressions/targeted review only.
-RED reproduced19!=1; GREEN validates Number.isSafeInteger/revision>=1 and retains
-exact observed revision/actor/attempt. Two mocked Start cases preserve19/37 and
-1/MAX_SAFE_INTEGER into frozen closed-engine preparation;14 denials reject seven
-invalid forms for either learner without frame dispatch or second Start retry.
-Existing operational SDK six-denial/restoration/cancellation mocks now start at
-19/37 and PASS;13 transport mocks, exact-parent corruption checks and all seven
-private TypeScript files PASS. Only three private source files changed; product,
-SQL, sequence, caps, runner and execution gates remain unchanged/inert. Native
-permission consumed; no database query, Docker/SDK network, migration, readyCI,
-merge or rollout. Prior full1954/112/static evidence unchanged for product code;
-fresh documentation/workflow gate and one targeted independent review follow.
-Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
-standing workflow-stop waiver retained. Shared-local/prod/account/provider/
-activation and toolgoalPAUSED holds unchanged.
-
 ## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
 
 Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
@@ -654,3 +636,7 @@ Teacher Gradebook now projects assignment/Test marks only after the student's do
 UI brief: reuse Gradebook blank/status cells and Pattern Lab Gradebook composition; extend the server projection. Teacher/student, desktop/mobile, light/dark, returned/unreturned matrix; selected teacher inspector included. No new composite widget or shared component; no extraction/refactor candidate. Deterministic browser evidence uses teacher payloads from the mocked API regression and synthetic student Grades data with production UI owners: `output/playwright/returned-marks/receipt.json`. Student disclosure remains server-side and independently covered by existing student Grades tests.
 
 Targeted teacher/student tests passed (86 before final saved-unsubmitted regression); focused gate and draft-first independent review follow. On this Mac, unrelated sub-second Tart-host tests fail with Python3.14; installed Python3.13 passes the isolated51-test file. Rebased onto main's saved-unsubmitted Test grading change before final checks. Weekly allowance71% remaining at start; storage healthy312GB. Direct implementation; one bounded native reviewer planned; DeepSeek paused through Dec31. Worker/coordination token usage unknown.
+
+## 2026-10-14 — Gradebook CI test readiness repair
+
+Owner approved continuing PR1592's test fixes, independent review, and merge after CI; the elapsed review-window stop is waived for this continuation. The reviewed Gradebook source remains unchanged from cadeb71a2. Classwork action tests now await the async work-read guard and menu; negative disabled-action assertions remain. The long Pattern Lab interaction scenario is split into five independent cases with retained assertions and bounded teacher-case timeouts. Targeted129 UI tests pass. Prior ledger:two review turns,one main-sync push,zero product corrections; this is one test-remediation batch. Targeted review and final-head CI precede the authorized squash merge. Evidence: ~/.codex/artifacts/pika/pr-1592/. No production promotion or migration application.

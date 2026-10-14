@@ -46675,3 +46675,22 @@ Exact owned teardown, global inventory/ports, whole canonical rows/settings/cron
 resources and sourcefreeze PASS; cleanupFailures[]. Entry gates false/null again,
 seven inert hashes verified. Permission consumed; no sourcefix/CI/merge/shared
 migration/deployment/account/provider/activation or toolgoal resume occurred.
+
+<!-- pika-session-log-archive-batch:76fea1c1f68bca08b856d771eeb0abef2873a29db381f4fe57b2effa1f0cb14a -->
+## 2026-10-11 — Owner grading SDK captures real Start revisions
+
+Human authorized private driver correction/regressions/targeted review only.
+RED reproduced19!=1; GREEN validates Number.isSafeInteger/revision>=1 and retains
+exact observed revision/actor/attempt. Two mocked Start cases preserve19/37 and
+1/MAX_SAFE_INTEGER into frozen closed-engine preparation;14 denials reject seven
+invalid forms for either learner without frame dispatch or second Start retry.
+Existing operational SDK six-denial/restoration/cancellation mocks now start at
+19/37 and PASS;13 transport mocks, exact-parent corruption checks and all seven
+private TypeScript files PASS. Only three private source files changed; product,
+SQL, sequence, caps, runner and execution gates remain unchanged/inert. Native
+permission consumed; no database query, Docker/SDK network, migration, readyCI,
+merge or rollout. Prior full1954/112/static evidence unchanged for product code;
+fresh documentation/workflow gate and one targeted independent review follow.
+Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
+standing workflow-stop waiver retained. Shared-local/prod/account/provider/
+activation and toolgoalPAUSED holds unchanged.
