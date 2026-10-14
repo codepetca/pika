@@ -7,12 +7,14 @@ if [[ -z "$DB_CONTAINER" ]]; then
   exit 2
 fi
 
+DB_NAME="${ATOMIC_TEST_GRADING_DB_NAME:-postgres}"
+
 TMP_ONE="$(mktemp)"
 TMP_TWO="$(mktemp)"
 
 cleanup() {
   rm -f "$TMP_ONE" "$TMP_TWO"
-  docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 alter table public.test_ai_grading_run_items
   drop constraint if exists atomic_test_grading_forced_item_failure;
 delete from public.classrooms
@@ -24,7 +26,7 @@ SQL
 trap cleanup EXIT
 cleanup
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
 insert into public.users (id, email, role) values
@@ -167,7 +169,7 @@ where question.id = item.question_id
 commit;
 SQL
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 do $contract$
 declare
   v_signature text;
@@ -285,7 +287,7 @@ begin
       )),
       '2026-07-14T15:59:30Z'
     );
-  exception when serialization_failure then
+  exception when sqlstate 'PT409' then
     v_rejected := true;
   end;
   select revision, score, feedback into v_revision, v_score, v_feedback
@@ -316,7 +318,7 @@ begin
       '[]'::jsonb,
       null
     );
-  exception when serialization_failure then
+  exception when sqlstate 'PT409' then
     v_rejected := true;
   end;
   if not v_rejected then
@@ -344,7 +346,7 @@ begin
       '[]'::jsonb,
       null
     );
-  exception when serialization_failure then
+  exception when sqlstate 'PT409' then
     v_rejected := true;
   end;
   if not v_rejected then
@@ -373,7 +375,7 @@ begin
       '[]'::jsonb,
       null
     );
-  exception when serialization_failure then
+  exception when sqlstate 'PT409' then
     v_rejected := true;
   end;
   if not v_rejected or exists (
@@ -877,7 +879,7 @@ end;
 $contract$;
 SQL
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 alter table public.test_ai_grading_run_items
   add constraint atomic_test_grading_forced_item_failure
   check (
@@ -962,7 +964,7 @@ wait_for_application_event() {
   local wait_event="$2"
   local attempts=0
   while (( attempts < 100 )); do
-    if [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+    if [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
       "select count(*) from pg_stat_activity where application_name = '$application_name' and wait_event = '$wait_event';")" == "1" ]]; then
       return 0
     fi
@@ -974,7 +976,7 @@ wait_for_application_event() {
 }
 
 docker exec -e PGAPPNAME=atomic-test-grading-stale-clear-writer -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 update public.test_responses
 set score = 2, feedback = 'Concurrent newer grade'
@@ -987,7 +989,7 @@ wait_for_application_event atomic-test-grading-stale-clear-writer PgSleep
 
 set +e
 docker exec -e PGAPPNAME=atomic-test-grading-stale-clear-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_ONE" <<'SQL'
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_ONE" <<'SQL'
 select public.clear_test_open_response_grades_atomic(
   'a9000000-0000-4000-8000-000000000023',
   'a9000000-0000-4000-8000-000000000001',
@@ -1002,7 +1004,7 @@ SQL
 STALE_CLEAR_STATUS=$?
 set -e
 wait "$STALE_CLEAR_WRITER_PID"
-STALE_CLEAR_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+STALE_CLEAR_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select revision || ':' || score || ':' || feedback
    from public.test_responses
    where id = 'a9000000-0000-4000-8000-000000000215';")"
@@ -1015,7 +1017,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-clear-phantom-inserter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 insert into public.test_responses (
   id, test_id, question_id, student_id, response_text, score, feedback,
@@ -1036,7 +1038,7 @@ wait_for_application_event atomic-test-grading-clear-phantom-inserter PgSleep
 
 set +e
 docker exec -e PGAPPNAME=atomic-test-grading-clear-phantom-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_ONE" <<'SQL'
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_ONE" <<'SQL'
 select public.clear_test_open_response_grades_atomic(
   'a9000000-0000-4000-8000-000000000023',
   'a9000000-0000-4000-8000-000000000001',
@@ -1053,7 +1055,7 @@ set -e
 wait "$CLEAR_PHANTOM_INSERTER_PID"
 if [[ "$CLEAR_PHANTOM_STATUS" -eq 0 ]] \
   || ! grep -q 'PT409' "$TMP_ONE" \
-  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select score || ':' || feedback from public.test_responses where id = 'a9000000-0000-4000-8000-000000000217';")" != "4.00:Concurrent inserted grade" ]]
 then
   echo "Concurrent response insert escaped bulk clear snapshot: $(cat "$TMP_ONE")" >&2
@@ -1061,7 +1063,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-attempt-inserter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 insert into public.test_attempts (test_id, student_id, is_submitted, submitted_at)
 values (
@@ -1078,7 +1080,7 @@ wait_for_application_event atomic-test-grading-attempt-inserter PgSleep
 
 set +e
 docker exec -e PGAPPNAME=atomic-test-grading-attempt-preflight -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_TWO" <<'SQL'
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_TWO" <<'SQL'
 select public.create_test_ai_grading_run_atomic(
   'a9000000-0000-4000-8000-000000000026',
   'a9000000-0000-4000-8000-000000000001',
@@ -1095,8 +1097,8 @@ ATTEMPT_PREFLIGHT_STATUS=$?
 set -e
 wait "$ATTEMPT_INSERTER_PID"
 if [[ "$ATTEMPT_PREFLIGHT_STATUS" -eq 0 ]] \
-  || ! grep -q '40001' "$TMP_TWO" \
-  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  || ! grep -q 'PT409' "$TMP_TWO" \
+  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from public.test_ai_grading_runs where test_id = 'a9000000-0000-4000-8000-000000000026';")" != "0" ]]
 then
   echo "Attempt inserted after preflight was omitted from eligible cohort: $(cat "$TMP_TWO")" >&2
@@ -1104,7 +1106,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-response-blocker -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select 1
 from public.test_responses
@@ -1117,7 +1119,7 @@ QUESTION_RESPONSE_BLOCKER_PID=$!
 wait_for_application_event atomic-test-grading-response-blocker PgSleep
 
 docker exec -e PGAPPNAME=atomic-test-grading-question-grader -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 select public.save_test_response_grades_atomic(
   'a9000000-0000-4000-8000-000000000024',
   'a9000000-0000-4000-8000-000000000002',
@@ -1138,7 +1140,7 @@ wait_for_application_event atomic-test-grading-question-grader transactionid
 
 set +e
 docker exec -e PGAPPNAME=atomic-test-grading-question-editor -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose \
   >"$TMP_TWO" 2>&1 <<'SQL'
 update public.test_questions
 set question_text = 'Question edited without a lock cycle'
@@ -1148,7 +1150,7 @@ QUESTION_EDITOR_STATUS=$?
 set -e
 wait "$QUESTION_RESPONSE_BLOCKER_PID"
 wait "$QUESTION_GRADER_PID"
-QUESTION_LOCK_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+QUESTION_LOCK_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select response.revision || ':' || response.score || ':' || question.question_text
    from public.test_responses response
    join public.test_questions question on question.id = response.question_id
@@ -1161,7 +1163,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-delete-grader -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select public.save_test_response_grades_atomic(
   'a9000000-0000-4000-8000-000000000027',
@@ -1183,7 +1185,7 @@ SQL
 DELETE_GRADER_PID=$!
 wait_for_application_event atomic-test-grading-delete-grader PgSleep
 DELETE_RESULT="$(docker exec -e PGAPPNAME=atomic-test-grading-delete-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select public.delete_test_atomic(
     'a9000000-0000-4000-8000-000000000027',
     'a9000000-0000-4000-8000-000000000001'
@@ -1191,7 +1193,7 @@ DELETE_RESULT="$(docker exec -e PGAPPNAME=atomic-test-grading-delete-waiter -i "
 wait "$DELETE_GRADER_PID"
 if [[ "$DELETE_RESULT" != *'"deleted": true'* ]] \
   || [[ "$DELETE_RESULT" != *'"responses_count": 1'* ]] \
-  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from public.tests where id = 'a9000000-0000-4000-8000-000000000027';")" != "0" ]]
 then
   echo "Concurrent test deletion deadlocked with grading: $DELETE_RESULT" >&2
@@ -1199,7 +1201,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-unanswered-inserter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select public.save_test_unanswered_grades_atomic(
   'a9000000-0000-4000-8000-000000000019',
@@ -1221,7 +1223,7 @@ wait_for_application_event atomic-test-grading-unanswered-inserter PgSleep
 
 set +e
 docker exec -e PGAPPNAME=atomic-test-grading-unanswered-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select public.save_test_unanswered_grades_atomic(
     'a9000000-0000-4000-8000-000000000019',
     'a9000000-0000-4000-8000-000000000001',
@@ -1238,7 +1240,7 @@ UNANSWERED_WAITER_STATUS=$?
 set -e
 wait "$UNANSWERED_INSERT_PID"
 
-UNANSWERED_INSERT_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+UNANSWERED_INSERT_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select count(*) || ':' || min(revision) || ':' || min(score) || ':' || min(feedback)
    from public.test_responses
    where question_id = 'a9000000-0000-4000-8000-000000000113'
@@ -1252,7 +1254,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-manual-missing-inserter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 insert into public.test_responses (
   id, test_id, question_id, student_id, response_text, score, feedback,
@@ -1274,7 +1276,7 @@ wait_for_application_event atomic-test-grading-manual-missing-inserter PgSleep
 for _ in 1 2; do
   set +e
   docker exec -e PGAPPNAME=atomic-test-grading-missing-response-waiter -i "$DB_CONTAINER" \
-    psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_TWO" <<'SQL'
+    psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_TWO" <<'SQL'
 select public.create_test_ai_grading_run_atomic(
   'a9000000-0000-4000-8000-000000000020',
   'a9000000-0000-4000-8000-000000000001',
@@ -1295,19 +1297,19 @@ select public.create_test_ai_grading_run_atomic(
 SQL
   MISSING_RESPONSE_STATUS=$?
   set -e
-  if [[ "$MISSING_RESPONSE_STATUS" -eq 0 ]] || ! grep -q '40001' "$TMP_TWO"; then
+  if [[ "$MISSING_RESPONSE_STATUS" -eq 0 ]] || ! grep -q 'PT409' "$TMP_TWO"; then
     echo "Missing-response run creation accepted stale preflight: $(cat "$TMP_TWO")" >&2
     exit 1
   fi
 done
 wait "$MANUAL_MISSING_PID"
 
-MANUAL_MISSING_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+MANUAL_MISSING_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select revision || ':' || score || ':' || feedback
    from public.test_responses
    where id = 'a9000000-0000-4000-8000-000000000214';")"
 if [[ "$MANUAL_MISSING_STATE" != "1:3.00:Concurrent manual grade" ]] \
-  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from public.test_ai_grading_runs where test_id = 'a9000000-0000-4000-8000-000000000020';")" != "0" ]]
 then
   echo "Missing-response retry overwrote a concurrent manual grade: $MANUAL_MISSING_STATE" >&2
@@ -1315,7 +1317,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-run-creator -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select public.create_test_ai_grading_run_atomic(
   'a9000000-0000-4000-8000-000000000020',
@@ -1341,7 +1343,7 @@ RUN_CREATOR_PID=$!
 wait_for_application_event atomic-test-grading-run-creator PgSleep
 
 RUN_WAITER_OUTCOME="$(docker exec -e PGAPPNAME=atomic-test-grading-run-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select public.create_test_ai_grading_run_atomic(
     'a9000000-0000-4000-8000-000000000020',
     'a9000000-0000-4000-8000-000000000001',
@@ -1361,7 +1363,7 @@ RUN_WAITER_OUTCOME="$(docker exec -e PGAPPNAME=atomic-test-grading-run-waiter -i
   )->>'outcome';")"
 wait "$RUN_CREATOR_PID"
 
-RUN_CREATE_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+RUN_CREATE_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select count(distinct run.id) || ':' || count(item.id) || ':' || count(response.id)
    from public.test_ai_grading_runs run
    left join public.test_ai_grading_run_items item on item.run_id = run.id
@@ -1375,7 +1377,7 @@ if [[ "$RUN_WAITER_OUTCOME" != "existing" ]] || [[ "$RUN_CREATE_STATE" != "1:1:0
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-lease-claimer -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select count(*) from public.claim_test_ai_grading_run(
   'a9000000-0000-4000-8000-000000000308',
@@ -1389,14 +1391,14 @@ LEASE_CLAIMER_PID=$!
 wait_for_application_event atomic-test-grading-lease-claimer PgSleep
 
 LEASE_WAITER_COUNT="$(docker exec -e PGAPPNAME=atomic-test-grading-lease-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select count(*) from public.claim_test_ai_grading_run(
     'a9000000-0000-4000-8000-000000000308',
     'a9000000-0000-4000-8000-000000000602',
     60
   );")"
 wait "$LEASE_CLAIMER_PID"
-LEASE_OWNER="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+LEASE_OWNER="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select lease_token from public.test_ai_grading_runs
    where id = 'a9000000-0000-4000-8000-000000000308';")"
 if [[ "$LEASE_WAITER_COUNT" != "0" ]] \
@@ -1406,13 +1408,13 @@ then
   exit 1
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 update public.test_ai_grading_runs
 set lease_expires_at = clock_timestamp() + interval '1 second'
 where id = 'a9000000-0000-4000-8000-000000000308';
 SQL
 docker exec -e PGAPPNAME=atomic-test-grading-lease-renewer -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select public.renew_test_ai_grading_run_lease(
   'a9000000-0000-4000-8000-000000000308',
@@ -1427,14 +1429,14 @@ wait_for_application_event atomic-test-grading-lease-renewer PgSleep
 sleep 1.1
 
 LEASE_RECLAIM_COUNT="$(docker exec -e PGAPPNAME=atomic-test-grading-lease-reclaimer -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select count(*) from public.claim_test_ai_grading_run(
     'a9000000-0000-4000-8000-000000000308',
     'a9000000-0000-4000-8000-000000000602',
     60
   );")"
 wait "$LEASE_RENEWER_PID"
-LEASE_OWNER="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+LEASE_OWNER="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select lease_token from public.test_ai_grading_runs
    where id = 'a9000000-0000-4000-8000-000000000308';")"
 if [[ "$LEASE_RECLAIM_COUNT" != "0" ]] \
@@ -1445,7 +1447,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-manual-first -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select public.save_test_response_grades_atomic(
   'a9000000-0000-4000-8000-000000000016',
@@ -1468,7 +1470,7 @@ MANUAL_FIRST_PID=$!
 wait_for_application_event atomic-test-grading-manual-first PgSleep
 
 MANUAL_FIRST_OUTCOME="$(docker exec -e PGAPPNAME=atomic-test-grading-ai-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select public.finalize_test_ai_grading_item_atomic(
     'a9000000-0000-4000-8000-000000000405',
     'a9000000-0000-4000-8000-000000000001',
@@ -1478,7 +1480,7 @@ MANUAL_FIRST_OUTCOME="$(docker exec -e PGAPPNAME=atomic-test-grading-ai-waiter -
   )->>'outcome';")"
 wait "$MANUAL_FIRST_PID"
 
-MANUAL_FIRST_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+MANUAL_FIRST_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select response.revision || ':' || response.score || ':' || item.status || ':' || item.last_error_code
    from public.test_responses response
    join public.test_ai_grading_run_items item on item.response_id = response.id
@@ -1491,7 +1493,7 @@ then
 fi
 
 docker exec -e PGAPPNAME=atomic-test-grading-ai-first -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select public.finalize_test_ai_grading_item_atomic(
   'a9000000-0000-4000-8000-000000000406',
@@ -1508,7 +1510,7 @@ wait_for_application_event atomic-test-grading-ai-first PgSleep
 
 set +e
 docker exec -e PGAPPNAME=atomic-test-grading-manual-waiter -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
+  psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
   "select public.save_test_response_grades_atomic(
     'a9000000-0000-4000-8000-000000000017',
     'a9000000-0000-4000-8000-000000000002',
@@ -1535,7 +1537,7 @@ then
   exit 1
 fi
 
-AI_FIRST_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+AI_FIRST_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -Atc \
   "select response.revision || ':' || response.score || ':' || response.feedback || ':' || item.status
    from public.test_responses response
    join public.test_ai_grading_run_items item on item.response_id = response.id
@@ -1545,7 +1547,7 @@ if [[ "$AI_FIRST_STATE" != "2:4.00:AI first winner:completed" ]]; then
   exit 1
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 do $provenance_contract$
 declare
   v_result jsonb;
@@ -1976,5 +1978,9 @@ begin
 end;
 $provenance_contract$;
 SQL
+
+#264 contract uses only a rollback fixture and inherits this suite's DB binding.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
+  < "$(dirname "$0")/check-test-ai-grading-saved-work.sql"
 
 echo "Atomic test grading database checks passed."
