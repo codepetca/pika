@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Classwork Material Markdown editing
-
-- Added Visual/Markdown editing, current/proposed review, explicit Apply/Discard, separate Save/Post, conversion-loss acknowledgment and per-material draft isolation. No API/schema or authority changes.
-- Governed brief: docs/guidance/ui/changes/material-markdown.md. Existing Material Pattern Lab owner extended; shared controls/converters reused.
-- Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
-- Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
-- Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.
-
 ## 2026-10-11 — Material Markdown approved main integration
 
 Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
@@ -757,3 +749,8 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
 - Existing Calendar/DayCell regression and eight-context native visual/geometry checks are running; audit/policies/types/lint and targeted presentation review required before ready. PR remains draft while changing its head.
+
+## 2026-10-14 — Calendar remove hatching
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
+- Local/visual verification underway. PR is draft. Five prior review launches (one initial/four targeted); current 60-minute/four-targeted-wave review budget reached. No further reviewer launch without explicit extension under pr-review; finish authorized implementation and verification first.

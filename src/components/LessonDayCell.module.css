@@ -1,9 +1,0 @@
-.nonClassDay {
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0,
-    transparent calc(var(--space-control) - var(--space-control) / 8),
-    color-mix(in srgb, var(--color-border-strong) 35%, transparent) calc(var(--space-control) - var(--space-control) / 8),
-    color-mix(in srgb, var(--color-border-strong) 35%, transparent) var(--space-control)
-  );
-}

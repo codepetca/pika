@@ -442,7 +442,7 @@ describe('LessonDayCell agenda', () => {
     }
   })
 
-  // Visual treatments such as hatching must retain this non-class status description.
+  // The distinct non-class surface must retain this accessible status description.
   it.each([false, true])('omits empty lesson placeholders on non-class days (weekend=%s)', (isWeekend) => {
     renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={null} isClassDay={false} isWeekend={isWeekend} />)
     expect(screen.getByRole('article')).toHaveAccessibleDescription('No class')
