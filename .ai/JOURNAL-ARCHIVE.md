@@ -46808,3 +46808,19 @@ still active; do not launch parallel heavyCI. Affected checks/currentfocused and
 one narrow docs-delta review precede the new stablehead ready event. Original
 ledger11completed/2626measureds+unknown9+11/targeted8/final1; fixbatch8 under
 direct delegated workflow authority, no repeated owner approval required.
+
+<!-- pika-session-log-archive-batch:54134f91c6d9253b6f962a5c9d7a4b8d571df1f890e2641a1b181813f1dd87e6 -->
+## 2026-10-11 — Dormant owner recovery and verifier lifetime correction
+
+PR1577 adds dormant contextual owner unsubmit/single-reset/bulk-reset with sealed
+260; legacy routes and production remain unchanged. Original focused1934/115files
+passed, but native acceptance remains pending. Seven failed isolated rehearsals
+were retained and cleaned with full canonical/global preservation. Approved Docker
+restart did not fix CLI volume-inspection HTTP500; read-only pinned bulk comparison
+passed100 fresh full-metadata reads. Private transport correction preserves the
+sealed whole graph and explicit socket pin. Targeted review caught nested engine
+ACL restoration bypassing pending/poisoned inventory; the denial/join-only gate and
+regressions are being added before a new reviewed source binding. No native PASS,
+Tests phase exit, sharedlocal249+/prod259+ application, promotion, provider/account
+or admission/home/page/cutover activation. Task-scoped routine/budget waiver remains;
+actual counters/evidence retained, no reset.
