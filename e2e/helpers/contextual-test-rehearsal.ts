@@ -134,7 +134,7 @@ export type RehearsalWitness = {
   question_counts: Array<{ test_id: string; count: number }>
   classes: Array<{ id: string; archived_at: string | null; updated_at: string }>
   response_count: number; history_count: number
-  objects: Array<{ id: string; resource_id: string; purpose: string; status: string; byte_size: number; content_sha256: string }>
+  objects: Array<{ id: string; resource_id: string; purpose: string; status: string; byte_size: number; content_sha256: string | null }>
 }
 export type ContextualTestRuntime = {
   plan: RehearsalPlan; password: string; deadline: number; check(): void

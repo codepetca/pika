@@ -125,15 +125,36 @@ afterEach(async () => {
   for (const output of outputs.splice(0)) rmSync(output, { recursive: true })
   vi.unstubAllEnvs()
 })
-async function setup(browser = new FakeBrowser()) {
+async function setup(browser = new FakeBrowser(), leaseMs = 120000) {
   const outputDir = realpathSync(mkdtempSync(join(tmpdir(), 'contextual-runtime-cpu-'))); outputs.push(outputDir)
-  platform.readContextualTestBinding.mockReturnValue({ projectId: plan.projectId, password, deadline: Date.now() + 120000, outputDir })
+  platform.readContextualTestBinding.mockReturnValue({ projectId: plan.projectId, password, deadline: Date.now() + leaseMs, outputDir })
   const handle = await createContextualTestRuntime(browser as unknown as Browser, {} as TestInfo)
   handles.push(handle)
   return { ...handle, browser, outputDir, receipt: () => JSON.parse(readFileSync(join(outputDir, 'playwright-receipt.json'), 'utf8')) }
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it.each([30000, 5000])('rejects a hung original body at its original %ims end and retains truthful pending state', async remaining => {
+    vi.useFakeTimers()
+    const body = deferred<Buffer>(), entered = deferred<void>()
+    try {
+      const s = await setup(new FakeBrowser(), remaining), context = () => s.browser.contexts[0]
+      let response!: FakeResponse
+      const actor = s.runtime.withActor('ownerTeacher', async page => {
+        response = new FakeResponse(context().page, new FakeRequest(plan.appOrigin + '/api/auth/me'), {}, 200, () => body.promise)
+        context().emit('response', response); entered.resolve()
+        await s.runtime.response(page, response as unknown as Response)
+      })
+      const rejected = expect(actor).rejects.toThrow()
+      await entered.promise; await vi.advanceTimersByTimeAsync(remaining)
+      await rejected; expect(context().close).toHaveBeenCalledOnce(); expect(response.body).toHaveBeenCalledOnce()
+      await expect(s.close('passed')).rejects.toThrow()
+      expect(s.receipt()).toMatchObject({ outcome: 'failed', firstFailure: 'deadline', pending: 1, contextsClosed: true })
+      // Release only for CPU fixture hygiene; the immutable receipt stays failed.
+      body.resolve(Buffer.from('{}')); await Promise.resolve()
+      expect(s.receipt().outcome).toBe('failed')
+    } finally { body.resolve(Buffer.from('{}')); vi.useRealTimers() }
+  })
   it('uses the real login selectors and validates the persisted session without a login shortcut', async () => {
     const s = await setup(new FakeBrowser('ownerStudent'))
     await s.runtime.withActor('ownerStudentPeer', async page => {

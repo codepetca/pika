@@ -31,13 +31,13 @@ function fixture() {
     command: { run: async () => '', beginCleanup() { events.push('cleanup-mode') }, async joinSettlements() { events.push('join-settlements') }, assertClosed() { events.push('commands-closed') }, state: () => ({ poisoned: false, fault: false, pending: 0, cleaning: true }) },
     async launchApp(input: { env: Record<string, string> }) { events.push('app-spawn'); expect(input.env).not.toHaveProperty('OPENAI_API_KEY'); return { async ready() { events.push('app-ready') } } },
     async launchPlaywright() { events.push('pw-spawn'); return { async wait() { events.push('pw-close'); return { code: 0, signal: null, closed: true } } } },
-    async settleAll(end: number) { events.push('settle'); expect(end).toBe(admission.cleanupDeadline) },
+    async settleAll(end: number) { events.push('settle'); expect(end).toBe(Math.min(admission.cleanupDeadline, 1001 + 360000)) },
   }
   const adapters = { async verifyEphemeral() { events.push('verify-ephemeral'); return { projectId, containerId: 'f'.repeat(64), dbPort: 54332, applicationName: `${projectId}_fixture`, guard168Enabled: true, persistedGatesOff: true, activeNetworkCronAbsent: true } } }
   const edges = {
     openEvidence() { events.push('attempt') },
     prepareApp() { events.push('snapshot') },
-    createAdapters(metadata: typeof admission.assignmentMetadata, input: { nativeCommand: unknown }) { events.push('adapters'); expect(metadata).toBe(admission.assignmentMetadata); expect(input.nativeCommand).toBe(control.command.run); return adapters },
+    createAdapters(metadata: typeof admission.assignmentMetadata, input: { nativeCommand: unknown }) { events.push('adapters'); expect(metadata).toEqual(admission.assignmentMetadata); expect(input.nativeCommand).toBe(control.command.run); return adapters },
     async lifecycle(_identity: unknown, _migrations: unknown, _adapters: unknown, work: (...args: unknown[]) => Promise<void>, settle: () => Promise<void>) {
       events.push('lifecycle-before'); try { await work(status, [{ kind: 'container', id: 'f'.repeat(64), name: `supabase_db_${projectId}`, labels: { 'com.supabase.cli.project': projectId, 'com.docker.compose.project': projectId }, ports: [54332], attachedIds: [], createdAt: 'synthetic' }], status) }
       finally { await settle(); events.push('exact-disposal'); events.push('canonical-after') }
@@ -45,6 +45,7 @@ function fixture() {
     bind(binding: Record<string, unknown>) { events.push('binding'); bound = binding; return { binding, file: `${admission.outputDir}/run-binding.json`, sha256: hash(binding) } },
     async passwordHash() { events.push('password-hash'); return 'synthetic-bcrypt' },
     async sql(_binding: unknown, kind: string) { events.push(`sql-${kind}`); return '{}' },
+    assertSqlSettled() { events.push('sql-closed') },
     createLedger() { events.push('ledger-create'); return { snapshot() { events.push('ledger-read'); return { version: 1, nonce: admission.nonce, deadline: admission.deadline, app: 1, storage: 2, api: 10, flags: { denied: false, capExceeded: false, expired: false, uncertain: false } } } } },
     readPlaywrightReceipt() { events.push('pw-receipt'); return { version: 1, projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, outcome: 'passed', contextsClosed: true, counts: { appRequests: 30, storageRequests: 4, tests: 8, reservations: 2, uploads: 2 }, firstFailure: null, pending: 0, pageErrors: 0, consoleErrors: 0, artifacts: ['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].flatMap(actor => ['desktop','mobile'].flatMap(view => ['light','dark'].map(theme => ({ label: `${actor}-${view}-${theme}`, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })))), witnesses: [], endedAt: 2000, deadline: admission.deadline } },
     verifyArtifacts() { events.push('verify-artifacts') },
@@ -90,6 +91,21 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
     expect(f.events).not.toContain('pw-spawn'); expect(f.events.filter(e => e === 'attempt')).toHaveLength(1)
   })
+  it.each([61000, 2340998])('captures one cleanup reserve at the early/late failure time %i', async cleanupStart => {
+    const f = fixture(), ends: number[] = []
+    f.control.launchApp = async () => ({ async ready() { f.control.now = () => cleanupStart; throw Error('case failed') } })
+    f.control.settleAll = async end => { ends.push(end) }
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
+    const end = Math.min(f.admission.cleanupDeadline, cleanupStart + 360000)
+    expect(ends).toEqual([end]); expect(f.receipts[0]).toMatchObject({ outcome: 'failed', cleanupStartedAt: cleanupStart, cleanupEnd: end })
+    expect(end - cleanupStart).toBeLessThanOrEqual(360000)
+  })
+  it('blocks exact disposal when the owned SQL marker cannot be cleared', async () => {
+    const f = fixture(); f.edges.assertSqlSettled = () => { throw Error('unjoined SQL') }
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
+    expect(f.events).not.toContain('exact-disposal')
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false })
+  })
   it('rejects wrong metadata target before any native readiness or evidence write', async () => {
     const f = fixture(); f.admission.assignmentMetadata.manifest.syntheticTag = 'assignmentlist_deadbeef0000'
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
@@ -133,7 +149,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     f.edges.createLedger = () => ({ snapshot: () => originalLedger })
     f.edges.readPlaywrightReceipt = () => originalReceipt
     f.control.assertReady = async () => { f.admission.deadline += 1000; f.admission.cleanupDeadline += 1000 }
-    f.control.settleAll = async end => { f.events.push('settle'); expect(end).toBe(originalEnd) }
+    f.control.settleAll = async end => { f.events.push('settle'); expect(end).toBe(Math.min(originalEnd, 1001 + 360000)) }
     await runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)
     expect(f.receipts[0]).toMatchObject({ deadline: 2341000, cleanupDeadline: 2701000 })
   })

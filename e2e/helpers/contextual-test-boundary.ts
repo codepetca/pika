@@ -7,7 +7,7 @@ type Failure = 'deadline' | 'failed' | 'origin' | 'endpoint' | 'request-cap' | '
   | 'storage-method' | 'storage-reservation' | 'storage-bytes' | 'response-body' | 'response-cap'
   | 'response-json' | 'response-acknowledgement' | 'context-close'
 type OriginalResponse = { url(): string; status(): number; headers(): Record<string, string>; body(): Promise<Buffer> }
-type Reservation = { testId: string; bytes: number; url: string | null; managedId: string | null; uploaded: boolean }
+type Reservation = { testId: string; bytes: number; url: string | null; readPath: string | null; managedId: string | null; uploaded: boolean }
 type Task = { promise: Promise<unknown>; end: number }
 export class ContextualTestBoundary {
   private failed: Failure | null = null
@@ -53,9 +53,14 @@ export class ContextualTestBoundary {
       if (!row || typeof row.document_id !== 'string' || this.reservations.has(row.document_id) || !Number.isSafeInteger(row.byte_size)
         || Number(row.byte_size) <= 0 || Number(row.byte_size) > this.plan.limits.uploadBytes || this.counts.reservations >= this.plan.limits.uploadObjects) this.reject('upload-cap')
       this.counts.reservations++
-      this.reservations.set(row.document_id, { testId: u.pathname.split('/')[4], bytes: Number(row.byte_size), url: null, managedId: null, uploaded: false })
+      this.reservations.set(row.document_id, { testId: u.pathname.split('/')[4], bytes: Number(row.byte_size), url: null, readPath: null, managedId: null, uploaded: false })
     }
     if (storage && !['GET', 'HEAD', 'PUT'].includes(method)) this.reject('storage-method')
+    if (storage && ['GET', 'HEAD'].includes(method)) {
+      if (u.hash || u.searchParams.size !== 1 || !u.searchParams.has('token') || !u.searchParams.get('token')
+        || u.searchParams.get('token')!.length > 4096
+        || ![...this.reservations.values()].some(r => r.uploaded && r.readPath === u.pathname)) this.reject('storage-reservation')
+    }
     if (storage && method === 'PUT') {
       const reservation = [...this.reservations.values()].find(r => r.url === value)
       if (!reservation || reservation.uploaded) this.reject('storage-reservation')
@@ -102,12 +107,16 @@ export class ContextualTestBoundary {
     if (/^\/api\/teacher\/tests\/[0-9a-f-]+\/documents\/upload$/.test(u.pathname)) {
       const body = request?.postDataJSON() as Record<string, unknown> | undefined
       const reservation = body && typeof body.document_id === 'string' ? this.reservations.get(body.document_id) : undefined
-      if (!reservation || reservation.testId !== u.pathname.split('/')[4]) this.reject('response-acknowledgement')
+      if (!body || !reservation || reservation.testId !== u.pathname.split('/')[4]) this.reject('response-acknowledgement')
       if (request?.method() === 'POST') {
-        if (!row || typeof row.upload_url !== 'string' || typeof row.managed_object_id !== 'string') this.reject('response-acknowledgement')
+        if (!row || typeof row.upload_url !== 'string' || typeof row.managed_object_id !== 'string' || row.bucket !== 'test-documents'
+          || typeof row.storage_path !== 'string') this.reject('response-acknowledgement')
         const target = new URL(row.upload_url)
-        if (target.origin !== this.plan.apiOrigin || !target.pathname.startsWith('/storage/v1/') || target.username || target.password) this.reject('response-acknowledgement')
+        if (target.origin !== this.plan.apiOrigin || target.username || target.password || target.hash
+          || target.pathname !== `/storage/v1/object/upload/sign/test-documents/${row.storage_path}`
+          || !Object.values(this.plan.classrooms).some(c => row.storage_path === `classrooms/${c.id}/tests/${reservation.testId}/documents/${body.document_id}/${row.managed_object_id}.pdf`)) this.reject('response-acknowledgement')
         reservation.url = row.upload_url; reservation.managedId = row.managed_object_id
+        reservation.readPath = `/storage/v1/object/sign/test-documents/${row.storage_path}`
       } else if (request?.method() === 'PATCH') {
         if (!reservation.uploaded || body?.managed_object_id !== reservation.managedId || this.counts.uploads >= this.plan.limits.uploadObjects) this.reject('response-acknowledgement')
         this.counts.uploads++

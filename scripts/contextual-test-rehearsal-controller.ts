@@ -11,11 +11,12 @@ import { createContextualTestPlan } from '../e2e/helpers/contextual-test-rehears
 import { hashPassword } from '../src/lib/crypto'
 import { createAssignmentListNativeAdapters } from './contextual-assignment-list-proof-platform'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
-import { runContextualTestDisposableLifecycle, readContextualTestBinding, validateContextualTestRunBinding, executeContextualTestSql,
+import { runContextualTestDisposableLifecycle, readContextualTestBinding, validateContextualTestRunBinding, executeContextualTestSql, assertContextualTestSqlSettled,
   type ContextualTestRunBinding, type ContextualTestDisposableInput } from './contextual-test-rehearsal-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { contextualTestAppEnvironment, contextualTestRunnerEnvironment, contextualTestLaunchCommands, validateContextualTestDemoStatus,
   contextualTestReadOnlyDependencyProfile, prepareContextualTestAppSnapshot,
+  immutableContextualTestData,
   type captureContextualTestSource, type createContextualTestPinnedCommand, type ContextualTestTransportPins } from './contextual-test-rehearsal-launch'
 
 type Source = Awaited<ReturnType<typeof captureContextualTestSource>>
@@ -40,7 +41,8 @@ export type ContextualTestControllerControls = Readonly<{
    * CLI versions, capacity, ports and actual sandbox denial. Not a boolean flag. */
   assertReady(admission: ContextualTestControllerAdmission): Promise<void>
   assertUnchanged(): Promise<void>
-  command: Pick<PinnedCommand, 'run' | 'beginCleanup' | 'assertClosed' | 'state'> & { joinSettlements?(): Promise<void> }
+  command: Pick<PinnedCommand, 'run' | 'beginCleanup' | 'assertClosed' | 'state' | 'joinSettlements'>
+  sqlControl?: ContextualTestRunBinding['sqlControl']
   launchApp(input: ContextualTestControllerLaunch): Promise<{ ready(): Promise<void> }>
   launchPlaywright(input: ContextualTestControllerLaunch): Promise<{ wait(): Promise<{ code: number | null; signal: string | null; closed: boolean }> }>
   settleAll(originalCleanupDeadline: number): Promise<void>
@@ -50,6 +52,7 @@ type LedgerState = { version: 1; nonce: string; deadline: number; app: number; s
 type Stage = 'preflight' | 'attempt' | 'lifecycle' | 'snapshot' | 'binding' | 'fixture' | 'ledger' | 'app-ready' | 'browser' | 'proof' | 'cleanup' | 'complete'
 type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sourceTree: string; runnerHead: string; runnerTree: string;
   reviewedManifestSha256: string; startedAt: number; deadline: number; cleanupDeadline: number; endedAt: number;
+  cleanupStartedAt: number | null; cleanupEnd: number | null;
   outcome: 'passed' | 'failed'; firstFailureStage: Stage | null; lifecycleCompleted: boolean; ownedSettled: boolean;
   playwrightValidated: boolean; server: LedgerState | null }>
 /** Test seams replace only I/O; no injected result is native acceptance proof. */
@@ -61,6 +64,7 @@ export type ContextualTestControllerEdges = {
   bind(binding: ContextualTestRunBinding): { binding: ContextualTestRunBinding; file: string; sha256: string }
   passwordHash(password: string): Promise<string>
   sql: typeof executeContextualTestSql
+  assertSqlSettled: typeof assertContextualTestSqlSettled
   createLedger(binding: ContextualTestRunBinding): { snapshot(): unknown }
   readPlaywrightReceipt(binding: ContextualTestRunBinding): unknown
   verifyArtifacts(binding: ContextualTestRunBinding, rawReceipt: unknown): void
@@ -109,6 +113,7 @@ const defaults: ContextualTestControllerEdges = {
   },
   passwordHash: hashPassword,
   sql: executeContextualTestSql,
+  assertSqlSettled: assertContextualTestSqlSettled,
   createLedger(binding) {
     // Requiring the CJS policy must not auto-install its app-only hooks into
     // this controller. Native caller env remains separately hermetic.
@@ -206,18 +211,24 @@ export async function runContextualTestRehearsalController(admission: Contextual
   edges: ContextualTestControllerEdges = defaults): Promise<Receipt> {
   // Keep the admitted target and original clocks stable across async callbacks.
   // Nested source/fixture inventories retain their existing reviewed identities.
-  admission = Object.freeze({ ...admission })
+  admission = immutableContextualTestData(admission)
   let stage: Stage = 'preflight', firstFailureStage: Stage | null = null, attempted = false, lifecycleStarted = false
   let ownedSettled = false, lifecycleCompleted = false, playwrightValidated = false, failure = false
   let binding: ContextualTestRunBinding | undefined, ledger: { snapshot(): unknown } | undefined, server: LedgerState | null = null
+  let cleanupEnd: number | undefined, cleanupStartedAt: number | null = null
+  const cleanupClock = () => {
+    if (cleanupEnd === undefined) { cleanupStartedAt = controls.now(); cleanupEnd = Math.min(admission.cleanupDeadline, cleanupStartedAt + 360000) }
+    return cleanupEnd
+  }
   const failed = () => { failure = true; firstFailureStage ??= stage }
   const workCheck = () => assert(controls.now() < admission.deadline)
   const settle = async () => {
     const previous = stage; stage = 'cleanup'
     try {
-      controls.command.beginCleanup()
-      await controls.settleAll(admission.cleanupDeadline); await controls.command.joinSettlements?.()
-      controls.command.assertClosed(); await controls.assertUnchanged()
+      const end = cleanupClock(); controls.command.beginCleanup(end)
+      await controls.settleAll(end); await controls.command.joinSettlements?.()
+      controls.command.assertClosed(); if (binding) edges.assertSqlSettled(binding)
+      await controls.assertUnchanged()
       ownedSettled = true
     } catch { failed(); throw fixedError() }
     finally { stage = previous }
@@ -240,11 +251,12 @@ export async function runContextualTestRehearsalController(admission: Contextual
         sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, migrationChainSha256: plan.migrationChainSha256, planSha256: sha(JSON.stringify(plan)),
         nonce: admission.nonce, startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, password: admission.password,
         workdir: admission.workdir, appDir: admission.appDir, outputDir: admission.outputDir, dependencyManifestSha256: admission.dependencies.sha256,
+        ...(controls.sqlControl ? { sqlControl: controls.sqlControl } : {}),
         docker: { path: admission.transportPins.docker.path, sha256: admission.transportPins.docker.sha256, host: admission.transportPins.dockerHost,
           socketIdentity: admission.transportPins.socketIdentity, containerId: db.id } }, controls.now())
       const file = edges.bind(candidate); binding = file.binding; assert.deepEqual(binding, candidate)
       stage = 'fixture'; const passwordHash = await edges.passwordHash(admission.password); workCheck()
-      await edges.sql(binding, 'bootstrap', passwordHash)
+      await edges.sql(binding, 'bootstrap', passwordHash, controls.command)
       const verify = async () => {
         const checked = await adapters.verifyEphemeral({ projectId: plan.projectId, dbPort: 54332, applicationName: `${plan.projectId}_fixture`, target })
         assert(checked.containerId === db.id && checked.guard168Enabled && checked.persistedGatesOff && checked.activeNetworkCronAbsent); workCheck()
@@ -265,7 +277,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
       validateContextualTestPlaywrightReceipt(receipt, binding); edges.verifyArtifacts(binding, receipt); playwrightValidated = true
       await verify()
       } catch { failed(); throw fixedError() }
-    }, settle)
+    }, settle, cleanupClock)
     lifecycleCompleted = true; await controls.command.joinSettlements?.(); controls.command.assertClosed()
     assert(ownedSettled && binding && ledger && playwrightValidated)
     stage = 'complete'
@@ -285,6 +297,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
       const receipt: Receipt = Object.freeze({ version: 1, projectId: plan.projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree,
         runnerHead: admission.runner.head, runnerTree: admission.runner.tree, reviewedManifestSha256: admission.review.manifestSha256,
         startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, endedAt: controls.now(),
+        cleanupStartedAt, cleanupEnd: cleanupEnd ?? null,
         outcome: !failure && ownedSettled && lifecycleCompleted && playwrightValidated && server !== null ? 'passed' : 'failed', firstFailureStage,
         lifecycleCompleted, ownedSettled, playwrightValidated, server })
       try { edges.writeReceipt(receipt, admission) } catch { failure = true }

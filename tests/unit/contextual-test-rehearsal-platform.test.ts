@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, writeFileSync, chmodSync, rmSync, symlinkSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -70,8 +70,10 @@ describe('Tests rehearsal binding and fixed SQL', () => {
 describe('Tests-only injected disposable lifecycle', () => {
   // Source text only: no migration is executed by these CPU tests.
   const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 262)
-  function scenario(failure?: 'start' | 'settlement' | 'drift' | 'canonical' | 'anon') {
-    const b = validateContextualTestRunBinding(binding(), now)
+  function scenario(failure?: 'start' | 'settlement' | 'drift' | 'canonical' | 'anon', cleanup: {
+    longBudget?: boolean; clock?: () => number; afterSettle?: () => void; afterTeardown?: () => void; afterCanonical?: () => void
+  } = {}) {
+    const b = validateContextualTestRunBinding({ ...binding(), ...(cleanup.longBudget ? { deadline: now + 2699000, cleanupDeadline: now + 3059000 } : {}) }, now)
     const plan = assignmentListEphemeralPlan(b)
     const events: string[] = []; let launched = false, removed = false, snapshots = 0
     const resources = assignmentListExpectedResources(projectId).map((r, n) => ({ ...r, id: `fresh-${n}`, createdAt: 'fresh',
@@ -79,7 +81,7 @@ describe('Tests-only injected disposable lifecycle', () => {
       ports: r.name === `supabase_db_${projectId}` && r.kind === 'container' ? [54332] : r.name === `supabase_kong_${projectId}` ? [54331] : [] }))
     const canonical = { rowDigests: 'all public/private/storage counts+digests', guard168Metadata: 'immutable168', settings: 'off', cronJobs: 'safe', resources: 'canonical IDs' }
     const adapters = {
-      async canonicalSnapshot() { events.push('canonical'); return { ...canonical, ...(failure === 'canonical' && snapshots++ ? { settings: 'drift' } : {}) } },
+      async canonicalSnapshot() { events.push('canonical'); const after = snapshots++ > 0; if (after) cleanup.afterCanonical?.(); return { ...canonical, ...(failure === 'canonical' && after ? { settings: 'drift' } : {}) } },
       async inventory() { return { resources: launched && !removed ? resources.map(r => ({ ...r })) : [], occupiedPorts: [], workdirExists: false } },
       async prepare() { events.push('prepare'); return { workdir: b.workdir, realpath: b.workdir, created: true, configSha256: sha(plan.config), migrations: migrations.map(({ name, sha256 }) => ({ name, sha256 })), envFiles: [], symlinks: [] } },
       async command({ args }: { args: string[] }) {
@@ -88,14 +90,14 @@ describe('Tests-only injected disposable lifecycle', () => {
           ANON_KEY: `demo.${Buffer.from(JSON.stringify({ iss: 'supabase-demo', role: failure === 'anon' ? 'service_role' : 'anon' })).toString('base64url')}.demo` }
       },
       async verifyEphemeral() { return { projectId, containerId: resources[0].id, dbPort: 54332 as const, applicationName: `${projectId}_fixture`, guard168Enabled: true, persistedGatesOff: true, activeNetworkCronAbsent: true } },
-      async teardown(request: { stopArgs: string[] | null }) { expect(request.stopArgs).toBeNull(); events.push('teardown'); removed = true },
+      async teardown(request: { stopArgs: string[] | null }) { expect(request.stopArgs).toBeNull(); events.push('teardown'); removed = true; cleanup.afterTeardown?.() },
       async removeWorkdir() { events.push('remove-workdir') },
     }
     const run = () => runContextualTestDisposableLifecycle(b, migrations, adapters, async (target, _resources, status) => {
       expect(status.API_URL).toBe(target.API_URL); expect(status.SERVICE_ROLE_KEY).toBe(target.SERVICE_ROLE_KEY)
       expect(status.ANON_KEY).toBeDefined(); expect(Object.isFrozen(status)).toBe(true)
       events.push('work'); if (failure === 'drift') resources[0].id = 'replacement'
-    }, async () => { events.push('settle'); if (failure === 'settlement') throw new Error('unjoined') })
+    }, async () => { events.push('settle'); cleanup.afterSettle?.(); if (failure === 'settlement') throw new Error('unjoined') }, cleanup.clock)
     return { run, events }
   }
   it('settles before exact disposal and compares the complete canonical witness', async () => {
@@ -119,5 +121,43 @@ describe('Tests-only injected disposable lifecycle', () => {
     const s = scenario('anon'); await expect(s.run()).rejects.toThrow()
     expect(s.events).not.toContain('work')
     expect(s.events).toContain('teardown'); expect(s.events).toContain('remove-workdir')
+  })
+  it('caps cleanup at six minutes after an early failure even with a much later global reserve', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(now)
+    try {
+      const s = scenario('start', { longBudget: true, afterSettle: () => vi.setSystemTime(now + 360001) })
+      await expect(s.run()).rejects.toThrow('Private Tests lifecycle failed')
+      expect(s.events).toContain('settle'); expect(s.events).not.toContain('teardown'); expect(s.events).not.toContain('remove-workdir')
+      expect(s.events.filter(value => value === 'canonical')).toHaveLength(1)
+    } finally { vi.useRealTimers() }
+  })
+  it('shares one original cleanup clock and checks the end after teardown awaits', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(now)
+    try {
+      const clock = vi.fn(() => now + 100)
+      const s = scenario(undefined, { clock, afterTeardown: () => vi.setSystemTime(now + 101) })
+      await expect(s.run()).rejects.toThrow('Private Tests lifecycle failed')
+      expect(clock).toHaveBeenCalledOnce(); expect(s.events).toContain('teardown'); expect(s.events).not.toContain('remove-workdir')
+      expect(s.events.filter(value => value === 'canonical')).toHaveLength(1)
+    } finally { vi.useRealTimers() }
+  })
+  it('does not accept a canonical preservation read that finishes beyond the shared cleanup end', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(now)
+    try {
+      const s = scenario(undefined, { clock: () => now + 100, afterCanonical: () => vi.setSystemTime(now + 101) })
+      await expect(s.run()).rejects.toThrow('Private Tests lifecycle failed')
+      expect(s.events).toContain('remove-workdir'); expect(s.events.filter(value => value === 'canonical')).toHaveLength(2)
+    } finally { vi.useRealTimers() }
+  })
+  it('rejects cleanup-clock extension and uses the shorter original absolute reserve', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(now)
+    try {
+      const invalid = scenario(undefined, { clock: () => now + 200001 })
+      await expect(invalid.run()).rejects.toThrow('Private Tests lifecycle failed')
+      expect(invalid.events).not.toContain('settle'); expect(invalid.events).not.toContain('teardown')
+      const late = scenario('start', { afterSettle: () => vi.setSystemTime(now + 200001) })
+      await expect(late.run()).rejects.toThrow('Private Tests lifecycle failed')
+      expect(late.events).toContain('settle'); expect(late.events).not.toContain('teardown')
+    } finally { vi.useRealTimers() }
   })
 })

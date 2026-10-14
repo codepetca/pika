@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { contextualTestAppEnvironment, contextualTestRunnerEnvironment, contextualTestLaunchCommands, validateContextualTestDemoStatus,
   createContextualTestPinnedCommand, contextualTestSnapshotPath, contextualTestReadOnlyDependencyProfile, createContextualTestOwnedFamily } from '../../scripts/contextual-test-rehearsal-launch'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
@@ -33,6 +35,19 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
     for (const key of ['NODE_EXTRA_CA_CERTS','HTTP_PROXY','HTTPS_PROXY','OPENAI_API_KEY','WORKOS_API_KEY','BREVO_API_KEY','STRIPE_SECRET_KEY']) expect(app).not.toHaveProperty(key)
     for (const gate of ['PIKA_CLASSROOM_HOME_ACCESS_ENABLED','PIKA_E2E_FIXTURES','WORKOS_MAGIC_AUTH_PILOT','PAL_ENABLED','PIKA_BARA_ATTENDANCE_ENABLED','STUDENT_PROVIDER_CLEANUP_ENABLED']) expect(app[gate]).toBe('false')
     expect(Object.isFrozen(app)).toBe(true)
+  })
+  it('loads the pinned frozen Next config with exact Git metadata and no subprocess fallback', () => {
+    const source = readFileSync('next.config.js', 'utf8')
+    expect(createHash('sha256').update(source).digest('hex')).toBe('09414bbc83f8529a4e58e70a1ba547f931c742496dddeef694787595b0b0fc7f')
+    const app = contextualTestAppEnvironment(binding() as never, status(), 's'.repeat(64), '/runner/preload.cjs', '/private/tmp/private-tests-output/run-binding.json', 'd'.repeat(64))
+    const forbidden = vi.fn(() => { throw Error('CPU native dispatch forbidden') })
+    const module = { exports: {} as { env: { NEXT_PUBLIC_GIT_COMMIT: string } } }
+    runInNewContext(source, { module, process: { env: app }, require: (name: string) => {
+      if (name === 'child_process') return { execSync: forbidden }
+      if (name === './package.json') return JSON.parse(readFileSync('package.json', 'utf8'))
+      throw Error('Unexpected frozen config dependency')
+    } })
+    expect(module.exports.env.NEXT_PUBLIC_GIT_COMMIT).toBe(plan.sourceSha); expect(forbidden).not.toHaveBeenCalled()
   })
   it('keeps the Playwright child env separate from the app preload and app credentials', () => {
     const env = contextualTestRunnerEnvironment(binding() as never, '/private/tmp/private-tests-output/run-binding.json', 'd'.repeat(64))
@@ -107,6 +122,19 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
       await vi.advanceTimersByTimeAsync(1); expect(settlementEnds).toEqual([42000])
       await vi.advanceTimersByTimeAsync(12000); await rejected
       expect(transport.state().poisoned).toBe(true); instance.emit('close', 0, null)
+    } finally { vi.useRealTimers() }
+  })
+  it('shares one shortened cleanup clock and never renews it for subsequent commands', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(0)
+    try {
+      const instance = child(), ends: number[] = []
+      const transport = createContextualTestPinnedCommand(pins, { startedAt: 0, deadline: 2700000, cleanupDeadline: 3060000 }, { verify() {}, async settle(_child, end) { ends.push(end) }, spawn: () => instance as never })
+      transport.beginCleanup(360000)
+      await vi.advanceTimersByTimeAsync(359990); transport.beginCleanup(719990)
+      const result = transport.run('docker', ['inspect'], { timeout: 30000 }), failed = expect(result).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(10); await failed
+      expect(ends).toEqual([360000]); expect(transport.state().poisoned).toBe(true)
+      instance.emit('close', 0, null)
     } finally { vi.useRealTimers() }
   })
   it('excludes dotenv/build/auth/dependency state and rejects traversal/symlink modes', () => {

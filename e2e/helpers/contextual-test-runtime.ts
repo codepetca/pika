@@ -118,8 +118,11 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       boundary.admit(target.href, method, body)
       const response = await context.request.fetch(target.href, { method, data: body, timeout: fixedTimeout(), maxRedirects: 0 })
       try {
-        const value = await boundary.observe(context, response, { method: () => method, postDataJSON: () => body })
-        await boundary.settle(context); assert.equal(response.status(), expectedStatus, 'Private expected API status')
+        const original = boundary.observe(context, response, { method: () => method, postDataJSON: () => body })
+        // Bound the consumer before awaiting its cached value. The original
+        // body task remains registered if it hangs; no timeout grants success.
+        await boundary.settle(context); const value = await original
+        assert.equal(response.status(), expectedStatus, 'Private expected API status')
         assert(/json/i.test(response.headers()['content-type'] ?? ''), 'Private expected JSON')
         return value as T
       } finally { await response.dispose() }
@@ -127,8 +130,8 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
     async response<T>(page: Page, response: Response): Promise<T> {
       const context = requireOwned(page)
       assert.equal(response.frame().page().context(), context, 'Private response ownership')
-      const value = await boundary.observe(context, response, response.request())
-      await boundary.settle(context)
+      const original = boundary.observe(context, response, response.request())
+      await boundary.settle(context); const value = await original
       assert(/json/i.test(response.headers()['content-type'] ?? ''), 'Private expected JSON')
       return value as T
     },
@@ -172,7 +175,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
         // A latched body failure still fails the outcome below. Do not rewrite
         // positive context-close evidence as an ownership/closure failure.
       }
-      if (!state.closed || boundary.pending(context)) closed = false
+      if (!state.closed) closed = false
     }
     const boundaryReceipt = boundary.receipt()
     const complete = outcome === 'passed' && closed && boundaryReceipt.firstFailure === null && boundaryReceipt.pending === 0

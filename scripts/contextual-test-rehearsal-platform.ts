@@ -3,14 +3,15 @@
  */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { spawn } from 'node:child_process'
-import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { closeSync, constants, fsyncSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, normalize } from 'node:path'
 import { createContextualTestPlan, bootstrapContextualTestFixtureSql, contextualTestWitnessSql } from '../e2e/helpers/contextual-test-rehearsal'
 import { assignmentListEphemeralPlan, assignmentListExpectedResources, validateAssignmentListMigrationChain, type AssignmentListLifecycleAdapters, type AssignmentListResource } from './contextual-assignment-list-proof-lifecycle'
 import { loadAssignmentListReviewedMigrations, prepareAssignmentListProjectFiles } from './contextual-assignment-list-proof-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
+import { createContextualTestPinnedCommand, type ContextualTestTransportPins } from './contextual-test-rehearsal-launch'
+import { createContextualTestNativeControls, type ContextualTestNativePins } from './contextual-test-rehearsal-native'
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
 const hex = (value: unknown, n: number) => typeof value === 'string' && new RegExp(`^[a-f0-9]{${n}}$`).test(value)
@@ -28,12 +29,15 @@ export type ContextualTestRunBinding = Readonly<{
   nonce: string; startedAt: number; deadline: number; cleanupDeadline: number; password: string
   workdir: string; appDir: string; outputDir: string; dependencyManifestSha256: string
   docker: Readonly<{ path: string; sha256: string; host: string; socketIdentity: readonly [number, number, number, number]; containerId: string }>
+  /** Required by the actual worker SQL edge; optional only for pure data/CPU callers. */
+  sqlControl?: Readonly<{ nativePins: ContextualTestNativePins; transportPins: ContextualTestTransportPins }>
 }>
 
 /** Data validation preserves the original clock; it never manufactures an attempt. */
 export function validateContextualTestRunBinding(value: unknown, now = Date.now()): ContextualTestRunBinding {
+  const hasSqlControl = !!value && typeof value === 'object' && Object.hasOwn(value, 'sqlControl')
   exactData(value, ['version','projectId','appOrigin','apiOrigin','sourceSha','sourceTree','migrationChainSha256','planSha256',
-    'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker'])
+    'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : [])])
   assert.equal(value.version, 1); assert(typeof value.projectId === 'string')
   const plan = createContextualTestPlan(value.projectId)
   for (const key of ['sourceSha','sourceTree','migrationChainSha256','appOrigin','apiOrigin'] as const) assert.equal(value[key], plan[key])
@@ -54,11 +58,31 @@ export function validateContextualTestRunBinding(value: unknown, now = Date.now(
   assert(typeof value.docker.host === 'string' && value.docker.host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(value.docker.host))
   absolute(value.docker.host.slice(7))
   assert(Array.isArray(value.docker.socketIdentity) && value.docker.socketIdentity.length === 4 && value.docker.socketIdentity.every(n => Number.isSafeInteger(n) && n >= 0))
-  return Object.freeze({ ...value, docker: Object.freeze({ ...value.docker, socketIdentity: Object.freeze([...value.docker.socketIdentity]) }) }) as ContextualTestRunBinding
+  let sqlControl: ContextualTestRunBinding['sqlControl']
+  if (hasSqlControl) {
+    exactData(value.sqlControl, ['nativePins','transportPins'])
+    const { nativePins, transportPins } = value.sqlControl
+    const nativeKeys = ['node','ps','python','lsof','sandbox','codesign','chrome','docker','helper'] as const
+    const transportKeys = ['git','docker','supabase'] as const
+    exactData(nativePins, [...nativeKeys, 'dockerHost','outputDir'])
+    exactData(transportPins, [...transportKeys, 'dockerHost','socketIdentity','outputDir'])
+    for (const [pins, keys] of [[nativePins, nativeKeys], [transportPins, transportKeys]] as const) {
+      for (const key of keys) { exactData(pins[key], ['path','sha256']); absolute(pins[key].path); assert(hex(pins[key].sha256, 64)) }
+      assert.equal(pins.outputDir, value.outputDir); assert.equal(pins.dockerHost, value.docker.host)
+      assert.deepEqual(pins.docker, { path: value.docker.path, sha256: value.docker.sha256 })
+    }
+    assert.deepEqual(transportPins.socketIdentity, value.docker.socketIdentity)
+    sqlControl = Object.freeze({
+      nativePins: Object.freeze({ ...nativePins, ...Object.fromEntries(nativeKeys.map(key => [key, Object.freeze({ ...nativePins[key] as object })])) }),
+      transportPins: Object.freeze({ ...transportPins, ...Object.fromEntries(transportKeys.map(key => [key, Object.freeze({ ...transportPins[key] as object })])), socketIdentity: Object.freeze([...value.docker.socketIdentity]) }),
+    }) as ContextualTestRunBinding['sqlControl']
+  }
+  return Object.freeze({ ...value, ...(sqlControl ? { sqlControl } : {}), docker: Object.freeze({ ...value.docker, socketIdentity: Object.freeze([...value.docker.socketIdentity]) }) }) as ContextualTestRunBinding
 }
 
 const files = new WeakMap<object, { path: string; sha256: string }>()
 const poisoned = new WeakSet<object>()
+const sqlActive = new WeakSet<object>()
 /** Exact file read: O_NOFOLLOW plus fstat closes the symlink/stat race. */
 export function readContextualTestBinding(path: string, sha256: string): ContextualTestRunBinding {
   absolute(path); assert(hex(sha256, 64)); assert.equal(realpathSync(dirname(path)), dirname(path))
@@ -88,56 +112,87 @@ export function contextualTestSql(binding: ContextualTestRunBinding, kind: Conte
   return plan.mutations[kind as keyof typeof plan.mutations]
 }
 
-function verifyDocker(binding: ContextualTestRunBinding) {
-  assert.equal(realpathSync(binding.docker.path), binding.docker.path)
-  const binary = statSync(binding.docker.path); assert(binary.isFile() && (binary.mode & 0o022) === 0)
-  assert.equal(sha(readFileSync(binding.docker.path)), binding.docker.sha256)
-  const path = binding.docker.host.slice(7); assert.equal(realpathSync(path), path)
-  const socket = statSync(path); assert(socket.isSocket())
-  assert.deepEqual([socket.dev,socket.ino,socket.mode,socket.rdev], binding.docker.socketIdentity)
+export type ContextualTestSqlTransport = Pick<ReturnType<typeof createContextualTestPinnedCommand>, 'run' | 'joinSettlements' | 'assertClosed' | 'state'>
+const sqlMarker = (binding: ContextualTestRunBinding) => join(binding.outputDir, 'sql-uncertain.json')
+function sqlDirectory(binding: ContextualTestRunBinding) {
+  assert.equal(realpathSync(binding.outputDir), binding.outputDir)
+  const stat = lstatSync(binding.outputDir)
+  assert(stat.isDirectory() && !stat.isSymbolicLink() && stat.uid === process.getuid?.() && (stat.mode & 0o777) === 0o700)
+  return stat
+}
+/** Any outstanding marker means closure is unproved, including a worker that
+ * died before it could report its failed SQL child. Never recover/adopt it. */
+export function assertContextualTestSqlSettled(binding: ContextualTestRunBinding): void {
+  assert(!poisoned.has(binding) && !sqlActive.has(binding), 'Private SQL child closure unconfirmed')
+  sqlDirectory(binding)
+  try { lstatSync(sqlMarker(binding)) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
+  throw new Error('Private SQL child closure unconfirmed')
+}
+function markSqlPending(binding: ContextualTestRunBinding) {
+  const parent = sqlDirectory(binding), name = sqlMarker(binding)
+  const fd = openSync(name, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600)
+  let identity: ReturnType<typeof fstatSync>
+  try {
+    identity = fstatSync(fd)
+    assert(identity.isFile() && identity.nlink === 1 && identity.uid === parent.uid && (identity.mode & 0o777) === 0o600)
+    writeFileSync(fd, JSON.stringify({ version: 1, projectId: binding.projectId, nonce: binding.nonce, deadline: binding.deadline, uncertain: true })); fsyncSync(fd)
+    identity = fstatSync(fd)
+  } finally { closeSync(fd) }
+  return () => {
+    const directory = sqlDirectory(binding), current = lstatSync(name)
+    assert(directory.dev === parent.dev && directory.ino === parent.ino)
+    assert(current.isFile() && !current.isSymbolicLink() && current.dev === identity.dev && current.ino === identity.ino
+      && current.nlink === 1 && current.uid === parent.uid && (current.mode & 0o777) === 0o600
+      && current.size === identity.size && current.mtimeMs === identity.mtimeMs && current.ctimeMs === identity.ctimeMs)
+    unlinkSync(name)
+  }
 }
 
-/** A timeout signal is not closure. Unjoined children poison this binding. */
-async function dockerCommand(binding: ContextualTestRunBinding, args: string[], input: string | undefined, operationDeadline: number): Promise<string> {
-  assert(!poisoned.has(binding)); verifyDocker(binding)
-  const timeout = operationDeadline - Date.now(); assert(timeout > 0)
-  return new Promise((resolve, reject) => {
-    let bytes = 0, output = '', failed = false, closed = false
-    const child = spawn(binding.docker.path, ['--host', binding.docker.host, ...args], { shell: false,
-      env: { PATH: '/usr/bin:/bin', HOME: binding.outputDir, DOCKER_CONFIG: join(binding.outputDir, 'docker-config'), LANG: 'C', LC_ALL: 'C', NODE_ENV: 'development' },
-      stdio: ['pipe','pipe','pipe'] })
-    const kill = () => { failed = true; try { child.kill('SIGKILL') } catch { /* close still required */ } }
-    const timer = setTimeout(kill, timeout)
-    const joinTimer = setTimeout(() => {
-      if (!closed) { poisoned.add(binding); kill(); reject(new Error('Rehearsal Docker child closure unconfirmed')) }
-    }, Math.min(binding.cleanupDeadline, operationDeadline + 5000) - Date.now())
-    child.on('error', () => { failed = true })
-    child.stdout.on('data', data => { bytes += data.length; if (bytes > 1048576) kill(); else output += data.toString('utf8') })
-    child.stderr.on('data', data => { bytes += data.length; if (bytes > 1048576) kill() })
-    child.stdin.on('error', kill)
-    child.once('close', (code, signal) => {
-      closed = true; clearTimeout(timer); clearTimeout(joinTimer)
-      try { verifyDocker(binding) } catch { failed = true }
-      if (failed || code !== 0 || signal || Date.now() >= operationDeadline) reject(new Error('Private rehearsal SQL command failed'))
-      else resolve(output.trim())
-    })
-    child.stdin.end(input)
-  })
+const workerSql = new WeakMap<object, { command: ContextualTestSqlTransport; assertClosed(): void }>()
+function sqlTransport(binding: ContextualTestRunBinding, explicit?: ContextualTestSqlTransport) {
+  if (explicit) return { command: explicit, assertClosed: () => explicit.assertClosed() }
+  assert(binding.sqlControl, 'Private SQL native ownership binding required')
+  let owned = workerSql.get(binding)
+  if (!owned) {
+    const native = createContextualTestNativeControls(binding.sqlControl.nativePins, binding.cleanupDeadline)
+    const command = createContextualTestPinnedCommand(binding.sqlControl.transportPins, binding, { settle: native.settleCommand })
+    owned = { command, assertClosed() { command.assertClosed(); native.assertClosed() } }
+    workerSql.set(binding, owned)
+  }
+  return owned
 }
 
 /** Only a read, pinned private binding can dispatch SQL. No arbitrary SQL edge. */
-export async function executeContextualTestSql(binding: ContextualTestRunBinding, kind: ContextualTestSqlKind, passwordHash?: string): Promise<string> {
+export async function executeContextualTestSql(binding: ContextualTestRunBinding, kind: ContextualTestSqlKind, passwordHash?: string, explicitTransport?: ContextualTestSqlTransport): Promise<string> {
   const file = files.get(binding); assert(file && !poisoned.has(binding), 'Unbound or unsettled rehearsal target')
   const fresh = readContextualTestBinding(file.path, file.sha256); assert.deepEqual(fresh, binding)
   const text = contextualTestSql(binding, kind, passwordHash)
+  assertContextualTestSqlSettled(binding)
+  const transport = sqlTransport(binding, explicitTransport)
+  transport.assertClosed()
+  const clearPending = markSqlPending(binding); sqlActive.add(binding)
   const deadline = Math.min(binding.deadline, Date.now() + 30_000)
-  const inspection = JSON.parse(await dockerCommand(binding, ['inspect', binding.docker.containerId, '--format',
-    '{"id":{{json .Id}},"name":{{json .Name}},"labels":{{json .Config.Labels}},"running":{{json .State.Running}}}'], undefined, deadline))
-  assert.equal(inspection.id, binding.docker.containerId); assert.equal(inspection.name, `/supabase_db_${binding.projectId}`)
-  assert.equal(inspection.running, true)
-  for (const label of ['com.supabase.cli.project','com.docker.compose.project']) assert.equal(inspection.labels?.[label], binding.projectId)
-  return dockerCommand(binding, ['exec','-i','-e',`PGAPPNAME=${binding.projectId}_fixture`, binding.docker.containerId,
-    'psql','-X','-q','-A','-t','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'], text, deadline)
+  const command = async (args: string[], input?: string) => {
+    const timeout = deadline - Date.now(); assert(timeout > 0)
+    const output = await transport.command.run('docker', args, { input, timeout, maxBytes: 1048576 })
+    await transport.command.joinSettlements(); transport.assertClosed()
+    assert(Date.now() < deadline && Buffer.byteLength(output) <= 1048576)
+    return output
+  }
+  try {
+    const inspection = JSON.parse(await command(['inspect', binding.docker.containerId, '--format',
+      '{"id":{{json .Id}},"name":{{json .Name}},"labels":{{json .Config.Labels}},"running":{{json .State.Running}}}']))
+    assert.equal(inspection.id, binding.docker.containerId); assert.equal(inspection.name, `/supabase_db_${binding.projectId}`)
+    assert.equal(inspection.running, true)
+    for (const label of ['com.supabase.cli.project','com.docker.compose.project']) assert.equal(inspection.labels?.[label], binding.projectId)
+    return await command(['exec','-i','-e',`PGAPPNAME=${binding.projectId}_fixture`, binding.docker.containerId,
+      'psql','-X','-q','-A','-t','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'], text)
+  } catch { throw new Error('Private rehearsal SQL command failed') }
+  finally {
+    try { await transport.command.joinSettlements(); transport.assertClosed(); clearPending(); sqlActive.delete(binding) }
+    catch { poisoned.add(binding); throw new Error('Private SQL child closure unconfirmed') }
+    assert(Date.now() < deadline, 'Private rehearsal SQL command deadline')
+  }
 }
 
 /** Existing frozen migration loader and private project preparation; never263. */
@@ -189,7 +244,7 @@ function localStatus(value: unknown, projectId: string): ContextualTestLocalStat
  */
 export async function runContextualTestDisposableLifecycle(binding: ContextualTestDisposableInput,
   migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>, adapters: DisposableAdapters,
-  work: (target: ReturnType<typeof validateAssignmentListProofTarget>, resources: readonly AssignmentListResource[], status: ContextualTestLocalStatus) => Promise<void>, settleOwnedProcesses: () => Promise<void>) {
+  work: (target: ReturnType<typeof validateAssignmentListProofTarget>, resources: readonly AssignmentListResource[], status: ContextualTestLocalStatus) => Promise<void>, settleOwnedProcesses: () => Promise<void>, cleanupClock?: () => number) {
   const plan = createContextualTestPlan(binding.projectId)
   const identity = assignmentListEphemeralPlan(binding)
   assert.equal(binding.workdir, assignmentListProofWorkdir(binding.projectId))
@@ -200,14 +255,15 @@ export async function runContextualTestDisposableLifecycle(binding: ContextualTe
   assert.equal(migrations.length, 262)
   validateAssignmentListMigrationChain(migrations)
   assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), binding.migrationChainSha256)
-  const check = (cleanup = false) => assert(Date.now() < (cleanup ? binding.cleanupDeadline : binding.deadline))
+  let cleanupEnd: number | undefined
+  const check = (cleanup = false) => assert(Date.now() < (cleanup ? cleanupEnd ?? 0 : binding.deadline))
   const canonicalRequest = { projectId: 'pika' as const, dbPort: 54322 as const, applicationName: `${binding.projectId}_canonical_readonly`, readOnly: true as const }
   let baseline: Awaited<ReturnType<DisposableAdapters['canonicalSnapshot']>> | undefined
   let before: Awaited<ReturnType<DisposableAdapters['inventory']>> | undefined
   let prepared: Awaited<ReturnType<DisposableAdapters['prepare']>> | undefined
   let attempted = false, primary: unknown, captured: AssignmentListResource[] | undefined
   const cleanupErrors: unknown[] = []
-  const clean = async (fn: () => Promise<void>) => { try { check(true); await fn() } catch (error) { cleanupErrors.push(error) } }
+  const clean = async (fn: () => Promise<void>) => { try { check(true); await fn(); check(true) } catch (error) { cleanupErrors.push(error) } }
   try {
     check(); baseline = structuredClone(await adapters.canonicalSnapshot(canonicalRequest))
     for (const key of ['rowDigests','guard168Metadata','settings','cronJobs','resources'] as const) assert(typeof baseline[key] === 'string' && baseline[key].length > 0)
@@ -238,6 +294,11 @@ export async function runContextualTestDisposableLifecycle(binding: ContextualTe
     check(); await work(target, Object.freeze(selected.map(r => Object.freeze(structuredClone(r)))), status); check()
   } catch (error) { primary = error }
   finally {
+    try {
+      const now = Date.now(), candidate = cleanupClock?.() ?? Math.min(binding.cleanupDeadline, now + 360000)
+      assert(Number.isSafeInteger(candidate) && candidate > now && candidate <= binding.cleanupDeadline && candidate <= now + 360000)
+      cleanupEnd = candidate
+    } catch (error) { cleanupErrors.push(error) }
     let settled = false, absent = !attempted
     await clean(async () => { await settleOwnedProcesses(); settled = true })
     if (attempted && before && settled) await clean(async () => {

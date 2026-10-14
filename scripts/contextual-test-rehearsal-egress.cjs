@@ -189,6 +189,98 @@ function validateContextualTestNextFork(expectedModule, modulePath, args, forkOp
   assert(actual.some(t => t === `--require=${preloadPath}`), 'Exact egress preload missing')
 }
 
+/** Installed Next15.5.25 creates a fresh one-worker static-path pool for each
+ * dynamic-route invocation (including cache refreshes), then ends that pool.
+ * 1000 is the EXISTING total app-request ceiling, not a new traffic allowance.
+ * Each child gets exactly one pinned work call; failures never admit a retry.
+ */
+function createContextualTestStaticWorkerFork(options) {
+  const pins = [options.processChildPath, options.staticPathsWorkerPath].map(file => {
+    assert(path.isAbsolute(file) && fs.realpathSync(file) === file)
+    return { file, digest: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }
+  })
+  let launched = 0, failed = false
+  const active = new Map()
+  const mark = (flag = 'denied') => { failed = true; options.ledger?.note(flag) }
+  const reject = () => { mark(); throw new Error('Tests static-path worker rejected') }
+  const check = () => {
+    if (Date.now() >= options.deadline) { mark('expired'); throw new Error('Tests static-path worker deadline') }
+    assert(!failed, 'Tests static-path worker family failed')
+  }
+  const fork = function (modulePath, args, settings) {
+    check()
+    try {
+      const parentEnv = options.parentEnv ?? process.env
+      assert.equal(parentEnv.NEXT_PRIVATE_WORKER, '1')
+      assert.equal(fs.realpathSync(modulePath), options.processChildPath)
+      assert(Array.isArray(args) && args.length === 0)
+      assert(settings && Object.values(Object.getOwnPropertyDescriptors(settings)).every(d => 'value' in d))
+      assert.equal(Object.keys(settings).sort().join(','), 'cwd,env,execArgv,silent')
+      assert.equal(settings.cwd, options.appDir); assert.equal(settings.silent, true)
+      const parentArgs = options.parentExecArgv ?? process.execArgv
+      assert(parentArgs.length === 0 && Array.isArray(settings.execArgv) && settings.execArgv.length === 0)
+      assert(settings.env && Object.values(Object.getOwnPropertyDescriptors(settings.env)).every(d => 'value' in d))
+      assert.equal(Object.keys(settings.env).sort().join(','), Object.keys(parentEnv).sort().join(','))
+      for (const key of Object.keys(parentEnv)) assert.equal(settings.env[key], parentEnv[key], 'Static worker environment drift')
+      assert(String(parentEnv.NODE_OPTIONS).split(/\s+/).includes(`--require=${options.preloadPath}`))
+      for (const pin of pins) {
+        assert.equal(fs.realpathSync(pin.file), pin.file)
+        assert.equal(createHash('sha256').update(fs.readFileSync(pin.file)).digest('hex'), pin.digest)
+      }
+      assert(launched < 1000, 'Existing app-request-derived static worker ceiling')
+    } catch { return reject() }
+    const ordinal = ++launched
+    let child
+    try { child = options.fork(modulePath, args, settings) } catch { return reject() }
+    const state = { ordinal, pid: child.pid ?? null, initialized: false, called: false, succeeded: false, ended: false, closed: false, workSha256: null }
+    active.set(child, state)
+    const send = child.send
+    child.send = function (message, ...rest) {
+      check()
+      try {
+        assert(Array.isArray(message) && rest.length <= 1 && (!rest.length || typeof rest[0] === 'function'))
+        if (message[0] === 0) {
+          assert(!state.initialized && message.length === 4 && message[1] === false && message[2] === options.staticPathsWorkerPath && Array.isArray(message[3]) && message[3].length === 0)
+          state.initialized = true
+        } else if (message[0] === 1) {
+          assert(state.initialized && !state.called && message.length === 4 && message[1] === true && message[2] === 'loadStaticPaths' && Array.isArray(message[3]) && message[3].length === 1)
+          const work = message[3][0]
+          assert(work && work.dir === options.appDir && work.distDir === path.join(options.appDir, '.next') && work.isAppPath === true)
+          assert(['/classrooms/[classroomId]', '/classrooms/[classroomId]/tests/[testId]/preview'].includes(work.pathname))
+          assert(work.page === work.pathname || work.page === `${work.pathname}/page`)
+          // Record only work identity, never request headers, cookies or config.
+          state.workSha256 = createHash('sha256').update(JSON.stringify({ ordinal, pathname: work.pathname, page: work.page })).digest('hex')
+          state.called = true
+        } else {
+          assert(message[0] === 2 && message.length === 2 && message[1] === false && state.called && state.succeeded && !state.ended)
+          state.ended = true
+        }
+        return Reflect.apply(send, this, [message, ...rest])
+      } catch { return reject() }
+    }
+    const timer = setTimeout(() => mark('uncertain'), Math.max(0, Math.min(options.deadline, Date.now() + 30000) - Date.now()))
+    timer.unref?.()
+    // Registered before jest's listeners: a crash closes admission BEFORE its
+    // installed _onExit handler tries initialize() and resends the old work.
+    child.on('message', message => {
+      if (Array.isArray(message) && message.length === 2 && message[0] === 0 && state.called && !state.succeeded && !state.ended) state.succeeded = true
+      else mark()
+    })
+    child.once('error', () => mark('uncertain'))
+    child.once('exit', (code, signal) => { if (code !== 0 || signal !== null || !state.succeeded || !state.ended) mark() })
+    child.once('close', (code, signal) => {
+      clearTimeout(timer)
+      if (code === 0 && signal === null && state.succeeded && state.ended) { state.closed = true; active.delete(child) }
+      else mark('uncertain')
+    })
+    options.onChild?.(child)
+    return child
+  }
+  fork.snapshot = () => Object.freeze({ launched, active: active.size, failed,
+    workers: [...active.values()].map(state => Object.freeze({ ...state })) })
+  return fork
+}
+
 /** Keep failures visible even when application code catches the network error.
  * The timer covers dispatch through the original response's complete body; an
  * inactivity timeout alone would allow a trickle to extend the operation. */
@@ -252,11 +344,17 @@ function installContextualTestEgress(options) {
   tls.connect = deny; http2.connect = deny
   require('node:worker_threads').Worker = deny
   for (const key of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork']) child[key] = deny
+  let staticFork
+  const entry = process.argv[1] && fs.realpathSync(process.argv[1])
+  if (options.processChildPath && options.staticPathsWorkerPath && entry === options.nextServerPath && process.env.NEXT_PRIVATE_WORKER === '1') {
+    staticFork = createContextualTestStaticWorkerFork({ ...options, parentExecArgv: process.execArgv, fork: originalFork, preloadPath: __filename })
+  }
   if (options.nextServerPath) {
     assert(path.isAbsolute(options.nextServerPath) && fs.realpathSync(options.nextServerPath) === options.nextServerPath)
     let launched = false
     child.fork = function (modulePath, args, forkOptions) {
       policy.check()
+      if (staticFork) return staticFork(modulePath, args, forkOptions)
       assert(!launched && process.env.NEXT_PRIVATE_WORKER !== '1', 'Only one exact Next child is admitted')
       // Set NEXT_DISABLE_MEM_OVERRIDE=1 in the hermetic parent. The installed
       // next-dev fork may add only its documented source-map option.
@@ -280,10 +378,10 @@ function installContextualTestEgress(options) {
   https.request = deny; https.get = deny
   globalThis.fetch = createContextualTestBoundedFetch(globalThis.fetch, options, policy)
   require('node:module').syncBuiltinESMExports()
-  return policy
+  return Object.freeze({ ...policy, workers: () => staticFork?.snapshot() ?? { launched: 0, active: 0, failed: false, workers: [] } })
 }
 
-module.exports = { createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch }
+module.exports = { createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork }
 
 // Native launch is possible only with the root's exact private binding digest.
 // The application never discovers this configuration from .env files.
@@ -308,7 +406,9 @@ if (process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE || process.env.PIKA_CONTEXTUAL
   assert(Number.isSafeInteger(binding.deadline) && binding.deadline - binding.startedAt <= 2700000)
   assert.equal(path.dirname(file), binding.outputDir)
   const nextServerPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/server/lib/start-server.js'))
+  const processChildPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/compiled/jest-worker/processChild.js'))
+  const staticPathsWorkerPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/server/dev/static-paths-worker.js'))
   const ledger = createContextualTestSharedLedger(binding)
-  const policy = installContextualTestEgress({ deadline: binding.deadline, nextServerPath, ledger })
+  const policy = installContextualTestEgress({ deadline: binding.deadline, nextServerPath, processChildPath, staticPathsWorkerPath, appDir: binding.appDir, ledger })
   Object.defineProperty(globalThis, '__contextualTestServerEgress', { value: policy, writable: false, configurable: false })
 }

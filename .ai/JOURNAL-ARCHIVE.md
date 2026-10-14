@@ -46928,3 +46928,20 @@ Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-c
 ## 2026-10-11 — Bound Week agenda desktop width
 
 Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
+
+<!-- pika-session-log-archive-batch:77e4e26df172995e8eacf2aa6aa6eb96957c6cc7ce8c9c8460dac8341bfa3018 -->
+## 2026-10-12 — Remaining classroom-access orchestration
+
+Owner requested parallel remaining-work orchestration and waived routine approval,
+workflow-review-budget and low-usage stops; serious/live holds and correctness
+gates remain. Startup/environment passed on main22efa4826 in a dedicated plan
+worktree; existing frozen offline dependencies only. Coordinated distinct source
+writers for coherent Survey owner/member routes and independent archive recovery
+reads/hot recovery-copy export, with shared types/schema/check plumbing retained
+by root. Sol/high chosen for tenant/lifecycle boundaries; effective configuration,
+attributable active time and tokens unknown. Account-wide weekly66% remaining and
+fresh322GB free observed; paused DeepSeek pilot honored. Test runner discriminator
+is source-only, CPU bridge/privacy PASS, native cause unknown. Prior c7 app attempt
+remains FAIL; exact synthetic resource recovery PASS with evidence retained.
+No shared-local/prod migration, account/provider/billing change, activation or
+phase exit. Updated existing classroom-access roadmap, not a parallel goal/task.

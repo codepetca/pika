@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { resolve } from 'node:path'
+import { realpathSync } from 'node:fs'
 const native = vi.hoisted(() => ({ spawn: vi.fn(), verify: vi.fn() }))
 vi.mock('node:child_process', () => ({ spawn: native.spawn }))
 vi.mock('../../scripts/contextual-test-rehearsal-launch', async original => ({
@@ -8,6 +9,9 @@ vi.mock('../../scripts/contextual-test-rehearsal-launch', async original => ({
 }))
 import { createContextualTestExecutionControls, createContextualTestNativeControls, contextualTestExecutionDigest, type ContextualTestNativePins } from '../../scripts/contextual-test-rehearsal-native'
 import type { ContextualTestControllerAdmission } from '../../scripts/contextual-test-rehearsal-controller'
+import { runContextualTestRehearsalController } from '../../scripts/contextual-test-rehearsal-controller'
+import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
+import { settleOwnedFamily, type Capture, type OwnedProcessRow } from '../../scripts/contextual-test-process-ownership'
 
 class Child extends EventEmitter {
   exitCode: number | null = null
@@ -98,12 +102,28 @@ describe('real native controller with CPU process doubles only', () => {
 })
 
 describe('fresh execution seal (CPU only, no admission)', () => {
+  it('escalates a SIGTERM-resistant owned family inside the shared six-minute reserve', async () => {
+    const capture: Capture = { identity: { pid: 1000, pgid: 1000, started: '100:1', executable: '/cpu/node', cwd: '/cpu', role: 'app' }, descendants: [] }
+    let time = 1000, alive = true, closed = false
+    const signals: Array<{ signal: string; at: number }> = []
+    const end = time + 360000
+    const result = await settleOwnedFamily(capture, 'group', {
+      rows: async () => { time += 1000; return alive ? [{ ...capture.identity, ppid: 42, state: 'alive' }] as OwnedProcessRow[] : [] },
+      now: () => time, admit: () => expect(time).toBeLessThan(end), end, closed: () => closed, update() {},
+      signal: (pid, signal) => { expect(pid).toBe(-1000); signals.push({ signal, at: time }); if (signal === 'SIGKILL') { alive = false; closed = true } },
+    })
+    expect(result).toEqual({ closed: true, absent: true }); expect(signals.map(value => value.signal)).toEqual(['SIGTERM','SIGKILL'])
+    expect(signals[1].at).toBeGreaterThanOrEqual(end - 4000); expect(time).toBeLessThan(end)
+  })
   function sealFixture() {
-    const now = Date.now(), source = { repository: '/cpu/source', head: 'a'.repeat(40), tree: 'b'.repeat(40), entries: [], bytes: 0, sha256: 'c'.repeat(64) }
+    const plan = createContextualTestPlan('pika_assignment_list_123456abcdef')
+    const now = Date.now(), source = { repository: '/cpu/source', head: plan.sourceSha, tree: plan.sourceTree, entries: [], bytes: 0, sha256: 'c'.repeat(64) }
     const admission = { version: 1, projectId: 'pika_assignment_list_123456abcdef', nonce: '0'.repeat(20) + '123456abcdef',
+      workdir: '/private/tmp/pika-assignment-list-123456abcdef', appDir: '/private/tmp/pika-assignment-list-123456abcdef/app', outputDir: pins.outputDir,
+      password: 'private-synthetic-fixture-password', sessionSecret: 's'.repeat(64), assignmentMetadata: { manifest: { syntheticTag: 'assignmentlist_123456abcdef' } }, migrations: [],
       startedAt: now - 1, deadline: now + 60000, cleanupDeadline: now + 120000, frozen: source, runner: source,
-      dependencies: { root: '/cpu/deps', roots: ['/cpu/deps'], sha256: 'd'.repeat(64) }, migrationChainSha256: 'e'.repeat(64),
-      review: { manifestSha256: 'f'.repeat(64) }, transportPins: { git: pin('/cpu/git'), docker: pins.docker, supabase: pin('/cpu/supabase'),
+      dependencies: { root: '/cpu/deps', roots: ['/cpu/deps'], sha256: 'd'.repeat(64) }, migrationChainSha256: plan.migrationChainSha256,
+      review: { manifestSha256: 'f'.repeat(64), runnerHead: source.head, runnerTree: source.tree }, transportPins: { git: pin('/cpu/git'), docker: pins.docker, supabase: pin('/cpu/supabase'),
         dockerHost: pins.dockerHost, socketIdentity: [1,2,3,4], outputDir: pins.outputDir } } as unknown as ContextualTestControllerAdmission
     const seal = { manifestSha256: 'f'.repeat(64), requiredImages: [{ ref: 'synthetic', id: 'sha256:' + 'a'.repeat(64) }],
       versions: { node: 'v24.12.0', supabase: 'synthetic', playwright: '1.58.0' as const },
@@ -122,5 +142,18 @@ describe('fresh execution seal (CPU only, no admission)', () => {
     const { admission, seal } = sealFixture(), controls = createContextualTestExecutionControls(admission, pins, seal)
     await expect(controls.assertReady(admission)).rejects.toThrow()
     expect(native.spawn).not.toHaveBeenCalled(); expect(native.verify).not.toHaveBeenCalled(); expect(kill).not.toHaveBeenCalled()
+  })
+  it.each([false, true])('composes the actual controller and real native admission predicate; changed=%s', async changed => {
+    const { admission, seal } = sealFixture(), actualPins = { ...pins, node: pin(realpathSync(process.execPath)) }
+    const accepted = contextualTestExecutionDigest(admission, actualPins, seal)
+    const input = { ...admission, review: { ...admission.review, manifestSha256: accepted } }
+    const controls = createContextualTestExecutionControls(input, actualPins, { ...seal, manifestSha256: accepted })
+    if (changed) input.deadline++
+    native.spawn.mockImplementationOnce(() => { throw Error('CPU first native edge forbidden') })
+    await expect(runContextualTestRehearsalController(input, controls)).rejects.toThrow('Private contextual Test controller failed')
+    // The valid copied snapshot crosses the exact binding predicate and reaches
+    // the forbidden CPU I/O double; drift fails before any such edge or write.
+    expect(native.spawn).toHaveBeenCalledTimes(changed ? 0 : 1)
+    expect(kill).not.toHaveBeenCalled()
   })
 })

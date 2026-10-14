@@ -75,4 +75,21 @@ describe('contextual Test browser boundary', () => {
   it('rejects unreserved Storage writes before dispatch', () => {
     expect(() => boundary().admit(plan.apiOrigin + '/storage/v1/object/upload/sign/test', 'PUT', Buffer.alloc(8))).toThrow()
   })
+  it('allows a signed read only for the exact acknowledged and uploaded private object', async () => {
+    const b = boundary(), c = {}, test = '50000000-0000-4000-8000-000000000044', doc = '50000000-0000-4000-8000-000000000045', object = '50000000-0000-4000-8000-000000000046'
+    const path = `classrooms/${plan.classrooms.classA.id}/tests/${test}/documents/${doc}/${object}.pdf`
+    const upload = plan.apiOrigin + '/storage/v1/object/upload/sign/test-documents/' + path + '?token=private'
+    const read = plan.apiOrigin + '/storage/v1/object/sign/test-documents/' + path + '?token=private'
+    const endpoint = plan.appOrigin + `/api/teacher/tests/${test}/documents/upload`
+    const data = { document_id: doc, byte_size: 8 }
+    b.admit(endpoint, 'POST', data)
+    const acknowledgement = response(async () => Buffer.from(JSON.stringify({ bucket: 'test-documents', storage_path: path, upload_url: upload, managed_object_id: object })), 200, endpoint)
+    await b.observe(c, acknowledgement, { method: () => 'POST', postDataJSON: () => data }); await b.settle(c)
+    b.admit(upload, 'PUT', Buffer.alloc(8)); b.admit(read, 'GET'); b.admit(read, 'HEAD')
+    expect(b.receipt().counts.storageRequests).toBe(3)
+    expect(() => b.admit(read.replace(object, doc), 'GET')).toThrow()
+  })
+  it.each(['?token=', '?token=a&token=b', '?token=a&other=b', '?token=a#fragment'])('rejects a malformed signed read %s before dispatch', query => {
+    expect(() => boundary().admit(plan.apiOrigin + '/storage/v1/object/sign/test-documents/x' + query, 'GET')).toThrow()
+  })
 })

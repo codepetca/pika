@@ -13,6 +13,16 @@ import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-p
 import { createFamilyOperationGate, reconcileOwnedFamily, ownedFamilyAbsent, requireLiveKernelRoot, settleOwnedFamily, type Capture, type OwnedProcessRow } from './contextual-test-process-ownership'
 
 const hex = /^[a-f0-9]{64}$/
+/** Snapshot admitted JSON-shaped data, not the caller's mutable object graph. */
+export function immutableContextualTestData<T>(value: T): T {
+  const snapshot = structuredClone(value)
+  const freeze = (node: unknown): void => {
+    if (!node || typeof node !== 'object' || Object.isFrozen(node)) return
+    for (const child of Object.values(node)) freeze(child)
+    Object.freeze(node)
+  }
+  freeze(snapshot); return snapshot
+}
 function absolute(value: string) {
   assert(isAbsolute(value) && normalize(value) === value && !/[\x00-\x20\x7f]/.test(value), 'Private launch path rejected')
   return value
@@ -48,6 +58,7 @@ export function contextualTestAppEnvironment(binding: ContextualTestRunBinding, 
   assert(sessionSecret.length >= 48 && sessionSecret.length <= 128 && !/[\x00-\x20\x7f]/.test(sessionSecret))
   const status = validateContextualTestDemoStatus(rawStatus, binding.projectId), plan = createContextualTestPlan(binding.projectId)
   const env: Record<string, string> = { ...basicEnvironment(), NODE_ENV: 'development', NEXT_DISABLE_MEM_OVERRIDE: '1',
+    VERCEL_GIT_COMMIT_SHA: binding.sourceSha,
     HOME: binding.outputDir, TMPDIR: join(binding.workdir, 'tmp'),
     NEXT_PUBLIC_SUPABASE_URL: status.API_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: status.ANON_KEY,
     SUPABASE_SECRET_KEY: status.SERVICE_ROLE_KEY, SESSION_SECRET: sessionSecret,
@@ -60,7 +71,7 @@ export function contextualTestAppEnvironment(binding: ContextualTestRunBinding, 
 }
 export function contextualTestRunnerEnvironment(binding: ContextualTestRunBinding, file: string, sha256: string): Readonly<Record<string, string>> {
   bindingFile(binding, file, sha256)
-  return Object.freeze({ ...basicEnvironment(), HOME: binding.outputDir, TMPDIR: join(binding.workdir, 'tmp'),
+  return Object.freeze({ ...basicEnvironment(), NODE_ENV: 'development', HOME: binding.outputDir, TMPDIR: join(binding.workdir, 'tmp'),
     PIKA_CONTEXTUAL_TEST_REHEARSAL: 'true', PIKA_CONTEXTUAL_TEST_BINDING_FILE: file, PIKA_CONTEXTUAL_TEST_BINDING_SHA256: sha256 })
 }
 export function contextualTestLaunchCommands(runnerRoot: string, dependencyRoot: string, binding: ContextualTestRunBinding) {
@@ -100,7 +111,7 @@ export function verifyContextualTestTransportPins(pins: ContextualTestTransportP
   absolute(pins.outputDir)
 }
 
-type CommandOptions = { input?: string; timeout?: number; startupProjectId?: string; env?: NodeJS.ProcessEnv; survey?: unknown }
+type CommandOptions = { input?: string; timeout?: number; maxBytes?: number; startupProjectId?: string; env?: NodeJS.ProcessEnv; survey?: unknown }
 type NativeCommandChild = ChildProcessWithoutNullStreams
 export type ContextualTestCommandSeams = {
   /** Mandatory root-owned identity/family controller. This callback must never
@@ -119,10 +130,10 @@ export function createContextualTestPinnedCommand(pins: ContextualTestTransportP
   assert(typeof seams.settle === 'function')
   assert(Number.isSafeInteger(budget.startedAt) && budget.startedAt <= now() && budget.deadline > now() && budget.deadline - budget.startedAt <= 2700000)
   assert(budget.cleanupDeadline > budget.deadline && budget.cleanupDeadline - budget.deadline <= 360000)
-  let cleaning = false, poisoned = false, fault = false
+  let cleaning = false, poisoned = false, fault = false, cleanupEnd = budget.cleanupDeadline
   const pending = new Set<NativeCommandChild>()
   const settlements = new Set<Promise<void>>()
-  const check = () => assert(!poisoned && (cleaning || !fault) && now() < (cleaning ? budget.cleanupDeadline : budget.deadline), 'Private pinned command admission closed')
+  const check = () => assert(!poisoned && (cleaning || !fault) && now() < (cleaning ? cleanupEnd : budget.deadline), 'Private pinned command admission closed')
   const run = async (file: string, args: string[], options: CommandOptions = {}): Promise<string> => {
     check(); assert(!options.env && !options.survey, 'Alternate command transport rejected')
     assert(file === 'git' || file === 'docker' || file === 'supabase'); assert(Array.isArray(args) && args.every(v => typeof v === 'string' && !v.includes('\0')))
@@ -130,14 +141,16 @@ export function createContextualTestPinnedCommand(pins: ContextualTestTransportP
     if (options.startupProjectId) { assignmentListProofWorkdir(options.startupProjectId); assert(file === 'supabase' && args[0] === 'start' && !cleaning) }
     const requestedDuration = options.timeout ?? 30000
     assert(Number.isSafeInteger(requestedDuration) && requestedDuration > 0)
+    const maxBytes = options.maxBytes ?? 64 * 1024 * 1024
+    assert(Number.isSafeInteger(maxBytes) && maxBytes > 0 && maxBytes <= 64 * 1024 * 1024)
     // The reused canonical SQL adapter requests60s. It receives no extra lease:
     // normal work is clamped to30s; only the exact infrastructure start gets180s.
     const duration = Math.min(requestedDuration, options.startupProjectId ? 180000 : 30000)
-    const operationEnd = Math.min(cleaning ? budget.cleanupDeadline : budget.deadline, now() + duration)
-    const closeEnd = Math.min(budget.cleanupDeadline, operationEnd + 12000)
+    const operationEnd = Math.min(cleaning ? cleanupEnd : budget.deadline, now() + duration)
+    const closeEnd = Math.min(cleaning ? cleanupEnd : budget.cleanupDeadline, operationEnd + 12000)
     verify(pins); check()
     const executable = pins[file], argv = file === 'docker' ? ['--host', pins.dockerHost, ...args] : [...args]
-    const env = { ...basicEnvironment(), HOME: pins.outputDir, DOCKER_HOST: pins.dockerHost, DOCKER_CONFIG: join(pins.outputDir, 'docker-config') }
+    const env = { ...basicEnvironment(), NODE_ENV: 'development' as const, HOME: pins.outputDir, DOCKER_HOST: pins.dockerHost, DOCKER_CONFIG: join(pins.outputDir, 'docker-config') }
     return new Promise<string>((resolve, reject) => {
       let child: NativeCommandChild, closed = false, failed = false, settling = false, bytes = 0
       const chunks: Buffer[] = []
@@ -159,8 +172,8 @@ export function createContextualTestPinnedCommand(pins: ContextualTestTransportP
         if (!closed) { poisoned = true; stop(); reject(new Error('Private pinned command child closure unconfirmed')) }
       }, Math.max(0, closeEnd - now()))
       child.once('error', stop)
-      child.stdout.on('data', (data: Buffer) => { bytes += data.byteLength; if (bytes > 64 * 1024 * 1024) stop(); else chunks.push(Buffer.from(data)) })
-      child.stderr.on('data', (data: Buffer) => { bytes += data.byteLength; if (bytes > 64 * 1024 * 1024) stop() })
+      child.stdout.on('data', (data: Buffer) => { bytes += data.byteLength; if (bytes > maxBytes) stop(); else chunks.push(Buffer.from(data)) })
+      child.stderr.on('data', (data: Buffer) => { bytes += data.byteLength; if (bytes > maxBytes) stop() })
       child.stdin.on('error', stop)
       child.once('close', (code, signal) => {
         closed = true; clearTimeout(timeout); clearTimeout(joinTimeout); pending.delete(child)
@@ -172,7 +185,10 @@ export function createContextualTestPinnedCommand(pins: ContextualTestTransportP
       child.stdin.end(options.input)
     })
   }
-  return Object.freeze({ run, beginCleanup() { cleaning = true; check() },
+  return Object.freeze({ run, beginCleanup(end = Math.min(budget.cleanupDeadline, now() + 360000)) {
+    assert(Number.isSafeInteger(end) && end <= budget.cleanupDeadline && end <= now() + 360000)
+    cleanupEnd = Math.min(cleanupEnd, end); cleaning = true; check()
+  },
     async joinSettlements() { await Promise.all([...settlements]); assert(!poisoned && pending.size === 0 && settlements.size === 0) },
     assertClosed() { assert(!poisoned && pending.size === 0 && settlements.size === 0) },
     state: () => Object.freeze({ poisoned, fault, pending: pending.size, cleaning }) })

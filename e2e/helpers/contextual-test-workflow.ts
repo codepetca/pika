@@ -3,6 +3,7 @@
  * Runtime owns authentication, original response tasks, fences and disposal.
  */
 import { expect, type Page, type Response } from '@playwright/test'
+import { createHash } from 'node:crypto'
 import type { ActorLabel, ContextualTestRuntime, RehearsalWitness } from './contextual-test-rehearsal'
 
 const fail = (): never => { throw new Error('Contextual Tests workflow assertion failed') }
@@ -59,13 +60,80 @@ export function assertRestoredClass(before: Pick<RehearsalWitness, 'classes'>, a
 
 type Owner = 'ownerTeacher' | 'ownerStudent'
 type Member = 'memberTeacher' | 'memberStudent'
-type TestRow = { id: string; classroom_id: string; title: string; status: string; documents?: Array<{ id: string; source: string; title: string }> }
+type ReferenceDocument = { id: string; source: string; title: string; managed_object_id?: string; storage_path?: string }
+type ReferenceProof = Readonly<{ testId: string; documentId: string; objectId: string; byteSize: number; sha256: string }>
+type TestRow = { id: string; classroom_id: string; title: string; status: string; documents?: ReferenceDocument[] }
 type Draft = { draft: { version: number; content: Record<string, unknown> } }
 type Attempt = { id?: string; responses: Record<string, unknown>; draft_revision: number; is_submitted: boolean }
 type Answer = { response_id: string; response_revision: number; score: number | null; feedback?: string | null; selected_option: number | null; response_text: string | null }
 type Results = { questions: Array<{ id: string; question_type: string; question_text: string }>; students: Array<{ student_id: string; returned_at: string | null; answers: Record<string, Answer> }> }
-type Exam = { id: string; title: string; classroom: string; owner: Owner; openId: string; mcId: string; documentId?: string }
+type Exam = { id: string; title: string; classroom: string; owner: Owner; openId: string; mcId: string; documentId?: string; referenceProof?: ReferenceProof }
 const members: readonly Member[] = ['memberTeacher', 'memberStudent']
+
+/** Serialized directly by page.evaluate; all dependencies are browser-local.
+ * One absolute deadline covers headers and the one original binary body read. */
+export async function readContextualTestReference(input: { path: string; storagePath: string; apiOrigin: string; expectedBytes: number; deadline: number }): Promise<number[]> {
+  const rejected = () => new Error('Reference read failed')
+  const valid = /^\/api\/teacher\/tests\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\/documents\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\/file$/
+  const parts = input.path.split('/'), stored = input.storagePath.split('/')
+  if (!valid.test(input.path) || input.apiOrigin !== 'http://127.0.0.1:54331' || stored.length !== 7 || stored[0] !== 'classrooms'
+    || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(stored[1])
+    || stored[2] !== 'tests' || stored[3] !== parts[4] || stored[4] !== 'documents' || stored[5] !== parts[6]
+    || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.pdf$/.test(stored[6])
+    || !Number.isSafeInteger(input.expectedBytes) || input.expectedBytes < 1 || input.expectedBytes > 32768
+    || !Number.isSafeInteger(input.deadline) || input.deadline <= Date.now() || input.deadline - Date.now() > 30000
+    || location.origin !== 'http://localhost:3117') throw rejected()
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), Math.max(0, input.deadline - Date.now()))
+  const aborted = new Promise<never>((_resolve, reject) => controller.signal.addEventListener('abort', () => reject(rejected()), { once: true }))
+  const check = () => { if (controller.signal.aborted || Date.now() >= input.deadline) throw rejected() }
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
+  try {
+    check()
+    // The existing browser route fence rejects every foreign/unreserved request
+    // before dispatch. The frozen app's normal 302 is a private signed read,
+    // not another authored GET or a substitute response/body acquisition.
+    const response = await Promise.race([fetch(input.path, { credentials: 'same-origin', cache: 'no-store', redirect: 'follow', signal: controller.signal }), aborted])
+    check()
+    const target = new URL(response.url)
+    if (!response.ok || response.status !== 200 || !response.redirected || target.origin !== input.apiOrigin
+      || target.pathname !== `/storage/v1/object/sign/test-documents/${input.storagePath}` || target.username || target.password || target.hash
+      || Array.from(target.searchParams.keys()).join(',') !== 'token' || !target.searchParams.get('token') || !response.body) throw rejected()
+    reader = response.body.getReader()
+    const bytes = new Uint8Array(input.expectedBytes); let count = 0
+    for (;;) {
+      const chunk = await Promise.race([reader.read(), aborted]); check()
+      if (chunk.done) break
+      if (!(chunk.value instanceof Uint8Array) || chunk.value.byteLength > input.expectedBytes - count) throw rejected()
+      bytes.set(chunk.value, count); count += chunk.value.byteLength
+    }
+    check(); if (count !== input.expectedBytes) throw rejected()
+    return Array.from(bytes)
+  } catch {
+    controller.abort()
+    if (reader) { try { void reader.cancel().catch(() => {}) } catch { /* original failure remains authoritative */ } }
+    throw rejected()
+  } finally { clearTimeout(timer); try { reader?.releaseLock() } catch { /* aborted pending read cannot authorize success */ } }
+}
+export function createContextualTestReferenceProof(testId: string, classroom: string, document: ReferenceDocument, uploaded: Buffer, downloaded: number[]): ReferenceProof {
+  requireThat(uuid.test(testId) && uuid.test(classroom) && uuid.test(document.id) && document.source === 'upload' && document.managed_object_id && uuid.test(document.managed_object_id))
+  requireThat(document.storage_path === `classrooms/${classroom}/tests/${testId}/documents/${document.id}/${document.managed_object_id}.pdf`)
+  requireThat(uploaded.length > 0 && uploaded.length <= 32768 && downloaded.length === uploaded.length
+    && downloaded.every(value => Number.isInteger(value) && value >= 0 && value <= 255) && Buffer.from(downloaded).equals(uploaded))
+  return Object.freeze({ testId, documentId: document.id, objectId: document.managed_object_id, byteSize: uploaded.length,
+    sha256: createHash('sha256').update(uploaded).digest('hex') })
+}
+export function assertContextualTestReferenceObjects(objects: ReadonlyArray<{ id: string; resource_id: string; purpose: string; status: string; byte_size: number; content_sha256: string | null }>, proofs: readonly ReferenceProof[]): void {
+  requireThat(objects.length === proofs.length && new Set(proofs.map(p => p.objectId)).size === proofs.length
+    && new Set(proofs.map(p => p.documentId)).size === proofs.length && new Set(proofs.map(p => p.testId)).size === proofs.length)
+  for (const proof of proofs) {
+    const matches = objects.filter(object => object.id === proof.objectId)
+    requireThat(matches.length === 1 && digest.test(proof.sha256))
+    const object = matches[0]
+    requireThat(object.resource_id === proof.testId && object.purpose === 'teacher_test_material' && object.status === 'ready'
+      && object.byte_size === proof.byteSize && object.byte_size > 0 && object.byte_size <= 32768
+      && (object.content_sha256 === null || object.content_sha256 === proof.sha256))
+  }
+}
 
 export async function consumeCreatedTestAcknowledgement(r: Pick<ContextualTestRuntime, 'response'>, page: Page, response: Response, classroom: string): Promise<TestRow> {
   requireThat(response.status() === 201)
@@ -106,6 +174,7 @@ async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, cl
   // the acknowledged identity rather than inventing an ID or seeding work.
   const created = await consumeCreatedTestAcknowledgement(r, page, createdResponse, classroom)
   const id = created.id, title = `Contextual ${owner} ${kind}`
+  let referenceProof: ReferenceProof | undefined
   const editor = page.getByRole('dialog', { name: 'Edit test', exact: true })
   await expect(editor).toBeVisible()
   await editor.getByRole('button', { name: 'Markdown', exact: true }).click()
@@ -132,10 +201,13 @@ async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, cl
     await r.settle(page)
     const detail = await r.api<{ test: TestRow }>(page, 'GET', `/api/teacher/tests/${id}`)
     const document = detail.test.documents?.find(d => d.source === 'upload' && d.title === 'Uploaded reference')
-    requireThat(document && uuid.test(document.id))
+    requireThat(document && uuid.test(document.id) && document.managed_object_id && uuid.test(document.managed_object_id)
+      && document.storage_path === `classrooms/${classroom}/tests/${id}/documents/${document.id}/${document.managed_object_id}.pdf`)
     // Read through the real same-cookie app endpoint; no signed URL is retained.
-    const read = await page.evaluate(async path => { const response = await fetch(path, { credentials: 'same-origin', cache: 'no-store' }); if (!response.ok) throw Error('Reference read failed'); return Array.from(new Uint8Array(await response.arrayBuffer())) }, `/api/teacher/tests/${id}/documents/${document.id}/file`)
-    requireThat(Buffer.from(read).equals(bytes))
+    r.check(); const deadline = Math.min(r.deadline, Date.now() + 30000)
+    const read = await page.evaluate(readContextualTestReference, { path: `/api/teacher/tests/${id}/documents/${document.id}/file`, storagePath: document.storage_path,
+      apiOrigin: r.plan.apiOrigin, expectedBytes: bytes.length, deadline })
+    r.check(); referenceProof = createContextualTestReferenceProof(id, classroom, document, bytes, read)
   }
   await page.getByRole('dialog', { name: 'Edit test', exact: true }).getByRole('button', { name: 'Close test editor', exact: true }).click()
   await r.settle(page)
@@ -157,7 +229,10 @@ async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, cl
   requireThat(results.questions.length === 2)
   const open = results.questions.find(q => q.question_type === 'open_response'), mc = results.questions.find(q => q.question_type === 'multiple_choice')
   requireThat(open && mc && uuid.test(open.id) && uuid.test(mc.id))
-  return { id, title, classroom, owner, openId: open.id, mcId: mc.id, documentId: detail.test.documents?.find(d => d.source === 'upload')?.id }
+  if (referenceProof) requireThat(detail.test.documents?.some(document => document.source === 'upload' && document.id === referenceProof.documentId
+    && document.managed_object_id === referenceProof.objectId
+    && document.storage_path === `classrooms/${classroom}/tests/${id}/documents/${referenceProof.documentId}/${referenceProof.objectId}.pdf`))
+  return { id, title, classroom, owner, openId: open.id, mcId: mc.id, documentId: detail.test.documents?.find(d => d.source === 'upload')?.id, referenceProof }
 }
 async function access(r: ContextualTestRuntime, page: Page, exam: Exam, state: 'open' | 'closed', labels: readonly Member[] = members): Promise<void> {
   const ids = labels.map(label => r.plan.actors[label].id)
@@ -331,15 +406,17 @@ async function matrix(r: ContextualTestRuntime): Promise<void> {
 
 export async function runContextualTestWorkflow(r: ContextualTestRuntime): Promise<void> {
   r.check(); const baseline = await r.witness('baseline'); assertWorkflowBaseline(baseline, r.plan.retiredTestIds)
+  const referenceProofs: ReferenceProof[] = []
   await r.withActor('ownerTeacher', async ownerA => r.withActor('ownerStudent', async ownerB => {
     const groups: Array<{ owner: Owner; page: Page; main: Exam; single: Exam; bulk: Exam }> = []
     for (const [owner, page, classroom] of [['ownerTeacher', ownerA, r.plan.classrooms.classA.id], ['ownerStudent', ownerB, r.plan.classrooms.classB.id]] as const) {
       const main = await createExam(r, page, owner, classroom, 'main'), single = await createExam(r, page, owner, classroom, 'single'), bulk = await createExam(r, page, owner, classroom, 'bulk')
       groups.push({ owner, page, main, single, bulk }); await reorder(r, page, classroom)
+      requireThat(main.referenceProof); referenceProofs.push(main.referenceProof)
     }
     const created = await r.witness('owners-authored')
     requireThat(created.tests.length === 8 && created.question_counts.length === 6 && created.question_counts.every(q => q.count === 2))
-    requireThat(created.objects.length === 2 && created.objects.every(o => o.status === 'ready' && o.byte_size > 0 && o.byte_size <= 32768 && digest.test(o.content_sha256)))
+    requireThat(referenceProofs.length === 2); assertContextualTestReferenceObjects(created.objects, referenceProofs)
     for (const group of groups) { r.check(); await participate(r, group.page, group.main); await gradeAndReturn(r, group.page, group.main); await resetScratch(r, group.page, group.single, false); await resetScratch(r, group.page, group.bulk, true) }
     const a = groups[0], b = groups[1]
     await denialBlock(r, 'foreign-owner', async () => {
@@ -407,6 +484,7 @@ export async function runContextualTestWorkflow(r: ContextualTestRuntime): Promi
   await matrix(r)
   const final = await r.witness('final')
   requireThat(final.tests.length === 4 && final.tests.filter(t => t.retired).length === 2 && final.objects.length === 2)
+  assertContextualTestReferenceObjects(final.objects, referenceProofs)
   requireThat(final.attempts.length === 4 && final.attempts.every(a => a.is_submitted && a.returned_at && a.draft_revision > 0))
   requireThat(final.response_count === 8 && final.history_count >= 4 && final.question_counts.length === 2 && final.question_counts.every(q => q.count === 2))
   requireThat(final.classes.every(c => c.archived_at === null) && final.memberships.length === baseline.memberships.length)

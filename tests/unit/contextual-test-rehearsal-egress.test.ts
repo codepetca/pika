@@ -1,11 +1,129 @@
 import { createRequire } from 'node:module'
 import { describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
+import vm from 'node:vm'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync, chmodSync, readFileSync, renameSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 const require = createRequire(import.meta.url)
-const { createContextualTestEgressPolicy, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch } = require('../../scripts/contextual-test-rehearsal-egress.cjs')
+const { createContextualTestEgressPolicy, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork } = require('../../scripts/contextual-test-rehearsal-egress.cjs')
+
+describe('installed Next static-path workers with CPU-only fork doubles', () => {
+  const jestFile = realpathSync(require.resolve('next/dist/compiled/jest-worker'))
+  const processChildPath = join(jestFile.slice(0, jestFile.lastIndexOf('/')), 'processChild.js')
+  const staticPathsWorkerPath = realpathSync(require.resolve('next/dist/server/dev/static-paths-worker'))
+  const parentEnv = { NEXT_PRIVATE_WORKER: '1', NEXT_DISABLE_MEM_OVERRIDE: '1', NODE_OPTIONS: '--require=/private/guard.cjs --enable-source-maps', PIKA_CONTEXTUAL_TEST_BINDING_FILE: '/private/binding.json', PIKA_CONTEXTUAL_TEST_BINDING_SHA256: 'a'.repeat(64) }
+  const cwd = '/private/disposable/app'
+  function harness() {
+    const children: Array<EventEmitter & { send: (message: unknown, ...rest: unknown[]) => boolean; originalSend: ReturnType<typeof vi.fn<(...args: unknown[]) => boolean>>; stdout: PassThrough; stderr: PassThrough; kill: ReturnType<typeof vi.fn> }> = []
+    const note = vi.fn()
+    const fork = vi.fn(() => {
+      const send = vi.fn((_message: unknown, ..._rest: unknown[]) => true)
+      const c = Object.assign(new EventEmitter(), { send, originalSend: send, stdout: new PassThrough(), stderr: new PassThrough(), kill: vi.fn() })
+      children.push(c); return c
+    })
+    const guard = createContextualTestStaticWorkerFork({ processChildPath, staticPathsWorkerPath, parentEnv, parentExecArgv: [], appDir: cwd,
+      preloadPath: '/private/guard.cjs', deadline: Date.now() + 120000, ledger: { note }, fork })
+    const call = (change: Record<string, unknown> = {}, module = processChildPath, args: unknown[] = []) => guard(module, args, {
+      cwd, env: { ...parentEnv }, execArgv: [], silent: true, ...change,
+    })
+    const payload = { dir: cwd, distDir: join(cwd, '.next'), pathname: '/classrooms/[classroomId]', page: '/classrooms/[classroomId]/page', isAppPath: true }
+    const initialize = (c: (typeof children)[number]) => c.send([0, false, staticPathsWorkerPath, []])
+    const work = (c: (typeof children)[number]) => c.send([1, true, 'loadStaticPaths', [payload]], () => {})
+    const finish = (c: (typeof children)[number]) => { c.emit('message', [0, { prerenderedRoutes: [] }]); c.send([2, false], () => {}); c.emit('exit', 0, null); c.emit('close', 0, null) }
+    return { guard, call, children, fork, note, payload, initialize, work, finish }
+  }
+  it('accepts successive one-shot workers and retains active identity until positive close', () => {
+    const h = harness(), first = h.call(); h.initialize(first); h.work(first)
+    first.emit('message', [0, { prerenderedRoutes: [] }]); first.send([2, false], () => {}); first.emit('exit', 0, null)
+    expect(h.guard.snapshot()).toMatchObject({ launched: 1, active: 1, failed: false })
+    first.emit('close', 0, null)
+    const second = h.call(); h.initialize(second); h.work(second); h.finish(second)
+    expect(h.guard.snapshot()).toMatchObject({ launched: 2, active: 0, failed: false })
+    expect(h.note).not.toHaveBeenCalled()
+  })
+  it('uses the actual installed jest-worker fork and IPC call shapes without any native child', async () => {
+    const h = harness(), module = { exports: {} as { Worker: new (file: string, options: unknown) => { loadStaticPaths(value: unknown): Promise<unknown>; end(): Promise<unknown> } } }
+    const nativeRequire = (id: string) => {
+      if (id === 'child_process') return { fork: h.guard }
+      if (id === staticPathsWorkerPath) return { loadStaticPaths: () => {} }
+      if (['os','path','stream','tty'].includes(id)) return require(id)
+      if (id === 'worker_threads') return { Worker: () => { throw Error('Worker threads forbidden') } }
+      throw new Error(`Unapproved CPU dependency: ${id}`)
+    }
+    vm.runInNewContext(readFileSync(jestFile, 'utf8'), { module, exports: module.exports, require: nativeRequire, __dirname: jestFile.slice(0, jestFile.lastIndexOf('/')),
+      process: { env: { ...parentEnv }, cwd: () => cwd, execArgv: [], argv: ['node'], platform: process.platform, stdout: { isTTY: false }, stderr: { isTTY: false } },
+      setTimeout, clearTimeout, Buffer, console }, { filename: jestFile, timeout: 1000 })
+    const worker = new module.exports.Worker(staticPathsWorkerPath, { numWorkers: 1, maxRetries: 1, enableWorkerThreads: false,
+      forkOptions: { env: { ...parentEnv } } })
+    const result = worker.loadStaticPaths(h.payload)
+    expect(h.fork).toHaveBeenCalledOnce(); expect(h.children[0].originalSend).toHaveBeenCalledTimes(2)
+    h.children[0].emit('message', [0, { prerenderedRoutes: [] }]); await result
+    const ended = worker.end(); h.children[0].emit('exit', 0, null); h.children[0].emit('close', 0, null); await ended
+    expect(h.guard.snapshot()).toMatchObject({ launched: 1, active: 0, failed: false })
+  })
+  it.each(['env','preload','execArgv','cwd','module','args'] as const)('rejects %s drift before child creation', kind => {
+    const h = harness()
+    const changes = kind === 'env' ? { env: { ...parentEnv, OPENAI_API_KEY: 'forbidden' } } : kind === 'preload' ? { env: { ...parentEnv, NODE_OPTIONS: '' } }
+      : kind === 'execArgv' ? { execArgv: ['--inspect'] } : kind === 'cwd' ? { cwd: '/foreign' } : {}
+    expect(() => h.call(changes, kind === 'module' ? staticPathsWorkerPath : processChildPath, kind === 'args' ? ['--other'] : [])).toThrow()
+    expect(h.fork).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+  })
+  it('rejects foreign work initialization and repeated work in the same child', () => {
+    const foreign = harness(), c = foreign.call()
+    expect(() => c.send([0, false, '/foreign/module.js', []])).toThrow()
+    const repeat = harness(), second = repeat.call(); repeat.initialize(second); repeat.work(second)
+    expect(() => repeat.work(second)).toThrow(); expect(repeat.note).toHaveBeenCalledWith('denied')
+  })
+  it('latches abnormal exit before jest can respawn and rejects extra workers', () => {
+    const h = harness(), c = h.call(); h.initialize(c); h.work(c)
+    const retry = vi.fn(() => expect(() => h.call()).toThrow())
+    c.on('exit', retry); c.emit('exit', 1, null)
+    expect(retry).toHaveBeenCalledOnce(); expect(h.fork).toHaveBeenCalledOnce()
+    expect(h.guard.snapshot()).toMatchObject({ launched: 1, active: 1, failed: true })
+  })
+  it('allows at most the existing 1000-request-derived one-shot worker ceiling', () => {
+    const h = harness()
+    for (let i = 0; i < 1000; i++) { const c = h.call(); h.initialize(c); h.work(c); h.finish(c) }
+    expect(h.guard.snapshot()).toMatchObject({ launched: 1000, active: 0, failed: false })
+    expect(() => h.call()).toThrow(); expect(h.fork).toHaveBeenCalledTimes(1000)
+  })
+  it.each(['pathname','dir','distDir','isAppPath','method'] as const)('rejects static work %s drift', field => {
+    const h = harness(), c = h.call(); h.initialize(c)
+    const work = { ...h.payload, [field]: field === 'isAppPath' ? false : '/foreign' }
+    expect(() => c.send([1, true, field === 'method' ? 'otherMethod' : 'loadStaticPaths', [work]])).toThrow()
+    expect(h.note).toHaveBeenCalledWith('denied')
+  })
+  it('closes worker admission at its original operation deadline', () => {
+    vi.useFakeTimers()
+    try {
+      const h = harness(), c = h.call(); h.initialize(c); h.work(c)
+      vi.advanceTimersByTime(30000)
+      expect(h.note).toHaveBeenCalledWith('uncertain'); expect(() => h.call()).toThrow()
+      expect(h.fork).toHaveBeenCalledOnce()
+    } finally { vi.useRealTimers() }
+  })
+  it('the actual preload installer forbids processChild from creating any descendant', () => {
+    const nativeFork = vi.fn(), note = vi.fn(), child = { fork: nativeFork }
+    const Socket = function () {}; Socket.prototype.connect = () => {}
+    const modules: Record<string, unknown> = {
+      'node:assert/strict': require('node:assert/strict'), 'node:fs': require('node:fs'), 'node:path': require('node:path'), 'node:crypto': require('node:crypto'),
+      'node:net': { Socket, _normalizeArgs: () => [] }, 'node:tls': {}, 'node:http': { request: () => { throw Error('No HTTP in CPU test') } }, 'node:https': {},
+      'node:child_process': child, 'node:http2': {}, 'node:worker_threads': {}, 'node:module': { syncBuiltinESMExports() {} },
+    }
+    const module = { exports: {} as { installContextualTestEgress(options: unknown): unknown } }
+    const sourceFile = require.resolve('../../scripts/contextual-test-rehearsal-egress.cjs')
+    vm.runInNewContext(readFileSync(sourceFile, 'utf8'), { module, exports: module.exports, require: (id: string) => {
+      if (!Object.hasOwn(modules, id)) throw Error('Unapproved CPU require'); return modules[id]
+    }, __filename: sourceFile, process: { env: { NEXT_PRIVATE_WORKER: '1' }, argv: ['node', processChildPath], execArgv: [], platform: process.platform },
+    setTimeout, clearTimeout, Buffer, console }, { filename: sourceFile, timeout: 1000 })
+    module.exports.installContextualTestEgress({ nextServerPath: realpathSync(require.resolve('next/dist/server/lib/start-server')),
+      processChildPath, staticPathsWorkerPath, appDir: cwd, deadline: Date.now() + 10000, ledger: { note } })
+    expect(() => (child as unknown as { fork(...args: unknown[]): unknown }).fork(processChildPath, [], {})).toThrow()
+    expect(nativeFork).not.toHaveBeenCalled()
+  })
+})
 
 describe('bounded original server transports (no network dispatch)', () => {
   it('enforces an absolute HTTP body deadline even with regular data', () => {

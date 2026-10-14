@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Remaining classroom-access orchestration
-
-Owner requested parallel remaining-work orchestration and waived routine approval,
-workflow-review-budget and low-usage stops; serious/live holds and correctness
-gates remain. Startup/environment passed on main22efa4826 in a dedicated plan
-worktree; existing frozen offline dependencies only. Coordinated distinct source
-writers for coherent Survey owner/member routes and independent archive recovery
-reads/hot recovery-copy export, with shared types/schema/check plumbing retained
-by root. Sol/high chosen for tenant/lifecycle boundaries; effective configuration,
-attributable active time and tokens unknown. Account-wide weekly66% remaining and
-fresh322GB free observed; paused DeepSeek pilot honored. Test runner discriminator
-is source-only, CPU bridge/privacy PASS, native cause unknown. Prior c7 app attempt
-remains FAIL; exact synthetic resource recovery PASS with evidence retained.
-No shared-local/prod migration, account/provider/billing change, activation or
-phase exit. Updated existing classroom-access roadmap, not a parallel goal/task.
-
 ## 2026-10-12 — Dormant existing Tests screen adopter
 
 - Extended server-derived strict admission mode through the actual classroom consumer; shared publish uses its dedicated original-version POST, complete shared reorder uses atomic transport, and standalone preview proves the current owner and requested parent. Existing transport is retained; no rollout/schema/provider/account changes.
@@ -781,3 +765,27 @@ nonexistent fresh path; it failed before any start/write and dispatch is now
 mocked in CPU tests. No production/shared-local migration, provider/Survey probe,
 account/billing or rollout change; all serious holds and historical failures stay.
 Original Protocol clock/review54/fix38 and app/Survey counters are not reset.
+
+## 2026-10-14 Playwright carrier first review remediation
+
+Independent fixed-head reviews55 (Astra/high security) and56 (Sol/high
+compatibility) completed at ef0df, with eight unique accepted blockers. Batched
+corrections bind immutable admission data structurally, track every fixture SQL
+child and durable uncertainty before disposal, pin Next commit metadata and its
+actual static-path worker protocol, bound original response/PDF reads, validate
+real managed-PDF identities without requiring a nonexistent database digest, and
+share one cleanup deadline capped at six minutes from cleanup start.
+
+Root inspected the delivered SQL/controller integration regression: an unclosed
+bootstrap child prevents app launch, exact disposal and workdir removal, keeps a
+0600 uncertainty marker and never receives unverified raw signals. Full repository
+TypeScript and affected checks passed; final combined checks and independent delta
+review remain required. Initial exact-head serial focused gate passed3052/8skip;
+its previous parallel offline-fixture timeout remains recorded, not erased.
+
+Only read-only machine availability checks: healthy storage ~310GB, memory and
+existing canonical Supabase containers; no replacement app/browser/disposable DB
+attempt admitted or started. Frozen app21e755d/001–262, all production/shared-local,
+Survey/provider, account/billing and rollout holds remain. Original Protocol clock,
+review55/56 and prior fix38 history carry; this is replacement remediation batch1,
+not a reset of historical review or runtime attempts.

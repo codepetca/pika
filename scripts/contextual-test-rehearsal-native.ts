@@ -8,7 +8,7 @@ import { readFileSync, realpathSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
 import { captureContextualTestDependencies, captureContextualTestSource, contextualTestReadOnlyDependencyProfile, createContextualTestOwnedFamily,
-  createContextualTestPinnedCommand, verifyContextualTestTransportPins, verifyContextualTestBinary, type ContextualTestBinaryPin } from './contextual-test-rehearsal-launch'
+  createContextualTestPinnedCommand, immutableContextualTestData, verifyContextualTestTransportPins, verifyContextualTestBinary, type ContextualTestBinaryPin } from './contextual-test-rehearsal-launch'
 import { parseKernelProcessRows, type OwnedProcessRow } from './contextual-test-process-ownership'
 import type { ContextualTestControllerAdmission, ContextualTestControllerControls } from './contextual-test-rehearsal-controller'
 
@@ -39,11 +39,12 @@ const fixedError = () => new Error('Private contextual Test native control faile
 export function createContextualTestNativeControls(pins: ContextualTestNativePins, cleanupDeadline: number) {
   assert.equal(process.platform, 'darwin')
   const env: NodeJS.ProcessEnv = { PATH: '/usr/bin:/bin', HOME: pins.outputDir, LANG: 'C', LC_ALL: 'C', NODE_ENV: 'development' }
-  let poisoned = false, activeProbes = 0
+  let poisoned = false, activeProbes = 0, controllerEnd = cleanupDeadline
   const children = new Set<ContextualTestOwnedChild>()
-  const check = () => assert(!poisoned && Date.now() < cleanupDeadline, 'Private native controller closed')
+  const check = () => assert(!poisoned && Date.now() < controllerEnd, 'Private native controller closed')
   const probe = async (pin: ContextualTestBinaryPin, args: readonly string[], end: number, input?: string): Promise<string> => {
     check(); verifyContextualTestBinary(pin)
+    end = Math.min(end, controllerEnd)
     assert(end > Date.now() && end <= cleanupDeadline && args.every(v => !v.includes('\0')))
     return new Promise((resolve, reject) => {
       const child = spawn(pin.path, [...args], { shell: false, env, cwd: pins.outputDir, stdio: ['pipe','pipe','pipe'] })
@@ -63,7 +64,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     })
   }
   const rows = async (): Promise<OwnedProcessRow[]> => {
-    check(); const end = Math.min(cleanupDeadline, Date.now() + 30000)
+    check(); const end = Math.min(controllerEnd, Date.now() + 30000)
     verifyContextualTestBinary(pins.helper)
     assert.equal(pins.helper.sha256, '476c8c4696b8252debabb3ff7c5249deea10349cc91526ebc6eca924ef47f807')
     const text = await probe(pins.ps, ['-axo','pid=,ppid=,pgid='], end)
@@ -104,7 +105,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     assert(input.deadline > Date.now() && input.deadline <= cleanupDeadline)
     assert(realpathSync(input.cwd) === input.cwd && input.profile.startsWith('(version 1)'))
     const child = spawn(pins.sandbox.path, ['-p', input.profile, pins.node.path, ...input.args], {
-      cwd: input.cwd, env: { ...input.env }, detached: true, shell: false, stdio: ['ignore','pipe','pipe'],
+      cwd: input.cwd, env: { ...input.env, NODE_ENV: 'development' }, detached: true, shell: false, stdio: ['ignore','pipe','pipe'],
     })
     let closed = false, code: number | null = null, uncertain = false, count = 0, readyText = ''
     let announceReady!: () => void
@@ -169,7 +170,11 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     children.add(result); return result
   }
   return Object.freeze({ probe, rows, spawnOwned,
-    async settleAll(end: number) { for (const child of [...children].reverse()) await child.settle(end); assert(!poisoned && children.size === 0 && activeProbes === 0) },
+    async settleAll(end: number) {
+      assert(end <= cleanupDeadline && end <= Date.now() + 360000); controllerEnd = Math.min(controllerEnd, end)
+      for (const child of [...children].reverse()) await child.settle(controllerEnd)
+      assert(!poisoned && children.size === 0 && activeProbes === 0)
+    },
     async settleCommand(child: ChildProcess, end: number) {
       check(); assert(child.pid && child.spawnfile)
       let closed = false
@@ -242,21 +247,22 @@ export function contextualTestExecutionDigest(admission: ContextualTestControlle
  * independent source review; call the controller once with a fresh sealed plan. */
 export function createContextualTestExecutionControls(admission: ContextualTestControllerAdmission,
   pins: ContextualTestNativePins, seal: ContextualTestExecutionSeal): ContextualTestControllerControls {
+  admission = immutableContextualTestData(admission); pins = immutableContextualTestData(pins); seal = immutableContextualTestData(seal)
   const native = createContextualTestNativeControls(pins, admission.cleanupDeadline)
   const command = createContextualTestPinnedCommand(admission.transportPins, admission, { settle: native.settleCommand })
-  let admitted = false
+  let admitted = false, executionEnd = admission.cleanupDeadline
   const unchanged = async () => {
     verifyContextualTestTransportPins(admission.transportPins)
     for (const pin of Object.values(pins).filter((value): value is ContextualTestBinaryPin => typeof value === 'object')) verifyContextualTestBinary(pin)
     for (const source of [admission.frozen, admission.runner]) {
-      const actual = await captureContextualTestSource(source.repository, source.head, source.tree, command.run, admission.cleanupDeadline)
+      const actual = await captureContextualTestSource(source.repository, source.head, source.tree, command.run, executionEnd)
       assert.deepEqual(actual, source)
     }
-    assert.equal(captureContextualTestDependencies(admission.dependencies.root, admission.cleanupDeadline).sha256, admission.dependencies.sha256)
+    assert.equal(captureContextualTestDependencies(admission.dependencies.root, executionEnd).sha256, admission.dependencies.sha256)
   }
-  return Object.freeze({ now: Date.now, command,
+  return Object.freeze({ now: Date.now, command, sqlControl: Object.freeze({ nativePins: pins, transportPins: admission.transportPins }),
     async assertReady(value) {
-      assert(!admitted && value === admission)
+      assert(!admitted); assert.deepEqual(value, admission)
       assert.equal(contextualTestExecutionDigest(admission, pins, seal), seal.manifestSha256)
       assert.equal(admission.review.manifestSha256, seal.manifestSha256)
       assert.deepEqual(pins.docker, admission.transportPins.docker); assert.equal(pins.dockerHost, admission.transportPins.dockerHost)
@@ -282,6 +288,9 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
       const child = await native.spawnOwned({ args: input.args, cwd: input.cwd, env: input.env, role: 'browser', profile: input.dependencySandboxProfile, deadline: admission.deadline })
       return { async wait() { await child.wait(); const state = child.state(); return { closed: state.closed, code: state.code, signal: null } } }
     },
-    async settleAll(end) { await native.settleAll(end); await command.joinSettlements(); command.assertClosed(); native.assertClosed() },
+    async settleAll(end) {
+      executionEnd = Math.min(executionEnd, end); command.beginCleanup(executionEnd)
+      await native.settleAll(executionEnd); await command.joinSettlements(); command.assertClosed(); native.assertClosed()
+    },
   })
 }
