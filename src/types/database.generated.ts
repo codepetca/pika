@@ -13656,6 +13656,18 @@ export type Database = {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      start_test_ai_grading_run_atomic: {
+        Args: {
+          p_grade_scope: string
+          p_model: string
+          p_prompt_guideline_override?: string
+          p_requested_student_ids: string[]
+          p_selection_hash: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       start_test_attempt_revision_atomic: {
         Args: { p_student_id: string; p_test_id: string }
         Returns: Json

@@ -25,22 +25,22 @@ const targetFor = (manifest: ReturnType<typeof plan>, phase: 'contracts'|'concur
 })
 
 describe('closed learner native profile source', () => {
-  it('accepts exact projection258 and full262 profiles with unchanged predecessor seals', () => {
+  it('accepts exact projection258 and full264 profiles with unchanged predecessor seals', () => {
     const projection = testLearnerNativePlan(original, observed, 'b'.repeat(40), projectionOffline.repository)
     expect(projection.migrations).toHaveLength(258)
     expect(projection.migrations[257]).toEqual({ name: '258_student_test_session_status_projection.sql',
       sha256: '7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f' })
     const current = testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())
-    expect(current.migrations).toHaveLength(263)
+    expect(current.migrations).toHaveLength(264)
     expect(current.migrations[257]).toEqual(projection.migrations[257])
     expect(current.migrations[258]).toEqual({ name: '259_contextual_test_owner_grading.sql',
       sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540' })
   })
-  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future263', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes',
+  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future265', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes',
     'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes'] as const)('refuses altered full source profile %s', defect => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
     const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-    if (defect === 'future263') migrations.push({ name: '263_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future265') migrations.push({ name: '265_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
     if (defect === 'missing258') migrations.splice(257, 1)
     if (defect === 'replaced258') migrations[257] = { ...migrations[258], name: '258_student_test_session_status_projection.sql' }
     for (const [number, index] of [[258, 257], [259, 258], [260, 259], [261, 260], [262, 261]] as const) {
@@ -148,5 +148,35 @@ describe('closed learner native profile source', () => {
     await expect(factory.probeLearnerCancellation(callback)).rejects.toThrow();expect(callback).not.toHaveBeenCalled()
     await expect(factory.probeLearnerPrivilegeDrift(callback)).rejects.toThrow();expect(callback).not.toHaveBeenCalled()
     await expect(factory.run()).rejects.toThrow()
+  })
+})
+
+describe('complete reviewed264 source profile (offline)', () => {
+  it.each([263, 264])('accepts exact complete source profile %i', count => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try { expect(() => testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())).not.toThrow() } finally { loader.mockRestore() }
+  })
+  it.each([263, 264].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))('rejects altered migration $number: $defect', ({ number, defect }) => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const tail = migrations[number - 1]
+    if (defect === 'name') tail.name = `${number}_unknown.sql`
+    if (defect === 'digest') tail.sha256 = 'f'.repeat(64)
+    if (defect === 'bytes' || defect === 'self-hashed-bytes') tail.sql += '\n'
+    if (defect === 'self-hashed-bytes') tail.sha256 = createHash('sha256').update(tail.sql).digest('hex')
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try {
+      expect(() => testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())).toThrow()
+      expect(() => createOfflineTestLearnerRepository(process.cwd())).toThrow()
+    } finally { loader.mockRestore() }
+  })
+  it('rejects a contiguous unknown265 source tail', () => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    migrations.push({ name: '265_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') })
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try {
+      expect(() => testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())).toThrow()
+      expect(() => createOfflineTestLearnerRepository(process.cwd())).toThrow()
+    } finally { loader.mockRestore() }
   })
 })

@@ -99,7 +99,7 @@ describe('inert unpublication source proof', () => {
     const name = TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql = readFileSync(`supabase/migrations/${name}`, 'utf8')
     expect(() => validateTestOwnerUnpublicationReviewedMigration({ name, sql, sha256: createHash('sha256').update(sql).digest('hex') })).not.toThrow()
     const m = testOwnerUnpublicationNativePlan(original, 'b'.repeat(40), process.cwd())
-    expect(m.migrations).toHaveLength(263)
+    expect(m.migrations).toHaveLength(264)
     expect(m.nativeVerified).toBe(false)
     for (const sql of [m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {
       expect(validateTestOwnerUnpublicationNativePlanSql(m,sql)).toBe(true)
@@ -272,10 +272,10 @@ describe('inert unpublication source proof', () => {
     const restore=plan().contracts.frames.find(frame=>frame.label==='limits-count-restore')!
     expect(restore.sql).toContain('do $count_limit261$');expect(restore.sql).toContain('do $count_restored261$');expect(restore.sql).toContain('do $limits_fences261$')
   })
-  it.each(['gap','unknown263',...[253,254,255,256,257,258,259,260,261,262].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
+  it.each(['gap','unknown265',...[253,254,255,256,257,258,259,260,261,262].flatMap(n=>[`name${n}`,`digest${n}`,`bytes${n}`,`selfhash${n}`])])('rejects altered complete actual source %s',defect=>{
     const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m}))
     if(defect==='gap') inventory.splice(100,1)
-    if(defect==='unknown263') inventory.push({name:'263_unknown.sql',sql:'select 1;',sha256:digest('select 1;')})
+    if(defect==='unknown265') inventory.push({name:'265_unknown.sql',sql:'select 1;',sha256:digest('select 1;')})
     for(const n of [253,254,255,256,257,258,259,260,261,262]){
       if(defect===`name${n}`) inventory[n-1].name=`${n}_unknown.sql`
       if(defect===`digest${n}`) inventory[n-1].sha256='f'.repeat(64)
@@ -322,7 +322,7 @@ describe('inert unpublication source proof', () => {
     const grading=definitions('public','create_test_ai_grading_run_atomic').at(-1)!
     const parent=definitions('public','lock_test_parent_for_child_mutation').at(-1)!
     const lifecycle=definitions('private','lock_test_lifecycle').at(-1)!
-    expect(access.name).toBe('248_test_conflict_http_status.sql');expect(grading.name).toBe('094_atomic_test_grading_contracts.sql')
+    expect(access.name).toBe('248_test_conflict_http_status.sql');expect(grading.name).toBe('264_test_ai_grading_saved_work.sql')
     expect(parent.name).toBe('220_allow_started_test_mc_choice_text.sql');expect(lifecycle.name).toBe('244_test_attempt_revision_and_return_guards.sql')
     const body=(sql:string,name:string)=>sql.split(`function ${name}(`)[1].split('\n$$;')[0]
     const accessBody=body(access.sql,'public.update_test_student_access_atomic'),aiBody=body(grading.sql,'public.create_test_ai_grading_run_atomic')
@@ -343,8 +343,11 @@ describe('inert unpublication source proof', () => {
     expect(aiBody.indexOf('perform pg_advisory_xact_lock')).toBeLessThan(aiBody.indexOf('into v_current_eligible_student_ids'))
     expect(aiBody).toContain('classroom.teacher_id = p_teacher_id');expect(aiBody).toContain('classroom.archived_at is null')
     expect(aiBody).toContain("raise exception 'Student is not enrolled in this classroom'")
-    expect(aiBody).toContain('and attempt.is_submitted = true;')
-    expect(aiBody).toContain('v_current_eligible_student_ids is distinct from v_eligible_student_ids')
+    expect(aiBody).toContain('filter (where attempt.is_submitted = true)')
+    expect(aiBody).toContain('into v_current_eligible_student_ids, v_current_submitted_student_ids')
+    expect(aiBody).toContain('v_current_eligible_student_ids is not distinct from v_eligible_student_ids')
+    expect(aiBody).toContain('v_current_submitted_student_ids is not distinct from v_eligible_student_ids')
+    expect(aiBody).toContain('and (attempt.is_submitted = true or attempt.closed_for_grading_at is not null);')
     expect(aiBody).toContain("if v_item_count = 0 then\n    return jsonb_build_object('outcome', 'noop', 'run_id', null);\n  end if;")
     expect(aiBody.indexOf("'outcome', 'noop'")).toBeLessThan(aiBody.indexOf('insert into public.test_ai_grading_runs'))
     expect(m.concurrency.schedules.map(s=>s.label)).toEqual(['settings','test-advisory','classroom-operation','membership-operation','owner-parent-archive',
@@ -447,5 +450,29 @@ describe('inert unpublication source proof', () => {
     expect(close).toHaveBeenCalledTimes(2*m.concurrency.schedules.length)
     d.openSession=vi.fn(async name=>({name,rollbackAndClose:close,execute:async()=>[{result:{held:false}}]}))
     await expect(runTestOwnerUnpublicationNativeRaces(m,t,d)).rejects.toThrow();expect(close).toHaveBeenCalledTimes(2*m.concurrency.schedules.length+2)
+  })
+})
+
+describe('complete reviewed264 source profile (offline)', () => {
+  it.each([263, 264])('accepts exact complete source profile %i', count => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try { expect(() => plan()).not.toThrow() } finally { loader.mockRestore() }
+  })
+  it.each([263, 264].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))('rejects altered migration $number: $defect', ({ number, defect }) => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const tail = migrations[number - 1]
+    if (defect === 'name') tail.name = `${number}_unknown.sql`
+    if (defect === 'digest') tail.sha256 = 'f'.repeat(64)
+    if (defect === 'bytes' || defect === 'self-hashed-bytes') tail.sql += '\n'
+    if (defect === 'self-hashed-bytes') tail.sha256 = createHash('sha256').update(tail.sql).digest('hex')
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
+  })
+  it('rejects a contiguous unknown265 source tail', () => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    migrations.push({ name: '265_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') })
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
   })
 })

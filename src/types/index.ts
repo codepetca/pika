@@ -548,6 +548,8 @@ export interface TestAiGradingRunSummary {
   queued_response_count: number
   processed_count: number
   completed_count: number
+  completed_student_count?: number
+  skipped_student_count?: number
   skipped_unanswered_count: number
   skipped_already_graded_count: number
   failed_count: number

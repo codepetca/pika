@@ -230,6 +230,21 @@ microbatches, leases, retry backoff, and at most three attempts. Manual AI
 suggestion routes use the same preparation and profile contracts without taking
 ownership of the durable bulk-run lifecycle.
 
+Bulk Test AI grading starts through `start_test_ai_grading_run_atomic` from
+migration 264. In one lifecycle-locked transaction it closes selected existing
+unfinished attempts, materializes their saved answers, and creates the grading
+run. Teacher closure preserves `is_submitted = false`; both student-submitted
+and teacher-closed work are eligible. Students who never started are skipped.
+Blank answers receive zero without a provider call, and existing grades follow
+the requested `ungraded` or `all` scope. Active-run resume/conflict checks precede
+closure, and failed admission rolls closure back. Deploy the migration before
+the matching application; a missing start RPC fails closed.
+
+Run progress counts question answers. Completion reports completed answers and
+distinct students with at least one completed answer, separately from unanswered,
+already-graded, failed-answer, and skipped-student counts. These student counts
+are derived from persisted run items rather than the selected roster size.
+
 Test marking requests stay at DeepSeek's high reasoning tier on every provider
 attempt. The first background attempt grades up to four responses together; if
 that batch fails, the affected responses retry individually at high reasoning.
