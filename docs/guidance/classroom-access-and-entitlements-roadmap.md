@@ -460,6 +460,30 @@ are in [contextual Survey guidance](contextual-surveys.md#native-component-verif
 Neither receipt closes batch 2 or authorizes production/shared migration or
 activation. Routine source fixes and targeted review continue under the waiver.
 
+Oct14 superseding browser checkpoint: one newly reviewed isolated diagnostic
+passed three HTTP requests, original body validation before host navigation and
+owned cleanup. None of its metadata fields failed; the unrecorded historical
+field remains unknown and all six historical failures remain unchanged. This is
+browser-protocol evidence, not real Pika authentication or Tests acceptance.
+
+Real-app resumption analysis confirms the surviving driver already begins its
+original response-body read immediately. Closing an actor context before its
+tracked body tasks settle is a concrete lifecycle seam to test, not a proven
+login cause or an accepted fix. The final private controller, browser flow and
+reviewed binding were not recovered after restart. Earlier complete controller/
+adapter copies, the finite plan and a hash-matching historical fixture are now
+preserved as private static evidence; they cannot substitute for the final
+reviewed carrier. No real-app target or native/DB operation was admitted.
+
+Recommended owner decision: stop open-ended historical reconstruction and put
+the finite rehearsal into the existing version-controlled Playwright lifecycle
+tests and disposable-platform helpers. This is a proposed carrier replacement,
+not an approved new framework, changed acceptance criterion or rollout release.
+Preserve the frozen application, real login/cookies, owner/member and denial
+matrix, request/byte/time limits, provider exclusion, exact resource ownership
+and verified teardown. Source, review and readiness must precede a fresh run;
+shared-local, production, provider/Survey, account/billing and cutover holds stay.
+
 | Ready lane | Ownership and deliverable | Integration gate |
 | --- | --- | --- |
 | Tests critical path | Coordinator/private runner author: bounded privacy-safe original-request/body lifecycle diagnosis, then a justified repair or separately authorized fresh proof; preserve real auth, byte/JSON checks and request caps | Existing-screen owner/member lifecycle must pass; a diagnostic source test or login HTTP 200 is not sufficient |

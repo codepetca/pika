@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Implement selected Week lesson agenda
-
-Owner chose concept A for teacher/student Week, preserving Month/Term. Worktree `vertical-week-prototypes/pika`, branch `codex/calendar-week-agenda`, based on main `872d195825e4053e18ba8ca49a42613b1f106e22`. Shared LessonCalendar now renders seven agenda days; LessonDayCell extends full lesson reading, explicit teacher Edit/Add, Today/no-class labels and independent event buttons. Existing visibility, date grouping, autosave queue, rich links and actual Markdown sidebar remain owned by the existing controllers. Week controls stick below the app header. No API, database, dependencies or auth changes. Scoped brief: `docs/guidance/ui/changes/calendar-week-agenda.md`.
-
-Orchestrate: native GPT-6.1-sol medium regression worker owned only two component tests, delivered 37/37 passing in 3.04s after initial red (12 new failures, 25 existing passes); one clarification of non-class weekday editability, no integration conflict. Coordinator accepted after inspecting diffs and running affected checks; account weekly remaining 98% at start, worker token/time telemetry beyond reported test times unknown, coordination messages about one minute estimated. DeepSeek paused and honored.
-
-Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-class/weekend events, editor, day dialog, existing Month/Term. Intercepted real ClassroomPageClient fixture APIs; no hosted writes. Screenshots under selected prototype artifact `vertical-week/output/playwright/implemented-*`. Caught and fixed mobile sticky-header overlap; editor autofocus remains shared caret-at-end. Checklist keyboard/state semantics covered, no manual follow-up. Component/owner/Pattern Lab regressions, type/lint, architecture, UI/design policies and precommit audit verified. Final focused checks and draft-first independent fixed-SHA review follow; exact reviewed SHA/verdict lives in PR and lifecycle log. No merge or production promotion authorized in this task.
-
 ## 2026-10-11 — Bound Week agenda desktop width
 
 Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
@@ -737,3 +729,32 @@ change. Preserve candidate/result immutable; no further metadata run authorized.
 Recommend carrying this successful protocol proof into remaining bounded app/
 Survey work, respecting its existing holds, rather than another metadata retry.
 Original clock/review52/fix38/waiver carry; factual receipt review53 next.
+
+## 2026-10-14 Real-app rehearsal resumption and bounded source recovery
+
+Owner Go authorized real-runner comparison, a justified small correction/review
+and a fresh disposable app run conditional on readiness. Frozen app21e755d3/tree
+b59213ae clean; owning plan worktreea600727af clean at start/envPASS. Cached
+319.888GB free and79% weekly remaining healthy/account-wide. Orchestrate retained
+Sol/high for two bounded read-only assignments: resumption map (~7m44s reported)
+and controller/adapter source-recovery feasibility (elapsed/effective model/tokens
+unknown). Root read/hash-verified map6704d307 and independently confirmed driver
+126f2596 starts original body reads immediately; actor context closes before final
+task join, but that is not a demonstrated login cause or justified patch yet.
+
+Static same-chat recovery preserved the finite plan2f8ab393 and historical fixture
+3947eb6e (matches original manifest), plus earlier controllercddf6309 and adapter
+dea5560b as non-executable text, all0600 in durable private historical-app-a55f.
+Selectors/limitations are recorded in RECOVERY.md; no stored command/SQL/module
+executed. Earlier controller/adapter hashes differ from the later reviewed
+manifest; final e761 controller/flow/binding and actual seed remain unproved.
+Partial flow outputs were not stitched over an unknown gap. Final-source search
+ended bounded, not an assertion that no copy can exist elsewhere.
+
+No app source fix, new native attempt/target, DB/Docker operation, migration,
+production/provider/account/rollout change or phase exit. Source38 synthetic
+success and six historical failures remain immutable. Proposed owner decision:
+replace the lost private carrier using existing version-controlled Playwright
+lifecycle/disposable helpers, preserving the frozen app, complete finite matrix,
+isolation/cleanup/caps and all serious holds; not yet approved or executed.
+Protocol original clock/review53/fix38 and app/Survey ledgers carry without reset.
