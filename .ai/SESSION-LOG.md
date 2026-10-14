@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Learner current-main UI synchronization
-
-External main6695630 (#1567 Material chooser/SplitButton dismissal) advanced while
-corrected CI38100575333 ran: eight completed jobs passed, light browser remained.
-Strict latest-main rule/history conflict requires synchronization; PR returned
-draft and remaining run canceled, not a new product failure. Rebased12commits in
-the owning clean worktree, resolved only archive markers while retaining both
-histories, then normal trim. All45 nonhistory feature blobs and8 incoming blobs
-match their intended versions; both history multisets missing0/loss0. No migration
-collision/rename: full001–257 manifest,257/regression, genuinecc966 types and all
-nine disabled private source hashes unchanged. Existing41 unrelated stashes
-untouched. Proportional exact-head base/UI/history interaction review must judge
-reuse of prior actual whole native/type coverage; no new rehearsal or native
-permission inferred. Focused and targeted marker/startup checks, draft publication,
-independent review then one final-head ready CI/PR Gate remain. Original clock/
-waiver/counters15turn12target9priorbatch1initial1final and all sharedlocal249+/
-prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.
-
 ## 2026-10-11 — Assignment chooser current-main synchronization
 
 PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.
@@ -764,3 +746,9 @@ Teacher Announcement More/new/draft/posted choosers reuse shared semantic-fast o
 Extended only the actual wizard step focus owner: Blueprint source now focuses its visible native selector, with an open guard and focus restoration for parent reopen. Preserved name/Calendar behavior, title/date drafts, existing reopen selection reset policy, import/generation/idempotency logic and shared controls. Preimplementation reuse brief: `docs/guidance/ui/create-classroom-step-focus-consistency.md`.
 
 Validation: wizard30, TypeScript/audit PASS; eight teacher viewport/theme/motion contexts plus two separate current references PASS,42PNG/10videos,25source/52mediahashes;64syntheticGET and zero mutation/unknown/error/overflow. Four goldens unchanged PASS. External receipts retain one prebrowser harness-resolution failure and a corrected new unit-test assumption. Student n/a: local teacher-only adopter/shared unchanged. Independent review, stableSHA CI/PR Gate and main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
+
+## 2026-10-14 — Announcement Schedule focus consistency
+
+Extended Announcement-only committed picker focus ownership via optional shared date-input ref. Entry focuses Date; Cancel/Done/Escape return to a surviving initiator/action, outside pointer/Tab destinations persist, and hidden/read-only/class/editor/unmount retirement blocks stale callbacks while retaining drafts and request ownership. Shared Assignment defaults remain unchanged. Brief: `docs/guidance/ui/announcement-schedule-focus-consistency.md`.
+
+Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. Native accepted eight teacher/four student/two actual Assignment/two reference contexts across unchanged-source scoped runs: 38bindings,164PNG/16videos,180mediahashes;194syntheticGET/four intercepted studentautoacks, zero teacherwrite/unknown/error/overflow. Browser-chrome Tab regression fixed; three new tests verify actual outside-focus retirement. Failed/partial native attempts, four diagnosed harness repairs and worker model-capacity failure retained externally; coordinator completed acceptance. Independent review/final stableSHA CI/PR Gate and authorized main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.

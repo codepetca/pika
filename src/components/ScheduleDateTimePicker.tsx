@@ -1,11 +1,12 @@
 'use client'
 
-import { useId } from 'react'
+import { useId, type Ref } from 'react'
 import { Calendar } from 'lucide-react'
 import { Button } from '@/ui'
 
 interface ScheduleDateTimePickerProps {
   date: string
+  dateInputRef?: Ref<HTMLInputElement>
   time: string
   minDate?: string
   isFutureValid: boolean
@@ -29,6 +30,7 @@ interface ScheduleDateTimePickerProps {
 
 export function ScheduleDateTimePicker({
   date,
+  dateInputRef,
   time,
   minDate,
   isFutureValid,
@@ -77,6 +79,7 @@ export function ScheduleDateTimePicker({
         <div>
           <label htmlFor={dateInputId} className="block text-xs text-text-muted mb-1">{dateLabel}</label>
           <input
+            ref={dateInputRef}
             id={dateInputId}
             type="date"
             value={date}
