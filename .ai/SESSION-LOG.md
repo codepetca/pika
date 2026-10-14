@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
-
-Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
-all10 incoming nonhistory paths byte-for-byte; owner product/SQL/generated types
-unchanged. One append-only journal conflict kept both sides; complete dated
-body/multiplicity deficits zero for pre-rebase02d1d2a10 and incomingbb778e389.
-No stash created or consumed; existing stashes retained. Full current-base
-focused1954/112 plus architecture/UI/design/TypeScript/lint PASS at40152a3c1;
-three private revision-source changes and all seven private types/mock suites
-remain PASS. Earlier docs-only739/56 PASS. No UI implementation or native query.
-One independent targeted Sol/high review covers last-reviewedcebc→final candidate,
-three private diffs, Start→observed manifest and unchanged incoming material UI.
-Cumulative counters original02:58:39/8completedturn2261s/targeted5/final1/fix6
-retained under waiver; native acceptance/readyCI/merge still blocked. PR1569 stays
-draft; shared-local/prod/provider/account/activation/toolgoalPAUSED holds remain.
-
 ## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
 
 Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
@@ -655,3 +639,7 @@ Focused2224tests/103files plus architecture/UI/design/TypeScript/lint PASS on un
 PR1593 rebased on main8bf0d98e3 calendar-only update; retained distinct archive markers/body and trimmed merged46entries to40. Own product/SQL bytes unchanged; final focused2226/staticPASS. Initial independent GPT6.1-sol/high security review clean, compatibility accepted twoP2: older loaded result clients crash on nested-null score fields, and current265 owner-grading harness cannot execute historical259–264profiles. Batch1 public incomplete summary becomes whole null (old view safely omits), new UI derives Pending from current question scores; complete numeric/zero unchanged. Bothendpoint/oldrenderer regression coverage added. Nativeownergradingcurrentplan now requires exact265 before readingharness, while historicalsource seals remain independently validated and mutation refusals retained;63targetedPASS. SQL265/guards unchanged, so DBreceipts remain valid. Twentyvisualstates repeatedwithwhole-null API fixtures; reused owners/layout.
 
 Review ledger2turns/1batch; initialreviewclock18:33UTC retained, max7turns/4batches/60min. Targeted61testsPASS; finalfocused/static and cumulative targeted review precede ready-for-CI. Weekly68% remaining atreviewphase, provider/effective/token telemetry unknown; no production migration/deployment/sharedschema operation.
+
+## 2026-10-14 — Ungraded Return CI diagnostics
+
+Reviewed eaddf337b CI38617795078 failed first draft-GET after-fixture forced receipt; normal installed-SDK/SQL/concurrency and cleanup passed. Draft restored before correction. Source-only bounded diagnosis found no evidence of a265 interaction; deleted private log prevented actual failure classification. Add bounded16384-byte forced-receipt diagnostic checker before unchanged strict shell gates, publishing only validated finite setup/transport/native fields on mismatch. No raw child logs, exceptions, paths, identities or keys emitted. Preserve exit1/exact2lines/bothmarkers, forced modes, private0600capture and deletion. Targeted238tests/node syntax/lint/auditPASS; full focused check and independent delta review precede retry. Product/SQL/UI bytes unchanged, existing database/visual receipts reused. Review budget starts18:33UTC;3reviewturns/1batch before this second correction; weekly66%remaining, storagehealthy. No production/shareddatabase authority expanded.
