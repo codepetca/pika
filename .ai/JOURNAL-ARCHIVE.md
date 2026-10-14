@@ -47171,3 +47171,20 @@ check only14 missing genuine263 RPC metadata diagnostics. Targeted review remain
 required. No PR, migration, shared/prod/provider/activation action. Timing-matched
 three-request browser diagnostic also reproduced original-body resource loss on
 navigation with full positive cleanup; historical app causation remains unknown.
+
+<!-- pika-session-log-archive-batch:46a85f58a0b06741e969d87c5630a588e1aa23e9c1761a607bc6432cbb270f94 -->
+## 2026-10-12 Survey active-session poison correction
+
+Targeted review5 resolved inventory/generator fixes but found a cached active-SQL
+session cleanup rejection that could mask known unjoined poison. Three actual
+phase regressions reproduced ordinary errors before correction. Session cached
+cleanup and exposed phase catches now reassert sticky engine poison, preserving
+positive local closure without claiming a different control child closed. Setup,
+run, SDK and the actual race-wrapper finally are covered, including outer poison
+and no ordinary stop/removal. Root98 affected checks PASS; prior189 engine/legacy
+checks PASS; lint/diff/audit and expanded strict14known RPC metadata-only errors.
+Test rework: restored the temporary race mock between cases and bounded microtask
+settlement before the held-child assertion. No native/metadata acceptance, PR,
+shared/prod migration or live change. One targeted delta review follows; clocks
+and routine waiver retained. Browser commit-gate proposal is source-only pending
+review and its separately bounded diagnostic.

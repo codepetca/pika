@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 Survey active-session poison correction
-
-Targeted review5 resolved inventory/generator fixes but found a cached active-SQL
-session cleanup rejection that could mask known unjoined poison. Three actual
-phase regressions reproduced ordinary errors before correction. Session cached
-cleanup and exposed phase catches now reassert sticky engine poison, preserving
-positive local closure without claiming a different control child closed. Setup,
-run, SDK and the actual race-wrapper finally are covered, including outer poison
-and no ordinary stop/removal. Root98 affected checks PASS; prior189 engine/legacy
-checks PASS; lint/diff/audit and expanded strict14known RPC metadata-only errors.
-Test rework: restored the temporary race mock between cases and bounded microtask
-settlement before the held-child assertion. No native/metadata acceptance, PR,
-shared/prod migration or live change. One targeted delta review follows; clocks
-and routine waiver retained. Browser commit-gate proposal is source-only pending
-review and its separately bounded diagnostic.
-
 ## 2026-10-13 Survey positively closed startup diagnostics
 
 The first admitted disposable Survey attempt failed at startup and was fully
@@ -789,3 +773,27 @@ ordering is a source-contract assertion; filesystem/global-setup behavior is
 executed with CPU fixtures, not native proof. Full focused gate and targeted
 independent review next. New private token will be distinct; no admission/project
 clock allocated yet. All five prior attempts remain failed and permanently spent.
+
+## 2026-10-14 Admission split reviewed; fresh attempt reached body but cleanup unverified
+
+Runtime25fd84bea passes3190focused/8skip and all policies/TSC/lint. Review69
+complete/clean, earlier unchanged coverage reused. ONE88dfc3bb2a65/LZ5ioM attempt
+FAILED/SPENT; admission fix progresses through spec-entry/runtime-import, not
+runtime-imported/runtime-entry. Standalone fixed startup file records original
+unknown body error at runtime-import (message bounded, stack accessor); cause not
+identified. Controller startup/server are null because ownedSettledfalse;
+lifecycleCompleted/PWvalidatedfalse. This is not successful cleanup or acceptance.
+Controller ended107.272s from start after an unsuccessful5.641s cleanup path;
+invoker/app remained alive. Root verified current kernel births/parentage/Node
+executable, exact app argv/cwd and no foreign app-group members, then sent SIGTERM
+only to owned app group within the original cleanup reserve. Fresh kernel checks
+show app group, invoker and its esbuild gone;3117 clear. This proves current
+known-process absence, not historical browser-family closure; receipt unchanged.
+Current-only byte comparison BEFOREfurther tests/docs matches dependencies and
+all7627source files; explicit preservationCompletefalse/nativeAcceptancefalse.
+Original complete-preservation check correctly stopped at ownedSettledfalse.
+Five containers, two volumes, one network and isolated temp workdir remain;
+both project labels/creation times/network members checked, no resources deleted.
+Preserve them and evidence pending a separately bounded exact-project recovery
+decision; no original clock extension, old admission replay or fresh rehearsal.
+Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
