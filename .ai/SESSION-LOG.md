@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Vertical Week design exploration
-
-Delivered three experimental standalone Week concepts (lesson agenda, day navigator, expandable week) for teacher/student; recommend agenda for rich lesson reading. Artifacts: /Users/stew/.codex/visualizations/2026/10/11/01a12a93-1a8c-7ed0-a906-1eab3ca18157/vertical-week/review.html (README, brief, provenance, reproducible CLI receipts alongside). Source caaa1c926; actual Pattern Lab owner captures include horizontal Week, Month, Term. No application code/data/DB/release changes or canon promotion.
-
-Final Playwright: 110 checks PASS, 24 concept×role×viewport×theme combinations, zero runtime errors; all matrix screenshots and representative full/long/edit/dialog states visually reviewed. Standalone file mode verified. GPT-6.1-sol medium worker supplied source inventory and bounded reviews; eight accepted findings fixed, including future custom-edit visibility and mobile sticky-title offset. Weekly remaining 99%; DeepSeek pause honored. Worker time/tokens unavailable, coordinator review ~3min estimate. Next: human design review; no implementation rollout authorized.
-
 ## 2026-10-11 — Implement selected Week lesson agenda
 
 Owner chose concept A for teacher/student Week, preserving Month/Term. Worktree `vertical-week-prototypes/pika`, branch `codex/calendar-week-agenda`, based on main `872d195825e4053e18ba8ca49a42613b1f106e22`. Shared LessonCalendar now renders seven agenda days; LessonDayCell extends full lesson reading, explicit teacher Edit/Add, Today/no-class labels and independent event buttons. Existing visibility, date grouping, autosave queue, rich links and actual Markdown sidebar remain owned by the existing controllers. Week controls stick below the app header. No API, database, dependencies or auth changes. Scoped brief: `docs/guidance/ui/changes/calendar-week-agenda.md`.
@@ -722,3 +716,24 @@ Acceptance/runtime absent, actual field still unknown pending reviewed run.
 Independent targeted review52 next; original clock/review52/fix38/waiver carry
 without reset. PR1581 draft/full gate failed; production/shared-local/provider/
 account/migration/cutover holds remain unchanged.
+
+## 2026-10-14 Fresh metadata-field diagnostic passes without reproducing fault
+
+Targeted52 source/two-doc review completed PASS0/gapsnone048657b0..., root read/
+hash/mode verified. Fresh12:51:07.687UTC source/CLI/Chrome signature/kernel/port
+preflight PASS; acceptance654266a7... admitted ONE new field diagnostic. Sole
+launcher2668 closed0/SPENT;12:51:34.660→12:51:44.516UTC9.856s. Receipt1ed1ebd6...
+complete: all3HTTP requests, hold+navigate both exact28B/bodyhash98d20c60... verified;
+original task settles before navigation and all browser/CLI/server/requests close
+within budget. No first/cleanup failure; all query/cleanup/guard diagnostics null.
+20 physical committed snapshots (40 hard-link alias paths), max1056B, independently
+checked paired inode/0600/nlink2, both real validators, monotonic prefix and exact
+terminal receipt match; within32/4096.15 capture records. No metadata field failed
+THIS run, so prior unrecorded field remains unknown; do not invent a cause or
+reclassify any of six historical failures. Native browser protocol/body/cleanup
+now pass, not actual Pika/auth/Survey acceptance or overall phase exit. No retry,
+validation relaxation, app source/migration/production/provider/account/cutover
+change. Preserve candidate/result immutable; no further metadata run authorized.
+Recommend carrying this successful protocol proof into remaining bounded app/
+Survey work, respecting its existing holds, rather than another metadata retry.
+Original clock/review52/fix38/waiver carry; factual receipt review53 next.
