@@ -115,7 +115,7 @@ test('real desktop exam: revision saves, lock/restore, reload and teacher teleme
   }
 })
 
-test('real desktop lifecycle: closure zero, reopen, submit, grade clear and idempotent Return', async ({ browser, owned }) => {
+test('real desktop lifecycle: closure zero, reopen, submit, grade clear preserves idempotent Return', async ({ browser, owned }) => {
   test.setTimeout(150_000)
   const teacherContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const studentContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
@@ -135,7 +135,6 @@ test('real desktop lifecycle: closure zero, reopen, submit, grade clear and idem
     const closed = await teacherResults(teacherContext.request, exam.id, owned.studentId)
     expect(closed.answers[exam.mcId]).toMatchObject({ selected_option: null, score: 0 })
     expect(closed.answers[exam.openId].score).toBeNull()
-    expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 0, skipped_count: 1 })
     await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`, undefined, 403)
     await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/student-access`, { ...selected, state: 'open' })
     // This must traverse real PostgREST: a mocked 40001 conflict cannot expose
@@ -173,9 +172,52 @@ test('real desktop lifecycle: closure zero, reopen, submit, grade clear and idem
     expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 0, already_returned_count: 1 })
     const graded = await teacherResults(teacherContext.request, exam.id, owned.studentId)
     await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/clear-open-grades`, { ...selected, responses: [{ response_id: graded.answers[exam.openId].response_id, expected_response_revision: graded.answers[exam.openId].response_revision }] })
-    expect((await teacherResults(teacherContext.request, exam.id, owned.studentId)).returned_at).toBeNull()
-    await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`, undefined, 403)
-    expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 0, skipped_count: 1 })
+    expect((await teacherResults(teacherContext.request, exam.id, owned.studentId)).returned_at).toBe(graded.returned_at)
+    const pending = await json<{ summary: null; question_results: Array<{ question_id: string; score: number | null }> }>(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`)
+    expect(pending.summary).toBeNull()
+    expect(pending.question_results.find(question => question.question_id === exam.openId)?.score).toBeNull()
+    expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 0, already_returned_count: 1 })
+  } finally {
+    await studentContext.close()
+    await teacherContext.close()
+  }
+})
+
+test('real desktop Return: ungraded unsubmitted saved work stays read-only after closed-access Return', async ({ browser, owned }) => {
+  test.setTimeout(150_000)
+  const teacherContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const studentContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  try {
+    const teacher = await teacherContext.newPage(), student = await studentContext.newPage()
+    await login(teacher, owned.teacherEmail, owned.password)
+    await login(student, owned.studentEmail, owned.password)
+    const exam = await createTest(teacherContext.request, owned, false)
+    const selected = { student_ids: [owned.studentId] }
+    const savedText = 'Saved reasoning returned before grading or submission.'
+    await start(student, owned.classroomId, exam.title)
+    await saveText(student, savedText)
+    await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/student-access`, { ...selected, state: 'closed' })
+    expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 1, skipped_count: 0 })
+    const returned = await json<{ test: { returned_at: string }; summary: null; question_results: Array<{ question_id: string; score: number | null; response_text: string | null }> }>(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`)
+    expect(returned.test.returned_at).toBeTruthy()
+    expect(returned.summary).toBeNull()
+    expect(returned.question_results).toEqual([expect.objectContaining({ question_id: exam.openId, score: null, response_text: savedText })])
+    const before = await json<{ attempt: Attempt & { submitted_at: string | null } }>(studentContext.request, 'GET', `/api/student/tests/${exam.id}/attempt`)
+    expect(before.attempt).toMatchObject({ is_submitted: false, submitted_at: null })
+    const mutation = { expected_revision: before.attempt.draft_revision, responses: { [exam.openId]: { question_type: 'open_response', response_text: 'Attempted change after Return.' } } }
+    await json(studentContext.request, 'POST', `/api/student/tests/${exam.id}/start`, undefined, 403)
+    await json(studentContext.request, 'PATCH', `/api/student/tests/${exam.id}/attempt`, mutation, 403)
+    expect(await json(studentContext.request, 'POST', `/api/student/tests/${exam.id}/respond`, mutation, 400)).toEqual({ error: 'Test is not active' })
+    expect(await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/attempt`)).toEqual(before)
+    expect(await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`)).toEqual(returned)
+    await student.goto(`/classrooms/${owned.classroomId}?tab=tests`, { waitUntil: 'domcontentloaded' })
+    await student.getByRole('button', { name: new RegExp(exam.title) }).first().click()
+    await expect(student.getByText('Pending grading', { exact: true })).toBeVisible()
+    await expect(student.getByText(savedText, { exact: true })).toBeVisible()
+    await expect(student.getByRole('textbox', { name: /Response for question/ })).toHaveCount(0)
+    await expect(student.getByRole('button', { name: 'Start the Test', exact: true })).toHaveCount(0)
+    await expect(student.getByRole('button', { name: 'Submit', exact: true })).toHaveCount(0)
+    expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 0, already_returned_count: 1 })
   } finally {
     await studentContext.close()
     await teacherContext.close()

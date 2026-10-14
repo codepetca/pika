@@ -95,6 +95,7 @@ export function CreateClassroomModal({
   const router = useRouter()
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
+  const blueprintSelectRef = useRef<HTMLSelectElement | null>(null)
   const calendarStepRef = useRef<HTMLDivElement | null>(null)
   const blueprintLoadGenerationRef = useRef(0)
   const importInFlightRef = useRef(false)
@@ -134,9 +135,11 @@ export function CreateClassroomModal({
   }, [initialBlueprintId, isOpen])
 
   useEffect(() => {
+    if (!isOpen) return
     if (step === 'name') nameInputRef.current?.focus()
+    if (step === 'blueprint') blueprintSelectRef.current?.focus()
     if (step === 'calendar') calendarStepRef.current?.focus()
-  }, [step])
+  }, [isOpen, step])
 
   function resetForm() {
     setStep('name')
@@ -415,6 +418,7 @@ export function CreateClassroomModal({
             />
             <FormField label="Course Blueprint" required>
               <select
+                ref={blueprintSelectRef}
                 value={selectedBlueprintId}
                 onChange={(e) => {
                   const nextValue = e.target.value

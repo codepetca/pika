@@ -490,6 +490,9 @@ describe('AssignmentModal', () => {
 
       const scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
       const scheduleScope = within(scheduleDialog)
+      // The shared picker ref is opt-in: Assignment keeps DialogPanel focus ownership.
+      expect(scheduleDialog).toContainElement(document.activeElement as HTMLElement)
+      expect(scheduleDialog).toHaveFocus()
 
       fireEvent.change(scheduleScope.getByLabelText('Date'), { target: { value: '2099-03-01' } })
       fireEvent.change(scheduleScope.getByLabelText('Time'), { target: { value: '09:00' } })

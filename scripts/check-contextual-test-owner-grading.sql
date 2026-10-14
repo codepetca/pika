@@ -134,8 +134,8 @@ begin
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',member_id,'grades',jsonb_build_array(
    jsonb_build_object('response_id',open_response,'question_id',open_question,'expected_response_revision',(select r.revision from public.test_responses r where r.id=open_response),'clear_grade',true,'score',null,'feedback',null))),expected_test,clock_timestamp()+interval '25 seconds');
   if (select r.score from public.test_responses r where r.id=open_response) is not null
-   or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is not null
-   then raise exception 'Open clear did not revoke incomplete return';end if;
+   or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is distinct from returned_stamp
+   then raise exception 'Open clear retracted incomplete return';end if;
   raise exception using errcode='ZX258',message='Rollback answered MC clear';
  exception when sqlstate 'ZX258' then null;end;
  -- revision-provenance-review: manual edit preserves source suggestion metadata.
@@ -151,9 +151,9 @@ begin
  begin update public.test_student_availability a set state='open' where a.test_id=test_id and a.student_id=member_id;
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id,peer_id)),expected_test,clock_timestamp()+interval '25 seconds');
   raise exception 'Open selected access returned';exception when sqlstate 'PT409' then null;end;
- -- zero-return-idempotent: zero is eligible; replay never restamps or closes Test.
+ -- zero-and-ungraded-return-idempotent: both closed attempts are eligible; replay never restamps or closes Test.
  result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id,peer_id)),expected_test,clock_timestamp()+interval '25 seconds');
- if result#>>'{result,returned_count}'<>'1' or result#>>'{result,skipped_count}'<>'1' or result#>'{result,test_closed}'<>'false'::jsonb
+ if result#>>'{result,returned_count}'<>'2' or result#>>'{result,skipped_count}'<>'0' or result#>'{result,test_closed}'<>'false'::jsonb
  or (select status from public.tests where id=test_id)<>'active' or (select show_results from public.tests where id=test_id)
  then raise exception 'zero-return-idempotent first differs';end if;
  select a.returned_at,a.returned_by into returned_stamp,returned_actor from public.test_attempts a where a.test_id=test_id and a.student_id=member_id;
@@ -169,16 +169,17 @@ begin
  grade:=jsonb_set(grade,'{expected_response_revision}',to_jsonb(revision));grade:=jsonb_set(grade,'{feedback}','"Complete returned edit"');
  perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',member_id,'grades',jsonb_build_array(grade)),expected_test,clock_timestamp()+interval '25 seconds');
  if (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is distinct from returned_stamp then raise exception 'Complete edit revoked return';end if;
- -- clear-retracts-return and exact expected-set CAS; MC grade bytes survive.
+ -- clear-preserves-return and exact expected-set CAS; MC grade bytes survive.
  select to_jsonb(r) into mc_before from public.test_responses r where id='a2580000-0000-4000-8000-000000000302';
  begin perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'clear-open-grades',jsonb_build_object('student_ids',jsonb_build_array(member_id),'responses','[]'::jsonb),expected_test,clock_timestamp()+interval '25 seconds');raise exception 'Incomplete expected clear set accepted';exception when sqlstate 'PT409' then null;end;
  select r.revision into revision from public.test_responses r where r.id=open_response;
  result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'clear-open-grades',jsonb_build_object('student_ids',jsonb_build_array(member_id),'responses',jsonb_build_array(jsonb_build_object('response_id',open_response,'expected_response_revision',revision))),expected_test,clock_timestamp()+interval '25 seconds');
- if result#>>'{result,cleared_responses}'<>'1' or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is not null
+ if result#>>'{result,cleared_responses}'<>'1' or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is distinct from returned_stamp
  or (select r.ai_grading_review->>'reviewStatus' from public.test_responses r where r.id=open_response)<>'dismissed'
  or (select to_jsonb(r) from public.test_responses r where id='a2580000-0000-4000-8000-000000000302') is distinct from mc_before
- then raise exception 'clear-retracts-return or MC preservation differs';end if;
- begin perform public.test_learner_workflow_v1(member_id,test_id,class_id,'results','{}',clock_timestamp()+interval '25 seconds');raise exception 'Cleared grade still disclosed';exception when sqlstate 'PT403' then null;end;
+ then raise exception 'clear-preserves-return or MC preservation differs';end if;
+ result:=public.test_learner_workflow_v1(member_id,test_id,class_id,'results','{}',clock_timestamp()+interval '25 seconds');
+ if result#>'{result,question_results,0,score}'<>'null'::jsonb then raise exception 'Cleared returned grade is not pending';end if;
  -- Minimal eligibility edge cases reuse these exact rows in rollback scopes.
  begin
   delete from public.classroom_enrollments e where e.classroom_id=class_id and e.student_id in(member_id,peer_id);
@@ -232,8 +233,8 @@ begin
   else
    if (select r.score::text from public.test_responses r where r.id=open_response)<>'NaN' then raise exception 'Nonfinite fixture did not persist NaN';end if;
    result:=public.test_owner_workflow_v1(owner_id,test_id,class_id,'return',jsonb_build_object('student_ids',jsonb_build_array(member_id)),expected_test,clock_timestamp()+interval '25 seconds');
-   if result#>>'{result,returned_count}'<>'0' or result#>>'{result,skipped_count}'<>'1'
-    or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is not null then raise exception 'Nonfinite return eligibility differs';end if;
+   if result#>>'{result,already_returned_count}'<>'1' or result#>>'{result,skipped_count}'<>'0'
+    or (select a.returned_at from public.test_attempts a where a.test_id=test_id and a.student_id=member_id) is distinct from returned_stamp then raise exception 'Grading completeness changed Return eligibility';end if;
   end if;
   raise exception using errcode='ZX258',message='Rollback nonfinite fixture';
  exception when sqlstate 'ZX258' then null;end;
@@ -242,7 +243,7 @@ begin
   select r.revision into revision from public.test_responses r where r.id=peer_response;
   perform public.test_owner_workflow_v1(owner_id,test_id,class_id,'manual-save',jsonb_build_object('student_id',peer_id,'grades',jsonb_build_array(
    jsonb_build_object('response_id',peer_response,'question_id',open_question,'expected_response_revision',revision,'clear_grade',false,'score',0,'feedback','Synthetic closed draft grade'))),expected_test,clock_timestamp()+interval '25 seconds');
-  update public.test_attempts a set is_submitted=false,submitted_at=null,closed_for_grading_at=null,closed_for_grading_by=null,
+  update public.test_attempts a set is_submitted=false,submitted_at=null,closed_for_grading_at=null,closed_for_grading_by=null,returned_at=null,returned_by=null,
    responses=jsonb_build_object(open_question::text,jsonb_build_object('question_type','open_response','response_text','Synthetic saved unfinished work'),
      'a2580000-0000-4000-8000-000000000102',jsonb_build_object('question_type','multiple_choice','selected_option',0))
    where a.test_id=test_id and a.student_id=peer_id;
@@ -342,5 +343,5 @@ begin
 end;
 $contracts$;
 -- owner-grading-contracts-end
-select jsonb_build_object('checks',jsonb_build_array('current-nonowner-roster','late-batch-rollback','answered-mc-clear','revision-provenance-review','zero-return-idempotent','clear-retracts-return','empty-roster-source','logical-source-bound','no-question-return','nonfinite-eligibility-or-constraint','global-closed-finalization','authority-freshness','active-ai-both-orders')) as result;
+select jsonb_build_object('checks',jsonb_build_array('current-nonowner-roster','late-batch-rollback','answered-mc-clear','revision-provenance-review','zero-return-idempotent','clear-preserves-return','empty-roster-source','logical-source-bound','no-question-return','nonfinite-eligibility-or-constraint','global-closed-finalization','authority-freshness','active-ai-both-orders')) as result;
 rollback;

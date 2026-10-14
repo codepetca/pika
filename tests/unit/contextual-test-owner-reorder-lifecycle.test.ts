@@ -31,13 +31,13 @@ const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
-  it.each([254, 255, 256, 257, 258, 259, 260, 261, 262])('admits exact complete reviewed migration profile %i', count => {
+  it.each([254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265])('admits exact complete reviewed migration profile %i', count => {
     expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, count))).not.toThrow()
   })
-  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future263', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
+  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future266', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
     const migrations = current.map(m => ({ ...m }))
     const addition = migrations[255]
-    if (defect === 'future263') migrations.push({ name: '263_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    if (defect === 'future266') migrations.push({ name: '266_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
     if (defect === 'bad262name') migrations[261].name = '262_unknown.sql'
     if (defect === 'bad262digest') migrations[261].sha256 = 'f'.repeat(64)
     if (defect === 'bad262bytes' || defect === 'self-hashed262bytes') migrations[261].sql += '\n'
@@ -77,8 +77,8 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current260 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(263)
+  it('binds the complete current265 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(265)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))
@@ -668,5 +668,26 @@ describe('supplemental committed receipt admission, not native effect acceptance
     other[cacheIndex] = { ...other[cacheIndex], test_ids: [fixture.tests[0].id, fixture.tests[1].id], count: 2 }
     other[index] = { ...other[index], test_ids: [fixture.tests[1].id, fixture.tests[0].id], count: 2 }
     expect(() => testOwnerReorderCommittedCompletion(m, frozen({ ...receipt, transitions: { ...receipt.transitions, bytes: 30000, receipts: other } }))).toThrow()
+  })
+})
+
+describe('complete reviewed265 source profile (offline)', () => {
+  it.each([263, 264, 265])('accepts exact complete source profile %i', count => {
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
+    expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).not.toThrow()
+  })
+  it.each([263, 264, 265].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))('rejects altered migration $number: $defect', ({ number, defect }) => {
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const tail = migrations[number - 1]
+    if (defect === 'name') tail.name = `${number}_unknown.sql`
+    if (defect === 'digest') tail.sha256 = 'f'.repeat(64)
+    if (defect === 'bytes' || defect === 'self-hashed-bytes') tail.sql += '\n'
+    if (defect === 'self-hashed-bytes') tail.sha256 = testOwnerDigest(tail.sql)
+    expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
+  })
+  it('rejects a contiguous unknown266 source tail', () => {
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    migrations.push({ name: '266_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
 })

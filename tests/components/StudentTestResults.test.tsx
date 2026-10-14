@@ -25,6 +25,53 @@ describe('StudentTestResults', () => {
     return { ok: true, json: async () => body } as Response
   }
 
+  it('does not repaint the selected returned Test when an older results request completes late', async () => {
+    const first = createDeferred<Response>()
+    const payload = (title: string) => ({
+      question_results: [{ question_id: title, question_type: 'open_response', question_text: title,
+        options: [], points: 5, response_max_chars: 5000, correct_option: null, selected_option: null,
+        response_text: 'Returned answer', score: 0, feedback: null, graded_at: null, is_correct: null }],
+      summary: { earned_points: 0, possible_points: 5, percent: 0 },
+    })
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockReturnValueOnce(first.promise).mockResolvedValueOnce(jsonResponse(payload('Second Test')))
+    const { rerender } = render(<StudentTestResults testId="first" showSubmissionBanner={false} />)
+    rerender(<StudentTestResults testId="second" showSubmissionBanner={false} />)
+    expect(await screen.findByText('Second Test')).toBeInTheDocument()
+    await act(async () => {
+      first.resolve(jsonResponse(payload('First Test')))
+      await first.promise
+    })
+    expect(screen.getByText('Second Test')).toBeInTheDocument()
+    expect(screen.queryByText('First Test')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    { score: null, summary: null },
+    { score: 2, summary: null },
+    { score: 2, summary: { earned_points: 2, possible_points: 10, percent: 20 } },
+  ])('keeps returned work read-only and shows pending grading with score $score and summary $summary', async ({ score, summary }) => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      question_results: [score, null].map((answerScore, index) => ({
+        question_id: `q${index}`, question_type: 'open_response', question_text: `Explain ${index}.`,
+        options: [], points: 5, response_max_chars: 5000, correct_option: null,
+        selected_option: null, response_text: 'Saved unfinished answer', score: answerScore,
+        feedback: null, graded_at: null, is_correct: null,
+      })),
+      // Older API generations may still send a partial numeric total.
+      summary,
+    }))
+    render(<StudentTestResults testId="test-1" showSubmissionBanner={false} />)
+    expect(await screen.findByText('Pending grading')).toBeInTheDocument()
+    expect(screen.getAllByText('Score: Pending grading')).toHaveLength(score === null ? 2 : 1)
+    expect(screen.getAllByText('Saved unfinished answer')).toHaveLength(2)
+    expect(screen.queryByText(/\d+(\.\d+)?%/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument()
+  })
+
   it('shows loading spinner initially', () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockReturnValue(new Promise(() => {})) // never resolves

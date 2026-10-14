@@ -2056,7 +2056,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.announcements && (
                     <TabContentTransition isActive={activeTab === 'announcements'}>
-                      <TeacherAnnouncementsTab classroom={classroom} />
+                      <TeacherAnnouncementsTab classroom={classroom} isActive={activeTab === 'announcements'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.roster && (

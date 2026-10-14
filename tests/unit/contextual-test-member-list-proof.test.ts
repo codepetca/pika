@@ -158,8 +158,8 @@ describe('finite member Test list fixture', () => {
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-  it('reproduces the former exact257 rejection of the complete current262 chain', () => {
-    expect(current).toHaveLength(263)
+  it('reproduces the former exact257 rejection of the complete current265 chain', () => {
+    expect(current).toHaveLength(265)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })
@@ -174,7 +174,7 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(current[259]).toMatchObject({ name: '260_contextual_test_owner_recovery.sql', sha256: '84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0' })
     expect(digest(current[259].sql)).toBe('84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0')
   })
-  it.each([253, 254, 255, 256, 257, 258, 259, 260, 261, 262])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
+  it.each([253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)
     expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248, ci = [...local, 'private.classroom_test_quota_settings'].sort()
@@ -182,10 +182,10 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(testMemberListReviewedIsolatedCatalog(local, migrations)).toEqual(ci)
     expect(testMemberListReviewedIsolatedCatalog(ci, migrations)).toEqual(ci)
   })
-  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future263', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
+  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future266', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
     'bad253name', 'self-hashed253bytes'] as const)('rejects unreviewed source profile: %s', defect => {
     const migrations = current.map(m => ({ ...m })), tail = migrations[253]
-    if (defect === 'future263') migrations.push({ name: '263_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future266') migrations.push({ name: '266_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
     if (defect === 'bad262name') migrations[261].name = '262_unknown.sql'
     if (defect === 'bad262digest') migrations[261].sha256 = 'f'.repeat(64)
     if (defect === 'bad262bytes' || defect === 'self-hashed262bytes') migrations[261].sql += '\n'
@@ -336,5 +336,26 @@ describe('finite member SDK manifest', () => {
     const url = new URL('http://127.0.0.1:54331/rest/v1/classrooms'); url.searchParams.set('select', TEST_MEMBER_LIST_PROJECTIONS.preflight); url.searchParams.set('id', `eq.${f.cases[0].classroomId}`)
     await expect(transport.fetch(url.toString(), { headers })).rejects.toThrow()
     expect(cancel).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('complete reviewed265 source profile (offline)', () => {
+  it.each([263, 264, 265])('accepts exact complete source profile %i', count => {
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
+    expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
+  })
+  it.each([263, 264, 265].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))('rejects altered migration $number: $defect', ({ number, defect }) => {
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const tail = migrations[number - 1]
+    if (defect === 'name') tail.name = `${number}_unknown.sql`
+    if (defect === 'digest') tail.sha256 = 'f'.repeat(64)
+    if (defect === 'bytes' || defect === 'self-hashed-bytes') tail.sql += '\n'
+    if (defect === 'self-hashed-bytes') tail.sha256 = testOwnerDigest(tail.sql)
+    expect(() => validateTestMemberListReviewedMigrations(migrations)).toThrow()
+  })
+  it('rejects a contiguous unknown266 source tail', () => {
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    migrations.push({ name: '266_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    expect(() => validateTestMemberListReviewedMigrations(migrations)).toThrow()
   })
 })

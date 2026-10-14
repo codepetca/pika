@@ -338,16 +338,24 @@ function formatTestAiGradingRunMessage(run: TestAiGradingRunSummary): {
   const summaryParts: string[] = []
 
   if (run.completed_count > 0) {
-    summaryParts.push(`Graded ${run.completed_count}`)
+    const answers = `${run.completed_count} answer${run.completed_count === 1 ? '' : 's'}`
+    const students = run.completed_student_count == null
+      ? ''
+      : ` across ${run.completed_student_count} student${run.completed_student_count === 1 ? '' : 's'}`
+    summaryParts.push(`Graded ${answers}${students}`)
   }
   if (run.skipped_unanswered_count > 0) {
-    summaryParts.push(`${run.skipped_unanswered_count} unanswered`)
+    summaryParts.push(`${run.skipped_unanswered_count} answer${run.skipped_unanswered_count === 1 ? '' : 's'} unanswered`)
   }
   if (run.skipped_already_graded_count > 0) {
-    summaryParts.push(`${run.skipped_already_graded_count} already graded`)
+    summaryParts.push(`${run.skipped_already_graded_count} answer${run.skipped_already_graded_count === 1 ? '' : 's'} already graded`)
   }
   if (run.failed_count > 0) {
-    summaryParts.push(`${run.failed_count} failed`)
+    summaryParts.push(`${run.failed_count} answer${run.failed_count === 1 ? '' : 's'} failed`)
+  }
+
+  if ((run.skipped_student_count ?? 0) > 0) {
+    summaryParts.push(`${run.skipped_student_count} student${run.skipped_student_count === 1 ? '' : 's'} skipped`)
   }
 
   const summary = summaryParts.length > 0
@@ -1051,9 +1059,15 @@ export function TeacherTestsTab({
     }
     setGradingError('')
     try {
-      const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
-      const data: TeacherTestResultsPayload = await response.json()
-      const ok = response.ok
+      // Each refresh must observe current grading state, including after a mutation.
+      const { data, ok } = await fetchJSONWithCache(
+        `teacher-test-results:${apiBasePath}:${requestedTestId}:${requestId}`,
+        async () => {
+          const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
+          return { data: await response.json() as TeacherTestResultsPayload, ok: response.ok }
+        },
+        0,
+      )
       if (isStaleRequest()) return
       const results = readTeacherTestResultsFromPayload(data)
       if (!ok) throw new Error(results.error || 'Failed to load test results')
@@ -1694,16 +1708,20 @@ export function TeacherTestsTab({
         message?: string
         skipped_unanswered_count?: number
         skipped_already_graded_count?: number
+        skipped_student_count?: number
       }
       const summaryParts: string[] = []
       if (summary.message) {
         summaryParts.push(summary.message)
       }
       if (Number(summary.skipped_unanswered_count ?? 0) > 0) {
-        summaryParts.push(`${summary.skipped_unanswered_count} unanswered`)
+        summaryParts.push(`${summary.skipped_unanswered_count} answer${summary.skipped_unanswered_count === 1 ? '' : 's'} unanswered`)
       }
       if (Number(summary.skipped_already_graded_count ?? 0) > 0) {
-        summaryParts.push(`${summary.skipped_already_graded_count} already graded`)
+        summaryParts.push(`${summary.skipped_already_graded_count} answer${summary.skipped_already_graded_count === 1 ? '' : 's'} already graded`)
+      }
+      if (Number(summary.skipped_student_count ?? 0) > 0) {
+        summaryParts.push(`${summary.skipped_student_count} student${summary.skipped_student_count === 1 ? '' : 's'} skipped`)
       }
       showMessage({ text: summaryParts.join(' • ') || 'No AI grading was needed', tone: 'info' })
       setGradingInfo('')
@@ -2465,7 +2483,9 @@ export function TeacherTestsTab({
                 const scoreLabel =
                   student.status === 'not_started'
                     ? '—'
-                    : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
+                    : student.ungraded_open_responses > 0
+                      ? 'Pending grading'
+                      : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                 const statusMeta = getTestGradingWorkStatusDisplay(student.status)
                 const awayCount = student.focus_summary?.away_count ?? 0
                 const awaySeconds = Math.max(
@@ -2882,7 +2902,7 @@ export function TeacherTestsTab({
   const activeTestGradingMessage =
     workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
       ? hasActiveTestAiRun && activeTestAiRun && !testAiPollUnavailable
-        ? `Grading ${Math.min(activeTestAiRun.processed_count, activeTestAiRun.requested_count)} of ${activeTestAiRun.requested_count} students…`
+        ? `Grading ${Math.min(activeTestAiRun.processed_count, activeTestAiRun.queued_response_count)} of ${activeTestAiRun.queued_response_count} answer${activeTestAiRun.queued_response_count === 1 ? '' : 's'}…`
         : isBatchAutoGrading
           ? 'Starting grading…'
           : isBatchReturning
@@ -3280,7 +3300,7 @@ export function TeacherTestsTab({
       <ConfirmDialog
         isOpen={showBatchGradeModal}
         title={`AI grade ${batchAutoGradePreflight.selectedCount} student${batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}`}
-        description="This will overwrite existing grade, comments and teacher edits."
+        description="Saved work from unfinished attempts will be closed to editing before grading. This will overwrite existing grade, comments and teacher edits."
         confirmLabel="AI grade"
         confirmVariant="danger"
         isConfirmDisabled={isBatchAutoGrading || hasActiveTestAiRun}
@@ -3414,7 +3434,7 @@ export function TeacherTestsTab({
       <ConfirmDialog
         isOpen={showReturnConfirm}
         title={`Return test work to ${batchSelectedCount} selected student(s)?`}
-        description="Only students with closed access and fully graded open-response questions will be returned."
+        description="Return saved work for students with closed access, including ungraded work. Returned work cannot be edited or submitted."
         confirmLabel={
           isBatchReturning
             ? 'Returning...'

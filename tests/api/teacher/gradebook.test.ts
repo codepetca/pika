@@ -322,6 +322,113 @@ function buildPagedMockFrom(
 beforeEach(() => { mockSupabaseClient.rpc.mockReset(); mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } }) })
 
 describe('GET /api/teacher/gradebook', () => {
+  it.each([null, undefined, '2026-01-02T12:00:00.000Z'])('shows assignment and Test marks only after each student return (%s)', async (returnedAt) => {
+    const fixture: GradebookFixture = {
+      categories: [{ id: 'term', name: 'Term', percentage: 100, position: 0, is_default: true }],
+      assignments: [{ id: 'a1', title: 'Essay', due_at: '2099-01-01T12:00:00.000Z', is_draft: false, points_possible: 30, include_in_final: true, gradebook_category_id: 'term' }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8, is_submitted: true, submitted_at: '2026-01-01T12:00:00.000Z', returned_at: returnedAt }],
+      tests: [{ id: 't1', title: 'Test', status: 'closed', include_in_final: true, gradebook_category_id: 'term' }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
+      testResponses: [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 8 }],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true, returned_at: returnedAt }],
+    }
+    for (const overridden of [false, true]) {
+      mockSupabaseClient.from = buildMockFrom({ ...fixture, scoreOverrides: overridden ? [
+        { student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: 27 },
+        { student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9 },
+      ] : [] })
+      const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+      const body = await response.json()
+      expect(response.status).toBe(200)
+      const visiblePercent = returnedAt ? (overridden ? 90 : 80) : null
+      expect(body.students[0]).toMatchObject({ assignments_percent: visiblePercent, tests_percent: visiblePercent, final_percent: visiblePercent })
+      expect(body.class_summary.average_final_percent).toBe(visiblePercent)
+      expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: visiblePercent, graded_count: returnedAt ? 1 : 0 })
+      expect(body.class_summary.tests[0]).toMatchObject({ average_percent: visiblePercent, scored_count: returnedAt ? 1 : 0 })
+      expect(body.selected_student.assignments[0].percent).toBe(visiblePercent)
+      expect(body.selected_student.tests).toHaveLength(returnedAt ? 1 : 0)
+      for (const cell of body.students[0].assessment_scores) {
+        expect(cell.percent).toBe(visiblePercent)
+        if (!returnedAt) expect(cell).toMatchObject({ earned: null, is_graded: false, status: 'submitted' })
+        if (!returnedAt) expect(cell.calculated_earned ?? null).toBeNull()
+      }
+    }
+  })
+
+  it('keeps fully scored Test responses hidden when no returned attempt exists', async () => {
+    mockSupabaseClient.from = buildMockFrom({
+      tests: [{ id: 't1', title: 'Test', status: 'closed', returned_at: '2026-01-02T12:00:00.000Z' }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
+      testResponses: [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 10 }],
+      testAttempts: [],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9 }],
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: null, percent: null, is_graded: false })
+    expect(body.students[0].final_percent).toBeNull()
+  })
+
+  it('uses each student return independently in class summaries', async () => {
+    mockSupabaseClient.from = buildMockFrom({
+      enrollments: [
+        { student_id: 'student-1', users: { email: 'one@example.invalid' } },
+        { student_id: 'student-2', users: { email: 'two@example.invalid' } },
+      ],
+      assignments: [{ id: 'a1', title: 'Essay', is_draft: false, points_possible: 30 }],
+      docs: [
+        { assignment_id: 'a1', student_id: 'student-1', score_completion: 0, score_thinking: 0, score_workflow: 0, returned_at: '2026-01-02T12:00:00.000Z' },
+        { assignment_id: 'a1', student_id: 'student-2', score_completion: 10, score_thinking: 10, score_workflow: 10, returned_at: null },
+      ],
+      tests: [{ id: 't1', title: 'Test', status: 'closed' }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
+      testResponses: [
+        { test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 0 },
+        { test_id: 't1', question_id: 'q1', student_id: 'student-2', score: 10 },
+      ],
+      testAttempts: [
+        { test_id: 't1', student_id: 'student-1', is_submitted: true, returned_at: '2026-01-02T12:00:00.000Z' },
+        { test_id: 't1', student_id: 'student-2', is_submitted: true, returned_at: null },
+      ],
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    expect(body.students.find((student: any) => student.student_id === 'student-1').final_percent).toBe(0)
+    expect(body.students.find((student: any) => student.student_id === 'student-2').final_percent).toBeNull()
+    expect(body.class_summary).toMatchObject({ students_with_final: 1, average_final_percent: 0 })
+    expect(body.class_summary.assignments[0]).toMatchObject({ graded_count: 1, average_percent: 0, median_percent: 0 })
+    expect(body.class_summary.tests[0]).toMatchObject({ scored_count: 1, average_percent: 0 })
+  })
+
+  it.each([null, '2026-01-02T12:00:00.000Z'])('gates saved unsubmitted Test marks on return (%s)', async (returnedAt) => {
+    mockSupabaseClient.from = buildMockFrom({
+      tests: [{ id: 't1', title: 'Saved Test', status: 'active' }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
+      testResponses: [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 8 }],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: false, returned_at: returnedAt }],
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: returnedAt ? 8 : null, percent: returnedAt ? 80 : null, is_graded: Boolean(returnedAt) })
+    expect(body.students[0].final_percent).toBe(returnedAt ? 80 : null)
+  })
+
+  it.each([null, 0])('keeps returned unsubmitted Test work pending while a question is ungraded (first score %s)', async (firstScore) => {
+    mockSupabaseClient.from = buildMockFrom({
+      tests: [{ id: 't1', title: 'Returned saved Test', status: 'closed', include_in_final: true }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 5 }, { id: 'q2', test_id: 't1', points: 5 }],
+      testResponses: [
+        { test_id: 't1', question_id: 'q1', student_id: 'student-1', score: firstScore },
+        { test_id: 't1', question_id: 'q2', student_id: 'student-1', score: null },
+      ],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: false, returned_at: '2026-01-02T12:00:00.000Z' }],
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: null, percent: null, is_graded: false })
+    expect(body.students[0]).toMatchObject({ tests_percent: null, final_percent: null })
+    expect(body.class_summary.tests[0]).toMatchObject({ scored_count: 0, average_percent: null })
+    expect(body.selected_student.tests).toEqual([])
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -350,7 +457,7 @@ describe('GET /api/teacher/gradebook', () => {
   it('returns selected student assignment breakdown when student_id is provided', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 2, is_draft: false, points_possible: 30, include_in_final: true }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1')
@@ -413,7 +520,7 @@ describe('GET /api/teacher/gradebook', () => {
     mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'assignment', assessment_id: 'a1', maximum: 15, score_scale: scale }], error: null })
     mockSupabaseClient.from = buildMockFrom({
       assignments: [{ id: 'a1', title: 'Essay', due_at: null, position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 }],
     })
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
     const body = await response.json()
@@ -435,7 +542,7 @@ describe('GET /api/teacher/gradebook', () => {
     mockSupabaseClient.from = buildMockFrom({
       categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
       assignments: [{ id: 'a1', title: 'Fractional', due_at: null, position: 0, is_draft: false, points_possible: 100, include_in_final: true, gradebook_weight: 10, gradebook_category_id: 'term' }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: rubric, score_thinking: 0, score_workflow: 0 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: rubric, score_thinking: 0, score_workflow: 0 }],
       scoreOverrides: manual == null ? [] : [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: manual }],
     })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
@@ -449,7 +556,7 @@ describe('GET /api/teacher/gradebook', () => {
   it('uses a manual mark in the student row, final, and class summary', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
       scoreOverrides: [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: 27 }],
     })
 
@@ -488,11 +595,11 @@ describe('GET /api/teacher/gradebook', () => {
     const sharedId = '15700000-0000-4000-8000-000000000020'
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       assignments: [{ id: sharedId, title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
-      docs: [{ assignment_id: sharedId, student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: sharedId, student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
       tests: [{ id: sharedId, title: 'Test', status: 'closed', include_in_final: true }],
       testQuestions: [{ id: 'q1', test_id: sharedId, points: 10 }],
       testResponses: [{ test_id: sharedId, question_id: 'q1', student_id: 'student-1', score: 8 }],
-      testAttempts: [{ test_id: sharedId, student_id: 'student-1', is_submitted: true }],
+      testAttempts: [{ returned_at: '2026-01-02T12:00:00.000Z', test_id: sharedId, student_id: 'student-1', is_submitted: true }],
       scoreOverrides: [
         ...(assignmentOverride === null ? [] : [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: sharedId, earned: assignmentOverride }]),
         ...(testOverride === null ? [] : [{ student_id: 'student-1', assessment_type: 'test', assessment_id: sharedId, earned: testOverride }]),
@@ -516,7 +623,7 @@ describe('GET /api/teacher/gradebook', () => {
   it('uses a final override in the student row and class average without changing assessment marks', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
       scoreOverrides: [{ student_id: 'student-1', assessment_type: 'final', assessment_id: 'c1', earned: 49.5 }],
     })
 
@@ -531,7 +638,7 @@ describe('GET /api/teacher/gradebook', () => {
 
   it.each([{ testQuestions: [] }, { testQuestions: [{ id: 'tq1', test_id: 't1', points: 0 }] }])('counts a manual mark when an empty/zero-point Test receives a positive maximum (%j)', async ({ testQuestions }) => {
     mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
-    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Test', status: 'closed', include_in_final: true }], testQuestions, scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 7 }] })
+    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Test', status: 'closed', include_in_final: true }], testQuestions, testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true, returned_at: '2026-01-02T12:00:00.000Z' }], scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 7 }] })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))).json()
     expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 7, possible: 10, percent: 70, is_graded: true, is_manual_override: true })
     expect(body.students[0].final_percent).toBe(70)
@@ -541,7 +648,7 @@ describe('GET /api/teacher/gradebook', () => {
 
   it.each([{ scored: true }, { scored: false }])('uses effective maximum for calculated zero-point Test, scored=$scored', async ({ scored }) => {
     mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
-    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Zero point Test', status: 'closed', include_in_final: true }], testQuestions: scored ? [{ id: 'q1', test_id: 't1', points: 0 }] : [], testResponses: scored ? [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 0 }] : [], testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }] })
+    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Zero point Test', status: 'closed', include_in_final: true }], testQuestions: scored ? [{ id: 'q1', test_id: 't1', points: 0 }] : [], testResponses: scored ? [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 0 }] : [], testAttempts: [{ returned_at: '2026-01-02T12:00:00.000Z', test_id: 't1', student_id: 'student-1', is_submitted: true }] })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
     expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: scored ? 0 : null, possible: 10, percent: scored ? 0 : null, is_graded: scored })
     expect(body.students[0].final_percent).toBe(scored ? 0 : null)
@@ -559,7 +666,7 @@ describe('GET /api/teacher/gradebook', () => {
         { test_id: 't1', question_id: 'tq1', student_id: 'student-1', score: 5 },
         { test_id: 't1', question_id: 'tq2', student_id: 'student-1', score: 3 },
       ],
-      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }],
+      testAttempts: [{ returned_at: '2026-01-02T12:00:00.000Z', test_id: 't1', student_id: 'student-1', is_submitted: true }],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1')
@@ -603,7 +710,7 @@ describe('GET /api/teacher/gradebook', () => {
         { test_id: 't1', question_id: 'tq1', student_id: 'student-1', score: 5 },
         { test_id: 't1', question_id: 'tq2', student_id: 'student-1', score: 3 },
       ],
-      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }],
+      testAttempts: [{ returned_at: '2026-01-02T12:00:00.000Z', test_id: 't1', student_id: 'student-1', is_submitted: true }],
       scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9.5 }],
     })
 
@@ -645,7 +752,7 @@ describe('GET /api/teacher/gradebook', () => {
       tests: [{ id: 't-submitted', title: 'Submitted Test', status: 'active', include_in_final: true }],
       testQuestions: [{ id: 'tq1', test_id: 't-submitted', points: 5 }],
       testResponses: [],
-      testAttempts: [{ test_id: 't-submitted', student_id: 'student-1', is_submitted: true, submitted_at: '2026-01-01T12:00:00.000Z' }],
+      testAttempts: [{ returned_at: '2026-01-02T12:00:00.000Z', test_id: 't-submitted', student_id: 'student-1', is_submitted: true, submitted_at: '2026-01-01T12:00:00.000Z' }],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -685,8 +792,8 @@ describe('GET /api/teacher/gradebook', () => {
         },
       ],
       docs: [
-        { assignment_id: 'a-heavy-points', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
-        { assignment_id: 'a-small-points', student_id: 'student-1', score_completion: 0, score_thinking: 0, score_workflow: 0 },
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a-heavy-points', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a-small-points', student_id: 'student-1', score_completion: 0, score_thinking: 0, score_workflow: 0 },
       ],
     })
 
@@ -728,7 +835,7 @@ describe('GET /api/teacher/gradebook', () => {
         is_draft: false, points_possible: 30, include_in_final: true,
         gradebook_weight: 10, gradebook_category_id: categoryId,
       }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
     })
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
     const body = await response.json()
@@ -752,8 +859,8 @@ describe('GET /api/teacher/gradebook', () => {
         { id: 'a3', title: 'Practice', due_at: '2025-01-03T12:00:00.000Z', position: 3, is_draft: false, points_possible: 30, include_in_final: false, gradebook_weight: 10, gradebook_category_id: termId },
       ],
       docs: [
-        { assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 },
-        { assignment_id: 'a2', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 },
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a2', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
       ],
     })
 
@@ -781,7 +888,7 @@ describe('GET /api/teacher/gradebook', () => {
         id: 'a1', title: 'Fractional rubric', due_at: null, position: 0, is_draft: false,
         points_possible: 10, include_in_final: true, gradebook_weight: 10, gradebook_category_id: 'term',
       }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 1, score_thinking: 0, score_workflow: 0 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 1, score_thinking: 0, score_workflow: 0 }],
     })
 
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
@@ -805,7 +912,7 @@ describe('GET /api/teacher/gradebook', () => {
     mockSupabaseClient.from = buildMockFrom({
       categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
       assignments: [{ id: 'a1', title: 'No category', due_at: null, position: 0, is_draft: false, points_possible: 30, include_in_final: true, gradebook_weight: 10, gradebook_category_id: null }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 }],
     })
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
     const body = await response.json()
@@ -831,7 +938,7 @@ describe('GET /api/teacher/gradebook', () => {
         },
       ],
       docs: [
-        { assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
       ],
     })
 
@@ -871,7 +978,7 @@ describe('GET /api/teacher/gradebook', () => {
         { id: 'a-future', title: 'Future Assignment', due_at: '2099-01-01T12:00:00.000Z', position: 3, is_draft: false, points_possible: 30, include_in_final: true },
         { id: 'a-draft', title: 'Draft Assignment', due_at: '2025-01-03T12:00:00.000Z', position: 4, is_draft: true, points_possible: 30, include_in_final: true },
       ],
-      docs: [{ assignment_id: 'a-graded', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a-graded', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1')
@@ -937,8 +1044,8 @@ describe('GET /api/teacher/gradebook', () => {
         { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
       ],
       docs: [
-        { assignment_id: 'a1', student_id: 'student-1', score_completion: 2, score_thinking: 2, score_workflow: 2 }, // 20%
-        { assignment_id: 'a1', student_id: 'student-2', score_completion: 5, score_thinking: 5, score_workflow: 5 }, // 50%
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 2, score_thinking: 2, score_workflow: 2 }, // 20%
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-2', score_completion: 5, score_thinking: 5, score_workflow: 5 }, // 50%
       ],
     })
 
@@ -964,8 +1071,8 @@ describe('GET /api/teacher/gradebook', () => {
         { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
       ],
       docs: [
-        { assignment_id: 'a1', student_id: 'student-1', score_completion: 3, score_thinking: 3, score_workflow: 3 }, // 30%
-        { assignment_id: 'a1', student_id: 'withdrawn-student', score_completion: 10, score_thinking: 10, score_workflow: 10 }, // 100% (must be ignored)
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 3, score_thinking: 3, score_workflow: 3 }, // 30%
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'withdrawn-student', score_completion: 10, score_thinking: 10, score_workflow: 10 }, // 100% (must be ignored)
       ],
     })
 
@@ -1023,7 +1130,7 @@ describe('GET /api/teacher/gradebook', () => {
       })),
       assignments,
       assignment_docs: [
-        {
+        { returned_at: '2026-01-02T12:00:00.000Z',
           id: 'doc-first',
           assignment_id: assignments[0].id,
           student_id: studentIds[0],
@@ -1031,7 +1138,7 @@ describe('GET /api/teacher/gradebook', () => {
           score_thinking: 3,
           score_workflow: 3,
         },
-        {
+        { returned_at: '2026-01-02T12:00:00.000Z',
           id: 'doc-last',
           assignment_id: assignments[50].id,
           student_id: studentIds[50],
@@ -1039,7 +1146,7 @@ describe('GET /api/teacher/gradebook', () => {
           score_thinking: 6,
           score_workflow: 6,
         },
-        {
+        { returned_at: '2026-01-02T12:00:00.000Z',
           id: 'doc-withdrawn',
           assignment_id: assignments[0].id,
           student_id: 'withdrawn-student',
@@ -1058,8 +1165,8 @@ describe('GET /api/teacher/gradebook', () => {
         { id: 'test-response-last', test_id: tests[50].id, question_id: 'test-question-last', student_id: studentIds[50], score: 4 },
       ],
       test_attempts: [
-        { id: 'test-attempt-first', test_id: tests[0].id, student_id: studentIds[0], is_submitted: true },
-        { id: 'test-attempt-last', test_id: tests[50].id, student_id: studentIds[50], is_submitted: true },
+        { returned_at: '2026-01-02T12:00:00.000Z', id: 'test-attempt-first', test_id: tests[0].id, student_id: studentIds[0], is_submitted: true },
+        { returned_at: '2026-01-02T12:00:00.000Z', id: 'test-attempt-last', test_id: tests[50].id, student_id: studentIds[50], is_submitted: true },
       ],
     }, trace)
 
@@ -1099,7 +1206,7 @@ describe('GET /api/teacher/gradebook', () => {
       gradebook_weight: 10,
     }))
     const docs = assignments.flatMap((assignment, assignmentIndex) =>
-      studentIds.map((studentId, studentIndex) => ({
+      studentIds.map((studentId, studentIndex) => ({ returned_at: '2026-01-02T12:00:00.000Z',
         id: `doc-${String(assignmentIndex + 1).padStart(2, '0')}-${String(studentIndex + 1).padStart(2, '0')}`,
         assignment_id: assignment.id,
         student_id: studentId,
@@ -1220,7 +1327,7 @@ describe('GET /api/teacher/gradebook', () => {
         { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
       ],
       docs: [
-        { assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 },
+        { returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 },
       ],
       docsTeacherClearedAtError: {
         code: '42703',
@@ -1375,7 +1482,7 @@ describe('GET /api/teacher/gradebook', () => {
             in: vi.fn(() => {
               return {
                 in: vi.fn().mockResolvedValue({
-                  data: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+                  data: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
                   error: null,
                 }),
               }
@@ -1688,7 +1795,7 @@ describe('standalone Gradebook item calculations', () => {
     mockSupabaseClient.from = buildMockFrom({
       categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
       assignments: [{ id: 'a1', title: 'Assignment', position: 0, points_possible: 10, gradebook_weight: 10, gradebook_category_id: 'term' }],
-      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
       items: [
         { id: 'i1', title: 'Attendance – Term 1', points_possible: 20, gradebook_weight: 30, gradebook_category_id: 'term', include_in_final: true },
         { id: 'blank', title: 'Blank', points_possible: 10, gradebook_weight: 100, gradebook_category_id: 'term', include_in_final: true },

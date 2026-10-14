@@ -429,11 +429,11 @@ export function LessonCalendar({
 
       {viewMode === 'week' ? (
         <div role="region" aria-label="Week agenda" className="min-w-0 divide-y divide-border">
-          {weeks[0]?.map((day, index) => {
+          {weeks[0]?.map(day => {
             const dateString = format(day, 'yyyy-MM-dd')
             const isWeekendDay = isWeekend(day)
             return (
-              <div key={dateString} className={index % 2 === 0 ? 'bg-surface-2' : 'bg-surface'}>
+              <div key={dateString} className="bg-surface">
                 <LessonDayCell
                   layout="agenda"
                   date={dateString}

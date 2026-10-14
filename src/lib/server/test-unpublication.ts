@@ -7,7 +7,11 @@ const unavailable = () => new ApiError(503, 'Unable to verify Test return to dra
 
 /** SQL owns the locked eligibility decision and source-to-draft synchronization. */
 export async function returnTestToDraft(teacherId: string, testId: string, classroomId: string) {
-  let result: Awaited<ReturnType<ReturnType<typeof getServiceRoleClient>['rpc']>>
+  let result: {
+    data: unknown
+    error: { code: string } | null
+    status?: number
+  }
   try {
     result = await getServiceRoleClient().rpc('return_test_to_draft_atomic', {
       p_teacher_id: teacherId,

@@ -656,7 +656,7 @@ function getAssignmentUtilityAction(name: 'Edit Assignment' | 'Delete Assignment
   return screen.getByRole('menuitem', { name })
 }
 
-function getSelectedStudentAction(
+async function getSelectedStudentAction(
   name:
     | 'AI Grade 1 student'
     | 'AI Grade 2 students'
@@ -667,8 +667,10 @@ function getSelectedStudentAction(
     | 'Return',
 ) {
   const toolbar = screen.getByRole('toolbar', { name: 'Assignment grading actions' })
-  openActionMenu(within(toolbar).getByRole('button', { name: /Student actions/ }))
-  return screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })
+  const trigger = within(toolbar).getByRole('button', { name: /Student actions/ })
+  await waitFor(() => expect(trigger).toBeEnabled())
+  openActionMenu(trigger)
+  return screen.findByRole('menuitem', { name: new RegExp(`^${name}`) })
 }
 
 // Assignment table scroll containment is covered in the experience matrix browser suite.
@@ -2681,7 +2683,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const gradeSelectedOption = getSelectedStudentAction('Copy grade to 2 selected')
+    const gradeSelectedOption = await getSelectedStudentAction('Copy grade to 2 selected')
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
@@ -2791,7 +2793,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const commentsSelectedOption = getSelectedStudentAction('Copy comment to 2 selected')
+    const commentsSelectedOption = await getSelectedStudentAction('Copy comment to 2 selected')
     await waitFor(() => {
       expect(commentsSelectedOption).not.toBeDisabled()
     })
@@ -2865,7 +2867,7 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     const workPanel = await screen.findByTestId('teacher-work-panel')
-    const applyGradeOption = getSelectedStudentAction('Copy grade to 2 selected')
+    const applyGradeOption = await getSelectedStudentAction('Copy grade to 2 selected')
     const applyCommentsOption = screen.getByRole('menuitem', { name: 'Copy comment to 2 selected' })
     await waitFor(() => {
       expect(applyGradeOption).not.toBeDisabled()
@@ -2921,7 +2923,7 @@ describe('TeacherClassroomView', () => {
     })
 
     mockClearSelection.mockClear()
-    const gradeSelectedOption = getSelectedStudentAction('Copy grade to 1 selected')
+    const gradeSelectedOption = await getSelectedStudentAction('Copy grade to 1 selected')
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
@@ -3027,7 +3029,7 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1'))
     clickAssignmentLayoutToggle()
     expect(mockSetSelection).toHaveBeenLastCalledWith(new Set(['student-1']))
-    getSelectedStudentAction('AI Grade student-1 Student')
+    await getSelectedStudentAction('AI Grade student-1 Student')
     expect(screen.getAllByRole('menuitem')).toHaveLength(2)
     expect(screen.queryByRole('menuitem', { name: /Copy/ })).not.toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu', { name: 'Selected student assignment actions' }), { key: 'Escape' })
@@ -3039,7 +3041,7 @@ describe('TeacherClassroomView', () => {
     rerender(<TeacherClassroomView classroom={classroom} />)
     expect(screen.getByRole('button', { name: 'Student actions for student-2 Student' })).toBeEnabled()
     expect(mockSetSelection).toHaveBeenLastCalledWith(new Set(['student-2']))
-    fireEvent.click(getSelectedStudentAction(action === 'AI Grade' ? 'AI Grade student-2 Student' : 'Return'))
+    fireEvent.click(await getSelectedStudentAction(action === 'AI Grade' ? 'AI Grade student-2 Student' : 'Return'))
     const dialog = screen.getByRole('dialog', { name: action === 'AI Grade'
       ? 'AI grade student-2 Student?' : 'Return work to student-2 Student?' })
     fireEvent.click(within(dialog).getByRole('button', { name: action === 'AI Grade' ? 'AI grade' : 'Return', exact: true }))
@@ -3063,7 +3065,7 @@ describe('TeacherClassroomView', () => {
     const { rerender } = render(<TeacherClassroomView classroom={classroom} />)
     await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1'))
     if (view === 'individual') clickAssignmentLayoutToggle()
-    fireEvent.click(getSelectedStudentAction(view === 'individual' ? 'AI Grade student-1 Student' : 'AI Grade'))
+    fireEvent.click(await getSelectedStudentAction(view === 'individual' ? 'AI Grade student-1 Student' : 'AI Grade'))
     const aiDialog = screen.getByRole('dialog', { name: /AI grade/ })
     mockWorkReadPaused = true
     rerender(<TeacherClassroomView classroom={classroom} />)
@@ -3072,7 +3074,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: /Student actions for/ })).toBeDisabled()
     mockWorkReadPaused = false
     rerender(<TeacherClassroomView classroom={classroom} />)
-    fireEvent.click(getSelectedStudentAction('Return'))
+    fireEvent.click(await getSelectedStudentAction('Return'))
     const returnDialog = screen.getByRole('dialog', { name: /Return work/ })
     mockWorkReadPaused = true
     rerender(<TeacherClassroomView classroom={classroom} />)
@@ -3594,7 +3596,7 @@ describe('TeacherClassroomView', () => {
     })
 
     const actionLabel = selectedCount === 1 ? 'AI Grade 1 student' : 'AI Grade 2 students'
-    fireEvent.click(getSelectedStudentAction(actionLabel))
+    fireEvent.click(await getSelectedStudentAction(actionLabel))
     const dialog = screen.getByRole('dialog', { name: `AI grade ${selectedCount} student${selectedCount === 1 ? '' : 's'}` })
     expect(dialog).toHaveTextContent('This will overwrite existing grade, comments and teacher edits.')
     expect(autoGradeBodies).toEqual([])
@@ -3602,7 +3604,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('dialog', { name: /^AI grade/ })).not.toBeInTheDocument()
     expect(autoGradeBodies).toEqual([])
 
-    fireEvent.click(getSelectedStudentAction(actionLabel))
+    fireEvent.click(await getSelectedStudentAction(actionLabel))
     mockStudentSelectionState.selectedIds = new Set()
     mockStudentSelectionState.selectedCount = 0
     rerender(<TeacherClassroomView classroom={classroom} />)
@@ -4058,7 +4060,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    const returnButton = getSelectedStudentAction('Return')
+    const returnButton = await getSelectedStudentAction('Return')
     expect(returnButton).toBeDisabled()
 
     fireEvent.click(returnButton)
@@ -4192,7 +4194,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(getSelectedStudentAction('Return'))
+    fireEvent.click(await getSelectedStudentAction('Return'))
 
     expect(
       screen.getByText(/partial rubric drafts and must be completed or cleared before return/i),
@@ -4315,7 +4317,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    fireEvent.click(getSelectedStudentAction('Return'))
+    fireEvent.click(await getSelectedStudentAction('Return'))
     const confirmReturnButton = screen.getAllByRole('button', { name: 'Return' }).at(-1)
     expect(confirmReturnButton).toBeDefined()
     fireEvent.click(confirmReturnButton!)

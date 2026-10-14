@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SOURCE ONLY. Explicit approval is required before local execution.
-// Standalone on a fresh schema through247. Commits only its isolated shared
+// Standalone on a fresh schema through265. Commits only its isolated shared
 // fixture and authority drift (required for cross-session visibility). Archive/
 // owner drift is restored; terminal membership removal retains immutable private
 // migration168 evidence. Disposable databases only: cleanup restores the checked
@@ -254,11 +254,11 @@ try {
     select draft_revision into before_clear from public.test_attempts where test_id=${test} and student_id=${student};
     perform public.clear_test_open_response_grades_atomic(${test},${teacher},array[${student}],
       (select jsonb_agg(jsonb_build_object('response_id',id,'expected_response_revision',revision)) from public.test_responses where test_id=${test} and student_id=${student} and question_id=${question}),now());
-    if exists(select 1 from public.test_attempts where test_id=${test} and student_id=${student} and (returned_at is not null or draft_revision <= before_clear)) then raise exception 'Clear did not revoke Return and its prior revision'; end if;
+    if not exists(select 1 from public.test_attempts where test_id=${test} and student_id=${student} and returned_at is not null and draft_revision = before_clear) then raise exception 'Clear changed preserved Return or attempt revision'; end if;
     end; $revision$; rollback;`)
   await race('reopen before Return', reopen, returnAfterRollback)
   await race('grade clear before Return', clear, returnAfterRollback)
-  await race('Return before grade clear', `select ${returnCall};`, `${clear} do $assert$ declare result jsonb; begin result := ${returnCall}; if result->>'skipped_count' <> '1' then raise exception 'Cleared grade was returned: %',result; end if; if (select returned_at from public.test_attempts where test_id=${test} and student_id=${student}) is not null then raise exception 'Stale disclosure marker survived'; end if; end; $assert$;`)
+  await race('Return before grade clear', `select ${returnCall};`, `${clear} do $assert$ declare result jsonb; begin result := ${returnCall}; if result->>'returned_count' <> '1' or result->>'skipped_count' <> '0' then raise exception 'Cleared grade was not returnable: %',result; end if; if (select returned_at from public.test_attempts where test_id=${test} and student_id=${student}) is null then raise exception 'Cleared work lost disclosure marker'; end if; end; $assert$;`)
   await race('Return before reopen', `select ${returnCall};`, `${reopen} do $assert$ begin begin perform ${returnCall}; raise exception 'Reopened attempt returned'; exception when sqlstate 'PT409' then null; end; end; $assert$;`)
   // Build the destructive-reopen branch: started, unsubmitted, teacher-closed,
   // returned, and still holding a scored response. All fields are fingerprinted.
