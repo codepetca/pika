@@ -1,3 +1,4 @@
+import { validateTestReturnUngradedWorkReviewedMigration } from './test-return-ungraded-work-reviewed-migration'
 import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
 import { validateTestCalendarDateReviewedMigration } from './test-calendar-date-reviewed-migration'
 /** Fixed inert SQL frames for the existing closed native engine. This module
@@ -22,7 +23,7 @@ const q=(value:string)=>`'${value.replaceAll("'","''")}'`
 const json=(value:unknown)=>`${q(JSON.stringify(value))}::jsonb`
 const plans=new WeakMap<object,TestOwnerGradingNativePlan>()
 const checks=freeze(['current-nonowner-roster','late-batch-rollback','answered-mc-clear','revision-provenance-review','zero-return-idempotent',
-  'clear-retracts-return','empty-roster-source','logical-source-bound','no-question-return','nonfinite-eligibility-or-constraint',
+  'clear-preserves-return','empty-roster-source','logical-source-bound','no-question-return','nonfinite-eligibility-or-constraint',
   'global-closed-finalization','authority-freshness','active-ai-both-orders'])
 function bounded(sql:string){assert(Buffer.byteLength(sql)<=caps.sqlBytes);return sql}
 /** Only the coordinator-owned exact source constant can bind this candidate.
@@ -37,14 +38,18 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const sql=readFileSync(resolve(repository,'supabase/migrations',TEST_OWNER_GRADING_REVIEWED_MIGRATION.name),'utf8')
   const sourceSha256=hash(sql);validateTestOwnerGradingReviewedMigration({name:TEST_OWNER_GRADING_REVIEWED_MIGRATION.name,sql,sha256:sourceSha256})
-  const inventory=loadAssignmentListReviewedMigrations(repository);assert([259,260,261,262,263, 264].includes(inventory.length),'Unreviewed owner grading migration profile')
+  // The current native harness asserts265 Return and clear-preservation behavior.
+  // Historical source seals remain valid; those schemas cannot execute this proof.
+  const inventory=loadAssignmentListReviewedMigrations(repository)
+  assert.equal(inventory.length,265,'Owner grading native proof requires the exact migration265 profile')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
   if(inventory.length>=260)validateTestOwnerRecoveryReviewedMigration(inventory[259])
   if (inventory.length >= 261) validateTestOwnerUnpublicationReviewedMigration(inventory[260])
   if (inventory.length >= 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
   if (inventory.length >= 263) validateTestCalendarDateReviewedMigration(inventory[262])
-  if (inventory.length === 264) validateTestAiGradingSavedWorkReviewedMigration(inventory[263])
+  if (inventory.length >= 264) validateTestAiGradingSavedWorkReviewedMigration(inventory[263])
+  if (inventory.length === 265) validateTestReturnUngradedWorkReviewedMigration(inventory[264])
   const migrations=inventory.map(({name,sha256})=>({name,sha256}));const migrationManifestSha256=hash(JSON.stringify(migrations))
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`,guard=testOwnerGuardSql(projectId)
   const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';",terminal="end;$guard$;select 'ok';rollback;"

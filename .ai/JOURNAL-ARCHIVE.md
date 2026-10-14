@@ -46535,11 +46535,13 @@ Compact legacy session polling uses one domain query instead of five, with fresh
 <!-- pika-session-log-archive-batch:9c59be27100aead1c214b6209d7f783833df8444b9f495ae689cc733eed6b2e1 -->
 
 <!-- pika-session-log-archive-batch:34c2976253dc03d0cd5d59f64abbc6705a7316744030ace4cb5e69738f4b285d -->
+<!-- pika-session-log-archive-batch:2185d09f80edf8c918b921b2d4a53076d90d347b06f85176709e08a4ebc30ca9 -->
 ## 2026-10-11 — Material Markdown approved main integration
 
 Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
 
 <!-- pika-session-log-archive-batch:eec825188ff3b85a66438470ffec88a7be779468b07305c21c7c97b2d29fb7bb -->
+<!-- pika-session-log-archive-batch:945d353371690687ea980e0550bb08894845b6bccd94da17de0b9fb66dec7af4 -->
 ## 2026-10-11 — Material Markdown final log sync
 
 Final reviewed be7674d4 CI38136077644 and all ten lanes including PR Gate PASS (35m09s). Main79a6f7994 landed a production continuity receipt during CI; rebase again resolves only archive/log overlap, retaining distinct history. Feature/UI/test blobs unchanged; prior focused969/65 and teacher/student desktop/mobile light/dark proof remain applicable. No application migration, production promotion or feature correction. Proportional sync review and exact final-head CI precede the authorized main merge.
@@ -46677,6 +46679,7 @@ seven inert hashes verified. Permission consumed; no sourcefix/CI/merge/shared
 migration/deployment/account/provider/activation or toolgoal resume occurred.
 
 <!-- pika-session-log-archive-batch:76fea1c1f68bca08b856d771eeb0abef2873a29db381f4fe57b2effa1f0cb14a -->
+<!-- pika-session-log-archive-batch:b5454e2a24800f7d56442fb36bc7410ffc2ed1e07c58647c893c19f060a71ed3 -->
 ## 2026-10-11 — Owner grading SDK captures real Start revisions
 
 Human authorized private driver correction/regressions/targeted review only.
@@ -46694,3 +46697,114 @@ fresh documentation/workflow gate and one targeted independent review follow.
 Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
 standing workflow-stop waiver retained. Shared-local/prod/account/provider/
 activation and toolgoalPAUSED holds unchanged.
+
+<!-- pika-session-log-archive-batch:eb35cd35e676b3c847707d1c11fc3f0d50c4e4f88c9d8752c9fd7374d5ab7d48 -->
+## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
+
+Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
+all10 incoming nonhistory paths byte-for-byte; owner product/SQL/generated types
+unchanged. One append-only journal conflict kept both sides; complete dated
+body/multiplicity deficits zero for pre-rebase02d1d2a10 and incomingbb778e389.
+No stash created or consumed; existing stashes retained. Full current-base
+focused1954/112 plus architecture/UI/design/TypeScript/lint PASS at40152a3c1;
+three private revision-source changes and all seven private types/mock suites
+remain PASS. Earlier docs-only739/56 PASS. No UI implementation or native query.
+One independent targeted Sol/high review covers last-reviewedcebc→final candidate,
+three private diffs, Start→observed manifest and unchanged incoming material UI.
+Cumulative counters original02:58:39/8completedturn2261s/targeted5/final1/fix6
+retained under waiver; native acceptance/readyCI/merge still blocked. PR1569 stays
+draft; shared-local/prod/provider/account/activation/toolgoalPAUSED holds remain.
+
+<!-- pika-session-log-archive-batch:4260ce6ae24dc2f67e2b9569b24a3a60ecb695728772e8a7a3e2a957f66528e3 -->
+## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
+
+Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
+pika_assignment_list_ef9c8ece7a72. Locked preflight accepted; sole root run38015
+started14:05:27UTC, observed complete exit1 at14:10:12UTC, no retry. Full history,
+product rollback/ACLs, genuine CLI types identical and closed-engine privilege/
+rollback/held-schedule checks PASS. SDK acceptance stopped in rosterRestore:
+bounded private0600 diagnostic pal_membership_generation_closed. Fixture deletes
+an enrollment then reinserts its same id; retained168 records DELETE as removed
+and forbids reactivating that generation. This is invalid restoration setup, not
+evidence that the product guard should change. Remaining SDK/hoisting/cancellation
+acceptance absent. Exact owned teardown, global inventory/ports, whole canonical
+rows/settings/cron/resources and sourcefreeze PASS; cleanupFailures[]. Runner
+entry flags false/null again; all seven inert hashes match reviewed sources.
+Permission consumed; PR1569 remains OPEN/DRAFTa3c5, goalPAUSED. No sourcefix,
+additional native command, CI/merge/shared migration/deployment/account/provider/
+activation. Next source-only fixture correction must respect generation closure,
+verify lifecycle-aware cleanup/restoration, and receive targeted review before
+another exact-candidate rehearsal. Review ledger/counters/waiver not reset.
+
+<!-- pika-session-log-archive-batch:b0c45814197487993a98c933ce51b3315a32873507ba49fb66feef644ee44ea9 -->
+## 2026-10-11 — Owner delegates reasonable workflow approvals
+
+Human requested faster completion and explicitly delegated reasonable approvals
+for this task. Root carries implementation/fixture corrections, offline testing,
+isolated disposable rehearsals, review/usage extensions and protected main PR
+completion forward without repeated checkpoints. Exact source/target bindings,
+fresh receipts, settled effects, independent review, CI and privacy gates remain.
+Shared local/production migrations and rollout/provider/account holds retain
+their separate authority; no activation or global policy change. Goal tool still
+paused; owner grading slice source correction proceeds within new instruction.
+Weekly97%remaining/ordinary allowed; explicit DeepSeek pause retained.
+One bounded GPT6.1Sol/high implementation worker owns only three private SDK/
+offline files for lifecycle-aware fresh-generation roster restoration, preserving
+product168/169 guards and academic work. Root owns Git/PR/docs/native execution;
+one targeted independent review follows verified delivery. Original ledger/
+clock retained, fixbatch7; no native retry or source evidence claimed yet.
+
+<!-- pika-session-log-archive-batch:c6dfff690b4a8ed8aa2f1a02b9d4f5c305b205d7cf66a63107940c4675d32333 -->
+## 2026-10-11 — Roster fixture respects irreversible membership generation
+
+Bounded Sol/high writer delivered exactly three private SDK/offline source files;
+root verified snapshots/hashes/diff and reran transport+operational fake effects
+PASS. Retained168 same-ID reinsertion regression RED; fixed fresh-generation
+reenrollment GREEN. Before/after full18-table academic/enrollment/membership/
+outbox graph accepts only exact enrollment ID successor, old active→removed,
+one fresh scoped active generation and validated novel Pal reference. Original
+work/timestamps/attendance marks/non-target identities stay exact. Uncommitted
+Apply leaves original untouched; failed Restore and16 corruption cases fail
+closed. Six committed-denial/postguard faults and cancellation mocks retained;
+full success31/32frames. No trigger/maintenance bypass, product/SQL/generated/
+dependency/runner/control change or native operation. Worker start unknown,
+first observation14:32:47/final checks14:38:52; effective/tokens unknown.
+Full current-base gate95217 PASS1954/112 plus allstatic; final factualdocs delta
+receives targeted checks. One targeted independent review covers three private
+diffs, native168/169 interaction, source equivalence and whole documentation
+delta. Original clock/9completedturns/prior2261measureds+unknown9 retained;
+fixbatch7/standingworkflow waiver. PR1569 stays draft; actual native acceptance
+still absent, shared local/prod and activation holds remain.
+
+## 2026-10-11 — Owner grading disposable native acceptance passes
+
+Exact reviewedd714cb2f/full001–259/project01067ea3558c run16809 completed exit0,
+success/nativeVerified true and cleanupFailures[]. History, rollback/ACLs,
+genuine CLI types identical, closed-engine privilege/restoration/held schedules,
+real SDK manual-zero/provenance/answered-MC clear/return/disclosure/retraction
+and six committed owner/parent/roster/archive/source/AI denials PASS. Captured
+PostgREST hoisting and actual8s57014 cancellation preserved fullfixture/catalog
+and settled zeroRPC backends. Exact owned cleanup/global inventory/ports/whole
+canonical app rows/settings/cron/resources/sourcefreeze PASS. Receipt result
+mtime14:57:33UTC; exact process exit timestamp unknown. Two entry flags inert
+again and all seven reviewed hashes match. No duplicate run/shared migration/
+production/provider/account/activation. Seeded produced metadata is not later
+authenticated token-route coverage; batch2/goal remain open and goaltoolPAUSED.
+Factual docs delta only; runtime/SQL/generated/CI evidence reused only after
+byte equivalence and targeted independent delta review. Original ledger10turns/
+2626measureds+unknown9/targeted7/final1/fix7 under delegated workflow authority.
+
+## 2026-10-11 — CI catches compact continuity contract wording
+
+Reviewed factual-doc descendantab7c native-source bytes identicald714; narrow
+Luna/medium receipt/history delta review CLEAN, no runtime re-review needed.
+Ready once at15:01UTC started exact-headCI38149543002. At15:12UTC Test/Build
+coverage job failed bara-attendance continuity assertion: compactCURRENT lost
+required Controls unchanged prefix. Restored incoming main wording, offset with
+equivalent shorter learner/next-owner summaries; no test/budget/control weakened.
+PR returned draft before correction. Native/source evidence remains exactd714;
+no product/schema/type/CI/private-source change or native retry. Other CI jobs
+still active; do not launch parallel heavyCI. Affected checks/currentfocused and
+one narrow docs-delta review precede the new stablehead ready event. Original
+ledger11completed/2626measureds+unknown9+11/targeted8/final1; fixbatch8 under
+direct delegated workflow authority, no repeated owner approval required.

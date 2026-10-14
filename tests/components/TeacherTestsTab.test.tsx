@@ -3014,7 +3014,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.getByText('3/5')).toBeInTheDocument()
+    expect(screen.getByText('Pending grading')).toBeInTheDocument()
     expect(within(screen.getByTestId('test-grading-student-row-student-1')).getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
     expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Access' })).toBeInTheDocument()
@@ -3026,7 +3026,7 @@ describe('TeacherTestsTab', () => {
     })
 
     expect(screen.getByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.getByText('3/5')).toBeInTheDocument()
+    expect(screen.getByText('Pending grading')).toBeInTheDocument()
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('Refreshing grades')
     })
@@ -3392,6 +3392,43 @@ describe('TeacherTestsTab', () => {
       expect(screen.getByText('Bob Yellow')).toBeInTheDocument()
       expect(screen.queryByText('Alice Zephyr')).not.toBeInTheDocument()
     })
+  })
+
+  it('returns closed unsubmitted work even when open responses are ungraded', async () => {
+    const student = makeGradingStudent({
+      status: 'closed',
+      access_state: 'closed',
+      effective_access: 'closed',
+      points_earned: 0,
+      percent: null,
+      graded_open_responses: 0,
+      ungraded_open_responses: 1,
+    })
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ students: [student] }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ returned_count: 1, skipped_count: 0, test_closed: false }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ students: [{ ...student, status: 'returned' }] }))
+
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByLabelText('Select Alice Zephyr'))
+    expect(screen.getByText('Pending grading')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return' }))
+    expect(await screen.findByText('Return saved work for students with closed access, including ungraded work. Returned work cannot be edited or submitted.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Return' }))
+
+    expect(await screen.findByText('Returned 1 student')).toBeInTheDocument()
+    const request = fetchMock.mock.calls.find(([url]) => url === '/api/teacher/tests/test-1/return')
+    expect(request?.[1]).toMatchObject({ method: 'POST' })
+    expect(JSON.parse(request?.[1]?.body as string)).toEqual({ student_ids: ['student-1'] })
   })
 
   it('requires selected students to be closed before returning work', async () => {

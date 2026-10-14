@@ -11,113 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
-
-Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
-all10 incoming nonhistory paths byte-for-byte; owner product/SQL/generated types
-unchanged. One append-only journal conflict kept both sides; complete dated
-body/multiplicity deficits zero for pre-rebase02d1d2a10 and incomingbb778e389.
-No stash created or consumed; existing stashes retained. Full current-base
-focused1954/112 plus architecture/UI/design/TypeScript/lint PASS at40152a3c1;
-three private revision-source changes and all seven private types/mock suites
-remain PASS. Earlier docs-only739/56 PASS. No UI implementation or native query.
-One independent targeted Sol/high review covers last-reviewedcebc→final candidate,
-three private diffs, Start→observed manifest and unchanged incoming material UI.
-Cumulative counters original02:58:39/8completedturn2261s/targeted5/final1/fix6
-retained under waiver; native acceptance/readyCI/merge still blocked. PR1569 stays
-draft; shared-local/prod/provider/account/activation/toolgoalPAUSED holds remain.
-
-## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
-
-Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
-pika_assignment_list_ef9c8ece7a72. Locked preflight accepted; sole root run38015
-started14:05:27UTC, observed complete exit1 at14:10:12UTC, no retry. Full history,
-product rollback/ACLs, genuine CLI types identical and closed-engine privilege/
-rollback/held-schedule checks PASS. SDK acceptance stopped in rosterRestore:
-bounded private0600 diagnostic pal_membership_generation_closed. Fixture deletes
-an enrollment then reinserts its same id; retained168 records DELETE as removed
-and forbids reactivating that generation. This is invalid restoration setup, not
-evidence that the product guard should change. Remaining SDK/hoisting/cancellation
-acceptance absent. Exact owned teardown, global inventory/ports, whole canonical
-rows/settings/cron/resources and sourcefreeze PASS; cleanupFailures[]. Runner
-entry flags false/null again; all seven inert hashes match reviewed sources.
-Permission consumed; PR1569 remains OPEN/DRAFTa3c5, goalPAUSED. No sourcefix,
-additional native command, CI/merge/shared migration/deployment/account/provider/
-activation. Next source-only fixture correction must respect generation closure,
-verify lifecycle-aware cleanup/restoration, and receive targeted review before
-another exact-candidate rehearsal. Review ledger/counters/waiver not reset.
-
-## 2026-10-11 — Owner delegates reasonable workflow approvals
-
-Human requested faster completion and explicitly delegated reasonable approvals
-for this task. Root carries implementation/fixture corrections, offline testing,
-isolated disposable rehearsals, review/usage extensions and protected main PR
-completion forward without repeated checkpoints. Exact source/target bindings,
-fresh receipts, settled effects, independent review, CI and privacy gates remain.
-Shared local/production migrations and rollout/provider/account holds retain
-their separate authority; no activation or global policy change. Goal tool still
-paused; owner grading slice source correction proceeds within new instruction.
-Weekly97%remaining/ordinary allowed; explicit DeepSeek pause retained.
-One bounded GPT6.1Sol/high implementation worker owns only three private SDK/
-offline files for lifecycle-aware fresh-generation roster restoration, preserving
-product168/169 guards and academic work. Root owns Git/PR/docs/native execution;
-one targeted independent review follows verified delivery. Original ledger/
-clock retained, fixbatch7; no native retry or source evidence claimed yet.
-
-## 2026-10-11 — Roster fixture respects irreversible membership generation
-
-Bounded Sol/high writer delivered exactly three private SDK/offline source files;
-root verified snapshots/hashes/diff and reran transport+operational fake effects
-PASS. Retained168 same-ID reinsertion regression RED; fixed fresh-generation
-reenrollment GREEN. Before/after full18-table academic/enrollment/membership/
-outbox graph accepts only exact enrollment ID successor, old active→removed,
-one fresh scoped active generation and validated novel Pal reference. Original
-work/timestamps/attendance marks/non-target identities stay exact. Uncommitted
-Apply leaves original untouched; failed Restore and16 corruption cases fail
-closed. Six committed-denial/postguard faults and cancellation mocks retained;
-full success31/32frames. No trigger/maintenance bypass, product/SQL/generated/
-dependency/runner/control change or native operation. Worker start unknown,
-first observation14:32:47/final checks14:38:52; effective/tokens unknown.
-Full current-base gate95217 PASS1954/112 plus allstatic; final factualdocs delta
-receives targeted checks. One targeted independent review covers three private
-diffs, native168/169 interaction, source equivalence and whole documentation
-delta. Original clock/9completedturns/prior2261measureds+unknown9 retained;
-fixbatch7/standingworkflow waiver. PR1569 stays draft; actual native acceptance
-still absent, shared local/prod and activation holds remain.
-
-## 2026-10-11 — Owner grading disposable native acceptance passes
-
-Exact reviewedd714cb2f/full001–259/project01067ea3558c run16809 completed exit0,
-success/nativeVerified true and cleanupFailures[]. History, rollback/ACLs,
-genuine CLI types identical, closed-engine privilege/restoration/held schedules,
-real SDK manual-zero/provenance/answered-MC clear/return/disclosure/retraction
-and six committed owner/parent/roster/archive/source/AI denials PASS. Captured
-PostgREST hoisting and actual8s57014 cancellation preserved fullfixture/catalog
-and settled zeroRPC backends. Exact owned cleanup/global inventory/ports/whole
-canonical app rows/settings/cron/resources/sourcefreeze PASS. Receipt result
-mtime14:57:33UTC; exact process exit timestamp unknown. Two entry flags inert
-again and all seven reviewed hashes match. No duplicate run/shared migration/
-production/provider/account/activation. Seeded produced metadata is not later
-authenticated token-route coverage; batch2/goal remain open and goaltoolPAUSED.
-Factual docs delta only; runtime/SQL/generated/CI evidence reused only after
-byte equivalence and targeted independent delta review. Original ledger10turns/
-2626measureds+unknown9/targeted7/final1/fix7 under delegated workflow authority.
-
-## 2026-10-11 — CI catches compact continuity contract wording
-
-Reviewed factual-doc descendantab7c native-source bytes identicald714; narrow
-Luna/medium receipt/history delta review CLEAN, no runtime re-review needed.
-Ready once at15:01UTC started exact-headCI38149543002. At15:12UTC Test/Build
-coverage job failed bara-attendance continuity assertion: compactCURRENT lost
-required Controls unchanged prefix. Restored incoming main wording, offset with
-equivalent shorter learner/next-owner summaries; no test/budget/control weakened.
-PR returned draft before correction. Native/source evidence remains exactd714;
-no product/schema/type/CI/private-source change or native retry. Other CI jobs
-still active; do not launch parallel heavyCI. Affected checks/currentfocused and
-one narrow docs-delta review precede the new stablehead ready event. Original
-ledger11completed/2626measureds+unknown9+11/targeted8/final1; fixbatch8 under
-direct delegated workflow authority, no repeated owner approval required.
-
 ## 2026-10-11 — Dormant owner recovery and verifier lifetime correction
 
 PR1577 adds dormant contextual owner unsubmit/single-reset/bulk-reset with sealed
@@ -640,3 +533,41 @@ Targeted teacher/student tests passed (86 before final saved-unsubmitted regress
 ## 2026-10-14 — Gradebook CI test readiness repair
 
 Owner approved continuing PR1592's test fixes, independent review, and merge after CI; the elapsed review-window stop is waived for this continuation. The reviewed Gradebook source remains unchanged from cadeb71a2. Classwork action tests now await the async work-read guard and menu; negative disabled-action assertions remain. The long Pattern Lab interaction scenario is split into five independent cases with retained assertions and bounded teacher-case timeouts. Targeted129 UI tests pass. Prior ledger:two review turns,one main-sync push,zero product corrections; this is one test-remediation batch. Targeted review and final-head CI precede the authorized squash merge. Evidence: ~/.codex/artifacts/pika/pr-1592/. No production promotion or migration application.
+
+## 2026-10-14 — Return closed ungraded Test work
+
+User authorized Return of ungraded/unsubmitted Tests with closed access; returned work must remain read-only. Worktree return-ungraded-tests at a60258658, branch codex/return-ungraded-tests; risk async-grading/exam-mode/workspace-state and consequential migration/disclosure review. Migration265 removes completeness from Return, finalizes only existing unfinished attempts after all-selected-closed guard, preserves submission provenance and skips never-started work. Historical private completeness revoker becomes compatibility no-op; explicit reopen/unsubmit/delete unchanged. Closed/returned student Start/Save/Submit guards retained. Student public legacy/contextual summaries and shared result view keep incomplete grades pending, with genuine zero still counted only when complete; aggregate Grades policy unchanged. Teacher table uses pending label while open responses ungraded. Canonical request helper uses zero retention and component/request identity; late-results regression added.
+
+UI brief: existing teacher Tests confirmation and student returned-results owners; canonical ConfirmDialog/AppMessage and existing result card reused, result summary extended, no new component/pattern. Teacher/student, desktop1440x900/mobile390x844, light/dark: closed Return confirmation, Returned pending row, open-access refusal, ungraded/partial student view. No styling/composite/keyboard redesign. Reference Pattern Lab current-owner evidence preserved from same-day grading work; twenty final screenshots under /tmp/pika-return-*, inspected contact sheet and representative originals, no overflow/edit/submit/start controls or mutation requests. Initial screenshot wait used transient toast instead of committed row; corrected capture selector, no product correction. Temporary fixture-provider experiment reverted to original bytes after verifying root already owns provider.
+
+GPT6.1-sol/high bounded worker mapped lifecycle and implemented five SQL/harness files; verified265 digest aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. Same worker replayed244–265 in schema-only disposable pika_test_return_contract_20261014: new265/lifecycle/contextual owner rollback, full atomic-grading and lifecycle-concurrency PASS, genuine generated types unchanged. Canonicalpostgres max243 and normalized schema unchanged; no app/user/config data copied, synthetic inactive config only. /tmp/pika-return-db-receipt.json, private logs. Reused GPT6.1-sol/high profile worker updated seven finite profiles/helper to exact265 while retaining263/264 seals, rejecting266/mutants;572tests/8suites and7source preflights PASS. Receipt-label correction accepted, no authority/cleanup weakening.
+
+Focused2224tests/103files plus architecture/UI/design/TypeScript/lint PASS on unchanged product bytes; after additive API/stale-view cases, targeted52 and clean TypeScript/audit recorded externally. Weekly70% remaining, healthy313GB at start; DeepSeek automatic pilot pause honored. DB verification about6min; actual worker/coordinator tokens and effective runtime configuration unknown. Draft-first independent high-risk two-reviewer lifecycle follows; no production migration/deployment authorized.
+
+## 2026-10-14 — Ungraded Return compatibility review remediation
+
+PR1593 rebased on main8bf0d98e3 calendar-only update; retained distinct archive markers/body and trimmed merged46entries to40. Own product/SQL bytes unchanged; final focused2226/staticPASS. Initial independent GPT6.1-sol/high security review clean, compatibility accepted twoP2: older loaded result clients crash on nested-null score fields, and current265 owner-grading harness cannot execute historical259–264profiles. Batch1 public incomplete summary becomes whole null (old view safely omits), new UI derives Pending from current question scores; complete numeric/zero unchanged. Bothendpoint/oldrenderer regression coverage added. Nativeownergradingcurrentplan now requires exact265 before readingharness, while historicalsource seals remain independently validated and mutation refusals retained;63targetedPASS. SQL265/guards unchanged, so DBreceipts remain valid. Twentyvisualstates repeatedwithwhole-null API fixtures; reused owners/layout.
+
+Review ledger2turns/1batch; initialreviewclock18:33UTC retained, max7turns/4batches/60min. Targeted61testsPASS; finalfocused/static and cumulative targeted review precede ready-for-CI. Weekly68% remaining atreviewphase, provider/effective/token telemetry unknown; no production migration/deployment/sharedschema operation.
+
+## 2026-10-14 — Ungraded Return CI diagnostics
+
+Reviewed eaddf337b CI38617795078 failed first draft-GET after-fixture forced receipt; normal installed-SDK/SQL/concurrency and cleanup passed. Draft restored before correction. Source-only bounded diagnosis found no evidence of a265 interaction; deleted private log prevented actual failure classification. Add bounded16384-byte forced-receipt diagnostic checker before unchanged strict shell gates, publishing only validated finite setup/transport/native fields on mismatch. No raw child logs, exceptions, paths, identities or keys emitted. Preserve exit1/exact2lines/bothmarkers, forced modes, private0600capture and deletion. Targeted238tests/node syntax/lint/auditPASS; full focused check and independent delta review precede retry. Product/SQL/UI bytes unchanged, existing database/visual receipts reused. Review budget starts18:33UTC;3reviewturns/1batch before this second correction; weekly66%remaining, storagehealthy. No production/shareddatabase authority expanded.
+
+## 2026-10-14 — Return browser lifecycle correction and authorized review extension
+
+Owner instruction: “yes go ahead, extend the budget, fix the browser test and finish the PR.” Task-scoped review-budget extension acknowledged under override-task-stops; cumulative5reviewturns/3fixbatches preserved, not reset; low-usage/provider/production permissions unchanged. Ready16e02f4a4 CI38622964403 passed all database/SDK/TestBuild/dark browser/PatternLab lanes; main browser failed stale real lifecycle assertions refusing ungradedReturn (actualreturned1/skipped0 vs expected0/1), three other tests passed retries,292passed. Draft restored. Fourthbatch keeps existing unopenedReturn403/reopen/open-access409 regression, moves newungraded/unsubmittedReturn to separate ownedfixture real-browser case, requires Start/Save/Submit403 plus unchanged attempt/results, studentprovenancefalse/null, Pendinggrading/noeditingcontrols and idempotence. Gradeclear now preserves explicitReturn and exposes pendingresults. Canonicalbrowser inventory exactcounts578/580 reflect one added desktop case; partition/duplication guards retained.
+
+Playwrightcollection3cases,125workflow/lifecycle tests, cleanTypeScript/lint/auditPASS. Localsetup GPT6.1-sol/medium boundedread-only worker found no supportedcandidateDB browser binding; do not bypass dedicatedLinux local-CI guards or apply244+ tocanonical243. RequiredfreshCI will provide actualbrowser/PostgREST proof; no newinfrastructure added. Prior20visual states and SQL265 receipts remain valid because product/SQL/UI bytes unchanged. Initialfocused run superseded after exactinventory count detected, ownprocess tree stopped before corrected rerun. Finalfocused and detached targeted independentreview precede ready. Weekly65%remaining/storagehealthy307GB; automaticDeepSeek pause retained. No deployment/production/sharedschema operation.
+
+## 2026-10-14 — Returned Submit browser status contract
+
+C4d312c0a CI38629854794 passed TestBuild, all database/SDK and darkbrowser/PatternLab jobs. Mainbrowser failed newvalidSubmit rejection assertion: expected403, actual400; four othercases passed retries,292passed. Existinggraded/reopen/gradeclear lifecycle passed. Draft restored. Fifthfixbatch aligns only the newSubmit browserassertion with existingclosed-access nativeSQL22023 -> API400 and exact “Test is not active” message; Start/Save403, provenance, unchangedattempt/results, Pendinggrading/noeditingcontrols and idempotence remain strict. Product/API/migration/UI bytes unchanged.
+
+Verified exactnativeerror and fencing through rollback-only derived265contract in existingowned pika_test_return_contract_20261014; fullReturn265contractPASS/ROLLBACK. Initial “already responded” message hypothesis rejected by actualDB beforecommit; validatedclosedaccess check precedesreturned-check. Local125workflow/lifecycle tests,3casecollection/lintPASS; finalfocused and detached targeted review precede retry. Cumulative6reviewturns/4batches before thisfix; user’s explicit review-budgetextension retained, no reset. No canonicalmigration/deployment or newinfrastructure.
+
+## 2026-10-14 — Ungraded Return integrates latest Gradebook visibility
+
+Final ea751496c CI38635910213 passed every selected job and PRGate. Beforemerge, main advanced to e2db6c57e (PR1592 teacherGradebook marks only after per-student Return), producing continuity conflicts. Draft restored, all six own commits rebased on e2db; preserved both archive marker/history sides in four conflict chunks. No own product/SQL/UI/E2E blob changed; migration265 filename/digest remain aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. No migration resequencing or stash creation/restoration; pre-existing shared stashes untouched.
+
+Newbase Gradebook still requires every question score before publishing numeric Test totals. Added two integration cases for returned unsubmitted work with all-null and partialzero/null scores: cells, totals and summaries stay pending/null and inspector excludes numeric Test entry. 204 targeted Gradebook/visibility/teacher/gallery tests PASS. Reused prior20visual states and actual265 DB/browser receipts because own behavior/UI unchanged; final focused and detached integrationreview cover newbase before fresh exact-head CI. Cumulative7actualreviewturns/5batches before this sixth syncbatch; explicitowner review-budgetextension retained without reset. No production deployment or canonical migration authority.

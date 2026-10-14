@@ -1,4 +1,4 @@
--- Source-only regression harness for migrations 244/248. DO NOT run without approval
+-- Source-only current regression harness for migrations244/248/265. DO NOT run without approval
 -- naming the local target and migration. All fixture/data writes roll back.
 -- Sequence allocations do not roll back (normal PostgreSQL sequence behavior).
 \set ON_ERROR_STOP on
@@ -119,7 +119,8 @@ begin
  execute 'reset role';
  perform set_config('pika.test_teacher_closure', '', true);
  result := public.return_test_attempts_checked_atomic(mixed, array[student], teacher);
- if result->>'skipped_count' <> '1' then raise exception 'Mixed ungraded work returned'; end if;
+ if result->>'returned_count' <> '1' then raise exception 'Closed ungraded mixed work not returned'; end if;
+ select returned_at into returned from public.test_attempts where test_id=mixed and student_id=student;
  -- Grade using the canonical optimistic grading RPC, never raw lifecycle writes.
  select jsonb_agg(jsonb_build_object('response_id',id,'expected_response_revision',response.revision,'score',4,'feedback','Reviewed','clear_grade',false))
  into expected from public.test_responses response where test_id=mixed and question_id='a2440000-0000-4000-8000-000000000103';
@@ -130,7 +131,7 @@ begin
   raise exception 'Mixed gradebook numerator/denominator dropped unanswered MC';
  end if;
  result := public.return_test_attempts_checked_atomic(mixed, array[student], teacher);
- if result->>'returned_count' <> '1' then raise exception 'Graded mixed work not returned'; end if;
+ if result->>'already_returned_count' <> '1' then raise exception 'Grading retracted mixed work Return'; end if;
  -- Normalization must accept repeated IDs without a double-upsert conflict.
  perform public.update_test_student_access_atomic(mixed, array[student,student,absent], 'closed', teacher);
  if (select count(*) from public.test_student_availability where test_id=mixed) <> 2 then raise exception 'Duplicate selected IDs changed the access set'; end if;
@@ -161,10 +162,10 @@ begin
  from public.test_responses response where test_id=mixed and question_id='a2440000-0000-4000-8000-000000000103';
  select draft_revision into before_clear_revision from public.test_attempts where test_id=mixed and student_id=student;
  perform public.clear_test_open_response_grades_atomic(mixed, teacher, array[student], expected, now());
- if exists (select 1 from public.test_attempts where test_id=mixed and student_id=student and returned_at is not null) then raise exception 'Clear did not revoke disclosed work'; end if;
- if (select draft_revision from public.test_attempts where test_id=mixed and student_id=student) <= before_clear_revision then raise exception 'Revocation did not invalidate prior revision'; end if;
+ if (select returned_at from public.test_attempts where test_id=mixed and student_id=student) is distinct from returned then raise exception 'Clear retracted disclosed work'; end if;
+ if (select draft_revision from public.test_attempts where test_id=mixed and student_id=student) is distinct from before_clear_revision then raise exception 'Grade clear changed the preserved attempt revision'; end if;
  result := public.return_test_attempts_checked_atomic(mixed, array[student], teacher);
- if result->>'skipped_count' <> '1' then raise exception 'Clear grades left stale Return eligibility'; end if;
+ if result->>'already_returned_count' <> '1' then raise exception 'Cleared grades lost Return eligibility'; end if;
  perform public.update_test_student_access_atomic(mixed, array[student], 'open', teacher);
  if exists (select 1 from public.test_responses response where test_id=mixed) then raise exception 'Reopen retained materialized closure rows'; end if;
  begin perform public.return_test_attempts_checked_atomic(mixed,array[student],teacher); raise exception 'Reopened attempt returned';

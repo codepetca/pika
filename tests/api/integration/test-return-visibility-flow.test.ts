@@ -46,9 +46,9 @@ const state = {
       student_id: '10000000-0000-4000-8000-000000000002',
       selected_option: null,
       response_text: 'My explanation',
-      score: 4,
-      feedback: 'Solid reasoning',
-      graded_at: '2026-03-05T12:00:00.000Z',
+      score: 4 as number | null,
+      feedback: 'Solid reasoning' as string | null,
+      graded_at: '2026-03-05T12:00:00.000Z' as string | null,
       submitted_at: '2026-03-05T11:30:00.000Z',
     },
   ],
@@ -64,7 +64,8 @@ const state = {
       },
       is_submitted: true,
       draft_revision: 7,
-      submitted_at: '2026-03-05T11:30:00.000Z',
+      submitted_at: '2026-03-05T11:30:00.000Z' as string | null,
+      closed_for_grading_at: null as string | null,
       returned_at: null as string | null,
       returned_by: null as string | null,
     },
@@ -156,8 +157,7 @@ function setupSupabaseMock() {
       let skipped = 0
       for (const studentId of studentIds) {
         const attempt = state.testAttempts.find((row) => row.test_id === testId && row.student_id === studentId)
-        const complete = state.testQuestions.filter((question) => question.test_id === testId).every((question) => state.testResponses.some((response) => response.question_id === question.id && response.student_id === studentId && Number.isFinite(response.score)))
-        if (!attempt?.is_submitted || !complete) { skipped += 1; continue }
+        if (!attempt || !(attempt.is_submitted || attempt.closed_for_grading_at)) { skipped += 1; continue }
         if (attempt.returned_at) { already += 1; continue }
         attempt.returned_at = new Date().toISOString()
         attempt.returned_by = params?.p_returned_by
@@ -422,8 +422,40 @@ describe('Test Return Visibility Integration', () => {
     state.tests[0].status = 'closed'
     state.testAttempts[0].returned_at = null
     state.testAttempts[0].returned_by = null
+    state.testAttempts[0].closed_for_grading_at = null
+    state.testAttempts[0].is_submitted = true
+    state.testAttempts[0].submitted_at = '2026-03-05T11:30:00.000Z'
+    state.testResponses[0].score = 4
+    state.testResponses[0].feedback = 'Solid reasoning'
+    state.testResponses[0].graded_at = '2026-03-05T12:00:00.000Z'
     state.testStudentAvailability = []
     setupSupabaseMock()
+  })
+
+  it('returns closed unsubmitted ungraded work for read-only student viewing', async () => {
+    state.tests[0].status = 'active'
+    state.testAttempts[0].is_submitted = false
+    state.testAttempts[0].submitted_at = null
+    state.testAttempts[0].closed_for_grading_at = '2026-03-05T11:30:00.000Z'
+    state.testResponses[0].score = null
+    state.testResponses[0].feedback = null
+    state.testResponses[0].graded_at = null
+    state.testStudentAvailability = [{ test_id: 'test-1', student_id: currentUser.id, state: 'closed' }]
+    currentUser = { id: 'teacher-1', role: 'teacher' }
+    const response = await returnTeacherTest(new NextRequest('http://localhost/api/teacher/tests/test-1/return', {
+      method: 'POST', body: JSON.stringify({ student_ids: [state.testAttempts[0].student_id] }),
+    }), { params: Promise.resolve({ id: 'test-1' }) })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ returned_count: 1, skipped_count: 0 })
+    expect(state.testAttempts[0].is_submitted).toBe(false)
+    expect(state.testAttempts[0].submitted_at).toBeNull()
+    currentUser = { id: state.testAttempts[0].student_id, role: 'student' }
+    const detail = await getStudentTestDetail(new NextRequest('http://localhost/api/student/tests/test-1'), { params: Promise.resolve({ id: 'test-1' }) })
+    expect(detail.status).toBe(200)
+    expect(await detail.json()).toMatchObject({ student_status: 'can_view_results', test: { effective_access: 'closed' } })
+    const results = await getStudentTestResults(new NextRequest('http://localhost/api/student/tests/test-1/results'), { params: Promise.resolve({ id: 'test-1' }) })
+    expect(results.status).toBe(200)
+    expect(await results.json()).toMatchObject({ summary: null })
   })
 
   it('reveals student test results only after teacher returns test work', async () => {

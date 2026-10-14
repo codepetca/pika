@@ -14,6 +14,7 @@ import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 import { withErrorHandler } from '@/lib/api-handler'
+import { publicTestResultSummary } from '@/lib/test-result-summary'
 import type { TestAssessmentQuestion, TestAssessmentResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -390,10 +391,6 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     }
   })
 
-  const possiblePoints = questionResults.reduce((acc, question) => acc + question.points, 0)
-  const earnedPoints = questionResults.reduce((acc, question) => acc + (question.score ?? 0), 0)
-  const percent = possiblePoints > 0 ? (earnedPoints / possiblePoints) * 100 : 0
-
   const responseTest = {
     id: test.id,
     title: test.title,
@@ -408,10 +405,6 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     results: aggregated,
     my_responses: myResponses,
     question_results: questionResults,
-    summary: {
-      earned_points: earnedPoints,
-      possible_points: possiblePoints,
-      percent,
-    },
+    summary: publicTestResultSummary(questionResults),
   })
 })

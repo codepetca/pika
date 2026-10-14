@@ -1983,4 +1983,7 @@ SQL
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   < "$(dirname "$0")/check-test-ai-grading-saved-work.sql"
 
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
+  < "$(dirname "$0")/check-test-return-ungraded-work.sql"
+
 echo "Atomic test grading database checks passed."
