@@ -1,3 +1,4 @@
+import { validateTestReturnUngradedWorkReviewedMigration } from './test-return-ungraded-work-reviewed-migration'
 import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
 import { validateTestCalendarDateReviewedMigration } from './test-calendar-date-reviewed-migration'
 /** Inert, source-sealed learner schedules. This module opens no process, SDK,
@@ -39,14 +40,15 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
   })
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const reviewedMigrations=loadAssignmentListReviewedMigrations(repository)
-  assert([257,258,259,260,261,262,263, 264].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
+  assert([257,258,259,260,261,262,263, 264, 265].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
   if(reviewedMigrations.length>=258)validateStudentTestSessionStatusReviewedMigration(reviewedMigrations[257])
   if(reviewedMigrations.length>=259)validateTestOwnerGradingReviewedMigration(reviewedMigrations[258])
   if(reviewedMigrations.length>=260)validateTestOwnerRecoveryReviewedMigration(reviewedMigrations[259])
   if (reviewedMigrations.length >= 261) validateTestOwnerUnpublicationReviewedMigration(reviewedMigrations[260])
   if (reviewedMigrations.length >= 262) validateTestOwnerDeletionReviewedMigration(reviewedMigrations[261])
   if (reviewedMigrations.length >= 263) validateTestCalendarDateReviewedMigration(reviewedMigrations[262])
-  if (reviewedMigrations.length === 264) validateTestAiGradingSavedWorkReviewedMigration(reviewedMigrations[263])
+  if (reviewedMigrations.length >= 264) validateTestAiGradingSavedWorkReviewedMigration(reviewedMigrations[263])
+  if (reviewedMigrations.length === 265) validateTestReturnUngradedWorkReviewedMigration(reviewedMigrations[264])
   const migrations=reviewedMigrations.map(({name,sha256})=>({name,sha256}))
   assert.deepEqual(migrations[256],{name:'257_contextual_test_learner_workflow.sql',sha256:TEST_LEARNER_NATIVE_SOURCE_SHA256})
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`, guard=testOwnerGuardSql(projectId)

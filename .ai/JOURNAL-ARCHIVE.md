@@ -46535,11 +46535,13 @@ Compact legacy session polling uses one domain query instead of five, with fresh
 <!-- pika-session-log-archive-batch:9c59be27100aead1c214b6209d7f783833df8444b9f495ae689cc733eed6b2e1 -->
 
 <!-- pika-session-log-archive-batch:34c2976253dc03d0cd5d59f64abbc6705a7316744030ace4cb5e69738f4b285d -->
+<!-- pika-session-log-archive-batch:2185d09f80edf8c918b921b2d4a53076d90d347b06f85176709e08a4ebc30ca9 -->
 ## 2026-10-11 — Material Markdown approved main integration
 
 Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
 
 <!-- pika-session-log-archive-batch:eec825188ff3b85a66438470ffec88a7be779468b07305c21c7c97b2d29fb7bb -->
+<!-- pika-session-log-archive-batch:945d353371690687ea980e0550bb08894845b6bccd94da17de0b9fb66dec7af4 -->
 ## 2026-10-11 — Material Markdown final log sync
 
 Final reviewed be7674d4 CI38136077644 and all ten lanes including PR Gate PASS (35m09s). Main79a6f7994 landed a production continuity receipt during CI; rebase again resolves only archive/log overlap, retaining distinct history. Feature/UI/test blobs unchanged; prior focused969/65 and teacher/student desktop/mobile light/dark proof remain applicable. No application migration, production promotion or feature correction. Proportional sync review and exact final-head CI precede the authorized main merge.

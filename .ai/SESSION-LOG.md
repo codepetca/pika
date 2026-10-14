@@ -11,6 +11,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-11 — Owner grading SDK captures real Start revisions
+
+Human authorized private driver correction/regressions/targeted review only.
+RED reproduced19!=1; GREEN validates Number.isSafeInteger/revision>=1 and retains
+exact observed revision/actor/attempt. Two mocked Start cases preserve19/37 and
+1/MAX_SAFE_INTEGER into frozen closed-engine preparation;14 denials reject seven
+invalid forms for either learner without frame dispatch or second Start retry.
+Existing operational SDK six-denial/restoration/cancellation mocks now start at
+19/37 and PASS;13 transport mocks, exact-parent corruption checks and all seven
+private TypeScript files PASS. Only three private source files changed; product,
+SQL, sequence, caps, runner and execution gates remain unchanged/inert. Native
+permission consumed; no database query, Docker/SDK network, migration, readyCI,
+merge or rollout. Prior full1954/112/static evidence unchanged for product code;
+fresh documentation/workflow gate and one targeted independent review follow.
+Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
+standing workflow-stop waiver retained. Shared-local/prod/account/provider/
+activation and toolgoalPAUSED holds unchanged.
+
 ## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
 
 Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
@@ -640,3 +658,12 @@ Targeted teacher/student tests passed (86 before final saved-unsubmitted regress
 ## 2026-10-14 — Gradebook CI test readiness repair
 
 Owner approved continuing PR1592's test fixes, independent review, and merge after CI; the elapsed review-window stop is waived for this continuation. The reviewed Gradebook source remains unchanged from cadeb71a2. Classwork action tests now await the async work-read guard and menu; negative disabled-action assertions remain. The long Pattern Lab interaction scenario is split into five independent cases with retained assertions and bounded teacher-case timeouts. Targeted129 UI tests pass. Prior ledger:two review turns,one main-sync push,zero product corrections; this is one test-remediation batch. Targeted review and final-head CI precede the authorized squash merge. Evidence: ~/.codex/artifacts/pika/pr-1592/. No production promotion or migration application.
+## 2026-10-14 — Return closed ungraded Test work
+
+User authorized Return of ungraded/unsubmitted Tests with closed access; returned work must remain read-only. Worktree return-ungraded-tests at a60258658, branch codex/return-ungraded-tests; risk async-grading/exam-mode/workspace-state and consequential migration/disclosure review. Migration265 removes completeness from Return, finalizes only existing unfinished attempts after all-selected-closed guard, preserves submission provenance and skips never-started work. Historical private completeness revoker becomes compatibility no-op; explicit reopen/unsubmit/delete unchanged. Closed/returned student Start/Save/Submit guards retained. Student public legacy/contextual summaries and shared result view keep incomplete grades pending, with genuine zero still counted only when complete; aggregate Grades policy unchanged. Teacher table uses pending label while open responses ungraded. Canonical request helper uses zero retention and component/request identity; late-results regression added.
+
+UI brief: existing teacher Tests confirmation and student returned-results owners; canonical ConfirmDialog/AppMessage and existing result card reused, result summary extended, no new component/pattern. Teacher/student, desktop1440x900/mobile390x844, light/dark: closed Return confirmation, Returned pending row, open-access refusal, ungraded/partial student view. No styling/composite/keyboard redesign. Reference Pattern Lab current-owner evidence preserved from same-day grading work; twenty final screenshots under /tmp/pika-return-*, inspected contact sheet and representative originals, no overflow/edit/submit/start controls or mutation requests. Initial screenshot wait used transient toast instead of committed row; corrected capture selector, no product correction. Temporary fixture-provider experiment reverted to original bytes after verifying root already owns provider.
+
+GPT6.1-sol/high bounded worker mapped lifecycle and implemented five SQL/harness files; verified265 digest aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. Same worker replayed244–265 in schema-only disposable pika_test_return_contract_20261014: new265/lifecycle/contextual owner rollback, full atomic-grading and lifecycle-concurrency PASS, genuine generated types unchanged. Canonicalpostgres max243 and normalized schema unchanged; no app/user/config data copied, synthetic inactive config only. /tmp/pika-return-db-receipt.json, private logs. Reused GPT6.1-sol/high profile worker updated seven finite profiles/helper to exact265 while retaining263/264 seals, rejecting266/mutants;572tests/8suites and7source preflights PASS. Receipt-label correction accepted, no authority/cleanup weakening.
+
+Focused2224tests/103files plus architecture/UI/design/TypeScript/lint PASS on unchanged product bytes; after additive API/stale-view cases, targeted52 and clean TypeScript/audit recorded externally. Weekly70% remaining, healthy313GB at start; DeepSeek automatic pilot pause honored. DB verification about6min; actual worker/coordinator tokens and effective runtime configuration unknown. Draft-first independent high-risk two-reviewer lifecycle follows; no production migration/deployment authorized.

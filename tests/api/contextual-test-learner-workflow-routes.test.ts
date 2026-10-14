@@ -36,6 +36,41 @@ describe('contextual learner Test route group', () => {
     rpc.mockImplementation(() => ({ abortSignal: () => Promise.resolve({ data: null, error: { code: 'PT403', message: 'private' } }) }))
   })
   afterEach(() => vi.unstubAllEnvs())
+  it.each([
+    { scores: [null, null], earned: null, percent: null },
+    { scores: [2, null], earned: null, percent: null },
+    { scores: [0, 0], earned: 0, percent: 0 },
+    { scores: [3, 4], earned: 7, percent: 70 },
+  ])('projects returned unsubmitted results with scores $scores without treating missing grades as zero', async ({ scores, earned, percent }) => {
+    const stamp = '2026-10-14T12:00:00Z'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actor] }))
+    rpc.mockImplementation((_name, args) => ({ abortSignal: () => Promise.resolve({ error: null, data: {
+      version: 1, actor_id: actor, classroom_id: classroomId, test_id: testId, subject_id: actor,
+      operation: args.p_operation,
+      result: args.p_operation === 'inspect' ? { access_mode: 'member' } : {
+        state: {
+          test: { id: testId, classroom_id: classroomId, test_date: null, title: 'Saved Test', status: 'active',
+            show_results: true, documents: [], position: 0, created_at: stamp, updated_at: stamp },
+          attempt: { id: documentId, is_submitted: false, returned_at: stamp, closed_for_grading_at: stamp, draft_revision: 2 },
+          access_state: 'closed', has_submitted: false,
+        },
+        results: [], my_responses: {},
+        question_results: scores.map((score, index) => ({
+          question_id: index === 0 ? actor : documentId, question_type: 'open_response',
+          question_text: `Explain ${index}`, options: [], points: 5, response_max_chars: 5000,
+          response_monospace: false, sample_solution: null, correct_option: null, selected_option: null,
+          response_text: 'Saved answer', score, feedback: null, graded_at: null, is_correct: null,
+        })),
+        summary: { earned_points: 0, possible_points: 10, percent: 0 },
+      },
+    } }) }))
+    const response = await results(req('GET'), ctx)
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.summary).toEqual({ earned_points: earned, possible_points: 10, percent })
+    expect(body.test).toMatchObject({ returned_at: stamp, effective_access: 'closed' })
+    expect(body.question_results).toHaveLength(2)
+  })
   it.each(cases)('uses contextual relationship authority for %s for either global role', async (_name, handler, method, body) => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actor] }))
     for (const role of ['teacher', 'student'] as const) {

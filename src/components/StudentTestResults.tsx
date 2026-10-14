@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
+import { summarizeTestQuestionScores, type TestResultSummary } from '@/lib/test-result-summary'
+import { fetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
 import {
   MultipleChoiceOptionReview,
   normalizeMultipleChoiceOptionIndex,
@@ -24,12 +26,6 @@ interface TestQuestionResult {
   feedback: string | null
   graded_at: string | null
   is_correct: boolean | null
-}
-
-interface TestResultSummary {
-  earned_points: number
-  possible_points: number
-  percent: number
 }
 
 interface ResultsPayload {
@@ -56,6 +52,7 @@ export function StudentTestResults({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const requestIdRef = useRef(0)
+  const requestOwnerId = useId()
 
   useEffect(() => {
     const requestId = requestIdRef.current + 1
@@ -66,14 +63,13 @@ export function StudentTestResults({
 
     async function loadResults() {
       try {
-        // Bypass fetchJSONWithCache so returned results always follow the selected testId.
-        const res = await fetch(`${apiBasePath}/${testId}/results`)
-        const data = await res.json()
+        const data = await fetchJSONWithCache(
+          `student-test-results:${requestOwnerId}:${apiBasePath}:${testId}:${requestId}`,
+          () => fetchJSON<ResultsPayload>(`${apiBasePath}/${testId}/results`, { errorMessage: 'Failed to load results' }),
+          0,
+        )
         if (requestIdRef.current !== requestId) return
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to load results')
-        }
-        setPayload(data as ResultsPayload)
+        setPayload(data)
       } catch (err: any) {
         if (requestIdRef.current === requestId) {
           setError(err.message || 'Failed to load results')
@@ -85,7 +81,7 @@ export function StudentTestResults({
       }
     }
     loadResults()
-  }, [apiBasePath, testId])
+  }, [apiBasePath, requestOwnerId, testId])
 
   if (loading) {
     return (
@@ -104,7 +100,7 @@ export function StudentTestResults({
   }
 
   const questionResults = payload?.question_results || []
-  const summary = payload?.summary || null
+  const summary = payload?.summary ? summarizeTestQuestionScores(questionResults) : null
 
   if (questionResults.length === 0) {
     return (
@@ -125,14 +121,20 @@ export function StudentTestResults({
       {summary && (
         <div className="rounded-lg border border-border bg-surface p-4">
           <p className="text-sm text-text-muted">Score</p>
-          <p className="text-lg font-semibold text-text-default">
-            {summary.earned_points.toFixed(2).replace(/\.00$/, '')}
-            {' / '}
-            {summary.possible_points.toFixed(2).replace(/\.00$/, '')}
-          </p>
-          <p className="text-sm text-text-muted">
-            {summary.percent.toFixed(1)}%
-          </p>
+          {summary.earned_points === null || summary.percent === null ? (
+            <p className="text-lg font-semibold text-text-default">Pending grading</p>
+          ) : (
+            <>
+              <p className="text-lg font-semibold text-text-default">
+                {summary.earned_points.toFixed(2).replace(/\.00$/, '')}
+                {' / '}
+                {summary.possible_points.toFixed(2).replace(/\.00$/, '')}
+              </p>
+              <p className="text-sm text-text-muted">
+                {summary.percent.toFixed(1)}%
+              </p>
+            </>
+          )}
         </div>
       )}
 

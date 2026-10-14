@@ -245,6 +245,19 @@ distinct students with at least one completed answer, separately from unanswered
 already-graded, failed-answer, and skipped-student counts. These student counts
 are derived from persisted run items rather than the selected roster size.
 
+Test Return requires closed access for every selected student, independently of
+grading completeness (migration 265). It finalizes existing unfinished attempts
+without marking them student-submitted; students who never started are skipped.
+Returned work remains read-only, including student Start, Save and Submit requests.
+Partial grade saves and grade clearing preserve Return. Explicit teacher reopen,
+unsubmit and work deletion retain their existing lifecycle transitions.
+
+Returned ungraded or partially graded Tests show `Pending grading`; missing scores
+are not zeros or a final total. Legacy and contextual student result endpoints
+derive the public summary from all current question scores. Fully graded returned
+work retains numeric totals, including deliberate zero scores. Aggregate student
+Grades eligibility remains unchanged: incomplete Tests are not counted.
+
 Test marking requests stay at DeepSeek's high reasoning tier on every provider
 attempt. The first background attempt grades up to four responses together; if
 that batch fails, the affected responses retry individually at high reasoning.

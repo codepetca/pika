@@ -2483,7 +2483,9 @@ export function TeacherTestsTab({
                 const scoreLabel =
                   student.status === 'not_started'
                     ? '—'
-                    : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
+                    : student.ungraded_open_responses > 0
+                      ? 'Pending grading'
+                      : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                 const statusMeta = getTestGradingWorkStatusDisplay(student.status)
                 const awayCount = student.focus_summary?.away_count ?? 0
                 const awaySeconds = Math.max(
@@ -3432,7 +3434,7 @@ export function TeacherTestsTab({
       <ConfirmDialog
         isOpen={showReturnConfirm}
         title={`Return test work to ${batchSelectedCount} selected student(s)?`}
-        description="Only students with closed access and fully graded open-response questions will be returned."
+        description="Return saved work for students with closed access, including ungraded work. Returned work cannot be edited or submitted."
         confirmLabel={
           isBatchReturning
             ? 'Returning...'
