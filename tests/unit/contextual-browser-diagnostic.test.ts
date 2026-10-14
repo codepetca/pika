@@ -36,6 +36,62 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
       expect(JSON.stringify(result)).not.toMatch(/SECRET|credential|private\.invalid/)
     }
   })
+  it('classifies installed Playwright 1.58 serialized launch, cause and non-Error shapes without retaining private text', () => {
+    const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
+    const { serializeError } = pw(join(dirname(pw.resolve('playwright/package.json')), 'lib/util.js'))
+    expect(require('@playwright/test/package.json').version).toBe('1.58.0')
+    const secret = 'SECRET https://private.invalid/?token=SECRET /private/credential'
+    const cases = [
+      [new Error(`Failed to launch the browser process.\nBrowser logs:\n${secret}`), { category: 'browser-launch', code: null, signal: null, source: 'fixture' }],
+      [new Error(`Failed to launch chromium because executable doesn't exist at ${secret}`), { category: 'missing-executable', code: null, signal: null, source: 'fixture' }],
+      [new Error(`Fixture setup failed: ${secret}`, { cause: new Error(`EACCES: ${secret}`) }), { category: 'permission', code: 'EACCES', signal: null, source: 'unknown' }],
+      [`Failed to launch the browser process.\nBrowser logs:\n${secret}`, { category: 'browser-launch', code: null, signal: null, source: 'fixture' }],
+      [new TypeError(secret), { category: 'type-error', code: null, signal: null, source: 'unknown' }],
+      [new ReferenceError(secret), { category: 'reference-error', code: null, signal: null, source: 'unknown' }],
+      [new SyntaxError(secret), { category: 'syntax-error', code: null, signal: null, source: 'unknown' }],
+      [{ privateValue: secret }, { category: 'non-error-thrown', code: null, signal: null, source: 'unknown' }],
+      [new Error('Private contextual Test binding rejected'), { category: 'binding-rejected', code: null, signal: null, source: 'unknown' }],
+      [new Error('Private contextual Test startup reporting failed'), { category: 'startup-reporting-failed', code: null, signal: null, source: 'unknown' }],
+      ['Private contextual Test binding rejected', { category: 'binding-rejected', code: null, signal: null, source: 'unknown' }],
+    ] as const
+    for (const [thrown, expected] of cases) {
+      const serialized = serializeError(thrown)
+      const actual = classifyDiagnosticError(serialized)
+      expect(actual).toEqual(expected)
+      expect(Object.keys(actual).sort()).toEqual(['category','code','signal','source'])
+      expect(JSON.stringify(actual)).not.toMatch(/SECRET|private\.invalid|credential/)
+    }
+  })
+  it('recognizes the installed worker-exit envelope and exact full-app source locations', () => {
+    const message = 'Error: worker process exited unexpectedly (code=1, signal=SIGTRAP) SECRET'
+    expect(classifyDiagnosticError({ message })).toEqual({ category: 'worker-exit', code: null, signal: 'SIGTRAP', source: 'unknown' })
+    expect(classifyDiagnosticError({ message: 'SECRET', location: { file: '/private/e2e/contextual-test-lifecycle.spec.ts' } }).source).toBe('spec')
+    expect(classifyDiagnosticError({ message: 'SECRET', location: { file: '/private/playwright.contextual-tests.config.ts' } }).source).toBe('config')
+    expect(classifyDiagnosticError({ message: 'SECRET', location: { file: '/private/contextual-test-lifecycle.spec.ts' } }).source).toBe('unknown')
+    expect(classifyDiagnosticError({ message: 'Private contextual Test binding rejected SECRET' }).category).toBe('unknown')
+  })
+  it('bounds serialized text and cause depth while ignoring getters and malformed values', () => {
+    let reads = 0
+    const accessor = Object.defineProperties({}, {
+      message: { get() { reads++; return 'browserType.launch: SECRET' } },
+      value: { get() { reads++; return 'browserType.launch: SECRET' } },
+      cause: { get() { reads++; return { message: 'EACCES' } } },
+    })
+    expect(classifyDiagnosticError(accessor)).toEqual({ category: 'unknown', code: null, signal: null, source: 'unknown' })
+    expect(reads).toBe(0)
+    const proxy = new Proxy({ message: 'browserType.launch: SECRET' }, { getOwnPropertyDescriptor() { reads++; throw Error('SECRET') } })
+    expect(classifyDiagnosticError(proxy)).toEqual({ category: 'unknown', code: null, signal: null, source: 'unknown' })
+    expect(classifyDiagnosticError({ message: 'opaque', cause: proxy, location: proxy })).toEqual({ category: 'unknown', code: null, signal: null, source: 'unknown' })
+    expect(reads).toBe(0)
+    expect(classifyDiagnosticError({ message: 'TypeError: SECRET', value: 'browserType.launch: SECRET' })).toEqual({ category: 'type-error', code: null, signal: null, source: 'unknown' })
+    expect(classifyDiagnosticError({ message: 'x'.repeat(65537) + ' EACCES', value: 'browserType.launch: SECRET' })).toEqual({ category: 'browser-launch', code: null, signal: null, source: 'fixture' })
+    expect(classifyDiagnosticError({ value: 'browserType.launch: ' + 'x'.repeat(65537) })).toEqual({ category: 'unknown', code: null, signal: null, source: 'unknown' })
+    expect(classifyDiagnosticError({ value: { message: 'browserType.launch: SECRET' } })).toEqual({ category: 'unknown', code: null, signal: null, source: 'unknown' })
+    const cycle: { message: string; cause?: unknown } = { message: 'opaque' }; cycle.cause = cycle
+    expect(classifyDiagnosticError(cycle)).toEqual({ category: 'unknown', code: null, signal: null, source: 'unknown' })
+    const deep = { message: 'opaque', cause: { message: 'opaque', cause: { message: 'EACCES' } } }
+    expect(classifyDiagnosticError(deep).category).toBe('unknown')
+  })
   it('requires exact single-test success and rejects unknown extra schema, counters and errors', () => {
     const good = { version: 1, status: 'passed', discovered: 1, started: 1, ended: 1, passed: 1, errors: [], overflow: false }
     expect(diagnosticReportPassed(good)).toBe(true)

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { types } from 'node:util'
 
 export const DIAGNOSTIC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 export const DIAGNOSTIC_VERSION = '155.0.8059.79'
@@ -78,31 +79,53 @@ export function diagnosticAdmissionFromEnvironment() {
 const moduleCodes = ['ERR_MODULE_NOT_FOUND','MODULE_NOT_FOUND','ERR_REQUIRE_ESM','ERR_UNKNOWN_FILE_EXTENSION','ERR_UNSUPPORTED_DIR_IMPORT'] as const
 const codes = ['EACCES','EPERM','ENOENT','ENOMEM','EMFILE','ENFILE','ETIMEDOUT', ...moduleCodes, 'ERR_ASSERTION'] as const
 const signals = ['SIGABRT','SIGBUS','SIGILL','SIGKILL','SIGSEGV','SIGTERM','SIGTRAP'] as const
-const categories = ['unknown','timeout','browser-launch','browser-closed','permission','missing-executable','missing-library','module-loading','assertion'] as const
+const categories = ['unknown','timeout','browser-launch','browser-closed','worker-exit','permission','missing-executable','missing-library','module-loading','assertion','type-error','reference-error','syntax-error','non-error-thrown','binding-rejected','startup-reporting-failed'] as const
 const sources = ['unknown','fixture','config','spec'] as const
 export type DiagnosticError = { category: typeof categories[number]; code: typeof codes[number] | null; signal: typeof signals[number] | null; source: typeof sources[number] }
 // Read data properties only; never stringify an error, invoke getters, retain
 // arbitrary names/locations, or copy message/stack/cause/stdout/stderr to disk.
 function field(value: unknown, key: string): unknown {
-  try { if (value && typeof value === 'object') return Object.getOwnPropertyDescriptor(value, key)?.value } catch { /* fixed fallback */ }
+  try { if (value && typeof value === 'object' && !types.isProxy(value)) return Object.getOwnPropertyDescriptor(value, key)?.value } catch { /* fixed fallback */ }
   return undefined
 }
 export function classifyDiagnosticError(error: unknown): DiagnosticError {
-  const raw = field(error, 'message'), message = typeof raw === 'string' ? raw.slice(0, 65536) : ''
-  const code = codes.find(v => field(error, 'code') === v || new RegExp(`\\b${v}\\b`).test(message)) ?? null
-  const signal = signals.find(v => field(error, 'signal') === v || new RegExp(`\\b${v}\\b`).test(message)) ?? null
+  // Playwright 1.58 serializes Error as { message, stack, cause } and other
+  // thrown values as { value }. Inspect only the first cause; never read stack.
+  const parts: { text: string; message: string; fromValue: boolean; code: unknown; signal: unknown; name: unknown; location: unknown }[] = []
+  const seen = new Set<unknown>()
+  let current = error
+  for (let depth = 0; depth < 2 && current && typeof current === 'object' && !seen.has(current); depth++) {
+    seen.add(current)
+    const rawMessage = field(current, 'message'), rawValue = field(current, 'value')
+    const message = typeof rawMessage === 'string' && rawMessage.length <= 65536 ? rawMessage : ''
+    const value = typeof rawValue === 'string' && rawValue.length <= 65536 ? rawValue : ''
+    parts.push({ text: message || value, message, fromValue: !message && !!value, code: field(current, 'code'), signal: field(current, 'signal'), name: field(current, 'name'), location: field(current, 'location') })
+    current = field(current, 'cause')
+  }
+  const contains = (phrase: string) => parts.some(part => part.text.includes(phrase))
+  const starts = (prefix: string) => parts.some(part => part.text.startsWith(prefix))
+  const exactError = (message: string) => parts.some(part => [message, `Error: ${message}`, `'${message}'`, `'Error: ${message}'`].includes(part.text))
+  const code = codes.find(v => parts.some(part => part.code === v || new RegExp(`\\b${v}\\b`).test(part.text))) ?? null
+  const signal = signals.find(v => parts.some(part => part.signal === v || new RegExp(`\\b${v}\\b`).test(part.text))) ?? null
   const category = code === 'EACCES' || code === 'EPERM' ? 'permission'
-    : code === 'ENOENT' || message.includes("Executable doesn't exist") ? 'missing-executable'
+    : code === 'ENOENT' || contains("Executable doesn't exist") || contains("because executable doesn't exist at") ? 'missing-executable'
     : code !== null && moduleCodes.some(value => value === code) ? 'module-loading'
     : code === 'ERR_ASSERTION' ? 'assertion'
-    : /Library not loaded:|error while loading shared libraries:/.test(message) ? 'missing-library'
-    : field(error, 'name') === 'TimeoutError' || /(?:Test timeout of|Timeout \d+ms exceeded)/.test(message) ? 'timeout'
-    : /Target page, context or browser has been closed|Browser closed/.test(message) ? 'browser-closed'
-    : message.includes('browserType.launch') ? 'browser-launch' : 'unknown'
-  const location = field(error, 'location'), file = field(location, 'file')
-  const source = typeof file === 'string' && file.endsWith('/e2e/contextual-browser-diagnostic.spec.ts') ? 'spec'
-    : typeof file === 'string' && file.endsWith('/playwright.contextual-browser-diagnostic.config.ts') ? 'config'
-    : message.includes('browserType.launch') ? 'fixture' : 'unknown'
+    : contains('Library not loaded:') || contains('error while loading shared libraries:') ? 'missing-library'
+    : parts.some(part => part.name === 'TimeoutError') || parts.some(part => /(?:Test timeout of|Timeout \d+ms exceeded)/.test(part.text)) ? 'timeout'
+    : contains('Target page, context or browser has been closed') || contains('Browser closed') ? 'browser-closed'
+    : contains('browserType.launch') || contains('Failed to launch the browser process.') ? 'browser-launch'
+    : starts('Error: worker process exited unexpectedly (code=') ? 'worker-exit'
+    : exactError('Private contextual Test binding rejected') ? 'binding-rejected'
+    : exactError('Private contextual Test startup reporting failed') ? 'startup-reporting-failed'
+    : parts.some(part => part.name === 'TypeError' || part.message.startsWith('TypeError: ')) ? 'type-error'
+    : parts.some(part => part.name === 'ReferenceError' || part.message.startsWith('ReferenceError: ')) ? 'reference-error'
+    : parts.some(part => part.name === 'SyntaxError' || part.message.startsWith('SyntaxError: ')) ? 'syntax-error'
+    : parts.some(part => part.fromValue) ? 'non-error-thrown' : 'unknown'
+  const files = parts.map(part => field(part.location, 'file'))
+  const source = files.some(file => typeof file === 'string' && (file.endsWith('/e2e/contextual-browser-diagnostic.spec.ts') || file.endsWith('/e2e/contextual-test-lifecycle.spec.ts'))) ? 'spec'
+    : files.some(file => typeof file === 'string' && (file.endsWith('/playwright.contextual-browser-diagnostic.config.ts') || file.endsWith('/playwright.contextual-tests.config.ts'))) ? 'config'
+    : contains('browserType.launch') || contains('Failed to launch the browser process.') || contains("Failed to launch chromium because executable doesn't exist at") ? 'fixture' : 'unknown'
   return { category, code, signal, source }
 }
 export type DiagnosticReport = { version: 1; status: 'passed' | 'failed' | 'timedout' | 'interrupted'; discovered: number; started: number; ended: number; passed: number; errors: DiagnosticError[]; overflow: boolean }

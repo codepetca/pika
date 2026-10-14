@@ -47081,3 +47081,28 @@ compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
 remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
 only attested dispatcher stripped; controls receipt restored. Targeted108checks
 PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
+
+<!-- pika-session-log-archive-batch:5ddaa621f2861bc4f6b0c943a812848796fea5950f958c0024cac490dcd99d18 -->
+## 2026-10-12 Remaining-work orchestration and bounded diagnostic
+
+Routine approval/workflow/low-usage waiver retained; serious shared/prod/provider/
+account/live/cutover holds unchanged. Root integrated Survey source17b9e1bf6;
+author96focused and root50route/server checks PASS, genuine263types/native pending.
+Survey concrete verifier delivered81unique CPU checks/strict targetedTS/lint PASS;
+finiteSDK/terminal+freshmembership oracles33checks and rootguardedSDK hook integrated.
+Final201 focused/startup checks and7-file lint PASS; nativeVerifiedfalse. Strict
+integration typecheck has only14 known missing genuineRPC names; no othererrors.
+Native/type proof remains pending. Existing lifecycle88checks independently PASS. Archive source
+6db01b35c retains100focused PASS; concrete native engine/byte/type hooks identified,
+serialization afterSurvey263 required. No source PR/push or phase acceptance yet.
+
+Private e761 single diagnostic candidate8bf8eac consumed after complete targeted
+review22; flow FAIL after10app0Storage/login200JSON. Native body witness confirms
+Chromium protocol-get-body rejection after requestfinished, page/context still
+observed open; actual protocol reason unknown. CleanupPASS independently verified:
+exact containers/volumes/network gone, four ports clear, temporarycheckout absent,
+frozenGitclean. Original evidence preserved; no replay or recovery required.
+Next source-only repair lane prepares bounded noDB protocol experiment rather than
+another blind full rehearsal. Original12:08 clock/counts22initial1target19fix18
+retained; effective/active/tokens unknown. Weekly64% remaining accountwide; actual
+322GB healthy, no cleanup. Private root handoff holds detailed ownership/receipts.

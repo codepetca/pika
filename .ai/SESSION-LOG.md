@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 Remaining-work orchestration and bounded diagnostic
-
-Routine approval/workflow/low-usage waiver retained; serious shared/prod/provider/
-account/live/cutover holds unchanged. Root integrated Survey source17b9e1bf6;
-author96focused and root50route/server checks PASS, genuine263types/native pending.
-Survey concrete verifier delivered81unique CPU checks/strict targetedTS/lint PASS;
-finiteSDK/terminal+freshmembership oracles33checks and rootguardedSDK hook integrated.
-Final201 focused/startup checks and7-file lint PASS; nativeVerifiedfalse. Strict
-integration typecheck has only14 known missing genuineRPC names; no othererrors.
-Native/type proof remains pending. Existing lifecycle88checks independently PASS. Archive source
-6db01b35c retains100focused PASS; concrete native engine/byte/type hooks identified,
-serialization afterSurvey263 required. No source PR/push or phase acceptance yet.
-
-Private e761 single diagnostic candidate8bf8eac consumed after complete targeted
-review22; flow FAIL after10app0Storage/login200JSON. Native body witness confirms
-Chromium protocol-get-body rejection after requestfinished, page/context still
-observed open; actual protocol reason unknown. CleanupPASS independently verified:
-exact containers/volumes/network gone, four ports clear, temporarycheckout absent,
-frozenGitclean. Original evidence preserved; no replay or recovery required.
-Next source-only repair lane prepares bounded noDB protocol experiment rather than
-another blind full rehearsal. Original12:08 clock/counts22initial1target19fix18
-retained; effective/active/tokens unknown. Weekly64% remaining accountwide; actual
-322GB healthy, no cleanup. Private root handoff holds detailed ownership/receipts.
-
 ## 2026-10-12 Survey genuine-type lifecycle preparation
 
 Added one guarded Survey263 genuine-generator phase after successful finite SDK
@@ -789,3 +765,16 @@ project Docker resources by both label schemes/name, four ports clear, frozen
 source clean. This failed receipt does not separately attest canonical equality.
 Private0700/0600 evidence and spent token kept; no retry or phase exit. Production,
 shared-local, provider-Survey, account/billing and activation holds unchanged.
+
+## 2026-10-14 Privacy-safe serialized fixture errors
+
+Installed Playwright1.58 serializer proof identifies Error message/first-cause and
+non-Error value envelopes. Reporting now inspects bounded own data only, rejects
+proxies before traps, and emits the same four fixed fields with finite launch,
+worker-exit, type and exact private-startup categories. No raw message/stack/cause/
+URL/DOM/output or arbitrary fingerprint retained; unknown remains nonacceptance.
+Author21CPU checks pass after3red; root58checks/4suites plus default audit pass,
+including full-app reporter retention and installed reporter composition. Review
+and full gate pending. One fresh bounded rehearsal authorized but not allocated;
+prior failures stay spent. Production and other holds remain unchanged. Preserve
+post-run dependency evidence before coordinator tests rewrite their local cache.

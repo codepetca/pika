@@ -14,6 +14,25 @@ function fixture() {
   return { outputDir, binding, remove: () => rmSync(outputDir, { recursive: true }) }
 }
 describe('full-app startup private CPU reporting', () => {
+  it('retains only fixed classifications from serialized value errors through the full-app reporter', async () => {
+    const f = fixture(), binding = vi.spyOn(startup, 'contextualTestStartupBinding').mockReturnValue(f.binding as never)
+    try {
+      const { default: Reporter } = await import('../../e2e/helpers/contextual-test-startup-reporter')
+      const reporter = new Reporter()
+      reporter.onBegin({}, { allTests: () => [{}] } as never); reporter.onTestBegin()
+      reporter.onTestEnd({} as never, { status: 'failed', errors: [{
+        value: 'browserType.launch: SECRET https://private.invalid/?token=SECRET EACCES SIGTRAP',
+        stack: 'SECRET', cause: { value: 'SECRET' }, stdout: 'SECRET', stderr: 'SECRET',
+      }] } as never)
+      reporter.onEnd({ status: 'failed' } as never)
+      const report = startup.readFullStartupReport(f.binding as never)
+      expect(report.report.status).toBe('failed'); expect(report.report.passed).toBe(0)
+      expect(report.report.errors).toEqual([{ category: 'permission', code: 'EACCES', signal: 'SIGTRAP', source: 'fixture' }])
+      expect(report.reached).toEqual(['collection', 'fixture'])
+      expect(JSON.stringify(report)).not.toMatch(/SECRET|private\.invalid|stack|stdout|stderr|cause/)
+      expect(reporter.printsToStdio()).toBe(true)
+    } finally { binding.mockRestore(); vi.restoreAllMocks(); f.remove() }
+  })
   it.each(['fixture','global'])('captures %s errors before runtime output, without raw error retention', async kind => {
     const f = fixture(), binding = vi.spyOn(startup, 'contextualTestStartupBinding').mockReturnValue(f.binding as never)
     try {
