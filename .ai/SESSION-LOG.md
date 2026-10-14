@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Classwork Material Markdown editing
-
-- Added Visual/Markdown editing, current/proposed review, explicit Apply/Discard, separate Save/Post, conversion-loss acknowledgment and per-material draft isolation. No API/schema or authority changes.
-- Governed brief: docs/guidance/ui/changes/material-markdown.md. Existing Material Pattern Lab owner extended; shared controls/converters reused.
-- Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
-- Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
-- Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.
-
 ## 2026-10-11 — Material Markdown approved main integration
 
 Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
@@ -758,3 +750,7 @@ PR1590 draft at2c0c35054, rebased onto0aef139fc with own source byte-identical a
 ReadyCI38591388369 atfc6cb9f8f failed before native execution: reorder proof finite migration profile stopped at263. PR1590 immediately returned draft; ready-event run ultimately canceled by the draft transition, with lifecycle lane and PR Gate failed. Batch2 adds the exact independentlyreviewed264 filename/source digest to all7 Test lifecycle/native profiles and offline helper, retains every prior seal (263 checked for264), preserves budgets/cleanup/authorization, rejects265. Positive263/264 and altered-name/hash/bytes/self-hashed-source cases added. Latest legacy-grading source assertion now recognizes264 replacement and its two exact complete cohort contracts. Product264SQL/app/UI/types unchanged; eight focused suites535PASS and7source-only preflightsPASS, no native/shared/canonical/provider operation. Lifecycle logs private under /tmp/pika-ci-profile-verified.log and /tmp/pika-ai-ci-lifecycle-failure.log. Bounded read-only diagnosis then scoped GPT-6.1-sol/high implementation accepted after diff/test checks. Reviewledger4turns/2batches; proportional profile/source-seal review and fresh final checks precede one new ready-event CI candidate. Originalreviewclock15:20UTC retained; no merge/deployment/migration application or reopening change.
 
 Batch2 final focused check2213tests/119files plus architecture/UI/design/TypeScript/lint and auditPASS; product/SQL/schema/signatures unchanged from reviewedfc6cb9f8f. Exact-profile review follows before readiness.
+
+## 2026-10-14 — Clean TypeScript CI remediation
+
+Ready CI38594807708 at dfbbd56d2 found TS2589 in the existing Test unpublication RPC result annotation; PR1590 returned draft before correction. Batch3 replaces generic ReturnType expansion with the narrow data/error/status fields consumed by the helper, retaining typed RPC invocation and runtime result validation. 21 existing unpublication unit/API tests passed. Clean nonincremental TypeScript and focused lint/audit recorded externally; product grading SQL/UI/reopening unchanged. Review ledger5turns/3batches before targeted review; original15:20UTC review clock retained.
