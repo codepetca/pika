@@ -38,7 +38,10 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const sql=readFileSync(resolve(repository,'supabase/migrations',TEST_OWNER_GRADING_REVIEWED_MIGRATION.name),'utf8')
   const sourceSha256=hash(sql);validateTestOwnerGradingReviewedMigration({name:TEST_OWNER_GRADING_REVIEWED_MIGRATION.name,sql,sha256:sourceSha256})
-  const inventory=loadAssignmentListReviewedMigrations(repository);assert([259,260,261,262,263, 264, 265].includes(inventory.length),'Unreviewed owner grading migration profile')
+  // The current native harness asserts265 Return and clear-preservation behavior.
+  // Historical source seals remain valid; those schemas cannot execute this proof.
+  const inventory=loadAssignmentListReviewedMigrations(repository)
+  assert.equal(inventory.length,265,'Owner grading native proof requires the exact migration265 profile')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
   if(inventory.length>=260)validateTestOwnerRecoveryReviewedMigration(inventory[259])

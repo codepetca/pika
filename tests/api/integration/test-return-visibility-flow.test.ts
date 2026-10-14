@@ -455,7 +455,7 @@ describe('Test Return Visibility Integration', () => {
     expect(await detail.json()).toMatchObject({ student_status: 'can_view_results', test: { effective_access: 'closed' } })
     const results = await getStudentTestResults(new NextRequest('http://localhost/api/student/tests/test-1/results'), { params: Promise.resolve({ id: 'test-1' }) })
     expect(results.status).toBe(200)
-    expect(await results.json()).toMatchObject({ summary: { earned_points: null, percent: null } })
+    expect(await results.json()).toMatchObject({ summary: null })
   })
 
   it('reveals student test results only after teacher returns test work', async () => {

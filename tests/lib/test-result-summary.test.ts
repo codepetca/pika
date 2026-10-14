@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeTestQuestionScores } from '@/lib/test-result-summary'
+import { publicTestResultSummary, summarizeTestQuestionScores } from '@/lib/test-result-summary'
 
 describe('returned Test score summary', () => {
   it('keeps ungraded and partially graded work pending rather than counting missing scores as zero', () => {
@@ -19,6 +19,15 @@ describe('returned Test score summary', () => {
     expect(summarizeTestQuestionScores([])).toEqual({ earned_points: null, possible_points: 0, percent: null })
     for (const score of [NaN, Infinity, -Infinity]) {
       expect(summarizeTestQuestionScores([{ points: 5, score }]).earned_points).toBeNull()
+    }
+  })
+  it('keeps public results compatible with clients that call toFixed on every truthy summary', () => {
+    const pending = publicTestResultSummary([{ points: 5, score: null }])
+    expect(pending).toBeNull()
+    const complete = publicTestResultSummary([{ points: 5, score: 0 }])
+    expect(complete).toEqual({ earned_points: 0, possible_points: 5, percent: 0 })
+    for (const summary of [pending, complete]) {
+      expect(() => { if (summary) { summary.earned_points.toFixed(2); summary.percent.toFixed(1) } }).not.toThrow()
     }
   })
 })

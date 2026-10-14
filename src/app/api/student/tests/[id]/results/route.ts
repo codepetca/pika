@@ -14,7 +14,7 @@ import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 import { withErrorHandler } from '@/lib/api-handler'
-import { summarizeTestQuestionScores } from '@/lib/test-result-summary'
+import { publicTestResultSummary } from '@/lib/test-result-summary'
 import type { TestAssessmentQuestion, TestAssessmentResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -405,6 +405,6 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     results: aggregated,
     my_responses: myResponses,
     question_results: questionResults,
-    summary: summarizeTestQuestionScores(questionResults),
+    summary: publicTestResultSummary(questionResults),
   })
 })

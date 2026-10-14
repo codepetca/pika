@@ -9,7 +9,7 @@ import { contextualTestDraftGetRpcEnvelopeSchema } from '@/lib/validations/conte
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import { getEffectiveStudentTestAccess } from '@/lib/server/tests'
 import { getStudentTestStatus, summarizeTestFocusEvents } from '@/lib/tests'
-import { summarizeTestQuestionScores } from '@/lib/test-result-summary'
+import { publicTestResultSummary } from '@/lib/test-result-summary'
 import { normalizeTestResponses, buildTestAttemptHistoryMetrics } from '@/lib/test-attempts'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { normalizeTestDocuments, getTestDocumentStoragePath, isAllowedTestDocumentType, isSupportedLinkSnapshotContentType, normalizeSnapshotContentType } from '@/lib/test-documents'
@@ -231,7 +231,7 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
     const { state, ...result } = await flow.run('results'); const { access } = statePresentation(state)
     return NextResponse.json({ test: { id: state.test.id, title: state.test.title, status: state.test.status, returned_at: state.attempt?.returned_at ?? null,
       access_state: access.access_state, effective_access: access.effective_access }, ...result,
-      summary: summarizeTestQuestionScores(result.question_results) })
+      summary: publicTestResultSummary(result.question_results) })
   }
   const { state } = await flow.run('session'); const { access, status } = statePresentation(state)
   const returned = state.attempt?.returned_at ?? null

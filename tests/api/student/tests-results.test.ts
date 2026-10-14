@@ -437,9 +437,9 @@ describe('GET /api/student/tests/[id]/results', () => {
     expect(data).not.toHaveProperty('quiz')
     expect(data.test.id).toBe('test-1')
     expect(data.test.returned_at).toBe('2026-03-05T11:00:00.000Z')
-    expect(data.summary.earned_points).toBeNull()
-    expect(data.summary.percent).toBeNull()
-    expect(data.summary.possible_points).toBe(6)
+    expect(data.summary).toBeNull()
+    // The previous client guards a whole null summary before calling toFixed.
+    expect(() => { if (data.summary) data.summary.earned_points.toFixed(2) }).not.toThrow()
     expect(data.question_results[0].sample_solution).toContain('println')
     expect(data.results[0]).toEqual(
       expect.objectContaining({

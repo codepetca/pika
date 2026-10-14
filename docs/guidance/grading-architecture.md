@@ -254,7 +254,9 @@ unsubmit and work deletion retain their existing lifecycle transitions.
 
 Returned ungraded or partially graded Tests show `Pending grading`; missing scores
 are not zeros or a final total. Legacy and contextual student result endpoints
-derive the public summary from all current question scores. Fully graded returned
+derive the public summary from all current question scores. Incomplete public
+results use a whole null summary, which older clients safely omit; the current
+view derives its pending display directly from question results. Fully graded returned
 work retains numeric totals, including deliberate zero scores. Aggregate student
 Grades eligibility remains unchanged: incomplete Tests are not counted.
 

@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
-import { summarizeTestQuestionScores, type TestResultSummary } from '@/lib/test-result-summary'
+import { summarizeTestQuestionScores, type CompleteTestResultSummary } from '@/lib/test-result-summary'
 import { fetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
 import {
   MultipleChoiceOptionReview,
@@ -30,7 +30,7 @@ interface TestQuestionResult {
 
 interface ResultsPayload {
   question_results?: TestQuestionResult[]
-  summary?: TestResultSummary
+  summary?: CompleteTestResultSummary | null
 }
 
 interface Props {
@@ -100,7 +100,7 @@ export function StudentTestResults({
   }
 
   const questionResults = payload?.question_results || []
-  const summary = payload?.summary ? summarizeTestQuestionScores(questionResults) : null
+  const summary = summarizeTestQuestionScores(questionResults)
 
   if (questionResults.length === 0) {
     return (

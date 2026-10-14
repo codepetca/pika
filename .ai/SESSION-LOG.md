@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading SDK captures real Start revisions
-
-Human authorized private driver correction/regressions/targeted review only.
-RED reproduced19!=1; GREEN validates Number.isSafeInteger/revision>=1 and retains
-exact observed revision/actor/attempt. Two mocked Start cases preserve19/37 and
-1/MAX_SAFE_INTEGER into frozen closed-engine preparation;14 denials reject seven
-invalid forms for either learner without frame dispatch or second Start retry.
-Existing operational SDK six-denial/restoration/cancellation mocks now start at
-19/37 and PASS;13 transport mocks, exact-parent corruption checks and all seven
-private TypeScript files PASS. Only three private source files changed; product,
-SQL, sequence, caps, runner and execution gates remain unchanged/inert. Native
-permission consumed; no database query, Docker/SDK network, migration, readyCI,
-merge or rollout. Prior full1954/112/static evidence unchanged for product code;
-fresh documentation/workflow gate and one targeted independent review follow.
-Review ledger original02:58:39/8turn2261s/targeted5/final1 now fixbatch6; no reset,
-standing workflow-stop waiver retained. Shared-local/prod/account/provider/
-activation and toolgoalPAUSED holds unchanged.
-
 ## 2026-10-11 — SDK revision correction reconciled with Material Markdown main
 
 Rebased source-only revision/doc correction onto mainbb778e389 (#1572), retaining
@@ -667,3 +649,9 @@ UI brief: existing teacher Tests confirmation and student returned-results owner
 GPT6.1-sol/high bounded worker mapped lifecycle and implemented five SQL/harness files; verified265 digest aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. Same worker replayed244–265 in schema-only disposable pika_test_return_contract_20261014: new265/lifecycle/contextual owner rollback, full atomic-grading and lifecycle-concurrency PASS, genuine generated types unchanged. Canonicalpostgres max243 and normalized schema unchanged; no app/user/config data copied, synthetic inactive config only. /tmp/pika-return-db-receipt.json, private logs. Reused GPT6.1-sol/high profile worker updated seven finite profiles/helper to exact265 while retaining263/264 seals, rejecting266/mutants;572tests/8suites and7source preflights PASS. Receipt-label correction accepted, no authority/cleanup weakening.
 
 Focused2224tests/103files plus architecture/UI/design/TypeScript/lint PASS on unchanged product bytes; after additive API/stale-view cases, targeted52 and clean TypeScript/audit recorded externally. Weekly70% remaining, healthy313GB at start; DeepSeek automatic pilot pause honored. DB verification about6min; actual worker/coordinator tokens and effective runtime configuration unknown. Draft-first independent high-risk two-reviewer lifecycle follows; no production migration/deployment authorized.
+
+## 2026-10-14 — Ungraded Return compatibility review remediation
+
+PR1593 rebased on main8bf0d98e3 calendar-only update; retained distinct archive markers/body and trimmed merged46entries to40. Own product/SQL bytes unchanged; final focused2226/staticPASS. Initial independent GPT6.1-sol/high security review clean, compatibility accepted twoP2: older loaded result clients crash on nested-null score fields, and current265 owner-grading harness cannot execute historical259–264profiles. Batch1 public incomplete summary becomes whole null (old view safely omits), new UI derives Pending from current question scores; complete numeric/zero unchanged. Bothendpoint/oldrenderer regression coverage added. Nativeownergradingcurrentplan now requires exact265 before readingharness, while historicalsource seals remain independently validated and mutation refusals retained;63targetedPASS. SQL265/guards unchanged, so DBreceipts remain valid. Twentyvisualstates repeatedwithwhole-null API fixtures; reused owners/layout.
+
+Review ledger2turns/1batch; initialreviewclock18:33UTC retained, max7turns/4batches/60min. Targeted61testsPASS; finalfocused/static and cumulative targeted review precede ready-for-CI. Weekly68% remaining atreviewphase, provider/effective/token telemetry unknown; no production migration/deployment/sharedschema operation.

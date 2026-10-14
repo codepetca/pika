@@ -67,7 +67,10 @@ describe('contextual learner Test route group', () => {
     const response = await results(req('GET'), ctx)
     expect(response.status).toBe(200)
     const body = await response.json()
-    expect(body.summary).toEqual({ earned_points: earned, possible_points: 10, percent })
+    expect(body.summary).toEqual(earned === null ? null : { earned_points: earned, possible_points: 10, percent })
+    expect(() => {
+      if (body.summary) { body.summary.earned_points.toFixed(2); body.summary.percent.toFixed(1) }
+    }).not.toThrow()
     expect(body.test).toMatchObject({ returned_at: stamp, effective_access: 'closed' })
     expect(body.question_results).toHaveLength(2)
   })

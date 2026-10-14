@@ -1,3 +1,11 @@
+import * as fs from 'node:fs'
+import { validateStudentTestSessionStatusReviewedMigration } from '../../scripts/student-test-session-status-reviewed-migration'
+import { validateTestOwnerGradingReviewedMigration } from '../../scripts/test-owner-grading-reviewed-migration'
+import { validateTestOwnerRecoveryReviewedMigration } from '../../scripts/test-owner-recovery-reviewed-migration'
+import { validateTestOwnerUnpublicationReviewedMigration } from '../../scripts/test-owner-unpublication-reviewed-migration'
+import { validateTestOwnerDeletionReviewedMigration } from '../../scripts/test-owner-deletion-reviewed-migration'
+import { validateTestCalendarDateReviewedMigration } from '../../scripts/test-calendar-date-reviewed-migration'
+import { validateTestAiGradingSavedWorkReviewedMigration } from '../../scripts/test-ai-grading-saved-work-reviewed-migration'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -216,10 +224,32 @@ describe('inert contextual owner grading proof', () => {
 })
 
 describe('complete reviewed265 source profile (offline)', () => {
-  it.each([263, 264, 265])('accepts exact complete source profile %i', count => {
+  it('accepts the exact265 inventory for the current native grading harness', () => {
+    expect(platform.loadAssignmentListReviewedMigrations(process.cwd())).toHaveLength(265)
+    expect(() => plan()).not.toThrow()
+  })
+  it.each([259, 260, 261, 262, 263, 264])('refuses historical native profile %i before reading the265 harness', count => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
     const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
-    try { expect(() => plan()).not.toThrow() } finally { loader.mockRestore() }
+    const reads = vi.spyOn(fs, 'readFileSync')
+    try {
+      expect(() => plan()).toThrow('Owner grading native proof requires the exact migration265 profile')
+      expect(reads.mock.calls.some(([path]) => String(path).endsWith('/scripts/check-contextual-test-owner-grading.sql'))).toBe(false)
+    } finally { reads.mockRestore(); loader.mockRestore() }
+  })
+  it.each([259, 260, 261, 262, 263, 264])('retains exact predecessor source seals independently of retired native profile %i', count => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
+    const seals = [
+      [258, validateStudentTestSessionStatusReviewedMigration], [259, validateTestOwnerGradingReviewedMigration],
+      [260, validateTestOwnerRecoveryReviewedMigration], [261, validateTestOwnerUnpublicationReviewedMigration],
+      [262, validateTestOwnerDeletionReviewedMigration], [263, validateTestCalendarDateReviewedMigration],
+      [264, validateTestAiGradingSavedWorkReviewedMigration],
+    ] as const
+    for (const [number, validate] of seals) if (number <= count) {
+      expect(() => validate(migrations[number - 1])).not.toThrow()
+      const sql = migrations[number - 1].sql + '\n'
+      expect(() => validate({ ...migrations[number - 1], sql, sha256: createHash('sha256').update(sql).digest('hex') })).toThrow()
+    }
   })
   it.each([263, 264, 265].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))('rejects altered migration $number: $defect', ({ number, defect }) => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))

@@ -47,7 +47,11 @@ describe('StudentTestResults', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
-  it.each([null, 2])('keeps returned work read-only and shows a pending summary when an answer score is %s', async (score) => {
+  it.each([
+    { score: null, summary: null },
+    { score: 2, summary: null },
+    { score: 2, summary: { earned_points: 2, possible_points: 10, percent: 20 } },
+  ])('keeps returned work read-only and shows pending grading with score $score and summary $summary', async ({ score, summary }) => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce(jsonResponse({
       question_results: [score, null].map((answerScore, index) => ({
@@ -57,7 +61,7 @@ describe('StudentTestResults', () => {
         feedback: null, graded_at: null, is_correct: null,
       })),
       // Older API generations may still send a partial numeric total.
-      summary: { earned_points: score ?? 0, possible_points: 10, percent: (score ?? 0) * 10 },
+      summary,
     }))
     render(<StudentTestResults testId="test-1" showSubmissionBanner={false} />)
     expect(await screen.findByText('Pending grading')).toBeInTheDocument()

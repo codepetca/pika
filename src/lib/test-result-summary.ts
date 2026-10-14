@@ -4,6 +4,21 @@ export interface TestResultSummary {
   percent: number | null
 }
 
+export interface CompleteTestResultSummary {
+  earned_points: number
+  possible_points: number
+  percent: number
+}
+
+/** Older result views safely omit a whole null summary, but expect numeric fields. */
+export function publicTestResultSummary(
+  questions: readonly { points: number; score: number | null }[],
+): CompleteTestResultSummary | null {
+  const summary = summarizeTestQuestionScores(questions)
+  if (summary.earned_points === null || summary.percent === null) return null
+  return { earned_points: summary.earned_points, possible_points: summary.possible_points, percent: summary.percent }
+}
+
 /** An incomplete returned Test is pending grading, never an implicit zero. */
 export function summarizeTestQuestionScores(
   questions: readonly { points: number; score: number | null }[],
