@@ -287,7 +287,7 @@ begin
       )),
       '2026-07-14T15:59:30Z'
     );
-  exception when sqlstate 'PT409' then
+  exception when serialization_failure then
     v_rejected := true;
   end;
   select revision, score, feedback into v_revision, v_score, v_feedback
@@ -318,7 +318,7 @@ begin
       '[]'::jsonb,
       null
     );
-  exception when sqlstate 'PT409' then
+  exception when serialization_failure then
     v_rejected := true;
   end;
   if not v_rejected then
@@ -346,7 +346,7 @@ begin
       '[]'::jsonb,
       null
     );
-  exception when sqlstate 'PT409' then
+  exception when serialization_failure then
     v_rejected := true;
   end;
   if not v_rejected then
@@ -375,7 +375,7 @@ begin
       '[]'::jsonb,
       null
     );
-  exception when sqlstate 'PT409' then
+  exception when serialization_failure then
     v_rejected := true;
   end;
   if not v_rejected or exists (
@@ -1097,7 +1097,7 @@ ATTEMPT_PREFLIGHT_STATUS=$?
 set -e
 wait "$ATTEMPT_INSERTER_PID"
 if [[ "$ATTEMPT_PREFLIGHT_STATUS" -eq 0 ]] \
-  || ! grep -q 'PT409' "$TMP_TWO" \
+  || ! grep -q '40001' "$TMP_TWO" \
   || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from public.test_ai_grading_runs where test_id = 'a9000000-0000-4000-8000-000000000026';")" != "0" ]]
 then
@@ -1297,7 +1297,7 @@ select public.create_test_ai_grading_run_atomic(
 SQL
   MISSING_RESPONSE_STATUS=$?
   set -e
-  if [[ "$MISSING_RESPONSE_STATUS" -eq 0 ]] || ! grep -q 'PT409' "$TMP_TWO"; then
+  if [[ "$MISSING_RESPONSE_STATUS" -eq 0 ]] || ! grep -q '40001' "$TMP_TWO"; then
     echo "Missing-response run creation accepted stale preflight: $(cat "$TMP_TWO")" >&2
     exit 1
   fi

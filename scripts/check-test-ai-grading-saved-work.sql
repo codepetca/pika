@@ -23,7 +23,8 @@ insert into public.tests(id,classroom_id,title,status,points_possible,created_by
  ('a2640000-0000-4000-8000-000000000012','a2640000-0000-4000-8000-000000000010','No open questions','draft',5,'a2640000-0000-4000-8000-000000000001'),
  ('a2640000-0000-4000-8000-000000000013','a2640000-0000-4000-8000-000000000010','Blanks only','draft',5,'a2640000-0000-4000-8000-000000000001'),
  ('a2640000-0000-4000-8000-000000000014','a2640000-0000-4000-8000-000000000010','Closure rollback','draft',5,'a2640000-0000-4000-8000-000000000001'),
- ('a2640000-0000-4000-8000-000000000015','a2640000-0000-4000-8000-000000000010','Draft','draft',5,'a2640000-0000-4000-8000-000000000001');
+ ('a2640000-0000-4000-8000-000000000015','a2640000-0000-4000-8000-000000000010','Draft','draft',5,'a2640000-0000-4000-8000-000000000001'),
+ ('a2640000-0000-4000-8000-000000000016','a2640000-0000-4000-8000-000000000010','Migration-first cohort compatibility','draft',5,'a2640000-0000-4000-8000-000000000001');
 insert into public.test_questions(id,test_id,question_type,question_text,options,correct_option,points,response_max_chars,position) values
  ('a2640000-0000-4000-8000-000000000101','a2640000-0000-4000-8000-000000000011','open_response','Answered','[]',null,5,5000,0),
  ('a2640000-0000-4000-8000-000000000102','a2640000-0000-4000-8000-000000000011','open_response','Blank','[]',null,5,5000,1),
@@ -31,7 +32,8 @@ insert into public.test_questions(id,test_id,question_type,question_text,options
  ('a2640000-0000-4000-8000-000000000107','a2640000-0000-4000-8000-000000000011','multiple_choice','Blank MC closure','["A","B"]',1,5,5000,3),
  ('a2640000-0000-4000-8000-000000000104','a2640000-0000-4000-8000-000000000012','multiple_choice','Only MC','["A","B"]',1,5,5000,0),
  ('a2640000-0000-4000-8000-000000000105','a2640000-0000-4000-8000-000000000013','open_response','Whitespace','[]',null,5,5000,0),
- ('a2640000-0000-4000-8000-000000000106','a2640000-0000-4000-8000-000000000014','open_response','Rollback answer','[]',null,5,5000,0);
+ ('a2640000-0000-4000-8000-000000000106','a2640000-0000-4000-8000-000000000014','open_response','Rollback answer','[]',null,5,5000,0),
+ ('a2640000-0000-4000-8000-000000000108','a2640000-0000-4000-8000-000000000016','open_response','Cohort answer','[]',null,5,5000,0);
 update public.tests set status='active' where classroom_id='a2640000-0000-4000-8000-000000000010'
  and id<>'a2640000-0000-4000-8000-000000000015';
 
@@ -59,10 +61,13 @@ declare
  blanks uuid := 'a2640000-0000-4000-8000-000000000013';
  rollback_test uuid := 'a2640000-0000-4000-8000-000000000014';
  draft uuid := 'a2640000-0000-4000-8000-000000000015';
+ compatibility uuid := 'a2640000-0000-4000-8000-000000000016';
+ compatibility_question uuid := 'a2640000-0000-4000-8000-000000000108';
  answered uuid := 'a2640000-0000-4000-8000-000000000101';
  blank_question uuid := 'a2640000-0000-4000-8000-000000000102';
  result jsonb; before_attempt jsonb; before_availability jsonb; snapshot jsonb; run_id uuid;
  revision bigint; existing_response uuid; source_revision bigint; expected_timestamp timestamptz := '2026-10-01T15:00:00Z';
+ v_fixture_student_id uuid; legacy_items jsonb; partial_items jsonb; before_closed_rows jsonb; after_closed_rows jsonb;
  signature text := 'public.start_test_ai_grading_run_atomic(uuid,uuid,text,uuid[],text,text,text)';
 begin
  if has_function_privilege('anon',signature,'execute') or has_function_privilege('authenticated',signature,'execute')
@@ -157,7 +162,7 @@ begin
    perform public.create_test_ai_grading_run_atomic(mixed,teacher,'fixture-model',array[saved],array[saved],'stale',1,0,0,
      jsonb_build_array(jsonb_build_object('student_id',saved,'question_id',answered,'response_id',existing_response,
        'response_revision',source_revision+1,'queue_position',0)),'[]');
-   raise exception 'Stale response seed accepted'; exception when sqlstate 'PT409' then null; end;
+   raise exception 'Stale response seed accepted'; exception when serialization_failure then null; end;
 
  -- No open questions leaves started work open, and never-started no-op stays absent.
  perform public.start_test_attempt_revision_atomic(mc,saved);
@@ -198,6 +203,71 @@ begin
    or exists(select 1 from public.test_student_availability where test_id=rollback_test)
    or exists(select 1 from public.test_ai_grading_runs where test_id=rollback_test) then
    raise exception 'Run failure leaked closure/materialization/access/run'; end if;
+
+ -- Migration-first compatibility: A submitted, B and C teacher-closed. The
+ -- older coordinator supplies only A; the new starter supplies all three.
+ foreach v_fixture_student_id in array array[submitted,saved,unselected] loop
+   result:=public.start_test_attempt_revision_atomic(compatibility,v_fixture_student_id);
+   revision:=(result#>>'{attempt,draft_revision}')::bigint;
+   snapshot:=jsonb_build_object(compatibility_question::text,
+     jsonb_build_object('question_type','open_response','response_text','Cohort answer '||v_fixture_student_id::text));
+   if v_fixture_student_id=submitted then
+     perform public.submit_test_attempt_revision_atomic(compatibility,v_fixture_student_id,snapshot,revision,expected_timestamp);
+   else
+     perform public.save_test_attempt_revision_atomic(compatibility,v_fixture_student_id,snapshot,revision);
+   end if;
+ end loop;
+ perform public.update_test_student_access_atomic(compatibility,array[saved,unselected],'closed',teacher);
+ select jsonb_build_object(
+   'attempts',(select jsonb_agg(to_jsonb(a) order by a.student_id) from public.test_attempts a
+     where a.test_id=compatibility and a.student_id in (saved,unselected)),
+   'responses',(select jsonb_agg(to_jsonb(r) order by r.student_id) from public.test_responses r
+     where r.test_id=compatibility and r.student_id in (saved,unselected)),
+   'access',(select jsonb_agg(to_jsonb(a) order by a.student_id) from public.test_student_availability a
+     where a.test_id=compatibility and a.student_id in (saved,unselected))) into before_closed_rows;
+ select jsonb_build_array(jsonb_build_object('student_id',r.student_id,'question_id',r.question_id,
+   'response_id',r.id,'response_revision',r.revision,'queue_position',0)) into legacy_items
+   from public.test_responses r where r.test_id=compatibility and r.student_id=submitted;
+ result:=public.create_test_ai_grading_run_atomic(compatibility,teacher,'fixture-model',
+   array[submitted,saved],array[submitted],'legacy-submitted-only',1,0,0,legacy_items,'[]');
+ run_id:=(result->>'run_id')::uuid;
+ select jsonb_build_object(
+   'attempts',(select jsonb_agg(to_jsonb(a) order by a.student_id) from public.test_attempts a
+     where a.test_id=compatibility and a.student_id in (saved,unselected)),
+   'responses',(select jsonb_agg(to_jsonb(r) order by r.student_id) from public.test_responses r
+     where r.test_id=compatibility and r.student_id in (saved,unselected)),
+   'access',(select jsonb_agg(to_jsonb(a) order by a.student_id) from public.test_student_availability a
+     where a.test_id=compatibility and a.student_id in (saved,unselected))) into after_closed_rows;
+ if result->>'outcome'<>'created' or before_closed_rows is distinct from after_closed_rows
+   or not exists(select 1 from public.test_ai_grading_runs r where r.id=run_id and r.eligible_student_count=1)
+   or (select count(*) from public.test_ai_grading_run_items i where i.run_id=run_id)<>1
+   or exists(select 1 from public.test_ai_grading_run_items i where i.run_id=run_id and i.student_id<>submitted) then
+   raise exception 'Submitted-only legacy caller rejected or changed closed work: %',result;
+ end if;
+ update public.test_ai_grading_runs set status='completed',completed_at=now() where id=run_id;
+ select jsonb_agg(jsonb_build_object('student_id',r.student_id,'question_id',r.question_id,
+   'response_id',r.id,'response_revision',r.revision,'queue_position',case when r.student_id=submitted then 0 else 1 end)
+   order by r.student_id) into partial_items from public.test_responses r
+   where r.test_id=compatibility and r.student_id in (submitted,saved);
+ begin
+   perform public.create_test_ai_grading_run_atomic(compatibility,teacher,'fixture-model',
+     array[submitted,saved,unselected],array[submitted,saved],'partial-closed-subset',2,0,0,partial_items,'[]');
+   raise exception 'Partial closed cohort accepted'; exception when serialization_failure then null; end;
+ if exists(select 1 from public.test_ai_grading_runs where test_id=compatibility and status in ('queued','running')) then
+   raise exception 'Partial closed cohort left an active run'; end if;
+ begin
+   perform public.create_test_ai_grading_run_atomic(compatibility,teacher,'fixture-model',
+     array[submitted,saved],array[submitted],'legacy-stale-revision',1,0,0,
+     jsonb_set(legacy_items,'{0,response_revision}',to_jsonb((legacy_items#>>'{0,response_revision}')::bigint+1)),'[]');
+   raise exception 'Legacy stale revision accepted'; exception when serialization_failure then null; end;
+ result:=public.start_test_ai_grading_run_atomic(compatibility,teacher,'fixture-model',
+   array[submitted,saved,unselected],'new-complete-saved-cohort','all');
+ run_id:=(result->>'run_id')::uuid;
+ if result->>'outcome'<>'created' or result->>'eligible_student_count'<>'3'
+   or result->>'skipped_unanswered_count'<>'0' or result->>'skipped_already_graded_count'<>'0'
+   or (select count(*) from public.test_ai_grading_run_items i where i.run_id=run_id)<>3
+   or (select count(distinct i.student_id) from public.test_ai_grading_run_items i where i.run_id=run_id)<>3 then
+   raise exception 'New starter omitted a closed selected student: %',result; end if;
  raise notice 'AI saved work SQL contract passed';
 end;
 $contract$;

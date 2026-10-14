@@ -151,7 +151,7 @@ begin
       on conflict (question_id, student_id) do nothing;
       get diagnostics v_affected = row_count;
       if v_affected = 0 then
-        raise exception 'Test response changed; reload and retry' using errcode = 'PT409';
+        raise exception 'Test response changed; reload and retry' using errcode = '40001';
       end if;
       v_inserted_count := v_inserted_count + v_affected;
       continue;
@@ -168,7 +168,7 @@ begin
       or v_response.revision <> v_expected_revision
       or not private.test_ai_response_is_blank(v_response.response_text)
     then
-      raise exception 'Test response changed; reload and retry' using errcode = 'PT409';
+      raise exception 'Test response changed; reload and retry' using errcode = '40001';
     end if;
 
     update public.test_responses response
@@ -220,6 +220,7 @@ declare
   v_requested_count integer := cardinality(coalesce(p_requested_student_ids, array[]::uuid[]));
   v_eligible_student_ids uuid[];
   v_current_eligible_student_ids uuid[];
+  v_current_submitted_student_ids uuid[];
   v_item_count integer;
   v_current_eligible_count integer;
   v_run public.test_ai_grading_runs%rowtype;
@@ -347,17 +348,26 @@ begin
     and attempt.student_id = any(p_requested_student_ids)
   order by attempt.student_id
   for share;
-  select coalesce(array_agg(attempt.student_id order by attempt.student_id), array[]::uuid[])
-  into v_current_eligible_student_ids
+  select
+    coalesce(array_agg(attempt.student_id order by attempt.student_id), array[]::uuid[]),
+    coalesce(array_agg(attempt.student_id order by attempt.student_id)
+      filter (where attempt.is_submitted = true), array[]::uuid[])
+  into v_current_eligible_student_ids, v_current_submitted_student_ids
   from public.test_attempts attempt
   where attempt.test_id = p_test_id
     and attempt.student_id = any(p_requested_student_ids)
     and (attempt.is_submitted = true or attempt.closed_for_grading_at is not null);
   v_current_eligible_count := cardinality(v_current_eligible_student_ids);
-  if v_current_eligible_count <> p_eligible_student_count
-    or v_current_eligible_student_ids is distinct from v_eligible_student_ids
-  then
-    raise exception 'Test submission state changed; reload and retry' using errcode = 'PT409';
+  -- Migration-first rollout: older application callers send the complete
+  -- submitted-only cohort; the new atomic starter sends submitted-or-closed.
+  -- Accept exactly either complete set, never an arbitrary closed subset.
+  if not (
+    (v_current_eligible_count = p_eligible_student_count
+      and v_current_eligible_student_ids is not distinct from v_eligible_student_ids)
+    or (cardinality(v_current_submitted_student_ids) = p_eligible_student_count
+      and v_current_submitted_student_ids is not distinct from v_eligible_student_ids)
+  ) then
+    raise exception 'Test submission state changed; reload and retry' using errcode = '40001';
   end if;
 
   v_item_count := jsonb_array_length(p_item_rows);
@@ -423,7 +433,7 @@ begin
         or question.question_type <> 'open_response'
     )
   then
-    raise exception 'Test response changed; reload and retry' using errcode = 'PT409';
+    raise exception 'Test response changed; reload and retry' using errcode = '40001';
   end if;
 
   perform 1
@@ -526,7 +536,7 @@ begin
   order by item.queue_position;
 
   if not found then
-    raise exception 'Test AI grading run items were not created' using errcode = 'PT409';
+    raise exception 'Test AI grading run items were not created' using errcode = '40001';
   end if;
 
   return jsonb_build_object('outcome', 'created', 'run_id', v_run.id);
