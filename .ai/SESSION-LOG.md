@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Bounded unpublication proof framing
-
-Reviewed e93 source passes2149 focused tests; private bounded engine diagnostics
-reviewed clean72s. Fresh replay verifies001–261/rollbackACL/genuine438871B types,
-then confirms combined contracts frame12s timeout after setup/privilege restoration.
-Two independently reviewed exact synthetic recoveries preserve global741/canonical
-183tables/2cron/ports/source and original failed evidence; no shared reset/schema,
-production, account, provider or activation operations. One intervening type-artifact
-collision resolved by recoverable archival of its verified prior output.
-Seven closed source-derived frames now preserve every original SQL byte/assertion
-and14schedules in one session/transaction/aggregate180s clock. Intermediate exact
-transaction witnesses; monolithic SQL is reconstruction-only.12s/40dispatch/SQL/
-response caps unchanged.80targeted tests/TypeScript/audit/diff PASS. Native timing,
-independent corrected-source review, fullfocused and eligible CI remain pending.
-PR14completedreviews1615measureds/3resolved/13sourcefixbatches/6draftpushes before
-next review; ancillary cleanup4turns219s/1resolved kept separate. Task-scoped
-routine-approval/review-budget waiver persists without counter resets. Tests phase,
-goal and existing local249+/prod259+/promotion/account/provider/cutover holds remain.
-
 ## 2026-10-12 — Unpublication interframe DDL-lock isolation
 
 Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
@@ -810,3 +791,18 @@ remain required for this batch. No second native attempt, production/shared-loca
 migration, provider/Survey probe/planning, account/billing or rollout operation.
 PR1581 remains draft; advancing-main/calendar263 conflicts still require separate
 reconciliation. All original Protocol clocks/review/fix and spent histories carry.
+
+## 2026-10-14 Bounded browser-only diagnostic preparation
+
+Carrier64e passed review61 and3123 focused tests/8skip. Fresh app038480fc7ad7
+passed Playwright setup but failed before workflow entry; owned settlement and
+isolated resource absence verified. Both app attempts remain spent/failed.
+Human approved one separately reviewed browser-only diagnostic: standard pinned
+headed Chrome fixture, blank offline page,90s work/30s operations, unchanged native
+ownership and read-only dependencies, cleanup capped at six minutes from cleanup
+start within the original cap. Fixed-schema reporter covers pre-test fixture
+errors without retaining raw messages/stacks/URLs/output. No new dependencies,
+app/DB/provider/auth or product changes.12 focused CPU contracts pass; root review,
+full checks, independent review and the single native dispatch remain pending.
+Production/shared-local/Survey including planning/account/billing/cutover holds
+and all original review/fix/attempt histories remain unchanged. PR1581 stays draft.
