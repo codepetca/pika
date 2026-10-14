@@ -1171,7 +1171,7 @@ export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (acti
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'week'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
-    <Description>Week uses the lesson agenda with a date rail, full lesson content and explicit editing. Month and Term retain their grids. The date and view toggle share the center cluster; More actions owns Markdown editing.</Description>
+    <Description>Week uses the lesson agenda with a date rail and full lesson content. Click the lesson content to edit. Month and Term retain their grids. The date and view toggle share the center cluster; More actions owns Markdown editing.</Description>
   </PageLayout>
 }
 

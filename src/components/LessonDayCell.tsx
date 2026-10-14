@@ -2,7 +2,6 @@
 
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
-import { Pencil, Plus } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { MarkdownContentEditor } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
@@ -10,7 +9,7 @@ import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/
 import { isCalendarAnnouncementScheduled } from '@/lib/calendar-items'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
-import { Button, IconButton, Tooltip } from '@/ui'
+import { Button, Tooltip } from '@/ui'
 import type { Announcement, Assignment, LessonPlan, TestAssessment } from '@/types'
 
 // Helper to check if announcement is scheduled (not yet published)
@@ -173,21 +172,25 @@ export const LessonDayCell = memo(function LessonDayCell({
             <time dateTime={date} aria-current={isToday ? 'date' : undefined} className="text-xl font-semibold leading-tight text-text-default">{format(day, 'd')}</time>
           </Button>
           {nonClassDay && <span className="text-xs text-text-muted">No class</span>}
-          {canEdit && !isEditing && (
-            <IconButton
-              ref={editActionRef}
-              variant="ghost"
-              size="sm"
-              label={hasContent ? 'Edit lesson' : 'Add lesson'}
-              icon={hasContent ? Pencil : Plus}
-              onClick={handleStartEditing}
-              className="text-text-muted"
-            />
-          )}
         </div>
 
-        <div ref={cellRef} className="min-w-0 flex-1 space-y-3">
-          <div className="calendar-day-text min-w-0 break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto">
+        <div ref={cellRef} className="flex min-w-0 flex-1 flex-col gap-3">
+          <div
+            className={`calendar-day-text relative min-w-0 flex-1 break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''}`}
+            onClick={event => {
+              if (canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
+            }}
+          >
+            {canEdit && !isEditing && (
+              <Button
+                ref={editActionRef}
+                variant="ghost"
+                size="sm"
+                aria-label={`${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}`}
+                onClick={handleStartEditing}
+                className="absolute inset-0 h-full w-full cursor-text p-0"
+              />
+            )}
             {isEditing && canEdit ? (
               <MarkdownContentEditor
                 markdown={localMarkdown}
@@ -201,15 +204,15 @@ export const LessonDayCell = memo(function LessonDayCell({
                 className="[&_.ProseMirror]:min-h-control [&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-relaxed"
               />
             ) : hasContent ? (
-              renderPlainText ? <div className="whitespace-pre-wrap">{plainText}</div> : (
+              renderPlainText ? <div className={canEdit ? 'relative whitespace-pre-wrap' : 'whitespace-pre-wrap'}>{plainText}</div> : (
                 <LimitedMarkdown
                   content={markdown}
-                  className="space-y-3 text-sm leading-relaxed [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-base"
+                  className={`space-y-3 text-sm leading-relaxed [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-base ${canEdit ? 'relative' : ''}`}
                   emptyPlaceholder={null}
                 />
               )
             ) : !nonClassDay ? (
-              <p className="text-sm text-text-muted">{canEdit ? 'No lesson planned' : 'No lesson posted'}</p>
+              <p className={`text-sm text-text-muted ${canEdit ? 'relative' : ''}`}>{canEdit ? 'No lesson planned' : 'No lesson posted'}</p>
             ) : null}
           </div>
 
