@@ -410,6 +410,25 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].final_percent).toBe(returnedAt ? 80 : null)
   })
 
+  it.each([null, 0])('keeps returned unsubmitted Test work pending while a question is ungraded (first score %s)', async (firstScore) => {
+    mockSupabaseClient.from = buildMockFrom({
+      tests: [{ id: 't1', title: 'Returned saved Test', status: 'closed', include_in_final: true }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 5 }, { id: 'q2', test_id: 't1', points: 5 }],
+      testResponses: [
+        { test_id: 't1', question_id: 'q1', student_id: 'student-1', score: firstScore },
+        { test_id: 't1', question_id: 'q2', student_id: 'student-1', score: null },
+      ],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: false, returned_at: '2026-01-02T12:00:00.000Z' }],
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: null, percent: null, is_graded: false })
+    expect(body.students[0]).toMatchObject({ tests_percent: null, final_percent: null })
+    expect(body.class_summary.tests[0]).toMatchObject({ scored_count: 0, average_percent: null })
+    expect(body.selected_student.tests).toEqual([])
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })

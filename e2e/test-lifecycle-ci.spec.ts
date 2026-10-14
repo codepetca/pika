@@ -207,7 +207,7 @@ test('real desktop Return: ungraded unsubmitted saved work stays read-only after
     const mutation = { expected_revision: before.attempt.draft_revision, responses: { [exam.openId]: { question_type: 'open_response', response_text: 'Attempted change after Return.' } } }
     await json(studentContext.request, 'POST', `/api/student/tests/${exam.id}/start`, undefined, 403)
     await json(studentContext.request, 'PATCH', `/api/student/tests/${exam.id}/attempt`, mutation, 403)
-    await json(studentContext.request, 'POST', `/api/student/tests/${exam.id}/respond`, mutation, 403)
+    expect(await json(studentContext.request, 'POST', `/api/student/tests/${exam.id}/respond`, mutation, 400)).toEqual({ error: 'Test is not active' })
     expect(await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/attempt`)).toEqual(before)
     expect(await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`)).toEqual(returned)
     await student.goto(`/classrooms/${owned.classroomId}?tab=tests`, { waitUntil: 'domcontentloaded' })
