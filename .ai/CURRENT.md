@@ -1,13 +1,14 @@
-# Checkpoint — 2026-10-13 (America/Toronto)
+# Checkpoint — 2026-10-14 (America/Toronto)
 
-Release `3b7ae978e`; audit27 accepted.
+Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
-Prod `c1abdab798` LIVE Oct13 21:22Toronto; #1583 CI38491978782 PASS.
-Week agenda/Test date LIVE; calendar only.
+Prod `b95776cb7` LIVE Oct14 19:28Toronto; #1594 CI38650272929 PASS.
+Saved-work AI/reporting, ungraded Return and Gradebook visibility LIVE.
+Week agenda/Test date LIVE; reopening unchanged.
 Login200/me401/gallery404; savings unknown.
-Prod DB001–263 run38491403501 verified;259–263 approval consumed.
-Ten bodies/owners/search paths/ACLs PASS; no write canary.
+Prod DB001–265 run38653530319 verified;264–265 approval consumed.
+Six bodies/owners/search paths/ACLs PASS; no write canary.
 Poll reads5→1; fresh auth; admission absent.
 Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
