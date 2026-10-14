@@ -11,54 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Unpublish fixture constraint diagnosis
-
-Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
-review turns1101measured seconds/two formal findings resolved/five source batches
-retained; private diagnostic deltas reviewed, no counter reset. Four fresh isolated
-attempts replayed001–261 then failed rollback; each exactcleanup/global741resources/
-canonical183table+2cron preservation PASS. No native acceptance. Bounded final
-diagnostic observed23514/inlineblockline6: limits fixture inserted empty Test Draft
-violating134 question_identity_version CHECK. Correct only fixture to valid marked
-content while retaining wrong-parent/version/work/parity assertions; no product or
-migration change. Raw error/user data not retained. Fresh source review and complete
-native/CI acceptance remain required; all sharedlocal249+/production259+, promotion,
-provider/account and admission/home/page/cohort/cutover holds unchanged.
-
-Two further fresh isolated attempts retain cleanup/preservation PASS and no native
-acceptance. Reviewed bounded diagnostics identify the later wrong-parent fixture
-failure: legacy PT409/test_unpublish_not_eligible. Installed143 intentionally
-preserves any existing question lock; the earlier locked-question probe left that
-fixture locked. Keep that protection and expected rejection, but rollback the probe
-setup before subsequent limits cases. Source-only correction/verification is in
-progress; no shared schema or product permission changes, no readiness/merge claim.
-
-Later fresh corrected-source replay reaches55000/anonymousline14. Source mapping
-corrects an initial version-reset guess:171 intentionally rejects provider-binding
-DELETE. Preserve that retained evidence guard and isolate the synthetic provider
-fence setup/assertion with rollback instead of deleting its immutable binding.
-No native acceptance; independent review/current-source proof remain required.
-
-Current bd12564f focused2137/120files plus policies/tsc/lint PASS; provider-fixture
-delta reviewed clean36s. Eleven completed reviews1383measured seconds/two formal
-findings resolved/nine fix batches/four draft correction pushes retained. Eighth
-fresh exact-source abd33efe796a now passes001–261/productrollbackcontractsACLs and
-genuineCLItypes438871B byte-equal7b2ab664acf1cc1808a227d1803aca392c854fe2d6650ab41579cabcdd89f00f.
-Later fixture preparation fails before dispatch:453657-byte generated setup exceeds
-unchanged256KiB runner limit. Exactcleanup/global741/canonical183tables+2cron PASS.
-Compact only inherited bulk Draft content into source-equivalent SQL derived from
-already inserted1001questions; retain all IDs/rows/content/cases/guards and caps.
-Correction verification/review/fresh nativeSDK/heldlocks/cancellation/CI pending;
-partial actual passes are not full native acceptance, merge or rollout. Holds remain.
-
-Compacted preparation196218B keeps1019questions/15Drafts,66targetchecks+fullfocused
-2146/120files/policies/tsc/lint PASS. Targeted review140s accepts one guard defect:
-missing insertion marker yields indexOf=-1 and passes ordering comparison. Require
-exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
-marker. No cap/fixture case/product/migration changes. Counters12completedreviews
-1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
-fresh complete native acceptance remains pending, all holds retained.
-
 ## 2026-10-11 — Vertical Week design exploration
 
 Delivered three experimental standalone Week concepts (lesson agenda, day navigator, expandable week) for teacher/student; recommend agenda for rich lesson reading. Artifacts: /Users/stew/.codex/visualizations/2026/10/11/01a12a93-1a8c-7ed0-a906-1eab3ca18157/vertical-week/review.html (README, brief, provenance, reproducible CLI receipts alongside). Source caaa1c926; actual Pattern Lab owner captures include horizontal Week, Month, Term. No application code/data/DB/release changes or canon promotion.
@@ -749,3 +701,24 @@ restart, migration, production/provider/account/cutover change. Next recommend
 source-only field-specific safe labels, preserving all existing validation, before
 any separately approved fresh run. Original clock/review50/fix37/waiver carry;
 PR1581 draft/full gate failed. Independent factual receipt review51 next.
+
+## 2026-10-14 Metadata-field labels preserve original validation
+
+Human Go requests identifying the failed metadata field without weakening checks.
+Root clarified ONE fresh isolated field diagnostic after review/current readiness,
+not replay or approval reuse of spent37. New privatebff37b7a2e29 source38 adds
+fixed state/pid/pgid/started/executable/argv/cwd labels at actual original operands.
+The original three assertions/comparisons, short circuit/getter read order and
+same error remain; catch-only notification deduplicates helper fallback, and
+existing-capture discovery records the detailed field before outer normalization.
+No rejected value reread/raw data/new diagnostic authority. Root read source/
+fixture delta and independently replayed41field+31guard/14direct/15serialized36
+observability/21package19privacy/seven syntax checks and exact38→37/historical
+inverses/compiler/import closure PASS. Five zero-diagnostic transpiles are not
+semantic graph TypeScript or native proof. Firstfreeze12:44:13UTC, entry2d7c050f,
+metadata64600eea/receipt9b08187f/handofff2fa010b hash/mode0600 match. Same driver,
+kernel, cases, body/task, cleanup/caps/deadlines and approved Chrome pin retained.
+Acceptance/runtime absent, actual field still unknown pending reviewed run.
+Independent targeted review52 next; original clock/review52/fix38/waiver carry
+without reset. PR1581 draft/full gate failed; production/shared-local/provider/
+account/migration/cutover holds remain unchanged.
