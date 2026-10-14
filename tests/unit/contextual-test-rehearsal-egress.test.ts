@@ -7,7 +7,60 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync, chmodSync, readFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 const require = createRequire(import.meta.url)
-const { createContextualTestEgressPolicy, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork } = require('../../scripts/contextual-test-rehearsal-egress.cjs')
+const { createContextualTestEgressPolicy, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry } = require('../../scripts/contextual-test-rehearsal-egress.cjs')
+
+describe('disabled installed Next telemetry stays disabled before native dispatch', () => {
+  const file = realpathSync(require.resolve('next/dist/telemetry/storage'))
+  function telemetry() {
+    type Instance = { flushDetached(mode: string, directory: string): void; record(event: unknown, deferred: boolean): unknown }
+    const module = { exports: {} as { Telemetry: new (options: { distDir: string }) => Instance } }
+    const spawn = vi.fn(), mkdir = vi.fn(), write = vi.fn(), env = { NEXT_TELEMETRY_DISABLED: '1' }
+    const forbidden = () => { throw Error('No telemetry network in CPU test') }
+    const modules: Record<string, unknown> = {
+      '../lib/picocolors': {}, 'next/dist/compiled/conf': class { get() { return false }; set() {} },
+      crypto: require('node:crypto'), 'next/dist/compiled/is-docker': () => false, path: require('node:path'),
+      './anonymous-meta': { getAnonymousMeta: forbidden }, '../server/ci-info': { isCI: false },
+      './post-telemetry-payload': { postNextTelemetryPayload: forbidden }, './project-id': { getRawProjectId: forbidden },
+      'next/dist/compiled/@edge-runtime/ponyfill': { AbortController }, fs: { mkdirSync: mkdir, writeFileSync: write },
+      child_process: { spawn, spawnSync: forbidden },
+    }
+    const nativeRequire = Object.assign((id: string) => {
+      if (!Object.hasOwn(modules, id)) throw Error('Unapproved CPU dependency')
+      return modules[id]
+    }, { resolve: () => '/cpu/next/detached-flush.js' })
+    vm.runInNewContext(readFileSync(file, 'utf8'), { module, exports: module.exports, require: nativeRequire,
+      process: { env, execPath: '/cpu/node' }, Buffer, console }, { filename: file, timeout: 1000 })
+    const loader = Object.assign(vi.fn(() => module.exports), { cache: { [file]: module } })
+    return { module, loader, spawn, mkdir, write, env }
+  }
+  it('demonstrates the real disabled-telemetry shutdown spawn and prevents it at the exact optional API', () => {
+    const before = telemetry(), old = new before.module.exports.Telemetry({ distDir: '/cpu/dist' })
+    old.record({ eventName: 'CPU', payload: {} }, true); old.flushDetached('dev', '/cpu/app')
+    expect(before.spawn).toHaveBeenCalledOnce(); expect(before.write).toHaveBeenCalledOnce()
+    const after = telemetry(), original = after.module.exports.Telemetry
+    disableContextualTestNextTelemetry(file, after.loader, after.env)
+    expect(Object.getOwnPropertyDescriptor(after.module.exports, '__esModule')).toMatchObject({ value: true, enumerable: false, configurable: false })
+    const fixed = new after.module.exports.Telemetry({ distDir: '/cpu/dist' })
+    expect(fixed).toBeInstanceOf(original)
+    fixed.record({ eventName: 'CPU', payload: {} }, true); fixed.flushDetached('dev', '/cpu/app')
+    expect(after.spawn).not.toHaveBeenCalled(); expect(after.mkdir).not.toHaveBeenCalled(); expect(after.write).not.toHaveBeenCalled()
+    expect(Object.getOwnPropertyDescriptor(fixed, 'flushDetached')).toMatchObject({ writable: false, configurable: false })
+  })
+  it('refuses an enabled environment, dependency drift or a mismatched module cache', () => {
+    const h = telemetry()
+    expect(() => disableContextualTestNextTelemetry(file, h.loader, { NEXT_TELEMETRY_DISABLED: '0' })).toThrow()
+    expect(() => disableContextualTestNextTelemetry(realpathSync(require.resolve('next/package.json')), h.loader, h.env)).toThrow()
+    expect(h.loader).not.toHaveBeenCalled()
+    expect(() => disableContextualTestNextTelemetry(file, Object.assign(() => h.module.exports, { cache: {} }), h.env)).toThrow()
+  })
+  it('fails closed if the explicit disabled environment changes after installation', () => {
+    const h = telemetry(); disableContextualTestNextTelemetry(file, h.loader, h.env)
+    const fixed = new h.module.exports.Telemetry({ distDir: '/cpu/dist' }); h.env.NEXT_TELEMETRY_DISABLED = '0'
+    expect(() => fixed.flushDetached('dev', '/cpu/app')).toThrow()
+    expect(() => new h.module.exports.Telemetry({ distDir: '/cpu/dist' })).toThrow()
+    expect(h.spawn).not.toHaveBeenCalled(); expect(h.write).not.toHaveBeenCalled()
+  })
+})
 
 describe('installed Next static-path workers with CPU-only fork doubles', () => {
   const jestFile = realpathSync(require.resolve('next/dist/compiled/jest-worker'))
@@ -121,6 +174,8 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
     module.exports.installContextualTestEgress({ nextServerPath: realpathSync(require.resolve('next/dist/server/lib/start-server')),
       processChildPath, staticPathsWorkerPath, appDir: cwd, deadline: Date.now() + 10000, ledger: { note } })
     expect(() => (child as unknown as { fork(...args: unknown[]): unknown }).fork(processChildPath, [], {})).toThrow()
+    expect(() => (child as unknown as { spawn(...args: unknown[]): unknown }).spawn('/unapproved', [])).toThrow()
+    expect(note).toHaveBeenCalledWith('denied')
     expect(nativeFork).not.toHaveBeenCalled()
   })
 })

@@ -46945,3 +46945,12 @@ is source-only, CPU bridge/privacy PASS, native cause unknown. Prior c7 app atte
 remains FAIL; exact synthetic resource recovery PASS with evidence retained.
 No shared-local/prod migration, account/provider/billing change, activation or
 phase exit. Updated existing classroom-access roadmap, not a parallel goal/task.
+
+<!-- pika-session-log-archive-batch:8d893d36881c2dffd7044f183b7c4e874e635d7dea912bda8826918255856705 -->
+## 2026-10-12 — Dormant existing Tests screen adopter
+
+- Extended server-derived strict admission mode through the actual classroom consumer; shared publish uses its dedicated original-version POST, complete shared reorder uses atomic transport, and standalone preview proves the current owner and requested parent. Existing transport is retained; no rollout/schema/provider/account changes.
+- Worker Sol/high delivered206 checks/5 suites and TypeScript. Coordinator integration238/7 PASS; wider focused976/66 plus architecture/UI/design/TypeScript/lint PASS. The1,001-real-row ceiling stress test needed bounded15s headroom in the concurrent suite (exact no-write assertion retained). One audit heuristic flags an unchanged intentional no-store results read; original accepted source contains the same statement, so no unrelated caching change or audit weakening.
+- Both historical account-role owners and members, desktop1440×900/mobile390×844, light/dark rendered using synthetic intercepted APIs; confirmed expected owner/member controls and no horizontal overflow. Existing publication confirmation/conflict, preview/fullscreen/return and keyboard reorder exercised. No authenticated persistence or Tests phase exit claimed; review and final-SHA CI remain required.
+- Explicitly superseded the historical whole-UI source freeze with direct existing/shared transport regression coverage; unchanged legacy API hash and precise dormant dispatcher normalization remain. Guidance: contextual-test-screen-adoption.md. Native deletion component evidence belongs to PR1579, not this browser fixture or newer source revision.
+- PR1579 merged normally as8e9dabd597 after exact895 CI38204673501 all10 PASS; canonical clean main fast-forwarded and tree equality verified. PR1580 remains dormant/draft. Initial security review clean; compatibility found a same-batch refresh/reorder race. Coordinator reproduced RED1/115, then bound synchronous eligibility to the request generation of the rendered list, including successful replacement/failed refresh. No order-CAS or server contract change. All holds remain.

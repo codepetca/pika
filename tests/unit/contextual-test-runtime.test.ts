@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import type { Browser, Page, Response, TestInfo } from '@playwright/test'
 
 const platform = vi.hoisted(() => ({ readContextualTestBinding: vi.fn(), executeContextualTestSql: vi.fn() }))
-vi.mock('../../scripts/contextual-test-rehearsal-platform', () => platform)
+vi.mock('../../scripts/contextual-test-rehearsal-binding', () => platform)
 import { createContextualTestRuntime } from '../../e2e/helpers/contextual-test-runtime'
 import { createContextualTestPlan, type ActorLabel } from '../../e2e/helpers/contextual-test-rehearsal'
 

@@ -327,6 +327,30 @@ function createContextualTestBoundedFetch(originalFetch, options, policy) {
   }
 }
 
+/** Next15.5.25's CLI flushes detached telemetry even when its ordinary telemetry
+ * setting is disabled. Disable that exact optional API BEFORE a subprocess is
+ * requested; generic process/network denial and its failure latch stay intact.
+ * Only this module's in-memory export is wrapped; installed bytes stay read-only.
+ */
+function disableContextualTestNextTelemetry(file, loader = require, env = process.env) {
+  assert.equal(env.NEXT_TELEMETRY_DISABLED, '1')
+  assert(path.isAbsolute(file) && fs.realpathSync(file) === file)
+  assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), '89b15d2b26bc56aca40bc1639e6fa26192b85da19243776d8a60874029620eb3')
+  const original = loader(file), cached = loader.cache[file]
+  assert(cached && cached.exports === original && typeof original.Telemetry === 'function')
+  const OriginalTelemetry = original.Telemetry
+  class DisabledTelemetry extends OriginalTelemetry {
+    constructor(...args) {
+      assert.equal(env.NEXT_TELEMETRY_DISABLED, '1')
+      super(...args)
+      assert.equal(typeof this.flushDetached, 'function')
+      Object.defineProperty(this, 'flushDetached', { value() { assert.equal(env.NEXT_TELEMETRY_DISABLED, '1') }, writable: false, configurable: false })
+    }
+  }
+  cached.exports = Object.create(Object.getPrototypeOf(original), { ...Object.getOwnPropertyDescriptors(original),
+    Telemetry: { value: DisabledTelemetry, enumerable: true, writable: false, configurable: false } })
+}
+
 /** Explicit install returns an audit accessor. Never auto-installs in Vitest or
  * application collection; the exact native launch must invoke this preload. */
 function installContextualTestEgress(options) {
@@ -378,10 +402,11 @@ function installContextualTestEgress(options) {
   https.request = deny; https.get = deny
   globalThis.fetch = createContextualTestBoundedFetch(globalThis.fetch, options, policy)
   require('node:module').syncBuiltinESMExports()
+  if (options.telemetryPath) disableContextualTestNextTelemetry(options.telemetryPath)
   return Object.freeze({ ...policy, workers: () => staticFork?.snapshot() ?? { launched: 0, active: 0, failed: false, workers: [] } })
 }
 
-module.exports = { createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork }
+module.exports = { createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry }
 
 // Native launch is possible only with the root's exact private binding digest.
 // The application never discovers this configuration from .env files.
@@ -408,7 +433,8 @@ if (process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE || process.env.PIKA_CONTEXTUAL
   const nextServerPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/server/lib/start-server.js'))
   const processChildPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/compiled/jest-worker/processChild.js'))
   const staticPathsWorkerPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/server/dev/static-paths-worker.js'))
+  const telemetryPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/telemetry/storage.js'))
   const ledger = createContextualTestSharedLedger(binding)
-  const policy = installContextualTestEgress({ deadline: binding.deadline, nextServerPath, processChildPath, staticPathsWorkerPath, appDir: binding.appDir, ledger })
+  const policy = installContextualTestEgress({ deadline: binding.deadline, nextServerPath, processChildPath, staticPathsWorkerPath, telemetryPath, appDir: binding.appDir, ledger })
   Object.defineProperty(globalThis, '__contextualTestServerEgress', { value: policy, writable: false, configurable: false })
 }

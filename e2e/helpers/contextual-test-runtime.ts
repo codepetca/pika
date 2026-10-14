@@ -7,7 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
 import type { Browser, BrowserContext, Page, Request, Response, TestInfo } from '@playwright/test'
-import { readContextualTestBinding, executeContextualTestSql } from '../../scripts/contextual-test-rehearsal-platform'
+import { readContextualTestBinding, executeContextualTestSql } from '../../scripts/contextual-test-rehearsal-binding'
 import { ContextualTestBoundary } from './contextual-test-boundary'
 import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWitness } from './contextual-test-rehearsal'
 

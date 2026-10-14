@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readContextualTestBinding } from '../../scripts/contextual-test-rehearsal-platform'
+import { readContextualTestBinding } from '../../scripts/contextual-test-rehearsal-binding'
 
 export const CONTEXTUAL_TEST_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 // Owner-approved installed Chrome155.0.8059.79; an update fails closed, not repinned.

@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Dormant existing Tests screen adopter
-
-- Extended server-derived strict admission mode through the actual classroom consumer; shared publish uses its dedicated original-version POST, complete shared reorder uses atomic transport, and standalone preview proves the current owner and requested parent. Existing transport is retained; no rollout/schema/provider/account changes.
-- Worker Sol/high delivered206 checks/5 suites and TypeScript. Coordinator integration238/7 PASS; wider focused976/66 plus architecture/UI/design/TypeScript/lint PASS. The1,001-real-row ceiling stress test needed bounded15s headroom in the concurrent suite (exact no-write assertion retained). One audit heuristic flags an unchanged intentional no-store results read; original accepted source contains the same statement, so no unrelated caching change or audit weakening.
-- Both historical account-role owners and members, desktop1440×900/mobile390×844, light/dark rendered using synthetic intercepted APIs; confirmed expected owner/member controls and no horizontal overflow. Existing publication confirmation/conflict, preview/fullscreen/return and keyboard reorder exercised. No authenticated persistence or Tests phase exit claimed; review and final-SHA CI remain required.
-- Explicitly superseded the historical whole-UI source freeze with direct existing/shared transport regression coverage; unchanged legacy API hash and precise dormant dispatcher normalization remain. Guidance: contextual-test-screen-adoption.md. Native deletion component evidence belongs to PR1579, not this browser fixture or newer source revision.
-- PR1579 merged normally as8e9dabd597 after exact895 CI38204673501 all10 PASS; canonical clean main fast-forwarded and tree equality verified. PR1580 remains dormant/draft. Initial security review clean; compatibility found a same-batch refresh/reorder race. Coordinator reproduced RED1/115, then bound synchronous eligibility to the request generation of the rendered list, including successful replacement/failed refresh. No order-CAS or server contract change. All holds remain.
-
 ## 2026-10-12 — Bounded unpublication proof framing
 
 Reviewed e93 source passes2149 focused tests; private bounded engine diagnostics
@@ -789,3 +781,32 @@ attempt admitted or started. Frozen app21e755d/001–262, all production/shared-
 Survey/provider, account/billing and rollout holds remain. Original Protocol clock,
 review55/56 and prior fix38 history carry; this is replacement remediation batch1,
 not a reset of historical review or runtime attempts.
+
+## 2026-10-14 Playwright rehearsal 7e00 and bounded compatibility corrections
+
+Reviewed carrier3394eebf5 passed195CPU, fullfocused3118/8skip and independent
+reviews57/58. Private invocation59/60 corrected a pre-allocation CJS import-shape
+failure, then prepared one fresh sealed project7e00c706982c using clean frozen
+app21e755d/001–262 and the installed pinned Go CLI, dependencies and binaries.
+Live readiness passed. The recorded attempt failed at browser bootstrap before
+Playwright global setup; it is spent, never retried or promoted to acceptance.
+Actual owned settlement passed; exclusive app workdir and project-labelled
+containers/volumes/network were removed and root independently verified absence.
+Failed receipts/evidence stay private; canonical comparison was not separately
+retained in this failed receipt, so no independent restoration claim is added.
+
+Source-only installed-Playwright compiler proof found the browser import graph
+reached a legacy import.meta CLI guard incompatible with its CommonJS loader.
+Moved the exact binding/fixed-SQL/marker code into an inert thin module, preserving
+platform reexports and SQL/control bytes; actual compiler now parses the complete
+repository-local config/spec/runtime closure. Separately proved installed Next
+spawns detached telemetry at shutdown despite telemetry being disabled. The
+carrier disables only that hash-pinned optional API in memory before dispatch;
+generic subprocess/network denial and failure latches stay unchanged. Its role
+in the historical denial flag remains unproved, not conflated with browser failure.
+
+Combined200CPU and full TypeScript pass; independent delta review and final gate
+remain required for this batch. No second native attempt, production/shared-local
+migration, provider/Survey probe/planning, account/billing or rollout operation.
+PR1581 remains draft; advancing-main/calendar263 conflicts still require separate
+reconciliation. All original Protocol clocks/review/fix and spent histories carry.
