@@ -20,10 +20,6 @@ import {
   TestAiGradingLeaseLostError,
 } from '@/lib/server/test-grades'
 import { getServiceRoleClient } from '@/lib/supabase'
-import {
-  isMissingTestAttemptReturnColumnsError,
-  isMissingTestResponseAiColumnsError,
-} from '@/lib/server/tests'
 import type {
   TestAiGradingRun,
   TestAiGradingRunErrorSample,
@@ -33,14 +29,8 @@ import type {
 } from '@/types'
 import type { Json } from '@/types/database.generated'
 import type { TestGradingProvenance } from '@/lib/grading/contracts'
-import {
-  buildTestQuestionGradingSnapshot,
-  hasPersistedTestResponseGrade,
-} from '@/lib/test-grading-context'
-import {
-  classifyTestAiGradeResponse,
-  type TestAiGradeScope,
-} from '@/lib/test-ai-grading-scope'
+import { buildTestQuestionGradingSnapshot } from '@/lib/test-grading-context'
+import type { TestAiGradeScope } from '@/lib/test-ai-grading-scope'
 
 const TEST_AI_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 export const TEST_AI_GRADING_RUN_CHUNK_SIZE = 8
@@ -80,6 +70,7 @@ type TickTestAiGradingRunResult = {
 export interface TestAiGradingNoopSummary {
   requested_count: number
   eligible_student_count: number
+  skipped_student_count: number
   queued_response_count: number
   skipped_unanswered_count: number
   skipped_already_graded_count: number
@@ -107,33 +98,18 @@ type OpenQuestionRow = {
   ai_reference_cache_model?: string | null
 }
 
-type PreflightResponseRow = {
-  id: string
-  student_id: string
-  question_id: string
-  response_text: string | null
-  submitted_at: string | null
-  ai_model: string | null
-  graded_at: string | null
-  score: number | null
-  feedback: string | null
-  revision: number
-}
-
-type QueuedItemSeed = {
-  student_id: string
-  question_id: string
-  response_id: string
-  response_revision: number
-  queue_position: number
-}
-
-const createRunResultSchema = z.object({
+const startRunCountsSchema = z.object({
+  eligible_student_count: z.number().int().nonnegative(),
+  skipped_unanswered_count: z.number().int().nonnegative(),
+  skipped_already_graded_count: z.number().int().nonnegative(),
+})
+const createRunResultSchema = startRunCountsSchema.extend({
   outcome: z.enum(['created', 'existing']),
   run_id: z.string().uuid(),
-}).strict().or(z.object({
+}).strict().or(startRunCountsSchema.extend({
   outcome: z.literal('noop'),
   run_id: z.null(),
+  noop_reason: z.literal('no_open_questions').optional(),
 }).strict())
 
 function normalizeStudentIds(studentIds: string[]): string[] {
@@ -234,6 +210,12 @@ export function toTestAiGradingRunSummary(
     queued_response_count: queuedResponseCount,
     processed_count: processedCount,
     completed_count: Number(run.completed_count ?? 0),
+    ...(options?.items ? {
+      completed_student_count: new Set(options.items
+        .filter((item) => item.status === 'completed')
+        .map((item) => item.student_id)).size,
+    } : {}),
+    skipped_student_count: Math.max(Number(run.requested_count ?? 0) - Number(run.eligible_student_count ?? 0), 0),
     skipped_unanswered_count: Number(run.skipped_unanswered_count ?? 0),
     skipped_already_graded_count: Number(run.skipped_already_graded_count ?? 0),
     failed_count: Number(run.failed_count ?? 0),
@@ -350,83 +332,6 @@ async function loadOpenQuestionRows(
   }))
 }
 
-async function loadOpenResponseRowsForPreflight(
-  supabase: ServiceRoleSupabase,
-  testId: string,
-  studentIds: string[],
-  questionIds: string[],
-): Promise<PreflightResponseRow[]> {
-  let data: unknown = null
-  let error: SupabaseSchemaError | null = null
-
-  {
-    const result = await supabase
-      .from('test_responses')
-      .select('id, student_id, question_id, response_text, submitted_at, ai_model, graded_at, score, feedback, revision')
-      .eq('test_id', testId)
-      .in('student_id', studentIds)
-      .in('question_id', questionIds)
-    data = result.data
-    error = result.error
-  }
-
-  if (error && isMissingTestResponseAiColumnsError(error)) {
-    const legacyResult = await supabase
-      .from('test_responses')
-      .select('id, student_id, question_id, response_text, submitted_at, graded_at, score, feedback, revision')
-      .eq('test_id', testId)
-      .in('student_id', studentIds)
-      .in('question_id', questionIds)
-
-    data = ((legacyResult.data as Array<Record<string, unknown>> | null) ?? []).map((row) => ({
-      ...row,
-      ai_model: null,
-    }))
-    error = legacyResult.error
-  }
-
-  if (error) {
-    throw new Error('Failed to load test responses for AI grading')
-  }
-
-  return ((data as Array<Record<string, unknown>> | null) ?? []).map((row) => ({
-    id: String(row.id),
-    student_id: String(row.student_id),
-    question_id: String(row.question_id),
-    response_text: typeof row.response_text === 'string' ? row.response_text : null,
-    submitted_at: typeof row.submitted_at === 'string' ? row.submitted_at : null,
-    ai_model: typeof row.ai_model === 'string' ? row.ai_model : null,
-    graded_at: typeof row.graded_at === 'string' ? row.graded_at : null,
-    score: typeof row.score === 'number' ? row.score : null,
-    feedback: typeof row.feedback === 'string' ? row.feedback : null,
-    revision: Number(row.revision),
-  }))
-}
-
-async function loadSubmittedAtByStudent(
-  supabase: ServiceRoleSupabase,
-  testId: string,
-  studentIds: string[],
-): Promise<Map<string, string | null>> {
-  const submittedAtByStudent = new Map<string, string | null>()
-  const { data: attemptRows, error: attemptError } = await supabase
-    .from('test_attempts')
-    .select('student_id, is_submitted, submitted_at')
-    .eq('test_id', testId)
-    .in('student_id', studentIds)
-
-  if (attemptError && !isMissingTestAttemptReturnColumnsError(attemptError) && attemptError.code !== 'PGRST205') {
-    throw new Error('Failed to load test attempts for AI grading')
-  }
-
-  for (const row of attemptRows || []) {
-    if (!row.is_submitted) continue
-    submittedAtByStudent.set(row.student_id, row.submitted_at || null)
-  }
-
-  return submittedAtByStudent
-}
-
 function buildNoopSummary(input: {
   requestedCount: number
   eligibleStudentCount: number
@@ -438,6 +343,7 @@ function buildNoopSummary(input: {
   return {
     requested_count: input.requestedCount,
     eligible_student_count: input.eligibleStudentCount,
+    skipped_student_count: Math.max(input.requestedCount - input.eligibleStudentCount, 0),
     queued_response_count: input.queuedResponseCount ?? 0,
     skipped_unanswered_count: input.skippedUnansweredCount,
     skipped_already_graded_count: input.skippedAlreadyGradedCount,
@@ -758,115 +664,17 @@ export async function createOrResumeTestAiGradingRun(opts: {
     return { kind: 'conflict', run: summary }
   }
 
-  const test = await loadTestForRun(supabase, opts.testId)
-  const openQuestions = await loadOpenQuestionRows(supabase, opts.testId)
-  if (openQuestions.length === 0) {
-    return {
-      kind: 'noop',
-      summary: buildNoopSummary({
-        requestedCount: normalizedStudentIds.length,
-        eligibleStudentCount: 0,
-        skippedUnansweredCount: 0,
-        skippedAlreadyGradedCount: 0,
-        message: 'This test has no open-response questions to auto-grade.',
-      }),
-    }
-  }
-
-  const openQuestionIds = openQuestions.map((question) => question.id)
-  const responses = await loadOpenResponseRowsForPreflight(
-    supabase,
-    opts.testId,
-    normalizedStudentIds,
-    openQuestionIds,
-  )
-  const submittedAtByStudent = await loadSubmittedAtByStudent(
-    supabase,
-    opts.testId,
-    normalizedStudentIds,
-  )
-  const eligibleStudentIds = normalizedStudentIds.filter((studentId) => submittedAtByStudent.has(studentId))
-
-  const responseByStudentQuestion = new Map<string, PreflightResponseRow>()
-  for (const response of responses) {
-    responseByStudentQuestion.set(`${response.student_id}:${response.question_id}`, response)
-  }
-
-  const unansweredRows: Array<{
-    question_id: string
-    student_id: string
-    response_id: string | null
-    expected_response_revision: number | null
-    submitted_at: string | null
-  }> = []
-  const queuedItems: QueuedItemSeed[] = []
-  let skippedUnansweredCount = 0
-  let skippedAlreadyGradedCount = 0
-
-  for (const studentId of normalizedStudentIds) {
-    if (!submittedAtByStudent.has(studentId)) continue
-    const submittedAt = submittedAtByStudent.get(studentId) || new Date().toISOString()
-
-    for (const question of openQuestions) {
-      const existing = responseByStudentQuestion.get(`${studentId}:${question.id}`)
-      if (!existing) {
-        unansweredRows.push({
-          question_id: question.id,
-          student_id: studentId,
-          response_id: null,
-          expected_response_revision: null,
-          submitted_at: submittedAt,
-        })
-        skippedUnansweredCount += 1
-        continue
-      }
-
-      const responseText = typeof existing.response_text === 'string' ? existing.response_text.trim() : ''
-      const disposition = classifyTestAiGradeResponse({
-        gradeScope: opts.gradeScope,
-        responseText,
-        hasPersistedGrade: hasPersistedTestResponseGrade(existing),
-      })
-      if (disposition === 'already_graded') {
-        skippedAlreadyGradedCount += 1
-        continue
-      }
-      if (disposition === 'unanswered') {
-        unansweredRows.push({
-          question_id: question.id,
-          student_id: studentId,
-          response_id: existing.id,
-          expected_response_revision: existing.revision,
-          submitted_at: null,
-        })
-        skippedUnansweredCount += 1
-        continue
-      }
-
-      queuedItems.push({
-        student_id: studentId,
-        question_id: question.id,
-        response_id: existing.id,
-        response_revision: existing.revision,
-        queue_position: queuedItems.length,
-      })
-    }
-  }
-
+  // Capture drafts, close selected unfinished attempts and create the run in
+  // one transaction. Reading draft responses here would race student autosave.
   const { data: createResult, error: runError } = await supabase.rpc(
-    'create_test_ai_grading_run_atomic',
+    'start_test_ai_grading_run_atomic',
     {
       p_test_id: opts.testId,
       p_teacher_id: opts.teacherId,
       p_model: model,
       p_requested_student_ids: normalizedStudentIds,
-      p_eligible_student_ids: eligibleStudentIds,
       p_selection_hash: selectionHash,
-      p_eligible_student_count: eligibleStudentIds.length,
-      p_skipped_unanswered_count: skippedUnansweredCount,
-      p_skipped_already_graded_count: skippedAlreadyGradedCount,
-      p_item_rows: queuedItems,
-      p_unanswered_rows: unansweredRows,
+      p_grade_scope: opts.gradeScope,
       ...(promptGuidelineOverride === null
         ? {}
         : { p_prompt_guideline_override: promptGuidelineOverride }),
@@ -874,10 +682,13 @@ export async function createOrResumeTestAiGradingRun(opts: {
   )
 
   if (runError) {
+    if (runError.code === 'PGRST202' || runError.code === '42883') {
+      throw new Error('Test AI grading saved-work migration is required')
+    }
     if (isTestAiGradingSchemaError(runError)) {
       throw new Error('Test AI grading run tables are unavailable. Apply migration 055.')
     }
-    if (runError.code === '40001') throw new ApiError(409, runError.message)
+    if (runError.code === 'PT409' || runError.code === '40001') throw new ApiError(409, runError.message)
     if (runError.code === '42501') throw new ApiError(403, runError.message)
     if (runError.code === '22023' || runError.code === '22P02') {
       throw new ApiError(400, runError.message)
@@ -890,13 +701,17 @@ export async function createOrResumeTestAiGradingRun(opts: {
   }
 
   if (parsedCreateResult.data.outcome === 'noop') {
-    const eligibleStudentCount = eligibleStudentIds.length
+    const { eligible_student_count: eligibleStudentCount,
+      skipped_unanswered_count: skippedUnansweredCount,
+      skipped_already_graded_count: skippedAlreadyGradedCount } = parsedCreateResult.data
     const message =
-      eligibleStudentCount === 0
-        ? 'Selected students have not submitted this test yet.'
-        : skippedAlreadyGradedCount > 0 || skippedUnansweredCount > 0
+      parsedCreateResult.data.noop_reason === 'no_open_questions'
+        ? 'This test has no open-response questions to auto-grade.'
+        : eligibleStudentCount === 0
+          ? 'Selected students have no saved test work to grade.'
+          : skippedAlreadyGradedCount > 0 || skippedUnansweredCount > 0
           ? 'No AI grading was needed for this selection.'
-          : 'No submitted open responses were eligible for AI grading.'
+          : 'No saved open responses were eligible for AI grading.'
     return {
       kind: 'noop',
       summary: buildNoopSummary({

@@ -29,6 +29,10 @@ const gradingRunner = readFileSync(
   resolve(process.cwd(), 'src/lib/server/test-ai-grading-runs.ts'),
   'utf8',
 )
+const savedWorkMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/264_test_ai_grading_saved_work.sql'),
+  'utf8',
+)
 const rolloutGuide = readFileSync(
   resolve(process.cwd(), 'docs/guidance/atomic-test-grading-rollout.md'),
   'utf8',
@@ -153,12 +157,13 @@ describe('atomic test grading contract', () => {
   })
 
   it('finalizes response and item together with replay and stale-source outcomes', () => {
-    expect(gradingRunner).toContain("supabase.rpc(\n    'create_test_ai_grading_run_atomic'")
-    expect(gradingRunner).toContain('p_unanswered_rows: unansweredRows')
-    expect(gradingRunner).toContain('p_eligible_student_ids: eligibleStudentIds')
+    expect(gradingRunner).toContain("supabase.rpc(\n    'start_test_ai_grading_run_atomic'")
+    expect(gradingRunner).toContain('p_grade_scope: opts.gradeScope')
+    expect(savedWorkMigration).toContain('public.create_test_ai_grading_run_atomic(')
+    expect(savedWorkMigration).toContain('v_unanswered_count, v_already_graded_count, v_items, v_unanswered')
     expect(gradingRunner).not.toContain("supabase.rpc('save_test_unanswered_grades_atomic'")
     expect(gradingRunner).not.toContain(".from('test_responses')\n      .upsert(unanswered")
-    expect(gradingRunner).toContain('hasPersistedTestResponseGrade(existing)')
+    expect(savedWorkMigration).toContain('v_prior_graded_ids')
     expect(gradingRunner).not.toContain(".from('test_ai_grading_run_items')\n    .insert(")
     expect(migration).toContain("return jsonb_build_object('outcome', 'replayed'")
     expect(migration).toContain("return jsonb_build_object('outcome', 'stale', 'response', null)")

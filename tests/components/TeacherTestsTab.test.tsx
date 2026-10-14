@@ -329,6 +329,18 @@ function makeGradingStudent(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makeTestAiRun(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'run-1', test_id: 'test-1', status: 'running', model: null,
+    prompt_guideline_override: null, requested_count: 18, eligible_student_count: 18,
+    queued_response_count: 90, processed_count: 0, completed_count: 0,
+    skipped_unanswered_count: 0, skipped_already_graded_count: 0, failed_count: 0,
+    pending_count: 90, next_retry_at: null, error_samples: [], started_at: null,
+    completed_at: null, created_at: '2026-10-08T12:00:00Z',
+    ...overrides,
+  }
+}
+
 function makeResultsResponse(overrides?: {
   testId?: string
   testTitle?: string
@@ -3979,7 +3991,99 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Grading status is unavailable. Reload this page to reconnect to the saved run.')).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/tick'))).toBe(false)
-    expect(screen.queryByText(/Grading 0 of 1 students/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Grading 0 of 1 answer/)).not.toBeInTheDocument()
+  })
+
+  it('reports answer progress without capping it at the student count', async () => {
+    const activeRun = makeTestAiRun({ processed_count: 45, completed_count: 45, pending_count: 45 })
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === `/api/teacher/tests?classroom_id=${classroom.id}`) {
+        return Promise.resolve({ ok: true, json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }) })
+      }
+      if (url === '/api/teacher/tests/test-1/results') {
+        return Promise.resolve(makeResultsResponse({ activeRun }))
+      }
+      return new Promise(() => {})
+    })
+
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByRole('status')).toHaveTextContent('Grading 45 of 90 answers')
+    expect(screen.queryByText(/of 18 students/)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    {
+      name: 'answers across distinct students',
+      run: makeTestAiRun({ status: 'completed', processed_count: 90, completed_count: 90, completed_student_count: 18, pending_count: 0 }),
+      message: 'Graded 90 answers across 18 students',
+    },
+    {
+      name: 'partial failures and each skipped unit',
+      run: makeTestAiRun({ status: 'completed_with_errors', processed_count: 90, completed_count: 87, completed_student_count: 18, failed_count: 3, skipped_unanswered_count: 2, skipped_already_graded_count: 1, skipped_student_count: 4, pending_count: 0 }),
+      message: 'Graded 87 answers across 18 students • 2 answers unanswered • 1 answer already graded • 3 answers failed • 4 students skipped',
+    },
+    {
+      name: 'legacy summaries without a distinct student count',
+      run: makeTestAiRun({ status: 'completed', processed_count: 90, completed_count: 90, pending_count: 0 }),
+      message: 'Graded 90 answers',
+    },
+    {
+      name: 'singular answer and student counts',
+      run: makeTestAiRun({ status: 'completed', processed_count: 1, completed_count: 1, completed_student_count: 1, skipped_student_count: 1, pending_count: 0 }),
+      message: 'Graded 1 answer across 1 student • 1 student skipped',
+    },
+    {
+      name: 'an empty completed run without false graded counts',
+      run: makeTestAiRun({ status: 'completed', queued_response_count: 0, pending_count: 0 }),
+      message: 'No grading changes were needed',
+    },
+  ])('reports $name', async ({ run, message }) => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ activeRun: run }))
+      .mockResolvedValue(makeResultsResponse())
+
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    if (run.completed_student_count == null) {
+      expect(screen.queryByText(/Graded .* across .* students/)).not.toBeInTheDocument()
+    }
+  })
+
+  it('reports a no-op selection with answer and student skips', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ summary: {
+          message: 'No AI grading was needed for this selection.',
+          skipped_unanswered_count: 5,
+          skipped_already_graded_count: 2,
+          skipped_student_count: 1,
+        } }),
+      })
+      .mockResolvedValue(makeResultsResponse())
+
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByText('Alice Zephyr')
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade 1 student' }))
+    fireEvent.click(screen.getByRole('button', { name: 'AI grade', exact: true }))
+    expect(await screen.findByText('No AI grading was needed for this selection. • 5 answers unanswered • 2 answers already graded • 1 student skipped')).toBeInTheDocument()
+    expect(screen.queryByText(/Graded 0/)).not.toBeInTheDocument()
   })
 
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
@@ -4072,7 +4176,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade 1 student' }))
     expect(await screen.findByRole('button', { name: 'AI grade', exact: true })).toBeEnabled()
     expect(screen.getByRole('dialog', { name: 'AI grade 1 student' })).toHaveTextContent(
-      'This will overwrite existing grade, comments and teacher edits.',
+      'Saved work from unfinished attempts will be closed to editing before grading. This will overwrite existing grade, comments and teacher edits.',
     )
     expect(screen.queryByRole('button', { name: 'Only ungraded' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Regrade all' })).not.toBeInTheDocument()
@@ -4098,7 +4202,7 @@ describe('TeacherTestsTab', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('Graded 1')
+      expect(screen.getByRole('status')).toHaveTextContent('Graded 1 answer')
     })
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick',

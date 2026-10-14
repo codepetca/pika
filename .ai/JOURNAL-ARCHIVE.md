@@ -46464,6 +46464,7 @@ clock/waiver/counters14turn11target8priorbatch1initial1final retained; all six
 native permissions consumed; shared/prod/activation/toolgoal holds unchanged.
 
 <!-- pika-session-log-archive-batch:b8165480cdc9aaf09e3306502bca8175a7332c384760b83dbcb7307d2edbf800 -->
+<!-- pika-session-log-archive-batch:46c4827d679dd56131c1ea5767a53adead55cabb8b04a498bc75b2fd69b70ea5 -->
 ## 2026-10-11 — Learner current-main UI synchronization
 
 External main6695630 (#1567 Material chooser/SplitButton dismissal) advanced while
@@ -46482,34 +46483,42 @@ independent review then one final-head ready CI/PR Gate remain. Original clock/
 waiver/counters15turn12target9priorbatch1initial1final and all sharedlocal249+/
 prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.
 
-<!-- pika-session-log-archive-batch:8d35d5571cccbc2e8cc1482fe6cd2c487fb1bb647b5c8b1702c520f2e960bea8 -->
+<!-- pika-session-log-archive-batch:9475134fbebdfef79625a9420e4733a426e9fff8b42895687aa5ebcc1cbe899e -->
 ## 2026-10-11 — Assignment chooser current-main synchronization
 
 PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.
 
-<!-- pika-session-log-archive-batch:7a2a715d699a4bc91102bbf3f4eb544f4efb670a492a06ec66946a9e59bd4fa9 -->
+<!-- pika-session-log-archive-batch:daf559909e64913da5705b91d28be2305c1c7df78e1b341bb20cb2fc62096926 -->
 ## 2026-10-11 — Create Classroom path-menu transition consistency
 
 Teacher CreateClassroomModal opts its existing upward path chooser into shared semantic-fast opacity, explicit parent activity and nested initialBlueprintId ownership. Whole wizard/name/import/date/business state remains with the existing controller. Governed reuse/extend brief and exact development/E2E teacher-only real-controller fixture precede implementation; ordinary/student/production fixture exclusions are tested. Four actual-owner regressions prove inert command retirement, committed replacement, suspended/abandoned replacement and title/parent unavailability; shared primitive and existing business tests pass77. Gallery/route gates pass51. Focused application-browser checks pass965 tests/66files plus architecture/UI/design/TypeScript/lint, audit7 changed TS paths. Frozen-source native eight-context verification passes:32PNGs/8videos,136 intercepted reads,0mutations/errors/unexpected requests/overflow; ten before/after source bindings match. Four unchanged Pattern Lab goldens pass. Coordinator inspected the eight-open board, representative actual open/source/Calendar originals and unchanged Material reference. Existing source-step focus lands on BODY and remains stable; Calendar group/Back name ownership pass. Six failed/incomplete and two diagnostic contexts are excluded; two harness corrections retain evidence, no product source repair. Independent draft-first stable-SHA review/CI/main merge remain gates. No dependency, migration, production, Calendar1217 or privacypriority1 operation; broad fluidity goal remains open. External evidence retains failed harness attempts separately from accepted product behavior.
 
-<!-- pika-session-log-archive-batch:e04cab5589bfbcd0655a793f197c6665c64d5b9ce38cecf9848b3be80ea56d49 -->
+<!-- pika-session-log-archive-batch:ab6f2fe22ba8a5b04843aa876b969c6947785a256bf97b01fe942b3bff9bb5c9 -->
+## 2026-10-11 — Assignment chooser current-main synchronization
+
+PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.
+
+## 2026-10-11 — Create Classroom path-menu transition consistency
+
+Teacher CreateClassroomModal opts its existing upward path chooser into shared semantic-fast opacity, explicit parent activity and nested initialBlueprintId ownership. Whole wizard/name/import/date/business state remains with the existing controller. Governed reuse/extend brief and exact development/E2E teacher-only real-controller fixture precede implementation; ordinary/student/production fixture exclusions are tested. Four actual-owner regressions prove inert command retirement, committed replacement, suspended/abandoned replacement and title/parent unavailability; shared primitive and existing business tests pass77. Gallery/route gates pass51. Focused application-browser checks pass965 tests/66files plus architecture/UI/design/TypeScript/lint, audit7 changed TS paths. Frozen-source native eight-context verification passes:32PNGs/8videos,136 intercepted reads,0mutations/errors/unexpected requests/overflow; ten before/after source bindings match. Four unchanged Pattern Lab goldens pass. Coordinator inspected the eight-open board, representative actual open/source/Calendar originals and unchanged Material reference. Existing source-step focus lands on BODY and remains stable; Calendar group/Back name ownership pass. Six failed/incomplete and two diagnostic contexts are excluded; two harness corrections retain evidence, no product source repair. Independent draft-first stable-SHA review/CI/main merge remain gates. No dependency, migration, production, Calendar1217 or privacypriority1 operation; broad fluidity goal remains open. External evidence retains failed harness attempts separately from accepted product behavior.
+
 ## 2026-10-11 — Minor Assignment-menu upstream sync before approved integration review
 
 PR #1566 syncs main77d5095e (#1568). Journal-only conflict resolved preserving both parent entry/batch-marker histories. All non-continuity feature bytes and entire migration chain unchanged versus reviewed-check candidate11d6b3034; disposable001–258 proof/type evidence remains valid. Fresh focused checks and the owner-approved single integration review cover the final combined revision before requiredCI. Shared local/production unchanged; no merge/promotion authority added.
 
-<!-- pika-session-log-archive-batch:3fcb976a95f9093fe667aecfaff3605e12c16637d19f5eab8905cdf53a860b17 -->
+<!-- pika-session-log-archive-batch:0edbb1c308a051c37892ef2de29028592961dd81e4e14f2b6caa1529f896e127 -->
 ## 2026-10-11 — Offline fixed learner-profile fixture compatibility
 
 PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.
 
-<!-- pika-session-log-archive-batch:f6cf85b80a3a238f4e150783c2ba78324e71c20b2d45c1f9cbde0285ce6d1859 -->
+<!-- pika-session-log-archive-batch:57a8d4072df3960257c1cbf70a3e9dbf455256f5cc837083bbf09775e8e8c6c7 -->
 ## 2026-10-11 — Production polling optimization and reviewed UI batch
 
 Owner authorized production app deployment and one application of257/258. Promotion1573 merged reviewed872d19582 into production5a3cb8967; exact reviewed tree retained. Cumulative security/compatibility reviews CLEAN; source CI38133165213 all10 PASS, abbreviated promotion CI38136281882 PASS. Apply38136681044 returned applied-verified/history258; read-only catalog verifies all four bodies against reviewed SQL, owners/search paths and service-only public/private helper ACLs. Vercel deploymentdpl_6YwCcNdD3Xa5waAzy6UTPRY2GkNG READY and production aliases assigned Oct11 11:55UTC. Anonymous login200/status401/Pattern Lab and fixture404 PASS. No authenticated learner/write canary.
 
 Compact legacy session polling uses one domain query instead of five, with fresh authentication retained. Invocation/CPU savings unmeasured. Dormant learner admission absent; production env key inventory unchanged. No provider-plan/control/credential changes or phase exit. Two Sol6.1/high review attempts, one known332s inspection duration; other elapsed/tokens/active coordination unavailable. One promotion CI attempt,863s workflow wall; no retry. Evidence in RESPMax evidence-custody output/verification/pika-production-release-20261011. RESPMax hosted saving remains OFF; release record only.
 
-<!-- pika-session-log-archive-batch:9c59be27100aead1c214b6209d7f783833df8444b9f495ae689cc733eed6b2e1 -->
+<!-- pika-session-log-archive-batch:6d6215d53341eeac0715961485d192752b2c7bce6a46c922f4482731226bf514 -->
 ## 2026-10-11 — Classwork Material Markdown editing
 
 - Added Visual/Markdown editing, current/proposed review, explicit Apply/Discard, separate Save/Post, conversion-loss acknowledgment and per-material draft isolation. No API/schema or authority changes.
@@ -46517,3 +46526,10 @@ Compact legacy session polling uses one domain query instead of five, with fresh
 - Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
 - Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
 - Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.
+
+<!-- pika-session-log-archive-batch:8d35d5571cccbc2e8cc1482fe6cd2c487fb1bb647b5c8b1702c520f2e960bea8 -->
+<!-- pika-session-log-archive-batch:7a2a715d699a4bc91102bbf3f4eb544f4efb670a492a06ec66946a9e59bd4fa9 -->
+<!-- pika-session-log-archive-batch:e04cab5589bfbcd0655a793f197c6665c64d5b9ce38cecf9848b3be80ea56d49 -->
+<!-- pika-session-log-archive-batch:3fcb976a95f9093fe667aecfaff3605e12c16637d19f5eab8905cdf53a860b17 -->
+<!-- pika-session-log-archive-batch:f6cf85b80a3a238f4e150783c2ba78324e71c20b2d45c1f9cbde0285ce6d1859 -->
+<!-- pika-session-log-archive-batch:9c59be27100aead1c214b6209d7f783833df8444b9f495ae689cc733eed6b2e1 -->
