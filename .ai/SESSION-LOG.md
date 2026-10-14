@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Offline fixed learner-profile fixture compatibility
-
-PR #1566 current-head CI found18 offline mock-test failures (258≠257), with16446 other tests passing. Runtime learner native guard correctly remains fixed to257. Correct only two offline test inputs using a temporary real-byte001–257 SQL fixture; mock Git-root output honors the requested cwd. Add explicit growing-chain refusal test. No product/native/profile/SQL changes or real native execution. Targeted183/183 PASS after reproducing18 failures; an intermediate mock-root mismatch was corrected in the same local batch. Stop known-failed run38107999868 to avoid unnecessary remaining jobs; final new-head review/CI required. Owner minor-conflict rule applied with cumulative counters retained. Evidence: output/verification/student-test-session-status-20261010/native-offline-profile-*.
-
 ## 2026-10-11 — Production polling optimization and reviewed UI batch
 
 Owner authorized production app deployment and one application of257/258. Promotion1573 merged reviewed872d19582 into production5a3cb8967; exact reviewed tree retained. Cumulative security/compatibility reviews CLEAN; source CI38133165213 all10 PASS, abbreviated promotion CI38136281882 PASS. Apply38136681044 returned applied-verified/history258; read-only catalog verifies all four bodies against reviewed SQL, owners/search paths and service-only public/private helper ACLs. Vercel deploymentdpl_6YwCcNdD3Xa5waAzy6UTPRY2GkNG READY and production aliases assigned Oct11 11:55UTC. Anonymous login200/status401/Pattern Lab and fixture404 PASS. No authenticated learner/write canary.
@@ -757,3 +753,8 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested muted non-class cards without visible No class and centered short lesson content. Hidden status remains accessible; long reading and the editor remain top-aligned; permissions and click-to-edit are unchanged.
 - 93 feature/gallery tests pass; types/lint/UI/design policies/audit pass. Latest eight-context Playwright captures include measured centering, long-content top alignment, hidden No class, editor entry/Escape focus and student read-only behavior. Final focused gate and independent presentation review next; PR held draft during changes.
+
+## 2026-10-14 — Calendar non-class hatching
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner found muted days unclear; added a semantic-token diagonal hatch to Week non-class cards. Current-day outline, hidden accessible status, centered short content and interactions preserved.
+- Eight-context real-owner Playwright matrix refreshed; date text contrast on stripe pixels calculated at 6.22:1 light/4.64:1 dark. Design policy passes without exceptions or new tokens. Final checks/presentation review next; PR kept draft during the change.

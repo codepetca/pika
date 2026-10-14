@@ -11,6 +11,7 @@ import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Button, Tooltip } from '@/ui'
 import type { Announcement, Assignment, LessonPlan, TestAssessment } from '@/types'
+import styles from './LessonDayCell.module.css'
 
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
@@ -158,7 +159,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         aria-describedby={nonClassDay ? `${agendaHeadingId}-status` : undefined}
         className={`flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
           nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 ? 'py-3' : 'py-5'
-        } ${nonClassDay ? 'bg-surface-3' : ''} ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
+        } ${nonClassDay ? `bg-surface-3 ${styles.nonClassDay}` : ''} ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
       >
         {nonClassDay && <span id={`${agendaHeadingId}-status`} hidden>No class</span>}
         <div className="flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24">

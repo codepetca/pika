@@ -6,6 +6,7 @@ Follow-up: clicking the card's lesson content starts editing, replacing the
 separate Edit/Add action.
 Second follow-up: hide the visible No class label, use muted non-class cards,
 and vertically center short lesson content.
+Third follow-up: strengthen the non-class signal with diagonal hatching.
 
 Surface/reference: shared LessonDayCell agenda, owner-approved Week composition
 in calendar-week-agenda.md and executable teacher/student Pattern Lab Calendar.
@@ -19,7 +20,8 @@ contracts remain unchanged. Current date retains aria-current="date" semantics.
 | Need | Existing candidate | Decision | Reason |
 | --- | --- | --- | --- |
 | Lesson alignment/current day | LessonDayCell agenda | extend | Center short reading content; longer content expands from the top |
-| Non-class appearance | Semantic subdued surface/text tokens | reuse | Quiet background and date treatment without disabling available actions |
+| Non-class appearance | Semantic subdued surface/text tokens | reuse | Muted background/date treatment with preserved actions |
+| Non-class texture | LessonDayCell non-class state | extend | Owner-requested diagonal hatching distinguishes days without another visible label |
 | Content editing target | Button | reuse | Native keyboard/focus behavior over the lesson content area |
 | Date presentation | Button and existing day dialog | reuse | Existing keyboard and presentation behavior |
 | Executable reference | Pattern Lab Calendar | reuse | Both role examples render the production owner |
@@ -69,3 +71,13 @@ short previews and top-aligned long content for all eight role/viewport/theme
 combinations; edit/Escape/keyboard/read-only checks still pass. The latest
 fixture screenshots and geometry are in output/playwright/real-* and
 muted-card-evidence.log. Scope remains presentation-only.
+
+Third follow-up: a feature-owned CSS module adds a repeating diagonal hatch only
+to Week non-class cards. Stripe color uses the existing border-strong token at
+35% opacity; spacing and line thickness derive from the control-spacing token.
+No new design tokens, shared component or general status convention are added.
+Muted date text remains above AA contrast even on stripe pixels (light 6.22:1,
+dark 4.64:1, calculated from the current token values and sRGB compositing).
+The existing Pattern Lab Calendar renders the pattern through its production
+owner. Eight role/viewport/theme captures refreshed; editing, reading, centering
+and the current-day outline remain verified.
