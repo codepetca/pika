@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Bound Week agenda desktop width
-
-Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
-
 ## 2026-10-12 — Remaining classroom-access orchestration
 
 Owner requested parallel remaining-work orchestration and waived routine approval,
@@ -758,3 +754,30 @@ replace the lost private carrier using existing version-controlled Playwright
 lifecycle/disposable helpers, preserving the frozen app, complete finite matrix,
 isolation/cleanup/caps and all serious holds; not yet approved or executed.
 Protocol original clock/review53/fix38 and app/Survey ledgers carry without reset.
+
+## 2026-10-14 Approved Playwright carrier replacement — source implementation
+
+Owner approved replacing the lost private runner with the existing Playwright
+test infrastructure, preserving the frozen app, finite scenarios and all safety
+checks; routine approval/review-budget waiver carries. Added a separately opt-in
+Tests lifecycle spec/config, real-login fixture, original-response task joins,
+fixed disposable SQL/witnesses, shared request ledger, pinned native ownership
+edges and lifecycle/controller composition. Reuses existing disposable adapters;
+no new dependency, product/legacy UI change or alternate permission framework.
+
+Retained Sol/high workers delivered workflow, platform, runtime regression tests
+and controller composition; root inspected/integrated and corrected setup cleanup,
+physical-close reporting, durable server failure flags, absolute HTTP deadlines,
+transport settlement joins and native bridge. Targeted batch127CPU and repository
+TypeScript passed; two additional seal regressions then passed. Full focused
+check initially3049PASS/8skip/one unchanged five-second offline-test timeout;
+serial recheck remains required. All component checks are source/CPU evidence,
+not real-app acceptance. Independent high-risk review and current sealed readiness
+must precede one fresh45-minute/no-retry disposable rehearsal with bounded cleanup.
+
+No replacement native app/browser/DB target admitted or started. A first pinned
+transport TDD check accidentally invoked one read-only Supabase status against a
+nonexistent fresh path; it failed before any start/write and dispatch is now
+mocked in CPU tests. No production/shared-local migration, provider/Survey probe,
+account/billing or rollout change; all serious holds and historical failures stay.
+Original Protocol clock/review54/fix38 and app/Survey counters are not reset.

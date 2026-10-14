@@ -16,7 +16,7 @@ Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
-Reboot ended family; old fixture recovered; final runner/seed/receipts missing.
+Lost runner: approved Playwright replacement in progress; no new app run yet.
 Browser3HTTP/body/cleanup PASS; prior6 failed. No app exit.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.

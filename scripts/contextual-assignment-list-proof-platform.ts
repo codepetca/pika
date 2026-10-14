@@ -427,18 +427,24 @@ export function prepareAssignmentListProjectFiles(
 }
 
 export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture, options: { ephemeralSnapshot?: 'digests' | 'metadata'; survey263Endpoint?: Survey263Endpoint;
-  survey263Budget?: Survey263Budget; survey263NativeCli?: Survey263NativeCli } = {}): AssignmentListLifecycleAdapters {
+  survey263Budget?: Survey263Budget; survey263NativeCli?: Survey263NativeCli; nativeCommand?: typeof command } = {}): AssignmentListLifecycleAdapters {
   const descriptor = Object.getOwnPropertyDescriptor(options, 'survey263Endpoint')
   if (!descriptor) assert(!('survey263Endpoint' in options), 'Survey options must be own data')
   if (descriptor) assert('value' in descriptor, 'Survey options must be data')
   if (descriptor?.value) assert(Object.values(Object.getOwnPropertyDescriptors(options)).every(field => 'value' in field), 'Survey options must be data')
+  // Existing generic disposable operations may use an explicitly pinned native
+  // transport. It cannot override a separately governed provider transport.
+  const nativeCommand = Object.getOwnPropertyDescriptor(options, 'nativeCommand')
+  if (!nativeCommand) assert(!('nativeCommand' in options))
+  if (nativeCommand) assert('value' in nativeCommand && (nativeCommand.value === undefined || typeof nativeCommand.value === 'function'))
+  assert(!(nativeCommand?.value && descriptor?.value), 'Separate native transport boundaries must not be combined')
   const ephemeralSnapshot = options.ephemeralSnapshot ?? 'digests'
   assert(ephemeralSnapshot === 'digests' || ephemeralSnapshot === 'metadata')
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
   const workdir = assignmentListProofWorkdir(projectId)
   assert(Boolean(options.survey263Endpoint) === Boolean(options.survey263Budget) && Boolean(options.survey263Endpoint) === Boolean(options.survey263NativeCli))
   const transport = options.survey263Endpoint ? createSurvey263PlatformTransport(options.survey263Endpoint, options.survey263Budget!, options.survey263NativeCli!) : undefined
-  const run = transport?.run ?? command
+  const run: typeof command = transport?.run ?? nativeCommand?.value ?? command
   const inventory = () => assignmentListDockerInventory(run)
   const snapshot = (project: string, scope: AssignmentListSnapshotScope) => databaseSnapshot(project, scope, run)
   const fixedSql = (project: string, text: string, name: string) => sql(project, text, name, run)

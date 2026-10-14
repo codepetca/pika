@@ -475,10 +475,12 @@ adapter copies, the finite plan and a hash-matching historical fixture are now
 preserved as private static evidence; they cannot substitute for the final
 reviewed carrier. No real-app target or native/DB operation was admitted.
 
-Recommended owner decision: stop open-ended historical reconstruction and put
-the finite rehearsal into the existing version-controlled Playwright lifecycle
-tests and disposable-platform helpers. This is a proposed carrier replacement,
-not an approved new framework, changed acceptance criterion or rollout release.
+Owner approved replacing the lost carrier on Oct14 using the existing
+version-controlled Playwright lifecycle tests and disposable-platform helpers.
+Implementation is in progress; this is not a new verification framework,
+changed acceptance criterion or rollout release. The new opt-in Tests spec and
+dedicated configuration reuse the existing runner and disposable lifecycle;
+source/CPU checks do not count as an admitted or successful native app run.
 Preserve the frozen application, real login/cookies, owner/member and denial
 matrix, request/byte/time limits, provider exclusion, exact resource ownership
 and verified teardown. Source, review and readiness must precede a fresh run;
@@ -486,7 +488,7 @@ shared-local, production, provider/Survey, account/billing and cutover holds sta
 
 | Ready lane | Ownership and deliverable | Integration gate |
 | --- | --- | --- |
-| Tests critical path | Coordinator/private runner author: bounded privacy-safe original-request/body lifecycle diagnosis, then a justified repair or separately authorized fresh proof; preserve real auth, byte/JSON checks and request caps | Existing-screen owner/member lifecycle must pass; a diagnostic source test or login HTTP 200 is not sufficient |
+| Tests critical path | Coordinator: finish and independently review the approved Playwright carrier replacement, then admit one fresh disposable run only after current readiness; preserve original body tasks, real auth and all finite limits/cleanup | Existing-screen owner/member lifecycle must pass; CPU checks, a synthetic diagnostic or login HTTP 200 are not sufficient |
 | Surveys, batch 2 | `codex/contextual-surveys-workflow`: coherent dormant owner authoring/results and current-member participation/results through existing routes | Fixed parent/current owner/member precedence, visibility, archive/removal/purge races, atomic writes/reads, genuine types and real SDK/database evidence before readiness; source preparation does not declare the Tests or batch-2 exit |
 | Independent lifecycle, batch 3 | `codex/contextual-archive-recovery`: dormant owner archive-recovery reads and verified hot recovery-copy export, reusing current format/reservation/private-object/lifecycle contracts | Fresh owner/revision binding, tenant isolation, legacy compatibility and real SDK/database/export evidence; hot archive/unarchive, cold restore and purge redesign remain outside this group |
 
