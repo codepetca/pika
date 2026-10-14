@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import { constants, closeSync, fsyncSync, fstatSync, lstatSync, openSync, readFileSync, readSync, realpathSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, normalize } from 'node:path'
 import { createContextualTestPlan } from '../e2e/helpers/contextual-test-rehearsal'
+import { readFullStartupReport, validateFullStartupReport, type FullStartupReport } from '../e2e/helpers/contextual-test-startup'
 import { hashPassword } from '../src/lib/crypto'
 import { createAssignmentListNativeAdapters } from './contextual-assignment-list-proof-platform'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
@@ -54,7 +55,7 @@ type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sour
   reviewedManifestSha256: string; startedAt: number; deadline: number; cleanupDeadline: number; endedAt: number;
   cleanupStartedAt: number | null; cleanupEnd: number | null;
   outcome: 'passed' | 'failed'; firstFailureStage: Stage | null; lifecycleCompleted: boolean; ownedSettled: boolean;
-  playwrightValidated: boolean; server: LedgerState | null }>
+  playwrightValidated: boolean; server: LedgerState | null; startup: FullStartupReport | null }>
 /** Test seams replace only I/O; no injected result is native acceptance proof. */
 export type ContextualTestControllerEdges = {
   openEvidence(admission: ContextualTestControllerAdmission): void
@@ -67,6 +68,7 @@ export type ContextualTestControllerEdges = {
   assertSqlSettled: typeof assertContextualTestSqlSettled
   createLedger(binding: ContextualTestRunBinding): { snapshot(): unknown }
   readPlaywrightReceipt(binding: ContextualTestRunBinding): unknown
+  readStartupReport?(binding: ContextualTestRunBinding): unknown
   verifyArtifacts(binding: ContextualTestRunBinding, rawReceipt: unknown): void
   writeReceipt(receipt: Receipt, admission: ContextualTestControllerAdmission): void
 }
@@ -118,10 +120,11 @@ const defaults: ContextualTestControllerEdges = {
     // Requiring the CJS policy must not auto-install its app-only hooks into
     // this controller. Native caller env remains separately hermetic.
     assert(!process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE && !process.env.PIKA_CONTEXTUAL_TEST_BINDING_SHA256)
-    const module = createRequire(import.meta.url)('./contextual-test-rehearsal-egress.cjs') as { createContextualTestSharedLedger(input: ContextualTestRunBinding, options: { create: true }): { snapshot(): unknown } }
-    return module.createContextualTestSharedLedger(binding, { create: true })
+    const ledgerModule = createRequire(import.meta.url)('./contextual-test-rehearsal-egress.cjs') as { createContextualTestSharedLedger(input: ContextualTestRunBinding, options: { create: true }): { snapshot(): unknown } }
+    return ledgerModule.createContextualTestSharedLedger(binding, { create: true })
   },
   readPlaywrightReceipt: readReceipt,
+  readStartupReport: readFullStartupReport,
   verifyArtifacts: verifyContextualTestArtifacts,
   writeReceipt(receipt, admission) { exclusiveJson(admission.outputDir, 'controller-receipt.json', receipt) },
 }
@@ -215,6 +218,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
   let stage: Stage = 'preflight', firstFailureStage: Stage | null = null, attempted = false, lifecycleStarted = false
   let ownedSettled = false, lifecycleCompleted = false, playwrightValidated = false, failure = false
   let binding: ContextualTestRunBinding | undefined, ledger: { snapshot(): unknown } | undefined, server: LedgerState | null = null
+  let startup: FullStartupReport | null = null
   let cleanupEnd: number | undefined, cleanupStartedAt: number | null = null
   const cleanupClock = () => {
     if (cleanupEnd === undefined) { cleanupStartedAt = controls.now(); cleanupEnd = Math.min(admission.cleanupDeadline, cleanupStartedAt + 360000) }
@@ -285,6 +289,13 @@ export async function runContextualTestRehearsalController(admission: Contextual
   finally {
     if (attempted && !lifecycleStarted) { try { await settle() } catch { failed() } }
     if (attempted) {
+      if (ownedSettled && binding && edges.readStartupReport) {
+        // Diagnostic only: preserve original work/cleanup failure and acceptance
+        // gates. Never read artifacts before proven settlement, retain raw
+        // exceptions, or promote a failed run from a reporter's success status.
+        try { startup = immutableContextualTestData(validateFullStartupReport(edges.readStartupReport(binding), binding)) }
+        catch { startup = null }
+      }
       if (ownedSettled && binding && ledger) {
         // Record the bounded fixed-schema terminal counters even for failed
         // cases. Observations never promote failure to pass or justify closure.
@@ -299,7 +310,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
         startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, endedAt: controls.now(),
         cleanupStartedAt, cleanupEnd: cleanupEnd ?? null,
         outcome: !failure && ownedSettled && lifecycleCompleted && playwrightValidated && server !== null ? 'passed' : 'failed', firstFailureStage,
-        lifecycleCompleted, ownedSettled, playwrightValidated, server })
+        lifecycleCompleted, ownedSettled, playwrightValidated, server, startup })
       try { edges.writeReceipt(receipt, admission) } catch { failure = true }
       if (!failure && receipt.outcome === 'passed') return receipt
     }

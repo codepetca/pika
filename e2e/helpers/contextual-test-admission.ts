@@ -3,18 +3,17 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readContextualTestBinding } from '../../scripts/contextual-test-rehearsal-binding'
+import { contextualTestStartupBinding } from './contextual-test-startup'
 
 export const CONTEXTUAL_TEST_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 // Owner-approved installed Chrome155.0.8059.79; an update fails closed, not repinned.
 export const CONTEXTUAL_TEST_CHROME_SHA256 = 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f'
 export function contextualTestConfigBinding() {
-  assert.equal(process.env.PIKA_CONTEXTUAL_TEST_REHEARSAL, 'true', 'Private rehearsal opt-in required')
-  const path = process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE, digest = process.env.PIKA_CONTEXTUAL_TEST_BINDING_SHA256
-  assert(path && digest, 'Private rehearsal binding required')
-  const binding = readContextualTestBinding(path, digest)
-  assert(!existsSync(join(binding.outputDir, 'runner-output')), 'Private runner output already exists')
-  return binding
+  try {
+    const binding = contextualTestStartupBinding()
+    assert(!existsSync(join(binding.outputDir, 'runner-output')), 'Private runner output already exists')
+    return binding
+  } catch { throw new Error('Private contextual Test admission rejected') }
 }
 export default async function contextualTestGlobalSetup() {
   try {

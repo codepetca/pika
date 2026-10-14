@@ -81,6 +81,45 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'browser', ownedSettled: true, lifecycleCompleted: false, server: { app: 1, storage: 2, api: 10 } })
     expect(f.events).not.toContain('pw-receipt')
   })
+  it('retains bound fixed startup diagnostics only after settlement without promoting failed browser work', async () => {
+    const f = fixture()
+    const startup = { version: 1, projectId, nonce: f.admission.nonce, sourceSha: plan.sourceSha, deadline: f.admission.deadline,
+      report: { version: 1, status: 'passed', discovered: 1, started: 1, ended: 1, passed: 1, errors: [], overflow: false },
+      reached: ['collection','fixture'], failure: null }
+    const edges = { ...f.edges, readStartupReport() { f.events.push('startup-read'); return startup } }
+    f.control.launchPlaywright = async () => ({ async wait() { return { code: 1, signal: null, closed: true } } })
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, edges as never)).rejects.toThrow()
+    expect(f.events.indexOf('startup-read')).toBeGreaterThan(f.events.indexOf('settle'))
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'browser', ownedSettled: true, startup })
+    startup.reached.push('workflow')
+    expect((f.receipts[0] as { startup: { reached: string[] } }).startup.reached).toEqual(['collection','fixture'])
+  })
+  it('rejects unbound or unsafe startup diagnostics without retaining raw fields or changing existing success gates', async () => {
+    for (const patch of [{ message: 'SECRET-password-https://private.invalid' }, { nonce: 'f'.repeat(32) }]) {
+      const f = fixture()
+      const raw = { version: 1, projectId, nonce: f.admission.nonce, sourceSha: plan.sourceSha, deadline: f.admission.deadline,
+        report: { version: 1, status: 'passed', discovered: 1, started: 1, ended: 1, passed: 1, errors: [], overflow: false }, reached: [], failure: null, ...patch }
+      const edges = { ...f.edges, readStartupReport: () => raw }
+      const receipt = await runContextualTestRehearsalController(f.admission as never, f.control, edges as never)
+      expect(receipt).toMatchObject({ outcome: 'passed', startup: null })
+      expect(JSON.stringify(receipt)).not.toMatch(/SECRET|private\.invalid/)
+    }
+  })
+  it('does not inspect diagnostic artifacts when owned closure is unproved', async () => {
+    const f = fixture(); let reads = 0
+    f.control.settleAll = async () => { throw Error('Unconfirmed ownership') }
+    const edges = { ...f.edges, readStartupReport() { reads++; throw Error('SECRET') } }
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, edges as never)).rejects.toThrow()
+    expect(reads).toBe(0); expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false, startup: null })
+  })
+  it('missing diagnostic output never masks the original browser failure', async () => {
+    const f = fixture()
+    f.control.launchPlaywright = async () => ({ async wait() { return { code: 1, signal: null, closed: true } } })
+    const edges = { ...f.edges, readStartupReport() { throw Error('SECRET unavailable') } }
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, edges as never)).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'browser', startup: null })
+    expect(JSON.stringify(f.receipts)).not.toContain('SECRET')
+  })
   it('never disposes when actual process settlement cannot be proven', async () => {
     const f = fixture(); f.control.settleAll = async () => { f.events.push('settle-failed'); throw Error('unknown family') }
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()

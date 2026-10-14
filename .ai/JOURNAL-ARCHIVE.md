@@ -46992,3 +46992,19 @@ Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product chan
 PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
 ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
 sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
+
+<!-- pika-session-log-archive-batch:d7eb02b20b38fb5798f1b2c0ec3ac7ba3b818bc56ce698f6e7367b01e21c3d5a -->
+## 2026-10-12 — Unpublication actual-writer contention fixtures
+
+69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
+Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
+wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
+Source mapping likely schedule11holderreceipt failure; direct availability and
+AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
+Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
+proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
+Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
+PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
+Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
+PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
+6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.

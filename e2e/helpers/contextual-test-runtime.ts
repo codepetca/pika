@@ -10,6 +10,7 @@ import type { Browser, BrowserContext, Page, Request, Response, TestInfo } from 
 import { readContextualTestBinding, executeContextualTestSql } from '../../scripts/contextual-test-rehearsal-binding'
 import { ContextualTestBoundary } from './contextual-test-boundary'
 import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWitness } from './contextual-test-rehearsal'
+import type { ContextualTestStartupStage } from './contextual-test-startup'
 
 const witnessSchema = z.object({
   version: z.literal(1), work_graph_sha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -29,14 +30,19 @@ export function contextualTestArtifactLabel(value: string) {
   return value
 }
 
-export async function createContextualTestRuntime(browser: Browser, _testInfo: TestInfo) {
+export async function createContextualTestRuntime(browser: Browser, _testInfo: TestInfo, stage: (stage: ContextualTestStartupStage) => void = () => {}) {
+  stage('runtime-entry')
+  stage('binding')
   assert.equal(process.env.PIKA_CONTEXTUAL_TEST_REHEARSAL, 'true')
   const path = process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE, digest = process.env.PIKA_CONTEXTUAL_TEST_BINDING_SHA256
   assert(path && digest, 'Missing admitted private binding')
   const binding = readContextualTestBinding(path, digest)
+  stage('plan')
   const plan = createContextualTestPlan(binding.projectId)
+  stage('boundary')
   const boundary = new ContextualTestBoundary(plan, binding.deadline)
   const output = join(binding.outputDir, 'playwright')
+  stage('output')
   mkdirSync(output, { mode: 0o700 }) // exclusive run ownership; never adopt old output
   const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; requests: Set<Request> }>()
   const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string }> = []
@@ -166,6 +172,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       assert(bytes.byteLength <= 4194304); save(label, 'png', bytes)
     },
   }
+  stage('runtime-ready')
   return { runtime, async close(outcome: 'passed' | 'failed' = 'failed') {
     assert(!closeStarted); closeStarted = true
     let closed = true

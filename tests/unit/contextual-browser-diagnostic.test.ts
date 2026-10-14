@@ -28,6 +28,14 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
   ])('maps a known safe category without retaining raw error (%j)', (error, category) => {
     const output = classifyDiagnosticError(error); expect(output.category).toBe(category); expect(JSON.stringify(output)).not.toContain('PRIVATE')
   })
+  it.each(['ERR_MODULE_NOT_FOUND','MODULE_NOT_FOUND','ERR_REQUIRE_ESM','ERR_UNKNOWN_FILE_EXTENSION','ERR_UNSUPPORTED_DIR_IMPORT','ERR_ASSERTION'])('retains fixed Node code %s without module paths, assertion values or secrets', code => {
+    const category = code === 'ERR_ASSERTION' ? 'assertion' : 'module-loading'
+    for (const error of [{ code, message: 'SECRET /private/credential.ts' }, { message: `Error [${code}]: SECRET https://private.invalid` }]) {
+      const result = classifyDiagnosticError(error)
+      expect(result).toEqual({ category, code, signal: null, source: 'unknown' })
+      expect(JSON.stringify(result)).not.toMatch(/SECRET|credential|private\.invalid/)
+    }
+  })
   it('requires exact single-test success and rejects unknown extra schema, counters and errors', () => {
     const good = { version: 1, status: 'passed', discovered: 1, started: 1, ended: 1, passed: 1, errors: [], overflow: false }
     expect(diagnosticReportPassed(good)).toBe(true)

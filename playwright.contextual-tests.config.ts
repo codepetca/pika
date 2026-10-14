@@ -12,7 +12,7 @@ export default defineConfig({
   fullyParallel: false, workers: 1, retries: 0, maxFailures: 1, forbidOnly: true,
   timeout: 2700000, globalTimeout: 2700000,
   globalSetup: './e2e/helpers/contextual-test-admission.ts',
-  reporter: [['line']],
+  reporter: [['./e2e/helpers/contextual-test-startup-reporter.ts']],
   outputDir: join(binding.outputDir, 'runner-output'),
   use: {
     baseURL: 'http://localhost:3117', browserName: 'chromium', headless: false,

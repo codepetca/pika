@@ -40,7 +40,7 @@ describe('actual installed Playwright CommonJS module-loading compatibility, CPU
     // Installed PW util.fileIsModule selects CJS for these .ts files under the
     // nearest repository package. No change to that production compiler policy.
     expect(JSON.parse(readFileSync(join(repository, 'package.json'), 'utf8')).type).not.toBe('module')
-    const seeds = ['playwright.contextual-tests.config.ts', 'e2e/contextual-test-lifecycle.spec.ts', 'e2e/helpers/contextual-test-runtime.ts']
+    const seeds = ['playwright.contextual-tests.config.ts', 'e2e/contextual-test-lifecycle.spec.ts', 'e2e/helpers/contextual-test-runtime.ts', 'e2e/helpers/contextual-test-startup-reporter.ts']
     const visited = new Set<string>(), external = new Set<string>(), pending = seeds.map(file => join(repository, file))
     while (pending.length) {
       const file = pending.pop()!; if (visited.has(file)) continue; visited.add(file)

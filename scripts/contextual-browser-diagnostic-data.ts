@@ -75,9 +75,10 @@ export function diagnosticAdmissionFromEnvironment() {
   return admission
 }
 
-const codes = ['EACCES','EPERM','ENOENT','ENOMEM','EMFILE','ENFILE','ETIMEDOUT'] as const
+const moduleCodes = ['ERR_MODULE_NOT_FOUND','MODULE_NOT_FOUND','ERR_REQUIRE_ESM','ERR_UNKNOWN_FILE_EXTENSION','ERR_UNSUPPORTED_DIR_IMPORT'] as const
+const codes = ['EACCES','EPERM','ENOENT','ENOMEM','EMFILE','ENFILE','ETIMEDOUT', ...moduleCodes, 'ERR_ASSERTION'] as const
 const signals = ['SIGABRT','SIGBUS','SIGILL','SIGKILL','SIGSEGV','SIGTERM','SIGTRAP'] as const
-const categories = ['unknown','timeout','browser-launch','browser-closed','permission','missing-executable','missing-library'] as const
+const categories = ['unknown','timeout','browser-launch','browser-closed','permission','missing-executable','missing-library','module-loading','assertion'] as const
 const sources = ['unknown','fixture','config','spec'] as const
 export type DiagnosticError = { category: typeof categories[number]; code: typeof codes[number] | null; signal: typeof signals[number] | null; source: typeof sources[number] }
 // Read data properties only; never stringify an error, invoke getters, retain
@@ -92,6 +93,8 @@ export function classifyDiagnosticError(error: unknown): DiagnosticError {
   const signal = signals.find(v => field(error, 'signal') === v || new RegExp(`\\b${v}\\b`).test(message)) ?? null
   const category = code === 'EACCES' || code === 'EPERM' ? 'permission'
     : code === 'ENOENT' || message.includes("Executable doesn't exist") ? 'missing-executable'
+    : code !== null && moduleCodes.some(value => value === code) ? 'module-loading'
+    : code === 'ERR_ASSERTION' ? 'assertion'
     : /Library not loaded:|error while loading shared libraries:/.test(message) ? 'missing-library'
     : field(error, 'name') === 'TimeoutError' || /(?:Test timeout of|Timeout \d+ms exceeded)/.test(message) ? 'timeout'
     : /Target page, context or browser has been closed|Browser closed/.test(message) ? 'browser-closed'

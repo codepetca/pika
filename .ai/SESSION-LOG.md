@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Unpublication actual-writer contention fixtures
-
-69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
-Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
-wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
-Source mapping likely schedule11holderreceipt failure; direct availability and
-AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
-Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
-proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
-Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
-PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
-Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
-PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
-6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
-
 ## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
 
 Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
@@ -809,3 +794,20 @@ basic launch success does not identify their cause or complete the Tests phase.
 Next recommendation is safe early reporting in the full-app path plus the known
 optional Next version-lookup issue; neither fix nor a new native run was performed.
 PR1581 remains draft, all holds and cumulative histories unchanged.
+
+## 2026-10-14 Full-app startup privacy-safe reporting
+
+Added thin fixed-schema startup reporter and exclusive private milestones for
+collection/fixture/runtime import/entry/binding/plan/boundary/output/workflow/
+teardown. Original errors are classified before public sanitization, never copied
+as raw messages/stacks/URLs/DOM/output. Fixed Node module/assertion codes improve
+diagnosis without arbitrary values. Default E2E skips before binding or fixtures.
+Controller retains validated immutable diagnostics only after proven settlement;
+reporter success, absent output or malformed data cannot replace existing workflow
+gates or mask its original failure. A reporting fault cannot prevent owned close.
+69 focused CPU checks and repository TypeScript pass; tests include privacy,
+actual Playwright CommonJS imports, failure injection and controller containment.
+Independent review/full gate pending. No new native/browser/app/DB execution,
+spent replay, production/shared-local/provider/account/billing or activation work.
+The known optional Next version lookup is unchanged; prior app cause still unknown.
+Original protocol/review63/fix/attempt histories and all holds carry forward.

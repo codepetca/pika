@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Browser, Page, Response, TestInfo } from '@playwright/test'
@@ -125,15 +125,24 @@ afterEach(async () => {
   for (const output of outputs.splice(0)) rmSync(output, { recursive: true })
   vi.unstubAllEnvs()
 })
-async function setup(browser = new FakeBrowser(), leaseMs = 120000) {
+async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Parameters<typeof createContextualTestRuntime>[2]) {
   const outputDir = realpathSync(mkdtempSync(join(tmpdir(), 'contextual-runtime-cpu-'))); outputs.push(outputDir)
   platform.readContextualTestBinding.mockReturnValue({ projectId: plan.projectId, password, deadline: Date.now() + leaseMs, outputDir })
-  const handle = await createContextualTestRuntime(browser as unknown as Browser, {} as TestInfo)
+  const handle = await createContextualTestRuntime(browser as unknown as Browser, {} as TestInfo, stage)
   handles.push(handle)
   return { ...handle, browser, outputDir, receipt: () => JSON.parse(readFileSync(join(outputDir, 'playwright-receipt.json'), 'utf8')) }
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it.each(['runtime-entry','binding','plan','boundary','output'] as const)('marks %s before its fallible action and never creates runtime output or browser contexts on injected failure', async failAt => {
+    const reached: string[] = [], browser = new FakeBrowser()
+    await expect(setup(browser, 120000, stage => { reached.push(stage); if (stage === failAt) throw Error('CPU stage failure') })).rejects.toThrow('CPU stage failure')
+    const sequence = ['runtime-entry','binding','plan','boundary','output']
+    expect(reached).toEqual(sequence.slice(0, sequence.indexOf(failAt) + 1))
+    expect(existsSync(join(outputs.at(-1)!, 'playwright'))).toBe(false)
+    expect(browser.newContext).not.toHaveBeenCalled()
+    expect(platform.readContextualTestBinding).toHaveBeenCalledTimes(['runtime-entry','binding'].includes(failAt) ? 0 : 1)
+  })
   it.each([30000, 5000])('rejects a hung original body at its original %ims end and retains truthful pending state', async remaining => {
     vi.useFakeTimers()
     const body = deferred<Buffer>(), entered = deferred<void>()
