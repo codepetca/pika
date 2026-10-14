@@ -46714,3 +46714,24 @@ three private diffs, Start→observed manifest and unchanged incoming material U
 Cumulative counters original02:58:39/8completedturn2261s/targeted5/final1/fix6
 retained under waiver; native acceptance/readyCI/merge still blocked. PR1569 stays
 draft; shared-local/prod/provider/account/activation/toolgoalPAUSED holds remain.
+
+<!-- pika-session-log-archive-batch:4260ce6ae24dc2f67e2b9569b24a3a60ecb695728772e8a7a3e2a957f66528e3 -->
+## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
+
+Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
+pika_assignment_list_ef9c8ece7a72. Locked preflight accepted; sole root run38015
+started14:05:27UTC, observed complete exit1 at14:10:12UTC, no retry. Full history,
+product rollback/ACLs, genuine CLI types identical and closed-engine privilege/
+rollback/held-schedule checks PASS. SDK acceptance stopped in rosterRestore:
+bounded private0600 diagnostic pal_membership_generation_closed. Fixture deletes
+an enrollment then reinserts its same id; retained168 records DELETE as removed
+and forbids reactivating that generation. This is invalid restoration setup, not
+evidence that the product guard should change. Remaining SDK/hoisting/cancellation
+acceptance absent. Exact owned teardown, global inventory/ports, whole canonical
+rows/settings/cron/resources and sourcefreeze PASS; cleanupFailures[]. Runner
+entry flags false/null again; all seven inert hashes match reviewed sources.
+Permission consumed; PR1569 remains OPEN/DRAFTa3c5, goalPAUSED. No sourcefix,
+additional native command, CI/merge/shared migration/deployment/account/provider/
+activation. Next source-only fixture correction must respect generation closure,
+verify lifecycle-aware cleanup/restoration, and receive targeted review before
+another exact-candidate rehearsal. Review ledger/counters/waiver not reset.

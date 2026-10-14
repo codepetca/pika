@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Owner grading closed-engine passes; roster fixture restoration stops
-
-Human approved one exact a3c5b389a/full001–259 disposable rehearsal on
-pika_assignment_list_ef9c8ece7a72. Locked preflight accepted; sole root run38015
-started14:05:27UTC, observed complete exit1 at14:10:12UTC, no retry. Full history,
-product rollback/ACLs, genuine CLI types identical and closed-engine privilege/
-rollback/held-schedule checks PASS. SDK acceptance stopped in rosterRestore:
-bounded private0600 diagnostic pal_membership_generation_closed. Fixture deletes
-an enrollment then reinserts its same id; retained168 records DELETE as removed
-and forbids reactivating that generation. This is invalid restoration setup, not
-evidence that the product guard should change. Remaining SDK/hoisting/cancellation
-acceptance absent. Exact owned teardown, global inventory/ports, whole canonical
-rows/settings/cron/resources and sourcefreeze PASS; cleanupFailures[]. Runner
-entry flags false/null again; all seven inert hashes match reviewed sources.
-Permission consumed; PR1569 remains OPEN/DRAFTa3c5, goalPAUSED. No sourcefix,
-additional native command, CI/merge/shared migration/deployment/account/provider/
-activation. Next source-only fixture correction must respect generation closure,
-verify lifecycle-aware cleanup/restoration, and receive targeted review before
-another exact-candidate rehearsal. Review ledger/counters/waiver not reset.
-
 ## 2026-10-11 — Owner delegates reasonable workflow approvals
 
 Human requested faster completion and explicitly delegated reasonable approvals
@@ -643,3 +623,9 @@ Review ledger2turns/1batch; initialreviewclock18:33UTC retained, max7turns/4batc
 ## 2026-10-14 — Ungraded Return CI diagnostics
 
 Reviewed eaddf337b CI38617795078 failed first draft-GET after-fixture forced receipt; normal installed-SDK/SQL/concurrency and cleanup passed. Draft restored before correction. Source-only bounded diagnosis found no evidence of a265 interaction; deleted private log prevented actual failure classification. Add bounded16384-byte forced-receipt diagnostic checker before unchanged strict shell gates, publishing only validated finite setup/transport/native fields on mismatch. No raw child logs, exceptions, paths, identities or keys emitted. Preserve exit1/exact2lines/bothmarkers, forced modes, private0600capture and deletion. Targeted238tests/node syntax/lint/auditPASS; full focused check and independent delta review precede retry. Product/SQL/UI bytes unchanged, existing database/visual receipts reused. Review budget starts18:33UTC;3reviewturns/1batch before this second correction; weekly66%remaining, storagehealthy. No production/shareddatabase authority expanded.
+
+## 2026-10-14 — Return browser lifecycle correction and authorized review extension
+
+Owner instruction: “yes go ahead, extend the budget, fix the browser test and finish the PR.” Task-scoped review-budget extension acknowledged under override-task-stops; cumulative5reviewturns/3fixbatches preserved, not reset; low-usage/provider/production permissions unchanged. Ready16e02f4a4 CI38622964403 passed all database/SDK/TestBuild/dark browser/PatternLab lanes; main browser failed stale real lifecycle assertions refusing ungradedReturn (actualreturned1/skipped0 vs expected0/1), three other tests passed retries,292passed. Draft restored. Fourthbatch keeps existing unopenedReturn403/reopen/open-access409 regression, moves newungraded/unsubmittedReturn to separate ownedfixture real-browser case, requires Start/Save/Submit403 plus unchanged attempt/results, studentprovenancefalse/null, Pendinggrading/noeditingcontrols and idempotence. Gradeclear now preserves explicitReturn and exposes pendingresults. Canonicalbrowser inventory exactcounts578/580 reflect one added desktop case; partition/duplication guards retained.
+
+Playwrightcollection3cases,125workflow/lifecycle tests, cleanTypeScript/lint/auditPASS. Localsetup GPT6.1-sol/medium boundedread-only worker found no supportedcandidateDB browser binding; do not bypass dedicatedLinux local-CI guards or apply244+ tocanonical243. RequiredfreshCI will provide actualbrowser/PostgREST proof; no newinfrastructure added. Prior20visual states and SQL265 receipts remain valid because product/SQL/UI bytes unchanged. Initialfocused run superseded after exactinventory count detected, ownprocess tree stopped before corrected rerun. Finalfocused and detached targeted independentreview precede ready. Weekly65%remaining/storagehealthy307GB; automaticDeepSeek pause retained. No deployment/production/sharedschema operation.
