@@ -1,3 +1,4 @@
+import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
 import { validateTestCalendarDateReviewedMigration } from './test-calendar-date-reviewed-migration'
 /** Finite recovery frames for the existing closed native engine. Import is inert. */
 import assert from 'node:assert/strict'
@@ -31,10 +32,11 @@ export function testOwnerRecoveryNativePlan(original: AssignmentListProofFixture
   })
   assert.notEqual(observed[0].attemptId, observed[1].attemptId)
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([260,261,262,263].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
+  assert([260,261,262,263, 264].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258]); validateTestOwnerRecoveryReviewedMigration(inventory[259]); if (inventory.length >= 261) validateTestOwnerUnpublicationReviewedMigration(inventory[260])
   if (inventory.length >= 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
-  if (inventory.length === 263) validateTestCalendarDateReviewedMigration(inventory[262])
+  if (inventory.length >= 263) validateTestCalendarDateReviewedMigration(inventory[262])
+  if (inventory.length === 264) validateTestAiGradingSavedWorkReviewedMigration(inventory[263])
   const source = readFileSync(resolve(repository, 'supabase/migrations', TEST_OWNER_RECOVERY_REVIEWED_MIGRATION.name), 'utf8')
   validateTestOwnerRecoveryReviewedMigration({ name: TEST_OWNER_RECOVERY_REVIEWED_MIGRATION.name, sql: source, sha256: hash(source) })
   assert.equal(source, inventory[259].sql)

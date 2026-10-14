@@ -1,3 +1,4 @@
+import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { describe,expect,it,vi } from 'vitest'
@@ -50,7 +51,7 @@ describe('finite deletion proof source, never native acceptance',()=>{
     expect(testOwnerDeletionSnapshotSql(f)).toContain('public.test_attempt_history')
   })
   it('seals actual262 bytes and admits only eight registered source frames plus sixteen schedules',()=>{
-    const m=plan();expect(m.migrations).toHaveLength(263);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
+    const m=plan();expect(m.migrations).toHaveLength(264);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
     expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBe(40)
     expect(m.caps).toMatchObject({sqlBytes:524288,responseBytes:8388608,requestMs:12000,totalMs:180000,dispatches:40})
     expect(m.sourceSha256).toBe(hash(readFileSync('supabase/migrations/262_contextual_test_owner_delete.sql','utf8')))
@@ -125,5 +126,29 @@ describe('finite deletion proof source, never native acceptance',()=>{
         :{rejected:true,code:s.code,rows_unchanged:true,label:s.label}}]
     }})}
     expect((await runTestOwnerDeletionNativeRaces(m,t,d)).outcomes).toHaveLength(16);expect(close).toHaveBeenCalledTimes(32)
+  })
+})
+
+describe('complete reviewed264 source profile (offline)', () => {
+  it.each([263, 264])('accepts exact complete source profile %i', count => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try { expect(() => plan()).not.toThrow() } finally { loader.mockRestore() }
+  })
+  it.each([263, 264].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))('rejects altered migration $number: $defect', ({ number, defect }) => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const tail = migrations[number - 1]
+    if (defect === 'name') tail.name = `${number}_unknown.sql`
+    if (defect === 'digest') tail.sha256 = 'f'.repeat(64)
+    if (defect === 'bytes' || defect === 'self-hashed-bytes') tail.sql += '\n'
+    if (defect === 'self-hashed-bytes') tail.sha256 = createHash('sha256').update(tail.sql).digest('hex')
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
+  })
+  it('rejects a contiguous unknown265 source tail', () => {
+    const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    migrations.push({ name: '265_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') })
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
   })
 })

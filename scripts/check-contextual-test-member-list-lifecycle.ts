@@ -1,3 +1,4 @@
+import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
 import { validateTestCalendarDateReviewedMigration } from './test-calendar-date-reviewed-migration'
 /** Inert finite installed-SDK member-list proof. Independent fixed-source review
  * and explicit coordinator acceptance are required before invoking this file. */
@@ -59,7 +60,7 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
 /** Exact complete source profiles for this proof; future additions need review. */
 export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   validateAssignmentListMigrationChain(migrations)
-  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263].includes(migrations.length), 'Unreviewed member-list migration profile')
+  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264].includes(migrations.length), 'Unreviewed member-list migration profile')
   classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   if (migrations.length >= 254) {
     const addition = migrations[253]
@@ -75,7 +76,8 @@ export function validateTestMemberListReviewedMigrations(migrations: Parameters<
   if (migrations.length >= 260) validateTestOwnerRecoveryReviewedMigration(migrations[259])
   if (migrations.length >= 261) validateTestOwnerUnpublicationReviewedMigration(migrations[260])
   if (migrations.length >= 262) validateTestOwnerDeletionReviewedMigration(migrations[261])
-  if (migrations.length === 263) validateTestCalendarDateReviewedMigration(migrations[262])
+  if (migrations.length >= 263) validateTestCalendarDateReviewedMigration(migrations[262])
+  if (migrations.length === 264) validateTestAiGradingSavedWorkReviewedMigration(migrations[263])
 }
 /** Both exact reviewed canonical profiles remain complete. The isolated253
  * union is idempotent and bound to the reviewed migration, never fixture rows. */
