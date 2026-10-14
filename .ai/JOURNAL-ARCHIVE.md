@@ -46481,3 +46481,8 @@ permission inferred. Focused and targeted marker/startup checks, draft publicati
 independent review then one final-head ready CI/PR Gate remain. Original clock/
 waiver/counters15turn12target9priorbatch1initial1final and all sharedlocal249+/
 prod257+/promotion/activation/toolgoalPAUSED holds retained. No phase/goal exit.
+
+<!-- pika-session-log-archive-batch:8d35d5571cccbc2e8cc1482fe6cd2c487fb1bb647b5c8b1702c520f2e960bea8 -->
+## 2026-10-11 — Assignment chooser current-main synchronization
+
+PR1568 final reviewed c83e2878f passed all selected CI38104196727/PR Gate, but main517d272ab advanced during that run. Returned draft before synchronization; retained11 own and45 incoming nonhistory blobs byte-for-byte. Resolved only the shared moved archive entry, retaining both trim marker and incoming entries; parent log/archive body multiplicities remain preserved after normal40-entry trim. No migration application, production operation, dependency change or authority expansion: incoming main257 is preserved unchanged. Fresh current-main focused checks, proportional integration review and new exact-head CI remain gates. Prior browser24+editedSchedule evidence/10source bindings and four goldens remain applicable because product/native dependencies are unchanged; no additional native acceptance or broad epic completion claimed. A premature focused run while merge was uncommitted selected58paths/full coverage via the old merge base; intentionally stopped that owned run130 before acceptance, then committed synchronization for correct current-main13path classification. Receipts remain external.

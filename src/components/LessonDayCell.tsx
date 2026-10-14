@@ -10,7 +10,7 @@ import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/
 import { isCalendarAnnouncementScheduled } from '@/lib/calendar-items'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
-import { Button, Tooltip } from '@/ui'
+import { Button, IconButton, Tooltip } from '@/ui'
 import type { Announcement, Assignment, LessonPlan, TestAssessment } from '@/types'
 
 // Helper to check if announcement is scheduled (not yet published)
@@ -158,7 +158,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         aria-labelledby={agendaHeadingId}
         className={`flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
           nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 ? 'py-3' : 'py-5'
-        } ${isToday ? 'border-l-2 border-primary' : 'border-l-2 border-transparent'}`}
+        } ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
       >
         <div className="flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24">
           <Button
@@ -170,24 +170,23 @@ export const LessonDayCell = memo(function LessonDayCell({
             className="flex-col items-start px-0 text-left"
           >
             <span className="text-xs font-medium text-text-muted">{format(day, 'EEE')}</span>
-            <time dateTime={date} className="text-xl font-semibold leading-tight text-text-default">{format(day, 'd')}</time>
+            <time dateTime={date} aria-current={isToday ? 'date' : undefined} className="text-xl font-semibold leading-tight text-text-default">{format(day, 'd')}</time>
           </Button>
-          {isToday && <span className="rounded-badge bg-info-bg px-1.5 py-0.5 text-xs font-medium text-primary">Today</span>}
+          {nonClassDay && <span className="text-xs text-text-muted">No class</span>}
+          {canEdit && !isEditing && (
+            <IconButton
+              ref={editActionRef}
+              variant="ghost"
+              size="sm"
+              label={hasContent ? 'Edit lesson' : 'Add lesson'}
+              icon={hasContent ? Pencil : Plus}
+              onClick={handleStartEditing}
+              className="text-text-muted"
+            />
+          )}
         </div>
 
         <div ref={cellRef} className="min-w-0 flex-1 space-y-3">
-          {(nonClassDay || (canEdit && !isEditing)) && (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              {nonClassDay ? <span className="text-sm text-text-muted">No class</span> : <span />}
-              {canEdit && !isEditing && (
-                <Button ref={editActionRef} variant="ghost" size="sm" onClick={handleStartEditing} className="gap-1.5 text-text-muted">
-                  {hasContent ? <Pencil className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
-                  {hasContent ? 'Edit lesson' : 'Add lesson'}
-                </Button>
-              )}
-            </div>
-          )}
-
           <div className="calendar-day-text min-w-0 break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto">
             {isEditing && canEdit ? (
               <MarkdownContentEditor

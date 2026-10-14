@@ -451,7 +451,8 @@ describe('LessonDayCell agenda', () => {
   it('marks today and presents the focused day without starting an editor', () => {
     const onPresentDay = vi.fn()
     renderWithTooltip(<LessonDayCell {...agendaProps} isToday={true} onPresentDay={onPresentDay} />)
-    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.queryByText('Today')).not.toBeInTheDocument()
+    expect(screen.getByText('13')).toHaveAttribute('aria-current', 'date')
     fireEvent.click(screen.getByRole('button', { name: /open friday, march 13, 2026/i }))
     expect(onPresentDay).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
