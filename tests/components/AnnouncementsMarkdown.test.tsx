@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Suspense, startTransition, useState } from 'react'
+import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
 import { TeacherAnnouncementsSection } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsSection'
 import { StudentAnnouncementsSection } from '@/app/classrooms/[classroomId]/StudentAnnouncementsSection'
 import {
@@ -151,6 +152,52 @@ function StudentTransitionHarness() {
   )
 }
 
+type MenuOwner = 'more' | 'new' | 'draft' | 'posted'
+
+function teacherTabElement(isActive = true, sectionClassroom = classroom) {
+  return <TooltipProvider><TeacherAnnouncementsTab classroom={sectionClassroom} isActive={isActive} /></TooltipProvider>
+}
+
+function motionForAnnouncementMenus() {
+  vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList)
+  const getStyle = window.getComputedStyle.bind(window)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+    const style = getStyle(element, pseudo)
+    const getProperty = style.getPropertyValue.bind(style)
+    vi.spyOn(style, 'getPropertyValue').mockImplementation((property) => property === '--motion-duration-fast' ? '100ms' : getProperty(property))
+    return style
+  })
+}
+
+function capturedMenuClick(node: HTMLElement) {
+  const key = Object.keys(node).find((name) => name.startsWith('__reactProps$'))!
+  return (node as unknown as Record<string, { onClick: (event: { stopPropagation: () => void }) => void }>)[key].onClick
+}
+
+async function openAnnouncementMenu(owner: MenuOwner) {
+  await screen.findByText('Unit update')
+  if (owner === 'new') {
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), { target: { value: 'Retained new draft' } })
+  } else if (owner !== 'more') {
+    fireEvent.click(screen.getByText('bring notes'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), { target: { value: 'Retained edit draft' } })
+  }
+  fireEvent.click(screen.getByRole('button', { name: owner === 'more' ? 'More actions' : 'Choose announcement action' }))
+  return screen.getByRole('menu')
+}
+
+function InactiveTransitionHarness() {
+  const [isActive, setIsActive] = useState(true)
+  return <TooltipProvider>
+    <button onClick={() => startTransition(() => setIsActive(false))}>Attempt inactive tab</button>
+    <Suspense fallback={<div>Changing tab</div>}>
+      <TeacherAnnouncementsTab classroom={classroom} isActive={isActive} />
+      {!isActive ? <SuspendSecondClassroom classroomId={secondClassroom.id} /> : null}
+    </Suspense>
+  </TooltipProvider>
+}
+
 describe('announcement markdown rendering', () => {
   beforeEach(() => {
     invalidateCachedJSONMatching('teacher-announcements:')
@@ -162,6 +209,171 @@ describe('announcement markdown rendering', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it.each(['more', 'new', 'draft', 'posted'] as const)('retires %s menu commands immediately and retains only inert closing presentation', async (owner) => {
+    motionForAnnouncementMenus()
+    mockAnnouncementFetch([{ ...markdownAnnouncement, is_draft: owner === 'draft' }])
+    const view = render(teacherTabElement())
+    const menu = await openAnnouncementMenu(owner)
+    const item = within(menu).getAllByRole('menuitem')[0]
+    const oldClick = capturedMenuClick(item)
+    fireEvent.keyDown(item, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument()
+    const closing = view.container.querySelector('[data-menu-closing]') as HTMLElement
+    expect(closing).toHaveAttribute('aria-hidden', 'true')
+    expect(closing.inert).toBe(true)
+    expect(closing.id).toBe('')
+    expect(closing.querySelectorAll('button,[tabindex],[role]')).toHaveLength(0)
+    act(() => oldClick({ stopPropagation() {} }))
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method)).toBe(false)
+    expect(screen.queryByLabelText('Date (Toronto)')).not.toBeInTheDocument()
+    if (owner === 'more') expect(screen.queryByRole('textbox', { name: 'Announcement body' })).not.toBeInTheDocument()
+  })
+
+  it.each(['more', 'new', 'draft', 'posted'] as const)('retires live and fading %s menus when its cached teacher tab becomes inactive, retaining drafts', async (owner) => {
+    motionForAnnouncementMenus()
+    mockAnnouncementFetch([{ ...markdownAnnouncement, is_draft: owner === 'draft' }])
+    const view = render(teacherTabElement())
+    const menu = await openAnnouncementMenu(owner)
+    const item = within(menu).getAllByRole('menuitem')[0]
+    const oldClick = capturedMenuClick(item)
+    view.rerender(teacherTabElement(false))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    act(() => oldClick({ stopPropagation() {} }))
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method)).toBe(false)
+    view.rerender(teacherTabElement())
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    if (owner !== 'more') expect(screen.getByRole('textbox', { name: owner === 'new' ? 'Announcement body' : 'Edit announcement body' })).toHaveValue(owner === 'new' ? 'Retained new draft' : 'Retained edit draft')
+    fireEvent.click(screen.getByRole('button', { name: owner === 'more' ? 'More actions' : 'Choose announcement action' }))
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0], { key: 'Escape' })
+    expect(view.container.querySelector('[data-menu-closing]')).toBeInTheDocument()
+    view.rerender(teacherTabElement(false))
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+  })
+
+  it('keeps committed menu authority when an inactive-tab render suspends', async () => {
+    render(<InactiveTransitionHarness />)
+    await openAnnouncementMenu('more')
+    const oldClick = capturedMenuClick(screen.getByRole('menuitem', { name: 'Announcement' }))
+    fireEvent.click(screen.getByText('Attempt inactive tab'))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    act(() => oldClick({ stopPropagation() {} }))
+    expect(screen.getByRole('textbox', { name: 'Announcement body' })).toBeInTheDocument()
+  })
+
+  it('keeps committed classroom menu authority when a replacement render suspends', async () => {
+    render(<TeacherTransitionHarness />)
+    await openAnnouncementMenu('more')
+    const oldClick = capturedMenuClick(screen.getByRole('menuitem', { name: 'Announcement' }))
+    fireEvent.click(screen.getByText('Attempt classroom switch'))
+    act(() => oldClick({ stopPropagation() {} }))
+    expect(screen.getByRole('textbox', { name: 'Announcement body' })).toBeInTheDocument()
+  })
+
+  it('retires the old menu command on a committed classroom replacement', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => new Response(JSON.stringify({ announcements: String(input).includes(secondClassroom.id) ? [secondClassroomAnnouncement] : [markdownAnnouncement] }), { status: 200 })))
+    const view = render(teacherTabElement())
+    await openAnnouncementMenu('more')
+    const oldClick = capturedMenuClick(screen.getByRole('menuitem', { name: 'Announcement' }))
+    view.rerender(teacherTabElement(true, secondClassroom))
+    await screen.findByText('Second classroom update')
+    act(() => oldClick({ stopPropagation() {} }))
+    expect(screen.queryByRole('textbox', { name: 'Announcement body' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('retires More on committed editor replacement without clearing the editor', async () => {
+    const view = render(teacherTabElement())
+    await openAnnouncementMenu('more')
+    const oldClick = capturedMenuClick(screen.getByRole('menuitem', { name: 'Announcement' }))
+    fireEvent.click(screen.getByText('bring notes'))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    act(() => oldClick({ stopPropagation() {} }))
+    expect(screen.queryByRole('textbox', { name: 'Announcement body' })).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toHaveValue(markdownAnnouncement.content)
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+  })
+
+  it.each(['new', 'draft', 'posted'] as const)('hands %s schedule selection to the existing picker immediately and cancels old deferred focus after inactivity', async (owner) => {
+    motionForAnnouncementMenus()
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { frames.push(callback); return frames.length })
+    mockAnnouncementFetch([{ ...markdownAnnouncement, is_draft: owner === 'draft' }])
+    const view = render(teacherTabElement())
+    await openAnnouncementMenu(owner)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+    expect(screen.getByLabelText('Date (Toronto)')).toBeInTheDocument()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    view.rerender(teacherTabElement(false))
+    act(() => { (document.activeElement as HTMLElement)?.blur(); frames.forEach((callback) => callback(0)) })
+    expect(document.activeElement).toBe(document.body)
+    view.rerender(teacherTabElement())
+    expect(screen.getByRole('textbox', { name: owner === 'new' ? 'Announcement body' : 'Edit announcement body' })).toHaveValue(owner === 'new' ? 'Retained new draft' : 'Retained edit draft')
+  })
+
+  it('hands More to the new editor immediately and preserves its existing textarea focus', async () => {
+    motionForAnnouncementMenus()
+    const view = render(teacherTabElement())
+    await openAnnouncementMenu('more')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Announcement' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(view.container.querySelector('[data-menu-closing]')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Announcement body' })).toHaveFocus()
+  })
+
+  it.each(['new', 'draft', 'posted'] as const)('keeps the %s primary Post action available while its schedule picker is open', async (owner) => {
+    const response = deferred<Response>()
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => init?.method ? response.promise : new Response(JSON.stringify({ announcements: [{ ...markdownAnnouncement, is_draft: owner === 'draft' }] }), { status: 200 })))
+    render(teacherTabElement())
+    await openAnnouncementMenu(owner)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === (owner === 'new' ? 'POST' : 'PATCH'))).toHaveLength(1)
+    await act(async () => response.resolve(new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, content: 'Published from picker' } }), { status: 200 })))
+    expect(screen.getByText('Published from picker', { selector: 'p' })).toBeInTheDocument()
+  })
+
+  it.each(['POST', 'PATCH'] as const)('settles a held %s after unmount without reviving an old editor or menu', async (method) => {
+    const response = deferred<Response>()
+    let settled = false
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => init?.method === method ? response.promise : new Response(JSON.stringify({ announcements: [{ ...markdownAnnouncement, content: settled ? 'Fresh after unmount' : markdownAnnouncement.content }] }), { status: 200 })))
+    const view = render(teacherTabElement())
+    await openAnnouncementMenu(method === 'POST' ? 'new' : 'posted')
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0], { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    view.unmount()
+    settled = true
+    await act(async () => response.resolve(new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, content: 'Fresh after unmount' } }), { status: 200 })))
+    render(teacherTabElement())
+    expect(await screen.findByText('Fresh after unmount', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: /announcement body/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it.each([{ method: 'POST', status: 200 }, { method: 'POST', status: 500 }, { method: 'PATCH', status: 200 }, { method: 'PATCH', status: 500 }] as const)('settles a held $method status $status while the cached tab is inactive without losing request ownership', async ({ method, status }) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const response = deferred<Response>()
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => init?.method === method ? response.promise : new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })))
+    const view = render(teacherTabElement())
+    await openAnnouncementMenu(method === 'POST' ? 'new' : 'posted')
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0], { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    view.rerender(teacherTabElement(false))
+    await act(async () => response.resolve(new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, id: method === 'POST' ? 'inactive-create' : markdownAnnouncement.id, content: 'Settled while inactive' } }), { status })))
+    view.rerender(teacherTabElement())
+    if (status === 200) {
+      expect(screen.getByText('Settled while inactive', { selector: 'p' })).toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: /announcement body/i })).not.toBeInTheDocument()
+    } else {
+      expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm')
+      expect(screen.getByRole('textbox', { name: method === 'POST' ? 'Announcement body' : 'Edit announcement body' })).toHaveValue(method === 'POST' ? 'Retained new draft' : 'Retained edit draft')
+      expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled()
+    }
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
   it.each(['publish', 'draft', 'schedule'] as const)('shows an unconfirmed %s failure and retains the creation fields until explicit recovery', async (mode) => {

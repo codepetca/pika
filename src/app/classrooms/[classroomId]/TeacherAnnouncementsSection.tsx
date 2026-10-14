@@ -31,6 +31,7 @@ import {
 
 interface Props {
   classroom: Classroom
+  isActive?: boolean
   className?: string
 }
 
@@ -80,7 +81,7 @@ function parseDateTime(isoString: string): { date: string; time: string } {
   return parseScheduleIsoToParts(isoString)
 }
 
-export function TeacherAnnouncementsSection({ classroom, className }: Props) {
+export function TeacherAnnouncementsSection({ classroom, className, isActive = true }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -587,6 +588,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
           }
           actions={
             <TeacherWorkSurfaceIconMenuButton
+              key={`${classroom.id}:${editingId ?? 'list'}`}
+              interactionActive={isActive}
+              exitMotion="opacity"
               ariaLabel="More actions"
               menuAriaLabel="Announcement actions"
               tooltip="More actions"
@@ -706,6 +710,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                 </Button>
               ) : (
                 <SplitButton
+                  key={`${classroom.id}:new`}
+                  interactionActive={isActive && !isReadOnly}
+                  exitMotion={showScheduleDropdown ? 'immediate' : 'opacity'}
                   label={saving ? 'Posting...' : 'Post'}
                   onPrimaryClick={() => createAnnouncement('publish')}
                   disabled={saving || !newContent.trim()}
@@ -854,6 +861,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                           </Button>
                         ) : announcement.is_draft ? (
                           <SplitButton
+                            key={`${classroom.id}:${announcement.id}:draft`}
+                            interactionActive={isActive && !isReadOnly}
+                            exitMotion={showEditScheduleDropdown ? 'immediate' : 'opacity'}
                             label={saving ? 'Posting...' : 'Post'}
                             onPrimaryClick={() => saveEdit('publish')}
                             disabled={saving || !editContent.trim()}
@@ -876,6 +886,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                           />
                         ) : (
                           <SplitButton
+                            key={`${classroom.id}:${announcement.id}:posted`}
+                            interactionActive={isActive && !isReadOnly}
+                            exitMotion={showEditScheduleDropdown ? 'immediate' : 'opacity'}
                             label={saving ? 'Saving...' : 'Post'}
                             onPrimaryClick={() => saveEdit('preserve')}
                             disabled={saving || !editContent.trim()}

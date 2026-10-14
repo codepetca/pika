@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Whole learner native acceptance and genuine type installation
-
-Sixth separately approved one-shot rehearsal at46ceb93c9/base4f352b74b ran
-00:29:01–00:39:16UTC and passed all78 labels: full001–257, real SDK/Storage,
-ACL/cancellation/CAS/held-lock races and complete owned/global/canonical/source
-cleanup. result.success=true, cleanupFailures=[]; prior failed receipts retained.
-Permission consumed, enabled source archived nonexecuted, runnerfalse/null and
-all nine original source hashes restored. Installed only exact11-line RPC delta
-from fresh genuine438731-byte CLI artifactcc966 (full byte equality verified).
-Runtime SQL/proof/base unchanged; final focused checks, proportional type/receipt
-delta review, final-head CI and normal-main merge remain. No sharedlocal249+,
-prod257+, promotion, activation, batch2/goal exit or goal resume. Original review
-clock13:16:45UTC/counters13launch10target7fix1initial1final retained under direct
-workflow-stop waiver. Weekly24%remaining/ordinaryAllowed; DeepSeek paused;
-effective model, attributable active time and token telemetry unknown.
-
 ## 2026-10-11 — Learner CI continuity-marker correction
 
 Final delta review14 COMPLETE/sourceclean at53e43782; actual whole rehearsal and
@@ -784,3 +768,7 @@ Production release review reproduced a schema-first gap: legacy return-to-draft 
 Owner approved production259–263 once from a7e033952611ab03f80c7bd8c0f776d7f2302cdb/digest5b1577215b69a5e7d8361eec08c651dda3f0aace59393ceb6192b3ef22b4f79f. Preview38486242383/history258 and catalog preflight passed; compatibility1584(main)/1585(production) passed independent review and all10 CI jobs. Backport productioneeb66a4d6 deployed READY/dpl_FBzFiXRRiKnZQRwsGY5tQuPejKQ8 before one apply38491403501: applied-verified259–263/history263. Ten function bodies/owners/search paths/ACLs match reviewed source (private unpublish core intentionally invoker); tests.test_date nullable date/no default. No production test fixtures, data deletion or activation changes.
 
 Strict base advancement initially rejected calendar promotion1583 at764b after compatibility rollout. Premature lifecycle merge event invalidated; PR returned draft, merged production ancestry into1f108de2 with ZERO file changes/tree4249bb19 identical to reviewed764b, narrow independent review and all10 exact-head CI38491978782 passed. Promotion1583 merged c1abdab7982d8261738b380936a8f7454602d5d8 at01:17:58UTC; full tree matches reviewed764b. Vercel dpl_5SxaPBwGZf6wLbxneNCsfmJuVfjs READY and production aliases verified; login200/me401/Pattern Lab404/snapshot API404 at01:22:57UTC (Oct13 Toronto). Week agenda and optional Test date now live; dates never stop submissions. Initial cumulative review found/fixed legacy unpublish response rejection before schema-first rollout. Source reviews complete before60-minute review limit;5 actual worker turns/2 native Sol6.1-high launches, effective models/tokens/active effort unknown; account weekly85% remaining at start. Local focused813(main)/759(backport), targeted16 each and direct21 probes per head passed; prior calendar visual evidence reused by identical UI blobs. Source/current artifact receipts retained outside retired compatibility/review worktrees. Local handoff retains deployment, migration, catalog, CI and lifecycle receipts. No additional apply permission remains.
+
+## 2026-10-14 — Announcement menu transition consistency
+
+Teacher Announcement More/new/draft/posted choosers reuse shared semantic-fast opacity and immediate logical command retirement. Extend real ClassroomPageClient→TeacherAnnouncementsTab activity forwarding; scope nested keys to classroom/editor/publication while retaining whole drafts and request generations. Schedule picker handoff uses immediate exit mode, preserving existing primary Post behavior. Governed reuse/extend brief precedes implementation; fixture and shared primitives unchanged. Native Sol6.1/high implementation405s plus parent bridge109s, red12expected failures, one mechanical green correction, final59 actual-owner+78primitive cases PASS and exact TypeScript PASS; coordinator verifies delivery. Actual parent activity bridge52 PASS adds meaningful real-classroom navigation/retained DOM coverage; audit5TS and focused917/65 plus all static gates PASS. Frozen19-source native teacher8/student4/current UiConsistency reference2 PASS,106PNGs/14videos;162API observations reconcile142syntheticGET/16teacher writes/4student acknowledgements,0unknown/console/pageerrors/overflow and no API passthrough. Four unchanged goldens PASS; coordinator inspected boards and representative originals/reference parity. Existing BODY focus/mobile navigation hover tooltip qualified; source owners unchanged during native. Failed browser-launch/invalid1243/selector attempts and diagnostic smokes retained; matching1208 restored without package/lock changes. One independent draft-first stable-SHA review/CI/main landing remains gate. Main60cad includes newer calendar263/fixture work, preserved unchanged outside the teacher activity line. Storage healthy322GB, weekly82%remaining; DeepSeek pause and task stop waiver/counters68 retained, task attribution/tokens unknown. No production, migration, dependency, privacypriority1 or calendarPR1217 operation; broad UI/UX goal open.
