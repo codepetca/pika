@@ -1,23 +1,25 @@
 /** Private local-test admission only. Never imported by application code. */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { lstatSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { contextualTestStartupBinding } from './contextual-test-startup'
+import { assertContextualTestUnusedRunnerOutput } from '../../scripts/contextual-test-rehearsal-launch'
 
 export const CONTEXTUAL_TEST_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 // Owner-approved installed Chrome155.0.8059.79; an update fails closed, not repinned.
 export const CONTEXTUAL_TEST_CHROME_SHA256 = 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f'
 export function contextualTestConfigBinding() {
   try {
-    const binding = contextualTestStartupBinding()
-    assert(!existsSync(join(binding.outputDir, 'runner-output')), 'Private runner output already exists')
-    return binding
+    // Playwright reloads config in a worker after creating its own output. This
+    // is a binding read, not a new attempt or permission to adopt prior output.
+    return contextualTestStartupBinding()
   } catch { throw new Error('Private contextual Test admission rejected') }
 }
 export default async function contextualTestGlobalSetup() {
   try {
     const binding = contextualTestConfigBinding()
+    assertContextualTestUnusedRunnerOutput(binding.outputDir)
     assert.equal(process.platform, 'darwin')
     assert.equal(realpathSync(CONTEXTUAL_TEST_CHROME), CONTEXTUAL_TEST_CHROME)
     const file = lstatSync(CONTEXTUAL_TEST_CHROME); assert(file.isFile() && !file.isSymbolicLink() && (file.mode & 0o022) === 0)

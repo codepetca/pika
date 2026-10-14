@@ -52,6 +52,19 @@ function bindingFile(binding: ContextualTestRunBinding, file: string, sha256: st
   assert(binding.outputDir !== binding.workdir && !binding.outputDir.startsWith(`${binding.workdir}/`))
 }
 const basicEnvironment = () => ({ PATH: '/usr/bin:/bin', TZ: 'America/Toronto', LANG: 'C', LC_ALL: 'C', NEXT_TELEMETRY_DISABLED: '1' })
+/** First-run only: call before spawning Playwright, which can remove its output
+ * directory before global setup. Config reloads only revalidate their binding.
+ * lstat also rejects dangling links; nothing here adopts or clears prior state. */
+export function assertContextualTestUnusedRunnerOutput(outputDir: string): void {
+  absolute(outputDir); assert.equal(realpathSync(outputDir), outputDir)
+  const parent = lstatSync(outputDir)
+  assert(parent.isDirectory() && !parent.isSymbolicLink() && parent.uid === process.getuid?.() && (parent.mode & 0o777) === 0o700)
+  for (const name of ['runner-output', 'playwright-started.json']) {
+    try { lstatSync(join(outputDir, name)) }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error }
+    throw new Error('Private runner output already exists')
+  }
+}
 export function contextualTestAppEnvironment(binding: ContextualTestRunBinding, rawStatus: unknown, sessionSecret: string,
   preloadPath: string, file: string, sha256: string): Readonly<Record<string, string>> {
   bindingFile(binding, file, sha256); absolute(preloadPath)

@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, realpathSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
-import { captureContextualTestDependencies, captureContextualTestSource, contextualTestReadOnlyDependencyProfile, createContextualTestOwnedFamily,
+import { assertContextualTestUnusedRunnerOutput, captureContextualTestDependencies, captureContextualTestSource, contextualTestReadOnlyDependencyProfile, createContextualTestOwnedFamily,
   createContextualTestPinnedCommand, immutableContextualTestData, verifyContextualTestTransportPins, verifyContextualTestBinary, type ContextualTestBinaryPin } from './contextual-test-rehearsal-launch'
 import { parseKernelProcessRows, type OwnedProcessRow } from './contextual-test-process-ownership'
 import type { ContextualTestControllerAdmission, ContextualTestControllerControls } from './contextual-test-rehearsal-controller'
@@ -285,6 +285,8 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
     },
     async launchPlaywright(input) {
       assert(admitted && input.binding.projectId === admission.projectId && input.cwd === admission.runner.repository)
+      assert.equal(input.binding.outputDir, admission.outputDir)
+      assertContextualTestUnusedRunnerOutput(admission.outputDir)
       const child = await native.spawnOwned({ args: input.args, cwd: input.cwd, env: input.env, role: 'browser', profile: input.dependencySandboxProfile, deadline: admission.deadline })
       return { async wait() { await child.wait(); const state = child.state(); return { closed: state.closed, code: state.code, signal: null } } }
     },

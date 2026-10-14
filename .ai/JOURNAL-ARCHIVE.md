@@ -47155,3 +47155,19 @@ follows; original counters and serious holds remain. Separate noDB diagnostic
 completed three requests with positive full cleanup: original body was readable
 without navigation, but navigation reproduced protocol resource-missing. This
 does not establish the historical app failure cause or product completion.
+
+<!-- pika-session-log-archive-batch:653178358a728749dbad641a1606584e8ed27cd8b031b2f2fcb9496a74f1ba3d -->
+## 2026-10-12 Survey engine composition correction
+
+Review4 found that native-engine discovery could borrow cleanup time and generator
+finally could mask unjoined-child uncertainty. Actual offline composition tests
+reproduced both against f4a; separate dispatch/settlement clocks and sticky engine
+poison now retain the work cutoff and block ordinary outer teardown after unknown
+closure. Generator joined failures may settle in the original reserve, but expired
+successful work cannot write a type artifact. Source tests retain actual engine,
+generic generator and inventory logic with transport/phase-oracle seams; they are
+not native evidence. Focused94/lint/architecture/audit/diff PASS; expanded strict
+check only14 missing genuine263 RPC metadata diagnostics. Targeted review remains
+required. No PR, migration, shared/prod/provider/activation action. Timing-matched
+three-request browser diagnostic also reproduced original-body resource loss on
+navigation with full positive cleanup; historical app causation remains unknown.

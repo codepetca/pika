@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 Survey engine composition correction
-
-Review4 found that native-engine discovery could borrow cleanup time and generator
-finally could mask unjoined-child uncertainty. Actual offline composition tests
-reproduced both against f4a; separate dispatch/settlement clocks and sticky engine
-poison now retain the work cutoff and block ordinary outer teardown after unknown
-closure. Generator joined failures may settle in the original reserve, but expired
-successful work cannot write a type artifact. Source tests retain actual engine,
-generic generator and inventory logic with transport/phase-oracle seams; they are
-not native evidence. Focused94/lint/architecture/audit/diff PASS; expanded strict
-check only14 missing genuine263 RPC metadata diagnostics. Targeted review remains
-required. No PR, migration, shared/prod/provider/activation action. Timing-matched
-three-request browser diagnostic also reproduced original-body resource loss on
-navigation with full positive cleanup; historical app causation remains unknown.
-
 ## 2026-10-12 Survey active-session poison correction
 
 Targeted review5 resolved inventory/generator fixes but found a cached active-SQL
@@ -786,3 +771,21 @@ preparation with stable reads; receipt0600 retained. Root confirms workdir absen
 Docker containers/volumes/networks absent by name/both labels, four ports clear.
 No standalone canonical DB equality attestation or native acceptance. Evidence,
 permanent spent token and review retained; no retry/phase exit/production change.
+
+## 2026-10-14 Admission/config reload split
+
+Human Go authorizes the recommended runner fix, review and ONE fresh bounded
+rehearsal; production and all other holds remain. Config reads now only validate
+the original binding, including worker reloads. A shared private-parent/lstat
+freshness guard rejects runner-output or playwright-started.json before native
+Playwright spawn (before its output-clearing task), and again in global setup.
+Exclusive0600 wx start receipt and all identity/clock/pin/ownership/cleanup gates
+remain. Dangling links count as stale state; the guard never adopts or deletes.
+No worker-env flag, dependency, app/auth/schema or acceptance gate changes.
+New11CPU cases begin6RED, then60checks/5suitesPASS3.70s; TSC/defaultESLintpass.
+Coverage includes repeated binding reads after own output, stale-file retention,
+start-receipt reuse rejection, and native pre-spawn call ordering. Native wiring
+ordering is a source-contract assertion; filesystem/global-setup behavior is
+executed with CPU fixtures, not native proof. Full focused gate and targeted
+independent review next. New private token will be distinct; no admission/project
+clock allocated yet. All five prior attempts remain failed and permanently spent.
