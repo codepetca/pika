@@ -155,10 +155,12 @@ export const LessonDayCell = memo(function LessonDayCell({
     return (
       <article
         aria-labelledby={agendaHeadingId}
+        aria-describedby={nonClassDay ? `${agendaHeadingId}-status` : undefined}
         className={`flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
           nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 ? 'py-3' : 'py-5'
-        } ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
+        } ${nonClassDay ? 'bg-surface-3' : ''} ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
       >
+        {nonClassDay && <span id={`${agendaHeadingId}-status`} hidden>No class</span>}
         <div className="flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24">
           <Button
             id={agendaHeadingId}
@@ -169,14 +171,13 @@ export const LessonDayCell = memo(function LessonDayCell({
             className="flex-col items-start px-0 text-left"
           >
             <span className="text-xs font-medium text-text-muted">{format(day, 'EEE')}</span>
-            <time dateTime={date} aria-current={isToday ? 'date' : undefined} className="text-xl font-semibold leading-tight text-text-default">{format(day, 'd')}</time>
+            <time dateTime={date} aria-current={isToday ? 'date' : undefined} className={`text-xl font-semibold leading-tight ${nonClassDay ? 'text-text-muted' : 'text-text-default'}`}>{format(day, 'd')}</time>
           </Button>
-          {nonClassDay && <span className="text-xs text-text-muted">No class</span>}
         </div>
 
         <div ref={cellRef} className="flex min-w-0 flex-1 flex-col gap-3">
           <div
-            className={`calendar-day-text relative min-w-0 flex-1 break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''}`}
+            className={`calendar-day-text relative min-w-0 flex-1 break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''}`}
             onClick={event => {
               if (canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
             }}

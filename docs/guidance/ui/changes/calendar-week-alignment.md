@@ -4,6 +4,8 @@ Owner request 2026-10-14: Week lessons should start consistently near the top;
 outline the entire current day's card and remove the visible Today label.
 Follow-up: clicking the card's lesson content starts editing, replacing the
 separate Edit/Add action.
+Second follow-up: hide the visible No class label, use muted non-class cards,
+and vertically center short lesson content.
 
 Surface/reference: shared LessonDayCell agenda, owner-approved Week composition
 in calendar-week-agenda.md and executable teacher/student Pattern Lab Calendar.
@@ -16,14 +18,17 @@ contracts remain unchanged. Current date retains aria-current="date" semantics.
 
 | Need | Existing candidate | Decision | Reason |
 | --- | --- | --- | --- |
-| Lesson alignment/current day | LessonDayCell agenda | extend | Keep lesson body first in its content column |
+| Lesson alignment/current day | LessonDayCell agenda | extend | Center short reading content; longer content expands from the top |
+| Non-class appearance | Semantic subdued surface/text tokens | reuse | Quiet background and date treatment without disabling available actions |
 | Content editing target | Button | reuse | Native keyboard/focus behavior over the lesson content area |
 | Date presentation | Button and existing day dialog | reuse | Existing keyboard and presentation behavior |
 | Executable reference | Pattern Lab Calendar | reuse | Both role examples render the production owner |
 
-Move No class into the date rail. Lessons and
-empty placeholders start at the row's top padding regardless of editability or
-class-day status. The inset outline does not change current-day geometry.
+Non-class days use a muted semantic surface and date text. No class is hidden
+visually and remains the card's accessible description. Short lessons and empty
+placeholders center within the existing date-rail height; long content expands
+the row and stays at its top padding. The editor retains its top alignment.
+The inset outline does not change current-day geometry.
 Teachers click lesson text or empty lesson space to edit. A native Button is
 positioned behind the preview, providing keyboard access and a full content
 target without wrapping rich-text links in a button. Preview links remain
@@ -57,3 +62,10 @@ serial verification passed all 1,034 tests and remaining gates. Two capture-driv
 (historical reference date and student synthetic identity) were corrected;
 neither required product changes. Gallery screenshots with sticky-navigation
 occlusion are supplemental; the eight real-owner captures are final evidence.
+
+Second follow-up verification: non-class status is the article's accessible
+description and its label is not visible. Browser measurements confirm centered
+short previews and top-aligned long content for all eight role/viewport/theme
+combinations; edit/Escape/keyboard/read-only checks still pass. The latest
+fixture screenshots and geometry are in output/playwright/real-* and
+muted-card-evidence.log. Scope remains presentation-only.

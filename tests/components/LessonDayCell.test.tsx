@@ -444,9 +444,9 @@ describe('LessonDayCell agenda', () => {
 
   it.each([false, true])('omits empty lesson placeholders on non-class days (weekend=%s)', (isWeekend) => {
     renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={null} isClassDay={false} isWeekend={isWeekend} />)
-    expect(screen.getByText('No class')).toBeInTheDocument()
+    expect(screen.getByRole('article')).toHaveAccessibleDescription('No class')
+    expect(screen.getByText('No class')).not.toBeVisible()
     expect(screen.queryByText(/No lesson planned|No lesson posted/)).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText('No class'))
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     if (isWeekend) {
       expect(screen.queryByRole('button', { name: /edit lesson|add lesson/i })).not.toBeInTheDocument()
