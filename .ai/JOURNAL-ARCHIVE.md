@@ -46780,3 +46780,19 @@ authenticated token-route coverage; batch2/goal remain open and goaltoolPAUSED.
 Factual docs delta only; runtime/SQL/generated/CI evidence reused only after
 byte equivalence and targeted independent delta review. Original ledger10turns/
 2626measureds+unknown9/targeted7/final1/fix7 under delegated workflow authority.
+
+<!-- pika-session-log-archive-batch:0c18ff2cc8240de4a807b6604f0c4ee68835bd80c5dd185ba43d8f94f51ca5ed -->
+## 2026-10-11 — CI catches compact continuity contract wording
+
+Reviewed factual-doc descendantab7c native-source bytes identicald714; narrow
+Luna/medium receipt/history delta review CLEAN, no runtime re-review needed.
+Ready once at15:01UTC started exact-headCI38149543002. At15:12UTC Test/Build
+coverage job failed bara-attendance continuity assertion: compactCURRENT lost
+required Controls unchanged prefix. Restored incoming main wording, offset with
+equivalent shorter learner/next-owner summaries; no test/budget/control weakened.
+PR returned draft before correction. Native/source evidence remains exactd714;
+no product/schema/type/CI/private-source change or native retry. Other CI jobs
+still active; do not launch parallel heavyCI. Affected checks/currentfocused and
+one narrow docs-delta review precede the new stablehead ready event. Original
+ledger11completed/2626measureds+unknown9+11/targeted8/final1; fixbatch8 under
+direct delegated workflow authority, no repeated owner approval required.

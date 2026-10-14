@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — CI catches compact continuity contract wording
-
-Reviewed factual-doc descendantab7c native-source bytes identicald714; narrow
-Luna/medium receipt/history delta review CLEAN, no runtime re-review needed.
-Ready once at15:01UTC started exact-headCI38149543002. At15:12UTC Test/Build
-coverage job failed bara-attendance continuity assertion: compactCURRENT lost
-required Controls unchanged prefix. Restored incoming main wording, offset with
-equivalent shorter learner/next-owner summaries; no test/budget/control weakened.
-PR returned draft before correction. Native/source evidence remains exactd714;
-no product/schema/type/CI/private-source change or native retry. Other CI jobs
-still active; do not launch parallel heavyCI. Affected checks/currentfocused and
-one narrow docs-delta review precede the new stablehead ready event. Original
-ledger11completed/2626measureds+unknown9+11/targeted8/final1; fixbatch8 under
-direct delegated workflow authority, no repeated owner approval required.
-
 ## 2026-10-11 — Dormant owner recovery and verifier lifetime correction
 
 PR1577 adds dormant contextual owner unsubmit/single-reset/bulk-reset with sealed
@@ -752,3 +737,22 @@ run, with strict identity/ancestry/absence/deadline gates unchanged; no codefix
 implemented. Independent inference/continuity review48 next; original clock/
 fix35 carry. PR1581 draft/full gate failed, production/shared-local/cutover/
 provider/account holds unchanged; no files/evidence deleted or browser rerun.
+
+## 2026-10-13 Source-only ownership guard diagnostics verified
+
+Human Go approved privacy-safe guard/cause labels, offline checks and review only.
+Fresh private bca45d9d95e9 source36 records fixed allowlisted guard-step, own-data
+processCause/code in first primary/cleanup slots; final receipt seals both. Real
+operations remain authoritative and rethrow the identical original error, even
+if observation fails. Catch-only metadata notification cannot skip validation;
+capture binding before awaited snapshot is preserved. No raw error/PID/path/body
+output, new channel, dependency, policy weakening or renewed deadline. Root
+independently replayed31guard/14direct/15serialized(36observability)/21package/
+19privacy checks and exact historical inverse/compiler/import closure PASS.
+Firstfreeze2026-10-14T01:07:13Z entry884f0ee9..., metadata2c0003ff..., source
+handoff95ef7a2a... retained0600. Five transpiles zero diagnostics, not full semantic
+TypeScript verification. Acceptance/runtime absent; nativeVerifiedfalse. Existing
+failed cf7 result stays failed/SPENT despite separately successful recovery.
+Independent targeted review49 next, original clock/review49/fix36 carry without
+reset under standing workflow waiver. PR1581 stays draft/full gate failed; no
+browser rerun, app/auth, production/shared-local/provider/account/cutover change.
