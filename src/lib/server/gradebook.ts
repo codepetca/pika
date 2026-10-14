@@ -714,7 +714,7 @@ export async function loadTeacherGradebook(opts: {
   } = await loadStudentScopedRows<any>(
     supabase,
     'test_attempts',
-    'test_id, student_id, is_submitted, submitted_at',
+    'test_id, student_id, is_submitted, submitted_at, returned_at',
     'test_id',
     testIds,
     studentIds
@@ -734,11 +734,12 @@ export async function loadTeacherGradebook(opts: {
   }
 
   const submittedTestAttempts = new Set<string>()
-  const testAttemptMap = new Map<string, { is_submitted: boolean; submitted_at: string | null }>()
+  const testAttemptMap = new Map<string, { is_submitted: boolean; submitted_at: string | null; returned_at: string | null }>()
   for (const attempt of testAttempts || []) {
     testAttemptMap.set(`${attempt.test_id}:${attempt.student_id}`, {
       is_submitted: Boolean(attempt.is_submitted),
       submitted_at: attempt.submitted_at ?? null,
+      returned_at: attempt.returned_at ?? null,
     })
     if (!attempt.is_submitted) continue
     submittedTestAttempts.add(`${attempt.test_id}:${attempt.student_id}`)
@@ -788,6 +789,7 @@ export async function loadTeacherGradebook(opts: {
 
       if (
         test.status !== 'draft' &&
+        attempt?.returned_at &&
         effectivePossible > 0 &&
         questionsForTest.length > 0 &&
         (submittedTestAttempts.has(responseKey) || hasResponses)
@@ -868,7 +870,15 @@ export async function loadTeacherGradebook(opts: {
     const adjustedMaximum = hasAdjustedMaximum('assignment', assignment.id)
     const effectivePossible = maximumState.states.get(`assignment:${assignment.id}`)?.maximum ?? possible
     const isGraded = sc != null && st != null && sw != null
-    const status = getAssignmentGradebookStatus(assignment, score, isGraded)
+    const isReturned = Boolean(score?.returned_at) && !assignment.is_draft
+    const status = getAssignmentGradebookStatus(assignment, score, isGraded && isReturned)
+    // Saving a Gradebook override does not return the underlying work.
+    if (!isReturned) {
+      return {
+        rawEarned: null,
+        cell: blankAssessmentCell('assignment', assignment.id, possible, undefined, status),
+      }
+    }
     const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
     if (manualOverride != null) {
       const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
@@ -1012,7 +1022,8 @@ export async function loadTeacherGradebook(opts: {
         const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
         const baseCell = testCellMap.get(cellKey(studentId, test.id)) || blankAssessmentCell('test', test.id, possible)
         const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'test', test.id))
-        if (manualOverride == null) return baseCell
+        const isReturned = test.status !== 'draft' && Boolean(testAttemptMap.get(`${test.id}:${studentId}`)?.returned_at)
+        if (manualOverride == null || !isReturned) return baseCell
         return {
           ...baseCell,
           earned: manualOverride,

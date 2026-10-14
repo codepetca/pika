@@ -11,146 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Material Markdown approved main integration
-
-Owner requested rebase and merge PR1572 once CI passes. Rebased on main872d19582; source/test/UI blobs remain identical to reviewed1f273f4c3. Only archive conflict, resolved retaining distinct upstream and branch history and removing an identical already-archived entry. No feature migrations or stash operations; upstream258 remains unchanged and unapplied by this task. PR returned draft; superseded38134322478 canceled. Final-head focused checks, proportionate independent rebase review, stable ready CI/PR Gate then squash merge to main. Initial review PASS:one Sol/medium complete turn,no findings; one targeted rebase turn planned. Production promotion remains outside this instruction.
-
-## 2026-10-11 — Material Markdown final log sync
-
-Final reviewed be7674d4 CI38136077644 and all ten lanes including PR Gate PASS (35m09s). Main79a6f7994 landed a production continuity receipt during CI; rebase again resolves only archive/log overlap, retaining distinct history. Feature/UI/test blobs unchanged; prior focused969/65 and teacher/student desktop/mobile light/dark proof remain applicable. No application migration, production promotion or feature correction. Proportional sync review and exact final-head CI precede the authorized main merge.
-
-## 2026-10-11 — Test learner merge and next owner grading group
-
-Learner1561 merged normally at reviewed1aedb4156 as squash517d272ab; exact-head
-CI38102771099 all10/PRGate PASS, merge tree equals reviewed tree and clean
-canonical main fast-forwarded. Whole001–257 native/type/cleanup/preservation
-evidence accepted; six old one-off approvals consumed, no shared/prod apply or
-activation. Original review receipts/counters retained; batch2 and goal open.
-
-Owner requested orchestration of recommended next coherent group. New clean
-codex/test-owner-inspect-grade-return at517d272ab; frozen dependency install and
-startup PASS before edits. Sol/high bounded read-only map accepted: exactly five
-existing results/single-grade/batch-grade/clear/return routes, no new attempt GET,
-unsubmit/deletion/UI/provider work. One mapper correction preserves accepted
-learner disclosure without a new show_results gate. Observed208s wall, tokens
-unknown. Astra/high sole product writer and Sol/high separate inert proof writer
-work in disjoint paths; root owns integration, docs, CI, review and main merge.
-Weekly22% remaining at start; DeepSeek pause honored. No attributed usage claim.
-
-Reuse existing owner transaction/admission and inherited grade/provenance/review/
-return writers. Additive258 source must bind current owner/parent/nonowner roster,
-archive/purge/membership/protocol and queued/running AI exclusion. Source and
-mock checks are not actual database acceptance. CI wiring RED→GREEN250 checks;
-one rollback step in existing primary lane, exact53-name seal, secondary85 intact.
-Product/inert proof source frozen; expanded JSON bounds and PostgREST-hoisted8s
-timeout corrected before review. Final258 SHA84dfe4fe883405d477da88e134d5c8f443736ba9118b97d6e8babf0708de614c.
-Full focused1880/112, architecture/types/lint/UI/design policy and27TS audit PASS.
-Two source integration failures (workflow inventory/startup budget) fixed; prior
-failed receipts retained. Independent review, actual disposable SDK/concurrency/
-types and final-head CI/merge remain; private SDK adapter preparation is inert.
-Canonical local249+, prod257+, reset/seed/promotion/accounts/providers/quota and
-admission/home/page/cohort/cutover holds unchanged. Overall tool goal PAUSED;
-specific owner-group source work authorized, no fresh native permission inferred.
-
-PR1569 initial security review found two accepted source blockers: locked-question
-deletion in the no-question proof, and answered-MC clear normalization. One batch
-uses a separate initially empty rollback Test and locked internal clear_context;
-MC clears keep inherited zero, open clears null, public envelopes unchanged.
-Product148 focused checks and proof/profile89 PASS; full1890/112 plus static gates
-and11TS audit PASS before base sync. SQL258 now698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540.
-Private inert SDK/timeout/cleanup source types and13 fake-SDK checks PASS; no
-native execution. Rebased onto77d5095e6 (unrelated Assignment UI1568); retained
-both archive histories at the append conflict. No migration numbering change.
-Initial source reviewer turns recorded376s/2 findings and265s/0; launches2,
-initial1/targeted0/final0/fixbatch1, original review clock02:58:39UTC retained.
-Base-synced1890/112 and static gates PASS. Targeted/final review and fresh exact-source disposable
-001–258 permission remain before native acceptance, ready CI or merge. Draft,
-overall goal pause and all shared/production/activation/provider holds unchanged.
-
-## 2026-10-11 — Owner grading native failure and diagnostic preparation
-
-PR1569 source/security/compatibility and private settlement reviews completed;
-six recorded turns1530s, launches6/initial1/targeted3/final1/fix3, original02:58:39
-clock retained. Human authorized one exact08389a934/full001–258 disposable run.
-Preflight PASS; actual run replayed001–258 then failed its rollback-proof SQL
-child before types/closed-engine/SDK/cancellation. Exact owned teardown, global
-inventory/ports and whole canonical rows/settings/cron/resources all PASS;
-nativeVerified=false. SQL stderr was discarded, so cause remains undiagnosed.
-Permission consumed; no retry or shared-local/production migration/activation.
-Root added bounded mode600 private error capture, RED→GREEN operational suite
-and private TypeScript PASS; independent correction review pending. Rebased only
-UI1570/1571 onto caaa1c926, preserving both archive bodies; backend/proof/migration
-bytes unchanged and258 numbering retained. Current-base checks, delta review and
-fresh exact-source native permission precede readyCI/merge. Overall goal PAUSED.
-
-## 2026-10-11 — Owner grading diagnostic rehearsal confirms fixture mismatch
-
-Targeted diagnostic/base-sync source review CLEAN993c62949,387s; seven actual
-turns1917s/initial1/targeted4/final1/fix4, original02:58:39 clock retained.
-Human approved one fresh exact993/full001–258/projectbd4b1eb551ad rehearsal.
-Old377 receipts preserved privately; fresh preflight/binding PASS. Actual run
-82020 replayed001–258 then failed rollback; private mode0600 capture worked.
-Observed statement is check-contextual-test-owner-grading.sql268: moving the
-Test classroom alone leaves its category in the old classroom. Retained207
-assign_default_gradebook_category correctly raises category-parent mismatch
-before the intended changed-parent PT409 assertion. Source inspection finds
-analogous private SDK parentApply/Restore; that path was not reached. Keep the
-product invariant; next source-only fix must use matching target categories and
-restore the original category exactly, with regressions/targeted review before
-another fresh native permission. No fix or retry in this rehearsal turn.
-Exact owned cleanup, global inventory/ports and whole canonical rows/settings/
-cron/resources/sourcefreeze PASS; cleanupFailures[]. Types/closed-engine/SDK/
-cancellation not reached, nativeVerified=false. Permission consumed; entry gate
-false/null again, receipts retained. PR1569 remains draft/unmerged. Normal-local,
-production, account/provider/activation and toolgoalPAUSED holds unchanged.
-
-## 2026-10-11 — Owner grading category-consistent fixture correction
-
-Human requested rollback/SDK correction, restoration checks and review only;
-no fresh native permission. Root batch5 corrects the parent move with a strictly
-selected existing destination default category; nested PT409 scope restores the
-whole Test row and an explicit comparison rejects restoration drift. RED→GREEN
-13 focused source checks retain ordinary147/207/039 triggers. Private SDK checks
-both default-category baselines, moves parent/category together, reads both
-classrooms' categories and compares exact original category plus work graph in
-finally after Restore, including committed-Apply faults. Only the fixed Test's
-valid updated_at is omitted for the unchanged039 timestamp trigger; all other
-Test/category/work bytes must match. Pure helper corruption cases and production
-SDK fake-driver wrong-restored-category refusal PASS. No category writes, new
-tables, dependency or product/RPC/migration SQL byte change. Main872d1958 merged
-its sealed258 student session-status projection during source work; rebase keeps
-both histories/CI lanes and renames owner grading258→259 unchanged. Exact full259
-guards/private counts require both tails; old258 native receipts remain historical.
-Pre-rebase focused1891/112 and all static gates PASS; source-only current-base
-checks completed1954/112+all static gates PASS;13TS audit/private7filetypes,
-transport/restoration/operational mocks PASS. WorkerSol/high300s delivered exact
-259 profiles and454targeted tests; effective/tokens unknown. Latest main79a6f7994
-history-only production receipts preserved, with zero parent history deficits.
-Initial current-base gate1953/1954 failed only startup17030/17000; compacted
-CURRENT while retaining release receipts and passed full rerun. One targeted
-Sol/high source review follows frozen publication. Cumulative ledger7turns1917s/
-targeted4/fix5/original02:58:39 retained;
-review-stop waiver active, actual native permission still consumed. Draft PR1569,
-normal-local/prod/activation/provider/account/toolgoalPAUSED holds unchanged.
-
-## 2026-10-11 — Owner grading corrected rollback passes; SDK revision setup stops
-
-Targeted source review8 CLEAN344s atcebc37d9d/base79a6f7994; cumulative8turns/
-2261seconds/targeted5/final1/fix5 retains original02:58:39 clock and waiver.
-Human approved ONE fresh exactcebc/full001–259/projectaee0568126a9 rehearsal.
-Fresh locked preflight/private bindings accepted; root sole native executor,
-no duplicate watcher or retry. Session11117 exit1: complete001–259 replay,
-corrected product rollback/ACL contracts and genuine CLI types identical PASS.
-Private SDK startLearners failed before closed-engine execution: fixed revision1
-assertion observed19. Retained244 global revision sequence and rollback proof's
-sequence caveat explain the driver assumption; no product defect established.
-Next source-only correction should validate/capture actual safe positive revisions
-with non-1 regression, then targeted review before fresh native authority.
-Exact owned teardown, global inventory/ports, whole canonical rows/settings/cron/
-resources and sourcefreeze PASS; cleanupFailures[]. Entry gates false/null again,
-seven inert hashes verified. Permission consumed; no sourcefix/CI/merge/shared
-migration/deployment/account/provider/activation or toolgoal resume occurred.
-
 ## 2026-10-11 — Owner grading SDK captures real Start revisions
 
 Human authorized private driver correction/regressions/targeted review only.
@@ -754,6 +614,7 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
 - Local/visual verification underway. PR is draft. Five prior review launches (one initial/four targeted); current 60-minute/four-targeted-wave review budget reached. No further reviewer launch without explicit extension under pr-review; finish authorized implementation and verification first.
+
 ## 2026-10-14 — AI grading submission investigation
 
 Read-only at main71f49d963. User redirected investigation to chat Investigate AI grading count (01a13acf-92db-7e82-9ec7-6addc22d14bc); reused its production evidence: seven teacher-closed/unsubmitted attempts,33 nonblank written responses skipped. Verified TS submitted-only admission and094 RPC admission against248 closure/return semantics. Teacher closure materializes saved responses and freezes attempts via closed_for_grading_at while retaining is_submitted=false; merely opening Grading does not close attempts. Fix should admit submitted OR teacher-closed work, preserving the distinction; automatic closure on AI action would be an additional behavior change. No product/schema/grade edits, provider calls or live DB mutation.
@@ -785,3 +646,11 @@ Batch2 final focused check2213tests/119files plus architecture/UI/design/TypeScr
 ## 2026-10-14 — Clean TypeScript CI remediation
 
 Ready CI38594807708 at dfbbd56d2 found TS2589 in the existing Test unpublication RPC result annotation; PR1590 returned draft before correction. Batch3 replaces generic ReturnType expansion with the narrow data/error/status fields consumed by the helper, retaining typed RPC invocation and runtime result validation. 21 existing unpublication unit/API tests passed. Clean nonincremental TypeScript and focused lint/audit recorded externally; product grading SQL/UI/reopening unchanged. Review ledger5turns/3batches before targeted review; original15:20UTC review clock retained.
+
+## 2026-10-14 — Gradebook marks require student return
+
+Teacher Gradebook now projects assignment/Test marks only after the student's document/attempt has `returned_at`; unreturned manual overrides also stay blank. Calculated totals, class summaries, and the inspector use the same eligible cells. Standalone items and explicit final overrides retain their contracts. Branch: `codex/gradebook-returned-marks`; owner: current Codex chat. Risk profile: none (established read projection; no grading writes/migrations).
+
+UI brief: reuse Gradebook blank/status cells and Pattern Lab Gradebook composition; extend the server projection. Teacher/student, desktop/mobile, light/dark, returned/unreturned matrix; selected teacher inspector included. No new composite widget or shared component; no extraction/refactor candidate. Deterministic browser evidence uses teacher payloads from the mocked API regression and synthetic student Grades data with production UI owners: `output/playwright/returned-marks/receipt.json`. Student disclosure remains server-side and independently covered by existing student Grades tests.
+
+Targeted teacher/student tests passed (86 before final saved-unsubmitted regression); focused gate and draft-first independent review follow. On this Mac, unrelated sub-second Tart-host tests fail with Python3.14; installed Python3.13 passes the isolated51-test file. Rebased onto main's saved-unsubmitted Test grading change before final checks. Weekly allowance71% remaining at start; storage healthy312GB. Direct implementation; one bounded native reviewer planned; DeepSeek paused through Dec31. Worker/coordination token usage unknown.
