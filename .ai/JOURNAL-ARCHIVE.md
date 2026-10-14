@@ -47120,3 +47120,21 @@ no hand-written public database types, source PR, migration or live activation.
 The noDB browser experiment spent its sole attempt before any HTTP request;
 browser cleanup remains unverified while exact ownership recovery is prepared.
 Routine-approval waiver retained; serious holds and cumulative review counts stay.
+
+<!-- pika-session-log-archive-batch:c73d9c2db96161ceb53871258df61ef2996d3ecd5ff06e98de29f888c2d6fbd0 -->
+## 2026-10-12 Survey source-review correction batch
+
+Independent security/compatibility wave on ac0bec363 found pinned-Docker
+dispatch, cross-subject purge disclosure and raw-versus-normalized link-cap
+blockers. Batched source corrections retain legacy normalization, carry private
+link length evidence, fence every disclosed member subject, and bind the existing
+Survey lifecycle/generator/inventory to one Unix-socket epoch. Unsealed adapters
+reject before any platform command; old profiles remain unchanged. Added separate
+synthetic aggregate/B-reader fixture while retaining fifteen/thirty race bounds
+and the empty SDK primary Survey. Affected route/source/native-seam/predecessor
+checks PASS; genuine263 types and real native acceptance remain pending. No
+migration, PR, shared/prod state, provider or cutover activation. Targeted review
+is next; initial wave/counters retained, not reset under the routine waiver.
+The spent noDB experiment's exact eight-process family was independently reviewed
+and closed; separate absence/port checks pass and spent source/receipts remain.
+Its historical launch cause is still unknown; recovery is not successful proof.

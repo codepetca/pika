@@ -7,12 +7,13 @@ const binding = optedIn ? contextualTestStartupBinding() : undefined
 test.skip(!optedIn, 'Requires the independently admitted disposable rehearsal controller')
 
 test('isolated contextual Tests: real owner/member lifecycle and fail-closed denials', async ({ browser }, testInfo) => {
-  test.setTimeout(45 * 60 * 1000)
   // No native/controller work at collection. The dedicated config and factory
   // additionally bind the exact reviewed manifest; this flag alone grants none.
   const startup = createContextualTestStartup(binding!)
   try {
-    startup.stage('spec-entry'); startup.stage('runtime-import')
+    startup.stage('spec-entry')
+    test.setTimeout(45 * 60 * 1000)
+    startup.stage('runtime-import')
     const { createContextualTestRuntime } = await import('./helpers/contextual-test-runtime')
     startup.stage('runtime-imported')
     const owned = await createContextualTestRuntime(browser, testInfo, startup.stage)

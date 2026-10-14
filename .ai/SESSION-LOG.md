@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 Survey source-review correction batch
-
-Independent security/compatibility wave on ac0bec363 found pinned-Docker
-dispatch, cross-subject purge disclosure and raw-versus-normalized link-cap
-blockers. Batched source corrections retain legacy normalization, carry private
-link length evidence, fence every disclosed member subject, and bind the existing
-Survey lifecycle/generator/inventory to one Unix-socket epoch. Unsealed adapters
-reject before any platform command; old profiles remain unchanged. Added separate
-synthetic aggregate/B-reader fixture while retaining fifteen/thirty race bounds
-and the empty SDK primary Survey. Affected route/source/native-seam/predecessor
-checks PASS; genuine263 types and real native acceptance remain pending. No
-migration, PR, shared/prod state, provider or cutover activation. Targeted review
-is next; initial wave/counters retained, not reset under the routine waiver.
-The spent noDB experiment's exact eight-process family was independently reviewed
-and closed; separate absence/port checks pass and spent source/receipts remain.
-Its historical launch cause is still unknown; recovery is not successful proof.
-
 ## 2026-10-12 Survey bounded transport correction
 
 Targeted cumulative review found mutable branded adapters and renewed work
@@ -782,3 +765,17 @@ spent token and reviews preserved; temporary clean reviewer copy removed normall
 No retry, phase exit or production change. Next evidence should use fixed envelope
 shape/code-site labels and an earlier body marker, not further signature guessing.
 Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+## 2026-10-14 Fixed error-shape/code-site observation and earliest body marker
+
+Human authorizes this metadata improvement, review, then ONE new bounded full-app
+attempt. Pure helper emits fixed root/first-cause field buckets and at most three
+reported producer-site labels; no raw error data or arbitrary fingerprints. Full
+startup reporter carries bounded event observations; original body failure gets
+its own observation before sanitization. Legacy receipts remain valid. Body entry
+now records before the unchanged45-minute timeout setter. These labels are hints,
+not a claim of failure origin or native acceptance.61focused checks/TSC/default
+lint pass, including timeout-setter failure, hostile metadata and8192-byte cap.
+Independent targeted review and full focused gate pending. No new native admission
+or clock allocated; all prior attempts permanently spent, production and other
+holds unchanged. No UI, app, schema, control, provider or rollout change.

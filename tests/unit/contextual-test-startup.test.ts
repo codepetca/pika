@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { Script } from 'node:vm'
 import * as startup from '../../e2e/helpers/contextual-test-startup'
+import { observeFixtureError } from '../../scripts/contextual-fixture-error-observation'
 
 function fixture() {
   const outputDir = realpathSync(mkdtempSync(join(tmpdir(), 'contextual-startup-cpu-'))); chmodSync(outputDir, 0o700)
@@ -29,7 +30,8 @@ describe('full-app startup private CPU reporting', () => {
       expect(report.report.status).toBe('failed'); expect(report.report.passed).toBe(0)
       expect(report.report.errors).toEqual([{ category: 'permission', code: 'EACCES', signal: 'SIGTRAP', source: 'fixture' }])
       expect(report.reached).toEqual(['collection', 'fixture'])
-      expect(JSON.stringify(report)).not.toMatch(/SECRET|private\.invalid|stack|stdout|stderr|cause/)
+      expect(JSON.stringify(report)).not.toMatch(/SECRET|private\.invalid|stdout|stderr/)
+      expect(report.observations).toEqual([observeFixtureError({ value: 'bounded', stack: 'bounded', cause: { value: 'bounded' } }, 'test-end')])
       expect(reporter.printsToStdio()).toBe(true)
     } finally { binding.mockRestore(); vi.restoreAllMocks(); f.remove() }
   })
@@ -49,7 +51,9 @@ describe('full-app startup private CPU reporting', () => {
       expect(report.report.errors).toHaveLength(kind === 'global' ? 8 : 1)
       expect(report.report.errors[0]).toEqual({ category: 'browser-launch', code: null, signal: 'SIGTRAP', source: 'fixture' })
       expect(report.reached).toEqual(kind === 'global' ? [] : ['collection','fixture'])
-      expect(JSON.stringify(report)).not.toMatch(/SECRET|private\.invalid|stdout|stack/)
+      expect(JSON.stringify(report)).not.toMatch(/SECRET|private\.invalid|stdout/)
+      expect(report.observations).toHaveLength(kind === 'global' ? 8 : 1)
+      expect(report.observations?.[0].event).toBe(kind === 'global' ? 'global' : 'test-end')
       expect(reporter.printsToStdio()).toBe(true)
       expect(() => startup.validateFullStartupReport({ ...report, nonce: '0'.repeat(32) }, f.binding as never)).toThrow()
       expect(() => startup.validateFullStartupReport({ ...report, report: { ...report.report, message: 'SECRET' } }, f.binding as never)).toThrow()
@@ -78,8 +82,8 @@ describe('full-app startup private CPU reporting', () => {
       report.failure(hostile); report.failure(new Error('replacement'))
       const raw = readFileSync(join(f.outputDir, 'startup-failure.json'), 'utf8'), record = JSON.parse(raw)
       expect(record).toEqual({ version: 1, projectId: f.binding.projectId, nonce: f.binding.nonce, sourceSha: f.binding.sourceSha,
-        deadline: f.binding.deadline, stage: 'binding', error: { category: 'permission', code: 'EACCES', signal: 'SIGTRAP', source: 'fixture' } })
-      expect(raw).not.toMatch(/SECRET|private\.invalid|stack|stdout|stderr|outputDir/)
+        deadline: f.binding.deadline, stage: 'binding', error: { category: 'permission', code: 'EACCES', signal: 'SIGTRAP', source: 'fixture' }, observation: observeFixtureError(hostile, 'body') })
+      expect(raw).not.toMatch(/SECRET|private\.invalid|stdout|stderr|outputDir/)
       expect(lstatSync(join(f.outputDir, 'startup-failure.json')).mode & 0o777).toBe(0o600)
       expect(() => startup.validateContextualTestStartupRecord({ ...record, message: 'SECRET' })).toThrow()
       expect(() => startup.validateContextualTestStartupRecord({ ...record, stage: 'SECRET' })).toThrow()
@@ -130,14 +134,17 @@ describe('full-app startup private CPU reporting', () => {
     const invalid = collect('true', true); expect(invalid.run).toThrow('Invalid binding'); expect(invalid.calls).toEqual(['read'])
     const admitted = collect('true'); admitted.run(); expect(admitted.calls).toEqual(['read','admitted','declare'])
   })
-  it.each(['import','workflow'] as const)('actual compiled spec records %s failure before sanitization and still closes an owned runtime under reporting faults', async failAt => {
+  it.each(['timeout','import','workflow'] as const)('actual compiled spec records %s failure before sanitization and still closes an owned runtime under reporting faults', async failAt => {
     const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
     const { babelTransform } = require(join(dirname(pw.resolve('playwright/package.json')), 'lib/transform/babelBundle.js'))
     const file = resolve(import.meta.dirname, '../../e2e/contextual-test-lifecycle.spec.ts')
     const compiled = babelTransform(readFileSync(file, 'utf8'), file, false, [], []).code
     let body!: (...args: unknown[]) => Promise<void>
     const original = Error('SECRET original workflow'), close = vi.fn(async () => {}), failure = vi.fn(), stages: string[] = []
-    const test = Object.assign((_title: string, callback: typeof body) => { body = callback }, { skip() {}, setTimeout() {} })
+    const test = Object.assign((_title: string, callback: typeof body) => { body = callback }, { skip() {}, setTimeout() {
+      expect(stages).toEqual(['spec-entry'])
+      if (failAt === 'timeout') throw original
+    } })
     const runtime = { createContextualTestRuntime: async () => ({ runtime: {}, close }) }
     // Replacing only the compiled dynamic-import expression with a CPU double
     // avoids invoking the actual runtime/native graph; all surrounding spec code runs.
@@ -151,9 +158,48 @@ describe('full-app startup private CPU reporting', () => {
       }) }
     } })
     await expect(body({ browser: {} }, {})).rejects.toThrow('Isolated contextual Tests rehearsal failed')
-    expect(stages).toContain('runtime-import')
-    if (failAt === 'import') { expect(stages).not.toContain('runtime-imported'); expect(close).not.toHaveBeenCalled() }
+    if (failAt === 'timeout') { expect(stages).toEqual(['spec-entry']); expect(close).not.toHaveBeenCalled() }
+    else if (failAt === 'import') { expect(stages).toContain('runtime-import'); expect(stages).not.toContain('runtime-imported'); expect(close).not.toHaveBeenCalled() }
     else { expect(stages).toContain('runtime-imported'); expect(close).toHaveBeenCalledExactlyOnceWith('failed') }
     expect(failure.mock.calls[0][0]).toBe(original)
+  })
+  it('retains bounded original body sites, rejects unsafe metadata and preserves legacy receipt compatibility', () => {
+    const f = fixture()
+    try {
+      const report = startup.createContextualTestStartup(f.binding as never)
+      report.stage('spec-entry')
+      report.failure({ stack: 'Error: SECRET\n    at fn (/private/node_modules/playwright/lib/common/testType.js:77:1)', location: { file: '/private/e2e/contextual-test-lifecycle.spec.ts' } })
+      startup.writeFullStartupReport(f.binding as never, { version: 1, status: 'failed', discovered: 1, started: 1, ended: 1, passed: 0, errors: [], overflow: false }, [])
+      const value = startup.readFullStartupReport(f.binding as never)
+      expect(value.failure?.observation?.sites).toEqual(['full-app-spec', 'pw-test-type'])
+      expect(value.failure?.observation?.event).toBe('body')
+      expect(JSON.stringify(value)).not.toMatch(/SECRET|\/private|testType\.js|:77:1/)
+      const legacy = { ...value }; delete legacy.observations; delete legacy.failure!.observation
+      expect(startup.validateFullStartupReport(legacy, f.binding as never)).toEqual(legacy)
+      const getter = vi.fn(() => { throw Error('SECRET') })
+      const good = observeFixtureError({}, 'global')
+      for (const observations of [
+        [good], // No corresponding classified error.
+        Array(9).fill(good),
+        Object.assign([], { toJSON: getter }),
+        new Proxy([], { getPrototypeOf: getter }),
+      ]) expect(() => startup.validateFullStartupReport({ ...value, observations }, f.binding as never)).toThrow()
+      expect(() => startup.validateFullStartupReport(Object.defineProperty({ ...value }, 'observations', { get: getter }), f.binding as never)).toThrow()
+      expect(() => startup.validateFullStartupReport({ ...value, failure: { ...value.failure, observation: good } }, f.binding as never)).toThrow()
+      expect(getter).not.toHaveBeenCalled()
+    } finally { f.remove() }
+  })
+  it('fits the maximum fixed metadata within the existing 8192-byte report cap', () => {
+    const f = fixture()
+    try {
+      const error = { message: 'SECRET', value: 'SECRET', stack: 'SECRET', cause: { message: 'SECRET', value: 'SECRET', stack: 'SECRET', cause: {}, location: {}, code: 'SECRET', signal: 'SECRET', name: 'SECRET' }, location: {}, code: 'SECRET', signal: 'SECRET', name: 'SECRET' }
+      const observation = observeFixtureError(error, 'global')
+      observation.sites = ['pw-fixture-runner', 'node-internal-module', 'pw-browser-type']
+      const body = startup.createContextualTestStartup(f.binding as never); body.stage('spec-entry'); body.failure(error)
+      const classified = { category: 'startup-reporting-failed' as const, code: 'ERR_UNSUPPORTED_DIR_IMPORT' as const, signal: 'SIGTRAP' as const, source: 'fixture' as const }
+      startup.writeFullStartupReport(f.binding as never, { version: 1, status: 'failed', discovered: 2, started: 2, ended: 2, passed: 0, errors: Array(8).fill(classified), overflow: true }, Array(8).fill(observation))
+      expect(lstatSync(join(f.outputDir, 'startup-report.json')).size).toBeLessThanOrEqual(8192)
+      expect(startup.readFullStartupReport(f.binding as never).observations).toHaveLength(8)
+    } finally { f.remove() }
   })
 })
