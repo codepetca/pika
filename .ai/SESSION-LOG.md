@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Unpublication interframe DDL-lock isolation
-
-Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
-and cumulative integration review255s clean. Twelfth disposable200839eb18f5 passes
-001–261/rollbackACL/genuine438871Btypes, then contracts guard55P03 at actions16:
-rejections completed, limits not dispatched. Source confirms DROP trigger retains
-public.tests exclusive lock across frames; actual guard dependency remains unproven.
-Recovery12 independently reviewed exacte939eac clean28s; positive closure/ACL/
-canonical verification then one disposal PASS6803ms/8synthetic removed. Shared183
-table/2cron/global741/ports/source preserved; original failed evidence archived,
-not converted into acceptance. Narrow late-fault probe exception rollback must
-retain unchanged CREATE/probe/DROP, fullgraph/catalog restoration and lock absence.
-Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product change.
-PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
-ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
-sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
-
 ## 2026-10-12 — Unpublication actual-writer contention fixtures
 
 69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
@@ -809,3 +792,20 @@ verification; both new regressions failed first, then14 combined CPU checks pass
 Corrected-source review/final gate and the single native dispatch remain pending.
 Production/shared-local/Survey including planning/account/billing/cutover holds
 and all original review/fix/attempt histories remain unchanged. PR1581 stays draft.
+
+## 2026-10-14 Browser-only diagnostic passed
+
+Reviewed6535dc129 passed3135 focused tests/8skip and all policies/TypeScript/lint.
+Review63 clean after the two accepted62 findings; unchanged62/control coverage
+reused. The single approved browser-only run passed: pinned headed Chrome,
+standard fixture, one offline initial blank page/context, zero controlled page
+requests, positive owned closure/fresh absence and exact source/dependency
+preservation.26.328s total/7.827s cleanup within original bounds. Root verified
+private0700 directories/0600 receipts and Playwright run metadata. Evidence kept
+in private coordinator handoff/browser-only-5GDg9t; permanent spent token retained.
+No Pika app/DB/Docker/auth/provider operation, production/shared-local change,
+activation or global Chrome-egress proof. Earlier full-app failures remain failed;
+basic launch success does not identify their cause or complete the Tests phase.
+Next recommendation is safe early reporting in the full-app path plus the known
+optional Next version-lookup issue; neither fix nor a new native run was performed.
+PR1581 remains draft, all holds and cumulative histories unchanged.

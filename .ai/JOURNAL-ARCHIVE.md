@@ -46974,3 +46974,21 @@ PR14completedreviews1615measureds/3resolved/13sourcefixbatches/6draftpushes befo
 next review; ancillary cleanup4turns219s/1resolved kept separate. Task-scoped
 routine-approval/review-budget waiver persists without counter resets. Tests phase,
 goal and existing local249+/prod259+/promotion/account/provider/cutover holds remain.
+
+<!-- pika-session-log-archive-batch:453d8c9eac77a7a935a0e259660c934f9c4fc83d7e71b8522893d90e5db165ba -->
+## 2026-10-12 — Unpublication interframe DDL-lock isolation
+
+Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
+and cumulative integration review255s clean. Twelfth disposable200839eb18f5 passes
+001–261/rollbackACL/genuine438871Btypes, then contracts guard55P03 at actions16:
+rejections completed, limits not dispatched. Source confirms DROP trigger retains
+public.tests exclusive lock across frames; actual guard dependency remains unproven.
+Recovery12 independently reviewed exacte939eac clean28s; positive closure/ACL/
+canonical verification then one disposal PASS6803ms/8synthetic removed. Shared183
+table/2cron/global741/ports/source preserved; original failed evidence archived,
+not converted into acceptance. Narrow late-fault probe exception rollback must
+retain unchanged CREATE/probe/DROP, fullgraph/catalog restoration and lock absence.
+Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product change.
+PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
+ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
+sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
