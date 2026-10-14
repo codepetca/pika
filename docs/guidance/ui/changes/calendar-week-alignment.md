@@ -7,6 +7,9 @@ separate Edit/Add action.
 Second follow-up: hide the visible No class label, use muted non-class cards,
 and vertically center short lesson content.
 Third follow-up: strengthen the non-class signal with diagonal hatching.
+Fourth follow-up: class days share one surface; reserve hatching for non-class
+days and the blue outline for today. LessonCalendar extends its Week composition
+to remove alternating backgrounds; existing LessonDayCell state styling is reused.
 
 Surface/reference: shared LessonDayCell agenda, owner-approved Week composition
 in calendar-week-agenda.md and executable teacher/student Pattern Lab Calendar.

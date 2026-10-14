@@ -111,6 +111,7 @@ describe('LessonCalendar', () => {
       expect(style).toContain('grid-template-rows: auto')
     })
 
+    // Day-state presentation belongs to LessonDayCell; the Week rows share one surface.
     it('renders seven chronological days in the named Week agenda', () => {
       render(
         <LessonCalendar classroom={mockClassroom} lessonPlans={[]}

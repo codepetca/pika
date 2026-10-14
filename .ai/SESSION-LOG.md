@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Production polling optimization and reviewed UI batch
-
-Owner authorized production app deployment and one application of257/258. Promotion1573 merged reviewed872d19582 into production5a3cb8967; exact reviewed tree retained. Cumulative security/compatibility reviews CLEAN; source CI38133165213 all10 PASS, abbreviated promotion CI38136281882 PASS. Apply38136681044 returned applied-verified/history258; read-only catalog verifies all four bodies against reviewed SQL, owners/search paths and service-only public/private helper ACLs. Vercel deploymentdpl_6YwCcNdD3Xa5waAzy6UTPRY2GkNG READY and production aliases assigned Oct11 11:55UTC. Anonymous login200/status401/Pattern Lab and fixture404 PASS. No authenticated learner/write canary.
-
-Compact legacy session polling uses one domain query instead of five, with fresh authentication retained. Invocation/CPU savings unmeasured. Dormant learner admission absent; production env key inventory unchanged. No provider-plan/control/credential changes or phase exit. Two Sol6.1/high review attempts, one known332s inspection duration; other elapsed/tokens/active coordination unavailable. One promotion CI attempt,863s workflow wall; no retry. Evidence in RESPMax evidence-custody output/verification/pika-production-release-20261011. RESPMax hosted saving remains OFF; release record only.
-
 ## 2026-10-11 — Classwork Material Markdown editing
 
 - Added Visual/Markdown editing, current/proposed review, explicit Apply/Discard, separate Save/Post, conversion-loss acknowledgment and per-material draft isolation. No API/schema or authority changes.
@@ -758,3 +752,8 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner found muted days unclear; added a semantic-token diagonal hatch to Week non-class cards. Current-day outline, hidden accessible status, centered short content and interactions preserved.
 - Eight-context real-owner Playwright matrix refreshed; date text contrast on stripe pixels calculated at 6.22:1 light/4.64:1 dark. Design policy passes without exceptions or new tokens. Final checks/presentation review next; PR kept draft during the change.
+
+## 2026-10-14 — Calendar uniform class-day backgrounds
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
+- Existing Calendar/DayCell regression and eight-context native visual/geometry checks are running; audit/policies/types/lint and targeted presentation review required before ready. PR remains draft while changing its head.
