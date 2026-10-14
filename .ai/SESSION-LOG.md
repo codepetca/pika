@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Recovery merged; owner unpublish source preparation
-
-PR1577 merged18126e952 after exact reviewedf703568d CI38175680856 passed all10
-checks/PR Gate. Canonical main fast-forwarded cleanly; reviewed and merge trees
-match. Native acceptance remains the explicitly verified b11 ancestor reuse,
-not a claimed f703 execution. Original review ledger19turns1944measureds,
-seven accepted findings resolved/ten source batches, no counter reset.
-Next bounded dormant owner unpublish uses sealed261/private shared255 core,
-preserves literal legacy teacher dispatch and seven-argument current-owner RPC.
-Product TDD104checks pass; coordinator independently verifies private SDK model,
-operational lifetime and strict TypeScript checks. No native run/PR acceptance
-yet. Independent review and fresh exact-source disposable proof remain required.
-Routine/budget waiver persists; sharedlocal249+/prod259+, production promotion,
-provider/account and admission/home/page/cohort/cutover holds remain unchanged.
-
-PR1578 draft63d1 source focused2133/120files and24TS audit PASS. Initial security/
-compatibility plus targeted privacy review cover that source; one P2 corrected
-privately (canonical fullrow/cron database-side digests, no rawaccount exports).
-First fresh disposablea1fbab47a8f7 replay001–261 PASS but rollback fixture failed;
-exactcleanup/global741resources/canonical183table+2cron preservation PASS.
-No native acceptance. Source diagnosis identified deliberate faulttrigger leaking
-into setup and112/095 normal Draft/Classroom trigger expectations. Correct fixture
-to narrow latefault and exact classroomblueprint+1/archive+3/fullotherfields;
-54focusedsource tests PASS. Private SDK exactsame effects and three corruption
-models PASS. Fresh source review/disposable proof/CI remain pending; no migration
-or production/cohort activation. Prior attempt receipts retained, no reset.
-
 ## 2026-10-11 — Unpublish fixture constraint diagnosis
 
 Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
@@ -756,3 +729,23 @@ pin literals updated with its21 assertions intact. Independent targeted review50
 next under same original clock/fix37/waiver; no counter reset. Acceptance/runtime
 absent. After clean review and fresh readiness root may run exactly ONE check;
 no automatic retry or production/shared-local/provider/account/cutover release.
+
+## 2026-10-13 Source37 isolated check identifies metadata guard failure
+
+Targeted review50 completed source37/Chrome-pin and two-document scope PASS0,
+report352ff47d... root read/hash verified. Fresh03:01:30.514UTC source/CLI/Chrome/
+Google signature/kernel/port preflight PASS; exact source/readiness acceptance
+5f378233... admitted ONE plain pinned-Node check. Launcher22226 closed1/SPENT;
+03:01:57.313→03:02:11.546UTC (14.234s), HTTP0. Receipt83fffc34... first capture/
+ownership failure now records root-metadata/ERR_ASSERTION, no typed processCause.
+All browser/CLI/server/requests closed within the original budget; cleanup/query
+diagnostics and cleanup failures null/empty. No body/navigation test or app exit
+was exercised.17 capture records, no durable witness/run-code dispatch. This
+localizes the guard, not which metadata field differed: helper checks root state/
+identity, exact argv and exact cwd; rejected values were not retained. Source
+inspection alone cannot select one of those assertions. Failed attempt remains
+immutable; no retry, new criteria/source fix, signal outside owned cleanup,
+restart, migration, production/provider/account/cutover change. Next recommend
+source-only field-specific safe labels, preserving all existing validation, before
+any separately approved fresh run. Original clock/review50/fix37/waiver carry;
+PR1581 draft/full gate failed. Independent factual receipt review51 next.
