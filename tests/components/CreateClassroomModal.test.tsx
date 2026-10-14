@@ -74,6 +74,7 @@ describe('CreateClassroomModal', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -431,9 +432,10 @@ describe('CreateClassroomModal', () => {
   it('routes From Blueprint through a separate source step before calendar selection', async () => {
     renderModal()
 
+    await waitFor(() => expect(getClassroomNameInput()).toHaveFocus())
     await openBlueprintSourceStep()
 
-    expect(await screen.findByRole('combobox', { name: /course blueprint/i })).toBeInTheDocument()
+    expect(getBlueprintSelect()).toHaveFocus()
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 
     fireEvent.change(getBlueprintSelect(), {
@@ -443,6 +445,7 @@ describe('CreateClassroomModal', () => {
     expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
+    expect(screen.getByRole('group', { name: 'Choose class dates' })).toHaveFocus()
     expect(screen.getByLabelText(/First day of class/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Set up class days later' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Last day of class/i)).not.toBeInTheDocument()
@@ -451,6 +454,85 @@ describe('CreateClassroomModal', () => {
     expect(screen.getByLabelText(/Last day of class/i)).toHaveValue('2027-01-31')
     expect(screen.getByText('You can modify this later in Settings.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create' })).not.toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(getBlueprintSelect()).toHaveFocus()
+    expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(getClassroomNameInput()).toHaveFocus()
+    expect(getClassroomNameInput()).toHaveValue('Career Studies - Period 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From Course Blueprint' }))
+    expect(getBlueprintSelect()).toHaveFocus()
+    expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByRole('group', { name: 'Choose class dates' })).toHaveFocus()
+    expect(screen.getByLabelText(/First day of class/i)).toHaveValue('2026-09-08')
+    expect(screen.getByLabelText(/Last day of class/i)).toHaveValue('2027-01-31')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it.each(['blueprint', 'calendar'] as const)('restores %s step focus on parent reopen without losing the wizard draft', async (step) => {
+    const opener = document.createElement('button')
+    opener.textContent = 'New Classroom'
+    document.body.appendChild(opener)
+    opener.focus()
+    const props = { isOpen: true, onClose: vi.fn(), onSuccess: vi.fn() }
+    const { rerender, unmount } = render(<CreateClassroomModal {...props} />)
+    try {
+      await openBlueprintSourceStep('Field studies')
+      fireEvent.change(getBlueprintSelect(), { target: { value: mockBlueprint.id } })
+      if (step === 'calendar') {
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+        chooseFirstClassDay()
+      }
+      rerender(<CreateClassroomModal {...props} isOpen={false} />)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(opener).toHaveFocus()
+      rerender(<CreateClassroomModal {...props} />)
+      if (step === 'blueprint') {
+        expect(getBlueprintSelect()).toHaveFocus()
+        expect(getBlueprintSelect()).toHaveValue('')
+      } else {
+        expect(screen.getByRole('group', { name: 'Choose class dates' })).toHaveFocus()
+        expect(screen.getByLabelText(/First day of class/i)).toHaveValue('2026-09-08')
+      }
+      // Reopen preserves title/date drafts while the existing load policy resets
+      // the creation mode and selection. Back therefore returns to name here.
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+      expect(getClassroomNameInput()).toHaveValue('Field studies')
+      expect(getClassroomNameInput()).toHaveFocus()
+      unmount()
+      expect(opener).toHaveFocus()
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      opener.remove()
+    }
+  })
+
+  it('keeps the current step focused after rapid navigation and the old path menu expiry', async () => {
+    renderModal()
+    await waitFor(() => expect(fetchTeacherBlueprints).toHaveBeenCalledOnce())
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Field studies' } })
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
+    screen.getByRole('menu').style.setProperty('--motion-duration-fast', '150ms')
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'From Course Blueprint' }), { key: 'Escape' })
+    expect(document.querySelector('[data-menu-closing]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From Course Blueprint' }))
+    expect(getBlueprintSelect()).toHaveFocus()
+    fireEvent.change(getBlueprintSelect(), { target: { value: mockBlueprint.id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(getBlueprintSelect()).toHaveFocus()
+    act(() => vi.advanceTimersByTime(300))
+    expect(getBlueprintSelect()).toHaveFocus()
+    expect(document.querySelector('[data-menu-closing]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    act(() => vi.advanceTimersByTime(300))
+    expect(screen.getByRole('group', { name: 'Choose class dates' })).toHaveFocus()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('switches to file loading when no saved blueprints exist', async () => {
@@ -565,6 +647,7 @@ describe('CreateClassroomModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(await screen.findByLabelText(/First day of class/i)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Choose class dates' })).toHaveFocus()
   })
 
   it('sends a caller idempotency key when importing a JSON course package', async () => {
@@ -948,11 +1031,13 @@ describe('CreateClassroomModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(await screen.findByLabelText(/First day of class/i)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Choose class dates' })).toHaveFocus()
     expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(getClassroomNameInput()).toHaveValue('Computer Science 11 - Period 2')
+    expect(getClassroomNameInput()).toHaveFocus()
     expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
   })
 })
