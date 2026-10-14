@@ -47138,3 +47138,20 @@ is next; initial wave/counters retained, not reset under the routine waiver.
 The spent noDB experiment's exact eight-process family was independently reviewed
 and closed; separate absence/port checks pass and spent source/receipts remain.
 Its historical launch cause is still unknown; recovery is not successful proof.
+
+<!-- pika-session-log-archive-batch:dd6367d0bcc7ffd60eeb5d8378dc8e01ad95b321fb2b009074b348fac9ab9ac6 -->
+## 2026-10-12 Survey bounded transport correction
+
+Targeted cumulative review found mutable branded adapters and renewed work
+budgets. Frozen Survey-only adapters now retain the original twelve-minute work
+and three-minute cleanup deadlines through preflight, dispatch, native engine,
+inventory, genuine generation and finally. Direct pinned native Supabase avoids
+an orphanable Node wrapper; real child closure is required and uncertainty fails
+closed. Existing predecessor behavior stays unchanged. Root affected integration
+checks:181 PASS; seven-file lint/audit/diff PASS. Strict metadata check retains
+only14 missing genuine263 RPC-name errors, zero unexpected diagnostics. Source
+checkpoint is not ready for PR/native acceptance. Targeted independent review
+follows; original counters and serious holds remain. Separate noDB diagnostic
+completed three requests with positive full cleanup: original body was readable
+without navigation, but navigation reproduced protocol resource-missing. This
+does not establish the historical app failure cause or product completion.

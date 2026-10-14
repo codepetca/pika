@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 Survey bounded transport correction
-
-Targeted cumulative review found mutable branded adapters and renewed work
-budgets. Frozen Survey-only adapters now retain the original twelve-minute work
-and three-minute cleanup deadlines through preflight, dispatch, native engine,
-inventory, genuine generation and finally. Direct pinned native Supabase avoids
-an orphanable Node wrapper; real child closure is required and uncertainty fails
-closed. Existing predecessor behavior stays unchanged. Root affected integration
-checks:181 PASS; seven-file lint/audit/diff PASS. Strict metadata check retains
-only14 missing genuine263 RPC-name errors, zero unexpected diagnostics. Source
-checkpoint is not ready for PR/native acceptance. Targeted independent review
-follows; original counters and serious holds remain. Separate noDB diagnostic
-completed three requests with positive full cleanup: original body was readable
-without navigation, but navigation reproduced protocol resource-missing. This
-does not establish the historical app failure cause or product completion.
-
 ## 2026-10-12 Survey engine composition correction
 
 Review4 found that native-engine discovery could borrow cleanup time and generator
@@ -779,3 +763,26 @@ lint pass, including timeout-setter failure, hostile metadata and8192-byte cap.
 Independent targeted review and full focused gate pending. No new native admission
 or clock allocated; all prior attempts permanently spent, production and other
 holds unchanged. No UI, app, schema, control, provider or rollout change.
+
+## 2026-10-14 Fixed observation review clean; one attempt failed with useful labels
+
+Runtime2a41bfb96 passes3179focused/8skip and all policies/TSC/lint. Review68
+complete/clean208seconds; earlier unchanged control coverage reused. One fresh
+2caaaa312f1c/U7yrHv attempt FAILED/SPENT133.337s, cleanup17.530s; ownedSettledtrue,
+lifecycleCompleted/PWvalidatedfalse, server0/0/0/all flagsfalse. Two errors still
+classify unknown, but test-end observation now reports admission/full-app-config;
+global observationunknown. Only collection/fixture, no body-entry marker/failure.
+Root source inspection confirms a deterministic runner conflict: WorkerHost.start
+creates artifacts inside outputDir before workerMain deserializes/reloads config;
+our config binding rejects existing runner-output. Synthetic compiled-helper CPU
+proof reproduces initial-load success then own-output reload rejection; no real
+binding read, admission allocation or native dispatch. First mock omitted esModuleInterop; fixed
+that CPU harness only. This is a concrete path consistent with the new evidence,
+not recovery of raw historical errors. Recommend separating first-run admission
+from worker config validation while preserving identity/clock/exclusive-start and
+stale-output rejection. No admission/control implementation changed in this slice.
+BEFOREpost-run tests/docs, independent dependencies and all7626source hashes match
+preparation with stable reads; receipt0600 retained. Root confirms workdir absent,
+Docker containers/volumes/networks absent by name/both labels, four ports clear.
+No standalone canonical DB equality attestation or native acceptance. Evidence,
+permanent spent token and review retained; no retry/phase exit/production change.
