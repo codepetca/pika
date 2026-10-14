@@ -3,8 +3,10 @@ import { diagnosticAdmissionFromEnvironment, diagnosticWrite, DIAGNOSTIC_VERSION
 
 // The same standard browser fixture launches the same headed pinned Chrome.
 // Only a fresh offline context and its initial blank page are exercised.
+const optedIn = process.env.PIKA_BROWSER_DIAGNOSTIC === 'true'
+const admission = optedIn ? diagnosticAdmissionFromEnvironment() : undefined
+test.skip(!optedIn, 'Requires the explicitly admitted private browser diagnostic')
 test('private browser fixture diagnostic', async ({ browser }) => {
-  const admission = diagnosticAdmissionFromEnvironment()
   const receipt = { version: 1, fixtureEntered: true, versionMatched: false, contextCreated: false, blankPageCreated: false, contextClosed: false, blockedRequests: 0 }
   let context: Awaited<ReturnType<typeof browser.newContext>> | undefined
   try {
@@ -15,6 +17,6 @@ test('private browser fixture diagnostic', async ({ browser }) => {
     expect(page.url()).toBe('about:blank'); expect(receipt.blockedRequests).toBe(0)
   } finally {
     try { if (context) { await context.close(); receipt.contextClosed = true } }
-    finally { diagnosticWrite(admission.outputDir, 'lifecycle.json', receipt) }
+    finally { diagnosticWrite(admission!.outputDir, 'lifecycle.json', receipt) }
   }
 })

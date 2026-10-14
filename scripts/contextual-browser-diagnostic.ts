@@ -7,7 +7,7 @@ import { lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync } from 'n
 import { dirname, join } from 'node:path'
 import { captureContextualTestDependencies, contextualTestReadOnlyDependencyProfile, immutableContextualTestData, verifyContextualTestBinary } from './contextual-test-rehearsal-launch'
 import { createContextualTestNativeControls, type ContextualTestNativePins, type ContextualTestOwnedChild } from './contextual-test-rehearsal-native'
-import { diagnosticDirectory, diagnosticHash, diagnosticRead, diagnosticReportPassed, diagnosticSourceFiles, diagnosticWrite,
+import { assertDiagnosticPrivateUmask, assertDiagnosticRunnerOutputModes, diagnosticDirectory, diagnosticHash, diagnosticRead, diagnosticReportPassed, diagnosticSourceFiles, diagnosticWrite,
   DIAGNOSTIC_CHROME, DIAGNOSTIC_CHROME_SHA, DIAGNOSTIC_VERSION, type DiagnosticAdmission } from './contextual-browser-diagnostic-data'
 
 export type BrowserDiagnosticInput = {
@@ -24,6 +24,7 @@ const fixedFailure = () => new Error('Private browser diagnostic failed; consult
  * this diagnostic context; this is not a claim of zero OS-wide browser egress.
  */
 export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInput) {
+  assertDiagnosticPrivateUmask(process.umask())
   input = immutableContextualTestData(input)
   diagnosticDirectory(input.outputDir); assert.equal(readdirSync(input.outputDir).length, 0)
   assert.equal(realpathSync(input.repository), input.repository)
@@ -74,7 +75,7 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
     const file = join(input.outputDir, 'admission.json'), digest = diagnosticHash(readFileSync(file))
     const env = { PATH: '/usr/bin:/bin', TZ: 'America/Toronto', LANG: 'C', LC_ALL: 'C', NEXT_TELEMETRY_DISABLED: '1',
       NODE_ENV: 'development', HOME: input.outputDir, TMPDIR: join(input.outputDir, 'tmp'),
-      PIKA_BROWSER_DIAGNOSTIC_FILE: file, PIKA_BROWSER_DIAGNOSTIC_SHA256: digest }
+      PIKA_BROWSER_DIAGNOSTIC: 'true', PIKA_BROWSER_DIAGNOSTIC_FILE: file, PIKA_BROWSER_DIAGNOSTIC_SHA256: digest }
     stage = 'browser'
     owned = await native.spawnOwned({ role: 'browser', cwd: input.repository, profile, env,
       args: [join(input.dependencies.root, '@playwright/test/cli.js'), 'test', `--config=${join(input.repository, 'playwright.contextual-browser-diagnostic.config.ts')}`, 'contextual-browser-diagnostic.spec.ts'],
@@ -93,6 +94,7 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
     } catch { fail() }
     stage = 'receipt'
     try {
+      assertDiagnosticRunnerOutputModes(input.outputDir)
       reportPassed = diagnosticReportPassed(JSON.parse(diagnosticRead(join(input.outputDir, 'report.json'))))
       const lifecycle = JSON.parse(diagnosticRead(join(input.outputDir, 'lifecycle.json')))
       assert.deepEqual(Object.keys(lifecycle).sort(), ['blankPageCreated','blockedRequests','contextClosed','contextCreated','fixtureEntered','version','versionMatched'])

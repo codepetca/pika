@@ -1,7 +1,7 @@
 /** Fixed private diagnostic data only. Importing this file performs no I/O. */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 export const DIAGNOSTIC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -21,6 +21,21 @@ export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string
 export function diagnosticDirectory(path: string) {
   assert.equal(realpathSync(path), path)
   const info = lstatSync(path); assert(info.isDirectory() && !info.isSymbolicLink() && (info.mode & 0o777) === 0o700 && info.uid === process.getuid?.())
+}
+export function assertDiagnosticPrivateUmask(actual: number) { assert.equal(actual, 0o077, 'Private diagnostic umask rejected') }
+export function assertDiagnosticRunnerOutputModes(outputDir: string) {
+  diagnosticDirectory(outputDir)
+  let entries = 0
+  const inspect = (path: string, depth: number): void => {
+    assert(depth <= 8 && ++entries <= 64)
+    const info = lstatSync(path)
+    assert(!info.isSymbolicLink() && realpathSync(path) === path && info.uid === process.getuid?.())
+    if (info.isDirectory()) {
+      diagnosticDirectory(path)
+      for (const name of readdirSync(path)) inspect(join(path, name), depth + 1)
+    } else assert(info.isFile() && info.nlink === 1 && (info.mode & 0o777) === 0o600)
+  }
+  inspect(join(outputDir, 'runner-output'), 0)
 }
 export function diagnosticRead(path: string, maxBytes = 65536) {
   diagnosticDirectory(dirname(path))

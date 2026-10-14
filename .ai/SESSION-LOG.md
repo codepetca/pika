@@ -802,7 +802,10 @@ headed Chrome fixture, blank offline page,90s work/30s operations, unchanged nat
 ownership and read-only dependencies, cleanup capped at six minutes from cleanup
 start within the original cap. Fixed-schema reporter covers pre-test fixture
 errors without retaining raw messages/stacks/URLs/output. No new dependencies,
-app/DB/provider/auth or product changes.12 focused CPU contracts pass; root review,
-full checks, independent review and the single native dispatch remain pending.
+app/DB/provider/auth or product changes. Initial fullfocused3133/8skip passed.
+Review62 found ordinary-E2E opt-in and Playwright output-mode gaps. One batch
+adds collection-time admission/skip, inherited umask077 and actual output-mode
+verification; both new regressions failed first, then14 combined CPU checks pass.
+Corrected-source review/final gate and the single native dispatch remain pending.
 Production/shared-local/Survey including planning/account/billing/cutover holds
 and all original review/fix/attempt histories remain unchanged. PR1581 stays draft.

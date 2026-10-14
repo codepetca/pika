@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { Script } from 'node:vm'
@@ -38,6 +39,41 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     expect(validateDiagnosticAdmission(a, 2000)).toEqual(a)
     for (const patch of [{ startedAt: 2001 }, { deadline: 92000 }, { cleanupDeadline: 452000 }, { retries: 1 }]) expect(() => validateDiagnosticAdmission({ ...a, ...patch }, 2000)).toThrow()
     expect(() => validateDiagnosticAdmission(a, 91000)).toThrow()
+  })
+  it('ordinary compiled spec discovery skips before admission or fixtures; invalid explicit opt-in fails at collection', () => {
+    const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
+    const { babelTransform } = require(join(dirname(pw.resolve('playwright/package.json')), 'lib/transform/babelBundle.js'))
+    const file = join(root, 'e2e/contextual-browser-diagnostic.spec.ts')
+    const compiled = babelTransform(readFileSync(file, 'utf8'), file, false, [], []).code
+    const collect = (optIn: string | undefined, invalid = false) => {
+      const calls: string[] = [], test = Object.assign(() => calls.push('declare'), { skip: (skip: boolean) => calls.push(skip ? 'skip' : 'admitted') })
+      const context = { exports: {}, process: { env: { PIKA_BROWSER_DIAGNOSTIC: optIn } }, require: (specifier: string) => {
+        if (specifier === '@playwright/test') return { test, expect: () => { throw Error('Fixture executed') } }
+        expect(specifier).toBe('../scripts/contextual-browser-diagnostic-data')
+        return { diagnosticAdmissionFromEnvironment: () => { calls.push('read'); if (invalid) throw Error('Invalid admission'); return {} } }
+      } }
+      return { calls, run: () => new Script(compiled).runInNewContext(context) }
+    }
+    for (const env of [undefined, 'false']) { const ordinary = collect(env); ordinary.run(); expect(ordinary.calls).toEqual(['skip','declare']) }
+    const invalid = collect('true', true); expect(invalid.run).toThrow('Invalid admission'); expect(invalid.calls).toEqual(['read'])
+    const admitted = collect('true'); admitted.run(); expect(admitted.calls).toEqual(['read','admitted','declare'])
+  })
+  it('requires umask077 and verifies private defaults after Playwright-style remove/recreate', () => {
+    const original = process.umask(0o022), folder = realpathSync(mkdtempSync(join(tmpdir(), 'pika-browser-modes-')))
+    try {
+      expect(() => data.assertDiagnosticPrivateUmask(process.umask())).toThrow()
+      chmodSync(folder, 0o700); const output = join(folder, 'runner-output')
+      mkdirSync(output, { mode: 0o700 }); rmSync(output, { recursive: true })
+      process.umask(0o077); data.assertDiagnosticPrivateUmask(process.umask())
+      mkdirSync(output); const metadata = join(output, '.last-run.json'); writeFileSync(metadata, '{}')
+      expect(lstatSync(output).mode & 0o777).toBe(0o700); expect(lstatSync(metadata).mode & 0o777).toBe(0o600)
+      data.assertDiagnosticRunnerOutputModes(folder)
+      chmodSync(metadata, 0o644); expect(() => data.assertDiagnosticRunnerOutputModes(folder)).toThrow(); chmodSync(metadata, 0o600)
+      symlinkSync(metadata, join(output, 'linked')); expect(() => data.assertDiagnosticRunnerOutputModes(folder)).toThrow(); rmSync(join(output, 'linked'))
+      linkSync(metadata, join(output, 'hardlink')); expect(() => data.assertDiagnosticRunnerOutputModes(folder)).toThrow(); rmSync(join(output, 'hardlink'))
+      for (let i = 0; i < 64; i++) writeFileSync(join(output, `file-${i}`), '')
+      expect(() => data.assertDiagnosticRunnerOutputModes(folder)).toThrow()
+    } finally { process.umask(original); rmSync(folder, { recursive: true }) }
   })
   it('captures pre-test fixture and global errors with bounded counters and no raw output', async () => {
     const admission = vi.spyOn(data, 'diagnosticAdmissionFromEnvironment').mockReturnValue({ version: 1, nonce: 'a'.repeat(32), outputDir: '/private/fixed', startedAt: 1000, deadline: 91000, cleanupDeadline: 451000 })
