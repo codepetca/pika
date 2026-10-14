@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Dormant owner recovery and verifier lifetime correction
-
-PR1577 adds dormant contextual owner unsubmit/single-reset/bulk-reset with sealed
-260; legacy routes and production remain unchanged. Original focused1934/115files
-passed, but native acceptance remains pending. Seven failed isolated rehearsals
-were retained and cleaned with full canonical/global preservation. Approved Docker
-restart did not fix CLI volume-inspection HTTP500; read-only pinned bulk comparison
-passed100 fresh full-metadata reads. Private transport correction preserves the
-sealed whole graph and explicit socket pin. Targeted review caught nested engine
-ACL restoration bypassing pending/poisoned inventory; the denial/join-only gate and
-regressions are being added before a new reviewed source binding. No native PASS,
-Tests phase exit, sharedlocal249+/prod259+ application, promotion, provider/account
-or admission/home/page/cutover activation. Task-scoped routine/budget waiver remains;
-actual counters/evidence retained, no reset.
-
 ## 2026-10-11 — Recovery native pass and member-list forward seal
 
 PR1577 reviewed b11ff987a passed the fresh isolated001–260 rehearsal ec9995cfb906:
@@ -756,3 +741,18 @@ failed cf7 result stays failed/SPENT despite separately successful recovery.
 Independent targeted review49 next, original clock/review49/fix36 carry without
 reset under standing workflow waiver. PR1581 stays draft/full gate failed; no
 browser rerun, app/auth, production/shared-local/provider/account/cutover change.
+
+## 2026-10-13 Source36 native preflight blocked by Chrome update
+
+Human Go authorized one exact reviewed fresh isolated check. Startup08792b440
+clean/envPASS; storage322.002GB healthy,82%weekly remaining accountwide. Exact
+source36 package/inverse/compiler/import/compiled pins and review49 match; CLI
+closure verifies. Initial opaque preflight rejection was narrowed with staged
+read-only checks to Chrome pin, before process/port readiness or admission.
+Installed155.0.8059.79 SHAfbeec33e... differs from reviewed155.0.8059.40/428dccc1...;
+GoogleEQHXZ8M8AV and deep/strict signature verify. Signature is not compatibility
+acceptance. Private dated preflight receipt retained; acceptance/runtime absent,
+native dispatch0 and attempt unconsumed. No source repin, browser launch/restart,
+signal, migration, production, provider or cutover change. Original review49/
+fix36 counters and serious holds carry. Recommend separately approve review and
+pin of installed Chrome before any fresh check; do not weaken the hash gate.
