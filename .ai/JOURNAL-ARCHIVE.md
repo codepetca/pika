@@ -47008,3 +47008,24 @@ PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source pres
 Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
 PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
 6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
+
+<!-- pika-session-log-archive-batch:1fe081a93a868b947461cbe19c909f2eb53ec7a9723f8548a6cbe52ab9372cfb -->
+## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
+
+Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
+targeted+cumulative review. Fresh14th06132387f727 fully PASS:001–261/rollbackACL/
+genuine438871B types, seven contracts/14heldraces/fullgraph equality, real SDK
+nonowner/fences/both owner roles/canonical/noop, cancellation503/one57014/8013ms/
+zeroRPC/restoration. Exact8synthetic cleanup/global741/canonical183tables2cron/
+ports/source preserved; prior failed evidence retained. No rollout or goal exit.
+Eligible CI38190378056 exactbacb fails Architecture DB at10000-question fixture
+INSERT in limitsDO (57014/blueprint per-row trigger); other7jobs cancelled by
+failfast and PR Gate fails. Returned1578 to draft before corrections, one watcher
+closed, no duplicateCI. Bounded source proposal keeps all10002rows/alltriggers/
+assertions: four fixed2500 INSERT statements under one savepoint, temporary graph
+baseline before savepoint and exact rollback equality. Eleven closed frames plus
+28races use39<=40dispatch;12s/180s/caps unchanged. Revised framing still needs
+checks/independent review/fresh native/eligibleCI, not acceptance from prior pass.
+PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
+Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
+production promotion/provider/account/admission/home/page/cohort/cutover holds.

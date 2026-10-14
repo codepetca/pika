@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
-
-Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
-targeted+cumulative review. Fresh14th06132387f727 fully PASS:001–261/rollbackACL/
-genuine438871B types, seven contracts/14heldraces/fullgraph equality, real SDK
-nonowner/fences/both owner roles/canonical/noop, cancellation503/one57014/8013ms/
-zeroRPC/restoration. Exact8synthetic cleanup/global741/canonical183tables2cron/
-ports/source preserved; prior failed evidence retained. No rollout or goal exit.
-Eligible CI38190378056 exactbacb fails Architecture DB at10000-question fixture
-INSERT in limitsDO (57014/blueprint per-row trigger); other7jobs cancelled by
-failfast and PR Gate fails. Returned1578 to draft before corrections, one watcher
-closed, no duplicateCI. Bounded source proposal keeps all10002rows/alltriggers/
-assertions: four fixed2500 INSERT statements under one savepoint, temporary graph
-baseline before savepoint and exact rollback equality. Eleven closed frames plus
-28races use39<=40dispatch;12s/180s/caps unchanged. Revised framing still needs
-checks/independent review/fresh native/eligibleCI, not acceptance from prior pass.
-PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
-Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
-production promotion/provider/account/admission/home/page/cohort/cutover holds.
-
 ## 2026-10-12 — Unpublication merged; next deletion boundary
 
 PR1578 actual normalmatchedsquashmergea37d03b3ac4943b25b76e8dd30412c6a7ff8da9d
@@ -820,3 +800,14 @@ six existing startup-budget/compiled-spec-fixture checks; condensed context with
 changing holds and updated fixtures while retaining every safe-close/disabled case.
 168 combined checks passed, then31 affected checks pass after adding separate
 import-completed vs runtime-entry milestones. Corrected review/full gate pending.
+
+## 2026-10-14 Startup reporting verified
+
+Runtime bc47a133c5 passes3163 focused tests/8skip,164suites/2skip; architecture,
+UI/design policy, TypeScript and lint pass. Review65 complete/clean, resolves64P2
+and reuses unchanged64 coverage. Root verified private report hash/mode; one
+remediation batch and unique review events recorded without resetting history.
+No native attempt, admission, database or production operation. Known optional
+Next version lookup remains blocked; original app failure cause still unknown.
+PR1581 stays draft; all production/shared-local/provider-Survey/account/billing/
+activation holds and spent-attempt limits remain. Overall goal not complete.
