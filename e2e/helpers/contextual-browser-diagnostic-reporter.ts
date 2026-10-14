@@ -5,7 +5,8 @@ import { classifyDiagnosticError, diagnosticAdmissionFromEnvironment, diagnostic
 export default class BrowserDiagnosticReporter implements Reporter {
   private admission = diagnosticAdmissionFromEnvironment()
   private report: DiagnosticReport = { version: 1, status: 'failed', discovered: 0, started: 0, ended: 0, passed: 0, errors: [], overflow: false }
-  printsToStdio() { return false }
+  // Claim stdio ownership so Playwright does not add a console reporter.
+  printsToStdio() { return true }
   private count(key: 'discovered' | 'started' | 'ended' | 'passed', amount = 1) {
     if (this.report[key] + amount > 2) this.report.overflow = true
     this.report[key] = Math.min(2, this.report[key] + amount)

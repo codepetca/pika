@@ -88,23 +88,31 @@ describe('contextual Tests workflow CPU contract (not browser evidence)', () => 
   for (const mode of ['passed', 'flow-failed', 'close-failed', 'disabled'] as const) it(`executes actual compiled spec safe-close path: ${mode}`, async () => {
     const source = readFileSync(new URL('../../e2e/contextual-test-lifecycle.spec.ts', import.meta.url), 'utf8')
     const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
-    let body: ((browser: unknown, info: unknown) => Promise<void>) | undefined, factory = 0, flows = 0
-    const closed: string[] = [], skip = new Error('skipped')
-    const test = Object.assign((_name: string, fn: typeof body) => { body = fn }, { skip(condition: boolean) { if (condition) throw skip }, setTimeout() {} })
+    let body: ((browser: unknown, info: unknown) => Promise<void>) | undefined, factory = 0, flows = 0, bindingReads = 0, skipped = false
+    const closed: string[] = []
+    const test = Object.assign((_name: string, fn: typeof body) => { body = fn }, { skip(condition: boolean) { skipped = condition }, setTimeout() {} })
     const require = (id: string) => {
       if (id === '@playwright/test') return { test }
       if (id === './helpers/contextual-test-workflow') return { async runContextualTestWorkflow() { flows++; if (mode === 'flow-failed') throw Error('private raw value') } }
       if (id === './helpers/contextual-test-runtime') return { async createContextualTestRuntime() { factory++; return { runtime: {}, async close(outcome: string) { closed.push(outcome); if (mode === 'close-failed') throw Error('private raw value') } } } }
+      if (id === './helpers/contextual-test-startup') return {
+        contextualTestStartupBinding() { bindingReads++; return {} },
+        createContextualTestStartup() { return { stage() {}, failure() {} } },
+      }
       throw Error('CPU fixture rejected unexpected import')
     }
     runInNewContext(compiled, { exports: {}, require, process: { env: { PIKA_CONTEXTUAL_TEST_REHEARSAL: mode === 'disabled' ? 'false' : 'true' } } })
     expect(factory).toBe(0); expect(flows).toBe(0); expect(body).toBeTypeOf('function')
+    expect(skipped).toBe(mode === 'disabled')
+    expect(bindingReads).toBe(mode === 'disabled' ? 0 : 1)
+    // Playwright returns before resolving fixtures for this collection-time skip.
+    // Do not invoke the skipped body as though the old in-body guard still ran.
+    if (mode === 'disabled') { expect(closed).toEqual([]); return }
     const execute = body!({ browser: {} }, {})
     if (mode === 'passed') await expect(execute).resolves.toBeUndefined()
-    else if (mode === 'disabled') await expect(execute).rejects.toBe(skip)
     else await expect(execute).rejects.toThrow('Isolated contextual Tests rehearsal failed; consult sanitized owned receipt')
-    expect(closed).toEqual(mode === 'disabled' ? [] : [mode === 'flow-failed' ? 'failed' : 'passed'])
-    expect(factory).toBe(mode === 'disabled' ? 0 : 1)
+    expect(closed).toEqual([mode === 'flow-failed' ? 'failed' : 'passed'])
+    expect(factory).toBe(1)
   })
   it('keeps new carrier collection inert and has no legacy publication or persistence mocks', () => {
     const flow = readFileSync(new URL('../../e2e/helpers/contextual-test-workflow.ts', import.meta.url), 'utf8')
@@ -112,7 +120,8 @@ describe('contextual Tests workflow CPU contract (not browser evidence)', () => 
     expect(flow).not.toMatch(/page\.route\(|route\.fulfill|requestFullscreen\s*=|Object\.defineProperty|createClient\(|child_process/)
     expect(flow).toContain('/publish')
     expect(flow).not.toContain("{ status: 'closed', draft_version:")
-    expect(spec).toContain("PIKA_CONTEXTUAL_TEST_REHEARSAL !== 'true'")
+    expect(spec).toContain("PIKA_CONTEXTUAL_TEST_REHEARSAL === 'true'")
+    expect(spec.indexOf('test.skip(!optedIn')).toBeLessThan(spec.indexOf("test('isolated contextual Tests:"))
     expect(spec).toContain('finally')
     expect(spec).not.toContain('createIsolatedLifecycleFixture')
   })

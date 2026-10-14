@@ -811,3 +811,12 @@ Independent review/full gate pending. No new native/browser/app/DB execution,
 spent replay, production/shared-local/provider/account/billing or activation work.
 The known optional Next version lookup is unchanged; prior app cause still unknown.
 Original protocol/review63/fix/attempt histories and all holds carry forward.
+
+Review64 found one P2 console-reporter fallback; native stream disposal already
+prevented demonstrated retention. One batch makes both private reporters claim
+stdio ownership while staying silent; whole installed factory/wrapper/multiplexer
+CPU tests fail first, then pass for normal/CI composition. Initial full gate failed
+six existing startup-budget/compiled-spec-fixture checks; condensed context without
+changing holds and updated fixtures while retaining every safe-close/disabled case.
+168 combined checks passed, then31 affected checks pass after adding separate
+import-completed vs runtime-entry milestones. Corrected review/full gate pending.

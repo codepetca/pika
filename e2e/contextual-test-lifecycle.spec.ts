@@ -14,6 +14,7 @@ test('isolated contextual Tests: real owner/member lifecycle and fail-closed den
   try {
     startup.stage('spec-entry'); startup.stage('runtime-import')
     const { createContextualTestRuntime } = await import('./helpers/contextual-test-runtime')
+    startup.stage('runtime-imported')
     const owned = await createContextualTestRuntime(browser, testInfo, startup.stage)
     let outcome: 'passed' | 'failed' = 'failed'
     try { startup.stage('workflow'); await runContextualTestWorkflow(owned.runtime); outcome = 'passed' }

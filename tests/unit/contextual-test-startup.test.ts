@@ -31,7 +31,7 @@ describe('full-app startup private CPU reporting', () => {
       expect(report.report.errors[0]).toEqual({ category: 'browser-launch', code: null, signal: 'SIGTRAP', source: 'fixture' })
       expect(report.reached).toEqual(kind === 'global' ? [] : ['collection','fixture'])
       expect(JSON.stringify(report)).not.toMatch(/SECRET|private\.invalid|stdout|stack/)
-      expect(reporter.printsToStdio()).toBe(false)
+      expect(reporter.printsToStdio()).toBe(true)
       expect(() => startup.validateFullStartupReport({ ...report, nonce: '0'.repeat(32) }, f.binding as never)).toThrow()
       expect(() => startup.validateFullStartupReport({ ...report, report: { ...report.report, message: 'SECRET' } }, f.binding as never)).toThrow()
       const hostile = { ...report, reached: Object.assign([], { toJSON: () => 'SECRET' }) }
@@ -111,7 +111,7 @@ describe('full-app startup private CPU reporting', () => {
     const invalid = collect('true', true); expect(invalid.run).toThrow('Invalid binding'); expect(invalid.calls).toEqual(['read'])
     const admitted = collect('true'); admitted.run(); expect(admitted.calls).toEqual(['read','admitted','declare'])
   })
-  it('actual compiled spec closes owned runtime when teardown reporting fails, preserving original workflow classification', async () => {
+  it.each(['import','workflow'] as const)('actual compiled spec records %s failure before sanitization and still closes an owned runtime under reporting faults', async failAt => {
     const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
     const { babelTransform } = require(join(dirname(pw.resolve('playwright/package.json')), 'lib/transform/babelBundle.js'))
     const file = resolve(import.meta.dirname, '../../e2e/contextual-test-lifecycle.spec.ts')
@@ -122,9 +122,9 @@ describe('full-app startup private CPU reporting', () => {
     const runtime = { createContextualTestRuntime: async () => ({ runtime: {}, close }) }
     // Replacing only the compiled dynamic-import expression with a CPU double
     // avoids invoking the actual runtime/native graph; all surrounding spec code runs.
-    const injected = compiled.replace(/import\(['"]\.\/helpers\/contextual-test-runtime['"]\)/, 'Promise.resolve(cpuRuntime)')
+    const injected = compiled.replace(/import\(['"]\.\/helpers\/contextual-test-runtime['"]\)/, 'cpuImport()')
     expect(injected).not.toBe(compiled); const cpu = new Script(injected)
-    cpu.runInNewContext({ exports: {}, Promise, cpuRuntime: runtime, process: { env: { PIKA_CONTEXTUAL_TEST_REHEARSAL: 'true' } }, require: (specifier: string) => {
+    cpu.runInNewContext({ exports: {}, Promise, cpuImport: () => failAt === 'import' ? Promise.reject(original) : Promise.resolve(runtime), process: { env: { PIKA_CONTEXTUAL_TEST_REHEARSAL: 'true' } }, require: (specifier: string) => {
       if (specifier === '@playwright/test') return { test }
       if (specifier.endsWith('contextual-test-workflow')) return { runContextualTestWorkflow: async () => { throw original } }
       return { contextualTestStartupBinding: () => ({}), createContextualTestStartup: () => ({
@@ -132,7 +132,9 @@ describe('full-app startup private CPU reporting', () => {
       }) }
     } })
     await expect(body({ browser: {} }, {})).rejects.toThrow('Isolated contextual Tests rehearsal failed')
-    expect(stages).toContain('runtime-import'); expect(close).toHaveBeenCalledExactlyOnceWith('failed')
+    expect(stages).toContain('runtime-import')
+    if (failAt === 'import') { expect(stages).not.toContain('runtime-imported'); expect(close).not.toHaveBeenCalled() }
+    else { expect(stages).toContain('runtime-imported'); expect(close).toHaveBeenCalledExactlyOnceWith('failed') }
     expect(failure.mock.calls[0][0]).toBe(original)
   })
 })

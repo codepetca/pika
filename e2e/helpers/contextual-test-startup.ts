@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { classifyDiagnosticError, diagnosticDirectory, diagnosticRead, validateDiagnosticReport, type DiagnosticError, type DiagnosticReport } from '../../scripts/contextual-browser-diagnostic-data'
 import { readContextualTestBinding, type ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
 
-const stages = ['collection','fixture','spec-entry','runtime-import','runtime-entry','binding','plan','boundary','output','runtime-ready','workflow','teardown'] as const
+const stages = ['collection','fixture','spec-entry','runtime-import','runtime-imported','runtime-entry','binding','plan','boundary','output','runtime-ready','workflow','teardown'] as const
 export type ContextualTestStartupStage = typeof stages[number]
 type Identity = { version: 1; projectId: string; nonce: string; sourceSha: string; deadline: number }
 type Record = Identity & { stage: ContextualTestStartupStage; error: DiagnosticError | null }

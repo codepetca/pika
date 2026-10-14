@@ -98,7 +98,7 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
       expect((report as data.DiagnosticReport).errors).toHaveLength(8)
       expect(JSON.stringify(report)).not.toMatch(/SECRET|private\.invalid/)
       expect((report as data.DiagnosticReport).errors[0]).toEqual({ category: 'browser-launch', code: null, signal: 'SIGTRAP', source: 'fixture' })
-      expect(reporter.printsToStdio()).toBe(false)
+      expect(reporter.printsToStdio()).toBe(true)
     } finally { admission.mockRestore(); write.mockRestore() }
   })
   it('parses every fixed runtime module using the actual installed Playwright CJS compiler without execution', () => {
