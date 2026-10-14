@@ -42,10 +42,10 @@ local URL http://localhost:3015, fixed Oct14 Toronto date.
 Composite checklist reviewed: yes; keyboard/semantic checks: yes; follow-up: none
 for implementation. No experimental pattern or promotion needed.
 
-Coordinator owns codex/calendar-week-alignment. Risk profile none. Five prior
-review launches (initial plus four targeted follow-ups) are clean; telemetry
-unknown. The final hatching removal is awaiting one additional independent
-review: pr-review's four-targeted-wave/60-minute session budget is reached and
-requires explicit extension. Keep PR #1591 draft until that review is authorized
-and complete. Existing review receipts and detailed local evidence remain in
-output/playwright/REVIEW.md and the PR lifecycle ledger.
+Coordinator owns codex/calendar-week-alignment. Risk profile none. The owner
+authorized the additional final review on 2026-10-14 after the session-budget
+checkpoint. Six review launches cover the implementation and follow-ups; the
+final hatching-removal review found no code issues. Its outdated review-status
+documentation finding is corrected here. Exact timing/token telemetry is unknown.
+Current review and CI status, reviewed revisions, and detailed local evidence
+are recorded in PR #1591, output/playwright/REVIEW.md and the PR lifecycle ledger.
