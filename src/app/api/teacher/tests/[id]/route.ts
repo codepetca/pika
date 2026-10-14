@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { testCalendarDatePatchSchema } from '@/lib/validations/test-calendar-date'
 import { canActivateTest } from '@/lib/tests'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
+import { handleContextualTestOwnerDeletionRequest } from '@/lib/server/contextual-test-owner-deletion'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 import { resolveTestDocumentUploadContentTypes } from '@/lib/server/test-document-content-types'
@@ -170,6 +172,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
     id: test.id,
     classroom_id: test.classroom_id,
     title,
+    test_date: test.test_date ?? null,
     assessment_type: 'test' as const,
     status: test.status,
     show_results: showResults,
@@ -198,6 +201,21 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     const { testId } = contextualTestOwnerQuerySchema.parse({ testId: (await resolveContextualTestOwnerParams(request, context.params, deadline)).id })
     const body = contextualTestOwnerMetadataSchema.parse(await readContextualTestOwnerBody(request, deadline))
     return NextResponse.json(await patchContextualTestOwnerMetadata({ supabase: getServiceRoleClient(), actorId: shared.user.id, testId, body, deadline, signal: request.signal }))
+  }
+  // Date-only metadata has its own strict payload and does not change the
+  // retained legacy publication/draft contract below.
+  const calendarBody: unknown = await request.clone().json()
+  if (calendarBody && typeof calendarBody === 'object' && Object.hasOwn(calendarBody, 'test_date')) {
+    const parsed = testCalendarDatePatchSchema.safeParse(calendarBody)
+    if (!parsed.success) return NextResponse.json({ error: 'Test date must be a valid YYYY-MM-DD date or null, without other updates' }, { status: 400 })
+    const user = await requireRole('teacher')
+    const { id } = await context.params
+    const access = await assertTeacherOwnsTest(user.id, id, { checkArchived: true })
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    const { data: test, error } = await getServiceRoleClient().from('tests')
+      .update({ test_date: parsed.data.test_date }).eq('id', id).eq('classroom_id', access.test.classroom_id).select('*').single()
+    if (error || !test) return NextResponse.json({ error: 'Failed to update Test date' }, { status: 500 })
+    return NextResponse.json({ test: { ...test, assessment_type: 'test' } })
   }
   const user = await requireRole('teacher')
   const { id } = await context.params
@@ -407,6 +425,8 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
 
 // DELETE /api/teacher/tests/[id] - Delete test
 export const DELETE = withErrorHandler('DeleteTest', async (_request, context) => {
+  const contextual = await handleContextualTestOwnerDeletionRequest(_request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id } = await context.params
 

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { testCalendarDateSchema } from '@/lib/validations/test-calendar-date'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import { TEST_LIST_PAGE_SIZE, TEST_LIST_CHILD_PAGE_SIZE, contextualTestListClassroomSchema,
   contextualTestListEnrollmentSchema, contextualTestListEnvelopeSchema } from '@/lib/validations/contextual-test-list-read'
@@ -11,7 +12,7 @@ export const contextualStudentTestListIdentitySchema = contextualStudentTestList
 export const contextualStudentTestListControlSchema = z.object({ id: uuid, classroom_id: uuid, status: z.enum(['active', 'closed']), updated_at: timestamp }).strict()
 /** Exact legacy student list projection; no teacher-only Test columns. */
 export const contextualStudentTestListTestSchema = contextualStudentTestListControlSchema.extend({
-  title: z.string(), show_results: z.boolean(), documents: z.unknown().refine(value => boundedAssignmentListJson(value, 2 * 1024 * 1024)).pipe(z.json()),
+  test_date: testCalendarDateSchema, title: z.string(), show_results: z.boolean(), documents: z.unknown().refine(value => boundedAssignmentListJson(value, 2 * 1024 * 1024)).pipe(z.json()),
   position: z.number().int(), points_possible: z.number().finite(), include_in_final: z.boolean(), gradebook_weight: z.number().finite(),
   created_by: uuid, created_at: timestamp,
 }).strict()

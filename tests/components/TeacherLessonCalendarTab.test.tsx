@@ -53,9 +53,11 @@ vi.mock('@/contexts/MarkdownPreferenceContext', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, announcements, onContentChange }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, announcements, tests = [], onContentChange }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-test-count={tests.length}
+      data-test-ids={tests.map((test: { id: string }) => test.id).join(',')}
       data-lesson-count={lessonPlans.length}
       data-lesson-classrooms={lessonPlans.map((plan: LessonPlan) => plan.classroom_id).join(',')}
       data-lesson-content={lessonPlans.map((plan: LessonPlan) => plan.content_markdown).join(',')}
@@ -119,6 +121,7 @@ describe('TeacherLessonCalendarTab', () => {
   beforeEach(() => {
     resetTeacherLessonPlanMutationQueuesForTests()
     invalidateTeacherLessonPlansForClassroom(classroom.id)
+    invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
     sidebarState.isOpen = false
@@ -136,11 +139,32 @@ describe('TeacherLessonCalendarTab', () => {
   afterEach(() => {
     resetTeacherLessonPlanMutationQueuesForTests()
     invalidateTeacherLessonPlansForClassroom(classroom.id)
+    invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('preserves teacher view selection and the existing Markdown sidebar action', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    expect(screen.getByRole('button', { name: 'Week', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const readCount = fetchMock.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit calendar in Markdown' }))
+    expect(sidebarState.toggle).toHaveBeenCalledTimes(1)
+    const week = screen.getByRole('button', { name: 'Week', exact: true })
+    week.focus()
+    fireEvent.keyDown(week, { key: 'ArrowRight' })
+    expect(screen.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Next', exact: true })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Term', exact: true }))
+    expect(screen.getByRole('button', { name: 'Term', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Next', exact: true })).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(readCount)
   })
 
   it('does not fetch or display classroom features hidden from teachers', async () => {
@@ -150,7 +174,7 @@ describe('TeacherLessonCalendarTab', () => {
     })
 
     render(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         showClasswork={false}
         showAnnouncements={false}
@@ -178,14 +202,14 @@ describe('TeacherLessonCalendarTab', () => {
       },
     }))
 
-    const first = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const first = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
     })
 
     first.unmount()
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
@@ -218,7 +242,7 @@ describe('TeacherLessonCalendarTab', () => {
       })
     })
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
@@ -256,27 +280,27 @@ describe('TeacherLessonCalendarTab', () => {
       },
     }))
 
-    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     const retryButton = await screen.findByRole('button', { name: 'Retry class days' })
     retryButton.focus()
     fireEvent.click(retryButton)
 
     classDaysState.isLoading = true
-    view.rerender(<TeacherLessonCalendarTab classroom={classroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
     expect(screen.getByRole('button', { name: 'Retrying class days' })).toBeDisabled()
     expect(document.activeElement).toBe(retryButton)
 
     classDaysState.isLoading = false
-    view.rerender(<TeacherLessonCalendarTab classroom={classroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
     expect(screen.getByRole('button', { name: 'Retry class days' })).toBeInTheDocument()
     expect(document.activeElement).toBe(retryButton)
 
     fireEvent.click(retryButton)
     classDaysState.isLoading = true
-    view.rerender(<TeacherLessonCalendarTab classroom={classroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
     classDaysState.isLoading = false
     classDaysState.error = null
-    view.rerender(<TeacherLessonCalendarTab classroom={classroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
 
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
@@ -310,7 +334,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     render(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         onSidebarStateChange={(state) => {
           latestSidebarState = state
@@ -369,6 +393,7 @@ describe('TeacherLessonCalendarTab', () => {
     let firstClassroomAssignmentReads = 0
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -391,13 +416,13 @@ describe('TeacherLessonCalendarTab', () => {
       throw new Error(`Unhandled fetch: ${url}`)
     })
 
-    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     const retryButton = await screen.findByRole('button', { name: 'Retry assignments' })
     retryButton.focus()
     fireEvent.click(retryButton)
     expect(await screen.findByRole('button', { name: 'Retrying assignments' })).toBeDisabled()
 
-    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={secondClassroom} />)
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', secondClassroom.id)
     })
@@ -411,7 +436,7 @@ describe('TeacherLessonCalendarTab', () => {
     classDaysState.hasLoadedSnapshot = false
     fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: 'Failed' }) })
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     expect(await screen.findByRole('heading', { name: "Calendar couldn't load" })).toBeInTheDocument()
     expect(screen.queryByTestId('lesson-calendar')).not.toBeInTheDocument()
@@ -445,7 +470,7 @@ describe('TeacherLessonCalendarTab', () => {
       }
     })
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-ids', 'assignment-1')
@@ -480,6 +505,7 @@ describe('TeacherLessonCalendarTab', () => {
     const secondAnnouncementsRequest = deferred<any>()
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -505,9 +531,9 @@ describe('TeacherLessonCalendarTab', () => {
       throw new Error(`Unhandled fetch: ${url}`)
     })
 
-    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
-    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={secondClassroom} />)
 
     secondLessonPlansRequest.resolve({
       ok: true,
@@ -563,6 +589,7 @@ describe('TeacherLessonCalendarTab', () => {
     const secondAnnouncementsRequest = deferred<any>()
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -599,7 +626,7 @@ describe('TeacherLessonCalendarTab', () => {
       throw new Error(`Unhandled fetch: ${url}`)
     })
 
-    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', classroom.id)
@@ -607,7 +634,7 @@ describe('TeacherLessonCalendarTab', () => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-classrooms', classroom.id)
     })
 
-    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={secondClassroom} />)
 
     expect(screen.queryByTestId('lesson-calendar')).not.toBeInTheDocument()
 
@@ -643,6 +670,7 @@ describe('TeacherLessonCalendarTab', () => {
     let latestSidebarState: CalendarSidebarState | null = null
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -668,7 +696,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     const view = render(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         onSidebarStateChange={(state) => {
           latestSidebarState = state
@@ -682,7 +710,7 @@ describe('TeacherLessonCalendarTab', () => {
     })
 
     view.rerender(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={secondClassroom}
         onSidebarStateChange={(state) => {
           latestSidebarState = state
@@ -731,6 +759,7 @@ describe('TeacherLessonCalendarTab', () => {
     let latestSidebarState: CalendarSidebarState | null = null
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -755,7 +784,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     const renderTab = (activeClassroom = classroom) => (
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={activeClassroom}
         onSidebarStateChange={(state) => { latestSidebarState = state }}
       />
@@ -792,6 +821,7 @@ describe('TeacherLessonCalendarTab', () => {
     let latestSidebarState: CalendarSidebarState | null = null
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -811,7 +841,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     const renderTab = (activeClassroom = classroom) => (
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={activeClassroom}
         onSidebarStateChange={(state) => { latestSidebarState = state }}
       />
@@ -847,6 +877,7 @@ describe('TeacherLessonCalendarTab', () => {
     let latestSidebarState: CalendarSidebarState | null = null
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -879,7 +910,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     const renderTab = (activeClassroom = classroom) => (
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={activeClassroom}
         onSidebarStateChange={(state) => { latestSidebarState = state }}
       />
@@ -929,6 +960,7 @@ describe('TeacherLessonCalendarTab', () => {
     const firstAutosaveRequest = deferred<any>()
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -979,7 +1011,7 @@ describe('TeacherLessonCalendarTab', () => {
       throw new Error(`Unhandled fetch: ${url}`)
     })
 
-    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', classroom.id)
@@ -1000,7 +1032,7 @@ describe('TeacherLessonCalendarTab', () => {
       init?.method === 'PUT'
     )).toBe(true)
 
-    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={secondClassroom} />)
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', secondClassroom.id)
@@ -1036,6 +1068,7 @@ describe('TeacherLessonCalendarTab', () => {
     let classroomAAutosaves = 0
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -1060,15 +1093,15 @@ describe('TeacherLessonCalendarTab', () => {
       throw new Error(`Unhandled fetch: ${url}`)
     })
 
-    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', classroom.id))
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
-    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={secondClassroom} />)
     await waitFor(() => expect(classroomAAutosaves).toBe(1))
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', secondClassroom.id))
 
-    view.rerender(<TeacherLessonCalendarTab classroom={classroom} />)
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', classroom.id))
     fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
     expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Updated lesson')
@@ -1106,7 +1139,7 @@ describe('TeacherLessonCalendarTab', () => {
       })
     })
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
 
     vi.useFakeTimers()
@@ -1166,7 +1199,7 @@ describe('TeacherLessonCalendarTab', () => {
       })
     })
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
 
     vi.useFakeTimers()
@@ -1231,7 +1264,7 @@ describe('TeacherLessonCalendarTab', () => {
       })
     })
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
 
     vi.useFakeTimers()
@@ -1286,7 +1319,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     render(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         onSidebarStateChange={(state) => { latestSidebarState = state }}
       />,
@@ -1347,7 +1380,7 @@ describe('TeacherLessonCalendarTab', () => {
     })
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
 
     vi.useFakeTimers()
@@ -1397,7 +1430,7 @@ describe('TeacherLessonCalendarTab', () => {
     })
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
 
     vi.useFakeTimers()
@@ -1439,7 +1472,7 @@ describe('TeacherLessonCalendarTab', () => {
       }
     })
 
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
     fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
 
@@ -1487,7 +1520,7 @@ describe('TeacherLessonCalendarTab', () => {
       }
     })
 
-    const first = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const first = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
@@ -1506,7 +1539,7 @@ describe('TeacherLessonCalendarTab', () => {
     vi.useRealTimers()
 
     first.unmount()
-    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
@@ -1554,7 +1587,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     const view = render(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         onSidebarStateChange={(state) => {
           latestSidebarState = state
@@ -1569,7 +1602,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = false
     view.rerender(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         onSidebarStateChange={(state) => {
           latestSidebarState = state
@@ -1589,7 +1622,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     view.rerender(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         onSidebarStateChange={(state) => {
           latestSidebarState = state
@@ -1621,7 +1654,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     sidebarState.isOpen = true
     render(
-      <TeacherLessonCalendarTab
+      <TeacherLessonCalendarTab showTests={false}
         classroom={classroom}
         onSidebarStateChange={(state) => {
           latestSidebarState = state
@@ -1635,4 +1668,54 @@ describe('TeacherLessonCalendarTab', () => {
     })
     expect(latestSidebarState?.markdownContent).toBe('')
   })
+  it('loads test reminders only when Tests is enabled and reports a retryable source failure', async () => {
+    let testReads = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/tests?')) {
+        testReads += 1
+        return testReads === 1
+          ? { ok: false, json: async () => ({ error: 'Unavailable' }) }
+          : { ok: true, json: async () => ({ tests: [{ id: 'dated-test', title: 'Dated', test_date: '2025-03-01' }] }) }
+      }
+      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+    })
+    render(<TeacherLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
+    expect(await screen.findByRole('button', { name: 'Retry tests' })).toBeInTheDocument()
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-count', '0')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry tests' }))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'dated-test'))
+    expect(testReads).toBe(2)
+  })
+
+  it('isolates late test list responses from a previous classroom', async () => {
+    const secondClassroom = createMockClassroom({ id: 'calendar-second' })
+    let resolveFirst!: (value: any) => void
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes(`/tests?classroom_id=${classroom.id}`)) return new Promise(resolve => { resolveFirst = resolve })
+      return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [], tests: [{ id: 'second-test' }] }) })
+    })
+    const view = render(<TeacherLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
+    await waitFor(() => expect(resolveFirst).toBeTypeOf('function'))
+    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} showTests />)
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test'))
+    await act(async () => { resolveFirst({ ok: true, json: async () => ({ tests: [{ id: 'old-test' }] }) }) })
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test')
+  })
+  it('refreshes test date metadata after a classroom-scoped teacher update event', async () => {
+    let testReads = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/tests?')) {
+        testReads += 1
+        return { ok: true, json: async () => ({ tests: [{ id: `test-${testReads}` }] }) }
+      }
+      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+    })
+    render(<TeacherLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'test-1'))
+    act(() => window.dispatchEvent(new CustomEvent('pika:teacherTestsUpdated', { detail: { classroomId: 'other-classroom' } })))
+    expect(testReads).toBe(1)
+    act(() => window.dispatchEvent(new CustomEvent('pika:teacherTestsUpdated', { detail: { classroomId: classroom.id } })))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'test-2'))
+  })
+
 })

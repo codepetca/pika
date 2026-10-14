@@ -12,7 +12,7 @@ const stamp = '2026-10-09T12:00:00Z'
 const test = { id: testId, classroom_id: classroom, title: 'Test', status: 'closed', show_results: false, documents: [],
   position: 0, points_possible: 100, include_in_final: true, created_by: learner, created_at: stamp, updated_at: stamp,
   artifact_id: learner, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
-  gradebook_category_id: null, gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
+  gradebook_category_id: null, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
 let reply: unknown
 let error: { code: string; message: string } | null
 let network: ReturnType<typeof vi.fn<typeof fetch>>
@@ -43,6 +43,22 @@ describe('contextual owner Test workflow transaction boundary', () => {
     await flow.run('reserve', {})
     reply = witness('sync'); await flow.run('sync', {})
     expect(JSON.parse(String(network.mock.calls[2][1]?.body)).p_expected_test).toEqual(test)
+  })
+  it.each(['results', 'manual-save', 'clear-open-grades', 'return', 'unsubmit-plan', 'unsubmit', 'delete-single', 'delete-bulk'] as const)('binds the new %s operation to the original owner/Test/parent witness', async operation => {
+    const flow = workflow(); await flow.inspect()
+    const payload = operation === 'results' ? {} : { student_ids: [learner] }
+    reply = witness(operation, { student_ids: [learner] }); await flow.run(operation, payload)
+    expect(JSON.parse(String(network.mock.calls[1][1]?.body))).toMatchObject({ p_operation: operation, p_payload: payload,
+      p_actor_id: actor, p_test_id: testId, p_classroom_id: classroom, p_expected_test: test })
+    reply = witness('inspect', { student_ids: [learner] })
+    await expect(flow.run(operation, payload)).rejects.toMatchObject({ statusCode: 503 })
+    expect(network).toHaveBeenCalledTimes(3)
+  })
+  it('rejects a results reply over the shared byte budget without retrying', async () => {
+    const flow = workflow(); await flow.inspect()
+    reply = witness('results', { padding: 'x'.repeat(4 * 1024 * 1024) })
+    await expect(flow.run('results')).rejects.toMatchObject({ statusCode: 503 })
+    expect(network).toHaveBeenCalledTimes(2)
   })
   it.each(['actor_id', 'classroom_id', 'test_id', 'operation', 'version'] as const)('rejects forged %s acknowledgements', async key => {
     reply = { ...witness(), [key]: key === 'version' ? 2 : learner }

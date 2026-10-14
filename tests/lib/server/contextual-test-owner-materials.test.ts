@@ -17,7 +17,7 @@ const stamp = '2026-10-09T12:00:00Z'
 const test = { id: testId, classroom_id: classroom, title: 'Test', status: 'closed', show_results: false, documents: [],
   position: 0, points_possible: 100, include_in_final: true, created_by: actor, created_at: stamp, updated_at: stamp,
   artifact_id: documentId, source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
-  gradebook_category_id: null, gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
+  gradebook_category_id: null, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 10, questions_locked_at: null }
 const path = `classrooms/${classroom}/tests/${testId}/documents/${documentId}/${objectId}.pdf`
 const object = { id: objectId, classroom_id: classroom, storage_bucket: 'test-documents', storage_path: path,
   purpose: 'teacher_test_material', created_by_user_id: actor, resource_type: 'test', resource_id: testId,
@@ -57,6 +57,16 @@ describe('owner Test material workflow strict bindings and retained reservations
   it('uses the atomic metadata path for metadata-only edits', async () => {
     const result = await patchContextualTestOwnerMetadata({ ...input(), body: { title: 'Renamed' } })
     expect(result.test.title).toBe('Renamed'); expect(calls).toEqual(['inspect', 'update'])
+  })
+  it.each(['2026-10-20', null])('preserves the calendar date in the exact owner witness: %s', async test_date => {
+    const result = await patchContextualTestOwnerMetadata({ ...input(), body: { test_date } })
+    expect(result.test.test_date).toBe(test_date)
+    expect(calls).toEqual(['inspect', 'update'])
+    expect(result.test.status).toBe('closed')
+  })
+  it('rejects an acknowledgement that did not save the requested calendar date', async () => {
+    override = (operation, witness) => operation === 'update' ? { ...witness, test: { ...stored, test_date: null } } : witness
+    await expect(patchContextualTestOwnerMetadata({ ...input(), body: { test_date: '2026-10-20' } })).rejects.toMatchObject({ statusCode: 503 })
   })
   it('preserves selected outsiders in the result count while accepting only transaction-bound counts', async () => {
     expect((await updateContextualTestOwnerStudentAccess({ ...input(), body: { state: 'open', student_ids: [documentId, actor] } })).skipped_count).toBe(1)

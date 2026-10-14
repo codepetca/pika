@@ -9,7 +9,7 @@ import { courseGuideReadJsonFingerprint } from '@/lib/validations/contextual-cou
 import { contextualAssignmentOverviewEnvelopeSchema } from '@/lib/validations/contextual-assignment-overview-read'
 import { ASSIGNMENT_LIST_BATCH_SIZE, ASSIGNMENT_LIST_COLLECTION_LIMIT, ASSIGNMENT_LIST_DEADLINE_MS, ASSIGNMENT_LIST_DTO_BYTES, ASSIGNMENT_LIST_PAGE_SIZE,
   ASSIGNMENT_LIST_STATEMENT_LIMIT, boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
-import { openContextualAssignmentDoc } from '@/lib/server/contextual-assignment-doc-open'
+import { openContextualAssignmentDoc, type ContextualAssignmentDocOpenClient } from '@/lib/server/contextual-assignment-doc-open'
 import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildLearningItemViewedEvent } from '@/lib/server/pal-events'
 import { attemptImmediatePalEventDelivery, type PalImmediateDeliveryStatus } from '@/lib/server/pal-outbox'
@@ -112,7 +112,7 @@ export async function openSharedAssignmentLearnerDoc(input: { supabase: Client; 
       const raw = result as { data?: { assignment?: { rich_instructions?: unknown }; doc?: { content?: unknown } } }
       if (raw.data?.assignment && !boundedAssignmentListJson(raw.data.assignment.rich_instructions, 2 * 1024 * 1024)) throw unavailable()
       if (raw.data?.doc && !boundedAssignmentListJson(raw.data.doc.content, 2 * 1024 * 1024)) throw unavailable()
-      return result as Awaited<ReturnType<Client['rpc']>>
+      return result as Awaited<ReturnType<ContextualAssignmentDocOpenClient['rpc']>>
     } }, actorId, assignmentId, viewedAt: now.toISOString(), event })
     if (opened.assignment.classroom_id !== classroomId) throw unavailable()
     let palDelivery: PalImmediateDeliveryStatus | undefined

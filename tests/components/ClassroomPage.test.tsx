@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getUserDisplayInfo: vi.fn(),
   listActiveTeacherClassrooms: vi.fn(),
   resolvePageAccess: vi.fn(),
+  serviceConstructed: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
   singleResults: [] as Array<{ data: unknown; error: unknown }>,
@@ -47,7 +48,7 @@ vi.mock('@/lib/server/classroom-page-access', () => ({
 }))
 
 vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: () => ({
+  getServiceRoleClient: () => { mocks.serviceConstructed(); return ({
     from: () => {
       const query: Record<string, any> = {}
       for (const method of ['select', 'eq', 'is']) {
@@ -56,13 +57,13 @@ vi.mock('@/lib/supabase', () => ({
       query.single = vi.fn(async () => mocks.singleResults.shift())
       return query
     },
-  }),
+  }) },
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/ClassroomPageClient', () => ({
-  ClassroomPageClient: ({ initialNow, classroom: classroomRecord, user, classroomRole, initialTab, classroomQrAvailable }: { initialNow: number; classroom: unknown; user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean }) => {
+  ClassroomPageClient: ({ initialNow, classroom: classroomRecord, user, classroomRole, initialTab, classroomQrAvailable, testExperienceMode }: { initialNow: number; classroom: unknown; user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean; testExperienceMode?: string }) => {
     mocks.clientProps(classroomRecord)
-    return <div data-initial-now={initialNow} data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
+    return <div data-test-experience={testExperienceMode} data-initial-now={initialNow} data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
   },
 }))
 
@@ -85,6 +86,8 @@ async function renderPage(tab: string) {
 describe('ClassroomPage feature visibility redirects', () => {
   afterEach(() => vi.unstubAllEnvs())
   beforeEach(() => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
+    mocks.serviceConstructed.mockClear()
     mocks.getCurrentUser.mockReset()
     mocks.getAttendanceAccess.mockResolvedValue({ state: 'disabled', scheduleThrough: null })
     mocks.getPalApiUrl.mockReset()
@@ -105,6 +108,35 @@ describe('ClassroomPage feature visibility redirects', () => {
     mocks.notFound.mockImplementation(() => {
       throw new Error('not-found')
     })
+  })
+
+  it.each(['teacher', 'student'] as const)('serializes shared Test mode independently of the %s page relationship', async (role) => {
+    const id = '11111111-1111-4111-8111-111111111111'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [id] }))
+    mocks.getCurrentUser.mockResolvedValue({ id, role })
+    mocks.singleResults.push({ data: classroom(), error: null })
+    if (role === 'student') mocks.singleResults.push({ data: classroom(), error: null })
+    await renderPage(role === 'teacher' ? 'daily' : 'today')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-test-experience', 'shared')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-role', role)
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-role', role)
+  })
+
+  it('rejects malformed Test admission before service construction or page relationship resolution', async () => {
+    mocks.getCurrentUser.mockResolvedValue({ id: '11111111-1111-4111-8111-111111111111', role: 'teacher' })
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '')
+    await expect(renderPage('tests')).rejects.toThrow('admission configuration')
+    expect(mocks.serviceConstructed).not.toHaveBeenCalled()
+    expect(mocks.resolvePageAccess).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, JSON.stringify({ version: 1, admittedUserIds: [] })])('preserves existing Test mode for absent/unmatched admission %s', async (configuration) => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', configuration)
+    mocks.getCurrentUser.mockResolvedValue({ id: '11111111-1111-4111-8111-111111111111', role: 'teacher' })
+    mocks.singleResults.push({ data: classroom(), error: null })
+    await renderPage('tests')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-test-experience', 'existing')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-role', 'teacher')
   })
 
   it.each(['teacher', 'student'] as const)('seeds the %s classroom header at the server owner', async (role) => {

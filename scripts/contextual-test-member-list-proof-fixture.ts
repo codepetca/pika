@@ -71,7 +71,7 @@ export const TEST_MEMBER_LIST_CAPS = Object.freeze({ sqlBytes: 65536, networkReq
 export const TEST_MEMBER_LIST_INVENTORY = Object.freeze({ actors: 5, classes: 5, tests: 8, questions: 4, attempts: 4,
   responses: 5, availability: 3, allocatedEnrollments: 8, liveEnrollments: 7, removedGenerations: 1, activeGenerations: 7,
   triggerCategories: 15, archiveRevisionRows: 5, cases: 9 })
-export const TEST_MEMBER_LIST_TEST_FIELDS = 'id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'
+export const TEST_MEMBER_LIST_TEST_FIELDS = 'id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'
 const fullTestFields = `${TEST_MEMBER_LIST_TEST_FIELDS},artifact_id,source_artifact_id,source_blueprint_version_id,blueprint_archived_at,gradebook_category_id,gradebook_maximum_override,gradebook_score_scale,questions_locked_at`
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
 const json = (value: unknown) => `${q(JSON.stringify(value))}::jsonb`
@@ -93,7 +93,7 @@ export function newTestMemberListFixture(original: AssignmentListProofFixture) {
     position: i === 0 ? 17 : 9, points_possible: 100, include_in_final: i !== 2, gradebook_weight: 10 + i,
     created_by: classes[i === 7 ? 4 : 0].owner, created_at: new Date(Date.parse(now) - i * 1000).toISOString(), updated_at: now,
     artifact_id: id(`artifact${i}`), source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: i === 4 ? now : null,
-    gradebook_maximum_override: 25, gradebook_score_scale: 2, questions_locked_at: null }))
+    gradebook_maximum_override: 25, test_date:null,gradebook_score_scale:2, questions_locked_at: null }))
   const enrollments = [[0, 0], [0, 2], [0, 3], [0, 4], [1, 2], [2, 2], [3, 2], [4, 1]].map(([c, a], i) => ({ id: id(`enrollment${i}`), classroomId: classes[c].id, actorId: actors[a].id }))
   const removed = enrollments[3]
   const questions = [4, 4, 5, 7].map((t, i) => ({ id: id(`question${i}`), artifact_id: id(`question-artifact${i}`), test_id: tests[t].id,

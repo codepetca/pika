@@ -16,6 +16,7 @@ import {
 } from '@/lib/classroom-feature-visibility'
 import { getBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 import { ApiError } from '@/lib/api-error'
+import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 import {
   resolveClassroomPagePilotAccess,
   type ClassroomPagePilotAccess,
@@ -47,6 +48,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     redirect(await getServerLoginRedirectPath())
   }
 
+  const testExperienceMode = resolveClassroomExperienceAdmission(user).status === 'admitted' ? 'shared' : 'existing'
   const supabase = getServiceRoleClient()
 
   let pageAccess: ClassroomPagePilotAccess
@@ -129,6 +131,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
           ...displayInfo,
         }}
         classroomRole={classroomRole}
+        testExperienceMode={testExperienceMode}
         teacherClassrooms={teacherClassrooms}
         initialTab={tab}
         initialSearchParams={initialSearchParams}
@@ -195,6 +198,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         ...displayInfo,
       }}
       classroomRole={classroomRole}
+      testExperienceMode={testExperienceMode}
       teacherClassrooms={[]} // Students don't need this
       initialTab={tab}
       initialSearchParams={initialSearchParams}

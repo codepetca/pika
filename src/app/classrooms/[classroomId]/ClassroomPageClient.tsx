@@ -109,6 +109,7 @@ interface ClassroomPageClientProps {
   palEnabled?: boolean
   attendanceAvailable?: boolean
   classroomQrAvailable?: boolean
+  testExperienceMode?: 'existing' | 'shared'
 }
 
 type UpdateSearchOptions = {
@@ -183,6 +184,7 @@ export function ClassroomPageClient({
   palEnabled = false,
   attendanceAvailable = true,
   classroomQrAvailable = false,
+  testExperienceMode = 'existing',
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
   const [clientClassroom, setClientClassroom] = useState(classroom)
@@ -318,6 +320,7 @@ export function ClassroomPageClient({
           classroom={effectiveClassroom}
           user={user}
           classroomRole={experienceRole}
+          testExperienceMode={testExperienceMode}
           teacherClassrooms={clientTeacherClassrooms}
           activeTab={activeTab}
           isArchived={isArchived}
@@ -576,6 +579,7 @@ function ClassroomPageContent({
   classroom,
   user,
   classroomRole,
+  testExperienceMode,
   teacherClassrooms,
   activeTab,
   isArchived,
@@ -591,6 +595,7 @@ function ClassroomPageContent({
   classroom: Classroom
   user: UserInfo
   classroomRole: UserInfo['role']
+  testExperienceMode: 'existing' | 'shared'
   teacherClassrooms: Classroom[]
   activeTab: string
   isArchived: boolean
@@ -1969,6 +1974,7 @@ function ClassroomPageContent({
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
                       <TeacherTestsTab
+                        testExperienceMode={testExperienceMode}
                         classroom={classroom}
                         testsTabClickToken={testsTabClickToken}
                         selectedTestId={testIdParam}
@@ -2004,6 +2010,15 @@ function ClassroomPageContent({
                         classroom={classroom}
                         showClasswork={availableTabs.includes('assignments')}
                         showAnnouncements={availableTabs.includes('announcements')}
+                        showTests={availableTabs.includes('tests')}
+                        onNavigateToTests={(testId) => navigateInClassroom((params) => {
+                          params.set('tab', 'tests')
+                          params.set('testId', testId)
+                          params.delete('testMode')
+                          params.delete('testStudentId')
+                          params.delete('assignmentId')
+                          params.delete('assignmentStudentId')
+                        })}
                         onSidebarStateChange={setCalendarSidebarState}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
@@ -2115,7 +2130,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
-                      <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} />
+                      <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} selectedTestId={testIdParam} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.grades && (
@@ -2129,6 +2144,15 @@ function ClassroomPageContent({
                         classroom={classroom}
                         showClasswork={availableTabs.includes('assignments')}
                         showAnnouncements={availableTabs.includes('announcements')}
+                        showTests={availableTabs.includes('tests')}
+                        onNavigateToTests={(testId) => navigateInClassroom((params) => {
+                          params.set('tab', 'tests')
+                          params.set('testId', testId)
+                          params.delete('testMode')
+                          params.delete('testStudentId')
+                          params.delete('assignmentId')
+                          params.delete('assignmentStudentId')
+                        })}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'assignments')

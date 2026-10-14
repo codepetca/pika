@@ -27,6 +27,7 @@ export function isLockedTestQuestionMutationError(
 }
 
 export type TestAccessRecord = {
+  test_date?: string | null
   id: string
   classroom_id: string
   status: TestAssessmentStatus

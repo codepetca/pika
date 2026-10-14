@@ -31,7 +31,7 @@ export const TEST_OWNER_REORDER_DB_CAPS = Object.freeze({ sqlBytes: 262144, resp
   logicalGroups: 9, batches: 28, probesPerBatch: 2 })
 export const TEST_OWNER_REORDER_TEST_COLUMNS = Object.freeze(['id','classroom_id','title','status','show_results','position',
   'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id','source_artifact_id',
-  'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_maximum_override','gradebook_score_scale'] as const)
+  'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_maximum_override','gradebook_score_scale','test_date'] as const)
 export const TEST_OWNER_REORDER_DB_LIMITATIONS = Object.freeze([
   'Inert source assertions are not native SQL, lock-race, SDK or preservation acceptance.',
   'Managed writer sequence consumption is nontransactional: never reset it or claim rollback equality; root separately attests no operation-caused calls.',

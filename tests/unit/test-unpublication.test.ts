@@ -13,7 +13,7 @@ const row = {
   source_artifact_id: null, source_blueprint_version_id: null, blueprint_archived_at: null,
   created_at: stamp, created_by: teacherId, updated_at: stamp, title: 'Current title',
   status: 'draft', show_results: true, documents: [], gradebook_category_id: null,
-  gradebook_maximum_override: null, gradebook_score_scale: 1, gradebook_weight: 10,
+  gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1, gradebook_weight: 10,
   include_in_final: true, points_possible: 100, position: 0, questions_locked_at: null,
 }
 const rpc = vi.fn()

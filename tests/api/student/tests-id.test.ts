@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/student/tests/[id]/route'
+import { assertStudentCanAccessTest } from '@/lib/server/tests'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -472,4 +473,27 @@ describe('GET /api/student/tests/[id]', () => {
   const response = await GET(new NextRequest('http://localhost/api/student/tests/test-1'), { params: Promise.resolve({ id: 'test-1' }) })
   expect(response.status).toBe(503)
   expect(await response.json()).toEqual({ error: 'Test lifecycle migration 244 is required' })
+})
+
+describe('student Test calendar date detail payload', () => {
+  beforeEach(() => vi.clearAllMocks())
+  it.each(['2026-10-20', null])('preserves date metadata %s without changing participation access', async test_date => {
+    vi.mocked(assertStudentCanAccessTest).mockResolvedValueOnce({ ok: true, test: {
+      id: 'test-1', classroom_id: 'classroom-1', title: 'Unit Test', status: 'active', test_date,
+      show_results: false, position: 0, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', documents: [],
+    } as any })
+    mockSupabaseClient.from = vi.fn(() => {
+      const query: any = { select: vi.fn(() => query), eq: vi.fn(() => query), in: vi.fn(() => query),
+        maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+        order: vi.fn(async () => ({ data: [], error: null })),
+        then: (resolve: any) => resolve({ data: [], error: null }),
+      }
+      return query
+    })
+    const response = await GET(new NextRequest('http://localhost/api/student/tests/test-1'), { params: Promise.resolve({ id: 'test-1' }) })
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload.test.test_date).toBe(test_date)
+    expect(payload.test.status).toBe('active')
+  })
 })

@@ -23,7 +23,7 @@ type Test = z.infer<typeof contextualStudentTestListTestSchema>
 type Root = NonNullable<z.infer<typeof contextualStudentTestListEnvelopeSchema>['data']>
 type Kind = 'attempts' | 'responses' | 'availability'
 const rootFields = 'id,teacher_id,archived_at,feature_visibility,membership:classroom_enrollments!classroom_enrollments_classroom_id_fkey!inner(classroom_id,student_id)'
-const testFields = 'id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'
+const testFields = 'id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'
 const controlFields = 'id,classroom_id,status,updated_at'
 const relation = 'tests:tests!tests_classroom_id_fkey'
 

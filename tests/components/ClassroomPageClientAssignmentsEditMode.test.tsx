@@ -453,6 +453,7 @@ const classroom: Classroom = {
 }
 
 function renderClient(options?: {
+  testExperienceMode?: 'existing' | 'shared'
   classroom?: Classroom
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
@@ -471,6 +472,7 @@ function renderClient(options?: {
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
         attendanceAvailable={options?.attendanceAvailable}
+        testExperienceMode={options?.testExperienceMode}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -886,6 +888,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(mockStudentTestsTabProps).toHaveBeenLastCalledWith({
         classroom,
         isActive: true,
+        selectedTestId: null,
       })
     })
   })
@@ -1376,6 +1379,12 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(params.has('testId')).toBe(false)
     })
     expect(mockStudentTestsTabProps).not.toHaveBeenCalled()
+  })
+
+  it.each(['existing', 'shared'] as const)('passes %s Test mode through the actual inner classroom owner', (testExperienceMode) => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests')
+    renderClient({ initialTab: 'tests', testExperienceMode })
+    expect(mockTeacherTestsTabProps).toHaveBeenLastCalledWith(expect.objectContaining({ testExperienceMode }))
   })
 
   it('does not pin the tests summary label in the app shell title slot', () => {

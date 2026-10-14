@@ -437,7 +437,74 @@ CI38050378092 passed all8jobs/PRGate and clean canonical main fast-forwarded.
 Eight completed independent review turns retain earlier failure/remediation/base-
 sync receipts; no repeated full review or administrator bypass. No batch2 exit.
 
-The next coherent dormant
+Current superseding receipt — 2026-10-11: learner Test PR #1561 merged normally
+as squash `517d272abd0090e598092f1fa1bdf5d28b9bf13f`, reviewed head
+`1aedb41561cc19b2804c831dc6f6defe9ec86d61`. All ten exact-head CI checks,
+including PR Gate, passed in run `38102771099`; the clean canonical main checkout
+fast-forwarded to the merge. Whole disposable001–257 proof, generated types,
+cleanup and preservation passed before readiness. The six prior one-off native
+permissions are consumed. No shared local/production257 application, promotion,
+admission activation or batch-2 exit follows from this receipt.
+
+The following owner-grading scope is delivered by PR #1569, squash
+`2cea88dc11ca43c1aeaafbc622a50c2e63a1273b` on 2026-10-11. Exact reviewed head
+`ff65bbc38f909c8f1493a30a86ce23e952f48c02` passed all ten required checks,
+including PR Gate, in run `38150651417`. Fresh disposable001–259 acceptance
+passed on equivalent product source `d714cb2f4e6b72303a1a5d14140f5aaa500c8754`:
+real SDK, database/concurrency, ACLs, genuine generated types, cancellation,
+restoration and cleanup. Later reviewed changes were receipt/continuity docs only.
+Canonical main fast-forwarded to the actual merge. No shared/prod259 application,
+promotion, activation or batch-2 exit follows from this receipt.
+
+The owner authorized orchestration of this coherent dormant group:
+[Test owner inspection, manual grading and return](contextual-test-owner-grading.md).
+Keep the five existing results/single-grade/batch-grade/clear/return endpoints;
+selected learner inspection already uses results, so no new attempt GET is
+needed. Reuse the current owner transaction protocol and inherited atomic grade,
+provenance, review and return writers. Current nonowner roster and fixed parent,
+archive/purge/membership fences must govern the transaction, independently of
+the historical account role. Existing learner disclosure remains unchanged.
+Unsubmit/deletion, UI, provider work and rollout controls are excluded. Actual
+database/SDK/concurrency evidence and normal final-head review/CI remain required;
+source preparation does not authorize a shared migration.
+
+Delivered recovery slice — 2026-10-11:
+[owner recovery and attempt reset](contextual-test-owner-recovery.md) migrates
+the existing owner unsubmit, single
+attempt reset and bulk attempt reset as one coherent dormant recovery group.
+Reuse shared admission, the current owner transaction and existing lifecycle
+writers. Prove current owner/parent/nonowner roster, archive/purge/membership
+fences and bounded all-or-nothing mutations; preserve unsubmit's skipped-member
+counts and saved work, and reset's deletion counters. History must be fenced,
+not a raw post-transaction write. Existing unpublish and whole-Test deletion
+are still ordinary Test gaps with distinct lifecycle contracts; close them
+before declaring Tests complete or moving the phase exit to Surveys. Provider,
+AI-job, Storage/purge lifecycle and integrated app proof remain separately scoped.
+The owner's delegated reasonable-work authority covers local implementation,
+isolated disposable verification, review and normal protected-main merge without
+routine approval pauses. Specific shared local/production, promotion, provider,
+account and admission/home/page/cohort/cutover holds remain unchanged.
+
+Recovery PR #1577 merged normally as `18126e95299ba051de6646e2b786c522468616b7`.
+Reviewed head `f703568d2cc23572242543aa1518c4d1efc5cdc1` passed all ten checks,
+including PR Gate, in run `38175680856`; its merge tree is identical and clean
+canonical main fast-forwarded. Disposable001–260 native acceptance passed on
+`b11ff987afe9cc864e526c2246d89a983bd7063d`. Independent review explicitly accepted
+reuse for the later unchanged recovery source; the final delta corrected the
+predecessor member-list proof's known260 seal and continuity records. Actual
+native receipts retain their executed head. This is not a batch2 or Tests exit.
+
+Current next slice: [ordinary Test return to draft](contextual-test-owner-unpublication.md)
+through the existing unpublish
+endpoint. Preserve its legacy teacher branch, canonical published-source draft
+reconstruction, work-history exclusions and idempotency. Add dormant current-owner
+authority through the existing shared admission and seven-argument owner workflow,
+not a new rollout switch. Whole-Test deletion remains the next separate lifecycle
+gap. All shared database, production and activation holds above remain unchanged.
+
+The following learner checkpoint is historical and superseded by the merged
+receipt above, not an instruction to repeat its preparation or native attempts.
+The prior coherent dormant
 [learner Test group](contextual-test-learner-workflow.md) on
 `codex/learner-test-workflow` is draft PR #1561, reconciled onto current main
 `03fca4506` after the owner merge, database CI partition and later UI/history sync:

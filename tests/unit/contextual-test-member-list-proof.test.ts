@@ -60,7 +60,7 @@ function sourceFetch(f: ReturnType<typeof newTestMemberListFixture>): typeof fet
     const after = (key: string, id: string) => { const value = url.searchParams.get(key); return !value || id > value.slice(3) }
     const tests = rows['public.tests'].filter(t => t.classroom_id === c!.id && t.status !== 'draft').sort((a, b) => a.id.localeCompare(b.id))
     if (select === TEST_MEMBER_LIST_PROJECTIONS.tests) root.tests = tests.filter(t => after('tests.id', t.id))
-      .map(t => Object.fromEntries('id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'.split(',').map(k => [k, t[k as keyof typeof t]])))
+      .map(t => Object.fromEntries('id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at'.split(',').map(k => [k, t[k as keyof typeof t]])))
     else if (select !== TEST_MEMBER_LIST_PROJECTIONS.root) {
       const kind = (['attempts', 'responses', 'availability'] as const).find(k => select === TEST_MEMBER_LIST_PROJECTIONS[k])
       root.tests = tests.map(t => ({ id: t.id, classroom_id: t.classroom_id, status: t.status, updated_at: t.updated_at,
@@ -152,14 +152,14 @@ describe('finite member Test list fixture', () => {
     expect(result.tests.some(t => t.id === f.tests[4].id)).toBe(true)
     expect(result.tests.find(t => t.id === f.tests[1].id)?.documents).toEqual([])
     expect(result.tests.find(t => t.id === f.tests[2].id)?.student_status).toBe('can_view_results')
-    for (const row of result.tests) expect(Object.keys(row).sort()).toEqual('id,classroom_id,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at,assessment_type,student_status,access_state,effective_access'.split(',').sort())
+    for (const row of result.tests) expect(Object.keys(row).sort()).toEqual('id,classroom_id,test_date,title,status,show_results,documents,position,points_possible,include_in_final,gradebook_weight,created_by,created_at,updated_at,assessment_type,student_status,access_state,effective_access'.split(',').sort())
   })
 })
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-  it('reproduces the former exact257 rejection of the complete current258 chain', () => {
-    expect(current).toHaveLength(258)
+  it('reproduces the former exact257 rejection of the complete current262 chain', () => {
+    expect(current).toHaveLength(263)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })
@@ -169,8 +169,12 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(digest(current[256]!.sql)).toBe('d4f12d17b79e4800e5bdd6ea7db2c0fee7cf51d19a5dfde93084c243b22c1e2a')
     expect(current[257]).toMatchObject({ name: '258_student_test_session_status_projection.sql', sha256: '7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f' })
     expect(digest(current[257].sql)).toBe('7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f')
+    expect(current[258]).toMatchObject({ name: '259_contextual_test_owner_grading.sql', sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540' })
+    expect(digest(current[258].sql)).toBe('698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540')
+    expect(current[259]).toMatchObject({ name: '260_contextual_test_owner_recovery.sql', sha256: '84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0' })
+    expect(digest(current[259].sql)).toBe('84cc99afd780ca9f97e1963492793014d68e852ff2586282a30442b6a16559e0')
   })
-  it.each([253, 254, 255, 256, 257, 258])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
+  it.each([253, 254, 255, 256, 257, 258, 259, 260, 261, 262])('accepts the complete actual-source %i profile with both unchanged catalogs', count => {
     const migrations = current.slice(0, count)
     expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248, ci = [...local, 'private.classroom_test_quota_settings'].sort()
@@ -178,15 +182,35 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(testMemberListReviewedIsolatedCatalog(local, migrations)).toEqual(ci)
     expect(testMemberListReviewedIsolatedCatalog(ci, migrations)).toEqual(ci)
   })
-  it.each(['future259', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
+  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future263', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255name', 'bad255digest', 'bad255bytes', 'self-hashed255bytes', 'bad254name', 'bad254digest', 'bad254bytes', 'self-hashed254bytes', 'gap', 'counter-digest',
     'bad253name', 'self-hashed253bytes'] as const)('rejects unreviewed source profile: %s', defect => {
     const migrations = current.map(m => ({ ...m })), tail = migrations[253]
-    if (defect === 'future259') migrations.push({ name: '259_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
-    const projection = migrations[257]
-    if (defect === 'bad258name') projection.name = '258_unknown.sql'
-    if (defect === 'bad258digest') projection.sha256 = 'f'.repeat(64)
-    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') projection.sql += '\n'
-    if (defect === 'self-hashed258bytes') projection.sha256 = digest(projection.sql)
+    if (defect === 'future263') migrations.push({ name: '263_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'bad262name') migrations[261].name = '262_unknown.sql'
+    if (defect === 'bad262digest') migrations[261].sha256 = 'f'.repeat(64)
+    if (defect === 'bad262bytes' || defect === 'self-hashed262bytes') migrations[261].sql += '\n'
+    if (defect === 'self-hashed262bytes') migrations[261].sha256 = digest(migrations[261].sql)
+    if (defect === 'bad261name') migrations[260].name = '261_unknown.sql'
+    if (defect === 'bad261digest') migrations[260].sha256 = 'f'.repeat(64)
+    if (defect === 'bad261bytes' || defect === 'self-hashed261bytes') migrations[260].sql += '\n'
+    if (defect === 'self-hashed261bytes') migrations[260].sha256 = digest(migrations[260].sql)
+    const recovery = migrations[259]
+    if (defect === 'bad260name') recovery.name = '260_unknown.sql'
+    if (defect === 'bad260digest') recovery.sha256 = 'f'.repeat(64)
+    if (defect === 'bad260bytes' || defect === 'self-hashed260bytes') recovery.sql += '\n'
+    if (defect === 'self-hashed260bytes') recovery.sha256 = digest(recovery.sql)
+    const grading = migrations[258]
+    if (defect === 'bad259name') grading.name = '259_unknown.sql'
+    if (defect === 'bad259digest') grading.sha256 = 'f'.repeat(64)
+    if (defect === 'bad259bytes' || defect === 'self-hashed259bytes') grading.sql += '\n'
+    if (defect === 'self-hashed259bytes') grading.sha256 = digest(grading.sql)
+    if (defect === 'missing258') migrations.splice(257, 1)
+    if (defect === 'replaced258') migrations[257] = { ...grading, name: '258_student_test_session_status_projection.sql' }
+    const profileTail = migrations[257]
+    if (defect === 'bad258name') profileTail.name = '258_unknown.sql'
+    if (defect === 'bad258digest') profileTail.sha256 = 'f'.repeat(64)
+    if (defect === 'bad258bytes' || defect === 'self-hashed258bytes') profileTail.sql += '\n'
+    if (defect === 'self-hashed258bytes') profileTail.sha256 = digest(profileTail.sql)
     const learner = migrations[256]
     if (defect === 'bad257name') learner.name = '257_unknown.sql'
     if (defect === 'bad257digest') learner.sha256 = 'f'.repeat(64)

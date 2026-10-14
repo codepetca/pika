@@ -140,7 +140,7 @@ describe('inert contextual Test reorder database contracts', () => {
   })
 
   it('seals exact columns, all14 triggers, column qualifiers and reachable routine source', () => {
-    expect(TEST_OWNER_REORDER_TEST_COLUMNS).toHaveLength(21)
+    expect(TEST_OWNER_REORDER_TEST_COLUMNS).toHaveLength(22)
     for (const token of ['prosecdef', 'search_path=""', 'lock_timeout=1s', 'pg_catalog.aclexplode',
       'update_tests_updated_at', 'tgattr', 'tgqual', 'tgargs', 'tgenabled', 'tgdeferrable', 'tginitdeferred',
       'Exact14 Test trigger closure differs', 'Reachable routine source differs', 'pg_catalog.md5(proc.prosrc)',

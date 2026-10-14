@@ -19,7 +19,7 @@ function envelope(args: {p_actor_id:string;p_classroom_id:string;p_title:string}
   const test = {id:'11111111-1111-4111-8111-111111111111',artifact_id:'22222222-2222-4222-8222-222222222222',classroom_id:args.p_classroom_id,created_by:args.p_actor_id,
     title:args.p_title,status:'draft',show_results:false,documents:[],position:0,points_possible:100,include_in_final:true,created_at:stamp,updated_at:stamp,
     source_artifact_id:null,source_blueprint_version_id:null,blueprint_archived_at:null,questions_locked_at:null,gradebook_category_id:null as string|null,gradebook_weight:10,
-    gradebook_maximum_override:null,gradebook_score_scale:1}
+    gradebook_maximum_override:null,test_date: null, gradebook_score_scale:1}
   return {version:1,actor_id:args.p_actor_id,classroom_id:args.p_classroom_id,test_id:test.id,test,
     draft:{id:'33333333-3333-4333-8333-333333333333',assessment_type:'test',assessment_id:test.id,classroom_id:args.p_classroom_id,version:1,
       content:{title:args.p_title,show_results:false,question_identity_version:1,questions:[],source_format:'markdown'},created_by:args.p_actor_id,updated_by:args.p_actor_id,created_at:stamp,updated_at:stamp}}

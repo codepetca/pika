@@ -1,7 +1,8 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
+import { Pencil, Plus } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { MarkdownContentEditor } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
@@ -9,8 +10,8 @@ import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/
 import { isCalendarAnnouncementScheduled } from '@/lib/calendar-items'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
-import { Tooltip } from '@/ui'
-import type { Announcement, Assignment, LessonPlan } from '@/types'
+import { Button, Tooltip } from '@/ui'
+import type { Announcement, Assignment, LessonPlan, TestAssessment } from '@/types'
 
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
@@ -42,6 +43,7 @@ interface LessonDayCellProps {
   date: string // YYYY-MM-DD
   day: Date
   lessonPlan: LessonPlan | null
+  tests?: TestAssessment[]
   assignments?: Assignment[]
   announcements?: Announcement[]
   isWeekend: boolean
@@ -50,7 +52,10 @@ interface LessonDayCellProps {
   editable: boolean
   compact?: boolean
   plainTextOnly?: boolean
+  layout?: 'grid' | 'agenda'
+  onPresentDay?: () => void
   onContentChange?: (date: string, contentMarkdown: string) => void
+  onTestClick?: (test: TestAssessment) => void
   onAssignmentClick?: (assignment: Assignment) => void
   onAnnouncementClick?: () => void
 }
@@ -59,6 +64,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   date,
   day,
   lessonPlan,
+  tests = [],
   assignments = [],
   announcements = [],
   isWeekend,
@@ -67,7 +73,10 @@ export const LessonDayCell = memo(function LessonDayCell({
   editable,
   compact = false,
   plainTextOnly = false,
+  layout = 'grid',
+  onPresentDay,
   onContentChange,
+  onTestClick,
   onAssignmentClick,
   onAnnouncementClick,
 }: LessonDayCellProps) {
@@ -76,6 +85,8 @@ export const LessonDayCell = memo(function LessonDayCell({
   const [isEditing, setIsEditing] = useState(false)
   const [localMarkdown, setLocalMarkdown] = useState(markdown)
   const cellRef = useRef<HTMLDivElement | null>(null)
+  const agendaHeadingId = useId()
+  const editActionRef = useRef<HTMLButtonElement | null>(null)
   const renderPlainText = plainTextOnly || !showMarkdown
 
   useEffect(() => {
@@ -124,6 +135,118 @@ export const LessonDayCell = memo(function LessonDayCell({
     ? 'text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap'
     : 'text-sm leading-snug text-text-muted whitespace-pre-wrap'
 
+  const testLinks = tests.map(test => (
+    <Tooltip key={test.id} content={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}>
+      <Button variant="ghost" size="sm" aria-label={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}
+        onClick={event => { event.stopPropagation(); onTestClick?.(test) }}
+        className="w-full overflow-hidden bg-info-bg px-0.5 text-primary">
+        <span className="truncate">Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}</span>
+      </Button>
+    </Tooltip>
+  ))
+
+  if (layout === 'agenda') {
+    const nonClassDay = isWeekend || isClassDay === false
+    const canEdit = editable && !isWeekend
+    const finishEditing = () => {
+      setIsEditing(false)
+      requestAnimationFrame(() => editActionRef.current?.focus({ preventScroll: true }))
+    }
+
+    return (
+      <article
+        aria-labelledby={agendaHeadingId}
+        className={`flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
+          nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 ? 'py-3' : 'py-5'
+        } ${isToday ? 'border-l-2 border-primary' : 'border-l-2 border-transparent'}`}
+      >
+        <div className="flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24">
+          <Button
+            id={agendaHeadingId}
+            variant="ghost"
+            size="sm"
+            onClick={onPresentDay}
+            aria-label={`Open ${format(day, 'EEEE, MMMM d, yyyy')}`}
+            className="flex-col items-start px-0 text-left"
+          >
+            <span className="text-xs font-medium text-text-muted">{format(day, 'EEE')}</span>
+            <time dateTime={date} className="text-xl font-semibold leading-tight text-text-default">{format(day, 'd')}</time>
+          </Button>
+          {isToday && <span className="rounded-badge bg-info-bg px-1.5 py-0.5 text-xs font-medium text-primary">Today</span>}
+        </div>
+
+        <div ref={cellRef} className="min-w-0 flex-1 space-y-3">
+          {(nonClassDay || (canEdit && !isEditing)) && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {nonClassDay ? <span className="text-sm text-text-muted">No class</span> : <span />}
+              {canEdit && !isEditing && (
+                <Button ref={editActionRef} variant="ghost" size="sm" onClick={handleStartEditing} className="gap-1.5 text-text-muted">
+                  {hasContent ? <Pencil className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+                  {hasContent ? 'Edit lesson' : 'Add lesson'}
+                </Button>
+              )}
+            </div>
+          )}
+
+          <div className="calendar-day-text min-w-0 break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto">
+            {isEditing && canEdit ? (
+              <MarkdownContentEditor
+                markdown={localMarkdown}
+                onMarkdownChange={handleMarkdownChange}
+                onBlur={() => setIsEditing(false)}
+                onEscape={finishEditing}
+                toolbarPreset="brief"
+                autoFocus
+                placeholder=""
+                aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
+                className="[&_.ProseMirror]:min-h-control [&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-relaxed"
+              />
+            ) : hasContent ? (
+              renderPlainText ? <div className="whitespace-pre-wrap">{plainText}</div> : (
+                <LimitedMarkdown
+                  content={markdown}
+                  className="space-y-3 text-sm leading-relaxed [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-base"
+                  emptyPlaceholder={null}
+                />
+              )
+            ) : !nonClassDay ? (
+              <p className="text-sm text-text-muted">{canEdit ? 'No lesson planned' : 'No lesson posted'}</p>
+            ) : null}
+          </div>
+
+          {(assignments.length > 0 || announcements.length > 0 || tests.length > 0) && (
+            <div className="flex min-w-0 flex-wrap gap-2">
+              {tests.map(test => (
+                <Button key={test.id} variant="ghost" size="sm" onClick={() => onTestClick?.(test)}
+                  className="max-w-full whitespace-normal bg-info-bg px-3 py-2 text-left text-primary">
+                  <span className="min-w-0 break-words">Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}</span>
+                </Button>
+              ))}
+              {assignments.map(assignment => (
+                <Button key={assignment.id} variant="ghost" size="sm" onClick={() => onAssignmentClick?.(assignment)}
+                  className="h-auto min-w-0 max-w-full whitespace-normal bg-info-bg px-3 py-2 text-left text-primary">
+                  <span className="min-w-0 break-words">Due: {assignment.title}{assignment.is_draft ? ' [Draft]' : ''}</span>
+                </Button>
+              ))}
+              {announcements.map(announcement => {
+                const calendarLabel = getAnnouncementCalendarLabel(announcement, isScheduled(announcement))
+                return (
+                  <Tooltip key={announcement.id} content={<AnnouncementTooltipContent announcements={[announcement]} />}
+                    className="md:max-w-none" align="start" interactive>
+                    <Button variant="ghost" size="sm" onClick={onAnnouncementClick} aria-label={calendarLabel}
+                      className="h-auto min-w-0 max-w-full whitespace-normal bg-warning-bg px-3 py-2 text-left text-warning">
+                      <span className="min-w-0 break-words">{calendarLabel}</span>
+                    </Button>
+                  </Tooltip>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </article>
+    )
+  }
+
   // Weekend cells are narrow and minimal
   if (isWeekend) {
     const assignmentTitles = assignments.map(a => a.is_draft ? `[Draft] ${a.title}` : a.title).join(', ')
@@ -141,6 +264,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             {format(day, 'd')}
           </span>
         </div>
+        {tests.length > 0 && <div className="space-y-0.5 px-0.5">{testLinks}</div>}
         {/* Weekend assignment pill - no text, tooltip on hover */}
         {assignments.length > 0 && (
           <div className="px-0.5 flex items-start justify-center">
@@ -222,6 +346,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         </span>
       </div>
 
+      {tests.length > 0 && <div className="space-y-0.5 px-0.5">{testLinks}</div>}
       {/* Assignment due dates - shown first */}
       {assignments.length > 0 && (
         <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>

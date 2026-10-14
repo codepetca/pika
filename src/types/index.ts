@@ -1007,6 +1007,8 @@ export interface SurveyQuestionResult {
 }
 
 export interface TestAssessment {
+  /** Optional classroom calendar date; has no effect on learner access. */
+  test_date?: string | null
   id: string
   artifact_id?: string
   source_artifact_id?: string | null

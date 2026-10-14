@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { testCalendarDateSchema } from '@/lib/validations/test-calendar-date'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import { MAX_TEST_DOCUMENTS, MAX_TEST_DOCUMENT_TEXT_LENGTH, TEST_DOCUMENT_MAX_SIZE } from '@/lib/test-documents'
 
@@ -23,7 +24,7 @@ const document = z.object({
   snapshot_managed_object_id: uuid.optional(), snapshot_content_type: z.string().optional(), synced_at: z.string().nullable().optional(),
 }).strict()
 export const contextualTestDetailTestSchema = contextualTestDetailControlSchema.extend({
-  title: z.string(), status: z.enum(['draft', 'active', 'closed']), show_results: z.boolean(), documents: z.array(document).max(MAX_TEST_DOCUMENTS),
+  test_date: testCalendarDateSchema, title: z.string(), status: z.enum(['draft', 'active', 'closed']), show_results: z.boolean(), documents: z.array(document).max(MAX_TEST_DOCUMENTS),
   position: z.number().int(), points_possible: z.number().finite(), include_in_final: z.boolean(), created_by: uuid, created_at: timestamp, updated_at: timestamp,
 }).strict()
 export const contextualTestDetailQuestionSchema = z.object({

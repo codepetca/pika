@@ -13,7 +13,7 @@ const testId = '33333333-3333-4333-8333-333333333333'
 const stamp = '2026-10-06T03:25:00Z'
 const test = { id: testId, classroom_id: classroomId, title: 'Untitled 2026-10-05 23:25:00', status: 'draft', show_results: false, position: 0, points_possible: 100, include_in_final: true,
   created_by: actorId, created_at: stamp, updated_at: stamp, documents: [], artifact_id: '55555555-5555-4555-8555-555555555555', source_artifact_id: null,
-  source_blueprint_version_id: null, blueprint_archived_at: null, questions_locked_at: null, gradebook_category_id: null, gradebook_weight: 10, gradebook_maximum_override: null, gradebook_score_scale: 1 }
+  source_blueprint_version_id: null, blueprint_archived_at: null, questions_locked_at: null, gradebook_category_id: null, gradebook_weight: 10, gradebook_maximum_override: null, test_date: null, gradebook_score_scale: 1 }
 const draft = { id: '44444444-4444-4444-8444-444444444444', assessment_type: 'test', assessment_id: testId, classroom_id: classroomId,
   content: { title: test.title, show_results: false, question_identity_version: 1, questions: [], source_format: 'markdown' }, version: 7, created_by: actorId, updated_by: actorId, created_at: stamp, updated_at: stamp }
 const witness = () => ({ version: 1, actor_id: actorId, test_id: testId, classroom: { id: classroomId, teacher_id: actorId, archived_at: null }, test, draft, discarded: true })

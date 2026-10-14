@@ -33,7 +33,7 @@ describe('contextual Test publication rollback database contracts', () => {
   })
 
   it('attests the complete physical Test, Draft, and question rows plus closed catalog', () => {
-    expect(TEST_OWNER_PUBLICATION_TEST_COLUMNS).toHaveLength(21)
+    expect(TEST_OWNER_PUBLICATION_TEST_COLUMNS).toHaveLength(22)
     expect(TEST_OWNER_PUBLICATION_DRAFT_COLUMNS).toHaveLength(10)
     expect(TEST_OWNER_PUBLICATION_QUESTION_COLUMNS).toHaveLength(21)
     for (const token of [

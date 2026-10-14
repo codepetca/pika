@@ -1,5 +1,7 @@
 'use client'
 
+import { CALENDAR_REFERENCE_TEST } from './calendar-test-fixtures'
+
 import { useState } from 'react'
 import { addWeeks, format, subWeeks } from 'date-fns'
 import { BookOpen, ChevronRight, FileText, Link as LinkIcon } from 'lucide-react'
@@ -12,7 +14,7 @@ import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-vi
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import type { Classroom, ClassDay, LessonPlan, TiptapContent } from '@/types'
-import { Button, Card, SaveStatus } from '@/ui'
+import { Button, Card, PageLayout, SaveStatus } from '@/ui'
 import { StudentGradesView, VISIBLE_GRADES } from './StudentGradesPattern'
 
 export type StudentPageId = 'today' | 'classwork' | 'tests' | 'grades' | 'calendar' | 'announcements' | 'resources'
@@ -144,15 +146,17 @@ function StudentTestsMockup({ onPrototypeAction }: { onPrototypeAction: (action:
 function StudentCalendarMockup() {
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
   return (
-    <div className="space-y-3" data-testid="student-calendar-mockup">
-      <TeacherWorkSurfaceContextBar
-        ariaLabel="Student calendar controls"
-        primary={<DateNavigator joined label={`Week of ${format(date, 'MMM d')}`} onPrev={() => setDate((current) => subWeeks(current, 1))} onNext={() => setDate((current) => addWeeks(current, 1))} onLabelClick={() => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel="Return to reference week" />}
-      />
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <LessonCalendar classroom={STUDENT_CLASSROOM} lessonPlans={STUDENT_LESSONS} classDays={STUDENT_CLASS_DAYS} viewMode="week" currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={() => {}} />
+    <PageLayout width="standard" bleedX={false} className="space-y-3">
+      <div data-testid="student-calendar-mockup" className="space-y-3">
+        <TeacherWorkSurfaceContextBar
+          ariaLabel="Student calendar controls"
+          primary={<DateNavigator joined label={`Week of ${format(date, 'MMM d')}`} onPrev={() => setDate((current) => subWeeks(current, 1))} onNext={() => setDate((current) => addWeeks(current, 1))} onLabelClick={() => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel="Return to reference week" />}
+        />
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <LessonCalendar classroom={STUDENT_CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} lessonPlans={STUDENT_LESSONS} classDays={STUDENT_CLASS_DAYS} viewMode="week" currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={() => {}} />
+        </div>
       </div>
-    </div>
+    </PageLayout>
   )
 }
 

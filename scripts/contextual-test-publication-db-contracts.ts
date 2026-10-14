@@ -10,7 +10,7 @@ export const TEST_OWNER_PUBLICATION_SOURCE_SHA256 = 'b506e610a5dbb020b0b9aba2f60
 export const TEST_OWNER_PUBLICATION_DB_CAPS = Object.freeze({ sqlBytes: 256 * 1024, actionMs: 35_000, requestMs: 12_000 })
 export const TEST_OWNER_PUBLICATION_TEST_COLUMNS = Object.freeze(['id','classroom_id','title','status','show_results','position',
   'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id','source_artifact_id',
-  'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_maximum_override','gradebook_score_scale'] as const)
+  'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_maximum_override','gradebook_score_scale','test_date'] as const)
 export const TEST_OWNER_PUBLICATION_DRAFT_COLUMNS = Object.freeze(['id','assessment_type','assessment_id','classroom_id','content',
   'version','created_by','updated_by','created_at','updated_at'] as const)
 export const TEST_OWNER_PUBLICATION_QUESTION_COLUMNS = Object.freeze(['id','test_id','question_type','question_text','options','correct_option',

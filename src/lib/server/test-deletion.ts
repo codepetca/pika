@@ -1,11 +1,6 @@
-import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
-
-const deleteTestResultSchema = z.object({
-  deleted: z.literal(true),
-  responses_count: z.number().int().nonnegative(),
-}).strict()
+import { testDeletionResultSchema } from '@/lib/validations/test-deletion'
 
 type DatabaseError = { code?: string; message?: string }
 
@@ -29,7 +24,7 @@ export async function deleteTeacherTestAtomic(input: {
     throw new Error('Failed to delete test')
   }
 
-  const parsed = deleteTestResultSchema.safeParse(data)
+  const parsed = testDeletionResultSchema.safeParse(data)
   if (!parsed.success) throw new Error('Invalid test deletion result')
   return { deleted: true, responsesCount: parsed.data.responses_count }
 }

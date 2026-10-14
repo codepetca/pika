@@ -36,7 +36,7 @@ const attempt = { id: attemptId, test_id: testId, student_id: actor, responses: 
   created_at: stamp, updated_at: stamp, draft_revision: 12 }
 const question = { id: questionId, test_id: testId, question_type: 'multiple_choice', question_text: 'Q', options: ['A','B'],
   points: 5, response_max_chars: 5000, response_monospace: false, position: 0, created_at: stamp, updated_at: stamp }
-const state = { test: { id: testId, classroom_id: classroom, title: 'T', status: 'active', show_results: true, documents: [],
+const state = { test: { id: testId, classroom_id: classroom, test_date: null, title: 'T', status: 'active', show_results: true, documents: [],
   position: 0, created_at: stamp, updated_at: stamp }, attempt: { id: attemptId, is_submitted: false, returned_at: null,
   closed_for_grading_at: null, draft_revision: 12 }, access_state: null, has_submitted: false }
 const historyEntry = { id: historyId, test_attempt_id: attemptId, patch: null, snapshot: answers, word_count: 1,

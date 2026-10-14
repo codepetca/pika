@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { handleContextualTestOwnerRecoveryRequest } from '@/lib/server/contextual-test-owner-recovery'
 import {
   deleteStudentTestAttemptsAtomic,
   getKnownTestWorkDeletionRpcError,
@@ -15,6 +16,8 @@ export const revalidate = 0
 
 // POST /api/teacher/tests/[id]/students/attempts/bulk-delete - Atomically delete selected students' test work
 export const POST = withErrorHandler('BulkDeleteTeacherTestStudentAttempts', async (request, context) => {
+  const contextual = await handleContextualTestOwnerRecoveryRequest('delete-bulk', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const body = await request.json()

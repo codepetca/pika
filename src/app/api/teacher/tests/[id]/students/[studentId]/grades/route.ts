@@ -1,3 +1,4 @@
+import { handleContextualTestOwnerGradingRequest } from '@/lib/server/contextual-test-owner-grading'
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -10,6 +11,8 @@ export const revalidate = 0
 
 // PATCH /api/teacher/tests/[id]/students/[studentId]/grades - Save open-response grades for one student
 export const PATCH = withErrorHandler('BulkSaveTeacherTestGrades', async (request, context) => {
+  const contextual = await handleContextualTestOwnerGradingRequest('student-save', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId, studentId } = await context.params
   let rawBody: unknown

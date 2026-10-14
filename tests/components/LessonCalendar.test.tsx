@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { LessonCalendar } from '@/components/LessonCalendar'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { TooltipProvider } from '@/ui'
-import type { Announcement, Assignment, Classroom, LessonPlan, TiptapContent } from '@/types'
+import type { Announcement, Assignment, Classroom, LessonPlan, TestAssessment, TiptapContent } from '@/types'
 import type { ReactNode } from 'react'
 
 // Mock the keyboard shortcut hook
@@ -111,26 +111,25 @@ describe('LessonCalendar', () => {
       expect(style).toContain('grid-template-rows: auto')
     })
 
-    it('renders rows with 1fr in week view', () => {
-      const { container } = render(
-        <LessonCalendar
-          classroom={mockClassroom}
-          lessonPlans={[]}
-          viewMode="week"
-          currentDate={new Date('2026-03-15')}
-          editable={false}
-          onDateChange={vi.fn()}
-          onViewModeChange={vi.fn()}
-        />,
+    it('renders seven chronological days in the named Week agenda', () => {
+      render(
+        <LessonCalendar classroom={mockClassroom} lessonPlans={[]}
+          viewMode="week" currentDate={new Date('2026-03-16T12:00:00')}
+          editable={false} onDateChange={vi.fn()} onViewModeChange={vi.fn()} />,
         { wrapper: Wrapper }
       )
-
-      const grid = container.querySelector('[class*="grid"][class*="overflow-visible"]')
-      expect(grid).toBeTruthy()
-
-      const style = grid?.getAttribute('style')
-      // Week view uses 1fr
-      expect(style).toContain('grid-template-rows: 1fr')
+      const agenda = screen.getByRole('region', { name: 'Week agenda' })
+      const days = within(agenda).getAllByRole('article')
+      expect(days).toHaveLength(7)
+      const labels = [
+        'Sunday, March 15, 2026', 'Monday, March 16, 2026',
+        'Tuesday, March 17, 2026', 'Wednesday, March 18, 2026',
+        'Thursday, March 19, 2026', 'Friday, March 20, 2026',
+        'Saturday, March 21, 2026',
+      ]
+      days.forEach((day, index) => {
+        expect(within(day).getByRole('button', { name: `Open ${labels[index]}` })).toBeInTheDocument()
+      })
     })
 
     it('renders month rows with compact content-based minimum heights', () => {
@@ -154,6 +153,24 @@ describe('LessonCalendar', () => {
       expect(style).toContain('minmax(4.5rem, auto)')
       expect(style).not.toContain('minmax(0, 1fr)')
     })
+  })
+
+  it('routes Week agenda events through existing callbacks without opening a lesson editor', () => {
+    const onAssignmentClick = vi.fn()
+    const onAnnouncementClick = vi.fn()
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
+      assignments={[mondayAssignment]} announcements={[{ ...markdownAnnouncement, title: 'Course outline reminder' }]}
+      viewMode="week" currentDate={new Date('2026-03-16T12:00:00')} editable={true}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()}
+      onAssignmentClick={onAssignmentClick} onAnnouncementClick={onAnnouncementClick} />,
+      { wrapper: Wrapper })
+    const agenda = screen.getByRole('region', { name: 'Week agenda' })
+    fireEvent.click(within(agenda).getByRole('button', { name: 'Due: Week 11 test' }))
+    expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(mondayAssignment)
+    fireEvent.click(within(agenda).getByRole('button', { name: 'Course outline reminder' }))
+    expect(onAnnouncementClick).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('uses the date label as the return-to-today control in week view', () => {
@@ -417,5 +434,43 @@ describe('LessonCalendar', () => {
       expect(container.querySelector('h3')).toBeNull()
     })
     expect(screen.getAllByText((_, node) => node?.textContent === 'Lesson title\nRead notes').length).toBeGreaterThan(0)
+  })
+})
+
+
+describe('test calendar reminders', () => {
+  const datedTest = { id: 'calendar-test', title: 'Reminder test', status: 'draft', test_date: '2026-03-21' } as TestAssessment
+  const undatedTest = { ...datedTest, id: 'undated-test', title: 'Undated test', test_date: null }
+  it.each(['week', 'month', 'all'] as const)('renders a weekend test and navigates in %s view, omitting undated tests', (viewMode) => {
+    const onTestClick = vi.fn()
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[]} tests={[datedTest, undatedTest]}
+      viewMode={viewMode} currentDate={new Date(2026, 2, 18)} editable={false}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} onTestClick={onTestClick} />, { wrapper: Wrapper })
+    const link = screen.getByRole('button', { name: 'Test: Reminder test [Draft]' })
+    expect(screen.queryByText('Test: Undated test')).not.toBeInTheDocument()
+    fireEvent.click(link)
+    expect(onTestClick).toHaveBeenCalledWith(datedTest)
+  })
+  it.each(['month', 'all'] as const)('reserves touch-sized grid columns and bounded scrolling in %s view', (viewMode) => {
+    const { container } = render(<LessonCalendar classroom={mockClassroom} lessonPlans={[]} tests={[datedTest]}
+      viewMode={viewMode} currentDate={new Date(2026, 2, 18)} editable={false}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+    const grid = Array.from(container.querySelectorAll('div')).find(element => element.style.gridTemplateRows)
+    expect(grid?.style.gridTemplateColumns.match(/minmax\(calc\(var\(--size-control-min\) \+ var\(--space-control\)\),/g)).toHaveLength(7)
+    expect(grid?.parentElement).toHaveClass('overflow-x-auto')
+    const testButton = screen.getByRole('button', { name: 'Test: Reminder test [Draft]' })
+    expect(testButton).toHaveClass('min-w-control', 'min-h-control')
+    expect(testButton).not.toHaveClass('min-w-0')
+  })
+  it('shows the reminder in the day presentation and closes it on test navigation', async () => {
+    const onTestClick = vi.fn()
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[]} tests={[datedTest]}
+      viewMode="week" currentDate={new Date(2026, 2, 18)} editable={false}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} onTestClick={onTestClick} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Open Saturday, March 21, 2026' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Test: Reminder test [Draft]' }))
+    expect(onTestClick).toHaveBeenCalledWith(datedTest)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 })

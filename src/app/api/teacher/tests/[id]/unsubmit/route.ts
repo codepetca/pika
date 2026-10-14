@@ -5,6 +5,7 @@ import { assertTeacherOwnsTest, isMissingTestAttemptClosureColumnsError } from '
 import { getServiceRoleClient } from '@/lib/supabase'
 import { buildTestAttemptHistoryMetrics, normalizeTestResponses } from '@/lib/test-attempts'
 import { insertVersionedBaselineHistory } from '@/lib/server/versioned-history'
+import { handleContextualTestOwnerRecoveryRequest } from '@/lib/server/contextual-test-owner-recovery'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,6 +49,8 @@ type UnsubmittedAttempt = {
 
 // POST /api/teacher/tests/[id]/unsubmit - Mark selected students' attempts unsubmitted
 export const POST = withErrorHandler('UnsubmitTeacherTestAttempts', async (request, context) => {
+  const contextual = await handleContextualTestOwnerRecoveryRequest('unsubmit', request, context.params)
+  if (contextual) return contextual
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const body = await request.json()

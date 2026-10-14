@@ -68,7 +68,7 @@ function functions() {
  declare category jsonb;begin
  select x into category from jsonb_array_elements(g->'public.gradebook_categories') x where x->>'classroom_id'=c::text
  order by (x->>'is_default')::boolean desc,(x->>'position')::integer,x->>'id' limit 1;
- return jsonb_build_object('id',t,'classroom_id',c,'title',title,'status','draft','show_results',false,'position',pos,
+ return jsonb_build_object('id',t,'classroom_id',c,'title',title,'status','draft','test_date',null,'show_results',false,'position',pos,
  'points_possible',100,'include_in_final',true,'created_by',u,'created_at',transaction_timestamp(),'updated_at',transaction_timestamp(),
  'documents','[]'::jsonb,'gradebook_weight',coalesce((category->>'default_assessment_weight')::numeric,10),'artifact_id',a,'source_artifact_id',null,
  'blueprint_archived_at',null,'source_blueprint_version_id',null,'questions_locked_at',null,'gradebook_category_id',category->>'id',
