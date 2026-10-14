@@ -35,6 +35,8 @@ interface Props {
   className?: string
 }
 
+type ScheduleFocusSession = { context: string; initiator: HTMLElement | null }
+
 type AnnouncementsResponse = { announcements?: Announcement[] }
 
 const ANNOUNCEMENT_TEXTAREA_MIN_HEIGHT_PX = 160
@@ -114,6 +116,18 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
   const newTextareaRef = useRef<HTMLTextAreaElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const editDropdownRef = useRef<HTMLDivElement>(null)
+  const createDateInputRef = useRef<HTMLInputElement>(null)
+  const editDateInputRef = useRef<HTMLInputElement>(null)
+  const createPickerRef = useRef<HTMLDivElement>(null)
+  const editPickerRef = useRef<HTMLDivElement>(null)
+  const createScheduleFocusRef = useRef<ScheduleFocusSession | null>(null)
+  const editScheduleFocusRef = useRef<ScheduleFocusSession | null>(null)
+  const committedFocusContextRef = useRef<string | null>(null)
+  const pendingScheduleReturnRef = useRef<{
+    session: ScheduleFocusSession
+    owner: 'create' | 'edit'
+    dismissedFrom: Element | null
+  } | null>(null)
   const loadRequestIdRef = useRef(0)
   const saveRequestIdRef = useRef(0)
   const deleteRequestIdRef = useRef(0)
@@ -122,6 +136,69 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
   const currentClassroomIdRef = useRef(classroom.id)
 
   const isReadOnly = !!classroom.archived_at
+  const focusContext = `${classroom.id}:${isActive}:${isReadOnly}:${isCreating}:${editingId ?? 'list'}`
+
+  const ownsScheduleFocus = useCallback((session: ScheduleFocusSession | null, owner: 'create' | 'edit') => {
+    return !!session && session.context === committedFocusContextRef.current &&
+      session === (owner === 'create' ? createScheduleFocusRef.current : editScheduleFocusRef.current)
+  }, [])
+
+  const closeSchedulePicker = useCallback((owner: 'create' | 'edit', session: ScheduleFocusSession | null, returnFocus = false) => {
+    if (!ownsScheduleFocus(session, owner)) return
+    if (returnFocus) {
+      pendingScheduleReturnRef.current = { session: session!, owner, dismissedFrom: document.activeElement }
+    }
+    if (owner === 'create') {
+      createScheduleFocusRef.current = null
+      setShowScheduleDropdown(false)
+    } else {
+      editScheduleFocusRef.current = null
+      setShowEditScheduleDropdown(false)
+    }
+  }, [ownsScheduleFocus])
+
+  // Only committed owners can grant focus authority. Abandoned renders must not
+  // retire the currently visible picker or invalidate an in-flight save.
+  useLayoutEffect(() => {
+    committedFocusContextRef.current = isActive && !isReadOnly ? focusContext : null
+    if (createScheduleFocusRef.current?.context !== committedFocusContextRef.current) {
+      createScheduleFocusRef.current = null
+      setShowScheduleDropdown(false)
+    }
+    if (editScheduleFocusRef.current?.context !== committedFocusContextRef.current) {
+      editScheduleFocusRef.current = null
+      setShowEditScheduleDropdown(false)
+    }
+    pendingScheduleReturnRef.current = null
+  }, [focusContext, isActive, isReadOnly])
+
+  useLayoutEffect(() => () => {
+    committedFocusContextRef.current = null
+    createScheduleFocusRef.current = null
+    editScheduleFocusRef.current = null
+    pendingScheduleReturnRef.current = null
+  }, [])
+
+  useLayoutEffect(() => {
+    if (showScheduleDropdown && ownsScheduleFocus(createScheduleFocusRef.current, 'create')) {
+      createDateInputRef.current?.focus()
+    }
+    if (showEditScheduleDropdown && ownsScheduleFocus(editScheduleFocusRef.current, 'edit')) {
+      editDateInputRef.current?.focus()
+    }
+    const pending = pendingScheduleReturnRef.current
+    pendingScheduleReturnRef.current = null
+    if (!pending || pending.session.context !== committedFocusContextRef.current) return
+    // A focus destination chosen outside the picker always wins.
+    if (document.activeElement !== document.body && document.activeElement !== pending.dismissedFrom) return
+    const controls = pending.owner === 'create' ? dropdownRef.current : editDropdownRef.current
+    const target = pending.session.initiator
+    if (target?.isConnected && !target.matches(':disabled')) target.focus()
+    else controls?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+  }, [showScheduleDropdown, showEditScheduleDropdown, scheduleDateTime, editScheduleDateTime, ownsScheduleFocus])
+
+  const createPickerSession = createScheduleFocusRef.current
+  const editPickerSession = editScheduleFocusRef.current
 
   const loadAnnouncements = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1
@@ -207,31 +284,57 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     autoResizeAnnouncementTextarea(newTextareaRef.current)
   }, [isCreating, newContent])
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking or focusing outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowScheduleDropdown(false)
+        closeSchedulePicker('create', createPickerSession)
+      }
+    }
+    function handleFocusOutside(event: FocusEvent) {
+      const target = event.target
+      // A native date control/browser-chrome excursion may have no page target.
+      // Retire only when focus actually lands on another DOM control.
+      if (target instanceof Element && target !== document.body && target !== document.documentElement &&
+        createPickerRef.current && !createPickerRef.current.contains(target)) {
+        closeSchedulePicker('create', createPickerSession)
       }
     }
     if (showScheduleDropdown) {
       document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      document.addEventListener('focusin', handleFocusOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('focusin', handleFocusOutside)
+      }
     }
-  }, [showScheduleDropdown])
+  }, [showScheduleDropdown, createPickerSession, closeSchedulePicker])
 
-  // Close edit dropdown when clicking outside
+  // Close edit dropdown when clicking or focusing outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (editDropdownRef.current && !editDropdownRef.current.contains(event.target as Node)) {
-        setShowEditScheduleDropdown(false)
+        closeSchedulePicker('edit', editPickerSession)
+      }
+    }
+    function handleFocusOutside(event: FocusEvent) {
+      const target = event.target
+      // A native date control/browser-chrome excursion may have no page target.
+      // Retire only when focus actually lands on another DOM control.
+      if (target instanceof Element && target !== document.body && target !== document.documentElement &&
+        editPickerRef.current && !editPickerRef.current.contains(target)) {
+        closeSchedulePicker('edit', editPickerSession)
       }
     }
     if (showEditScheduleDropdown) {
       document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      document.addEventListener('focusin', handleFocusOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('focusin', handleFocusOutside)
+      }
     }
-  }, [showEditScheduleDropdown])
+  }, [showEditScheduleDropdown, editPickerSession, closeSchedulePicker])
 
   function startEditing(announcement: Announcement) {
     if (isReadOnly || saving) return
@@ -514,15 +617,31 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     }
   }
 
-  function openCreateSchedulePicker() {
-    setPendingScheduleDate(getTodayDate())
-    setPendingScheduleTime(DEFAULT_SCHEDULE_TIME)
+  function openCreateSchedulePicker(initiator?: HTMLElement, scheduledValue?: string) {
+    if (committedFocusContextRef.current !== focusContext) return
+    createScheduleFocusRef.current = {
+      context: focusContext,
+      initiator: initiator ?? dropdownRef.current?.querySelector<HTMLElement>('[aria-label="Choose announcement action"]') ?? null,
+    }
+    editScheduleFocusRef.current = null
+    setShowEditScheduleDropdown(false)
+    const parts = scheduledValue ? parseDateTime(scheduledValue) : { date: getTodayDate(), time: DEFAULT_SCHEDULE_TIME }
+    setPendingScheduleDate(parts.date)
+    setPendingScheduleTime(parts.time)
     setShowScheduleDropdown(true)
   }
 
-  function openEditSchedulePicker() {
-    setPendingEditScheduleDate(getTodayDate())
-    setPendingEditScheduleTime(DEFAULT_SCHEDULE_TIME)
+  function openEditSchedulePicker(initiator?: HTMLElement, scheduledValue?: string) {
+    if (committedFocusContextRef.current !== focusContext) return
+    editScheduleFocusRef.current = {
+      context: focusContext,
+      initiator: initiator ?? editDropdownRef.current?.querySelector<HTMLElement>('[aria-label="Choose announcement action"]') ?? null,
+    }
+    createScheduleFocusRef.current = null
+    setShowScheduleDropdown(false)
+    const parts = scheduledValue ? parseDateTime(scheduledValue) : { date: getTodayDate(), time: DEFAULT_SCHEDULE_TIME }
+    setPendingEditScheduleDate(parts.date)
+    setPendingEditScheduleTime(parts.time)
     setShowEditScheduleDropdown(true)
   }
 
@@ -661,12 +780,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  const { date, time } = parseDateTime(scheduleDateTime)
-                  setPendingScheduleDate(date)
-                  setPendingScheduleTime(time)
-                  setShowScheduleDropdown(true)
-                }}
+                onClick={(event) => openCreateSchedulePicker(event.currentTarget, scheduleDateTime)}
                 className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
               >
                 <Calendar className="h-4 w-4 flex-shrink-0" />
@@ -736,22 +850,39 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
               )}
 
               {showScheduleDropdown && (
-                <ScheduleDateTimePicker
+                <div
+                  ref={createPickerRef}
                   className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
-                  date={pendingScheduleDate}
-                  time={pendingScheduleTime}
-                  minDate={getTodayDate()}
-                  isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
-                  onDateChange={setPendingScheduleDate}
-                  onTimeChange={setPendingScheduleTime}
-                  onCancel={() => setShowScheduleDropdown(false)}
-                  onConfirm={() => {
-                    if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
-                      setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
-                      setShowScheduleDropdown(false)
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      closeSchedulePicker('create', createPickerSession, true)
                     }
                   }}
-                />
+                  onBlur={(event) => {
+                    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) {
+                      closeSchedulePicker('create', createPickerSession)
+                    }
+                  }}
+                >
+                  <ScheduleDateTimePicker
+                    dateInputRef={createDateInputRef}
+                    date={pendingScheduleDate}
+                    time={pendingScheduleTime}
+                    minDate={getTodayDate()}
+                    isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
+                    onDateChange={(value) => ownsScheduleFocus(createPickerSession, 'create') && setPendingScheduleDate(value)}
+                    onTimeChange={(value) => ownsScheduleFocus(createPickerSession, 'create') && setPendingScheduleTime(value)}
+                    onCancel={() => closeSchedulePicker('create', createPickerSession, true)}
+                    onConfirm={() => {
+                      if (ownsScheduleFocus(createPickerSession, 'create') && pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
+                        setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
+                        closeSchedulePicker('create', createPickerSession, true)
+                      }
+                    }}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -818,12 +949,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            const { date, time } = parseDateTime(editScheduleDateTime)
-                            setPendingEditScheduleDate(date)
-                            setPendingEditScheduleTime(time)
-                            setShowEditScheduleDropdown(true)
-                          }}
+                          onClick={(event) => openEditSchedulePicker(event.currentTarget, editScheduleDateTime)}
                           className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
                         >
                           <Calendar className="h-4 w-4 flex-shrink-0" />
@@ -908,22 +1034,39 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
 
                         {/* Schedule dropdown */}
                         {showEditScheduleDropdown && (
-                          <ScheduleDateTimePicker
+                          <div
+                            ref={editPickerRef}
                             className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
-                            date={pendingEditScheduleDate}
-                            time={pendingEditScheduleTime}
-                            minDate={getTodayDate()}
-                            isFutureValid={!pendingEditScheduleDate ? false : isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)}
-                            onDateChange={setPendingEditScheduleDate}
-                            onTimeChange={setPendingEditScheduleTime}
-                            onCancel={() => setShowEditScheduleDropdown(false)}
-                            onConfirm={() => {
-                              if (pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
-                                setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
-                                setShowEditScheduleDropdown(false)
+                            onKeyDown={(event) => {
+                              if (event.key === 'Escape') {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                closeSchedulePicker('edit', editPickerSession, true)
                               }
                             }}
-                          />
+                            onBlur={(event) => {
+                              if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) {
+                                closeSchedulePicker('edit', editPickerSession)
+                              }
+                            }}
+                          >
+                            <ScheduleDateTimePicker
+                              dateInputRef={editDateInputRef}
+                              date={pendingEditScheduleDate}
+                              time={pendingEditScheduleTime}
+                              minDate={getTodayDate()}
+                              isFutureValid={!pendingEditScheduleDate ? false : isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)}
+                              onDateChange={(value) => ownsScheduleFocus(editPickerSession, 'edit') && setPendingEditScheduleDate(value)}
+                              onTimeChange={(value) => ownsScheduleFocus(editPickerSession, 'edit') && setPendingEditScheduleTime(value)}
+                              onCancel={() => closeSchedulePicker('edit', editPickerSession, true)}
+                              onConfirm={() => {
+                                if (ownsScheduleFocus(editPickerSession, 'edit') && pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
+                                  setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
+                                  closeSchedulePicker('edit', editPickerSession, true)
+                                }
+                              }}
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
