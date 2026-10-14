@@ -46526,3 +46526,10 @@ Compact legacy session polling uses one domain query instead of five, with fresh
 - Teacher-to-student local smoke: all four desktop/mobile × light/dark cases passed; screenshots in test-results/material-markdown-*/ (ignored). Disposable fixtures removed. Semantic tests cover guarded apply, loss warnings, clearing, read-only/saving, nested-preview focus and identity changes.
 - Initial unconstrained focused run hit unrelated Tart fixture/CI inventory timeouts during concurrent browser work; bounded two-worker run used for final verification. JSON field ordering false-positive corrected before review.
 - Coordination: direct implementation; weekly usage 99% remaining at start; automatic DeepSeek remains paused. Independent standard-risk review uses one fresh general-tier reviewer; effective telemetry recorded with PR lifecycle. No production promotion requested.
+
+<!-- pika-session-log-archive-batch:8d35d5571cccbc2e8cc1482fe6cd2c487fb1bb647b5c8b1702c520f2e960bea8 -->
+<!-- pika-session-log-archive-batch:7a2a715d699a4bc91102bbf3f4eb544f4efb670a492a06ec66946a9e59bd4fa9 -->
+<!-- pika-session-log-archive-batch:e04cab5589bfbcd0655a793f197c6665c64d5b9ce38cecf9848b3be80ea56d49 -->
+<!-- pika-session-log-archive-batch:3fcb976a95f9093fe667aecfaff3605e12c16637d19f5eab8905cdf53a860b17 -->
+<!-- pika-session-log-archive-batch:f6cf85b80a3a238f4e150783c2ba78324e71c20b2d45c1f9cbde0285ce6d1859 -->
+<!-- pika-session-log-archive-batch:9c59be27100aead1c214b6209d7f783833df8444b9f495ae689cc733eed6b2e1 -->

@@ -723,6 +723,37 @@ Extended Announcement-only committed picker focus ownership via optional shared 
 
 Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. Native accepted eight teacher/four student/two actual Assignment/two reference contexts across unchanged-source scoped runs: 38bindings,164PNG/16videos,180mediahashes;194syntheticGET/four intercepted studentautoacks, zero teacherwrite/unknown/error/overflow. Browser-chrome Tab regression fixed; three new tests verify actual outside-focus retirement. Failed/partial native attempts, four diagnosed harness repairs and worker model-capacity failure retained externally; coordinator completed acceptance. Independent review/final stableSHA CI/PR Gate and authorized main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
 
+## 2026-10-14 — Calendar Week alignment
+
+- Owner: this chat, codex/calendar-week-alignment; move edit/no-class information to the date rail, align lesson bodies at top, full current-day outline without Today badge. Shared IconButton reused; current date remains semantic.
+- Verification: 47 calendar tests, types/lint/architecture/policies/audit pass; both roles × desktop/mobile × light/dark captured with production owner fixtures and intercepted reads. Editing/Escape focus and day presentation checked.
+- Initial focused check hit unchanged CI Tart-host timing failures; serial gate in progress. Independent low-risk review/PR lifecycle next. Storage healthy, weekly allowance initially 75% remaining; task tokens unknown.
+
+## 2026-10-14 — Calendar content editing follow-up
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested click-to-edit lesson content. Removed separate edit/add icons; native shared Button behind rich preview preserves keyboard entry/focus and separate links. Student/weekend/read-only permissions preserved.
+- 49 focused Calendar/DayCell tests pass, including content click, links, Enter/Space, Escape/blur/autosave. Eight real-owner role/viewport/theme captures refreshed; teacher content/empty clicks and focus return verified. UiGallery regression updated for the new content target.
+- PR returned to draft before changing source. Targeted general-tier medium independent review and final focused gate next; no merge/production authority inferred.
+
+## 2026-10-14 — Calendar muted non-class cards and short-content centering
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested muted non-class cards without visible No class and centered short lesson content. Hidden status remains accessible; long reading and the editor remain top-aligned; permissions and click-to-edit are unchanged.
+- 93 feature/gallery tests pass; types/lint/UI/design policies/audit pass. Latest eight-context Playwright captures include measured centering, long-content top alignment, hidden No class, editor entry/Escape focus and student read-only behavior. Final focused gate and independent presentation review next; PR held draft during changes.
+
+## 2026-10-14 — Calendar non-class hatching
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner found muted days unclear; added a semantic-token diagonal hatch to Week non-class cards. Current-day outline, hidden accessible status, centered short content and interactions preserved.
+- Eight-context real-owner Playwright matrix refreshed; date text contrast on stripe pixels calculated at 6.22:1 light/4.64:1 dark. Design policy passes without exceptions or new tokens. Final checks/presentation review next; PR kept draft during the change.
+
+## 2026-10-14 — Calendar uniform class-day backgrounds
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
+- Existing Calendar/DayCell regression and eight-context native visual/geometry checks are running; audit/policies/types/lint and targeted presentation review required before ready. PR remains draft while changing its head.
+
+## 2026-10-14 — Calendar remove hatching
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
+- Local/visual verification underway. PR is draft. Five prior review launches (one initial/four targeted); current 60-minute/four-targeted-wave review budget reached. No further reviewer launch without explicit extension under pr-review; finish authorized implementation and verification first.
 ## 2026-10-14 — AI grading submission investigation
 
 Read-only at main71f49d963. User redirected investigation to chat Investigate AI grading count (01a13acf-92db-7e82-9ec7-6addc22d14bc); reused its production evidence: seven teacher-closed/unsubmitted attempts,33 nonblank written responses skipped. Verified TS submitted-only admission and094 RPC admission against248 closure/return semantics. Teacher closure materializes saved responses and freezes attempts via closed_for_grading_at while retaining is_submitted=false; merely opening Grading does not close attempts. Fix should admit submitted OR teacher-closed work, preserving the distinction; automatic closure on AI action would be an additional behavior change. No product/schema/grade edits, provider calls or live DB mutation.
