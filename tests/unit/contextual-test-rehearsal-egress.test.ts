@@ -7,13 +7,122 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync, chmodSync, readFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 const require = createRequire(import.meta.url)
-const { createContextualTestEgressPolicy, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry } = require('../../scripts/contextual-test-rehearsal-egress.cjs')
+const { createContextualTestEgressPolicy, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry, disableContextualTestNextVersionLookup } = require('../../scripts/contextual-test-rehearsal-egress.cjs')
+
+describe('installed Next version lookup stays offline before native dispatch', () => {
+  const file = realpathSync(require.resolve('next/dist/server/dev/hot-reloader-webpack'))
+  const registry = 'https://registry.npmjs.org/-/package/next/dist-tags'
+  function hotReloader(version = '15.5.25') {
+    type Instance = { tracedGetVersionInfo(span: unknown): Promise<unknown>; start(): Promise<unknown>; clean(): Promise<unknown>; versionInfo?: unknown; hotReloaderSpan?: unknown }
+    type Exports = { default: new (...args: never[]) => Instance; getVersionInfo(): Promise<unknown>; matchNextPageBundleRequest: unknown; renderScriptError: unknown }
+    const vmModule = { exports: {} as Exports }
+    const fetch = vi.fn(async () => { throw Error('Forbidden CPU network dispatch') })
+    const modules: Record<string, unknown> = {
+      'next/package.json': { version }, 'next/dist/compiled/ws': { Server: class {} },
+      '../../shared/lib/router/utils/path-match': { getPathMatch: () => () => undefined },
+      '../lib/utils': { getNodeDebugType: () => undefined },
+      path: require('node:path'), fs: {},
+    }
+    const cache: Record<string, typeof vmModule> = {}
+    let originalExports: Exports
+    const loader = Object.assign(vi.fn((id: string) => {
+      if (id === 'next/package.json') return modules[id]
+      if (id !== file) throw Error('Unapproved CPU load')
+      if (!cache[file]) {
+        vm.runInNewContext(readFileSync(file, 'utf8'), { module: vmModule, exports: vmModule.exports,
+          require: (dependency: string) => modules[dependency] ?? {}, fetch, console, Buffer, process: { debugPort: 0 },
+        }, { filename: file, timeout: 1000 })
+        originalExports = vmModule.exports
+        cache[file] = vmModule
+      }
+      return vmModule.exports
+    }), { cache })
+    const versionSpan = { traceAsyncFn: (fn: () => unknown) => fn() }
+    const startSpan = { stop: vi.fn(), traceChild: vi.fn(() => versionSpan) }
+    const span = { traceChild: vi.fn(() => startSpan) }
+    const startThroughVersion = async (HotReloader: Exports['default']) => {
+      const instance = Object.create(HotReloader.prototype) as Instance
+      instance.hotReloaderSpan = span
+      instance.clean = vi.fn(async () => { throw Error('Stopped after version lookup') })
+      await expect(instance.start()).rejects.toThrow('Stopped after version lookup')
+      return instance
+    }
+    return { module: vmModule, loader, fetch, span, startSpan, startThroughVersion, original: () => originalExports }
+  }
+  it('proves the installed instance path originally fetches and both wrapped entry points return the offline fallback', async () => {
+    const before = hotReloader(), original = before.loader(file)
+    await before.startThroughVersion(original.default)
+    expect(before.fetch).toHaveBeenCalledOnce()
+    expect(before.fetch).toHaveBeenCalledWith(registry)
+
+    const after = hotReloader()
+    disableContextualTestNextVersionLookup(file, after.loader)
+    const fixed = after.loader.cache[file].exports
+    const originalAfter = after.original()
+    expect(Object.getOwnPropertyDescriptor(fixed, '__esModule')).toMatchObject({ value: true, enumerable: false, configurable: false })
+    expect(Object.getPrototypeOf(fixed)).toBe(Object.getPrototypeOf(originalAfter))
+    expect(fixed.default.prototype).toBeInstanceOf(originalAfter.default)
+    expect(fixed.default.prototype.clean).toBe(originalAfter.default.prototype.clean)
+    expect(fixed.matchNextPageBundleRequest).toBe(originalAfter.matchNextPageBundleRequest)
+    expect(fixed.renderScriptError).toBe(originalAfter.renderScriptError)
+    expect(Object.getOwnPropertyDescriptor(fixed, 'getVersionInfo')).toMatchObject({ writable: false, configurable: false })
+    expect(await fixed.getVersionInfo()).toEqual({ installed: '15.5.25', staleness: 'unknown' })
+    const instance = await after.startThroughVersion(fixed.default)
+    expect(instance.versionInfo).toEqual({ installed: '15.5.25', staleness: 'unknown' })
+    expect(after.span.traceChild).toHaveBeenCalledWith('start')
+    expect(after.startSpan.traceChild).toHaveBeenCalledWith('get-version-info')
+    expect(after.fetch).not.toHaveBeenCalled()
+  })
+  it('keeps generic foreign egress denial and the shared failure latch', () => {
+    const outputDir = realpathSync(mkdtempSync(join(tmpdir(), 'contextual-version-egress-cpu-')))
+    try {
+      const binding = { outputDir, nonce: 'b'.repeat(32), deadline: Date.now() + 10000 }
+      const ledger = createContextualTestSharedLedger(binding, { create: true })
+      const policy = createContextualTestEgressPolicy({ ...binding, ledger })
+      expect(() => policy.admit(registry)).toThrow()
+      expect(ledger.snapshot()).toMatchObject({ flags: { denied: true } })
+      expect(() => policy.admit('http://localhost:3117/api/auth/me')).toThrow()
+      expect(ledger.snapshot()).toMatchObject({ app: 0, flags: { denied: true } })
+    } finally { rmSync(outputDir, { recursive: true }) }
+  })
+  it('propagates trace failures without treating them as an offline success', async () => {
+    const h = hotReloader()
+    disableContextualTestNextVersionLookup(file, h.loader)
+    const instance = Object.create(h.loader.cache[file].exports.default.prototype)
+    const span = { traceChild: () => ({ traceAsyncFn: () => { throw Error('Trace failed') } }) }
+    await expect(instance.tracedGetVersionInfo(span)).rejects.toThrow('Trace failed')
+    expect(h.fetch).not.toHaveBeenCalled()
+  })
+  it('fails closed on source, cache, package or export drift before installing a wrapper', () => {
+    const wrongFile = hotReloader()
+    expect(() => disableContextualTestNextVersionLookup(realpathSync(require.resolve('next/package.json')), wrongFile.loader)).toThrow()
+    expect(wrongFile.loader).not.toHaveBeenCalled()
+    const warmCache = hotReloader(); const warmOriginal = warmCache.loader(file)
+    expect(() => disableContextualTestNextVersionLookup(file, warmCache.loader)).toThrow()
+    expect(warmCache.loader.cache[file].exports).toBe(warmOriginal)
+    const wrongPackage = hotReloader('0.0.0')
+    expect(() => disableContextualTestNextVersionLookup(file, wrongPackage.loader)).toThrow()
+    expect(wrongPackage.loader.cache[file].exports).toBe(wrongPackage.original())
+    const changedExport = hotReloader()
+    const originalLoad = changedExport.loader
+    const loader = Object.assign(vi.fn((id: string) => {
+      const exports = originalLoad(id)
+      if (id === file) {
+        const malformed = { ...exports }
+        changedExport.loader.cache[file].exports = malformed
+        return malformed
+      }
+      return exports
+    }), { cache: changedExport.loader.cache })
+    expect(() => disableContextualTestNextVersionLookup(file, loader)).toThrow()
+  })
+})
 
 describe('disabled installed Next telemetry stays disabled before native dispatch', () => {
   const file = realpathSync(require.resolve('next/dist/telemetry/storage'))
   function telemetry() {
     type Instance = { flushDetached(mode: string, directory: string): void; record(event: unknown, deferred: boolean): unknown }
-    const module = { exports: {} as { Telemetry: new (options: { distDir: string }) => Instance } }
+    const vmModule = { exports: {} as { Telemetry: new (options: { distDir: string }) => Instance } }
     const spawn = vi.fn(), mkdir = vi.fn(), write = vi.fn(), env = { NEXT_TELEMETRY_DISABLED: '1' }
     const forbidden = () => { throw Error('No telemetry network in CPU test') }
     const modules: Record<string, unknown> = {
@@ -28,10 +137,10 @@ describe('disabled installed Next telemetry stays disabled before native dispatc
       if (!Object.hasOwn(modules, id)) throw Error('Unapproved CPU dependency')
       return modules[id]
     }, { resolve: () => '/cpu/next/detached-flush.js' })
-    vm.runInNewContext(readFileSync(file, 'utf8'), { module, exports: module.exports, require: nativeRequire,
+    vm.runInNewContext(readFileSync(file, 'utf8'), { module: vmModule, exports: vmModule.exports, require: nativeRequire,
       process: { env, execPath: '/cpu/node' }, Buffer, console }, { filename: file, timeout: 1000 })
-    const loader = Object.assign(vi.fn(() => module.exports), { cache: { [file]: module } })
-    return { module, loader, spawn, mkdir, write, env }
+    const loader = Object.assign(vi.fn(() => vmModule.exports), { cache: { [file]: vmModule } })
+    return { module: vmModule, loader, spawn, mkdir, write, env }
   }
   it('demonstrates the real disabled-telemetry shutdown spawn and prevents it at the exact optional API', () => {
     const before = telemetry(), old = new before.module.exports.Telemetry({ distDir: '/cpu/dist' })
@@ -97,7 +206,7 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
     expect(h.note).not.toHaveBeenCalled()
   })
   it('uses the actual installed jest-worker fork and IPC call shapes without any native child', async () => {
-    const h = harness(), module = { exports: {} as { Worker: new (file: string, options: unknown) => { loadStaticPaths(value: unknown): Promise<unknown>; end(): Promise<unknown> } } }
+    const h = harness(), vmModule = { exports: {} as { Worker: new (file: string, options: unknown) => { loadStaticPaths(value: unknown): Promise<unknown>; end(): Promise<unknown> } } }
     const nativeRequire = (id: string) => {
       if (id === 'child_process') return { fork: h.guard }
       if (id === staticPathsWorkerPath) return { loadStaticPaths: () => {} }
@@ -105,10 +214,10 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
       if (id === 'worker_threads') return { Worker: () => { throw Error('Worker threads forbidden') } }
       throw new Error(`Unapproved CPU dependency: ${id}`)
     }
-    vm.runInNewContext(readFileSync(jestFile, 'utf8'), { module, exports: module.exports, require: nativeRequire, __dirname: jestFile.slice(0, jestFile.lastIndexOf('/')),
+    vm.runInNewContext(readFileSync(jestFile, 'utf8'), { module: vmModule, exports: vmModule.exports, require: nativeRequire, __dirname: jestFile.slice(0, jestFile.lastIndexOf('/')),
       process: { env: { ...parentEnv }, cwd: () => cwd, execArgv: [], argv: ['node'], platform: process.platform, stdout: { isTTY: false }, stderr: { isTTY: false } },
       setTimeout, clearTimeout, Buffer, console }, { filename: jestFile, timeout: 1000 })
-    const worker = new module.exports.Worker(staticPathsWorkerPath, { numWorkers: 1, maxRetries: 1, enableWorkerThreads: false,
+    const worker = new vmModule.exports.Worker(staticPathsWorkerPath, { numWorkers: 1, maxRetries: 1, enableWorkerThreads: false,
       forkOptions: { env: { ...parentEnv } } })
     const result = worker.loadStaticPaths(h.payload)
     expect(h.fork).toHaveBeenCalledOnce(); expect(h.children[0].originalSend).toHaveBeenCalledTimes(2)
@@ -165,13 +274,13 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
       'node:net': { Socket, _normalizeArgs: () => [] }, 'node:tls': {}, 'node:http': { request: () => { throw Error('No HTTP in CPU test') } }, 'node:https': {},
       'node:child_process': child, 'node:http2': {}, 'node:worker_threads': {}, 'node:module': { syncBuiltinESMExports() {} },
     }
-    const module = { exports: {} as { installContextualTestEgress(options: unknown): unknown } }
+    const vmModule = { exports: {} as { installContextualTestEgress(options: unknown): unknown } }
     const sourceFile = require.resolve('../../scripts/contextual-test-rehearsal-egress.cjs')
-    vm.runInNewContext(readFileSync(sourceFile, 'utf8'), { module, exports: module.exports, require: (id: string) => {
+    vm.runInNewContext(readFileSync(sourceFile, 'utf8'), { module: vmModule, exports: vmModule.exports, require: (id: string) => {
       if (!Object.hasOwn(modules, id)) throw Error('Unapproved CPU require'); return modules[id]
     }, __filename: sourceFile, process: { env: { NEXT_PRIVATE_WORKER: '1' }, argv: ['node', processChildPath], execArgv: [], platform: process.platform },
     setTimeout, clearTimeout, Buffer, console }, { filename: sourceFile, timeout: 1000 })
-    module.exports.installContextualTestEgress({ nextServerPath: realpathSync(require.resolve('next/dist/server/lib/start-server')),
+    vmModule.exports.installContextualTestEgress({ nextServerPath: realpathSync(require.resolve('next/dist/server/lib/start-server')),
       processChildPath, staticPathsWorkerPath, appDir: cwd, deadline: Date.now() + 10000, ledger: { note } })
     expect(() => (child as unknown as { fork(...args: unknown[]): unknown }).fork(processChildPath, [], {})).toThrow()
     expect(() => (child as unknown as { spawn(...args: unknown[]): unknown }).spawn('/unapproved', [])).toThrow()

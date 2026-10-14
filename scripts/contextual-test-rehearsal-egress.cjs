@@ -351,6 +351,42 @@ function disableContextualTestNextTelemetry(file, loader = require, env = proces
     Telemetry: { value: DisabledTelemetry, enumerable: true, writable: false, configurable: false } })
 }
 
+/** The installed Next15.5.25 dev hot reloader's internal version helper makes
+ * an optional npm registry request during start(). Replace only that helper's
+ * exported and traced instance entry points before the module can be captured.
+ * The pinned bytes and export shape make dependency drift a startup failure. */
+function disableContextualTestNextVersionLookup(file, loader = require) {
+  assert(path.isAbsolute(file) && fs.realpathSync(file) === file)
+  assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'), '57f5b5abe59c2391084195e461d77257ece6afc734cf47caef9abc453afa6cd8')
+  assert(loader.cache && !loader.cache[file], 'Next version lookup must be patched before first load')
+  const original = loader(file), cached = loader.cache[file]
+  assert(cached && cached.exports === original)
+  assert.deepEqual(Array.from(Reflect.ownKeys(original)).sort(), ['__esModule', 'default', 'getVersionInfo', 'matchNextPageBundleRequest', 'renderScriptError'].sort())
+  const descriptors = Object.getOwnPropertyDescriptors(original)
+  assert.equal(descriptors.__esModule.value, true)
+  for (const key of ['default', 'getVersionInfo']) {
+    assert.equal(typeof descriptors[key].get, 'function')
+    assert.equal(descriptors[key].configurable, false)
+  }
+  const OriginalHotReloader = original.default
+  assert.equal(typeof OriginalHotReloader, 'function')
+  assert.equal(typeof original.getVersionInfo, 'function')
+  const traced = Object.getOwnPropertyDescriptor(OriginalHotReloader.prototype, 'tracedGetVersionInfo')
+  assert(traced && typeof traced.value === 'function')
+  const installed = loader('next/package.json').version
+  assert.equal(installed, '15.5.25')
+  const offlineGetVersionInfo = async () => ({ installed, staleness: 'unknown' })
+  class OfflineHotReloaderWebpack extends OriginalHotReloader {
+    async tracedGetVersionInfo(span) {
+      const versionInfoSpan = span.traceChild('get-version-info')
+      return versionInfoSpan.traceAsyncFn(async () => offlineGetVersionInfo())
+    }
+  }
+  cached.exports = Object.create(Object.getPrototypeOf(original), { ...descriptors,
+    default: { value: OfflineHotReloaderWebpack, enumerable: true, writable: false, configurable: false },
+    getVersionInfo: { value: offlineGetVersionInfo, enumerable: true, writable: false, configurable: false } })
+}
+
 /** Explicit install returns an audit accessor. Never auto-installs in Vitest or
  * application collection; the exact native launch must invoke this preload. */
 function installContextualTestEgress(options) {
@@ -403,10 +439,11 @@ function installContextualTestEgress(options) {
   globalThis.fetch = createContextualTestBoundedFetch(globalThis.fetch, options, policy)
   require('node:module').syncBuiltinESMExports()
   if (options.telemetryPath) disableContextualTestNextTelemetry(options.telemetryPath)
+  if (options.hotReloaderPath) disableContextualTestNextVersionLookup(options.hotReloaderPath)
   return Object.freeze({ ...policy, workers: () => staticFork?.snapshot() ?? { launched: 0, active: 0, failed: false, workers: [] } })
 }
 
-module.exports = { createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry }
+module.exports = { createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry, disableContextualTestNextVersionLookup }
 
 // Native launch is possible only with the root's exact private binding digest.
 // The application never discovers this configuration from .env files.
@@ -434,7 +471,8 @@ if (process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE || process.env.PIKA_CONTEXTUAL
   const processChildPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/compiled/jest-worker/processChild.js'))
   const staticPathsWorkerPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/server/dev/static-paths-worker.js'))
   const telemetryPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/telemetry/storage.js'))
+  const hotReloaderPath = fs.realpathSync(path.join(binding.appDir, 'node_modules/next/dist/server/dev/hot-reloader-webpack.js'))
   const ledger = createContextualTestSharedLedger(binding)
-  const policy = installContextualTestEgress({ deadline: binding.deadline, nextServerPath, processChildPath, staticPathsWorkerPath, telemetryPath, appDir: binding.appDir, ledger })
+  const policy = installContextualTestEgress({ deadline: binding.deadline, nextServerPath, processChildPath, staticPathsWorkerPath, telemetryPath, hotReloaderPath, appDir: binding.appDir, ledger })
   Object.defineProperty(globalThis, '__contextualTestServerEgress', { value: policy, writable: false, configurable: false })
 }
