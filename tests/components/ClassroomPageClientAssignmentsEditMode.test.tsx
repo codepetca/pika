@@ -14,6 +14,8 @@ const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
+const mockTeacherAnnouncementsTabProps = vi.hoisted(() => vi.fn())
+const retainedAnnouncementsOwner = vi.hoisted(() => ({ enabled: false }))
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTodayTabProps = vi.hoisted(() => vi.fn())
@@ -161,6 +163,9 @@ vi.mock('@/components/layout', async () => {
             Go Tests
           </button>
         ) : null}
+        <button type="button" onClick={() => onTabChange('announcements')}>
+          Go Announcements
+        </button>
         <button type="button" onClick={() => onTabChange('resources')}>
           Go Course Guide
         </button>
@@ -240,7 +245,7 @@ vi.mock('@/ui', async (importOriginal) => {
         </div>
       ) : null
     ),
-    TabContentTransition: ({ children, isActive }: any) => realGradesOwner.enabled
+    TabContentTransition: ({ children, isActive }: any) => realGradesOwner.enabled || retainedAnnouncementsOwner.enabled
       ? <actual.TabContentTransition isActive={isActive}>{children}</actual.TabContentTransition>
       : (isActive ? <>{children}</> : null),
   }
@@ -397,7 +402,10 @@ vi.mock('@/app/classrooms/[classroomId]/StudentResourcesTab', () => ({
   StudentResourcesTab: () => <div />,
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherAnnouncementsTab', () => ({
-  TeacherAnnouncementsTab: () => <div />,
+  TeacherAnnouncementsTab: (props: any) => {
+    mockTeacherAnnouncementsTabProps(props)
+    return <div data-testid="teacher-announcements-owner" data-active={String(props.isActive)} />
+  },
 }))
 vi.mock('@/app/classrooms/[classroomId]/StudentAnnouncementsTab', () => ({
   StudentAnnouncementsTab: () => <div />,
@@ -508,6 +516,8 @@ function renderStudentClient(options?: {
 describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   beforeEach(() => {
     realGradesOwner.enabled = false
+    retainedAnnouncementsOwner.enabled = false
+    mockTeacherAnnouncementsTabProps.mockClear()
     window.localStorage.clear()
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=assignments')
     Object.defineProperty(window, 'scrollTo', {
@@ -547,6 +557,28 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       markdown: '## Assignment One',
       hasRichContent: false,
     })
+  })
+
+  it('passes committed activity to the cached Teacher Announcements tab through real classroom navigation', () => {
+    retainedAnnouncementsOwner.enabled = true
+    renderClient()
+    expect(screen.queryByTestId('teacher-announcements-owner')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go Announcements' }))
+    const retainedOwner = screen.getByTestId('teacher-announcements-owner')
+    expect(mockTeacherAnnouncementsTabProps).toHaveBeenLastCalledWith(expect.objectContaining({ classroom, isActive: true }))
+    expect(retainedOwner).toHaveAttribute('data-active', 'true')
+    expect(window.location.search).toContain('tab=announcements')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go Course Guide' }))
+    expect(screen.getByTestId('teacher-announcements-owner')).toBe(retainedOwner)
+    expect(mockTeacherAnnouncementsTabProps).toHaveBeenLastCalledWith(expect.objectContaining({ classroom, isActive: false }))
+    expect(retainedOwner).toHaveAttribute('data-active', 'false')
+    expect(window.location.search).toContain('tab=resources')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go Announcements' }))
+    expect(screen.getByTestId('teacher-announcements-owner')).toBe(retainedOwner)
+    expect(mockTeacherAnnouncementsTabProps).toHaveBeenLastCalledWith(expect.objectContaining({ classroom, isActive: true }))
   })
 
   it('falls back to Daily without Attendance controls when server entitlement is unavailable', () => {
