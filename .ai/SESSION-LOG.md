@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Recovery native pass and member-list forward seal
-
-PR1577 reviewed b11ff987a passed the fresh isolated001–260 rehearsal ec9995cfb906:
-16 acceptance groups,13 closed database labels,10 held schedules, genuine CLI
-types identical, mixed-role authority/revocations, unsubmit/single/bulk reset,
-observed8.012s57014 cancellation and positive settlement. Exact target-only cleanup,
-canonical183tables/settings/schema/cron and complete741-resource baseline passed.
-All seven previous failures and sources/receipts remain retained; no replay.
-Eighteen completed reviews1839s, seven accepted findings resolved, no reset.
-Ready CI38174577820 caught an older member-list fixture/profile still capped259;
-16759 full tests passed, one failed. Returned draft before correction; remaining
-lanes cancelled, no green CI/merge claim. Add only externally sealed260 acceptance
-to that proof, retain exact259 checks and unknown261/tampered260 rejection. This
-does not change recovery runtime, migrations, private verifier or application.
-Sharedlocal249+/prod259+/promotion/provider/account/cutover holds remain; Tests,
-Surveys/Grades and broader integration/rollout remain unfinished.
-
 ## 2026-10-11 — Recovery merged; owner unpublish source preparation
 
 PR1577 merged18126e952 after exact reviewedf703568d CI38175680856 passed all10
@@ -756,3 +739,20 @@ native dispatch0 and attempt unconsumed. No source repin, browser launch/restart
 signal, migration, production, provider or cutover change. Original review49/
 fix36 counters and serious holds carry. Recommend separately approve review and
 pin of installed Chrome before any fresh check; do not weaken the hash gate.
+
+## 2026-10-13 Approved Chrome repin verified before isolated run
+
+Human approved review/pinning installed Chrome then ONE isolated check. Fresh
+private814e977d2893 source37 changes only driver SHA428d...→fbeec33e... for signed
+Google155.0.8059.79, plus nonce/induced pins. Source36 and all SPENT evidence remain
+immutable. Root read actual source/checker delta and independently replayed31
+guard/14direct/15serialized36observability/21package19privacy checks; exact37→36
+and retained historical inverses/compiler/import closure PASS. Five transpiles
+zero diagnostics, not semantic graph TypeScript/native compatibility proof.
+Firstfreeze02:56:39UTC, entryeb77326c..., metadata01950896..., handoff8cc804e4...
+and receiptfe2436c5... hash/mode0600 verified. Original bounds, ownership/cleanup,
+body/task/deadline and diagnostics unchanged; packaging's two induced expected
+pin literals updated with its21 assertions intact. Independent targeted review50
+next under same original clock/fix37/waiver; no counter reset. Acceptance/runtime
+absent. After clean review and fresh readiness root may run exactly ONE check;
+no automatic retry or production/shared-local/provider/account/cutover release.
