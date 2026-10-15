@@ -13,7 +13,7 @@ import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehe
 const plan = createContextualTestPlan('pika_assignment_list_123456abcdef')
 const jwt = (role: string) => ['header', Buffer.from(JSON.stringify({ iss: 'supabase-demo', role })).toString('base64url'), 'signature'].join('.')
 const status = () => ({ API_URL: plan.apiOrigin, ANON_KEY: jwt('anon'), SERVICE_ROLE_KEY: jwt('service_role'), DB_URL: 'postgresql://postgres:demo@127.0.0.1:54332/postgres' })
-const binding = () => ({ version: 1, ...Object.fromEntries(['sourceSha','sourceTree','migrationChainSha256','appOrigin','apiOrigin'].map(k => [k, plan[k as keyof typeof plan]])),
+const binding = () => ({ version: 1, ...Object.fromEntries(['sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','appOrigin','apiOrigin'].map(k => [k, plan[k as keyof typeof plan]])),
   projectId: plan.projectId, planSha256: createHash('sha256').update(JSON.stringify(plan)).digest('hex'), nonce: '0'.repeat(20) + '123456abcdef', startedAt: 1000, deadline: 2701000, cleanupDeadline: 3061000,
   password: 'synthetic-private-password-only', workdir: '/private/tmp/pika-assignment-list-123456abcdef', appDir: '/private/tmp/pika-assignment-list-123456abcdef/app', outputDir: '/private/tmp/private-tests-output', dependencyManifestSha256: 'a'.repeat(64),
   docker: { path: '/usr/local/bin/docker', sha256: 'b'.repeat(64), host: 'unix:///private/tmp/docker.sock', socketIdentity: [1,2,3,4], containerId: 'c'.repeat(64) } })
@@ -31,6 +31,7 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
     const app = contextualTestAppEnvironment(binding() as never, status(), 's'.repeat(64), '/runner/scripts/contextual-test-rehearsal-egress.cjs', '/private/tmp/private-tests-output/run-binding.json', 'd'.repeat(64))
     expect(app.NODE_OPTIONS).toBe('--require=/runner/scripts/contextual-test-rehearsal-egress.cjs')
     expect(app.NEXT_DISABLE_MEM_OVERRIDE).toBe('1'); expect(app.NODE_ENV).toBe('development')
+    expect(app.ENABLE_UI_GALLERY).toBe('true'); expect(app.PIKA_E2E_FIXTURES).toBe('false')
     expect(app.PIKA_CLASSROOM_EXPERIENCE_ADMISSION).toBe(JSON.stringify(plan.admission))
     expect(app.PIKA_CLASSROOM_PAGE_ACCESS_PAIRS).toBe(JSON.stringify(plan.pageAccessPairs))
     expect(app.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY).toBe(status().ANON_KEY)
@@ -169,13 +170,27 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
     expect(() => contextualTestReadOnlyDependencyProfile(['/'])).toThrow()
     expect(() => contextualTestReadOnlyDependencyProfile([])).toThrow()
   })
-  it('reuses exact family reconciliation, rejecting argv/cwd and kernel identity mismatches', () => {
+  it('reuses exact family reconciliation, rejecting argv/cwd and kernel identity mismatches', async () => {
     const row = { pid: 501, ppid: 1, pgid: 501, started: '123:4', executable: '/pinned/node', state: 'alive' as const }
     const input = { pid: 501, pgid: 501, executable: '/pinned/node', cwd: '/owned/app', argv: ['/pinned/node','next'], expectedArgv: ['/pinned/node','next'], expectedCwd: '/owned/app', role: 'app' as const, rows: [row] }
     const family = createContextualTestOwnedFamily(input)
     expect(family.snapshot().identity.started).toBe('123:4'); expect(family.absent([])).toBe(true)
     expect(() => createContextualTestOwnedFamily({ ...input, cwd: '/foreign' })).toThrow()
     expect(() => createContextualTestOwnedFamily({ ...input, argv: ['/pinned/node','foreign'] })).toThrow()
-    expect(() => family.refresh([{ ...row, started: '999:1' }])).toThrow()
+    await expect(family.observe(() => {}, async () => [{ ...row, started: '999:1' }])).rejects.toThrow()
+  })
+  it('serializes snapshot acquisition with publication so pending births cannot be overwritten by stale observations', async () => {
+    const root = { pid: 501, ppid: 1, pgid: 501, started: '123:4', executable: '/pinned/node', state: 'alive' as const }
+    const starting = { ...root, pid: 502, ppid: 501, started: '123:5', executable: '', state: 'starting' as const }
+    const family = createContextualTestOwnedFamily({ ...root, cwd: '/owned/app', argv: ['/pinned/node'], expectedArgv: ['/pinned/node'], expectedCwd: '/owned/app', role: 'app', rows: [root] })
+    let finish!: (rows: (typeof root | typeof starting)[]) => void
+    const firstRows = vi.fn(() => new Promise<(typeof root | typeof starting)[]>(resolve => { finish = resolve }))
+    const nextRows = vi.fn(async () => [root, { ...starting, state: 'alive' as const, executable: '/cpu/helper' }])
+    const first = family.observe(() => {}, firstRows), next = family.observe(() => {}, nextRows)
+    await Promise.resolve()
+    expect(firstRows).toHaveBeenCalledOnce(); expect(nextRows).not.toHaveBeenCalled()
+    finish([root, starting]); await first; await next
+    expect(family.snapshot().pending).toEqual([])
+    expect(family.snapshot().descendants[0].executable).toBe('/cpu/helper')
   })
 })

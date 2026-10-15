@@ -14,7 +14,7 @@ const projectId = 'pika_assignment_list_012345abcdef'
 const plan = createContextualTestPlan(projectId)
 const now = Date.now()
 const workdir = assignmentListProofWorkdir(projectId)
-const binding = () => ({ version: 1, projectId, ...Object.fromEntries(['sourceSha','sourceTree','migrationChainSha256','appOrigin','apiOrigin'].map(k => [k, plan[k as keyof typeof plan]])),
+const binding = () => ({ version: 1, projectId, ...Object.fromEntries(['sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','appOrigin','apiOrigin'].map(k => [k, plan[k as keyof typeof plan]])),
   nonce: '0123456789abcdef0123012345abcdef', startedAt: now - 1000, deadline: now + 100000, cleanupDeadline: now + 200000,
   planSha256: sha(JSON.stringify(plan)), password: 'Private-CPU-fixture-password', workdir,
   appDir: join(workdir, 'app'), outputDir: '/private/tmp/cpu-durable-receipts', dependencyManifestSha256: 'a'.repeat(64),
@@ -27,7 +27,7 @@ describe('Tests rehearsal binding and fixed SQL', () => {
     expect(Object.isFrozen(value.docker.socketIdentity)).toBe(true)
   })
   it.each([
-    { sourceSha: 'd'.repeat(40) }, { migrationChainSha256: 'e'.repeat(64) }, { appOrigin: 'http://127.0.0.1:3117' },
+    { sourceSha: 'd'.repeat(40) }, { appOverlaySha256: '0'.repeat(64) }, { appOverlaySha256: undefined }, { migrationChainSha256: 'e'.repeat(64) }, { appOrigin: 'http://127.0.0.1:3117' },
     { deadline: now + 2700001 }, { cleanupDeadline: now + 500000 }, { planSha256: 'f'.repeat(64) },
     { outputDir: join(workdir, 'output') }, { nonce: '0'.repeat(32) },
   ])('rejects binding drift %j', change => expect(() => validateContextualTestRunBinding({ ...binding(), ...change }, now)).toThrow())

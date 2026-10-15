@@ -81,6 +81,41 @@ describe('contextual Test browser boundary', () => {
   it.each(['https://localhost:3117/api/auth/me', 'http://127.0.0.1:54321/rest/v1/users', 'https://example.test', 'http://secret@localhost:3117/api/auth/me'])('denies foreign or credentialed origin %s', url => {
     expect(() => boundary().admit(url, 'GET')).toThrow()
   })
+  it.each([
+    ['https://fonts.googleapis.com/css2?family=DO-NOT-RETAIN&token=secret', 'protocol', 'google-font-stylesheet', 'stylesheet'],
+    ['https://fonts.gstatic.com/private-secret.woff2', 'protocol', 'google-font-file', 'font'],
+    ['https://fonts.googleapis.com.private.invalid/css2', 'protocol', 'other', 'stylesheet'],
+    ['http://localhost.private.invalid:3117/private?token=secret', 'origin', 'other', 'document'],
+    ['http://private-secret@localhost:3117/api/auth/me', 'credentials', 'app', 'fetch'],
+    ['not a URL DO-NOT-RETAIN', 'malformed-url', 'other', 'other'],
+  ])('rejects and projects only fixed origin diagnostics for %s', (url, reason, target, resource) => {
+    const b = boundary()
+    expect(() => b.admit(url, 'GET', undefined, resource)).toThrow()
+    const receipt = b.receipt()
+    expect(receipt.requestFailure).toEqual({ reason, target, method: 'GET', resource })
+    expect(receipt.firstFailure).toBe('origin')
+    expect(receipt.counts).toEqual({ appRequests: 0, storageRequests: 0, tests: 2, reservations: 0, uploads: 0 })
+    expect(JSON.stringify(receipt)).not.toMatch(/DO-NOT-RETAIN|private|token|https?:|\.woff/)
+    receipt.requestFailure!.target = 'other'
+    expect(b.receipt().requestFailure?.target).toBe(target)
+    expect(() => b.admit(plan.appOrigin + '/api/auth/me', 'GET')).toThrow()
+    expect(b.receipt().requestFailure?.target).toBe(target)
+  })
+  it('does not retain arbitrary method/resource names or soften the origin rejection', () => {
+    const b = boundary()
+    expect(() => b.admit('https://fonts.googleapis.com/css2', 'PRIVATE-METHOD', undefined, 'PRIVATE-RESOURCE')).toThrow()
+    expect(b.receipt().requestFailure).toEqual({ reason: 'protocol', target: 'google-font-stylesheet', method: 'other', resource: 'other' })
+    expect(() => b.check()).toThrow()
+    expect(JSON.stringify(b.receipt())).not.toContain('PRIVATE')
+  })
+  it('does not manufacture a request diagnostic for an earlier deadline or provider-path failure', () => {
+    let now = 1000; const expired = boundary(() => now); now = 2_701_000
+    expect(() => expired.admit('https://fonts.googleapis.com/css2', 'GET')).toThrow()
+    expect(expired.receipt().requestFailure).toBeNull()
+    const b = boundary()
+    expect(() => b.admit(plan.appOrigin + '/api/billing/private', 'POST')).toThrow()
+    expect(b.receipt().requestFailure).toBeNull()
+  })
   it.each(['/api/cron/x','/api/billing/x','/api/auth/workos/magic/start','/api/auth/signup','/api/teacher/tests/a/ai-grade','/api/teacher/tests/a/ai-grading/run'])('denies provider or unrelated privileged path %s', path => {
     expect(() => boundary().admit(plan.appOrigin + path, 'POST', {})).toThrow()
   })

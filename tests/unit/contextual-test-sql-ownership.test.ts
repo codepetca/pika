@@ -62,7 +62,7 @@ function fixture(withControl = true) {
   const pin = { path: '/cpu/pinned-binary', sha256: 'b'.repeat(64) }
   const transportPins = { git: pin, docker: pin, supabase: pin, dockerHost: 'unix:///cpu/docker.sock', socketIdentity: [1,2,3,4], outputDir }
   const nativePins = { node: pin, ps: pin, python: pin, lsof: pin, sandbox: pin, codesign: pin, chrome: pin, docker: pin, helper: pin, dockerHost: transportPins.dockerHost, outputDir }
-  const now = Date.now(), data = { version: 1, projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree,
+  const now = Date.now(), data = { version: 1, projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256,
     appOrigin: plan.appOrigin, apiOrigin: plan.apiOrigin, migrationChainSha256: plan.migrationChainSha256,
     planSha256: sha(JSON.stringify(plan)), nonce: '0'.repeat(20) + projectId.slice(-12), startedAt: now - 1, deadline: now + 60000, cleanupDeadline: now + 120000,
     password: 'synthetic-private-password', workdir: '/private/tmp/pika-assignment-list-123456abcdef', appDir: '/private/tmp/pika-assignment-list-123456abcdef/app',

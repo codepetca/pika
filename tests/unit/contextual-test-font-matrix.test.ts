@@ -1,0 +1,40 @@
+import { describe, expect, it } from 'vitest'
+import { contextualTestFontShots, contextualTestFontShot, contextualTestFontEditingText, runContextualTestFontMatrix } from '../../e2e/helpers/contextual-test-font-matrix'
+
+describe('fixed font matrix CPU contract (not visual evidence)', () => {
+  it('defines 32 unique fixed references and honest authenticated teacher/editor provenance', () => {
+    expect(contextualTestFontShots).toHaveLength(32)
+    expect(new Set(contextualTestFontShots.map(shot => shot.label)).size).toBe(32)
+    expect(contextualTestFontShots.filter(shot => shot.fontReference === 'shared-student-editor-reference')).toHaveLength(16)
+    for (const shot of contextualTestFontShots) {
+      expect(contextualTestFontShot(shot.label)).toBe(shot)
+      expect(Object.isFrozen(shot)).toBe(true)
+      if (shot.state === 'editing' || shot.state === 'empty') {
+        expect(shot.referenceRole).toBe('student'); expect(shot.selector).toContain('student-image-upload')
+      } else expect(shot.selector).toContain('history-preview')
+    }
+    expect(() => contextualTestFontShot('font-ownerTeacher-desktop-light-survey')).toThrow()
+  })
+  it('runs all 32 screenshots through the runtime in two actual authenticated actor scopes', async () => {
+    const actors: string[] = [], captures: string[] = [], fills: string[] = [], urls: string[] = [], themes: string[] = []
+    let currentActor = '', currentUrl = '', viewport = { width: 0, height: 0 }, theme = ''
+    const control = { async waitFor() {}, async click() {}, async fill(value: string) { fills.push(value) } }
+    const page = { async setViewportSize(value: typeof viewport) { viewport = value }, async emulateMedia(value: { colorScheme: string }) { theme = value.colorScheme },
+      async evaluate(_fn: unknown, value: string) { themes.push(value) }, async goto(value: string) { currentUrl = value; urls.push(value) },
+      locator(selector: string) { expect(selector).toMatch(/^#(?:history-preview|student-image-upload)\[/); return { ...control, getByRole: () => control } } }
+    const runtime = { plan: { appOrigin: 'http://localhost:3117' }, check() {},
+      async withActor(actor: string, action: (p: typeof page) => Promise<void>) { actors.push(actor); currentActor = actor; await action(page) },
+      async captureFont(label: string, p: typeof page) {
+        expect(p).toBe(page); const shot = contextualTestFontShot(label)
+        expect(shot.actor).toBe(currentActor); expect(shot.theme).toBe(theme)
+        expect(viewport.width).toBe(shot.view === 'desktop' ? 1440 : 390)
+        expect(new URL(currentUrl).search).toBe(`?role=${shot.referenceRole}`); captures.push(label)
+      } }
+    await runContextualTestFontMatrix(runtime as never)
+    expect(actors).toEqual(['ownerTeacher', 'memberStudent'])
+    expect(captures).toEqual(contextualTestFontShots.map(shot => shot.label))
+    expect(urls).toHaveLength(16); expect(themes).toHaveLength(8)
+    expect(fills).toEqual(Array.from({ length: 8 }, () => [contextualTestFontEditingText, '']).flat())
+    expect(urls.every(url => new URL(url).pathname === '/pattern-lab')).toBe(true)
+  })
+})

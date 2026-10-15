@@ -4,7 +4,8 @@ import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, u
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
-import { runContextualTestRehearsalController, verifyContextualTestArtifacts } from '../../scripts/contextual-test-rehearsal-controller'
+import { contextualTestFontShots } from '../../e2e/helpers/contextual-test-font-matrix'
+import { runContextualTestRehearsalController, validateContextualTestPlaywrightReceipt, verifyContextualTestArtifacts } from '../../scripts/contextual-test-rehearsal-controller'
 import { runContextualTestDisposableLifecycle } from '../../scripts/contextual-test-rehearsal-platform'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 
@@ -49,7 +50,10 @@ function fixture() {
     async sql(_binding: unknown, kind: string) { events.push(`sql-${kind}`); return '{}' },
     assertSqlSettled() { events.push('sql-closed') },
     createLedger() { events.push('ledger-create'); return { reserveAppReadiness() { events.push('readiness-reserve') }, snapshot() { events.push('ledger-read'); return { version: 1, nonce: admission.nonce, deadline: admission.deadline, app: 1, storage: 2, api: 10, flags: { denied: false, capExceeded: false, expired: false, uncertain: false } } } } },
-    readPlaywrightReceipt() { events.push('pw-receipt'); return { version: 1, projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, outcome: 'passed', contextsClosed: true, counts: { appRequests: 30, storageRequests: 4, tests: 8, reservations: 2, uploads: 2 }, firstFailure: null, pending: 0, pageErrors: 0, consoleErrors: 0, artifacts: ['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].flatMap(actor => ['desktop','mobile'].flatMap(view => ['light','dark'].map(theme => ({ label: `${actor}-${view}-${theme}`, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })))), witnesses: [], endedAt: 2000, deadline: admission.deadline } },
+    readPlaywrightReceipt() { events.push('pw-receipt'); return { version: 1, projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256, outcome: 'passed', contextsClosed: true, counts: { appRequests: 30, storageRequests: 4, tests: 8, reservations: 2, uploads: 2 }, firstFailure: null, pending: 0, pageErrors: 0, consoleErrors: 0, artifacts: [
+      ...['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].flatMap(actor => ['desktop','mobile'].flatMap(view => ['light','dark'].map(theme => ({ label: `${actor}-${view}-${theme}`, kind: 'png', bytes: 1, sha256: 'a'.repeat(64), fontReference: undefined as string | undefined })))),
+      ...contextualTestFontShots.map(shot => ({ label: shot.label, kind: 'png', bytes: 1, sha256: 'a'.repeat(64), fontReference: shot.fontReference })),
+    ].map(row => row.fontReference ? row : { label: row.label, kind: row.kind, bytes: row.bytes, sha256: row.sha256 }), witnesses: [], endedAt: 2000, deadline: admission.deadline } },
     verifyArtifacts() { events.push('verify-artifacts') },
     writeReceipt(receipt: unknown) { events.push('receipt'); receipts.push(receipt) },
   }
@@ -57,6 +61,27 @@ function fixture() {
 }
 
 describe('contextual Test controller CPU composition (no native proof)', () => {
+  it('requires 32 font shots, exact reference provenance and a 64MiB total PNG budget', async () => {
+    const f = fixture(); await runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)
+    const binding = f.bound() as never, raw = f.edges.readPlaywrightReceipt()
+    expect(() => validateContextualTestPlaywrightReceipt({ ...raw, artifacts: raw.artifacts.slice(0, 16) }, binding)).toThrow()
+    const wrong = structuredClone(raw)
+    Object.assign(wrong.artifacts[16], { fontReference: 'teacher-product-editor' })
+    expect(() => validateContextualTestPlaywrightReceipt(wrong, binding)).toThrow()
+    raw.artifacts.forEach((artifact, index) => { artifact.bytes = index < 15 ? 4194304 : index === 15 ? 4194304 - 32 : 1 })
+    expect(() => validateContextualTestPlaywrightReceipt(raw, binding)).not.toThrow()
+    raw.artifacts[16].bytes++
+    expect(() => validateContextualTestPlaywrightReceipt(raw, binding)).toThrow()
+  })
+  it('requires browser receipt overlay identity and retains it in the controller receipt', async () => {
+    const f = fixture(), result = await runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)
+    expect(result.appOverlaySha256).toBe(plan.appOverlaySha256)
+    const binding = f.bound() as never, receipt = f.edges.readPlaywrightReceipt()
+    expect(() => validateContextualTestPlaywrightReceipt(receipt, binding)).not.toThrow()
+    for (const appOverlaySha256 of [undefined, '0'.repeat(64)]) {
+      expect(() => validateContextualTestPlaywrightReceipt({ ...receipt, appOverlaySha256 }, binding)).toThrow()
+    }
+  })
   it('retains the actual sealed setup failure before binding, without trusting thrown error fields', async () => {
     const f = fixture(), clock = vi.spyOn(Date, 'now').mockReturnValue(1001)
     const secret = vi.fn(() => { throw Error('SECRET-password-private-url') })
@@ -378,7 +403,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     const f = fixture(); f.edges.writeReceipt = () => { throw Error('private filesystem failure') }
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow('Private contextual Test controller failed')
   })
-  it('verifies all 16 actual private PNG files and rejects missing, unsafe, altered or duplicate evidence', async () => {
+  it('verifies all 48 actual private PNG files and rejects missing, unsafe, altered or duplicate evidence', async () => {
     const f = fixture(), outputDir = mkdtempSync(join(realpathSync(tmpdir()), 'contextual-controller-cpu-'))
     chmodSync(outputDir, 0o700)
     try {

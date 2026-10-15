@@ -5,14 +5,15 @@
 import { expect, type Page, type Response } from '@playwright/test'
 import { createHash } from 'node:crypto'
 import type { ActorLabel, ContextualTestRuntime, RehearsalWitness } from './contextual-test-rehearsal'
+import { runContextualTestFontMatrix } from './contextual-test-font-matrix'
 
 const fail = (): never => { throw new Error('Contextual Tests workflow assertion failed') }
 const requireThat: (condition: unknown) => asserts condition = condition => { if (!condition) fail() }
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 const digest = /^[a-f0-9]{64}$/
 export const contextualTestWorkflowContract = Object.freeze({
-  createdTests: 6, retiredTests: 2, uploadObjects: 2, screenshots: 16, automaticRetries: 0,
-  stages: Object.freeze(['baseline', 'owner-authoring', 'member-participation', 'grading-return', 'scratch-recovery', 'foreign-denials', 'revoke-restore', 'archive-restore', 'visual-matrix', 'final']),
+  createdTests: 6, retiredTests: 2, uploadObjects: 2, screenshots: 16, fontShots: 32, automaticRetries: 0,
+  stages: Object.freeze(['baseline', 'font-matrix', 'owner-authoring', 'member-participation', 'grading-return', 'scratch-recovery', 'foreign-denials', 'revoke-restore', 'archive-restore', 'visual-matrix', 'final']),
 })
 
 type Graph = Pick<RehearsalWitness, 'work_graph_sha256'>
@@ -406,6 +407,7 @@ async function matrix(r: ContextualTestRuntime): Promise<void> {
 
 export async function runContextualTestWorkflow(r: ContextualTestRuntime): Promise<void> {
   r.check(); const baseline = await r.witness('baseline'); assertWorkflowBaseline(baseline, r.plan.retiredTestIds)
+  await runContextualTestFontMatrix(r)
   const referenceProofs: ReferenceProof[] = []
   await r.withActor('ownerTeacher', async ownerA => r.withActor('ownerStudent', async ownerB => {
     const groups: Array<{ owner: Owner; page: Page; main: Exam; single: Exam; bulk: Exam }> = []

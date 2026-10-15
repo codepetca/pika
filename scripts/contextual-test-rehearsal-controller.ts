@@ -9,6 +9,7 @@ import { constants, closeSync, fsyncSync, fstatSync, lstatSync, openSync, readFi
 import { isAbsolute, join, normalize } from 'node:path'
 import { isProxy } from 'node:util/types'
 import { createContextualTestPlan } from '../e2e/helpers/contextual-test-rehearsal'
+import { contextualTestFontShots } from '../e2e/helpers/contextual-test-font-matrix'
 import { readFullStartupReport, validateFullStartupReport, type FullStartupReport } from '../e2e/helpers/contextual-test-startup'
 import { hashPassword } from '../src/lib/crypto'
 import { createAssignmentListNativeAdapters } from './contextual-assignment-list-proof-platform'
@@ -61,7 +62,7 @@ const executionCleanupStages = ['command-entry', 'owned-families', 'command-sett
 type ExecutionCleanupStage = typeof executionCleanupStages[number] | 'unknown'
 type CleanupReceipt = Readonly<{ entry: CleanupState; executionSettlement: CleanupState; commandJoins: CleanupState;
   commandClosure: CleanupState; sqlClosure: CleanupState; unchanged: CleanupState; executionFailures: readonly ExecutionCleanupStage[] }>
-type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sourceTree: string; runnerHead: string; runnerTree: string;
+type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sourceTree: string; appOverlaySha256: string; runnerHead: string; runnerTree: string;
   reviewedManifestSha256: string; startedAt: number; deadline: number; cleanupDeadline: number; endedAt: number;
   cleanupStartedAt: number | null; cleanupEnd: number | null; cleanup: CleanupReceipt;
   outcome: 'passed' | 'failed'; firstFailureStage: Stage | null; lifecycleCompleted: boolean; ownedSettled: boolean;
@@ -264,16 +265,23 @@ function projectLedger(raw: unknown, binding: ContextualTestRunBinding): LedgerS
 export function validateContextualTestPlaywrightReceipt(raw: unknown, binding: ContextualTestRunBinding): void {
   assert(raw && typeof raw === 'object'); const row = raw as Record<string, unknown>
   assert(row.version === 1 && row.projectId === binding.projectId && row.sourceSha === binding.sourceSha && row.sourceTree === binding.sourceTree)
+  assert.equal(row.appOverlaySha256, binding.appOverlaySha256)
   assert(row.outcome === 'passed' && row.contextsClosed === true && row.firstFailure === null && row.pending === 0 && row.pageErrors === 0)
   assert(row.deadline === binding.deadline && Number.isSafeInteger(row.endedAt) && Number(row.endedAt) >= binding.startedAt && Number(row.endedAt) < binding.deadline)
   const counts = row.counts as Record<string, number>
   assert(counts && counts.tests === 8 && counts.reservations === 2 && counts.uploads === 2)
   assert(Number.isSafeInteger(counts.appRequests) && counts.appRequests >= 0 && counts.appRequests <= 950 && Number.isSafeInteger(counts.storageRequests) && counts.storageRequests >= 0 && counts.storageRequests <= 20)
   const labels = new Set(['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].flatMap(actor => ['desktop','mobile'].flatMap(view => ['light','dark'].map(theme => `${actor}-${view}-${theme}`))))
-  assert(Array.isArray(row.artifacts) && row.artifacts.length === 16)
+  for (const shot of contextualTestFontShots) labels.add(shot.label)
+  assert(Array.isArray(row.artifacts) && row.artifacts.length === 48)
+  let pngBytes = 0
   for (const artifact of row.artifacts as Array<Record<string, unknown>>) {
     assert(typeof artifact.label === 'string' && labels.delete(artifact.label) && artifact.kind === 'png')
+    const shot = contextualTestFontShots.find(shot => shot.label === artifact.label)
+    assert.deepEqual(Object.keys(artifact).sort(), ['label','kind','bytes','sha256', ...(shot ? ['fontReference'] : [])].sort())
+    if (shot) assert.equal(artifact.fontReference, shot.fontReference)
     assert(Number.isSafeInteger(artifact.bytes) && Number(artifact.bytes) > 0 && Number(artifact.bytes) <= 4194304 && typeof artifact.sha256 === 'string' && hex.test(artifact.sha256))
+    pngBytes += Number(artifact.bytes); assert(pngBytes <= 64 * 1024 * 1024)
   }
   assert(labels.size === 0)
 }
@@ -367,7 +375,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
       stage = 'snapshot'; edges.prepareApp(admission.frozen, admission, admission.dependencies.root, admission.dependencies.roots, Math.min(admission.deadline, controls.now() + 30000))
       stage = 'binding'
       const candidate = validateContextualTestRunBinding({ version: 1, projectId: plan.projectId, appOrigin: plan.appOrigin, apiOrigin: plan.apiOrigin,
-        sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, migrationChainSha256: plan.migrationChainSha256, planSha256: sha(JSON.stringify(plan)),
+        sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256, migrationChainSha256: plan.migrationChainSha256, planSha256: sha(JSON.stringify(plan)),
         nonce: admission.nonce, startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, password: admission.password,
         workdir: admission.workdir, appDir: admission.appDir, outputDir: admission.outputDir, dependencyManifestSha256: admission.dependencies.sha256,
         ...(controls.sqlControl ? { sqlControl: controls.sqlControl } : {}),
@@ -429,6 +437,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
       let nativeDiagnostics: ContextualTestNativeDiagnostics | null = null
       try { if (controls.nativeDiagnostics) nativeDiagnostics = projectNativeDiagnostics(controls.nativeDiagnostics()) } catch { /* Never retain raw reporting failures. */ }
       const receipt: Receipt = Object.freeze({ version: 1, projectId: plan.projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree,
+        appOverlaySha256: plan.appOverlaySha256,
         runnerHead: admission.runner.head, runnerTree: admission.runner.tree, reviewedManifestSha256: admission.review.manifestSha256,
         startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, endedAt: controls.now(),
         cleanupStartedAt, cleanupEnd: cleanupEnd ?? null,

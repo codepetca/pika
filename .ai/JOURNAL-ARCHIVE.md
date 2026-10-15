@@ -47406,3 +47406,38 @@ audit/independent review/full checks next. No VM activation or provider scope ch
 Human approved fresh isolated diagnostic recovery gate; source-only new proposal
 7593614f0787 prepares privacy-safe failure logging, oldSPENT attempt preserved.
 No new browser execution/acceptance until source review and current preflight.
+
+<!-- pika-session-log-archive-batch:8a4734eaa5f5e174a3fe1dd53f7f6c47ceb568b85ab191adaa54daa2ed61f93d -->
+## 2026-10-13 Fresh isolated browser diagnostic localizes destination stall
+
+Human approved preserving oldf0 as permanently failed while admitting a new,
+separately reviewed isolated diagnostic without another reboot. Private source31
+reviews39Sol/high and40Astra/high passed; source/compiled hashes, pinned Chrome
+signature/CLI and actual ownership preflight passed. One7593614f0787 invocation
+closed1/SPENT in observed32.947s: process discovery/publication and owned browser,
+CLI/server/request closure confirmed, but destination URL timed out after2of3
+server requests. Original POST finished; original body read pending while
+destination navigation was intercepted. Exact Chrome cause not proven; diagnosis
+continues, no blind retry/restart/unrelated signals. Receipt75973a27 retained
+privately. PR1581 remains draft at342a: final focused2921PASS/8skip/2CPUtimeouts,
+both isolated cases PASS; architecture/UI/design/appType/lint PASS separately.
+Full gate not green and native/app acceptance incomplete. Production/cutover
+and provider-refused Survey probe planning remain held; no migrations applied.
+
+<!-- pika-session-log-archive-batch:8451b663cf140c1ee4ab6cb1f5d4fbbf446483a383460eb473e42cd3ceda2459 -->
+## 2026-10-13 Approved eager-body diagnostic remains failed
+
+Human approved earlier original POST body acquisition and one reviewed isolated
+check. Private source32 changes only that scheduling and fresh bindings; six
+compiled-case CPU scenarios,21packaging/19privacy and exact compiler/inverse
+checks PASS. Independent targeted41Astra/high complete PASS0; unchanged39/40
+coverage reused after inverses. One93c31efc1f68 run closed1/SPENT after37.593s,
+again HTTP2/URLdeadline with original body verification incomplete. Generated
+case code confirms the approved early read was used; no product defect proved.
+Receipt603319e... reports CLI/server/request closure, but browser cleanup ownership
+unconfirmed. Separate readonly kernel observation at17:35:27UTC found all eight
+recorded identities absent, signals0; not retrospective in-budget cleanupPASS.
+No restart/retry/unknown signals. Permission consumed; pause further native
+attempts for source diagnosis and a supported verification decision. CURRENT
+failure summary corrected; startup-doc79PASS, prior full gate still not green.
+Production/shared-local/cutover and provider-refused Survey scopes remain held.

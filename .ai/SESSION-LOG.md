@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Fresh isolated browser diagnostic localizes destination stall
-
-Human approved preserving oldf0 as permanently failed while admitting a new,
-separately reviewed isolated diagnostic without another reboot. Private source31
-reviews39Sol/high and40Astra/high passed; source/compiled hashes, pinned Chrome
-signature/CLI and actual ownership preflight passed. One7593614f0787 invocation
-closed1/SPENT in observed32.947s: process discovery/publication and owned browser,
-CLI/server/request closure confirmed, but destination URL timed out after2of3
-server requests. Original POST finished; original body read pending while
-destination navigation was intercepted. Exact Chrome cause not proven; diagnosis
-continues, no blind retry/restart/unrelated signals. Receipt75973a27 retained
-privately. PR1581 remains draft at342a: final focused2921PASS/8skip/2CPUtimeouts,
-both isolated cases PASS; architecture/UI/design/appType/lint PASS separately.
-Full gate not green and native/app acceptance incomplete. Production/cutover
-and provider-refused Survey probe planning remain held; no migrations applied.
-
-## 2026-10-13 Approved eager-body diagnostic remains failed
-
-Human approved earlier original POST body acquisition and one reviewed isolated
-check. Private source32 changes only that scheduling and fresh bindings; six
-compiled-case CPU scenarios,21packaging/19privacy and exact compiler/inverse
-checks PASS. Independent targeted41Astra/high complete PASS0; unchanged39/40
-coverage reused after inverses. One93c31efc1f68 run closed1/SPENT after37.593s,
-again HTTP2/URLdeadline with original body verification incomplete. Generated
-case code confirms the approved early read was used; no product defect proved.
-Receipt603319e... reports CLI/server/request closure, but browser cleanup ownership
-unconfirmed. Separate readonly kernel observation at17:35:27UTC found all eight
-recorded identities absent, signals0; not retrospective in-budget cleanupPASS.
-No restart/retry/unknown signals. Permission consumed; pause further native
-attempts for source diagnosis and a supported verification decision. CURRENT
-failure summary corrected; startup-doc79PASS, prior full gate still not green.
-Production/shared-local/cutover and provider-refused Survey scopes remain held.
-
 ## 2026-10-13 CLI body retrieval source investigation
 
 Human approved source-only diagnosis, not another native run. Retained Astra/high
@@ -872,3 +839,45 @@ d0790e6ab PASS3411/8skip plus static/type/lint. Regression reproduces late posit
 closure flags with failure=false; correction latches original-end expiry without
 skipping cleanup. Targeted re-review/final checked SHA precede the unused browser
 attempt. No safety predicate weakened; existing counters/waiver retained.
+
+## 2026-10-15 — Isolated fixture recovery and two guard repairs
+
+Latest full-app attempt completed real login twice, then failed origin and owned
+descendant executable guards. Human authorized exact fixture recovery and repair,
+not a new rehearsal. Recovery removed only its5 containers/2 synthetic volumes/
+1 network and retained the temporary app with evidence. Independent preservation
+confirmed7637 source files and49485 dependency entries unchanged; four isolated
+ports clear. Historical failed receipt stays failed; no production/shared-local
+or provider/rollout hold changed.
+
+Schema2 kernel helper now defers first descendant capture until P_EXEC is present
+before and after image sampling; pending children grant no signal/ready/wait/absent
+authority. Captured identity drift still fails; observations serialize. Worker187
+CPU checks/type PASS. First classroom has an unconditional external font import:
+remove only that import, retain existing local fallback and fatal origin guard,
+add fixed-label privacy-safe rejection metadata. Root84 CPU checks PASS after RED
+regressions. Full gate3446PASS/8skip plus architecture/UI/design/type/lint PASS;
+auditPASS. Independent Astra/high security and Sol6.1/high integration source
+reviews95/96 CLEAN on immutable prospective tree3363c744 (18files). Native/font
+visual verification pending; fixes remain uncommitted. Frozen app remains pinned;
+future rebind must exclude unrelated held app changes. PR1581 verified OPEN/DRAFT
+860dcd unchanged. No new rehearsal, commit, push or rollout. Existing counters96
+reviews/55fix batches and human waiver retained; no review-clock reset.
+
+## 2026-10-15 — Fresh guard rehearsal and font visuals authorized
+
+Human approved ONE new bounded full-app rehearsal and both fixes' visual checks.
+Original frozen app21e755 remains unchanged. The test runner binds an explicit
+fixed font overlay to its disposable copy: exact before/after bytes, manifest in
+plan/execution/binding/receipts, unchanged clean-source and dependency checks.
+Production stylesheet remains uncommitted until screenshots pass. Keep16 workflow
+PNGs and add32 fixed editor-reference shots across teacher/student sessions,
+desktop/mobile, light/dark and preview/read-only/editing/empty. The shared student
+editor reference is explicitly attributed even for teacher-session editing shots.
+All48 PNGs share64MiB with4MiB per-image; original45-minute/request/mutation and
+cleanup bounds unchanged. Real auth remains required; only disposable development
+gallery is enabled. Worker229 focused CPU checks and type PASS. Combined check and
+independent delta review precede preparation and the one exclusive invocation.
+Historical failures stay failed; PR1581 stays draft and all production/shared-local,
+rollout and provider holds remain. Existing review counters96 and clocks retained;
+preparation is fix batch56. No attempt has yet been spent for this authorization.

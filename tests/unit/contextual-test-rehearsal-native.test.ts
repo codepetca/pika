@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 const native = vi.hoisted(() => ({ spawn: vi.fn(), verify: vi.fn() }))
 const routeReadiness = vi.hoisted(() => ({ run: vi.fn(), settle: vi.fn(), assertClosed: vi.fn() }))
 vi.mock('../../scripts/contextual-test-route-readiness', () => ({ createContextualTestRouteReadiness: () => routeReadiness }))
@@ -32,7 +33,7 @@ const pin = (path: string) => ({ path, sha256: 'a'.repeat(64) })
 const pins: ContextualTestNativePins = {
   node: pin('/cpu/node'), ps: pin('/cpu/ps'), python: pin('/cpu/python'), lsof: pin('/cpu/lsof'), sandbox: pin('/cpu/sandbox'),
   codesign: pin('/cpu/codesign'), chrome: pin('/cpu/chrome'), docker: pin('/cpu/docker'),
-  helper: { path: resolve('scripts/contextual-test-process-identity.py'), sha256: '476c8c4696b8252debabb3ff7c5249deea10349cc91526ebc6eca924ef47f807' },
+  helper: { path: resolve('scripts/contextual-test-process-identity.py'), sha256: '1c44d97370e46b90ad31af5db7da0907a4801ec1581a077d7825103c3add550d' },
   dockerHost: 'unix:///cpu/docker.sock', outputDir: '/private/tmp',
 }
 let rows: Row[], app: Child, owned: Child[], kill: ReturnType<typeof vi.spyOn>, nextPid: number, output: string
@@ -58,7 +59,7 @@ beforeEach(() => {
       let text = output
       const inventory = [...rows, { pid: 42, ppid: 1, pgid: 42, started: '1:1', executable: '/coordinator/node', state: 'alive' }]
       if (file === pins.ps.path) text = args[0] === '-axo' ? inventory.map(row => `${row.pid} ${row.ppid} ${row.pgid}`).join('\n') : '/cpu/node /cpu/spec.js'
-      if (file === pins.python.path) text = JSON.stringify({ schema: 1, rows: inventory })
+      if (file === pins.python.path) text = JSON.stringify({ schema: 2, rows: inventory })
       if (file === pins.lsof.path) text = args.includes('-iTCP:3117') ? 'p1001' : `p1000\nfcwd\nn${process.cwd()}`
       child.stdout.emit('data', Buffer.from(text)); child.emit('close', 0, null)
     }))
@@ -87,6 +88,70 @@ function commandFixture(control: ReturnType<typeof createContextualTestNativeCon
 }
 
 describe('real native controller with CPU process doubles only', () => {
+  it('defers a first-exec child without uncertainty, then still poisons on later executable drift', async () => {
+    vi.useFakeTimers()
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned({ ...launch(), role: 'browser' })
+    const starting = { pid: 1002, ppid: 1000, pgid: 1000, started: '1002:1', executable: '', state: 'starting' }
+    rows.push(starting)
+    await vi.advanceTimersByTimeAsync(250)
+    expect(child.state().family.pending).toHaveLength(1)
+    expect(child.state().uncertain).toBe(false)
+    expect(kill).not.toHaveBeenCalled()
+    starting.state = 'alive'; starting.executable = '/cpu/helper'
+    await vi.advanceTimersByTimeAsync(250)
+    expect(child.state().family.pending).toEqual([])
+    expect(child.state().family.descendants.some(p => p.pid === starting.pid && p.executable === '/cpu/helper')).toBe(true)
+    starting.executable = '/cpu/other'
+    await vi.advanceTimersByTimeAsync(250)
+    expect(child.state().uncertain).toBe(true)
+    await expect(controls.spawnOwned(launch())).rejects.toThrow()
+    rows = []; owned[0].emit('close', 1)
+    await expect(controls.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(kill).not.toHaveBeenCalled()
+  })
+  it('holds readiness until pending children complete exec under the original deadline', async () => {
+    vi.useFakeTimers()
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned(launch())
+    const starting = { pid: 1002, ppid: 1000, pgid: 1000, started: '1002:1', executable: '', state: 'starting' }
+    rows.push(starting); app.stdout.emit('data', Buffer.from('Ready in 1ms'))
+    let ready = false
+    const work = child.ready().then(() => { ready = true })
+    await vi.advanceTimersByTimeAsync(25)
+    expect(ready).toBe(false); expect(routeReadiness.run).not.toHaveBeenCalled()
+    starting.state = 'alive'; starting.executable = '/cpu/helper'
+    await vi.advanceTimersByTimeAsync(25)
+    await work
+    expect(ready).toBe(true)
+    await controls.settleAll(Date.now() + 5000)
+    controls.assertClosed()
+  })
+  it('refuses positive runner wait while a child is still pending and retains poison after closure', async () => {
+    vi.useFakeTimers()
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned({ ...launch(), role: 'browser' })
+    rows.push({ pid: 1002, ppid: 1000, pgid: 1000, started: '1002:1', executable: '', state: 'starting' })
+    await vi.advanceTimersByTimeAsync(250)
+    const work = child.wait()
+    owned[0].emit('close', 0)
+    await expect(work).rejects.toThrow()
+    expect(child.state().uncertain).toBe(true)
+    rows = []
+    await expect(controls.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(kill).not.toHaveBeenCalled(); expect(() => controls.assertClosed()).toThrow()
+  })
+  it('never extends readiness for a child that remains before first exec', async () => {
+    vi.useFakeTimers()
+    const start = Date.now(), controls = createContextualTestNativeControls(pins, start + 20000)
+    const child = await controls.spawnOwned({ ...launch(), deadline: start + 100 })
+    rows.push({ pid: 1002, ppid: 1000, pgid: 1000, started: '1002:1', executable: '', state: 'starting' })
+    app.stdout.emit('data', Buffer.from('Ready in 1ms'))
+    const work = expect(child.ready()).rejects.toThrow()
+    await vi.advanceTimersByTimeAsync(100); await work
+    expect(Date.now()).toBe(start + 100)
+    expect(routeReadiness.run).not.toHaveBeenCalled(); expect(kill).not.toHaveBeenCalled()
+    rows = []; owned[0].emit('close', 1)
+    await expect(controls.settleAll(start + 1000)).rejects.toThrow()
+    expect(() => controls.assertClosed()).toThrow()
+  })
   it.each(['started', 'pgid', 'executable', 'all'] as const)('retains the first private %s mismatch detail through positive closure without changing uncertainty', async field => {
     vi.useFakeTimers()
     const control = createContextualTestNativeControls(pins, Date.now() + 20000), child = await control.spawnOwned(launch())
@@ -232,7 +297,7 @@ describe('real native controller with CPU process doubles only', () => {
     const create = launchModule.createContextualTestOwnedFamily
     const factory = vi.spyOn(launchModule, 'createContextualTestOwnedFamily').mockImplementation(input => {
       const family = create(input)
-      return { ...family, refresh() { throw error } }
+      return { ...family, async observe() { throw error } }
     })
     const getDescriptor = Object.getOwnPropertyDescriptor
     const descriptorSpy = shape === 'descriptor' ? vi.spyOn(Object, 'getOwnPropertyDescriptor').mockImplementation((target, key) =>
@@ -454,6 +519,13 @@ describe('fresh execution seal (CPU only, no admission)', () => {
   }
   it('binds source closures, clocks, dependencies, transport, image pins and version/capacity receipts', () => {
     const { admission, seal } = sealFixture(), first = contextualTestExecutionDigest(admission, pins, seal)
+    const projection = { version: 1, projectId: admission.projectId, nonce: admission.nonce,
+      startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline,
+      frozen: admission.frozen, runner: admission.runner, dependencies: admission.dependencies, transportPins: admission.transportPins, nativePins: pins,
+      migrationChainSha256: admission.migrationChainSha256, appOverlaySha256: createContextualTestPlan(admission.projectId).appOverlaySha256,
+      requiredImages: seal.requiredImages, versions: seal.versions, capacity: seal.capacity }
+    expect(first).toBe(createHash('sha256').update(JSON.stringify(projection)).digest('hex'))
+    expect(first).not.toBe(createHash('sha256').update(JSON.stringify({ ...projection, appOverlaySha256: undefined })).digest('hex'))
     expect(contextualTestExecutionDigest(admission, pins, seal)).toBe(first)
     for (const changed of [{ ...admission, deadline: admission.deadline + 1 }, { ...admission, runner: { ...admission.runner, sha256: '1'.repeat(64) } },
       { ...admission, dependencies: { ...admission.dependencies, sha256: '2'.repeat(64) } }]) expect(contextualTestExecutionDigest(changed, pins, seal)).not.toBe(first)

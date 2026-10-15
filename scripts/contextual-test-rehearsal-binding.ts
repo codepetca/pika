@@ -23,7 +23,7 @@ function absolute(value: unknown): asserts value is string {
 }
 export type ContextualTestRunBinding = Readonly<{
   version: 1; projectId: string; appOrigin: 'http://localhost:3117'; apiOrigin: 'http://127.0.0.1:54331'
-  sourceSha: string; sourceTree: string; migrationChainSha256: string; planSha256: string
+  sourceSha: string; sourceTree: string; appOverlaySha256: string; migrationChainSha256: string; planSha256: string
   nonce: string; startedAt: number; deadline: number; cleanupDeadline: number; password: string
   workdir: string; appDir: string; outputDir: string; dependencyManifestSha256: string
   docker: Readonly<{ path: string; sha256: string; host: string; socketIdentity: readonly [number, number, number, number]; containerId: string }>
@@ -34,11 +34,11 @@ export type ContextualTestRunBinding = Readonly<{
 /** Data validation preserves the original clock; it never manufactures an attempt. */
 export function validateContextualTestRunBinding(value: unknown, now = Date.now()): ContextualTestRunBinding {
   const hasSqlControl = !!value && typeof value === 'object' && Object.hasOwn(value, 'sqlControl')
-  exactData(value, ['version','projectId','appOrigin','apiOrigin','sourceSha','sourceTree','migrationChainSha256','planSha256',
+  exactData(value, ['version','projectId','appOrigin','apiOrigin','sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','planSha256',
     'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : [])])
   assert.equal(value.version, 1); assert(typeof value.projectId === 'string')
   const plan = createContextualTestPlan(value.projectId)
-  for (const key of ['sourceSha','sourceTree','migrationChainSha256','appOrigin','apiOrigin'] as const) assert.equal(value[key], plan[key])
+  for (const key of ['sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','appOrigin','apiOrigin'] as const) assert.equal(value[key], plan[key])
   assert.equal(value.planSha256, sha(JSON.stringify(plan)))
   assert(hex(value.nonce, 32) && (value.nonce as string).endsWith(value.projectId.slice(-12)))
   for (const key of ['startedAt','deadline','cleanupDeadline']) assert(Number.isSafeInteger(value[key]))

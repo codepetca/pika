@@ -18,8 +18,8 @@ generations: [{ generation_id: 'old', state: 'active' }], question_counts: [], c
 
 describe('contextual Tests workflow CPU contract (not browser evidence)', () => {
   it('is import-safe and declares the complete finite acceptance slices', () => {
-    expect(contextualTestWorkflowContract).toMatchObject({ createdTests: 6, retiredTests: 2, uploadObjects: 2, screenshots: 16, automaticRetries: 0 })
-    expect(contextualTestWorkflowContract.stages).toEqual(['baseline', 'owner-authoring', 'member-participation', 'grading-return', 'scratch-recovery', 'foreign-denials', 'revoke-restore', 'archive-restore', 'visual-matrix', 'final'])
+    expect(contextualTestWorkflowContract).toMatchObject({ createdTests: 6, retiredTests: 2, uploadObjects: 2, screenshots: 16, fontShots: 32, automaticRetries: 0 })
+    expect(contextualTestWorkflowContract.stages).toEqual(['baseline', 'font-matrix', 'owner-authoring', 'member-participation', 'grading-return', 'scratch-recovery', 'foreign-denials', 'revoke-restore', 'archive-restore', 'visual-matrix', 'final'])
     expect(Object.isFrozen(contextualTestWorkflowContract)).toBe(true)
   })
   it('rejects nonempty/changed baseline rather than silently adopting old work', () => {

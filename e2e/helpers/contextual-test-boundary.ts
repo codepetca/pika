@@ -10,6 +10,12 @@ type Failure = 'deadline' | 'failed' | 'origin' | 'endpoint' | 'request-cap' | '
 type OriginalResponse = { url(): string; status(): number; headers(): Record<string, string>; body(): Promise<Buffer> }
 type Reservation = { testId: string; bytes: number; url: string | null; readPath: string | null; managedId: string | null; uploaded: boolean }
 type Task = { promise: Promise<unknown>; end: number }
+type RequestFailure = {
+  reason: 'malformed-url' | 'credentials' | 'protocol' | 'origin';
+  target: 'app' | 'storage' | 'google-font-stylesheet' | 'google-font-file' | 'other';
+  method: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'other';
+  resource: 'document' | 'stylesheet' | 'font' | 'script' | 'image' | 'fetch' | 'xhr' | 'api' | 'other';
+}
 type ResponseFailure = {
   phase: Failure; resource: 'login' | 'session' | 'test-api' | 'other';
   status: 'success' | 'redirect' | 'client-error' | 'server-error' | 'other';
@@ -29,6 +35,7 @@ function bodyFailureCause(error: unknown): ResponseFailure['cause'] {
 }
 export class ContextualTestBoundary {
   private failed: Failure | null = null
+  private requestFailure: RequestFailure | null = null
   private responseFailure: ResponseFailure | null = null
   private readonly tasks = new Map<object, Set<Task>>()
   private readonly responses = new WeakMap<object, Promise<unknown>>()
@@ -49,14 +56,31 @@ export class ContextualTestBoundary {
     if (this.now() >= this.deadline || [...this.tasks.values()].some(set => [...set].some(task => this.now() >= task.end))) this.reject('deadline')
     if (this.failed) this.reject('failed')
   }
-  receipt() { return { counts: { ...this.counts }, firstFailure: this.failed, responseFailure: this.responseFailure ? { ...this.responseFailure } : null, pending: [...this.tasks.values()].reduce((n, set) => n + set.size, 0) } }
+  receipt() { return { counts: { ...this.counts }, firstFailure: this.failed, requestFailure: this.requestFailure ? { ...this.requestFailure } : null, responseFailure: this.responseFailure ? { ...this.responseFailure } : null, pending: [...this.tasks.values()].reduce((n, set) => n + set.size, 0) } }
   pending(context: object) { return this.tasks.get(context)?.size ?? 0 }
-  admit(value: string, method: string, body?: unknown) {
+  private rejectOrigin(reason: RequestFailure['reason'], u: URL | null, method: string, resource: string): never {
+    // Diagnostics only: exact known origins project to fixed labels. No URL,
+    // path, query, body, credential, arbitrary method/resource name or hash is
+    // retained, and even known font endpoints remain fatal/undispatched.
+    const target: RequestFailure['target'] = u?.origin === this.plan.appOrigin ? 'app'
+      : u?.origin === this.plan.apiOrigin && u.pathname.startsWith('/storage/v1/') ? 'storage'
+        : u?.origin === 'https://fonts.googleapis.com' && ['/css', '/css2'].includes(u.pathname) ? 'google-font-stylesheet'
+          : u?.origin === 'https://fonts.gstatic.com' ? 'google-font-file' : 'other'
+    this.requestFailure ??= {
+      reason, target,
+      method: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(method) ? method as RequestFailure['method'] : 'other',
+      resource: ['document', 'stylesheet', 'font', 'script', 'image', 'fetch', 'xhr', 'api'].includes(resource) ? resource as RequestFailure['resource'] : 'other',
+    }
+    return this.reject('origin')
+  }
+  admit(value: string, method: string, body?: unknown, resource = 'other') {
     this.check()
-    let u: URL; try { u = new URL(value) } catch { return this.reject('origin') }
+    let u: URL; try { u = new URL(value) } catch { return this.rejectOrigin('malformed-url', null, method, resource) }
     const app = u.origin === this.plan.appOrigin
     const storage = u.origin === this.plan.apiOrigin && u.pathname.startsWith('/storage/v1/')
-    if (u.protocol !== 'http:' || u.username || u.password || (!app && !storage)) this.reject('origin')
+    if (u.protocol !== 'http:' || u.username || u.password || (!app && !storage)) {
+      this.rejectOrigin(u.username || u.password ? 'credentials' : u.protocol !== 'http:' ? 'protocol' : 'origin', u, method, resource)
+    }
     if (app && (/\/api\/(?:cron|billing|workos)|\/ai-grade|\/ai-grading|\/api\/auth\/(?:signup|forgot-password|reset-password|workos)/.test(u.pathname)
       || (/^\/api\//.test(u.pathname) && !['GET', 'HEAD'].includes(method)
         && !(method === 'POST' && u.pathname === '/api/auth/login') && !/^\/api\/(?:teacher|student)\/tests(?:\/|$)/.test(u.pathname)))) this.reject('endpoint')

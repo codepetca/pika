@@ -22,6 +22,7 @@ class FakeRequest {
   constructor(private target: string, private verb = 'GET', private data?: unknown, private navigationPage?: FakePage) {}
   url = () => this.target
   method = () => this.verb
+  resourceType = () => this.target.startsWith('https://fonts.googleapis.com/') ? 'stylesheet' : this.navigationPage ? 'document' : 'fetch'
   postDataJSON = () => this.data
   postDataBuffer = () => this.data ? Buffer.from(JSON.stringify(this.data)) : null
   isNavigationRequest = () => Boolean(this.navigationPage)
@@ -174,6 +175,14 @@ class FakeContext extends EventEmitter {
     this.emit(continued ? 'requestfinished' : 'requestfailed', request)
     return continued
   }
+  async foreignResource() {
+    const request = new FakeRequest('https://fonts.googleapis.com/css2?family=PRIVATE-FONT&token=SECRET')
+    const continued = vi.fn(async () => {}), aborted = vi.fn(async () => {})
+    this.emit('request', request)
+    await this.routeHandler?.({ request: () => request, continue: continued, abort: aborted })
+    this.emit('requestfailed', request)
+    expect(continued).not.toHaveBeenCalled(); expect(aborted).toHaveBeenCalledOnce()
+  }
 }
 class FakeBrowser {
   readonly contexts: FakeContext[] = []
@@ -207,6 +216,38 @@ async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Para
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it('owns font captures and rejects unknown labels, wrong actors, state drift and duplicate evidence', async () => {
+    const s = await setup(), screenshot = vi.fn(async () => Buffer.from([137,80,78,71,13,10,26,10,0]))
+    await s.runtime.withActor('ownerTeacher', async page => {
+      await expect(s.runtime.captureFont('arbitrary-font-shot', page)).rejects.toThrow()
+      await expect(s.runtime.captureFont('font-memberStudent-desktop-light-preview', page)).rejects.toThrow()
+      const label = 'font-ownerTeacher-desktop-light-preview'
+      await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
+      await page.goto(`${plan.appOrigin}/pattern-lab?role=teacher#history-preview`, { waitUntil: 'load' })
+      const observation = { dark: false, ready: true, fits: true, editable: 'false', text: 'Fixed preview', preview: true }
+      const gallery = { waitFor: vi.fn(async () => {}), count: vi.fn(async () => 1), evaluate: vi.fn(async () => observation), screenshot }
+      Object.assign(page, { viewportSize: () => ({ width: 1440, height: 900 }), locator: (selector: string) => {
+        expect(selector).toBe('#history-preview[data-testid="history-preview-gallery"]'); return gallery
+      } })
+      s.browser.contexts[0].page.waitForFunction.mockResolvedValue(undefined)
+      observation.dark = true; await expect(s.runtime.captureFont(label, page)).rejects.toThrow(); expect(screenshot).not.toHaveBeenCalled()
+      observation.dark = false; observation.fits = false; await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
+      observation.fits = true; await s.runtime.captureFont(label, page)
+      await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
+    })
+    await expect(s.close('passed')).rejects.toThrow()
+    expect(s.receipt().artifacts).toEqual([expect.objectContaining({ label: 'font-ownerTeacher-desktop-light-preview', kind: 'png', fontReference: 'teacher-history-viewer' })])
+  })
+  it('aborts a foreign stylesheet without dispatch, retains only fixed labels and closes the context', async () => {
+    const s = await setup()
+    await expect(s.runtime.withActor('ownerTeacher', async () => { await s.browser.contexts[0].foreignResource() })).rejects.toThrow()
+    await expect(s.close('passed')).rejects.toThrow('fixed-schema receipt')
+    // Actor disposal and final runtime disposal both close defensively.
+    expect(s.browser.contexts[0].close).toHaveBeenCalledTimes(2)
+    expect(s.receipt()).toMatchObject({ outcome: 'failed', firstFailure: 'origin', pending: 0, contextsClosed: true,
+      requestFailure: { reason: 'protocol', target: 'google-font-stylesheet', method: 'GET', resource: 'stylesheet' } })
+    expect(JSON.stringify(s.receipt())).not.toMatch(/PRIVATE-FONT|SECRET|fonts\.googleapis|token=/)
+  })
   it('verifies the original login bytes before navigation even starts, without pausing a network route', async () => {
     const browser = new FakeBrowser(); browser.configure = c => { c.page.raceNavigation = true }
     const s = await setup(browser), callback = vi.fn()
@@ -484,7 +525,8 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     const receipt = s.receipt()
     expect(receipt).toMatchObject({ version: 1, outcome: 'failed', contextsClosed: true, firstFailure: 'response-body', pending: 0 })
     expect(JSON.stringify(receipt)).not.toContain('DO-NOT-RECORD')
-    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','responseFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','version','witnesses','login'].sort())
+    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','requestFailure','responseFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','appOverlaySha256','version','witnesses','login'].sort())
+    expect(receipt.appOverlaySha256).toBe(plan.appOverlaySha256)
   })
   it('disposes the original API response when JSON verification fails and retains no response body', async () => {
     const s = await setup(); let response!: FakeResponse

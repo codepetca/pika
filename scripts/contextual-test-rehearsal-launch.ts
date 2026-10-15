@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { constants, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, readlinkSync, realpathSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createContextualTestPlan } from '../e2e/helpers/contextual-test-rehearsal'
+import { applyContextualTestFontOverlay, contextualTestFontOverlay } from '../e2e/helpers/contextual-test-font-overlay'
 import type { ContextualTestRunBinding } from './contextual-test-rehearsal-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { createFamilyOperationGate, reconcileOwnedFamily, ownedFamilyAbsent, requireLiveKernelRoot, settleOwnedFamily, type Capture, type OwnedProcessRow } from './contextual-test-process-ownership'
@@ -71,6 +72,7 @@ export function contextualTestAppEnvironment(binding: ContextualTestRunBinding, 
   assert(sessionSecret.length >= 48 && sessionSecret.length <= 128 && !/[\x00-\x20\x7f]/.test(sessionSecret))
   const status = validateContextualTestDemoStatus(rawStatus, binding.projectId), plan = createContextualTestPlan(binding.projectId)
   const env: Record<string, string> = { ...basicEnvironment(), NODE_ENV: 'development', NEXT_DISABLE_MEM_OVERRIDE: '1',
+    ENABLE_UI_GALLERY: 'true',
     VERCEL_GIT_COMMIT_SHA: binding.sourceSha,
     HOME: binding.outputDir, TMPDIR: join(binding.workdir, 'tmp'),
     NEXT_PUBLIC_SUPABASE_URL: status.API_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: status.ANON_KEY,
@@ -251,6 +253,9 @@ export function prepareContextualTestAppSnapshot(source: Awaited<ReturnType<type
   dependencyRoot: string, dependencyRoots: readonly string[], deadline: number) {
   const check = () => assert(Date.now() < deadline)
   check(); absolute(dependencyRoot); assert.equal(binding.workdir, assignmentListProofWorkdir(binding.projectId)); assert.equal(binding.appDir, join(binding.workdir, 'app'))
+  const plan = createContextualTestPlan(binding.projectId)
+  assert.equal(source.head, plan.sourceSha); assert.equal(source.tree, plan.sourceTree)
+  assert.equal(source.entries.filter(entry => entry.path === contextualTestFontOverlay.path).length, 1)
   assert.equal(realpathSync(binding.workdir), binding.workdir)
   assert(dependencyRoots.length > 0 && dependencyRoots.some(root => dependencyRoot === root || dependencyRoot.startsWith(`${root}/`)))
   mkdirSync(binding.appDir, { mode: 0o700 })
@@ -261,13 +266,16 @@ export function prepareContextualTestAppSnapshot(source: Awaited<ReturnType<type
     assert.equal(createHash('sha1').update(`blob ${content.byteLength}\0`).update(content).digest('hex'), entry.blob)
     const after = lstatSync(input); assert(info.dev === after.dev && info.ino === after.ino && info.size === after.size && info.mtimeMs === after.mtimeMs && info.ctimeMs === after.ctimeMs)
     mkdirSync(dirname(output), { recursive: true, mode: 0o700 }); assert.equal(realpathSync(dirname(output)), dirname(output))
-    writeFileSync(output, content, { mode: entry.mode === '100755' ? 0o700 : 0o600, flag: 'wx' })
-    assert.equal(sha(readFileSync(output)), entry.sha256)
+    const overlaid = entry.path === contextualTestFontOverlay.path
+    if (overlaid) assert.equal(entry.mode, '100644')
+    const snapshotContent = overlaid ? applyContextualTestFontOverlay(entry.path, content) : content
+    writeFileSync(output, snapshotContent, { mode: entry.mode === '100755' ? 0o700 : 0o600, flag: 'wx' })
+    assert.equal(sha(readFileSync(output)), overlaid ? contextualTestFontOverlay.afterSha256 : entry.sha256)
   }
   check(); mkdirSync(join(binding.workdir, 'tmp'), { mode: 0o700 })
   symlinkSync(dependencyRoot, join(binding.appDir, 'node_modules'), 'dir')
   assert.equal(realpathSync(join(binding.appDir, 'node_modules')), realpathSync(dependencyRoot))
-  return Object.freeze({ appDir: binding.appDir, sourceSha256: source.sha256, files: source.entries.length, dependencyRoot })
+  return Object.freeze({ appDir: binding.appDir, sourceSha256: source.sha256, appOverlaySha256: plan.appOverlaySha256, files: source.entries.length, dependencyRoot })
 }
 
 export function captureContextualTestDependencies(root: string, deadline: number) {
@@ -315,7 +323,13 @@ export function createContextualTestOwnedFamily(input: { pid: number; pgid: numb
   capture = reconcileOwnedFamily(capture, input.rows)
   const gate = createFamilyOperationGate()
   return Object.freeze({ snapshot: () => structuredClone(capture),
-    refresh: (rows: readonly OwnedProcessRow[]) => { capture = reconcileOwnedFamily(capture, rows); return structuredClone(capture) },
+    // Queue acquisition as well as publication: a slow earlier snapshot must
+    // not overwrite a pending birth or promotion published by a later read.
+    observe: (admit: () => void, rows: () => Promise<OwnedProcessRow[]>) => gate.run(admit, async () => {
+      const current = await rows(); admit()
+      capture = reconcileOwnedFamily(capture, current)
+      return { rows: current, snapshot: structuredClone(capture) }
+    }),
     absent: (rows: readonly OwnedProcessRow[]) => ownedFamilyAbsent(capture, rows),
     settle: (mode: 'group' | 'pid', controls: Omit<Parameters<typeof settleOwnedFamily>[2], 'update'>) => gate.run(controls.admit,
       () => settleOwnedFamily(capture, mode, { ...controls, update: next => { capture = next } })) })

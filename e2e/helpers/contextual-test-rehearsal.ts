@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict'
 import type { Page, Response } from '@playwright/test'
+import { contextualTestFontOverlaySha256 } from './contextual-test-font-overlay'
 
 const uuid = (suffix: string) => `50000000-0000-4000-8000-0000000000${suffix}`
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
@@ -13,6 +14,7 @@ export function createContextualTestPlan(projectId: string) {
   const sourceBinding = Object.freeze({ projectId,
     sourceSha: '21e755d36037214b32dc6ddd5af68f4247587ca8',
     sourceTree: 'b59213ae97df102ad7ac3ab9912f8a9129f19265',
+    appOverlaySha256: contextualTestFontOverlaySha256,
     migrationChainSha256: 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
     appOrigin: 'http://localhost:3117' as const, apiOrigin: 'http://127.0.0.1:54331' as const,
   })
@@ -146,4 +148,5 @@ export type ContextualTestRuntime = {
   mutate(cell: keyof RehearsalPlan['mutations']): Promise<void>
   snapshot(label: string, page: Page): Promise<void>
   capture(label: string, page: Page): Promise<void>
+  captureFont(label: string, page: Page): Promise<void>
 }

@@ -21,6 +21,7 @@ export const diagnosticSourceFiles = Object.freeze([
   'scripts/contextual-test-rehearsal-launch.ts', 'scripts/contextual-test-process-ownership.ts',
   'scripts/contextual-test-process-identity.py', 'scripts/contextual-assignment-list-proof-path.ts',
   'e2e/helpers/contextual-test-rehearsal.ts', 'package.json', 'pnpm-lock.yaml',
+  'e2e/helpers/contextual-test-font-overlay.ts',
 ])
 export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string; startedAt: number; deadline: number; cleanupDeadline: number; mode?: 'login-body' }
 export function diagnosticDirectory(path: string) {

@@ -12,6 +12,7 @@ import { ContextualTestBoundary } from './contextual-test-boundary'
 import { installLoginFetchGate } from './contextual-login-fetch-gate'
 import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWitness } from './contextual-test-rehearsal'
 import type { ContextualTestStartupStage } from './contextual-test-startup'
+import { contextualTestFontShot, contextualTestFontEditingText } from './contextual-test-font-matrix'
 
 const witnessSchema = z.object({
   version: z.literal(1), work_graph_sha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -86,22 +87,24 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const output = join(binding.outputDir, 'playwright')
   stage('output')
   mkdirSync(output, { mode: 0o700 }) // exclusive run ownership; never adopt old output
-  const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; requests: Set<Request> }>()
-  const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string }> = []
+  const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; requests: Set<Request>; actor?: string }>()
+  const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string; fontReference?: string }> = []
   const witnesses: Array<{ label: string; sha256: string }> = []
   const loginProgress = createContextualTestLoginProgress()
-  let screenshots = 0, snapshots = 0, pageErrors = 0, consoleErrors = 0, closeStarted = false
+  let screenshots = 0, fontShots = 0, pngBytes = 0, snapshots = 0, pageErrors = 0, consoleErrors = 0, closeStarted = false
   const requireOwned = (page: Page) => { const context = page.context(); assert(contexts.has(context), 'Private Page ownership'); return context }
   const fixedTimeout = () => { boundary.check(); return Math.min(plan.limits.operationMs, binding.deadline - Date.now()) }
   const requestBody = (request: Request) => {
     if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method())) return undefined
     try { return request.postDataJSON() } catch { return request.postDataBuffer() ?? undefined }
   }
-  const save = (label: string, kind: 'png' | 'aria', bytes: Buffer) => {
+  const save = (label: string, kind: 'png' | 'aria', bytes: Buffer, fontReference?: string) => {
     boundary.check(); contextualTestArtifactLabel(label)
     assert(!label.includes(binding.password), 'Private artifact label')
+    assert(!artifacts.some(row => row.label === label), 'Duplicate private artifact')
+    if (kind === 'png') { assert(bytes.byteLength > 0 && bytes.byteLength <= 4194304 && pngBytes + bytes.byteLength <= 64 * 1024 * 1024); pngBytes += bytes.byteLength }
     writeFileSync(join(output, `${label}.${kind === 'png' ? 'png' : 'txt'}`), bytes, { mode: 0o600, flag: 'wx' })
-    artifacts.push({ label, kind, bytes: bytes.byteLength, sha256: sha(bytes) })
+    artifacts.push({ label, kind, bytes: bytes.byteLength, sha256: sha(bytes), ...(fontReference ? { fontReference } : {}) })
   }
   const runtime: ContextualTestRuntime = {
     plan, password: binding.password, deadline: binding.deadline, check: () => boundary.check(),
@@ -132,7 +135,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
           await context.route('**/*', async route => {
             if (state.closing) { await route.abort('aborted').catch(() => {}); return }
             try {
-              const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request))
+              const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request), request.resourceType())
               if (loginSubmitted && !loginVerified && request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
                 // The fetch gate prevents navigation from starting before the
                 // original bytes are verified. Any premature navigation fails
@@ -198,6 +201,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
             })
           })(), new Promise<never>((_resolve, reject) => { loginTimer = setTimeout(() => reject(safeError()), loginTimeout()) })])
         } finally { if (loginTimer) clearTimeout(loginTimer) }
+        contexts.get(context)!.actor = actorLabel
         await callback(page); await boundary.settle(context)
       }
       finally {
@@ -213,7 +217,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       const context = requireOwned(page); boundary.check()
       assert(path.startsWith('/') && !path.startsWith('//') && !path.includes('\\'), 'Private relative API path')
       const target = new URL(path, plan.appOrigin); assert.equal(target.origin, plan.appOrigin)
-      boundary.admit(target.href, method, body)
+      boundary.admit(target.href, method, body, 'api')
       const response = await context.request.fetch(target.href, { method, data: body, timeout: fixedTimeout(), maxRedirects: 0 })
       try {
         const original = boundary.observe(context, response, { method: () => method, postDataJSON: () => body })
@@ -263,6 +267,36 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       const bytes = await page.screenshot({ type: 'png', fullPage: false, timeout: fixedTimeout() })
       assert(bytes.byteLength <= 4194304); save(label, 'png', bytes)
     },
+    async captureFont(label, page) {
+      const context = requireOwned(page), shot = contextualTestFontShot(label)
+      boundary.check(); assert.equal(contexts.get(context)!.actor, shot.actor)
+      const url = new URL(page.url())
+      assert.equal(url.origin, plan.appOrigin); assert.equal(url.pathname, '/pattern-lab')
+      assert.equal(url.search, `?role=${shot.referenceRole}`)
+      assert.equal(url.hash, shot.state === 'editing' || shot.state === 'empty' ? '#student-image-upload' : '#history-preview')
+      assert.deepEqual(page.viewportSize(), shot.view === 'desktop' ? { width: 1440, height: 900 } : { width: 390, height: 844 })
+      assert(fontShots < 32)
+      const gallery = page.locator(shot.selector)
+      await gallery.waitFor({ state: 'visible', timeout: fixedTimeout() })
+      assert.equal(await gallery.count(), 1)
+      await page.waitForFunction(() => document.fonts.status === 'loaded', undefined, { timeout: fixedTimeout() })
+      const observed = await gallery.evaluate(element => {
+        const editor = element.querySelector('.tiptap.ProseMirror')
+        const box = element.getBoundingClientRect()
+        return { dark: document.documentElement.classList.contains('dark'), ready: document.fonts.status === 'loaded',
+          fits: element.scrollWidth <= element.clientWidth + 1 && box.width <= window.innerWidth + 1
+            && !!editor && editor.scrollWidth <= editor.clientWidth + 1,
+          editable: editor?.getAttribute('contenteditable'), text: editor?.textContent?.trim(),
+          preview: !!element.querySelector('[data-history-preview-mode="focused"], [data-history-preview-mode="locked"]') }
+      })
+      assert.equal(observed.dark, shot.theme === 'dark'); assert(observed.ready && observed.fits)
+      assert.equal(observed.editable, shot.state === 'editing' || shot.state === 'empty' ? 'true' : 'false')
+      assert.equal(observed.preview, shot.state === 'preview')
+      if (shot.state === 'editing') assert.equal(observed.text, contextualTestFontEditingText)
+      if (shot.state === 'empty') assert.equal(observed.text, '')
+      const bytes = await gallery.screenshot({ type: 'png', timeout: fixedTimeout() })
+      save(label, 'png', bytes, shot.fontReference); fontShots++
+    },
   }
   stage('runtime-ready')
   return { runtime, async close(outcome: 'passed' | 'failed' = 'failed') {
@@ -278,9 +312,9 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
     }
     const boundaryReceipt = boundary.receipt()
     const complete = outcome === 'passed' && closed && boundaryReceipt.firstFailure === null && boundaryReceipt.pending === 0
-      && screenshots === 16 && pageErrors === 0 && Date.now() < binding.deadline
+      && screenshots === 16 && fontShots === 32 && pageErrors === 0 && Date.now() < binding.deadline
     writeFileSync(join(binding.outputDir, 'playwright-receipt.json'), JSON.stringify({ version: 1, projectId: plan.projectId,
-      sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, outcome: complete ? 'passed' : 'failed',
+      sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256, outcome: complete ? 'passed' : 'failed',
       contextsClosed: closed, ...boundaryReceipt, pageErrors, consoleErrors, artifacts, witnesses, login: loginProgress.snapshot(),
       endedAt: Date.now(), deadline: binding.deadline }), { mode: 0o600, flag: 'wx' })
     if (!complete) throw safeError()

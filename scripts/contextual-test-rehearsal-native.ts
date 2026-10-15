@@ -13,6 +13,7 @@ import { assertContextualTestUnusedRunnerOutput, captureContextualTestDependenci
 import { contextualTestIdentityMismatch, parseKernelProcessRows, type ContextualTestIdentityMismatch, type OwnedProcessRow } from './contextual-test-process-ownership'
 import { createContextualTestRouteReadiness } from './contextual-test-route-readiness'
 import type { ContextualTestControllerAdmission, ContextualTestControllerControls } from './contextual-test-rehearsal-controller'
+import { contextualTestFontOverlaySha256 } from '../e2e/helpers/contextual-test-font-overlay'
 
 export type ContextualTestNativePins = Readonly<{
   node: ContextualTestBinaryPin; ps: ContextualTestBinaryPin; python: ContextualTestBinaryPin
@@ -108,7 +109,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
   const observeRows = async (admit: () => void, deadline = controllerEnd): Promise<OwnedProcessRow[]> => {
     admit(); const end = Math.min(deadline, controllerEnd, Date.now() + 30000)
     verifyContextualTestBinary(pins.helper)
-    assert.equal(pins.helper.sha256, '476c8c4696b8252debabb3ff7c5249deea10349cc91526ebc6eca924ef47f807')
+    assert.equal(pins.helper.sha256, '1c44d97370e46b90ad31af5db7da0907a4801ec1581a077d7825103c3add550d')
     const text = await probeWithAdmission(admit, pins.ps, ['-axo','pid=,ppid=,pgid='], end)
     const input = text.split('\n').map(line => {
       const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s*$/.exec(line); assert(match)
@@ -125,7 +126,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
       check(); const current = await rows(), root = current.find(row => row.pid === child.pid)
       if (!root) throw fixedError()
       assert(root.state !== 'unverified', 'Private owned process metadata unavailable')
-      assert(root.executable === executable || root.executable === pins.sandbox.path, 'Private owned executable drift')
+      assert(root.state === 'starting' || root.executable === executable || root.executable === pins.sandbox.path, 'Private owned executable drift')
       // sandbox-exec replaces itself with the pinned Node; do not bind the
       // intermediate executable or treat an unverified observation as absence.
       if (root.state === 'alive' && root.executable === executable) {
@@ -174,7 +175,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     born = true
     let monitor: Promise<void> = Promise.resolve(), stopping = false
     const tick = setInterval(() => {
-      monitor = monitor.then(async () => { if (!stopping) family.refresh(await ownedRows()) }).catch(error => {
+      monitor = monitor.then(async () => { if (!stopping) await family.observe(checkCleanup, ownedRows) }).catch(error => {
         uncertain = true; poisoned = true; record(input.role, 'monitor', nativeProcessCause(error), closed, uncertain, error)
       })
     }, 250)
@@ -193,7 +194,13 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
             const admitReady = () => { check(); assert(!closed && !uncertain && Date.now() < end) }
             admitReady()
             const listeners = await probe(pins.lsof, ['-nP','-iTCP:3117','-sTCP:LISTEN','-Fp'], end)
-            const current = await observeRows(admitReady, end); const snapshot = family.refresh(current)
+            let observed = await family.observe(admitReady, () => observeRows(admitReady, end))
+            while (observed.snapshot.pending?.length) {
+              // No reset or extra lease: pending work shares the original ready end.
+              admitReady(); await new Promise(resolve => setTimeout(resolve, Math.min(25, end - Date.now())))
+              observed = await family.observe(admitReady, () => observeRows(admitReady, end))
+            }
+            const { rows: current, snapshot } = observed
             const pids = listeners.split('\n').filter(line => /^p\d+$/.test(line)).map(line => Number(line.slice(1)))
             assert(pids.length > 0 && pids.every(pid => [snapshot.identity,...snapshot.descendants].some(owner => owner.pid === pid)
               && current.some(row => row.pid === pid && row.state === 'alive')))
@@ -216,7 +223,13 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
             const handle = setTimeout(() => reject(fixedError()), Math.max(0, input.deadline - Date.now())); handle.unref()
             void closedPromise.then(() => clearTimeout(handle))
           })])
-          await monitor; assert(closed && code === 0 && !uncertain && Date.now() < input.deadline)
+          await monitor
+          assert(closed && code === 0 && !uncertain && Date.now() < input.deadline)
+          const admitWait = () => { check(); assert(!uncertain && Date.now() < input.deadline) }
+          try {
+            const current = await family.observe(admitWait, () => observeRows(admitWait, input.deadline))
+            assert(!current.snapshot.pending?.length && Date.now() < input.deadline)
+          } catch (error) { uncertain = true; poisoned = true; throw error }
         } catch (error) { record(input.role, 'wait', uncertain ? 'prior-uncertainty' : nativeProcessCause(error), closed, uncertain, error); throw error }
         finally { clearTimeout(timer) }
       },
@@ -230,7 +243,8 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
             rows: settlementRows, now: Date.now, admit,
             signal: (pid, signal) => { try { process.kill(pid, signal) } catch (error) { record(input.role, 'settle', 'signal-error', closed, uncertain); throw error } }, closed: () => closed, end,
           })
-          assert(closed && family.absent(await settlementRows())); admit(); children.delete(result)
+          const final = await family.observe(admit, settlementRows)
+          assert(closed && !final.snapshot.pending?.length && family.absent(final.rows)); admit(); children.delete(result)
           assert(!uncertain, 'Private native ownership observation failed')
         } catch (error) { const cause = nativeProcessCause(error); record(input.role, 'settle', cause !== 'unknown' ? cause : uncertain ? 'prior-uncertainty' : 'unknown', closed, uncertain, error); poisoned = true; throw fixedError() }
       },
@@ -306,7 +320,7 @@ export async function verifyContextualTestNativeReadiness(pins: ContextualTestNa
   for (const key of ['node','ps','python','lsof','sandbox','codesign','chrome','docker'] as const) verifyContextualTestBinary(pins[key])
   assert.equal(pins.chrome.path, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
   assert.equal(pins.chrome.sha256, 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f')
-  assert.equal(sha(readFileSync(pins.helper.path)), '476c8c4696b8252debabb3ff7c5249deea10349cc91526ebc6eca924ef47f807')
+  assert.equal(sha(readFileSync(pins.helper.path)), '1c44d97370e46b90ad31af5db7da0907a4801ec1581a077d7825103c3add550d')
   await control.probe(pins.codesign, ['--verify','--deep','--strict',dirname(dirname(dirname(pins.chrome.path)))], input.deadline)
   assert.deepEqual(input.requiredImages.map(image => image.ref).sort(), [...CONTEXTUAL_TEST_REQUIRED_IMAGES].sort())
   for (const image of input.requiredImages) {
@@ -333,7 +347,8 @@ export function contextualTestExecutionDigest(admission: ContextualTestControlle
     startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline,
     frozen: admission.frozen, runner: admission.runner, dependencies: admission.dependencies,
     transportPins: admission.transportPins, nativePins: pins,
-    migrationChainSha256: admission.migrationChainSha256, requiredImages: seal.requiredImages, versions: seal.versions, capacity: seal.capacity })))
+    migrationChainSha256: admission.migrationChainSha256, appOverlaySha256: contextualTestFontOverlaySha256,
+    requiredImages: seal.requiredImages, versions: seal.versions, capacity: seal.capacity })))
 }
 
 /** Thin native implementation of the controller's explicit interfaces. No
