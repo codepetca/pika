@@ -1,5 +1,7 @@
 'use client'
 
+import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
+
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
 
 import { Plus } from 'lucide-react'
@@ -467,6 +469,7 @@ export function TeacherTestsTab({
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
 
   const { showMessage } = useAppMessage()
+  const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [testEditMode, setTestEditMode] = useState(false)
   const testDragActiveRef = useRef(false)
   const [isReorderingTests, setIsReorderingTests] = useState(false)
@@ -2354,7 +2357,7 @@ export function TeacherTestsTab({
               <col className="hidden xl:table-column" style={{ width: '64px' }} />
               <col style={{ width: `${gradingColumnWidths.status}px` }} />
             </colgroup>
-            <DataTableHead sticky>
+            <DataTableHead dividers={showGridlines} sticky>
               <DataTableRow>
                 <TableSelectionHeaderCell
                   checked={batchAllSelected}
@@ -2476,7 +2479,7 @@ export function TeacherTestsTab({
                 </DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>
-            <DataTableBody>
+            <DataTableBody dividers={showGridlines}>
               {sortedGradingStudents.map((student) => {
                 const isSelected = student.student_id === selectedStudentId
                 const studentNameParts = getSortableNameParts(student)
@@ -2698,6 +2701,7 @@ export function TeacherTestsTab({
   } : null
 
   const testUtilityActions: TeacherWorkSurfaceActionItem[] = selectedTestWorkspace && deleteTestAction ? [
+    gridlinesAction,
     {
       id: 'edit-test',
       label: 'Edit Test',

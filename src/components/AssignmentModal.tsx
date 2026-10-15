@@ -249,7 +249,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const [creating, setCreating] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
-  titleFocusAllowedRef.current = isOpen && !showInstructionsPreview
   const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
   const defaultDueAt = addDaysToDateString(getTodayInToronto(), 1)
@@ -310,6 +309,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     revertAssignmentToDraft, clearScheduledRelease,
     openScheduleModalWithSave, handleActionSelection, triggerPrimaryAction,
   } = scheduling
+
+  titleFocusAllowedRef.current = isOpen && !showInstructionsPreview
+    && !showCreateScheduleModal && !showPostNowConfirm && !showRevertToDraftConfirm
 
   useEffect(() => {
     const session = ++editorSessionRef.current

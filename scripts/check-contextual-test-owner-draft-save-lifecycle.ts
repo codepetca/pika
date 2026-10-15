@@ -144,6 +144,37 @@ export function testOwnerDraftSaveForcedReceipt(mode: string, error: unknown, co
     return { stdout: cleanupMarker, stderr: `FAIL forced isolated test-owner-draft-save lifecycle: ${mode}.\n`, exitCode: 1 }
   return null
 }
+function draftSaveCleanupDiagnostic(error: AssignmentListLifecycleError | undefined) {
+  if (!error) return 'cleanup-stages=unknown cleanup-kinds=unknown canonical-fields=unknown'
+  if (!error.cleanupFailures.length) return 'cleanup-stages=none cleanup-kinds=none canonical-fields=none'
+  const stages = ['capture', 'teardown', 'absence', 'workdir', 'canonical-after']
+  const failures = error.cleanupFailures
+  const selected = stages.filter(stage => failures.some(failure => failure.stage === stage))
+  if (failures.some(failure => !stages.includes(failure.stage))) selected.push('unknown')
+  const kinds = failures.map(({ error: cause }) => cause instanceof assert.AssertionError ? 'assertion'
+    : cause instanceof Error && cause.message === 'Private platform command failed' ? 'platform-command' : 'unknown')
+  const selectedKinds = ['assertion', 'platform-command', 'unknown'].filter(kind => kinds.includes(kind))
+  const canonical = failures.find(failure => failure.stage === 'canonical-after')
+  let fields = canonical ? 'unknown' : 'none'
+  if (canonical?.error instanceof assert.AssertionError) {
+    // Read data descriptors only. The output is fixed field names, never
+    // canonical values, arbitrary assertion content, or accessor results.
+    try {
+      const { actual, expected } = canonical.error
+      const keys = ['rowDigests', 'guard168Metadata', 'settings', 'cronJobs', 'resources']
+      if (actual && expected && typeof actual === 'object' && typeof expected === 'object') {
+        const changed = keys.filter(key => {
+          const a = Object.getOwnPropertyDescriptor(actual, key)
+          const b = Object.getOwnPropertyDescriptor(expected, key)
+          return a && b && 'value' in a && 'value' in b
+            && typeof a.value === 'string' && typeof b.value === 'string' && a.value !== b.value
+        })
+        if (changed.length) fields = changed.join(',')
+      }
+    } catch { /* Unknown shapes remain redacted. */ }
+  }
+  return `cleanup-stages=${selected.join(',')} cleanup-kinds=${selectedKinds.join(',')} canonical-fields=${fields}`
+}
 export function testOwnerDraftSaveSetupDiagnostic(stage: unknown, error: unknown) {
   const stages = ['pending', 'app-guard', 'app-write', 'app-snapshot', 'app-verify', 'sql-prepare', 'sql-setup', 'complete']
   const phase = typeof stage === 'string' && stages.includes(stage) ? stage : 'unknown'
@@ -166,7 +197,7 @@ export function testOwnerDraftSaveSetupDiagnostic(stage: unknown, error: unknown
   const location = coordinate && locations.includes(coordinate[1]) ? `${coordinate[1]}:${coordinate[2]}` : 'unknown'
   const budget = cause instanceof assert.AssertionError && cause.message === 'Finite total harness budget exhausted' ? 'concurrency-total'
     : cause instanceof assert.AssertionError && cause.message === 'Finite dispatch cap exhausted' ? 'concurrency-dispatch' : 'unknown'
-  return `DIAG test-owner-draft-save setup=${phase} lifecycle=${inherited} cleanup=${cleanup} failure=${kind} location=${location} budget=${budget}.\n`
+  return `DIAG test-owner-draft-save setup=${phase} lifecycle=${inherited} cleanup=${cleanup} failure=${kind} location=${location} budget=${budget} ${draftSaveCleanupDiagnostic(lifecycle)}.\n`
 }
 export function parseTestOwnerDraftSaveLifecycleArgs(args: string[]) {
   const generateTypes = args.length === 5 && args[4] === '--generate-types'

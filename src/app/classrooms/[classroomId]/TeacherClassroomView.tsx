@@ -1,5 +1,7 @@
 'use client'
 
+import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
+
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
 
 import { useCallback, useMemo, useState, useEffect, useId, useRef, type MouseEvent } from 'react'
@@ -627,6 +629,7 @@ export function TeacherClassroomView({
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [individualHeaderMeta, setIndividualHeaderMeta] = useState<{
     studentName: string
@@ -2247,6 +2250,7 @@ export function TeacherClassroomView({
 
   const studentTable = (
     <TeacherAssignmentStudentTable
+      showGridlines={showGridlines}
       rows={currentStudentRows}
       selectedStudentId={activeSelectedStudentId}
       onSelectStudent={(studentId) => {
@@ -2340,6 +2344,7 @@ export function TeacherClassroomView({
   ]
 
   const assignmentUtilityActions: TeacherWorkSurfaceActionItem[] = activeSelectedAssignmentData ? [
+    gridlinesAction,
     {
       id: 'edit-assignment-markdown',
       label: 'Edit Markdown',

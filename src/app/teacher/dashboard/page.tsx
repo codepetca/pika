@@ -1,7 +1,10 @@
 'use client'
 
+import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
+import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react'
-import { Plus, RotateCw } from 'lucide-react'
+import { MoreVertical, Plus, RotateCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   AlertDialog,
@@ -23,7 +26,7 @@ import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
 import type { Classroom, AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
-import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   fetchTeacherDashboardAttendance,
   fetchTeacherDashboardEntry,
@@ -55,6 +58,7 @@ const DASHBOARD_ATTENDANCE_COLUMN_LIMITS = {
 
 export default function TeacherDashboardPage() {
   const router = useRouter()
+  const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
@@ -435,8 +439,11 @@ export default function TeacherDashboardPage() {
                   </div>
                 </div>
               }
-              actions={
-                [
+              trailing={<TeacherWorkSurfaceIconMenuButton
+                ariaLabel="More actions" tooltip="More actions"
+                icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />}
+                items={[
+                  gridlinesAction,
                   {
                     id: 'course-blueprints',
                     label: 'Course blueprints',
@@ -467,8 +474,8 @@ export default function TeacherDashboardPage() {
                     label: 'Export CSV',
                     onSelect: handleExportCSV,
                   },
-                ] satisfies ActionBarItem[]
-              }
+                ]}
+              />}
             />
 
             <PageContent>
@@ -508,7 +515,7 @@ export default function TeacherDashboardPage() {
                 <div className="shadow-sm">
                   <TableCard overflowX>
                     <DataTable className="min-w-max">
-                      <DataTableHead>
+                      <DataTableHead dividers={showGridlines}>
                         <DataTableRow>
                           <SortableHeaderCell
                             label="Student"
@@ -548,7 +555,7 @@ export default function TeacherDashboardPage() {
                           ))}
                         </DataTableRow>
                       </DataTableHead>
-                      <DataTableBody>
+                      <DataTableBody dividers={showGridlines}>
                         {sortedAttendance.map(record => (
                           <DataTableRow key={record.student_id} className="group hover:bg-surface-hover">
                             <DataTableCell
