@@ -47287,3 +47287,34 @@ writer continue agreed work. Whole phase/native/app/CI/merge remains unaccepted.
 No shared/prod migration, account/provider/billing/release/admission/home/cutover
 or valuable cleanup. Routine approvals waived; serious holds persist. Weekly49%
 remaining is account-wide, not attributable cost; effective worker usage unknown.
+
+<!-- pika-session-log-archive-batch:aea46f1fbf2a736451104fad402a13bf10d5ba250444977a5215016674a3a829 -->
+## 2026-10-13 — Restart source recovery and integration checks
+
+Twelve historical source/review artifacts recovered hash-exact from own durable
+transcripts; actual old result JSON/seed carrier remain missing. No fabrication,
+spent retry or native/app acceptance. Fresh inert browser proposal has13 hashes
+and7-file CJS closure independently verified; private0700/0600, no acceptance or
+runtime. Chrome155.0.8059.40 changed from reviewed pin; Google signature verifies,
+human baseline decision requested before native use. Other binary/CLI seals match.
+
+Survey committed proposal checkpoint5bd9b14f8:38CPU tests,actualoptionsTSC/lint/
+audit PASS;185actions but full guard/control/remaining inventory still unbound.
+Sol/high security/oracle and SQL reviewers inspect fixed detachedcheckouts as
+launches19/20, sourcefix9; original22:04UTCclock retained under workflowstop waiver.
+Broader focused failed83tests:81stale262profile checks,1startupbudget,1platform
+source assertion. Root compacted CURRENT;79startupchecksPASS after preserving
+literal worktree/env guidance. Separate retainedSol/high read-only source map
+prepares exact263-tail compatibility group; no inventory truncation or relaxed
+future-tail/seal gates. No PR/CI/merge, shared/prod apply or rollout this checkpoint.
+
+Compatibility299eec7 checkpoint:531/10CPU PASS; exact263leaf54PASS; full17-path
+review21 CLEAN114s observed. Expanded17rootTSC29baseline-identical/introduction0
+(not absolute scriptsPASS); leafTSC0. Review19/20 accepted4P1. Sourcefix11 safely
+fixes wholegraph progression/nestedJSON/archive clocks:41CPU/sourceTSC0/lintPASS.
+Exactrow childXID/MultiXact proof remainsblocked; two async serious decisions are
+pending (Chrome baseline,test-onlypgrowlocks ifavailable). Final broader focused
+2909PASS/8skipped/150files,architecture/UI/design/appTSC/lintPASS, logs at
+/var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Xd8d1g.
+No native/application acceptance; privatebootstrap/control/cancel/payload gaps
+remain. Three clean detachedreviewcheckouts removed; commits/reports preserved.

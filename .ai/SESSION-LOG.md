@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 — Restart source recovery and integration checks
-
-Twelve historical source/review artifacts recovered hash-exact from own durable
-transcripts; actual old result JSON/seed carrier remain missing. No fabrication,
-spent retry or native/app acceptance. Fresh inert browser proposal has13 hashes
-and7-file CJS closure independently verified; private0700/0600, no acceptance or
-runtime. Chrome155.0.8059.40 changed from reviewed pin; Google signature verifies,
-human baseline decision requested before native use. Other binary/CLI seals match.
-
-Survey committed proposal checkpoint5bd9b14f8:38CPU tests,actualoptionsTSC/lint/
-audit PASS;185actions but full guard/control/remaining inventory still unbound.
-Sol/high security/oracle and SQL reviewers inspect fixed detachedcheckouts as
-launches19/20, sourcefix9; original22:04UTCclock retained under workflowstop waiver.
-Broader focused failed83tests:81stale262profile checks,1startupbudget,1platform
-source assertion. Root compacted CURRENT;79startupchecksPASS after preserving
-literal worktree/env guidance. Separate retainedSol/high read-only source map
-prepares exact263-tail compatibility group; no inventory truncation or relaxed
-future-tail/seal gates. No PR/CI/merge, shared/prod apply or rollout this checkpoint.
-
-Compatibility299eec7 checkpoint:531/10CPU PASS; exact263leaf54PASS; full17-path
-review21 CLEAN114s observed. Expanded17rootTSC29baseline-identical/introduction0
-(not absolute scriptsPASS); leafTSC0. Review19/20 accepted4P1. Sourcefix11 safely
-fixes wholegraph progression/nestedJSON/archive clocks:41CPU/sourceTSC0/lintPASS.
-Exactrow childXID/MultiXact proof remainsblocked; two async serious decisions are
-pending (Chrome baseline,test-onlypgrowlocks ifavailable). Final broader focused
-2909PASS/8skipped/150files,architecture/UI/design/appTSC/lintPASS, logs at
-/var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Xd8d1g.
-No native/application acceptance; privatebootstrap/control/cancel/payload gaps
-remain. Three clean detachedreviewcheckouts removed; commits/reports preserved.
-
 ## 2026-10-13 — Approved browser baseline and bounded row diagnostic gap
 
 Human approved Chrome155.0.8059.40 and test-onlypgrowlocksIFavailable onlyin
@@ -795,3 +765,20 @@ Final acad53e3 passes3252focused/8skip plus all policies/TSC/lint. Review81 fail
 with a provider safety refusal, no report; final independent P1 closure is not
 accepted. No rephrase/reroute or native dispatch. Fresh rehearsal remains unspent;
 review access must legitimately resolve before advancing. PR1581 stays draft.
+
+## 2026-10-15 Human review and fresh rehearsal result
+
+Human reviewed exactacad53e3f against the supplied final-correction checklist,
+no blockers; lifecycle records human review separately from refused81. Current
+9ca83a159 differs only in continuity docs. ONE authorized OmoGNa/1f6ce7c8e3eb
+full run FAILED/SPENT147.250s; workflow markers30.884s apart, exact action unknown.
+Server API0, all guard flags false; no native guard-fix acceptance inferred.
+Browser contexts closed/pending0/pageErrors0/consoleErrors0;8 app requests,
+no screenshots, baseline witness only. All six cleanup stages PASS/ownedSettled.
+BEFOREpost-run edits/tests independent7628source files and49485dependencies/
+602159325bytes matched; exact resources absent by both labels/name, workdir
+absent/four ports clear. Private evidence retained, raw DOM error-context absent.
+No replay, new clock, canonical-database equality or application acceptance.
+Next isolate the failing login step with fixed-enum evidence, not a guessed fix
+or wider egress. Fresh native attempt requires separate one-shot authority;
+production/shared-local/provider-Survey/account/billing/activation holds unchanged.
