@@ -68,6 +68,13 @@ export function TestPublicationControl({ test, classroomId, apiBasePath, onPubli
     setPickerOpen(true)
   }
 
+  function cancelPicker() {
+    if (busy) return
+    calendarDate.edit(calendarDate.savedValue)
+    setRequestError('')
+    setPickerOpen(false)
+  }
+
   async function saveDate(next: string) {
     if (unavailable || busyRef.current) return
     const owner = ownerRef.current
@@ -105,7 +112,7 @@ export function TestPublicationControl({ test, classroomId, apiBasePath, onPubli
         ]}
       />
       {error && !pickerOpen ? <p role="alert" className="mt-1 text-sm text-danger">{error}</p> : null}
-      <DialogPanel isOpen={pickerOpen} onClose={() => { if (!busy) setPickerOpen(false) }} ariaLabelledBy={titleId} maxWidth="max-w-sm">
+      <DialogPanel isOpen={pickerOpen} onClose={cancelPicker} ariaLabelledBy={titleId} maxWidth="max-w-sm">
         <div className="space-y-4">
           <h2 id={titleId} className="text-lg font-semibold text-text-default">{draft ? 'Schedule test' : 'Change test date'}</h2>
           <p className="text-sm text-text-muted">{draft
@@ -115,7 +122,7 @@ export function TestPublicationControl({ test, classroomId, apiBasePath, onPubli
             <Input type="date" value={date} min={draft ? today : undefined} max={!allowFutureDate ? today : undefined} disabled={busy} onChange={(event) => setDate(event.currentTarget.value)} />
           </FormField>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" disabled={busy} onClick={() => setPickerOpen(false)}>Cancel</Button>
+            <Button variant="secondary" disabled={busy} onClick={cancelPicker}>Cancel</Button>
             <Button loading={busy} disabled={!validDate || disabled} onClick={() => { void saveDate(date) }}>{draft ? 'Schedule' : 'Save date'}</Button>
           </div>
         </div>

@@ -77,4 +77,22 @@ describe('TestPublicationControl', () => {
     await waitFor(() => expect(props.onSaved).toHaveBeenCalledOnce())
     expect(onPublish).not.toHaveBeenCalled()
   })
+
+  it('discards a failed date change on Cancel so closing the editor cannot retry it', async () => {
+    const test = createMockTest({ status: 'closed', test_date: '2026-10-20' })
+    const fetchMock = vi.fn(async () => ({ ok: false, json: async () => ({ error: 'Date save failed' }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    let flush: (() => Promise<boolean>) | null = null
+    render(<TooltipProvider><TestPublicationControl test={test} classroomId={test.classroom_id} apiBasePath="/api/teacher/tests"
+      onSaved={vi.fn()} allowFutureDate onFlushReady={ready => { flush = ready }} /></TooltipProvider>)
+    fireEvent.click(screen.getByRole('button', { name: /Test date:/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Change date' }))
+    fireEvent.change(screen.getByLabelText('Test date'), { target: { value: '2099-11-08' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save date' }))
+    expect(await screen.findByText('Date save failed')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await flush?.()
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
 })

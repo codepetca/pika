@@ -27,12 +27,17 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test('teacher schedules, edits the date, unpublishes and publishes today', async ({ page }, info) => {
   await setup(page, info, 'teacher')
   let saved = record()
+  let failNextDateSave = false
   const writes: unknown[] = []
   await page.route('**/api/teacher/tests**', async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
     const body = request.method() === 'GET' ? null : request.postDataJSON()
     if (body) writes.push(body)
+    if (request.method() === 'PATCH' && body?.test_date && failNextDateSave) {
+      failNextDateSave = false
+      return route.fulfill({ status: 500, json: { error: 'Date save failed' } })
+    }
     if (path === '/api/teacher/tests') return route.fulfill({ json: { tests: [saved] } })
     if (path.endsWith('/results')) return route.fulfill({ json: { test: saved, students: [], questions: [question], active_ai_grading_run: null } })
     if (path.endsWith('/draft')) return route.fulfill({ json: { editingPolicy: { structureLocked: false }, draft: { version: 7, content: { title: saved.title, show_results: false, questions: [question] } } } })
@@ -94,6 +99,18 @@ test('teacher schedules, edits the date, unpublishes and publishes today', async
   await expect(editor.getByRole('button', { name: 'Test date: Thu Oct 15', exact: true })).toBeVisible()
   expect(await editor.getByLabel('Test date', { exact: true }).count()).toBe(0)
   await capture(page, info, 'teacher-editor-date')
+  failNextDateSave = true
+  await editor.getByRole('button', { name: 'Test date: Thu Oct 15', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Change date', exact: true }).click()
+  await change.getByLabel('Test date', { exact: true }).fill(tomorrow)
+  await change.getByRole('button', { name: 'Save date', exact: true }).click()
+  await expect(change.getByText('Date save failed', { exact: true })).toBeVisible()
+  await capture(page, info, 'teacher-date-save-failure')
+  await change.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await editor.getByRole('button', { name: 'Close test editor', exact: true }).click()
+  await expect(editor).toHaveCount(0)
+  expect(saved.test_date).toBe(today)
+  await page.getByRole('button', { name: `Edit ${saved.title}`, exact: true }).click()
   await editor.getByRole('button', { name: 'Test date: Thu Oct 15', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Unpublish', exact: true }).click()
   await unpublish.getByRole('button', { name: 'Return to draft', exact: true }).click()
