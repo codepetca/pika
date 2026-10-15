@@ -136,7 +136,7 @@ export async function runLoginBodyDiagnostic(browser: Browser, end: number) {
     const closing = new Promise<void>(resolve => { server.close(() => { serverClosed = true; observation.mark('server-closed'); resolve() }) })
     for (const socket of sockets) socket.destroy()
     await waitFor(Promise.all([closing, ...pendingSockets]), end)
-    if (!serverClosed || sockets.size !== 0) failure = true
+    if (Date.now() >= end || !serverClosed || sockets.size !== 0) failure = true
   }
   return { diagnosticOnly: true, ...observation.snapshot(), contextClosed, serverClosed, socketsRemaining: sockets.size,
     requests, posts, unexpectedRequests, pageErrors, originalSeen: original !== undefined, bodyDone, failure }

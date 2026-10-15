@@ -866,3 +866,9 @@ and kernel helper unchanged. Read-only Astra/high investigation supports possibl
 spawn/exec, not this exact transition. Focused227CPU PASS before final type fix;
 lintPASS, type narrowing corrected. Review and ONE fresh diagnostic pending.
 All production/shared-local/provider/rollout holds unchanged; no full-app run.
+
+Review92 complete: oneP2 late-cleanup deadline gap accepted; full local gate at
+d0790e6ab PASS3411/8skip plus static/type/lint. Regression reproduces late positive
+closure flags with failure=false; correction latches original-end expiry without
+skipping cleanup. Targeted re-review/final checked SHA precede the unused browser
+attempt. No safety predicate weakened; existing counters/waiver retained.

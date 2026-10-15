@@ -8,9 +8,10 @@ import { createLoginBodyObservation, runLoginBodyDiagnostic } from '../../e2e/he
 
 afterEach(() => vi.useRealTimers())
 
-function browserFixture(mode: 'immediate' | 'delayed' | 'reject', delayedSocket: boolean | 'never' = false) {
+function browserFixture(mode: 'immediate' | 'delayed' | 'reject', delayedSocket: boolean | 'never' = false, contextCloseMs = 0) {
   let serve!: (request: IncomingMessage, response: ServerResponse) => void
   let server!: EventEmitter
+  let socket: EventEmitter | undefined
   http.create.mockImplementation(handler => {
     serve = handler
     server = Object.assign(new EventEmitter(), { listen(_options: unknown, ready: () => void) { ready() }, address: () => ({ port: 43210 }), close(done: () => void) { done() } })
@@ -28,7 +29,10 @@ function browserFixture(mode: 'immediate' | 'delayed' | 'reject', delayedSocket:
     request: () => ({ url: () => origin + path, method: () => method, postData: () => '{"probe":"login"}' }),
     abort: async () => {},
     continue: async () => {
-      if (delayedSocket && path === '/login') server.emit('connection', Object.assign(new EventEmitter(), { destroy() { if (delayedSocket !== 'never') setTimeout(() => this.emit('close'), 25) } }))
+      if (delayedSocket && path === '/login') {
+        socket = Object.assign(new EventEmitter(), { destroy() { if (delayedSocket !== 'never') setTimeout(() => this.emit('close'), 25) } })
+        server.emit('connection', socket)
+      }
       const request = Object.assign(new EventEmitter(), { method, url: path, complete: true, destroy() {} })
       const response = Object.assign(new EventEmitter(), { setHeader() {}, writeHead() {}, end() {}, destroy() {} })
       serve(request as never, response as never)
@@ -51,7 +55,7 @@ function browserFixture(mode: 'immediate' | 'delayed' | 'reject', delayedSocket:
       waitForURL: async () => {},
       getByRole: () => ({ click: async (options: { noWaitAfter?: boolean }) => { expect(options.noWaitAfter).toBe(true); await handle(route('/api/auth/login', 'POST') as never) } }),
     }),
-    close: async () => {},
+    close: async () => { if (contextCloseMs) await new Promise<void>(resolve => setTimeout(() => { socket?.emit('close'); resolve() }, contextCloseMs)) },
   })
   return { browser: { newContext: async () => fake } as unknown as Browser, original }
 }
@@ -117,5 +121,13 @@ describe('fixed login-body diagnostic observations (CPU only)', () => {
     const pending = runLoginBodyDiagnostic(browser, Date.now() + 20000)
     await vi.advanceTimersByTimeAsync(20001)
     expect(await pending).toMatchObject({ socketsRemaining: 1, failure: true, serverClosed: true })
+  })
+  it('does not accept late context/socket acknowledgements even when all closure flags eventually become true', async () => {
+    vi.useFakeTimers()
+    const { browser, original } = browserFixture('immediate', true, 20001)
+    const pending = runLoginBodyDiagnostic(browser, Date.now() + 20000)
+    await vi.advanceTimersByTimeAsync(20002)
+    expect(await pending).toMatchObject({ bodyVerified: true, contextClosed: true, serverClosed: true, socketsRemaining: 0, failure: true })
+    expect(original.body).toHaveBeenCalledOnce()
   })
 })
