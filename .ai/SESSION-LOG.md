@@ -789,3 +789,18 @@ only ordinal/entered/completed fixed labels (first64 logins, overflow flag), no
 results/errors/identity. Actual runtime fault injection covers all13 steps;
 82focused/4files, appType/lint/audit PASS. Existing login actions, original end,
 network/cap/cleanup/auth/product contracts unchanged. Native attempt unallocated.
+
+Marker revisionee68928a0 passes3266focused/8skip/all policies/TSC/lint; review82
+complete/CLEAN114s,0findings,37independent runtime CPU checks. ONE new authorized
+lb3dYa/5290b7aaa6fb full run FAILED/SPENT179.736s. Fixed marker entered navigate,
+completed page: initial login-page navigation did not complete, before preset,
+credentials or submission. Exact cause unknown;1app request/no page/console errors.
+Browser contexts closed/pending0; controller ownedSettledFALSE, execution cleanup
+owned-families/native-closure failed, unchanged not run. No historical closure or
+acceptance. Within original cleanup end, current app listener and matching app/
+browser candidates absent. BEFOREpost-run edits/tests limited current comparison
+matches7628sourcefiles/49485deps602159317B; preservationCompleteFALSE retained.
+Five running containers/two volumes/one network and isolated workdir retained;
+both project labels/creation times verified, no signals/deletion/retry/clock reset.
+Raw DOM error-context absent. Serious exact-target recovery/closure gate remains;
+diagnose navigation/readiness and cleanup without widening auth/egress. All holds.
