@@ -190,11 +190,14 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
           })])
           assert(!closed && !uncertain)
           const ownedListener = async () => {
+            const admitReady = () => { check(); assert(!closed && !uncertain && Date.now() < end) }
+            admitReady()
             const listeners = await probe(pins.lsof, ['-nP','-iTCP:3117','-sTCP:LISTEN','-Fp'], end)
-            const current = await rows(); const snapshot = family.refresh(current)
+            const current = await observeRows(admitReady, end); const snapshot = family.refresh(current)
             const pids = listeners.split('\n').filter(line => /^p\d+$/.test(line)).map(line => Number(line.slice(1)))
             assert(pids.length > 0 && pids.every(pid => [snapshot.identity,...snapshot.descendants].some(owner => owner.pid === pid)
               && current.some(row => row.pid === pid && row.state === 'alive')))
+            admitReady()
           }
           await ownedListener()
           // Listening is not readiness for a cold demand-compiled route. The

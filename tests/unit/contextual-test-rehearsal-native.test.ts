@@ -116,6 +116,35 @@ describe('real native controller with CPU process doubles only', () => {
     expect(controls.diagnostics().firstFailure).toMatchObject({ role: 'app', phase: 'ready', cause: 'route-readiness' })
     expect(JSON.stringify(controls.diagnostics())).not.toContain('DO-NOT-RECORD')
   })
+  it.each(['listener', 'processes', 'identity'])('rejects a final %s observation beyond the original ready end and still cleans up', async phase => {
+    vi.useFakeTimers()
+    const started = Date.now()
+    let afterRoute = false, crossed = false
+    routeReadiness.run.mockImplementationOnce(async end => {
+      expect(end).toBe(started + 180000)
+      vi.setSystemTime(end - 2); afterRoute = true
+    })
+    const spawnDouble = native.spawn.getMockImplementation()!
+    native.spawn.mockImplementation((file: string, args: string[]) => {
+      const helper = spawnDouble(file, args) as Child
+      const matches = phase === 'listener' ? file === pins.lsof.path && args.includes('-iTCP:3117') :
+        phase === 'processes' ? file === pins.ps.path && args[0] === '-axo' : file === pins.python.path
+      if (afterRoute && !crossed && matches) {
+        const end = helper.stdin.end.getMockImplementation()!
+        helper.stdin.end.mockImplementation(() => {
+          crossed = true; vi.setSystemTime(started + 180001); return end()
+        })
+      }
+      return helper
+    })
+    const controls = createContextualTestNativeControls(pins, started + 300000)
+    const child = await controls.spawnOwned({ ...launch(), deadline: started + 240000 })
+    app.stdout.emit('data', Buffer.from('Ready in 1ms'))
+    await expect(child.ready()).rejects.toThrow()
+    expect(crossed).toBe(true)
+    await controls.settleAll(started + 290000)
+    expect(child.state().closed).toBe(true); controls.assertClosed()
+  })
   it('retains route closure failure while still attempting every verified-family cleanup', async () => {
     routeReadiness.settle.mockRejectedValueOnce(Error('DO-NOT-RECORD route close'))
     const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned(launch())

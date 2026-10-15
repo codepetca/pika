@@ -817,5 +817,11 @@ request/response/socket close required; positive Node close-before-end and late
 original-error regressions included. Native cleanup now retains bounded fixed
 cause/role/phase metadata even when closure fails, without changing its decisions.
 Root controller4RED/native3RED and authors' targeted regressions precedeGREEN;
-independent review/full gate pending. No new native attempt authorized or started;
+Initial independent85/86 complete: privacy/controller clean; HTTP review caught
+final ownership observation using a later end, independently reproduced2RED.
+Fix48 threads original ready end/admission through its snapshot and checks again
+after refresh; three CPU late-observation cases nowPASS with normalcleanup.
+Full gate3326PASS/1FAIL caught helper missing from diagnostic hashed inventory;
+exact path added without relaxing import-closure/source binding. Affected175/5PASS;
+targeted review/full gate pending. No new native attempt authorized or started;
 production/shared-local/Survey/account/billing/activation holds unchanged.
