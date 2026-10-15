@@ -278,6 +278,21 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('32.5%')
   })
 
+  it('defaults gridlines off and persists the chosen display across remounts', async () => {
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(screen.getByRole('row', { name: /Ada Lovelace/ }).parentElement!.className).toContain('border-b')
+    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ showGridlines: true })
+    view.unmount()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(screen.getByRole('row', { name: /Ada Lovelace/ }).parentElement!.className).toBe('')
+  })
+
   it('persists display preferences and exposes three weight metadata rows', async () => {
     renderGradebook('grades')
     await screen.findByText('Ada')
@@ -349,9 +364,10 @@ describe('TeacherGradebookTab', () => {
     expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide unreleased assessments' })).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('keeps teacher and student zero-weight choices independent and persists each in its own scope', async () => {
+  it('defaults to one shared compact setting and persists it while keeping zero-weight columns visible', async () => {
     const response = gradebookResponse()
     response.assessment_columns[0].weight = 0
+    window.localStorage.setItem('teacher-gradebook:display:v1', JSON.stringify({ hideZeroWeightTeacher: true }))
     fetchMock.mockImplementation(async (_input: unknown, init?: RequestInit) => {
       if (init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body))
@@ -361,32 +377,32 @@ describe('TeacherGradebookTab', () => {
     })
     renderGradebook('grades')
     await screen.findByText('Ada')
-    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight teacher' })).toHaveAttribute('aria-checked', 'false')
-    const studentToggle = within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })
-    expect(studentToggle).toHaveAttribute('aria-checked', 'false')
-    fireEvent.click(studentToggle)
+    const header = screen.getByRole('button', { name: 'Edit A1: Essay' }).closest('th')!
+    expect(header).toHaveAttribute('data-compact-zero-weight', 'true')
+    const menu = openGradebookActions()
+    expect(within(menu).queryByRole('menuitemcheckbox', { name: /Hide 0-weight/ })).not.toBeInTheDocument()
+    const toggle = within(menu).getByRole('menuitemcheckbox', { name: 'Compact 0-weight assessments' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(toggle)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/teacher/classrooms/'), expect.objectContaining({ method: 'PATCH' })))
+    await waitFor(() => expect(header).not.toHaveAttribute('data-compact-zero-weight'))
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(writes).toHaveLength(1)
+    expect(JSON.parse(String(writes[0][1].body)).featureVisibility).toMatchObject({ gradebook_compact_zero_weight_assessments: false })
     expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
-    await waitFor(() => expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'true'))
-    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight teacher' }))
-    expect(screen.queryByRole('button', { name: 'Edit A1: Essay' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit T1: Test 1' })).toBeInTheDocument()
-    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ hideZeroWeightTeacher: true })
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1)
-    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight teacher' }))
-    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Compact 0-weight assessments' })).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('restores the student zero-weight choice after a failed save and leaves teacher columns visible', async () => {
+  it('restores the compact zero-weight choice after a failed save and leaves teacher columns visible', async () => {
     fetchMock.mockImplementation(async (_input: unknown, init?: RequestInit) => init?.method === 'PATCH'
       ? { ok: false, json: async () => ({ error: 'Settings save failed' }) }
       : { ok: true, json: async () => gradebookResponse() })
     renderGradebook('grades')
     await screen.findByText('Ada')
-    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' }))
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Compact 0-weight assessments' }))
     await screen.findByText('Settings save failed')
-    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'false')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Compact 0-weight assessments' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
   })
 
@@ -401,11 +417,11 @@ describe('TeacherGradebookTab', () => {
     </TooltipProvider></AppMessageProvider>
     const view = render(tree(classroom))
     await screen.findByText('Ada')
-    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' }))
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Compact 0-weight assessments' }))
     view.rerender(tree({ ...classroom, id: 'other-classroom' }))
-    await act(async () => { finishSave({ ok: true, json: async () => ({ classroom: { ...classroom, feature_visibility: { ...classroom.feature_visibility, gradebook_hide_zero_weight_student: true } } }) }) })
+    await act(async () => { finishSave({ ok: true, json: async () => ({ classroom: { ...classroom, feature_visibility: { ...classroom.feature_visibility, gradebook_compact_zero_weight_assessments: false } } }) }) })
     expect(onClassroomUpdated).not.toHaveBeenCalled()
-    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'false')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Compact 0-weight assessments' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('restores an existing maximum while production changes are paused and blocks other columns', async () => {

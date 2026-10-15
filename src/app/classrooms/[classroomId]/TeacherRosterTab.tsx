@@ -1,5 +1,7 @@
 'use client'
 
+import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
@@ -111,6 +113,7 @@ function JoinSourceBadge({ source }: { source: RosterJoinSource }) {
 
 export function TeacherRosterTab({ classroom }: Props) {
   const isReadOnly = !!classroom.archived_at
+  const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [loading, setLoading] = useState(true)
   const [isRetryingRoster, setIsRetryingRoster] = useState(false)
   const [roster, setRoster] = useState<RosterRow[]>([])
@@ -611,6 +614,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   }
 
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
+    gridlinesAction,
     {
       id: 'upload-csv',
       label: 'Add from CSV',
@@ -768,7 +772,7 @@ export function TeacherRosterTab({ classroom }: Props) {
               <col className="hidden md:table-column" style={{ width: `${columnWidths.counselor}px` }} />
               <col style={{ width: '88px' }} />
             </colgroup>
-            <DataTableHead>
+            <DataTableHead dividers={showGridlines}>
               <DataTableRow>
                 <TableSelectionHeaderCell
                   checked={allSelected}
@@ -842,7 +846,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                 />
               </DataTableRow>
             </DataTableHead>
-            <DataTableBody>
+            <DataTableBody dividers={showGridlines}>
               {sortedRoster.map((row) => {
                 const isSelected = row.id === selectedRosterId
                 const rowName = formatRosterRowName(row)

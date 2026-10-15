@@ -7,8 +7,10 @@ export interface ReturnedGradebookItem {
   percent: number
   categoryName: string | null
   included: boolean
+  isZeroWeight?: boolean
 }
 
 export interface ReturnedGradebookItemsResponse {
+  compactZeroWeightAssessments?: boolean
   items: ReturnedGradebookItem[]
 }

@@ -177,6 +177,8 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   if (lessonPlanVisibility !== undefined) updates.lesson_plan_visibility = lessonPlanVisibility
   if (featureVisibility !== undefined) updates.feature_visibility = {
     ...featureVisibility,
+    gradebook_compact_zero_weight_assessments: featureVisibility.gradebook_compact_zero_weight_assessments
+      ?? normalizeClassroomFeatureVisibility(ownership.classroom.feature_visibility).gradebook_compact_zero_weight_assessments ?? true,
     gradebook_hide_zero_weight_student: featureVisibility.gradebook_hide_zero_weight_student
       ?? normalizeClassroomFeatureVisibility(ownership.classroom.feature_visibility).gradebook_hide_zero_weight_student ?? false,
   }

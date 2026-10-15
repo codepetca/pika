@@ -49,6 +49,36 @@ describe('additive finite PATCH proof source',()=>{
   expect(m.concurrency.schedules.find(s=>s.label==='start_before_and_after_snapshot')?.afterSql).toContain('Actual Start marker missing before snapshot')
   expect(draftSaveNativeTerminationSql()).toContain("backend_start=:'owned_started'::timestamptz")
  })
+ it('reports cleanup-only stages without exposing private errors or canonical values',()=>{
+  const keys=['rowDigests','guard168Metadata','settings','cronJobs','resources']
+  const before=Object.fromEntries(keys.map(key=>[key,'PRIVATE-before']))
+  const after={...before,resources:'PRIVATE-after'}
+  const error=new AssignmentListLifecycleError(undefined,[{stage:'canonical-after',error:new assert.AssertionError({actual:after,expected:before})}])
+  const diagnostic=testOwnerDraftSaveSetupDiagnostic('complete',error)
+  expect(diagnostic).toContain('lifecycle=unknown cleanup=present')
+  expect(diagnostic).toContain('cleanup-stages=canonical-after cleanup-kinds=assertion canonical-fields=resources')
+  expect(diagnostic).not.toContain('PRIVATE')
+  expect(testOwnerDraftSaveForcedReceipt('normal',error,true)).toBeNull()
+ })
+ it('reports multiple closed cleanup stages and redacts unknown stages and errors',()=>{
+  const error=new AssignmentListLifecycleError(undefined,[
+   {stage:'teardown',error:new Error('Private platform command failed')},
+   {stage:'absence',error:new assert.AssertionError({message:'PRIVATE resource'})},
+   {stage:'PRIVATE arbitrary stage',error:new Error('PRIVATE arbitrary failure')},
+  ])
+  const diagnostic=testOwnerDraftSaveSetupDiagnostic('complete',error)
+  expect(diagnostic).toContain('cleanup-stages=teardown,absence,unknown cleanup-kinds=assertion,platform-command,unknown canonical-fields=none')
+  expect(diagnostic).not.toContain('PRIVATE')
+  expect(testOwnerDraftSaveForcedReceipt('after-fixture',error,true)).toBeNull()
+ })
+ it('does not read canonical getters while classifying cleanup failures',()=>{
+  const getter=vi.fn(()=>{throw new Error('PRIVATE getter')})
+  const actual=Object.defineProperty({},'rowDigests',{get:getter})
+  const cause=new assert.AssertionError({message:'PRIVATE',actual,expected:{rowDigests:'PRIVATE'}})
+  const error=new AssignmentListLifecycleError(undefined,[{stage:'canonical-after',error:cause}])
+  expect(testOwnerDraftSaveSetupDiagnostic('complete',error)).toContain('canonical-fields=unknown')
+  expect(getter).not.toHaveBeenCalled()
+ })
  it('reports forced cleanup only for exact checkpoints with complete setup and clean teardown',()=>{
   const error=new AssignmentListLifecycleError({stage:'after-fixture',error:new Error('Forced isolated lifecycle failure')},[])
   expect(testOwnerDraftSaveForcedReceipt('after-fixture',error,true)?.stdout).toContain('PASS isolated test-owner-draft-save exact teardown and unchanged canonical baseline.')

@@ -1,5 +1,7 @@
 'use client'
 
+import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
+
 import {
   forwardRef,
   useCallback,
@@ -154,6 +156,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     isLoading: classDaysLoading,
     refresh: refreshClassDays,
   } = useClassDaysContext()
+  const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -780,6 +783,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       label: showRelativeDate ? 'Hide relative date' : 'Show relative date',
       onSelect: () => setShowRelativeDate((visible) => !visible),
     },
+    gridlinesAction,
   ]
   const qrAvailable = attendanceEnabled
     && attendance.attendanceReady
@@ -925,7 +929,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 </>
               ) : null}
             </colgroup>
-            <DataTableHead sticky className="bg-surface-3">
+            <DataTableHead dividers={showGridlines} sticky className="bg-surface-3">
               <DataTableRow>
                 <SortableHeaderCell
                   label="First"
@@ -1023,7 +1027,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 ) : null}
               </DataTableRow>
             </DataTableHead>
-            <DataTableBody>
+            <DataTableBody dividers={showGridlines}>
               {rows.map((row) => {
                 const isSelected = (selectedStudentId ?? summaryHighlightedStudentId) === row.student_id
                 const attendanceStudent = attendanceRowsById.get(row.student_id)

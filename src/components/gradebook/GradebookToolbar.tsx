@@ -40,7 +40,7 @@ export function GradebookScoreDisplayToggle({
   )
 }
 
-export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onAddItem, itemsAvailable = true, onCopyEmails, onCopySecondaryEmails, onExport, studentGradesVisible, onStudentGradesVisibilityChange, savingStudentGradesVisibility = false, hideZeroWeightStudent = false, onHideZeroWeightStudentChange }: {
+export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onAddItem, itemsAvailable = true, onCopyEmails, onCopySecondaryEmails, onExport, studentGradesVisible, onStudentGradesVisibilityChange, savingStudentGradesVisibility = false, compactZeroWeightAssessments = true, onCompactZeroWeightAssessmentsChange }: {
   preferences: GradebookDisplayPreferences
   onChange: (changes: Partial<GradebookDisplayPreferences>) => void
   selectedCount: number
@@ -61,8 +61,8 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
   onExport: () => void
   studentGradesVisible: boolean
   onStudentGradesVisibilityChange: (visible: boolean) => void
-  hideZeroWeightStudent?: boolean
-  onHideZeroWeightStudentChange?: (hide: boolean) => void
+  compactZeroWeightAssessments?: boolean
+  onCompactZeroWeightAssessmentsChange?: (hide: boolean) => void
   savingStudentGradesVisibility?: boolean
 }) {
   return <TeacherWorkSurfaceContextBar ariaLabel="Gradebook controls" primaryClassName="max-w-44 sm:max-w-none" className="grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" contextClassName="col-span-2 lg:col-span-1"
@@ -113,11 +113,11 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
       { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || !itemsAvailable || !onAddItem, onSelect: () => onAddItem?.() },
       { id: 'name-order', dividerBefore: true, label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
       { id: 'ultra-compact', label: 'Ultra-compact gradebook', checked: preferences.ultraCompact, onSelect: () => onChange({ ultraCompact: !preferences.ultraCompact }) },
+      { id: 'show-gridlines', label: 'Show gridlines', checked: preferences.showGridlines ?? false, onSelect: () => onChange({ showGridlines: !preferences.showGridlines }) },
       { id: 'student-ids', label: 'Show student IDs', checked: preferences.showStudentIds, onSelect: () => onChange({ showStudentIds: !preferences.showStudentIds }) },
       { id: 'sticky-columns', label: 'Keep key columns visible', checked: preferences.keepKeyColumnsVisible, onSelect: () => onChange({ keepKeyColumnsVisible: !preferences.keepKeyColumnsVisible }) },
       { id: 'hide-unreleased', label: 'Hide unreleased assessments', checked: preferences.hideUnreleasedAssessments, onSelect: () => onChange({ hideUnreleasedAssessments: !preferences.hideUnreleasedAssessments }) },
-      { id: 'hide-zero-weight-teacher', label: 'Hide 0-weight teacher', checked: preferences.hideZeroWeightTeacher, onSelect: () => onChange({ hideZeroWeightTeacher: !preferences.hideZeroWeightTeacher }) },
-      { id: 'hide-zero-weight-student', label: 'Hide 0-weight student', checked: hideZeroWeightStudent, disabled: isReadOnly || savingStudentGradesVisibility || !onHideZeroWeightStudentChange, onSelect: () => onHideZeroWeightStudentChange?.(!hideZeroWeightStudent) },
+      { id: 'compact-zero-weight-assessments', label: 'Compact 0-weight assessments', checked: compactZeroWeightAssessments, disabled: isReadOnly || savingStudentGradesVisibility || !onCompactZeroWeightAssessmentsChange, onSelect: () => onCompactZeroWeightAssessmentsChange?.(!compactZeroWeightAssessments) },
       ...(hasManualChanges ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || undoingManualChanges || !onUndoManualChanges, dividerBefore: true, onSelect: () => onUndoManualChanges?.() }] : []),
       { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: onExport },
      ]} />

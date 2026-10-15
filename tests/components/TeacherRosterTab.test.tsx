@@ -191,6 +191,28 @@ describe('TeacherRosterTab', () => {
     modalCallbacks.upload = null
   })
 
+  it('toggles student gridlines from an unchecked More actions item using the keyboard', async () => {
+    mockRosterFetch()
+    const user = userEvent.setup()
+    const { container } = renderRoster()
+    await screen.findByText('Ada')
+    const body = container.querySelector('tbody')!
+    expect(body).not.toHaveClass('divide-y')
+    const trigger = screen.getByRole('button', { name: 'More actions' })
+    trigger.focus()
+    await user.keyboard('{Enter}')
+    const toggle = screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    toggle.focus()
+    await user.keyboard(' ')
+    expect(body).toHaveClass('divide-y')
+    expect(trigger).toHaveFocus()
+    await user.click(trigger)
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(body).not.toHaveClass('divide-y')
+  })
+
   it('ignores stale roster loads after switching classrooms', async () => {
     const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
     let resolveFirstRoster: (() => void) | null = null

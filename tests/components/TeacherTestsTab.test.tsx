@@ -1085,6 +1085,22 @@ describe('TeacherTestsTab', () => {
     expect(saveStatus).toBeEmptyDOMElement()
   })
 
+  it('toggles selected Test student gridlines from More actions', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    const { container } = renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByText('Alice Zephyr')
+    const body = container.querySelector('tbody')!
+    expect(body).not.toHaveClass('divide-y')
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(body).toHaveClass('divide-y')
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+  })
+
   it('opens the edit modal from the selected test actions menu', async () => {
     const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams('tab=tests')

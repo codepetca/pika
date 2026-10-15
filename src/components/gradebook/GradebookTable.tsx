@@ -3,7 +3,7 @@
 import type { Ref } from 'react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 import {
-  Button, DataTable, DataTableBody, DataTableCell, DataTableHead,
+  Button, DataTable, DataTableCell, DataTableHead,
   DataTableHeaderCell, DataTableRow, EmptyStateRow, FormField, Input,
   KeyboardNavigableTable, SortableHeaderCell, TableSelectionCell,
   TableSelectionHeaderCell, Tooltip, cn,
@@ -22,7 +22,9 @@ export interface GradebookTableProps {
   columns: GradebookAssessmentColumn[]
   displayMode: ScoreDisplayMode
   lastNameFirst: boolean
+  showGridlines?: boolean
   showStudentIds: boolean
+  compactZeroWeightAssessments?: boolean
   ultraCompact?: boolean
   showWeights: boolean
   keepKeyColumnsVisible: boolean
@@ -63,8 +65,8 @@ const ABOVE_MAXIMUM_CLASS = 'relative rounded border border-warning bg-warning-b
 
 /** Gradebook-only matrix; persistence and calculations remain outside this renderer. */
 export function GradebookTable({
-  students, columns, displayMode, lastNameFirst, showStudentIds,
-  showWeights, ultraCompact = false, keepKeyColumnsVisible: frozen, columnWidths, onColumnWidthChange,
+  students, columns, displayMode, lastNameFirst, showStudentIds, showGridlines = false,
+  showWeights, compactZeroWeightAssessments = true, ultraCompact = false, keepKeyColumnsVisible: frozen, columnWidths, onColumnWidthChange,
   weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, itemScoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
   onMaxMarkOpen, maximumEditsEnabled = true, savingMaxMarkKeys = new Set(), onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
   toggleSelectAll, selectedStudentId, onStudentSelect, onStudentDeselect,
@@ -74,13 +76,14 @@ export function GradebookTable({
     ? [{ key: 'last_name', label: 'Last' }, { key: 'first_name', label: 'First' }]
     : [{ key: 'first_name', label: 'First' }, { key: 'last_name', label: 'Last' }]
   const names = ultraCompact ? orderedNames.slice(0, 1) : orderedNames
-  const assessmentWidth = ultraCompact ? (displayMode === 'raw' ? 64 : 56) : ASSESSMENT_WIDTH
+  const isCompactZero = (column: GradebookAssessmentColumn) => compactZeroWeightAssessments && column.weight === 0
+  const assessmentWidth = (column: GradebookAssessmentColumn) => ultraCompact || isCompactZero(column) ? (displayMode === 'raw' ? 64 : 56) : ASSESSMENT_WIDTH
   const widths = { ...columnWidths, ...(ultraCompact ? { id: Math.min(columnWidths.id, 80) } : {}) }
   // A flexible spacer keeps Final at the far edge without stretching assessment columns.
   const filler = true
   const minWidth = SELECTION_WIDTH + names.reduce((total, column) => total + widths[column.key], 0)
     + (showStudentIds ? widths.id : 0) + columnWidths.final
-    + Math.max(1, columns.length) * assessmentWidth
+    + (columns.length ? columns.reduce((total, column) => total + assessmentWidth(column), 0) : ASSESSMENT_WIDTH)
   const colSpan = 1 + names.length + (showStudentIds ? 1 : 0) + columns.length + (filler ? 1 : 0) + 1
   const finalValues = students.map((student) => student.final_percent).filter((value): value is number => value != null)
   const finalAverage = average(finalValues)
@@ -106,7 +109,7 @@ export function GradebookTable({
             <col style={{ width: SELECTION_WIDTH }} />
             {names.map(({ key }) => <col key={key} style={{ width: widths[key] }} />)}
             {showStudentIds ? <col style={{ width: widths.id }} /> : null}
-            {columns.map((column) => <col key={getAssessmentColumnKey(column)} style={{ width: assessmentWidth }} />)}
+            {columns.map((column) => <col key={getAssessmentColumnKey(column)} style={{ width: assessmentWidth(column) }} />)}
             {filler ? <col /> : null}
             <col style={{ width: columnWidths.final }} />
           </colgroup>
@@ -123,10 +126,10 @@ export function GradebookTable({
               ))}
               {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="bg-surface-3" /> : null}
               {columns.map((column) => (
-                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden bg-surface-3 !px-1">
-                  <Tooltip content={column.title} side="bottom">
-                    <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit ${column.code}: ${column.title}`} className="w-full overflow-hidden px-1 font-normal text-text-default">
-                      <span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{ultraCompact ? column.code : column.title}</span>
+                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" data-compact-zero-weight={isCompactZero(column) || undefined} className="overflow-hidden bg-surface-3 !px-1">
+                  <Tooltip content={isCompactZero(column) ? `${column.title} · 0 weight` : column.title} side="bottom">
+                    <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit ${column.code}: ${column.title}`} className={cn('w-full overflow-hidden px-1 font-normal', isCompactZero(column) ? 'text-text-muted' : 'text-text-default')}>
+                      <span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{ultraCompact || isCompactZero(column) ? column.code : column.title}{isCompactZero(column) ? <span className="block text-xs text-text-muted">0 wt</span> : null}</span>
                     </Button>
                   </Tooltip>
                 </DataTableHeaderCell>
@@ -144,7 +147,7 @@ export function GradebookTable({
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="truncate bg-surface-2 !px-1 !py-0 text-xs text-text-muted">
                   <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit category for ${column.code}: ${column.title}`} className="h-6 min-h-0 w-full min-w-0 truncate border-0 px-1 py-0 align-middle font-normal text-text-muted focus-visible:ring-inset focus-visible:ring-offset-0">
-                    <span title={column.category_name || 'None'}>{ultraCompact ? (column.category_name || 'None').slice(0, 4) : column.category_name || 'None'}</span>
+                    <span title={column.category_name || 'None'}>{ultraCompact || isCompactZero(column) ? (column.category_name || 'None').slice(0, 4) : column.category_name || 'None'}</span>
                   </Button>
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
@@ -180,7 +183,7 @@ export function GradebookTable({
                     return <DataTableCell key={key} align="center" className="bg-surface-2 !px-1">
                       <FormField label={`Category weight for ${column.title}`} hideLabel collapseHiddenLabel>
                         <Input type="number" min={0} max={999} step={1} value={value} aria-invalid={!valid} disabled={isReadOnly || savingKeys.has(key)}
-                          className={cn('px-1 text-center text-sm tabular-nums', ultraCompact && 'mx-auto w-11 min-w-0', GRADEBOOK_NUMBER_INPUT_CLASS)} title="Enter a whole number from 0 to 999"
+                          className={cn('px-1 text-center text-sm tabular-nums', (ultraCompact || isCompactZero(column)) && 'mx-auto w-11 min-w-0', GRADEBOOK_NUMBER_INPUT_CLASS)} title="Enter a whole number from 0 to 999"
                           onChange={(event) => onWeightDraftChange(column, event.target.value)}
                           onBlur={() => onWeightCommit(column)}
                           onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} />
@@ -204,7 +207,7 @@ export function GradebookTable({
               </> : null}
             </tbody>
           ) : null}
-          <DataTableBody dividers={false}>
+          <tbody className={showGridlines ? '[&>tr:not(:last-child)>td]:border-b [&>tr>td]:border-border' : undefined}>
             {students.map((student) => {
               const active = selectedStudentId === student.student_id
               const selected = selectedIds.has(student.student_id)
@@ -225,8 +228,8 @@ export function GradebookTable({
                     : ultraCompact ? formatWholePercent(getAssessmentCellPercent(cell)) : fullScore
                   const overMaximum = isAssessmentAboveMaximum(cell)
                   const warning = formatAboveMaximumDescription(getAssessmentMaximumPercent(cell))
-                  const scoreTone = overMaximum ? 'text-warning font-semibold' : getGradePercentTextClass(getAssessmentCellPercent(cell))
-                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', getGradePercentTextClass(getAssessmentCellPercent(cell)))}>
+                  const scoreTone = overMaximum ? 'text-warning font-semibold' : isCompactZero(column) ? 'text-text-muted' : getGradePercentTextClass(getAssessmentCellPercent(cell))
+                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', scoreTone)}>
                     <Button
                       type="button"
                       variant="ghost"
@@ -235,7 +238,7 @@ export function GradebookTable({
                       aria-label={`Edit ${getStudentName(student)} mark for ${column.title}: ${fullScore}${cell?.is_manual_override ? ', overridden' : ''}${overMaximum ? `, ${warning.toLowerCase()}` : ''}`}
                       title={overMaximum ? `${warning}: ${formatAssessmentScore(cell, 'raw')}` : fullScore}
                       data-above-maximum={overMaximum || undefined}
-                      className={cn('w-full min-w-0 gap-1 px-1 tabular-nums', ultraCompact && 'gap-0.5 px-0 text-xs', overMaximum && ABOVE_MAXIMUM_CLASS)}
+                      className={cn('w-full min-w-0 gap-1 px-1 tabular-nums', (ultraCompact || isCompactZero(column)) && 'gap-0.5 px-0 text-xs', overMaximum && ABOVE_MAXIMUM_CLASS)}
                       onClick={() => onScoreOpen?.(student, column)}
                     >
                       <span className={cn(scoreTone, 'min-w-0 truncate')}>{score}</span>
@@ -261,7 +264,7 @@ export function GradebookTable({
               </DataTableRow>
             })}
             {!students.length ? <EmptyStateRow colSpan={colSpan} message="No students enrolled yet" /> : null}
-          </DataTableBody>
+          </tbody>
           {students.length > 0 && columns.length > 0 ? (
             <tfoot className="sticky bottom-0 z-sticky-table bg-surface-2" data-testid="gradebook-summary-footer">
               <DataTableRow aria-label="Class average">
@@ -271,8 +274,8 @@ export function GradebookTable({
                 {columns.map((column) => {
                   const stats = getColumnStats(students, column)
                   const overMaximum = isGradeAboveMaximum(stats.averagePercent) || (stats.averageEarned != null && column.possible > 0 && isGradeAboveMaximum(stats.averageEarned / column.possible * 100))
-                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(stats.averagePercent))}>
-                    <span data-above-maximum={overMaximum || undefined} title={overMaximum ? formatAboveMaximumDescription(stats.averagePercent) : undefined} className={cn(getGradePercentTextClass(stats.averagePercent), overMaximum && 'inline-flex items-center gap-0.5 px-0.5 py-1', overMaximum && ABOVE_MAXIMUM_CLASS)}>
+                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap bg-surface-2 text-xs tabular-nums', isCompactZero(column) && !overMaximum ? 'text-text-muted' : getGradePercentTextClass(stats.averagePercent))}>
+                    <span data-above-maximum={overMaximum || undefined} title={overMaximum ? formatAboveMaximumDescription(stats.averagePercent) : undefined} className={cn(isCompactZero(column) && !overMaximum ? 'text-text-muted' : getGradePercentTextClass(stats.averagePercent), overMaximum && 'inline-flex items-center gap-0.5 px-0.5 py-1', overMaximum && ABOVE_MAXIMUM_CLASS)}>
                       {overMaximum ? <span className="sr-only">{formatAboveMaximumDescription(stats.averagePercent)}: </span> : null}
                       {displayMode === 'raw' ? (stats.averageEarned == null ? '—' : formatPoints(stats.averageEarned)) : ultraCompact ? formatWholePercent(stats.averagePercent) : formatColumnStat(stats, column, 'average', displayMode)}
                     </span>

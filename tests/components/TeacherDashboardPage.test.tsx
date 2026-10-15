@@ -50,9 +50,10 @@ vi.mock('@/components/Spinner', () => ({
 vi.mock('@/components/PageLayout', () => ({
   PageLayout: ({ children }: any) => <div>{children}</div>,
   PageContent: ({ children }: any) => <div>{children}</div>,
-  PageActionBar: ({ primary, actions = [] }: any) => (
+  PageActionBar: ({ primary, actions = [], trailing }: any) => (
     <div>
       <div data-testid="dashboard-action-primary">{primary}</div>
+      {trailing}
       {actions.map((action: any) => (
         <button key={action.id} type="button" onClick={action.onSelect}>
           {action.label}
@@ -257,6 +258,21 @@ describe('Teacher dashboard page', () => {
     )
   })
 
+  it('toggles student gridlines through More actions without changing attendance', async () => {
+    installFetchMock()
+    const { container } = renderDashboard()
+    await screen.findByText('student@example.com')
+    const body = container.querySelector('tbody')!
+    expect(body).not.toHaveClass('divide-y')
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(body).toHaveClass('divide-y')
+    expect(screen.getByText('student@example.com')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+  })
+
   it('copies the roster-matched class-code join link', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', {
@@ -268,7 +284,8 @@ describe('Teacher dashboard page', () => {
     renderDashboard()
 
     await screen.findByText('student@example.com')
-    fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link' }))
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/join/DASH1`)
   })
 
@@ -667,7 +684,8 @@ describe('Teacher dashboard page', () => {
     renderDashboard()
 
     await screen.findByText('student@example.com')
-    fireEvent.click(screen.getByRole('button', { name: 'Upload roster' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Upload roster' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete roster upload' }))
 
     await waitFor(() => {
@@ -697,7 +715,8 @@ describe('Teacher dashboard page', () => {
     renderDashboard()
 
     await screen.findByText('student@example.com')
-    fireEvent.click(screen.getByRole('button', { name: 'Upload roster' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Upload roster' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete roster upload' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load attendance')
@@ -751,7 +770,8 @@ describe('Teacher dashboard page', () => {
       return load()
     })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Upload roster' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Upload roster' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete roster upload' }))
 
     expect(await screen.findByText('fresh@example.com')).toBeInTheDocument()

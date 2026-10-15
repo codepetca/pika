@@ -43,6 +43,22 @@ describe('TeacherAssignmentStudentTable', () => {
     window.localStorage.clear()
   })
 
+  it('defaults gridlines off and applies the display setting to its header and rows', () => {
+    const props = {
+      rows: [row], selectedStudentId: null, onSelectStudent: vi.fn(), onDeselectStudent: vi.fn(),
+      selectedIds: new Set<string>(), onToggleSelect: vi.fn(), onToggleSelectAll: vi.fn(),
+      allSelected: false, someSelected: false, sortColumn: 'first' as const, sortDirection: 'asc' as const,
+      onToggleSort: vi.fn(), dueAtMs: 0, density: 'tight' as const, loading: false, error: '',
+    }
+    const view = render(<TeacherAssignmentStudentTable {...props} />)
+    expect(view.container.querySelector('tbody')).not.toHaveClass('divide-y')
+    expect(view.container.querySelector('thead')).not.toHaveClass('border-b')
+    view.rerender(<TeacherAssignmentStudentTable {...props} showGridlines />)
+    expect(view.container.querySelector('tbody')).toHaveClass('divide-y')
+    expect(view.container.querySelector('thead')).toHaveClass('border-b')
+    expect(screen.getByText('Ada')).toBeInTheDocument()
+  })
+
   it('renders assignment student rows with selection, sort, grade, and artifact cells', () => {
     render(
       <TeacherAssignmentStudentTable

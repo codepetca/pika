@@ -2,7 +2,7 @@
 
 import { X } from 'lucide-react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
-import { Button, IconButton } from '@/ui'
+import { Button, IconButton, cn } from '@/ui'
 import { AssessmentStatusIndicator, getGradebookAssessmentStatusDisplay } from '@/components/AssessmentStatusIndicator'
 import { getStudentName, getStudentDisplayId, formatPercent, getGradePercentTextClass, getAssessmentCell, formatCompactPercent, formatAssessmentRawScore, getAssessmentColumnKey, getAssessmentCellPercent, getAssessmentMeta, type ScoreDisplayMode } from '@/lib/gradebook-display'
 
@@ -14,6 +14,7 @@ export function GradebookStudentPanel({
   onItemOpen,
   onItemScoreOpen,
   isReadOnly = false,
+  compactZeroWeightAssessments = true,
 }: {
   student: GradebookStudentSummary
   columns: GradebookAssessmentColumn[]
@@ -22,6 +23,7 @@ export function GradebookStudentPanel({
   onItemOpen?: (column: GradebookAssessmentColumn) => void
   onItemScoreOpen?: (student: GradebookStudentSummary, column: GradebookAssessmentColumn) => void
   isReadOnly?: boolean
+  compactZeroWeightAssessments?: boolean
 }) {
   return (
     <aside
@@ -56,6 +58,7 @@ export function GradebookStudentPanel({
         {columns.length ? (
           <div>
             {columns.map((column) => {
+              const compactZero = compactZeroWeightAssessments && column.weight === 0
               const cell = getAssessmentCell(student, column)
               const percentScore = cell?.is_graded ? formatCompactPercent(cell.percent) : 'Not graded'
               const rawScore = formatAssessmentRawScore(cell, column.possible)
@@ -63,31 +66,31 @@ export function GradebookStudentPanel({
               const secondaryScore = displayMode === 'raw' ? percentScore : rawScore
               const statusDisplay = getGradebookAssessmentStatusDisplay(cell?.status)
               const key = getAssessmentColumnKey(column)
-              const scoreTextClass = cell?.is_graded
+              const scoreTextClass = cell?.is_graded && !(compactZero && (getAssessmentCellPercent(cell) ?? 0) <= 100)
                 ? getGradePercentTextClass(getAssessmentCellPercent(cell))
                 : 'text-text-muted'
               return (
-                <div key={key} className="px-3 py-2.5">
-                  <div className="flex items-start justify-between gap-3">
+                <div key={key} data-compact-zero-weight={compactZero || undefined} className={cn('px-3', compactZero ? 'py-1' : 'py-2.5')}>
+                  <div className={cn('flex justify-between gap-3', compactZero ? 'min-h-11 items-center' : 'items-start')}>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-xs font-normal tabular-nums text-text-default">
+                        <span className={cn('rounded-sm bg-surface-2 px-1.5 py-0.5 text-xs font-normal tabular-nums', compactZero ? 'text-text-muted' : 'text-text-default')}>
                           {column.code}
                         </span>
                         {column.assessment_type === 'item' && onItemOpen ? (
                           <Button
                             type="button" variant="ghost" size="sm"
-                            className="min-w-0 truncate px-1 text-left font-normal"
+                            className={cn('min-w-0 truncate px-1 text-left font-normal', compactZero && 'text-text-muted')}
                             disabled={isReadOnly} aria-label={`Edit item: ${column.title}`}
                             onClick={() => onItemOpen(column)}
                           >
                             {column.title}
                           </Button>
                         ) : (
-                          <span className="truncate text-sm font-normal text-text-default" title={column.title}>{column.title}</span>
+                          <span className={cn('truncate text-sm font-normal', compactZero ? 'text-text-muted' : 'text-text-default')} title={column.title}>{column.title}</span>
                         )}
                       </div>
-                      <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-muted">
+                      <div className={compactZero ? 'sr-only' : 'mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-muted'}>
                         {statusDisplay ? (
                           <>
                             <AssessmentStatusIndicator
@@ -100,7 +103,8 @@ export function GradebookStudentPanel({
                         <span className="truncate">{getAssessmentMeta(column)}</span>
                       </div>
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className={cn('shrink-0 text-right', compactZero && 'flex items-center gap-1')} title={compactZero ? `0 weight · ${secondaryScore}` : undefined}>
+                      {compactZero ? <span className="mr-1 text-xs text-text-muted">0 wt</span> : null}
                       {column.assessment_type === 'item' && onItemScoreOpen ? (
                         <Button
                           type="button" variant="ghost" size="sm"
@@ -114,7 +118,7 @@ export function GradebookStudentPanel({
                       ) : (
                         <div className={`text-sm font-normal tabular-nums ${scoreTextClass}`}>{primaryScore}</div>
                       )}
-                      <div className={['mt-1 text-xs tabular-nums', scoreTextClass].join(' ')}>
+                      <div className={compactZero ? 'sr-only' : ['mt-1 text-xs tabular-nums', scoreTextClass].join(' ')}>
                         {secondaryScore}
                       </div>
                     </div>

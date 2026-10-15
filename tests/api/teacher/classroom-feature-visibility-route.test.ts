@@ -106,6 +106,34 @@ describe('PATCH /api/teacher/classrooms/[id] feature visibility', () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 
+  it.each([true, false])('saves shared zero-weight compaction as %s', async compact => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_compact_zero_weight_assessments: compact }
+    mockUpdateResult({ data: { id: CLASSROOM_ID, feature_visibility: visibility }, error: null })
+    expect((await PATCH(request(visibility), context())).status).toBe(200)
+    expect(mocks.update).toHaveBeenCalledWith({ feature_visibility: visibility })
+  })
+
+  it.each([true, false])('preserves compaction %s and the legacy setting when older clients omit both', async compact => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: true, gradebook_compact_zero_weight_assessments: compact }
+    mocks.assertTeacherOwnsClassroom.mockResolvedValue({ ok: true, classroom: { id: CLASSROOM_ID, teacher_id: TEACHER_ID, feature_visibility: visibility } })
+    mockUpdateResult({ data: { id: CLASSROOM_ID, feature_visibility: visibility }, error: null })
+    const { gradebook_hide_zero_weight_student: _legacy, gradebook_compact_zero_weight_assessments: _compact, ...older } = visibility
+    expect((await PATCH(request(older), context())).status).toBe(200)
+    expect(mocks.update).toHaveBeenCalledWith({ feature_visibility: visibility })
+  })
+
+  it('defaults compaction on when both the persisted setting and older client setting are absent', async () => {
+    const { gradebook_compact_zero_weight_assessments: _compact, ...older } = DEFAULT_CLASSROOM_FEATURE_VISIBILITY
+    mockUpdateResult({ data: { id: CLASSROOM_ID, feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY }, error: null })
+    expect((await PATCH(request(older), context())).status).toBe(200)
+    expect(mocks.update).toHaveBeenCalledWith({ feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY })
+  })
+
+  it.each(['true', null, 0])('rejects malformed compaction %#', async value => {
+    expect((await PATCH(request({ ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_compact_zero_weight_assessments: value }), context())).status).toBe(400)
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
   it('rejects partial feature payloads at the API boundary', async () => {
     const response = await PATCH(request({ tests: false }), context())
 

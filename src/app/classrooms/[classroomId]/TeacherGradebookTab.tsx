@@ -60,8 +60,8 @@ export function TeacherGradebookTab({
   const [studentGradesVisible, setStudentGradesVisible] = useState(
     normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades,
   )
-  const [hideZeroWeightStudent, setHideZeroWeightStudent] = useState(
-    normalizeClassroomFeatureVisibility(classroom.feature_visibility).gradebook_hide_zero_weight_student === true,
+  const [compactZeroWeightAssessments, setCompactZeroWeightAssessments] = useState(
+    normalizeClassroomFeatureVisibility(classroom.feature_visibility).gradebook_compact_zero_weight_assessments !== false,
   )
   const studentVisibilityRequestRef = useRef(0)
   const [savingStudentGradesVisibility, setSavingStudentGradesVisibility] = useState(false)
@@ -98,7 +98,7 @@ export function TeacherGradebookTab({
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
   const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
-  const visibleAssessmentColumns = visibleGradebookAssessments(assessmentColumns, preferences.hideUnreleasedAssessments, preferences.hideZeroWeightTeacher)
+  const visibleAssessmentColumns = visibleGradebookAssessments(assessmentColumns, preferences.hideUnreleasedAssessments)
   const [categories, setCategories] = useState<GradebookCategory[]>([])
   const [gradebookEditorOpen, setGradebookEditorOpen] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<GradebookAssessmentColumn | null>(null)
@@ -140,20 +140,20 @@ export function TeacherGradebookTab({
   useEffect(() => {
     studentVisibilityRequestRef.current += 1
     setStudentGradesVisible(normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades)
-    setHideZeroWeightStudent(normalizeClassroomFeatureVisibility(classroom.feature_visibility).gradebook_hide_zero_weight_student === true)
+    setCompactZeroWeightAssessments(normalizeClassroomFeatureVisibility(classroom.feature_visibility).gradebook_compact_zero_weight_assessments !== false)
     setStudentGradesVisibilityError('')
     setSavingStudentGradesVisibility(false)
   }, [classroom.id, classroom.feature_visibility])
 
-  async function updateStudentGradesVisibility(visible: boolean, hideZeroWeight = hideZeroWeightStudent) {
+  async function updateStudentGradesVisibility(visible: boolean, compactZeroWeight = compactZeroWeightAssessments) {
     if (savingStudentGradesVisibility || isReadOnly) return
     const classroomId = classroom.id
     const requestId = ++studentVisibilityRequestRef.current
     const isCurrentRequest = () => studentVisibilityRequestRef.current === requestId && currentClassroomIdRef.current === classroomId
     const previous = studentGradesVisible
-    const previousHideZeroWeight = hideZeroWeightStudent
+    const previousCompactZeroWeight = compactZeroWeightAssessments
     setStudentGradesVisible(visible)
-    setHideZeroWeightStudent(hideZeroWeight)
+    setCompactZeroWeightAssessments(compactZeroWeight)
     setSavingStudentGradesVisibility(true)
     setStudentGradesVisibilityError('')
     try {
@@ -164,7 +164,7 @@ export function TeacherGradebookTab({
           featureVisibility: {
             ...normalizeClassroomFeatureVisibility(classroom.feature_visibility),
             student_grades: visible,
-            gradebook_hide_zero_weight_student: hideZeroWeight,
+            gradebook_compact_zero_weight_assessments: compactZeroWeight,
           },
         }),
       })
@@ -173,14 +173,14 @@ export function TeacherGradebookTab({
       if (!isCurrentRequest()) return
       const updatedClassroom = json.classroom as Classroom
       setStudentGradesVisible(normalizeClassroomFeatureVisibility(updatedClassroom.feature_visibility).student_grades)
-      setHideZeroWeightStudent(normalizeClassroomFeatureVisibility(updatedClassroom.feature_visibility).gradebook_hide_zero_weight_student === true)
+      setCompactZeroWeightAssessments(normalizeClassroomFeatureVisibility(updatedClassroom.feature_visibility).gradebook_compact_zero_weight_assessments !== false)
       invalidateCachedJSONMatching(`student-returned-marks:${classroom.id}`)
       invalidateCachedJSONMatching(`student-grades:${classroom.id}`)
       onClassroomUpdated(updatedClassroom)
     } catch (caught) {
       if (!isCurrentRequest()) return
       setStudentGradesVisible(previous)
-      setHideZeroWeightStudent(previousHideZeroWeight)
+      setCompactZeroWeightAssessments(previousCompactZeroWeight)
       setStudentGradesVisibilityError(caught instanceof Error ? caught.message : 'Could not update grade visibility')
     } finally {
       if (isCurrentRequest()) setSavingStudentGradesVisibility(false)
@@ -861,13 +861,13 @@ export function TeacherGradebookTab({
       studentGradesVisible={studentGradesVisible}
       onStudentGradesVisibilityChange={(visible) => { void updateStudentGradesVisibility(visible) }}
       savingStudentGradesVisibility={savingStudentGradesVisibility}
-      hideZeroWeightStudent={hideZeroWeightStudent}
-      onHideZeroWeightStudentChange={(hide) => { void updateStudentGradesVisibility(studentGradesVisible, hide) }}
+      compactZeroWeightAssessments={compactZeroWeightAssessments}
+      onCompactZeroWeightAssessmentsChange={(compact) => { void updateStudentGradesVisibility(studentGradesVisible, compact) }}
     />
   )
 
   const gradebookTable = (
-    <GradebookTable
+    <GradebookTable compactZeroWeightAssessments={compactZeroWeightAssessments} showGridlines={preferences.showGridlines}
       students={sortedStudents} columns={visibleAssessmentColumns} displayMode={scoreDisplayMode}
       ultraCompact={preferences.ultraCompact}
       lastNameFirst={preferences.lastNameFirst}
@@ -904,6 +904,7 @@ export function TeacherGradebookTab({
 
   const studentAssessmentPanel = selectedStudent ? (
     <GradebookStudentPanel
+      compactZeroWeightAssessments={compactZeroWeightAssessments}
       student={selectedStudent}
       columns={visibleAssessmentColumns}
       displayMode={scoreDisplayMode}
@@ -970,6 +971,7 @@ export function TeacherGradebookTab({
         className="relative isolate min-h-0 flex-1 overflow-hidden rounded-lg bg-surface outline-none after:pointer-events-none after:absolute after:inset-0 after:z-local-menu after:rounded-lg after:content-[''] focus-visible:after:ring-inset focus-visible:after:ring-foundation focus-visible:after:ring-focus lg:hidden">
         {mobileStudent ? (
           <GradebookStudentPanel
+            compactZeroWeightAssessments={compactZeroWeightAssessments}
             student={mobileStudent}
             columns={visibleAssessmentColumns}
             displayMode={scoreDisplayMode}
