@@ -32,19 +32,22 @@ Use `Show grades to students`, not `Publish`, in the interface. `Publish` can
 imply that the teacher is creating a frozen snapshot, while this control changes
 visibility for a live view.
 
-The Gradebook **More actions** menu also has two independent options, both off
-by default. **Hide 0-weight teacher** is a saved teacher display preference.
-**Hide 0-weight student** is saved for the classroom and omits assessments with
-configured assessment weight 0 from student Grades and standalone Gradebook
-marks in Classwork. Positive-weight work excluded from the grade remains visible
-as **Not counted**. These display filters do not change marks or calculations,
-or retract assignment/Test feedback in the original work surface.
+The Gradebook **More actions** menu has **Compact 0-weight assessments**, on
+by default. This classroom setting applies to the teacher Gradebook, its student
+inspector, student Grades, and standalone Gradebook marks in Classwork.
+Assessments with configured weight 0 stay visible in narrower columns or shorter
+rows with muted text and a visible zero-weight label. Turning it off restores the
+regular presentation. Positive-weight work excluded from the grade remains
+visible as **Not counted**. Marks, calculations, exports, and assignment/Test
+feedback are unchanged; retired hide preferences no longer hide assessments.
 
-The student setting uses the existing `feature_visibility` JSON field. Migration
-266 updates the dormant contextual metadata writer's strict allowlist and
-preserves this setting for older clients; it must precede enabling that writer
-with this application version. The active legacy writer supports it without a
-schema change. Migration application requires separate exact-target permission.
+The setting uses `gradebook_compact_zero_weight_assessments` in the existing
+`feature_visibility` JSON field; missing means true. Migration 267 extends the
+dormant contextual metadata writer's strict allowlist and preserves omitted
+settings for older clients, retaining migration 266's guards and legacy-key compatibility.
+Migration 267 must precede enabling that writer with this application version.
+The active legacy writer supports the setting without a schema change.
+Migration application requires separate exact-target permission.
 
 ## Student surface
 
@@ -54,7 +57,7 @@ The student tab is named **Grades**. It contains only:
 - the supporting label **Based on returned work and Gradebook marks**
 - a list of returned assignments and tests, and saved standalone Gradebook marks
 - each item's score and percentage
-- **Not counted** on a visible item excluded from the grade
+- **Not counted** on an excluded item, or **0 weight** on a compact zero-weight row
 - a link from each assignment or test to its existing feedback; standalone
   Gradebook items remain non-link rows because they have no separate work page
 
@@ -69,8 +72,10 @@ history. Those remain with the original work.
   is never silently treated as zero.
 - A zero contributes when the teacher deliberately records it for a standalone item,
   or records and returns it for a Pika assignment/test.
-- Visible marks excluded from the grade remain visible and are labelled
-  `Not counted` so students can reconcile the list with the current grade.
+- Visible marks excluded from the grade remain visible. Positive-weight
+  exclusions are labelled `Not counted`; zero-weight rows show `0 weight` in
+  compact mode and `Not counted` in regular mode so students can reconcile
+  the list with the current grade.
 - The student calculation uses the same gradebook calculation rules as the
   teacher view, applied only to the eligible visible set.
 - If no eligible visible marks exist, Pika shows no numeric current grade.
