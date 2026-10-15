@@ -46871,3 +46871,52 @@ to narrow latefault and exact classroomblueprint+1/archive+3/fullotherfields;
 54focusedsource tests PASS. Private SDK exactsame effects and three corruption
 models PASS. Fresh source review/disposable proof/CI remain pending; no migration
 or production/cohort activation. Prior attempt receipts retained, no reset.
+
+<!-- pika-session-log-archive-batch:aadc5a45a5cda9fc725e70723177c004f65fec2d0638af9a0fc6f421066c03ff -->
+## 2026-10-11 — Unpublish fixture constraint diagnosis
+
+Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
+review turns1101measured seconds/two formal findings resolved/five source batches
+retained; private diagnostic deltas reviewed, no counter reset. Four fresh isolated
+attempts replayed001–261 then failed rollback; each exactcleanup/global741resources/
+canonical183table+2cron preservation PASS. No native acceptance. Bounded final
+diagnostic observed23514/inlineblockline6: limits fixture inserted empty Test Draft
+violating134 question_identity_version CHECK. Correct only fixture to valid marked
+content while retaining wrong-parent/version/work/parity assertions; no product or
+migration change. Raw error/user data not retained. Fresh source review and complete
+native/CI acceptance remain required; all sharedlocal249+/production259+, promotion,
+provider/account and admission/home/page/cohort/cutover holds unchanged.
+
+Two further fresh isolated attempts retain cleanup/preservation PASS and no native
+acceptance. Reviewed bounded diagnostics identify the later wrong-parent fixture
+failure: legacy PT409/test_unpublish_not_eligible. Installed143 intentionally
+preserves any existing question lock; the earlier locked-question probe left that
+fixture locked. Keep that protection and expected rejection, but rollback the probe
+setup before subsequent limits cases. Source-only correction/verification is in
+progress; no shared schema or product permission changes, no readiness/merge claim.
+
+Later fresh corrected-source replay reaches55000/anonymousline14. Source mapping
+corrects an initial version-reset guess:171 intentionally rejects provider-binding
+DELETE. Preserve that retained evidence guard and isolate the synthetic provider
+fence setup/assertion with rollback instead of deleting its immutable binding.
+No native acceptance; independent review/current-source proof remain required.
+
+Current bd12564f focused2137/120files plus policies/tsc/lint PASS; provider-fixture
+delta reviewed clean36s. Eleven completed reviews1383measured seconds/two formal
+findings resolved/nine fix batches/four draft correction pushes retained. Eighth
+fresh exact-source abd33efe796a now passes001–261/productrollbackcontractsACLs and
+genuineCLItypes438871B byte-equal7b2ab664acf1cc1808a227d1803aca392c854fe2d6650ab41579cabcdd89f00f.
+Later fixture preparation fails before dispatch:453657-byte generated setup exceeds
+unchanged256KiB runner limit. Exactcleanup/global741/canonical183tables+2cron PASS.
+Compact only inherited bulk Draft content into source-equivalent SQL derived from
+already inserted1001questions; retain all IDs/rows/content/cases/guards and caps.
+Correction verification/review/fresh nativeSDK/heldlocks/cancellation/CI pending;
+partial actual passes are not full native acceptance, merge or rollout. Holds remain.
+
+Compacted preparation196218B keeps1019questions/15Drafts,66targetchecks+fullfocused
+2146/120files/policies/tsc/lint PASS. Targeted review140s accepts one guard defect:
+missing insertion marker yields indexOf=-1 and passes ordering comparison. Require
+exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
+marker. No cap/fixture case/product/migration changes. Counters12completedreviews
+1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
+fresh complete native acceptance remains pending, all holds retained.

@@ -11,54 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Unpublish fixture constraint diagnosis
-
-Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
-review turns1101measured seconds/two formal findings resolved/five source batches
-retained; private diagnostic deltas reviewed, no counter reset. Four fresh isolated
-attempts replayed001–261 then failed rollback; each exactcleanup/global741resources/
-canonical183table+2cron preservation PASS. No native acceptance. Bounded final
-diagnostic observed23514/inlineblockline6: limits fixture inserted empty Test Draft
-violating134 question_identity_version CHECK. Correct only fixture to valid marked
-content while retaining wrong-parent/version/work/parity assertions; no product or
-migration change. Raw error/user data not retained. Fresh source review and complete
-native/CI acceptance remain required; all sharedlocal249+/production259+, promotion,
-provider/account and admission/home/page/cohort/cutover holds unchanged.
-
-Two further fresh isolated attempts retain cleanup/preservation PASS and no native
-acceptance. Reviewed bounded diagnostics identify the later wrong-parent fixture
-failure: legacy PT409/test_unpublish_not_eligible. Installed143 intentionally
-preserves any existing question lock; the earlier locked-question probe left that
-fixture locked. Keep that protection and expected rejection, but rollback the probe
-setup before subsequent limits cases. Source-only correction/verification is in
-progress; no shared schema or product permission changes, no readiness/merge claim.
-
-Later fresh corrected-source replay reaches55000/anonymousline14. Source mapping
-corrects an initial version-reset guess:171 intentionally rejects provider-binding
-DELETE. Preserve that retained evidence guard and isolate the synthetic provider
-fence setup/assertion with rollback instead of deleting its immutable binding.
-No native acceptance; independent review/current-source proof remain required.
-
-Current bd12564f focused2137/120files plus policies/tsc/lint PASS; provider-fixture
-delta reviewed clean36s. Eleven completed reviews1383measured seconds/two formal
-findings resolved/nine fix batches/four draft correction pushes retained. Eighth
-fresh exact-source abd33efe796a now passes001–261/productrollbackcontractsACLs and
-genuineCLItypes438871B byte-equal7b2ab664acf1cc1808a227d1803aca392c854fe2d6650ab41579cabcdd89f00f.
-Later fixture preparation fails before dispatch:453657-byte generated setup exceeds
-unchanged256KiB runner limit. Exactcleanup/global741/canonical183tables+2cron PASS.
-Compact only inherited bulk Draft content into source-equivalent SQL derived from
-already inserted1001questions; retain all IDs/rows/content/cases/guards and caps.
-Correction verification/review/fresh nativeSDK/heldlocks/cancellation/CI pending;
-partial actual passes are not full native acceptance, merge or rollout. Holds remain.
-
-Compacted preparation196218B keeps1019questions/15Drafts,66targetchecks+fullfocused
-2146/120files/policies/tsc/lint PASS. Targeted review140s accepts one guard defect:
-missing insertion marker yields indexOf=-1 and passes ordering comparison. Require
-exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
-marker. No cap/fixture case/product/migration changes. Counters12completedreviews
-1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
-fresh complete native acceptance remains pending, all holds retained.
-
 ## 2026-10-11 — Vertical Week design exploration
 
 Delivered three experimental standalone Week concepts (lesson agenda, day navigator, expandable week) for teacher/student; recommend agenda for rich lesson reading. Artifacts: /Users/stew/.codex/visualizations/2026/10/11/01a12a93-1a8c-7ed0-a906-1eab3ca18157/vertical-week/review.html (README, brief, provenance, reproducible CLI receipts alongside). Source caaa1c926; actual Pattern Lab owner captures include horizontal Week, Month, Term. No application code/data/DB/release changes or canon promotion.
@@ -558,3 +510,17 @@ Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementati
 no worker edits or conflicts, attributable time/tokens unknown. Next: independent
 delta review, clean fixed-SHA native reproduction, actual cleanup correction if
 needed, final CI and authorized main merge. PR remains draft; heartbeat paused.
+
+## 2026-10-15 — PR1596 Assignment child-dialog focus correction
+
+Hosted diagnostic CI38742184503 passed updated Pattern Lab snapshots but exposed
+AssignmentModal's delayed title focus racing Schedule Release. Deterministic
+fake-timer regression reproduced the title stealing focus at100ms. Extend the
+existing title-focus guard to scheduling/post/revert child dialogs; shared
+ModalLayer/DialogPanel focus ownership remains unchanged.41component testsPASS,
+new regressionRED→GREEN. Real browser pending-timer/escape verificationPASS in
+teacher desktop/mobile×light/dark; screenshots inspected. Student n/a.
+Reference: shared nested-dialog focus contract; reuse ModalLayer/DialogPanel,
+extend feature-owned focus guard. Composite focus/keyboard checklist reviewed.
+SDK cleanup diagnosis still running on hosted fixed c1139b535; no guard/budget or
+teardown comparison weakened. Final focused checks/review/CI remain gates.

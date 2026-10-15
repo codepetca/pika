@@ -457,6 +457,31 @@ describe('AssignmentModal', () => {
       })
     })
 
+    it('keeps delayed title focus out of the scheduling dialog', async () => {
+      vi.useFakeTimers()
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      await act(async () => {
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
+      })
+      const scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
+      expect(scheduleDialog).toHaveFocus()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100)
+      })
+      expect(scheduleDialog).toHaveFocus()
+    })
+
     it('schedules release for draft assignments', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
