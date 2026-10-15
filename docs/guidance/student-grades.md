@@ -72,9 +72,10 @@ history. Those remain with the original work.
   is never silently treated as zero.
 - A zero contributes when the teacher deliberately records it for a standalone item,
   or records and returns it for a Pika assignment/test.
-- Visible marks excluded from the grade remain visible and are labelled
-  `Not counted` (or `0 weight` in compact mode) so students can reconcile the list
-  with the current grade.
+- Visible marks excluded from the grade remain visible. Positive-weight
+  exclusions are labelled `Not counted`; zero-weight rows show `0 weight` in
+  compact mode and `Not counted` in regular mode so students can reconcile
+  the list with the current grade.
 - The student calculation uses the same gradebook calculation rules as the
   teacher view, applied only to the eligible visible set.
 - If no eligible visible marks exist, Pika shows no numeric current grade.
