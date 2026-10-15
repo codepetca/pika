@@ -85,6 +85,41 @@ describe('Gradebook surface owners', () => {
     expect(onChange).toHaveBeenCalledWith({ ultraCompact: false })
   })
 
+  it('narrows only zero-weight columns, keeps editable marks and preserves above-maximum warnings', () => {
+    const zero = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Practice', possible: 100, weight: 0, include_in_final: true }
+    const positive = { ...zero, assessment_id: 'a2', code: 'A2', title: 'Excluded essay', weight: 10, include_in_final: false }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, earned: 0, possible: 100, percent: 0, is_graded: true }] }
+    const props = makeTableProps({ students: [scored], columns: [zero, positive], onScoreOpen: vi.fn() })
+    const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+    const header = screen.getByRole('button', { name: 'Edit A1: Practice' }).closest('th')!
+    expect(header).toHaveAttribute('data-compact-zero-weight', 'true')
+    expect(header).toHaveTextContent('0 wt')
+    expect(screen.getByRole('button', { name: 'Edit A2: Excluded essay' }).closest('th')).not.toHaveAttribute('data-compact-zero-weight')
+    const mark = screen.getByRole('button', { name: 'Edit Demo Student mark for Practice: 0%' })
+    expect(mark).toBeEnabled()
+    expect(mark.firstElementChild).toHaveClass('text-text-muted')
+    view.rerender(<TooltipProvider><GradebookTable {...props} compactZeroWeightAssessments={false} /></TooltipProvider>)
+    expect(header).not.toHaveAttribute('data-compact-zero-weight')
+    expect(header).toHaveTextContent('Practice')
+    expect(mark.firstElementChild).not.toHaveClass('text-text-muted')
+    view.rerender(<TooltipProvider><GradebookTable {...props} students={[{ ...scored, assessment_scores: [{ ...scored.assessment_scores[0], earned: 110, percent: 110 }] }]} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: /mark for Practice: 110%.*above maximum/ })).toHaveAttribute('data-above-maximum', 'true')
+  })
+
+  it('compacts zero-weight GradebookStudentPanel rows while preserving title, metadata and score actions', () => {
+    const column = { assessment_id: 'i1', assessment_type: 'item' as const, code: 'I1', title: 'Practice journal', possible: 10, weight: 0, include_in_final: false }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'i1', assessment_type: 'item' as const, earned: 0, possible: 10, percent: 0, is_graded: true }] }
+    const props = { student: scored, columns: [column], displayMode: 'percent' as const, onItemOpen: vi.fn(), onItemScoreOpen: vi.fn() }
+    const view = render(<GradebookStudentPanel {...props} />)
+    const title = screen.getByRole('button', { name: 'Edit item: Practice journal' })
+    expect(title.closest('[data-compact-zero-weight]')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Demo Student item mark for Practice journal: 0%' })).toBeEnabled()
+    expect(screen.getByText('0/10')).toHaveClass('sr-only')
+    view.rerender(<GradebookStudentPanel {...props} compactZeroWeightAssessments={false} />)
+    expect(title.closest('[data-compact-zero-weight]')).toBeNull()
+    expect(screen.getByText('0/10')).not.toHaveClass('sr-only')
+  })
+
   it('compacts codes, categories and percentages while keeping full editing information and final precision', () => {
     const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true, category_id: 'term', category_name: 'Term Work', category_percentage: 20.6 }
     const scored = { ...student, final_percent: 80.6, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 100, earned: 20.6, percent: 20.6, is_graded: true }] }

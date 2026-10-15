@@ -12,7 +12,11 @@ export const CLASSROOM_FEATURE_KEYS = [
 
 export type ClassroomFeatureKey = (typeof CLASSROOM_FEATURE_KEYS)[number]
 
-export type ClassroomFeatureVisibility = Record<ClassroomFeatureKey, boolean> & { gradebook_hide_zero_weight_student?: boolean }
+export type ClassroomFeatureVisibility = Record<ClassroomFeatureKey, boolean> & {
+  /** Retained for persisted/older-client compatibility; compact display replaces hiding. */
+  gradebook_hide_zero_weight_student?: boolean
+  gradebook_compact_zero_weight_assessments?: boolean
+}
 
 export type ClassroomTabId =
   | 'daily'
@@ -39,6 +43,7 @@ export const DEFAULT_CLASSROOM_FEATURE_VISIBILITY: ClassroomFeatureVisibility = 
   gradebook: true,
   student_grades: false,
   gradebook_hide_zero_weight_student: false,
+  gradebook_compact_zero_weight_assessments: true,
   calendar: true,
   syllabus: true,
   announcements: true,
@@ -88,6 +93,9 @@ export function normalizeClassroomFeatureVisibility(value: unknown): ClassroomFe
 
   return {
     gradebook_hide_zero_weight_student: candidate.gradebook_hide_zero_weight_student === true,
+    gradebook_compact_zero_weight_assessments: typeof candidate.gradebook_compact_zero_weight_assessments === 'boolean'
+      ? candidate.gradebook_compact_zero_weight_assessments
+      : true,
     ...Object.fromEntries(
       CLASSROOM_FEATURE_KEYS.map((key) => [
         key,

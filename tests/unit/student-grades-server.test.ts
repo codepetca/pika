@@ -290,8 +290,8 @@ describe('student grades server projection', () => {
     expect(result.currentPercent).toBe(percent)
   })
 
-  it.each([false, true])('filters returned zero-weight work only when requested: %s', async hideZeroWeight => {
-    mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true, gradebook_hide_zero_weight_student: hideZeroWeight } } })
+  it.each([undefined, false, true])('retains all returned zero-weight work with compact preference %s and legacy hide enabled', async compactZeroWeightAssessments => {
+    mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true, gradebook_hide_zero_weight_student: true, gradebook_compact_zero_weight_assessments: compactZeroWeightAssessments } } })
     mocks.loadPagedRows
       .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
       .mockResolvedValueOnce({ rows: [], error: null })
@@ -322,9 +322,10 @@ describe('student grades server projection', () => {
     const result = await getStudentGrades(studentId, classroomId)
     expect(result.currentPercent).toBe(80)
     expect(result.items.find((item) => item.id === 'included')?.included).toBe(true)
+    expect(result.compactZeroWeightAssessments).toBe(compactZeroWeightAssessments ?? true)
+    expect(result.items.find((item) => item.id === 'included')?.isZeroWeight).toBe(false)
     for (const id of ['zero-assignment', 'zero-test', 'zero-item']) {
-      if (hideZeroWeight) expect(result.items.find((item) => item.id === id)).toBeUndefined()
-      else expect(result.items.find((item) => item.id === id)?.included).toBe(false)
+      expect(result.items.find((item) => item.id === id)).toMatchObject({ included: false, isZeroWeight: true })
     }
   })
 

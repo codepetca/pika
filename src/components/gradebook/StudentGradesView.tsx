@@ -39,7 +39,21 @@ export function StudentGradesView({
         ) : (
           <ul aria-label="Grades" className="divide-y divide-border border-t border-border">
             {grades.items.map((grade) => {
-              const content = (
+              const compact = grades.compactZeroWeightAssessments !== false && grade.isZeroWeight === true
+              const details = `${grade.title} · ${grade.kind}${!grade.included ? ' · Not counted' : ''}`
+              const content = compact ? (
+                <>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-sm text-text-muted">{grade.title}</p>
+                    <span className="shrink-0 text-xs text-text-muted">0 weight</span>
+                    <span className="sr-only">{grade.kind}. Not counted.</span>
+                  </div>
+                  <div className="flex shrink-0 items-baseline gap-2 text-right tabular-nums text-text-muted">
+                    <span className="text-sm">{formatNumber(grade.percent)}%</span>
+                    <span className="text-xs">{formatNumber(grade.earned)} / {formatNumber(grade.possible)}</span>
+                  </div>
+                </>
+              ) : (
                 <>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-text-default">{grade.title}</p>
@@ -56,19 +70,21 @@ export function StudentGradesView({
                   </div>
                 </>
               )
-              const className = 'flex min-h-11 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-inset focus-visible:ring-foundation focus-visible:ring-focus'
+              const rowClassName = `flex min-h-11 items-center justify-between px-4 ${compact ? 'gap-2 py-1' : 'gap-4 py-3'}`
+              const className = `${rowClassName} transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-inset focus-visible:ring-foundation focus-visible:ring-focus`
               return (
                 <li key={`${grade.kind}:${grade.id}`}>
                   {grade.href ? (
                     <Link
                       href={grade.href}
+                      title={compact ? details : undefined}
                       onClick={onSelectGrade ? (event) => { event.preventDefault(); onSelectGrade(grade.title) } : undefined}
                       className={className}
                     >
                       {content}
                     </Link>
                   ) : (
-                    <div className="flex min-h-11 items-center justify-between gap-4 px-4 py-3">{content}</div>
+                    <div className={rowClassName} title={compact ? details : undefined}>{content}</div>
                   )}
                 </li>
               )

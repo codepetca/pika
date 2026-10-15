@@ -43,6 +43,23 @@ describe('student Grades projection', () => {
     expect(result.items.find((entry) => entry.id === 'practice')?.included).toBe(false)
   })
 
+  it.each([undefined, false, true])('projects the compact preference %s without changing marks or ordering', (compactZeroWeightAssessments) => {
+    const result = buildStudentGradesResponse({
+      compactZeroWeightAssessments,
+      categories: [{ id: 'term', percentage: 100 }],
+      items: [
+        item({ id: 'zero', weight: 0, included: false }),
+        item({ id: 'excluded', weight: 10, included: false }),
+        item(),
+      ],
+    })
+    expect(result.compactZeroWeightAssessments).toBe(compactZeroWeightAssessments ?? true)
+    expect(result.items).toHaveLength(3)
+    expect(result.items.find(entry => entry.id === 'zero')).toMatchObject({ isZeroWeight: true, earned: 8, possible: 10, percent: 80 })
+    expect(result.items.find(entry => entry.id === 'excluded')).toMatchObject({ isZeroWeight: false, included: false })
+    expect(result.currentPercent).toBe(80)
+  })
+
   it('uses an em-dash state when no returned work contributes and sorts newest first', () => {
     const result = buildStudentGradesResponse({
       categories: [{ id: 'term', percentage: 100 }],
