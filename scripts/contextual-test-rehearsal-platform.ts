@@ -46,6 +46,15 @@ export function validateContextualTestClosure(projectId: string, before: Assignm
 type DisposableAdapters = Pick<AssignmentListLifecycleAdapters, 'canonicalSnapshot' | 'inventory' | 'prepare' | 'command' | 'verifyEphemeral' | 'teardown' | 'removeWorkdir'>
 export type ContextualTestDisposableInput = Pick<ContextualTestRunBinding, 'projectId' | 'workdir' | 'startedAt' | 'deadline' | 'cleanupDeadline' | 'migrationChainSha256'>
 export type ContextualTestLocalStatus = Readonly<ReturnType<typeof validateAssignmentListProofTarget> & { ANON_KEY: string }>
+type SetupStep = 'canonical-before' | 'inventory' | 'prepare' | 'pre-start' | 'start' | 'capture' | 'status' | 'verify-ephemeral' | 'work'
+type CleanupStep = 'cleanup-clock' | 'owned-processes' | 'cleanup-inventory' | 'cleanup-closure' | 'resource-teardown' | 'resource-absence' | 'workdir-remove' | 'canonical-after'
+export type ContextualTestSetupDiagnostic = Readonly<{ firstFailure: SetupStep | null; lastCompleted: SetupStep | null; cleanupFailures: readonly CleanupStep[] }>
+// Only this producer can associate fixed labels with the actual thrown error.
+// Weak keys retain neither raw exception properties nor unrelated failures.
+const setupDiagnostics = new WeakMap<object, ContextualTestSetupDiagnostic>()
+export function contextualTestSetupDiagnostic(error: unknown): ContextualTestSetupDiagnostic | null {
+  return error !== null && typeof error === 'object' ? setupDiagnostics.get(error) ?? null : null
+}
 function localStatus(value: unknown, projectId: string): ContextualTestLocalStatus {
   const target = validateAssignmentListProofTarget(value, projectId)
   assert(value && typeof value === 'object')
@@ -82,55 +91,78 @@ export async function runContextualTestDisposableLifecycle(binding: ContextualTe
   let before: Awaited<ReturnType<DisposableAdapters['inventory']>> | undefined
   let prepared: Awaited<ReturnType<DisposableAdapters['prepare']>> | undefined
   let attempted = false, primary: unknown, captured: AssignmentListResource[] | undefined
+  let step: SetupStep = 'canonical-before', lastCompleted: SetupStep | null = null, firstFailure: SetupStep | null = null
+  const next = (value: SetupStep) => { lastCompleted = step; step = value }
+  let cleanupStep: CleanupStep = 'cleanup-clock'
+  const cleanupFailures: CleanupStep[] = []
   const cleanupErrors: unknown[] = []
-  const clean = async (fn: () => Promise<void>) => { try { check(true); await fn(); check(true) } catch (error) { cleanupErrors.push(error) } }
+  const clean = async (at: CleanupStep, fn: () => Promise<void>) => {
+    cleanupStep = at
+    try { check(true); await fn(); check(true) } catch (error) { cleanupErrors.push(error); cleanupFailures.push(cleanupStep) }
+  }
   try {
     check(); baseline = structuredClone(await adapters.canonicalSnapshot(canonicalRequest))
     for (const key of ['rowDigests','guard168Metadata','settings','cronJobs','resources'] as const) assert(typeof baseline[key] === 'string' && baseline[key].length > 0)
+    next('inventory')
     check(); before = structuredClone(await adapters.inventory(identity))
     assert(!before.workdirExists && !before.occupiedPorts.some(p => [54331,54332,54340,3117].includes(p)))
     assert(!before.resources.some(r => projectResource(r, binding.projectId)))
+    next('prepare')
     check(); prepared = await adapters.prepare(assignmentListEphemeralPlan(binding), migrations)
     assert(prepared.created && prepared.realpath === binding.workdir && prepared.workdir === binding.workdir)
     assert.equal(prepared.configSha256, sha(assignmentListEphemeralPlan(binding).config))
     assert.deepEqual(prepared.migrations, migrations.map(({ name, sha256 }) => ({ name, sha256 })))
     assert.deepEqual(prepared.envFiles, []); assert.deepEqual(prepared.symlinks, [])
+    next('pre-start')
     check(); const fresh = await adapters.inventory(identity)
     assert(!fresh.occupiedPorts.some(p => [54331,54332,54340,3117].includes(p)))
     assert(!fresh.resources.some(r => projectResource(r, binding.projectId))); before.resources = structuredClone(fresh.resources)
+    next('start')
     check(); attempted = true
     await adapters.command({ args: ['start','--workdir',binding.workdir,'-x','analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'], workdir: binding.workdir, timeoutMs: Math.min(180_000,binding.deadline-Date.now()) })
+    next('capture')
     check(); const inventory = await adapters.inventory(identity)
     const selected = validateContextualTestClosure(binding.projectId, before.resources, inventory.resources)
     captured = structuredClone(selected)
     const db = selected.find(r => r.name === `supabase_db_${binding.projectId}`)!
     assert.deepEqual(db.ports, [54332])
     assert.deepEqual(selected.find(r => r.name === `supabase_kong_${binding.projectId}`)!.ports, [54331])
+    next('status')
     check(); const status = localStatus(await adapters.command({ args: ['status','--workdir',binding.workdir,'-o','json'], workdir: binding.workdir, timeoutMs: 15000 }), binding.projectId)
     const target = validateAssignmentListProofTarget(status, binding.projectId)
+    next('verify-ephemeral')
     const session = await adapters.verifyEphemeral({ projectId: binding.projectId, dbPort: 54332, applicationName: `${binding.projectId}_fixture`, target })
     assert.equal(session.projectId, binding.projectId); assert.equal(session.dbPort, 54332); assert.equal(session.applicationName, `${binding.projectId}_fixture`)
     assert.equal(session.containerId, db.id); assert(session.guard168Enabled && session.persistedGatesOff && session.activeNetworkCronAbsent)
+    next('work')
     check(); await work(target, Object.freeze(selected.map(r => Object.freeze(structuredClone(r)))), status); check()
-  } catch (error) { primary = error }
+    lastCompleted = step
+  } catch (error) { primary = error; firstFailure = step }
   finally {
     try {
       const now = Date.now(), candidate = cleanupClock?.() ?? Math.min(binding.cleanupDeadline, now + 360000)
       assert(Number.isSafeInteger(candidate) && candidate > now && candidate <= binding.cleanupDeadline && candidate <= now + 360000)
       cleanupEnd = candidate
-    } catch (error) { cleanupErrors.push(error) }
+    } catch (error) { cleanupErrors.push(error); cleanupFailures.push('cleanup-clock') }
     let settled = false, absent = !attempted
-    await clean(async () => { await settleOwnedProcesses(); settled = true })
-    if (attempted && before && settled) await clean(async () => {
+    await clean('owned-processes', async () => { await settleOwnedProcesses(); settled = true })
+    if (attempted && before && settled) await clean('cleanup-inventory', async () => {
       const current = await adapters.inventory(identity)
+      cleanupStep = 'cleanup-closure'
       const resources = validateContextualTestClosure(binding.projectId, before!.resources, current.resources, false)
       if (captured) assert.deepEqual(resources, captured, 'Captured resource identity or closure drift')
+      cleanupStep = 'resource-teardown'
       await adapters.teardown({ projectId: binding.projectId, workdir: binding.workdir, resources, stopArgs: null })
+      cleanupStep = 'resource-absence'
       const after = await adapters.inventory(identity)
       assert(!after.resources.some(r => projectResource(r, binding.projectId))); absent = true
     })
-    if (prepared && absent && settled) await clean(() => adapters.removeWorkdir({ projectId: binding.projectId, workdir: binding.workdir, realpath: prepared!.realpath }))
-    if (baseline) await clean(async () => assert.deepEqual(await adapters.canonicalSnapshot(canonicalRequest), baseline))
+    if (prepared && absent && settled) await clean('workdir-remove', () => adapters.removeWorkdir({ projectId: binding.projectId, workdir: binding.workdir, realpath: prepared!.realpath }))
+    if (baseline) await clean('canonical-after', async () => assert.deepEqual(await adapters.canonicalSnapshot(canonicalRequest), baseline))
   }
-  if (primary || cleanupErrors.length) throw new AggregateError([...(primary ? [primary] : []), ...cleanupErrors], 'Private Tests lifecycle failed; retain bounded private evidence')
+  if (primary || cleanupErrors.length) {
+    const error = new AggregateError([...(primary ? [primary] : []), ...cleanupErrors], 'Private Tests lifecycle failed; retain bounded private evidence')
+    setupDiagnostics.set(error, Object.freeze({ firstFailure, lastCompleted, cleanupFailures: Object.freeze([...cleanupFailures]) }))
+    throw error
+  }
 }

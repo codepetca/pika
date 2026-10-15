@@ -837,3 +837,11 @@ Independent source/dependency recapture before any later writesPASS7630files/
 networks; workdirabsent and3117/54331/54332/54340clear. Evidence retained0600.
 Exact setup operation/cause unreported; no navigation-fix or application acceptance.
 No retry, renewed clock, production/shared-local/provider/account/billing change.
+
+Fix49 adds private WeakMap-bound fixed setup/cleanup labels to the actual Tests
+lifecycle error and controller receipt; no exception property/message/stack/row
+is read or retained. Existing operations, predicates, order and clocks unchanged.
+CPU6platform+1controller RED precede134/4GREEN, including genuine composition,
+hostile proxy/getter rejection, status/start/disposal and canonical drift labels.
+Human approves independent review then ONEfresh bounded rehearsal; all holds
+and spent attempts retained. No new native admission before review/readiness.

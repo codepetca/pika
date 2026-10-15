@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, chmodSync, rmSync, symlinkSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
-import { contextualTestSql, validateContextualTestRunBinding, readContextualTestBinding, validateContextualTestClosure, runContextualTestDisposableLifecycle } from '../../scripts/contextual-test-rehearsal-platform'
+import { contextualTestSql, validateContextualTestRunBinding, readContextualTestBinding, validateContextualTestClosure, runContextualTestDisposableLifecycle, contextualTestSetupDiagnostic } from '../../scripts/contextual-test-rehearsal-platform'
 import { assignmentListEphemeralPlan, assignmentListExpectedResources } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
@@ -98,8 +98,53 @@ describe('Tests-only injected disposable lifecycle', () => {
       expect(status.ANON_KEY).toBeDefined(); expect(Object.isFrozen(status)).toBe(true)
       events.push('work'); if (failure === 'drift') resources[0].id = 'replacement'
     }, async () => { events.push('settle'); cleanup.afterSettle?.(); if (failure === 'settlement') throw new Error('unjoined') }, cleanup.clock)
-    return { run, events }
+    return { run, events, adapters }
   }
+  it.each([
+    ['start', 'start', 'pre-start', []],
+    ['anon', 'status', 'capture', []],
+    ['canonical', null, 'work', ['canonical-after']],
+    ['settlement', null, 'work', ['owned-processes']],
+    ['drift', null, 'work', ['cleanup-closure']],
+  ] as const)('retains only sealed fixed setup/cleanup labels for %s', async (failure, firstFailure, lastCompleted, cleanupFailures) => {
+    const s = scenario(failure), error = await s.run().catch(error => error)
+    expect(error).toBeInstanceOf(AggregateError)
+    const diagnostic = contextualTestSetupDiagnostic(error)
+    expect(diagnostic).toEqual({ firstFailure, lastCompleted, cleanupFailures })
+    expect(Object.isFrozen(diagnostic)).toBe(true); expect(Object.isFrozen(diagnostic!.cleanupFailures)).toBe(true)
+    expect(JSON.stringify(diagnostic)).not.toMatch(/ambiguous|unjoined|replacement|postgres|demo/)
+  })
+  it('does not read or trust hostile exception properties or fabricated diagnostics', async () => {
+    const getter = vi.fn(() => { throw Error('SECRET password URL path') })
+    const hostile = new Proxy({}, { get: getter, ownKeys: getter, getPrototypeOf: getter })
+    const s = scenario(); s.adapters.canonicalSnapshot = async () => { throw hostile }
+    const error = await s.run().catch(error => error)
+    expect(contextualTestSetupDiagnostic(error)).toEqual({ firstFailure: 'canonical-before', lastCompleted: null, cleanupFailures: [] })
+    for (const fake of [null, 'SECRET', hostile, { firstFailure: 'start' }, new AggregateError([error])]) expect(contextualTestSetupDiagnostic(fake)).toBeNull()
+    expect(getter).not.toHaveBeenCalled()
+    expect(JSON.stringify(contextualTestSetupDiagnostic(error))).not.toContain('SECRET')
+  })
+  it.each(['prepare', 'verifyEphemeral'] as const)('labels %s adapter failure while still cleaning up', async method => {
+    const s = scenario(); vi.spyOn(s.adapters, method).mockRejectedValueOnce(Error('SECRET private fixture'))
+    const error = await s.run().catch(error => error)
+    expect(contextualTestSetupDiagnostic(error)?.firstFailure).toBe(method === 'prepare' ? 'prepare' : 'verify-ephemeral')
+    expect(s.events).not.toContain('work'); expect(s.events).toContain('settle')
+    expect(JSON.stringify(contextualTestSetupDiagnostic(error))).not.toContain('SECRET')
+  })
+  it.each([[1, 'inventory'], [2, 'pre-start'], [3, 'capture']] as const)('distinguishes inventory call %s as %s', async (at, step) => {
+    const s = scenario(), original = s.adapters.inventory
+    let calls = 0
+    s.adapters.inventory = async () => { if (++calls === at) throw Error('SECRET inventory'); return original() }
+    const error = await s.run().catch(error => error)
+    expect(contextualTestSetupDiagnostic(error)?.firstFailure).toBe(step)
+    expect(s.events).not.toContain('work'); expect(s.events).toContain('settle')
+  })
+  it.each(['teardown', 'removeWorkdir'] as const)('retains %s cleanup failure without inventing a setup failure', async method => {
+    const s = scenario(); vi.spyOn(s.adapters, method).mockRejectedValueOnce(Error('SECRET cleanup'))
+    const error = await s.run().catch(error => error)
+    expect(contextualTestSetupDiagnostic(error)).toEqual({ firstFailure: null, lastCompleted: 'work', cleanupFailures: [method === 'teardown' ? 'resource-teardown' : 'workdir-remove'] })
+    expect(s.events.at(-1)).toBe('canonical')
+  })
   it('settles before exact disposal and compares the complete canonical witness', async () => {
     const s = scenario(); await s.run()
     expect(s.events).toEqual(['canonical','prepare','start','work','settle','teardown','remove-workdir','canonical'])

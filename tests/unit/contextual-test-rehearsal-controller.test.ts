@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { runContextualTestRehearsalController, verifyContextualTestArtifacts } from '../../scripts/contextual-test-rehearsal-controller'
+import { runContextualTestDisposableLifecycle } from '../../scripts/contextual-test-rehearsal-platform'
+import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 
 const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex')
 const projectId = 'pika_assignment_list_123456abcdef', plan = createContextualTestPlan(projectId)
@@ -55,6 +57,28 @@ function fixture() {
 }
 
 describe('contextual Test controller CPU composition (no native proof)', () => {
+  it('retains the actual sealed setup failure before binding, without trusting thrown error fields', async () => {
+    const f = fixture(), clock = vi.spyOn(Date, 'now').mockReturnValue(1001)
+    const secret = vi.fn(() => { throw Error('SECRET-password-private-url') })
+    const hostile = new Proxy({}, { get: secret, ownKeys: secret, getPrototypeOf: secret })
+    const edges = { ...f.edges, lifecycle: runContextualTestDisposableLifecycle,
+      createAdapters: () => ({ async canonicalSnapshot() { throw hostile } }) }
+    try {
+      await expect(runContextualTestRehearsalController({ ...f.admission, migrations: loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 262) } as never, f.control, edges as never)).rejects.toThrow()
+      expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'lifecycle', ownedSettled: true,
+        setupDiagnostic: { firstFailure: 'canonical-before', lastCompleted: null, cleanupFailures: [] } })
+      expect(f.events).not.toContain('binding'); expect(f.events).not.toContain('app-spawn')
+      expect(secret).not.toHaveBeenCalled(); expect(JSON.stringify(f.receipts)).not.toContain('SECRET')
+    } finally { clock.mockRestore() }
+  })
+  it('does not retain fabricated setup labels or inspect hostile error properties', async () => {
+    const f = fixture(), getter = vi.fn(() => { throw Error('SECRET') })
+    const hostile = new Proxy({ setupDiagnostic: { firstFailure: 'start' } }, { get: getter, ownKeys: getter, getPrototypeOf: getter })
+    const edges = { ...f.edges, async lifecycle() { throw hostile } }
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, edges as never)).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', setupDiagnostic: null })
+    expect(getter).not.toHaveBeenCalled(); expect(JSON.stringify(f.receipts)).not.toContain('SECRET')
+  })
   it('reserves exactly one readiness request before app readiness and never launches PW before its completion', async () => {
     const f = fixture()
     let ready!: () => void

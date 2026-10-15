@@ -14,8 +14,8 @@ import { hashPassword } from '../src/lib/crypto'
 import { createAssignmentListNativeAdapters } from './contextual-assignment-list-proof-platform'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import type { ContextualTestNativeDiagnostics } from './contextual-test-rehearsal-native'
-import { runContextualTestDisposableLifecycle, readContextualTestBinding, validateContextualTestRunBinding, executeContextualTestSql, assertContextualTestSqlSettled,
-  type ContextualTestRunBinding, type ContextualTestDisposableInput } from './contextual-test-rehearsal-platform'
+import { runContextualTestDisposableLifecycle, contextualTestSetupDiagnostic, readContextualTestBinding, validateContextualTestRunBinding, executeContextualTestSql, assertContextualTestSqlSettled,
+  type ContextualTestRunBinding, type ContextualTestDisposableInput, type ContextualTestSetupDiagnostic } from './contextual-test-rehearsal-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { contextualTestAppEnvironment, contextualTestRunnerEnvironment, contextualTestLaunchCommands, validateContextualTestDemoStatus,
   contextualTestReadOnlyDependencyProfile, prepareContextualTestAppSnapshot,
@@ -64,7 +64,8 @@ type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sour
   reviewedManifestSha256: string; startedAt: number; deadline: number; cleanupDeadline: number; endedAt: number;
   cleanupStartedAt: number | null; cleanupEnd: number | null; cleanup: CleanupReceipt;
   outcome: 'passed' | 'failed'; firstFailureStage: Stage | null; lifecycleCompleted: boolean; ownedSettled: boolean;
-  playwrightValidated: boolean; server: LedgerState | null; startup: FullStartupReport | null; nativeDiagnostics: ContextualTestNativeDiagnostics | null }>
+  playwrightValidated: boolean; server: LedgerState | null; startup: FullStartupReport | null; nativeDiagnostics: ContextualTestNativeDiagnostics | null;
+  setupDiagnostic: ContextualTestSetupDiagnostic | null }>
 /** Test seams replace only I/O; no injected result is native acceptance proof. */
 export type ContextualTestControllerEdges = {
   openEvidence(admission: ContextualTestControllerAdmission): void
@@ -305,6 +306,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
   let ownedSettled = false, lifecycleCompleted = false, playwrightValidated = false, failure = false
   let binding: ContextualTestRunBinding | undefined, ledger: { snapshot(): unknown; reserveAppReadiness(): void } | undefined, server: LedgerState | null = null
   let startup: FullStartupReport | null = null
+  let setupDiagnostic: ContextualTestSetupDiagnostic | null = null
   let cleanupEnd: number | undefined, cleanupStartedAt: number | null = null
   const cleanup: { -readonly [K in keyof CleanupReceipt]: CleanupReceipt[K] } = {
     entry: 'not-run', executionSettlement: 'not-run', commandJoins: 'not-run', commandClosure: 'not-run',
@@ -383,7 +385,12 @@ export async function runContextualTestRehearsalController(admission: Contextual
     lifecycleCompleted = true; await controls.command.joinSettlements?.(); controls.command.assertClosed()
     assert(ownedSettled && binding && ledger && playwrightValidated)
     stage = 'complete'
-  } catch { failed() }
+  } catch (error) {
+    failed()
+    // Only the actual lifecycle's private producer can supply these fixed
+    // labels. No exception property is evaluated or copied into the receipt.
+    setupDiagnostic = contextualTestSetupDiagnostic(error)
+  }
   finally {
     if (attempted && !lifecycleStarted) { try { await settle() } catch { failed() } }
     if (attempted) {
@@ -411,7 +418,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
         cleanupStartedAt, cleanupEnd: cleanupEnd ?? null,
         cleanup: Object.freeze({ ...cleanup, executionFailures: Object.freeze([...cleanup.executionFailures]) }),
         outcome: !failure && ownedSettled && lifecycleCompleted && playwrightValidated && server !== null ? 'passed' : 'failed', firstFailureStage,
-        lifecycleCompleted, ownedSettled, playwrightValidated, server, startup, nativeDiagnostics })
+        lifecycleCompleted, ownedSettled, playwrightValidated, server, startup, nativeDiagnostics, setupDiagnostic })
       try { edges.writeReceipt(receipt, admission) } catch { failure = true }
       if (!failure && receipt.outcome === 'passed') return receipt
     }
