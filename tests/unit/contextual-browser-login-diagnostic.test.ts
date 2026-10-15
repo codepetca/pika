@@ -8,13 +8,17 @@ import { createLoginBodyObservation, runLoginBodyDiagnostic } from '../../e2e/he
 
 afterEach(() => vi.useRealTimers())
 
-function browserFixture(mode: 'immediate' | 'after-abort' | 'reject') {
+function browserFixture(mode: 'immediate' | 'delayed' | 'reject', delayedSocket: boolean | 'never' = false) {
   let serve!: (request: IncomingMessage, response: ServerResponse) => void
+  let server!: EventEmitter
   http.create.mockImplementation(handler => {
     serve = handler
-    return Object.assign(new EventEmitter(), { listen(_options: unknown, ready: () => void) { ready() }, address: () => ({ port: 43210 }), close(done: () => void) { done() } })
+    server = Object.assign(new EventEmitter(), { listen(_options: unknown, ready: () => void) { ready() }, address: () => ({ port: 43210 }), close(done: () => void) { done() } })
+    return server
   })
   const origin = 'http://127.0.0.1:43210', context = new EventEmitter()
+  let gate!: (source: unknown) => Promise<boolean>
+  const frame = {}, pageIdentity = { context: () => context, mainFrame: () => frame, url: () => origin + '/login' }
   let handle!: (route: Route) => Promise<void>, resolveBody!: (bytes: Buffer) => void, rejectBody!: () => void
   const body = new Promise<Buffer>((resolve, reject) => { resolveBody = resolve; rejectBody = () => reject(Error('SECRET')) })
   let respond!: (response: unknown) => void
@@ -22,8 +26,9 @@ function browserFixture(mode: 'immediate' | 'after-abort' | 'reject') {
   const original = { url: () => origin + '/api/auth/login', body: vi.fn(() => body), status: () => 200, headers: () => ({ 'content-type': 'application/json' }) }
   const route = (path: string, method = 'GET') => ({
     request: () => ({ url: () => origin + path, method: () => method, postData: () => '{"probe":"login"}' }),
-    abort: async () => { if (mode === 'after-abort') resolveBody(Buffer.from('{"success":true}')) },
+    abort: async () => {},
     continue: async () => {
+      if (delayedSocket && path === '/login') server.emit('connection', Object.assign(new EventEmitter(), { destroy() { if (delayedSocket !== 'never') setTimeout(() => this.emit('close'), 25) } }))
       const request = Object.assign(new EventEmitter(), { method, url: path, complete: true, destroy() {} })
       const response = Object.assign(new EventEmitter(), { setHeader() {}, writeHead() {}, end() {}, destroy() {} })
       serve(request as never, response as never)
@@ -32,12 +37,14 @@ function browserFixture(mode: 'immediate' | 'after-abort' | 'reject') {
         context.emit('response', original); respond(original)
         context.emit('requestfinished', { url: original.url })
         if (mode === 'immediate') resolveBody(Buffer.from('{"success":true}'))
+        if (mode === 'delayed') setTimeout(() => resolveBody(Buffer.from('{"success":true}')), 100)
         if (mode === 'reject') rejectBody()
-        void handle(route('/classrooms') as never)
+        void gate({ context, page: pageIdentity, frame }).then(() => handle(route('/classrooms') as never)).catch(() => {})
       }
     },
   })
   const fake = Object.assign(context, {
+    exposeBinding: async (_name: string, callback: typeof gate) => { gate = callback }, addInitScript: async () => {},
     route: async (_pattern: string, callback: typeof handle) => { handle = callback }, routeWebSocket: async () => {},
     newPage: async () => Object.assign(new EventEmitter(), {
       goto: async () => handle(route('/login') as never), waitForResponse: () => responseWait,
@@ -57,7 +64,7 @@ describe('fixed login-body diagnostic observations (CPU only)', () => {
     now += 8000; value.cutoff()
     value.mark('navigation-aborted'); value.mark('body-resolved'); value.mark('body-verified')
     const result = value.snapshot()
-    expect(result.atCutoff).toEqual({ requestFinished: true, bodySettled: false, bodyVerified: false, navigationHeld: false })
+    expect(result.atCutoff).toEqual({ requestFinished: true, bodySettled: false, bodyVerified: false, navigationHeld: false, fetchHeld: false })
     expect(result.bodyVerified).toBe(true)
     expect(result.events.map(row => row.event)).toEqual(['response', 'body-start', 'request-finished', 'cutoff', 'navigation-aborted', 'body-resolved', 'body-verified'])
     expect(result.events.at(-1)?.elapsedMs).toBe(8000)
@@ -65,7 +72,7 @@ describe('fixed login-body diagnostic observations (CPU only)', () => {
   it('does not rewrite an early rejection or invent missing request completion', () => {
     const value = createLoginBodyObservation(() => 123)
     value.mark('body-start'); value.mark('body-rejected'); value.cutoff()
-    expect(value.snapshot().atCutoff).toEqual({ requestFinished: false, bodySettled: true, bodyVerified: false, navigationHeld: false })
+    expect(value.snapshot().atCutoff).toEqual({ requestFinished: false, bodySettled: true, bodyVerified: false, navigationHeld: false, fetchHeld: false })
     expect(value.snapshot().bodyVerified).toBe(false)
   })
   it('returns isolated snapshots and bounds retained events', () => {
@@ -80,18 +87,35 @@ describe('fixed login-body diagnostic observations (CPU only)', () => {
     expect(() => value.mark('SECRET' as never)).toThrow()
     expect(JSON.stringify(value.snapshot())).not.toContain('SECRET')
   })
-  it.each(['immediate', 'after-abort', 'reject'] as const)('executes the actual diagnostic with injected browser/HTTP doubles: %s', async mode => {
+  it.each(['immediate', 'delayed', 'reject'] as const)('executes the actual diagnostic with injected browser/HTTP doubles: %s', async mode => {
     vi.useFakeTimers()
     const { browser, original } = browserFixture(mode)
     const pending = runLoginBodyDiagnostic(browser, Date.now() + 20000)
-    await vi.advanceTimersByTimeAsync(mode === 'after-abort' ? 8001 : 1)
+    await vi.advanceTimersByTimeAsync(mode === 'delayed' ? 101 : 1)
     const result = await pending
     expect(original.body).toHaveBeenCalledOnce()
     expect(result).toMatchObject({ diagnosticOnly: true, contextClosed: true, serverClosed: true, posts: 1, unexpectedRequests: 0, bodyDone: true })
     expect(result.bodyVerified).toBe(mode !== 'reject')
     expect(result.failure).toBe(mode === 'reject')
-    expect(result.atCutoff).toMatchObject({ requestFinished: true, bodySettled: mode !== 'after-abort', navigationHeld: true })
-    if (mode === 'after-abort') expect(result.events.map(row => row.event)).toEqual(expect.arrayContaining(['cutoff', 'navigation-aborted', 'body-resolved']))
+    expect(result.atCutoff).toMatchObject({ requestFinished: true, bodySettled: true, navigationHeld: false, fetchHeld: true })
+    if (mode !== 'reject') {
+      const labels = result.events.map(row => row.event)
+      expect(labels.indexOf('body-verified')).toBeLessThan(labels.indexOf('navigation-released'))
+    }
     expect(JSON.stringify(result)).not.toContain('SECRET')
+  })
+  it('does not report socket cleanup until each destroyed socket emits close, even if server.close returns first', async () => {
+    vi.useFakeTimers()
+    const { browser } = browserFixture('immediate', true)
+    const pending = runLoginBodyDiagnostic(browser, Date.now() + 20000)
+    await vi.advanceTimersByTimeAsync(100)
+    expect((await pending).socketsRemaining).toBe(0)
+  })
+  it('retains a cleanup failure when a socket never confirms closure before the original deadline', async () => {
+    vi.useFakeTimers()
+    const { browser } = browserFixture('immediate', 'never')
+    const pending = runLoginBodyDiagnostic(browser, Date.now() + 20000)
+    await vi.advanceTimersByTimeAsync(20001)
+    expect(await pending).toMatchObject({ socketsRemaining: 1, failure: true, serverClosed: true })
   })
 })

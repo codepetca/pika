@@ -115,11 +115,12 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
       reportPassed = diagnosticReportPassed(JSON.parse(diagnosticRead(join(input.outputDir, 'report.json'))))
       const lifecycle = JSON.parse(diagnosticRead(join(input.outputDir, 'lifecycle.json')))
       if (input.mode === 'login-body') {
-        assert.deepEqual(Object.keys(lifecycle).sort(), ['atCutoff','bodyDone','bodySettled','bodyVerified','contextClosed','diagnosticOnly','events','failure','mode','navigationHeld',
+        assert.deepEqual(Object.keys(lifecycle).sort(), ['atCutoff','bodyDone','bodySettled','bodyVerified','contextClosed','diagnosticOnly','events','failure','fetchHeld','mode','navigationHeld',
           'originalSeen','overflow','pageErrors','posts','requestFinished','requests','serverClosed','socketsRemaining','unexpectedRequests','version','versionMatched'].sort())
         lifecyclePassed = lifecycle.version === 1 && lifecycle.mode === 'login-body' && lifecycle.versionMatched === true && lifecycle.diagnosticOnly === true
           && lifecycle.contextClosed === true && lifecycle.serverClosed === true && lifecycle.socketsRemaining === 0 && lifecycle.unexpectedRequests === 0
           && lifecycle.originalSeen === true && lifecycle.bodyDone === true && lifecycle.bodyVerified === true && lifecycle.failure === false && lifecycle.overflow === false
+          && lifecycle.fetchHeld === true && lifecycle.navigationHeld === false && lifecycle.atCutoff?.bodyVerified === true
           && lifecycle.posts === 1 && Number.isInteger(lifecycle.requests) && lifecycle.requests >= 2 && lifecycle.requests <= 3
       } else {
         assert.deepEqual(Object.keys(lifecycle).sort(), ['blankPageCreated','blockedRequests','contextClosed','contextCreated','fixtureEntered','version','versionMatched'])

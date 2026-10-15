@@ -9,6 +9,7 @@ import { z } from 'zod'
 import type { Browser, BrowserContext, Page, Request, Response, TestInfo } from '@playwright/test'
 import { readContextualTestBinding, executeContextualTestSql } from '../../scripts/contextual-test-rehearsal-binding'
 import { ContextualTestBoundary } from './contextual-test-boundary'
+import { installLoginFetchGate } from './contextual-login-fetch-gate'
 import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWitness } from './contextual-test-rehearsal'
 import type { ContextualTestStartupStage } from './contextual-test-startup'
 
@@ -109,15 +110,17 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       const login = loginProgress.begin()
       const context = await login.step('context', () => browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false }))
       const state = { closing: false, closed: false, requests: new Set<Request>() }; contexts.set(context, state)
-      let holdLoginNavigation = false, loginNavigationEnd = 0
-      let releaseLoginNavigation!: (verified: boolean) => void
-      const loginNavigation = new Promise<boolean>(resolve => { releaseLoginNavigation = resolve })
+      let loginSubmitted = false, loginVerified = false, loginNavigationEnd = 0
+      let loginGate: Awaited<ReturnType<typeof installLoginFetchGate>> | undefined
       // Register closure before any fallible context setup. Failed route or
       // timeout setup must not strand an actor until the outer suite teardown.
       context.on('close', () => { state.closed = true })
       try {
         await login.step('setup', async () => {
           context.setDefaultTimeout(fixedTimeout()); context.setDefaultNavigationTimeout(fixedTimeout())
+          loginGate = await installLoginFetchGate(context, plan.appOrigin, () => {
+            boundary.check(); assert(!state.closing && loginSubmitted && Date.now() < loginNavigationEnd, 'Private login deadline')
+          })
           context.on('request', request => state.requests.add(request))
           context.on('requestfinished', request => state.requests.delete(request))
           context.on('requestfailed', request => state.requests.delete(request))
@@ -130,13 +133,11 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
             if (state.closing) { await route.abort('aborted').catch(() => {}); return }
             try {
               const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request))
-              if (holdLoginNavigation && request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
-                // Chromium clears old inspector response data at document
-                // commit. Keep the original page until its login body has been
-                // verified; starting response.body() alone does not capture it.
-                const verified = await loginNavigation
-                if (!verified || state.closing) { await route.abort('aborted'); return }
-                boundary.check(); assert(Date.now() < loginNavigationEnd, 'Private login deadline')
+              if (loginSubmitted && !loginVerified && request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
+                // The fetch gate prevents navigation from starting before the
+                // original bytes are verified. Any premature navigation fails
+                // closed immediately instead of pausing the browser protocol.
+                boundary.violate('endpoint')
               }
               await route.continue()
             }
@@ -169,7 +170,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
             await login.step('email', () => page.getByLabel('School Email').fill(actor.email, { timeout: loginTimeout() }))
             await login.step('password', () => page.getByLabel(/^Password(?:\s*\*)?$/).fill(binding.password, { timeout: loginTimeout() }))
             const original = await login.step('submit', async () => {
-              holdLoginNavigation = true
+              loginSubmitted = true
               const loginResponse = page.waitForResponse(response => response.url() === plan.appOrigin + '/api/auth/login' && response.request().method() === 'POST', { timeout: loginTimeout() })
               // A synchronous deadline/setup failure before Promise.all must not
               // leave the already-created waiter rejection unobserved.
@@ -182,7 +183,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
             await login.step('response-body', async () => {
               loginTimeout(); await runtime.response(page, original); loginTimeout()
               assert.equal(original.status(), 200, 'Private login rejected')
-              holdLoginNavigation = false; releaseLoginNavigation(true)
+              loginVerified = true; loginGate!.release(true)
             })
             await login.step('redirect', () => page.waitForURL(url => url.origin === plan.appOrigin && url.pathname === '/classrooms', { timeout: loginTimeout() }))
             const current = await login.step('session', async () => {
@@ -201,7 +202,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       }
       finally {
         state.closing = true
-        releaseLoginNavigation(false)
+        loginGate?.release(false)
         await boundary.beforeContextClose(context, () => context.close())
         // A late original body failure during close still invalidates this run.
         boundary.check(); assert(state.closed); assert.equal(boundary.pending(context), 0)

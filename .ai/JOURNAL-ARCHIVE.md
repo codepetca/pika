@@ -47391,3 +47391,18 @@ lint/diffPASS. Budget-exhaustion candidate removed after CPU5s timeout; coverage
 still missing, no counter bypass or native cap changes. No production/helper
 change or native acceptance. Root audit/checkpoint/independent review next;
 overall inventory, native/app and production/cutover holds unchanged.
+
+<!-- pika-session-log-archive-batch:23d9f65949f474c296fd0cee32db17fae92181e39462063037fb1818ce0fae0d -->
+## 2026-10-13 Offline host lifetime fixture correction
+
+Surveyresource review30 PASS0findings. Fullfocused5b34:2922PASS/8skip/1FAIL in
+unchanged offline Tart lifetime fixture, independently reproduced. Its0.3s
+deadline can contain the actual child before interpreter code writes an attempt
+marker. Test-only capture now records actual Popen dispatch/count/group, retains
+the timeout refusal, asserts one launch and no surviving group, and validates
+child marker when present. Production host code/deadlines unchanged; targeted
+update/idle/lifetime3PASS, lint/diffPASS. Final append-count refinement rerun,
+audit/independent review/full checks next. No VM activation or provider scope change.
+Human approved fresh isolated diagnostic recovery gate; source-only new proposal
+7593614f0787 prepares privacy-safe failure logging, oldSPENT attempt preserved.
+No new browser execution/acceptance until source review and current preflight.

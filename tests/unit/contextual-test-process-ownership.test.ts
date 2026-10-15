@@ -18,7 +18,7 @@ describe('fixed private process identity mismatch metadata', () => {
       expect(error).toMatchObject({ processCause: 'identity-mismatch', message: 'Owned process verification rejected' })
       const diagnostic = contextualTestIdentityMismatch(error)
       expect(diagnostic).toEqual({ member, state: 'alive', startTimeChanged: field === 'started' || field === 'all',
-        pgidChanged: field === 'pgid' || field === 'all', executableChanged: field === 'executable' || field === 'all' })
+        pgidChanged: field === 'pgid' || field === 'all', executableChanged: field === 'executable' || field === 'all', previousExecutableClass: 'other', observedExecutableClass: 'other' })
       expect(Object.isFrozen(diagnostic)).toBe(true)
       expect(JSON.stringify(diagnostic)).not.toMatch(/1234567|9999999|87654321|PRIVATE|SECRET|pid|cwd|started/)
     }
@@ -27,7 +27,7 @@ describe('fixed private process identity mismatch metadata', () => {
     const observed = { ...identity, ppid: 1, state, executable: '' }
     expect(() => reconcileOwnedFamily(capture, [observed])).not.toThrow()
     expect(contextualTestIdentityMismatch(mismatch([{ ...observed, started: '999:1' }]))).toEqual({ member: 'root', state,
-      startTimeChanged: true, pgidChanged: false, executableChanged: false })
+      startTimeChanged: true, pgidChanged: false, executableChanged: false, previousExecutableClass: 'other', observedExecutableClass: 'empty' })
     expect(contextualTestIdentityMismatch(mismatch([{ ...observed, executable: '/other' }]))?.executableChanged).toBe(true)
   })
   it('uses unknown for absent state and retains the kernel-unverified rejection priority', () => {
@@ -45,5 +45,32 @@ describe('fixed private process identity mismatch metadata', () => {
       expect(contextualTestIdentityMismatch(error)).toBeNull()
     }
     expect(trap).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['/Users/stew/.local/share/mise/installs/node/24.12.0/bin/node', 'node'],
+    ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', 'chrome'],
+    ...['', ' (Renderer)', ' (GPU)', ' (Alerts)', ' (Aperitif)', ' (Aperitif Renderer)', ' (Aperitif GPU)', ' (Aperitif Alerts)'].map((suffix, index) => [
+      `/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/155.0.8059.79/Helpers/Google Chrome Helper${suffix}.app/Contents/MacOS/Google Chrome Helper${suffix}`,
+      ['chrome-helper','chrome-renderer','chrome-gpu','chrome-alerts','chrome-aperitif','chrome-aperitif-renderer','chrome-aperitif-gpu','chrome-aperitif-alerts'][index],
+    ]),
+    ['/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/155.0.8059.79/Helpers/chrome_crashpad_handler', 'chrome-crashpad'],
+    ['/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/155.0.8059.40/Helpers/chrome_crashpad_handler', 'other'],
+    ['/SECRET/Google Chrome', 'other'], ['/SECRET/node', 'other'], ['', 'empty'],
+  ])('labels exact known executable paths without allowing the transition: %s', (path, label) => {
+    const snapshot = structuredClone(capture)
+    const row = { ...identity, executable: path, ppid: 101, state: 'alive' as const }
+    const error = mismatch([row])
+    expect(error).toMatchObject({ processCause: 'identity-mismatch' })
+    expect(contextualTestIdentityMismatch(error)).toMatchObject({ previousExecutableClass: 'other', observedExecutableClass: label, executableChanged: true })
+    expect(capture).toEqual(snapshot)
+    expect(JSON.stringify(contextualTestIdentityMismatch(error))).not.toContain(path || 'impossible-sentinel')
+  })
+  it('labels both sides of a descendant transition, still rejecting and retaining the original capture', () => {
+    const before = { ...identity, executable: '/Users/stew/.local/share/mise/installs/node/24.12.0/bin/node', pid: 102 }
+    let error: unknown
+    const own = { identity, descendants: [before] }
+    try { reconcileOwnedFamily(own, [{ ...before, ppid: 101, state: 'alive', executable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }]) } catch (caught) { error = caught }
+    expect(contextualTestIdentityMismatch(error)).toMatchObject({ member: 'descendant', previousExecutableClass: 'node', observedExecutableClass: 'chrome', startTimeChanged: false, pgidChanged: false, executableChanged: true })
+    expect(own.descendants[0]).toBe(before)
   })
 })

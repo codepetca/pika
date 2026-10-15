@@ -14,6 +14,7 @@ import { hashPassword } from '../src/lib/crypto'
 import { createAssignmentListNativeAdapters } from './contextual-assignment-list-proof-platform'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import type { ContextualTestNativeDiagnostics } from './contextual-test-rehearsal-native'
+import { contextualTestExecutableClasses, type ContextualTestIdentityMismatch } from './contextual-test-process-ownership'
 import { runContextualTestDisposableLifecycle, contextualTestSetupDiagnostic, readContextualTestBinding, validateContextualTestRunBinding, executeContextualTestSql, assertContextualTestSqlSettled,
   type ContextualTestRunBinding, type ContextualTestDisposableInput, type ContextualTestSetupDiagnostic } from './contextual-test-rehearsal-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
@@ -109,16 +110,20 @@ function projectNativeDiagnostics(raw: unknown): ContextualTestNativeDiagnostics
       const v = data(value, ['role','phase','cause','closed','uncertain','identityMismatch'])
       assert(roles.includes(v.role as typeof roles[number]) && phases.includes(v.phase as typeof phases[number]) && causes.includes(v.cause as typeof causes[number]))
       assert(typeof v.closed === 'boolean' && typeof v.uncertain === 'boolean')
-      let identityMismatch = null
+      let identityMismatch: ContextualTestIdentityMismatch | null = null
       if (v.identityMismatch !== null) {
         assert(v.cause === 'identity-mismatch')
-        const detail = data(v.identityMismatch, ['member','state','startTimeChanged','pgidChanged','executableChanged'])
+        const detail = data(v.identityMismatch, ['member','state','startTimeChanged','pgidChanged','executableChanged','previousExecutableClass','observedExecutableClass'])
         assert(detail.member === 'root' || detail.member === 'descendant')
         assert(detail.state === 'alive' || detail.state === 'zombie' || detail.state === 'exiting' || detail.state === 'unknown')
         assert(typeof detail.startTimeChanged === 'boolean' && typeof detail.pgidChanged === 'boolean' && typeof detail.executableChanged === 'boolean')
         assert(detail.startTimeChanged || detail.pgidChanged || detail.executableChanged)
+        assert(contextualTestExecutableClasses.includes(detail.previousExecutableClass as typeof contextualTestExecutableClasses[number])
+          && contextualTestExecutableClasses.includes(detail.observedExecutableClass as typeof contextualTestExecutableClasses[number]))
         identityMismatch = Object.freeze({ member: detail.member, state: detail.state, startTimeChanged: detail.startTimeChanged,
-          pgidChanged: detail.pgidChanged, executableChanged: detail.executableChanged })
+          pgidChanged: detail.pgidChanged, executableChanged: detail.executableChanged,
+          previousExecutableClass: detail.previousExecutableClass as ContextualTestIdentityMismatch['previousExecutableClass'],
+          observedExecutableClass: detail.observedExecutableClass as ContextualTestIdentityMismatch['observedExecutableClass'] })
       }
       return Object.freeze({ role: v.role as typeof roles[number], phase: v.phase as typeof phases[number], cause: v.cause as typeof causes[number], closed: v.closed, uncertain: v.uncertain, identityMismatch })
     }

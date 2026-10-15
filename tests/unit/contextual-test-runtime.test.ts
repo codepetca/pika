@@ -118,14 +118,15 @@ class FakePage extends EventEmitter {
       this.owner.emit('response', this.loginResponse)
       expect(this.loginPredicate?.(this.loginResponse)).toBe(true)
       this.loginWait!.resolve(this.loginResponse)
-      if (this.raceNavigation) {
+      this.navigationTask = this.owner.loginReady().then(async () => {
         this.navigationStarted = true
-        this.navigationTask = this.owner.navigate(this).then(continued => {
+        if (this.raceNavigation) {
+          const continued = await this.owner.navigate(this)
           this.navigationCommitted = continued; this.navigationAborted = !continued
           if (continued) this.current = plan.appOrigin + '/classrooms'
-        })
-        if (!clickOptions?.noWaitAfter) await this.navigationTask
-      } else this.current = plan.appOrigin + '/classrooms'
+        } else this.current = plan.appOrigin + '/classrooms'
+      }).catch(() => { this.navigationAborted = true })
+      if (!clickOptions?.noWaitAfter) await this.navigationTask
     } }
   }
   waitForResponse(predicate: (response: FakeResponse) => boolean) {
@@ -133,6 +134,10 @@ class FakePage extends EventEmitter {
   }
 }
 class FakeContext extends EventEmitter {
+  private loginBinding?: (source: unknown) => Promise<boolean>
+  readonly exposeBinding = vi.fn(async (_name: string, callback: (source: unknown) => Promise<boolean>) => { this.loginBinding = callback })
+  readonly addInitScript = vi.fn(async () => {})
+  loginReady() { return this.loginBinding!({ context: this, page: this.page, frame: this.page.mainFrame() }) }
   readonly actor: (typeof plan.actors)[ActorLabel]
   readonly page: FakePage
   readonly setDefaultTimeout = vi.fn()
@@ -202,9 +207,13 @@ async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Para
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
-  it('verifies the original login bytes before document commit without waiting for click navigation', async () => {
+  it('verifies the original login bytes before navigation even starts, without pausing a network route', async () => {
     const browser = new FakeBrowser(); browser.configure = c => { c.page.raceNavigation = true }
     const s = await setup(browser), callback = vi.fn()
+    browser.configure = c => { c.page.raceNavigation = true; c.page.loginBody = async () => {
+      expect(c.page.navigationStarted).toBe(false)
+      return Buffer.from('{"success":true}')
+    } }
     await s.runtime.withActor('ownerTeacher', callback)
     const c = browser.contexts[0]
     expect(c.page.navigationStarted).toBe(true); expect(c.page.navigationCommitted).toBe(true)

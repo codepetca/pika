@@ -4,7 +4,22 @@ import {isAbsolute} from 'node:path'
 export type Capture={identity:{pid:number;pgid:number;started:string;executable:string;cwd:string;role:'app'|'browser'};descendants:Capture['identity'][]}
 export type OwnedProcessRow={pid:number;ppid:number;pgid:number;started:string;executable:string;state?:'alive'|'zombie'|'exiting'|'unverified'}
 export type ProcessFailureCause='snapshot-schema'|'kernel-unverified'|'identity-mismatch'|'unverified-group'|'closure-deadline'|'unknown'
-export type ContextualTestIdentityMismatch=Readonly<{member:'root'|'descendant';state:'alive'|'zombie'|'exiting'|'unknown';startTimeChanged:boolean;pgidChanged:boolean;executableChanged:boolean}>
+export const contextualTestExecutableClasses = Object.freeze(['node','chrome','chrome-helper','chrome-renderer','chrome-gpu','chrome-alerts','chrome-aperitif','chrome-aperitif-renderer','chrome-aperitif-gpu','chrome-aperitif-alerts','chrome-crashpad','empty','other'] as const)
+type ExecutableClass = typeof contextualTestExecutableClasses[number]
+// Diagnostic vocabulary only, NOT an allowlist. Exact pinned-install paths;
+// unknown versions/lookalikes remain other and every mismatch still rejects.
+function executableClass(path: string): ExecutableClass {
+  if (path === '') return 'empty'
+  if (path === '/Users/stew/.local/share/mise/installs/node/24.12.0/bin/node') return 'node'
+  if (path === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome') return 'chrome'
+  const prefix = '/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/155.0.8059.79/Helpers/'
+  if (path === prefix + 'chrome_crashpad_handler') return 'chrome-crashpad'
+  const helpers: readonly [string, ExecutableClass][] = [['','chrome-helper'], [' (Renderer)','chrome-renderer'], [' (GPU)','chrome-gpu'], [' (Alerts)','chrome-alerts'],
+    [' (Aperitif)','chrome-aperitif'], [' (Aperitif Renderer)','chrome-aperitif-renderer'], [' (Aperitif GPU)','chrome-aperitif-gpu'], [' (Aperitif Alerts)','chrome-aperitif-alerts']]
+  for (const [suffix, label] of helpers) if (path === `${prefix}Google Chrome Helper${suffix}.app/Contents/MacOS/Google Chrome Helper${suffix}`) return label
+  return 'other'
+}
+export type ContextualTestIdentityMismatch=Readonly<{member:'root'|'descendant';state:'alive'|'zombie'|'exiting'|'unknown';startTimeChanged:boolean;pgidChanged:boolean;executableChanged:boolean;previousExecutableClass:ExecutableClass;observedExecutableClass:ExecutableClass}>
 const identityMismatches=new WeakMap<object,ContextualTestIdentityMismatch>()
 /** Only the actual ownership rejection carries trusted details. WeakMap lookup
  * never inspects caller properties, prototypes, accessors or proxy traps. */
@@ -33,7 +48,8 @@ export function reconcileOwnedFamily(capture:Capture,rows:readonly OwnedProcessR
     // exception for terminal states; retain only fixed comparison results.
     let detail:ContextualTestIdentityMismatch|undefined
     try{detail={member:p.pid===capture.identity.pid?'root':'descendant',state:row.state==='alive'||row.state==='zombie'||row.state==='exiting'?row.state:'unknown',
-      startTimeChanged:row.started!==p.started,pgidChanged:row.pgid!==p.pgid,executableChanged:(!(row.state==='zombie'||row.state==='exiting')||row.executable!=='')&&row.executable!==p.executable}}catch{/* Diagnostics cannot replace rejection. */}
+      startTimeChanged:row.started!==p.started,pgidChanged:row.pgid!==p.pgid,executableChanged:(!(row.state==='zombie'||row.state==='exiting')||row.executable!=='')&&row.executable!==p.executable,
+      previousExecutableClass:executableClass(p.executable),observedExecutableClass:executableClass(row.executable)}}catch{/* Diagnostics cannot replace rejection. */}
     processFailure('identity-mismatch',detail)
   }if(row.state!=='zombie'&&row.state!=='exiting')live.set(row.pid,row)}}
   let changed=true;while(changed){changed=false;for(const row of rows)if(!known.has(row.pid)&&live.has(row.ppid)){if(row.state==='unverified'||row.state==='zombie'||row.state==='exiting')processFailure('kernel-unverified');assert(row.pid>1&&row.pgid>1&&row.started&&row.executable);if(capture.identity.role==='app')assert.equal(row.pgid,capture.identity.pgid)

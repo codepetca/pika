@@ -125,7 +125,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     expect(getter).not.toHaveBeenCalled()
   })
   it('copies fixed mismatch details without affecting a failed closure or retaining producer mutations', async () => {
-    const f = fixture(), detail = { member: 'descendant', state: 'exiting', startTimeChanged: true, pgidChanged: false, executableChanged: true }
+    const f = fixture(), detail = { member: 'descendant', state: 'exiting', startTimeChanged: true, pgidChanged: false, executableChanged: true, previousExecutableClass: 'chrome', observedExecutableClass: 'chrome-renderer' }
     const row = { role: 'browser', phase: 'monitor', cause: 'identity-mismatch', closed: false, uncertain: true, identityMismatch: detail }
     const diagnostics = { firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 0 }
     await expect(runContextualTestRehearsalController(f.admission as never, { ...f.control, nativeDiagnostics: () => diagnostics,
@@ -136,11 +136,13 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
   })
   it('rejects malformed mismatch details without executing getters or proxy traps or changing gates', async () => {
     const trap = vi.fn(() => { throw Error('SECRET') })
-    const good = { member: 'root', state: 'alive', startTimeChanged: true, pgidChanged: false, executableChanged: false }
+    const good = { member: 'root', state: 'alive', startTimeChanged: true, pgidChanged: false, executableChanged: false, previousExecutableClass: 'node', observedExecutableClass: 'node' }
     for (const detail of [new Proxy(good, { get: trap, ownKeys: trap, getPrototypeOf: trap }),
       Object.defineProperty({ ...good }, 'member', { get: trap }), Object.create(good),
       { ...good, pid: 999 }, { ...good, state: 'SECRET' }, { ...good, member: 'SECRET' },
-      { ...good, startTimeChanged: 'SECRET' }, { ...good, startTimeChanged: false }]) {
+      { ...good, startTimeChanged: 'SECRET' }, { ...good, startTimeChanged: false },
+      { ...good, previousExecutableClass: '/SECRET/node' }, { ...good, observedExecutableClass: 'SECRET' },
+      Object.defineProperty({ ...good }, 'observedExecutableClass', { get: trap })]) {
       const f = fixture(), row = { role: 'app', phase: 'monitor', cause: 'identity-mismatch', closed: false, uncertain: true, identityMismatch: detail }
       const result = await runContextualTestRehearsalController(f.admission as never, { ...f.control,
         nativeDiagnostics: () => ({ firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 0 }) }, f.edges as never)

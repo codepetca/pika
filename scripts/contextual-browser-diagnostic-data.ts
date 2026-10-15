@@ -15,6 +15,7 @@ export const diagnosticSourceFiles = Object.freeze([
   'e2e/helpers/contextual-browser-diagnostic-reporter.ts', 'e2e/contextual-browser-diagnostic.spec.ts',
   'e2e/helpers/contextual-browser-diagnostic-setup.ts',
   'e2e/helpers/contextual-browser-login-diagnostic.ts',
+  'e2e/helpers/contextual-login-fetch-gate.ts',
   'playwright.contextual-browser-diagnostic.config.ts', 'scripts/contextual-test-rehearsal-native.ts',
   'scripts/contextual-test-route-readiness.ts',
   'scripts/contextual-test-rehearsal-launch.ts', 'scripts/contextual-test-process-ownership.ts',

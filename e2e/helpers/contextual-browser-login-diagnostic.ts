@@ -6,26 +6,28 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import type { Socket } from 'node:net'
 import type { Browser, BrowserContext, Response } from '@playwright/test'
+import { installLoginFetchGate } from './contextual-login-fetch-gate'
 
 const events = ['page-ready', 'response', 'body-start', 'request-finished', 'request-failed', 'body-resolved',
   'body-verified', 'body-rejected', 'navigation-held', 'navigation-released', 'navigation-aborted',
-  'cutoff', 'settlement-deadline', 'context-closed', 'server-closed', 'unexpected-request', 'failed'] as const
+  'fetch-held', 'fetch-released', 'fetch-rejected', 'cutoff', 'settlement-deadline', 'context-closed', 'server-closed', 'unexpected-request', 'failed'] as const
 type Event = typeof events[number]
 export function createLoginBodyObservation(now = Date.now) {
   const start = now(), rows: Array<{ event: Event; elapsedMs: number }> = []
-  let overflow = false, requestFinished = false, bodySettled = false, bodyVerified = false, navigationHeld = false
-  let atCutoff: { requestFinished: boolean; bodySettled: boolean; bodyVerified: boolean; navigationHeld: boolean } | null = null
+  let overflow = false, requestFinished = false, bodySettled = false, bodyVerified = false, navigationHeld = false, fetchHeld = false
+  let atCutoff: { requestFinished: boolean; bodySettled: boolean; bodyVerified: boolean; navigationHeld: boolean; fetchHeld: boolean } | null = null
   const mark = (event: Event) => {
     assert(events.includes(event), 'Private diagnostic label')
     requestFinished ||= event === 'request-finished'
     bodySettled ||= event === 'body-resolved' || event === 'body-rejected'
     bodyVerified ||= event === 'body-verified'
     navigationHeld ||= event === 'navigation-held'
+    fetchHeld ||= event === 'fetch-held'
     if (rows.length < 32) rows.push({ event, elapsedMs: Math.min(30000, Math.max(0, Math.floor(now() - start))) })
     else overflow = true
   }
-  return { mark, cutoff() { atCutoff ??= { requestFinished, bodySettled, bodyVerified, navigationHeld }; mark('cutoff') },
-    snapshot() { return { requestFinished, bodySettled, bodyVerified, navigationHeld, atCutoff: atCutoff && { ...atCutoff },
+  return { mark, cutoff() { atCutoff ??= { requestFinished, bodySettled, bodyVerified, navigationHeld, fetchHeld }; mark('cutoff') },
+    snapshot() { return { requestFinished, bodySettled, bodyVerified, navigationHeld, fetchHeld, atCutoff: atCutoff && { ...atCutoff },
       overflow, events: rows.map(row => ({ ...row })) } } }
 }
 
@@ -43,10 +45,9 @@ export async function runLoginBodyDiagnostic(browser: Browser, end: number) {
   let context: BrowserContext | undefined, contextClosed = false, serverClosed = false
   let requests = 0, posts = 0, unexpectedRequests = 0, pageErrors = 0, failure = false, stopping = false
   let original: Response | undefined, body: Promise<void> | undefined, bodyDone = false, bodyVerified = false
-  let release!: (verified: boolean) => void
-  const navigation = new Promise<boolean>(resolve => { release = resolve })
-  let navigationSeen!: () => void
-  const held = new Promise<void>(resolve => { navigationSeen = resolve })
+  let gate: Awaited<ReturnType<typeof installLoginFetchGate>> | undefined
+  let fetchSeen!: () => void
+  const held = new Promise<void>(resolve => { fetchSeen = resolve })
   const timeout = () => { const value = end - Date.now(); assert(value > 0, 'Private diagnostic deadline'); return value }
   const server = createServer((request, response) => {
     requests++
@@ -76,6 +77,7 @@ export async function runLoginBodyDiagnostic(browser: Browser, end: number) {
       const address = server.address(); assert(address && typeof address !== 'string')
       const origin = `http://127.0.0.1:${address.port}`
       context = await browser.newContext({ serviceWorkers: 'block', acceptDownloads: false })
+      gate = await installLoginFetchGate(context, origin, () => { assert(!stopping); timeout() }, () => { observation.mark('fetch-held'); fetchSeen() })
       await context.route('**/*', async route => {
         const request = route.request(), url = request.url()
         if (stopping) { await route.abort().catch(() => {}); return }
@@ -84,10 +86,9 @@ export async function runLoginBodyDiagnostic(browser: Browser, end: number) {
           unexpectedRequests++; failure = true; observation.mark('unexpected-request'); await route.abort(); return
         }
         if (url === origin + '/classrooms') {
-          observation.mark('navigation-held')
-          navigationSeen()
-          const verified = await navigation
-          if (!verified || stopping || Date.now() >= end) { observation.mark('navigation-aborted'); await route.abort().catch(() => {}); return }
+          // Reject premature navigation immediately. Never hold a paused browser
+          // network request while the inspector needs that browser to read bytes.
+          if (!bodyVerified || failure || stopping || Date.now() >= end) { failure = true; observation.mark('navigation-aborted'); await route.abort().catch(() => {}); return }
           observation.mark('navigation-released')
         }
         await route.continue()
@@ -115,23 +116,27 @@ export async function runLoginBodyDiagnostic(browser: Browser, end: number) {
       await waitFor(Promise.all([body, held]), Math.min(end - 5000, Date.now() + 8000))
       observation.cutoff()
       const verifiedBeforeRelease = bodyVerified
-      release(verifiedBeforeRelease)
-      // If the hold blocked the original body, aborting that hold may release
-      // it. Observe the same promise only; never refetch, replace or replay it.
+      observation.mark(verifiedBeforeRelease ? 'fetch-released' : 'fetch-rejected')
+      gate.release(verifiedBeforeRelease)
+      // Observe the same promise only; never refetch, replace or replay it.
       await waitFor(body, end - 2000)
       if (!bodyDone) observation.mark('settlement-deadline')
       if (verifiedBeforeRelease) await page.waitForURL(url => url.origin === origin && url.pathname === '/classrooms', { timeout: timeout(), waitUntil: 'load' })
     }
   } catch { failure = true; observation.mark('failed') }
   finally {
-    stopping = true; release(false)
+    stopping = true; gate?.release(false)
     try { if (context) { await context.close(); contextClosed = true; observation.mark('context-closed') } } catch { failure = true }
     // Closing may settle a pending original read; retain that timing too.
     if (body && !bodyDone && Date.now() < end) await waitFor(body, end)
-    await new Promise<void>(resolve => {
-      server.close(() => { serverClosed = true; observation.mark('server-closed'); resolve() })
-      for (const socket of sockets) socket.destroy()
-    })
+    // Node's server-close callback can precede each socket's close event.
+    // Register all listeners before destruction, then await both acknowledgements
+    // under the original deadline. Never erase a still-tracked socket to pass.
+    const pendingSockets = [...sockets].map(socket => new Promise<void>(resolve => { socket.once('close', resolve) }))
+    const closing = new Promise<void>(resolve => { server.close(() => { serverClosed = true; observation.mark('server-closed'); resolve() }) })
+    for (const socket of sockets) socket.destroy()
+    await waitFor(Promise.all([closing, ...pendingSockets]), end)
+    if (!serverClosed || sockets.size !== 0) failure = true
   }
   return { diagnosticOnly: true, ...observation.snapshot(), contextClosed, serverClosed, socketsRemaining: sockets.size,
     requests, posts, unexpectedRequests, pageErrors, originalSeen: original !== undefined, bodyDone, failure }

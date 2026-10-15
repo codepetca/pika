@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Offline host lifetime fixture correction
-
-Surveyresource review30 PASS0findings. Fullfocused5b34:2922PASS/8skip/1FAIL in
-unchanged offline Tart lifetime fixture, independently reproduced. Its0.3s
-deadline can contain the actual child before interpreter code writes an attempt
-marker. Test-only capture now records actual Popen dispatch/count/group, retains
-the timeout refusal, asserts one launch and no surviving group, and validates
-child marker when present. Production host code/deadlines unchanged; targeted
-update/idle/lifetime3PASS, lint/diffPASS. Final append-count refinement rerun,
-audit/independent review/full checks next. No VM activation or provider scope change.
-Human approved fresh isolated diagnostic recovery gate; source-only new proposal
-7593614f0787 prepares privacy-safe failure logging, oldSPENT attempt preserved.
-No new browser execution/acceptance until source review and current preflight.
-
 ## 2026-10-13 Fresh isolated browser diagnostic localizes destination stall
 
 Human approved preserving oldf0 as permanently failed while admitting a new,
@@ -862,3 +848,21 @@ CPU PASS; type/lint/audit and independent review precede the single fresh attemp
 Private launcher records binding/import/preparation before runtime handoff. No
 full-app approval or product acceptance; production/shared-local/provider holds
 unchanged. Existing review counters/waiver retained; no repeated broad review.
+
+## 2026-10-15 — Pre-navigation original-body barrier and socket closure
+
+Corrected launcher ran once: synthetic original body pending8s while navigation
+paused, then rejected on abort; descendant executable changed with unchanged
+start/PGID. Context/server closed, socket counter1; ownership uncertainty retained.
+Sources/dependencies preserved and current process candidates0; not acceptance.
+New authorized slice moves the timing barrier before the app receives the native
+fetch Response, with original Playwright bytes still checked once. Premature
+navigation now rejects immediately; no replay/clone/substitute body. Shared helper
+used by diagnostic and full-app runner; original deadlines/boundaries retained.
+Socket cleanup awaits each actual close event within the original end; missing
+closure fails. Behavioral socket RED1→GREEN; helper missing-module RED retained.
+Executable classes are sealed fixed metadata only; exact rejection/poison/signals
+and kernel helper unchanged. Read-only Astra/high investigation supports possible
+spawn/exec, not this exact transition. Focused227CPU PASS before final type fix;
+lintPASS, type narrowing corrected. Review and ONE fresh diagnostic pending.
+All production/shared-local/provider/rollout holds unchanged; no full-app run.
