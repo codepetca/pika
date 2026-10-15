@@ -169,7 +169,7 @@ describe('fixed SQL uses the admitted tracked native transport (CPU doubles only
       expect(command.state()).toMatchObject({ poisoned: true, pending: 1 })
       expect(() => command.assertClosed()).toThrow()
       expect(controls.launchApp).not.toHaveBeenCalled(); expect(controls.launchPlaywright).not.toHaveBeenCalled()
-      expect(lifecycleEvents).toEqual(['settlement-required'])
+      expect(lifecycleEvents).toEqual(['settlement-required', 'native-settled'])
       expect(receipts).toHaveLength(1)
       expect(receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'fixture', ownedSettled: false, lifecycleCompleted: false, playwrightValidated: false })
       expect(JSON.parse(readFileSync(f.marker, 'utf8'))).toMatchObject({ uncertain: true, nonce: f.binding.nonce })
