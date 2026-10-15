@@ -32,6 +32,20 @@ Use `Show grades to students`, not `Publish`, in the interface. `Publish` can
 imply that the teacher is creating a frozen snapshot, while this control changes
 visibility for a live view.
 
+The Gradebook **More actions** menu also has two independent options, both off
+by default. **Hide 0-weight teacher** is a saved teacher display preference.
+**Hide 0-weight student** is saved for the classroom and omits assessments with
+configured assessment weight 0 from student Grades and standalone Gradebook
+marks in Classwork. Positive-weight work excluded from the grade remains visible
+as **Not counted**. These display filters do not change marks or calculations,
+or retract assignment/Test feedback in the original work surface.
+
+The student setting uses the existing `feature_visibility` JSON field. Migration
+266 updates the dormant contextual metadata writer's strict allowlist and
+preserves this setting for older clients; it must precede enabling that writer
+with this application version. The active legacy writer supports it without a
+schema change. Migration application requires separate exact-target permission.
+
 ## Student surface
 
 The student tab is named **Grades**. It contains only:

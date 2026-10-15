@@ -39,7 +39,8 @@ export async function getStudentReturnedGradebookItems(
       throw new ApiError(500, 'Could not load Gradebook marks')
     }
 
-    items.push(...(data ?? []).map(score => {
+    items.push(...(data ?? []).filter(score => !(access.classroom.feature_visibility.gradebook_hide_zero_weight_student
+      && Number(score.gradebook_items.gradebook_weight) === 0)).map(score => {
       const item = score.gradebook_items
       const state = maximumState.states.get(`item:${item.id}`)
       const earned = Number(score.earned) * (state?.score_scale ?? 1)

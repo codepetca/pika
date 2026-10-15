@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Dormant owner recovery and verifier lifetime correction
-
-PR1577 adds dormant contextual owner unsubmit/single-reset/bulk-reset with sealed
-260; legacy routes and production remain unchanged. Original focused1934/115files
-passed, but native acceptance remains pending. Seven failed isolated rehearsals
-were retained and cleaned with full canonical/global preservation. Approved Docker
-restart did not fix CLI volume-inspection HTTP500; read-only pinned bulk comparison
-passed100 fresh full-metadata reads. Private transport correction preserves the
-sealed whole graph and explicit socket pin. Targeted review caught nested engine
-ACL restoration bypassing pending/poisoned inventory; the denial/join-only gate and
-regressions are being added before a new reviewed source binding. No native PASS,
-Tests phase exit, sharedlocal249+/prod259+ application, promotion, provider/account
-or admission/home/page/cutover activation. Task-scoped routine/budget waiver remains;
-actual counters/evidence retained, no reset.
-
-## 2026-10-11 — Recovery native pass and member-list forward seal
-
-PR1577 reviewed b11ff987a passed the fresh isolated001–260 rehearsal ec9995cfb906:
-16 acceptance groups,13 closed database labels,10 held schedules, genuine CLI
-types identical, mixed-role authority/revocations, unsubmit/single/bulk reset,
-observed8.012s57014 cancellation and positive settlement. Exact target-only cleanup,
-canonical183tables/settings/schema/cron and complete741-resource baseline passed.
-All seven previous failures and sources/receipts remain retained; no replay.
-Eighteen completed reviews1839s, seven accepted findings resolved, no reset.
-Ready CI38174577820 caught an older member-list fixture/profile still capped259;
-16759 full tests passed, one failed. Returned draft before correction; remaining
-lanes cancelled, no green CI/merge claim. Add only externally sealed260 acceptance
-to that proof, retain exact259 checks and unknown261/tampered260 rejection. This
-does not change recovery runtime, migrations, private verifier or application.
-Sharedlocal249+/prod259+/promotion/provider/account/cutover holds remain; Tests,
-Surveys/Grades and broader integration/rollout remain unfinished.
-
 ## 2026-10-11 — Recovery merged; owner unpublish source preparation
 
 PR1577 merged18126e952 after exact reviewedf703568d CI38175680856 passed all10
@@ -571,3 +539,19 @@ Verified exactnativeerror and fencing through rollback-only derived265contract i
 Final ea751496c CI38635910213 passed every selected job and PRGate. Beforemerge, main advanced to e2db6c57e (PR1592 teacherGradebook marks only after per-student Return), producing continuity conflicts. Draft restored, all six own commits rebased on e2db; preserved both archive marker/history sides in four conflict chunks. No own product/SQL/UI/E2E blob changed; migration265 filename/digest remain aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. No migration resequencing or stash creation/restoration; pre-existing shared stashes untouched.
 
 Newbase Gradebook still requires every question score before publishing numeric Test totals. Added two integration cases for returned unsubmitted work with all-null and partialzero/null scores: cells, totals and summaries stay pending/null and inspector excludes numeric Test entry. 204 targeted Gradebook/visibility/teacher/gallery tests PASS. Reused prior20visual states and actual265 DB/browser receipts because own behavior/UI unchanged; final focused and detached integrationreview cover newbase before fresh exact-head CI. Cumulative7actualreviewturns/5batches before this sixth syncbatch; explicitowner review-budgetextension retained without reset. No production deployment or canonical migration authority.
+
+## 2026-10-14 — Saved Test work production release
+
+Owner requested production deployment and explicitly approved one application of migrations264/265 to production. Preview38649440242 at merged main9aa3d5e82c96a7f8cbac3047b894d51a88cb161f verified001–263 applied and exactpending264/265; apply38653530319 reported applied-verified and complete265-version history. Read-only production catalog verification matched all six function body hashes, postgres owners, definer modes, empty search paths and intended role ACLs; no student fixtures or write canary. Approval consumed; no retry or further migration authority.
+
+Production PR1594 received cumulative GPT6.1-sol/high release review and targeted ancestry-sync review with no findings. Strict base protection required merging productionc1abdab798 into reviewedmain9aa; syncfad8eba10 changed ZERO files, identical treeee9db358e1dace612a6c8d0411e4e68ef9e11a05. Focused756tests/60files and static checks passed; finalCI38650272929 all10jobs/PRGate PASS. PR1594 merged b95776cb754e27b07e002ea8d3c9ffde38cdc145 at23:23:11UTC (Oct14 Toronto); complete tree matches reviewedmain. Vercel dpl_7fwt3gA23fApVnrkADZi1T9PvHg5 READY; production aliases matched the new deployment. Anonymous read-only GET smoke at23:28:32UTC/19:28Toronto passed login200, me401, Pattern Lab404 and snapshot API404 on both pika.codepet.ca and pika2.codepet.ca. Initial Python HTTP probe encountered local resolver failure; curl and DNS checks succeeded, then all eight curl smoke probes passed.
+
+Release includes saved-unsubmitted AI grading and correct answer/student counts, closed ungraded Return with read-only student work and pending incomplete totals, Return-gated Gradebook marks, reviewed Announcement closing/focus and classroom wizard focus fixes, and Week calendar card/editing refinements. Reopening and feature/provider/account/config controls unchanged. Two actual release-review turns; worker tokens/elapsed and coordinator active effort unknown. Weekly63% remaining and storagehealthy at release preparation; DeepSeek pause throughDec31 honored. Receipts outside retired worktrees: ~/.codex/artifacts/pika/production-1594/. Continuity-only main PR follows verified rollout; it changes no application or SQL.
+
+## 2026-10-15 — Independent Gradebook zero-weight visibility
+
+Owner requested More actions toggles “Hide 0-weight teacher” and “Hide 0-weight student”, both off by default. Coordinator owns codex/gradebook-zero-weight-filters. Teacher choice persists locally and filters table/inspector/mobile/export columns; student choice persists per classroom and filters server projections for Grades and standalone Classwork marks. Configured assessment weight0 only; positive-weight exclusions and earned0 remain visible, calculations unchanged. Student saves share the existing visibility mutation, rollback on failure, invalidate both caches and fence late classroom responses. Older metadata clients preserve the setting.
+
+UI brief: production Gradebook More actions/Pattern Lab gradebook-compact reference; extend toolbar/display preferences/classroom setting, reuse shared menu semantics and StudentGradesView. Teacher+student production owners, desktop1440/mobile390, light/dark, default/open/checked and all four toggle combinations PASS in16 Playwright captures under output/playwright/gradebook-zero-weight; Escape returns focus, no page overflow, student grade unchanged. No new shared visual pattern or promotion; no unrelated refactor. Composite checklist reviewed, semantic tests and keyboard coverage pass. Targeted behavior115 tests and previously failing Gallery87 tests PASS with bounded workers; architecture/UI/design policies PASS.
+
+Migration266 only extends the dormant metadata writer allowlist and preserves omitted student setting, retaining238 publication/ownership/lifecycle guards, signature and ACLs. Active legacy metadata supports the JSON setting without schema rollout;266 must precede enabling the dormant writer with this app. SQL rollback harness expanded; no canonical local/production migration applied. Initial broad check exposed finite265 proof inventories and concurrent Gallery timeouts; one GPT6.1-sol/high read-only worker mapped the eight exact profile consumers. Coordinator verified map and adds fixed filename/hash/bytes266 admission, retained historical profiles and future-tail/mutation tests. Worker effective model/time/token telemetry unknown; no edits delegated. Weekly99% remaining at startup; storage healthy. Final focused checks, fixed-SHA independent review and CI evidence follow in PR/lifecycle log. No merge, release, activation or migration application authorized.

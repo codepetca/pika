@@ -29,6 +29,24 @@ describe('gradebook editor helpers', () => {
     expect(visibleGradebookAssessments(columns, false)).toBe(columns)
     expect(columns).toHaveLength(5)
   })
+  it('defaults zero-weight filtering off and restores only a boolean choice', () => {
+    expect(normalizeGradebookPreferences({}).hideZeroWeightTeacher).toBe(false)
+    expect(normalizeGradebookPreferences({ hideZeroWeightTeacher: true }).hideZeroWeightTeacher).toBe(true)
+    expect(normalizeGradebookPreferences({ hideZeroWeightTeacher: 'true' }).hideZeroWeightTeacher).toBe(false)
+  })
+  it('filters zero-weight assessments independently of drafts and leaves positive-weight exclusions visible', () => {
+    const columns = [
+      { assessment_id: 'a', assessment_type: 'assignment', weight: 0 },
+      { assessment_id: 't', assessment_type: 'test', weight: 0 },
+      { assessment_id: 'i', assessment_type: 'item', weight: 0 },
+      { assessment_id: 'excluded', assessment_type: 'item', weight: 10, include_in_final: false },
+      { assessment_id: 'draft', assessment_type: 'assignment', weight: 10, is_draft: true },
+    ] as GradebookAssessmentColumn[]
+    expect(visibleGradebookAssessments(columns, false, false)).toBe(columns)
+    expect(visibleGradebookAssessments(columns, false, true).map(c => c.assessment_id)).toEqual(['excluded', 'draft'])
+    expect(visibleGradebookAssessments(columns, true, true).map(c => c.assessment_id)).toEqual(['excluded'])
+    expect(columns).toHaveLength(5)
+  })
   it.each([0, 1, 999])('accepts item weight %s', (weight) => {
     expect(isValidGradebookWeight(weight)).toBe(true)
   })

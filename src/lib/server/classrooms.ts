@@ -10,6 +10,7 @@ import {
 } from '@/lib/classroom-theme'
 import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import type { ClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
+import type { TableRow } from '@/types/database'
 import type { Classroom } from '@/types'
 import { observeClassroomAccessShadow } from './classroom-access-shadow'
 
@@ -22,6 +23,7 @@ export type ClassroomAccessRecord = {
   archived_at: string | null
   actual_site_slug: string | null
   actual_site_published: boolean
+  feature_visibility?: TableRow<'classrooms'>['feature_visibility']
 }
 
 /** Guidance provenance is teacher-only, including its immutable Version identity. */
@@ -79,7 +81,7 @@ export async function assertTeacherOwnsClassroom(
   const supabase = options.supabase ?? getServiceRoleClient()
   const { data: classroom, error } = await supabase
     .from('classrooms')
-    .select('id, title, teacher_id, archived_at, actual_site_slug, actual_site_published')
+    .select('id, title, teacher_id, archived_at, actual_site_slug, actual_site_published, feature_visibility')
     .eq('id', classroomId)
     .single()
 

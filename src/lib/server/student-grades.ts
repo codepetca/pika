@@ -225,6 +225,8 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
   }
   return buildStudentGradesResponse({
     categories: categories.map(({ id, percentage }) => ({ id, percentage })),
-    items,
+    items: visibility.gradebook_hide_zero_weight_student
+      ? items.filter((item) => item.weight !== 0)
+      : items,
   })
 }
