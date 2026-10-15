@@ -73,6 +73,7 @@ export class ContextualTestBoundary {
     if (!lifetime || lifetime.context !== context) return
     // Keep the original end for response validation even after transport ends.
     // Body tasks remain separately owned until their original bytes settle.
+    if (this.now() >= lifetime.task.end) this.failed ??= 'deadline'
     if (failed) this.failed ??= 'response-body'
     const set = this.tasks.get(context)
     set?.delete(lifetime.task); if (!set?.size) this.tasks.delete(context)
@@ -183,6 +184,9 @@ export class ContextualTestBoundary {
       }
       return undefined
     }).finally(() => {
+      // Timer callbacks may be delayed. Retirement cannot erase an expired
+      // operation, and finalization must not throw into an event listener.
+      if (this.now() >= end) this.failed ??= 'deadline'
       clearTimeout(timer); set.delete(task); if (!set.size) this.tasks.delete(context)
     })
     task.promise = guarded; set.add(task); this.responses.set(response, guarded)

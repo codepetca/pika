@@ -87,6 +87,29 @@ describe('contextual Test browser boundary', () => {
     now = 1001; b.requestFinished(c, request)
     await expect(departure).rejects.toThrow(); expect(b.receipt().firstFailure).toBe('deadline')
   })
+  it.each([-1, 0, 1])('retains the transport deadline when completion occurs %i ms from its end', async offset => {
+    let now = 1000; const b = boundary(() => now), c = {}, request = {}
+    b.requestStarted(c, request)
+    now += plan.limits.operationMs + offset
+    expect(() => b.requestFinished(c, request)).not.toThrow()
+    expect(b.pending(c)).toBe(0)
+    if (offset < 0) { await b.settle(c); expect(b.receipt().firstFailure).toBeNull() }
+    else { await expect(b.settle(c)).rejects.toThrow(); expect(b.receipt().firstFailure).toBe('deadline') }
+  })
+  it.each([-1, 0, 1])('retains the body deadline when completion occurs %i ms from its end before the timer runs', async offset => {
+    let now = 1000; const b = boundary(() => now), c = {}, body = deferred<Buffer>()
+    const request = { method: () => 'GET', postDataJSON: () => undefined }
+    b.requestStarted(c, request)
+    const original = b.observe(c, response(() => body.promise), request)
+    b.requestFinished(c, request)
+    // Advance the injected clock without running timer callbacks, modeling an
+    // event-loop delay. Completion must not erase the original expired end.
+    now += plan.limits.operationMs + offset
+    body.resolve(Buffer.from('{}')); await original
+    expect(b.pending(c)).toBe(0)
+    if (offset < 0) { await b.settle(c); expect(b.receipt().firstFailure).toBeNull() }
+    else { await expect(b.settle(c)).rejects.toThrow(); expect(b.receipt().firstFailure).toBe('deadline') }
+  })
   it('invokes the original response body immediately and exactly once', async () => {
     const gate = deferred<Buffer>(), b = boundary(), context = {}, r = response(() => gate.promise)
     const first = b.observe(context, r), second = b.observe(context, r)

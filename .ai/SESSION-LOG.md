@@ -903,3 +903,11 @@ and token usage unknown. Prior99review turns/57batches carry forward; review100/
 active, routine-stop waiver retained. PR1581 stays draft; production/shared-local,
 provider-held Survey/socket scope and rollout holds unchanged. Private evidence
 under restart-recovery/underlying-harness-diagnosis-20261015.md retains details.
+
+Review101 found one P2: task retirement could erase an expired request/body
+deadline before delayed timer callbacks. Batch59 latches expiry before both
+removal paths without throwing in event handlers/finalizers. Six deterministic
+before/exact/after-end regressions reproduced4fail/2pass then allpass; affected
+131tests PASS. Targeted review102 and final gate follow before the one synthetic
+browser attempt. Prior full gate3526PASS/8skip and allstaticchecks passed; Chrome
+diagnostic pin only is155.0.8059.84, signatureverified. All holds unchanged.
