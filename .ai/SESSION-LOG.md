@@ -845,3 +845,13 @@ CPU6platform+1controller RED precede134/4GREEN, including genuine composition,
 hostile proxy/getter rejection, status/start/disposal and canonical drift labels.
 Human approves independent review then ONEfresh bounded rehearsal; all holds
 and spent attempts retained. No new native admission before review/readiness.
+
+Independent87 clean atcf44a9086; full3345PASS/8skips and all localgatesPASS.
+ONEnew setup-steps attempt81138/tqtkdV/project4551c09a9e8a failed after186350ms
+at browserwork, notsetup. Fixed labels show verify-ephemeral completed; cleanup
+labels empty. Login1 reached response-body after submit; session/identity not
+reached. Exact bodyfailurecause unknown. All process/SQL/command/unchanged cleanup
+checksPASS, ownedSettledTRUE,0activeprobes/0families. Independent preservation
+before later writesPASS7630sourcefiles/49485deps602159424B; bothlabel/name resource
+queries0containers/volumes/networks, workdirabsent andall4portsclear. Evidence0600
+retained; token permanentlyspent, no retry/renewal/nativeacceptance or rollout.
