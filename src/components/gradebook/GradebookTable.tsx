@@ -3,7 +3,7 @@
 import type { Ref } from 'react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 import {
-  Button, DataTable, DataTableBody, DataTableCell, DataTableHead,
+  Button, DataTable, DataTableCell, DataTableHead,
   DataTableHeaderCell, DataTableRow, EmptyStateRow, FormField, Input,
   KeyboardNavigableTable, SortableHeaderCell, TableSelectionCell,
   TableSelectionHeaderCell, Tooltip, cn,
@@ -22,6 +22,7 @@ export interface GradebookTableProps {
   columns: GradebookAssessmentColumn[]
   displayMode: ScoreDisplayMode
   lastNameFirst: boolean
+  showGridlines?: boolean
   showStudentIds: boolean
   ultraCompact?: boolean
   showWeights: boolean
@@ -63,7 +64,7 @@ const ABOVE_MAXIMUM_CLASS = 'relative rounded border border-warning bg-warning-b
 
 /** Gradebook-only matrix; persistence and calculations remain outside this renderer. */
 export function GradebookTable({
-  students, columns, displayMode, lastNameFirst, showStudentIds,
+  students, columns, displayMode, lastNameFirst, showStudentIds, showGridlines = false,
   showWeights, ultraCompact = false, keepKeyColumnsVisible: frozen, columnWidths, onColumnWidthChange,
   weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, itemScoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
   onMaxMarkOpen, maximumEditsEnabled = true, savingMaxMarkKeys = new Set(), onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
@@ -204,7 +205,7 @@ export function GradebookTable({
               </> : null}
             </tbody>
           ) : null}
-          <DataTableBody dividers={false}>
+          <tbody className={showGridlines ? '[&>tr:not(:last-child)>td]:border-b [&>tr>td]:border-border' : undefined}>
             {students.map((student) => {
               const active = selectedStudentId === student.student_id
               const selected = selectedIds.has(student.student_id)
@@ -261,7 +262,7 @@ export function GradebookTable({
               </DataTableRow>
             })}
             {!students.length ? <EmptyStateRow colSpan={colSpan} message="No students enrolled yet" /> : null}
-          </DataTableBody>
+          </tbody>
           {students.length > 0 && columns.length > 0 ? (
             <tfoot className="sticky bottom-0 z-sticky-table bg-surface-2" data-testid="gradebook-summary-footer">
               <DataTableRow aria-label="Class average">

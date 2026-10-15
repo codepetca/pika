@@ -69,6 +69,7 @@ interface TeacherAssignmentStudentTableProps {
   sortDirection: SortDirection
   onToggleSort: (column: 'first' | 'last' | 'status') => void
   dueAtMs: number
+  showGridlines?: boolean
   density: 'tight' | 'compact'
   loading: boolean
   error: string
@@ -135,6 +136,7 @@ export function TeacherAssignmentStudentTable({
   onToggleSort,
   dueAtMs,
   density,
+  showGridlines = false,
   loading,
   error,
   emptyMessage = 'No students enrolled',
@@ -177,7 +179,7 @@ export function TeacherAssignmentStudentTable({
                   <col style={{ width: `${columnWidths.grade}px` }} />
                   <col />
                 </colgroup>
-                <DataTableHead>
+                <DataTableHead dividers={showGridlines}>
                   <DataTableRow>
                     <TableSelectionHeaderCell
                       checked={allSelected}
@@ -244,7 +246,7 @@ export function TeacherAssignmentStudentTable({
                     </DataTableHeaderCell>
                   </DataTableRow>
                 </DataTableHead>
-                <DataTableBody>
+                <DataTableBody dividers={showGridlines}>
                   {rows.map((student) => {
                     const isSelected = selectedStudentId === student.student_id
                     const totalScore =

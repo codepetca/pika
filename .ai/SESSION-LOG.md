@@ -11,68 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Unpublish fixture constraint diagnosis
-
-Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
-review turns1101measured seconds/two formal findings resolved/five source batches
-retained; private diagnostic deltas reviewed, no counter reset. Four fresh isolated
-attempts replayed001–261 then failed rollback; each exactcleanup/global741resources/
-canonical183table+2cron preservation PASS. No native acceptance. Bounded final
-diagnostic observed23514/inlineblockline6: limits fixture inserted empty Test Draft
-violating134 question_identity_version CHECK. Correct only fixture to valid marked
-content while retaining wrong-parent/version/work/parity assertions; no product or
-migration change. Raw error/user data not retained. Fresh source review and complete
-native/CI acceptance remain required; all sharedlocal249+/production259+, promotion,
-provider/account and admission/home/page/cohort/cutover holds unchanged.
-
-Two further fresh isolated attempts retain cleanup/preservation PASS and no native
-acceptance. Reviewed bounded diagnostics identify the later wrong-parent fixture
-failure: legacy PT409/test_unpublish_not_eligible. Installed143 intentionally
-preserves any existing question lock; the earlier locked-question probe left that
-fixture locked. Keep that protection and expected rejection, but rollback the probe
-setup before subsequent limits cases. Source-only correction/verification is in
-progress; no shared schema or product permission changes, no readiness/merge claim.
-
-Later fresh corrected-source replay reaches55000/anonymousline14. Source mapping
-corrects an initial version-reset guess:171 intentionally rejects provider-binding
-DELETE. Preserve that retained evidence guard and isolate the synthetic provider
-fence setup/assertion with rollback instead of deleting its immutable binding.
-No native acceptance; independent review/current-source proof remain required.
-
-Current bd12564f focused2137/120files plus policies/tsc/lint PASS; provider-fixture
-delta reviewed clean36s. Eleven completed reviews1383measured seconds/two formal
-findings resolved/nine fix batches/four draft correction pushes retained. Eighth
-fresh exact-source abd33efe796a now passes001–261/productrollbackcontractsACLs and
-genuineCLItypes438871B byte-equal7b2ab664acf1cc1808a227d1803aca392c854fe2d6650ab41579cabcdd89f00f.
-Later fixture preparation fails before dispatch:453657-byte generated setup exceeds
-unchanged256KiB runner limit. Exactcleanup/global741/canonical183tables+2cron PASS.
-Compact only inherited bulk Draft content into source-equivalent SQL derived from
-already inserted1001questions; retain all IDs/rows/content/cases/guards and caps.
-Correction verification/review/fresh nativeSDK/heldlocks/cancellation/CI pending;
-partial actual passes are not full native acceptance, merge or rollout. Holds remain.
-
-Compacted preparation196218B keeps1019questions/15Drafts,66targetchecks+fullfocused
-2146/120files/policies/tsc/lint PASS. Targeted review140s accepts one guard defect:
-missing insertion marker yields indexOf=-1 and passes ordering comparison. Require
-exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
-marker. No cap/fixture case/product/migration changes. Counters12completedreviews
-1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
-fresh complete native acceptance remains pending, all holds retained.
-
-## 2026-10-11 — Vertical Week design exploration
-
-Delivered three experimental standalone Week concepts (lesson agenda, day navigator, expandable week) for teacher/student; recommend agenda for rich lesson reading. Artifacts: /Users/stew/.codex/visualizations/2026/10/11/01a12a93-1a8c-7ed0-a906-1eab3ca18157/vertical-week/review.html (README, brief, provenance, reproducible CLI receipts alongside). Source caaa1c926; actual Pattern Lab owner captures include horizontal Week, Month, Term. No application code/data/DB/release changes or canon promotion.
-
-Final Playwright: 110 checks PASS, 24 concept×role×viewport×theme combinations, zero runtime errors; all matrix screenshots and representative full/long/edit/dialog states visually reviewed. Standalone file mode verified. GPT-6.1-sol medium worker supplied source inventory and bounded reviews; eight accepted findings fixed, including future custom-edit visibility and mobile sticky-title offset. Weekly remaining 99%; DeepSeek pause honored. Worker time/tokens unavailable, coordinator review ~3min estimate. Next: human design review; no implementation rollout authorized.
-
-## 2026-10-11 — Implement selected Week lesson agenda
-
-Owner chose concept A for teacher/student Week, preserving Month/Term. Worktree `vertical-week-prototypes/pika`, branch `codex/calendar-week-agenda`, based on main `872d195825e4053e18ba8ca49a42613b1f106e22`. Shared LessonCalendar now renders seven agenda days; LessonDayCell extends full lesson reading, explicit teacher Edit/Add, Today/no-class labels and independent event buttons. Existing visibility, date grouping, autosave queue, rich links and actual Markdown sidebar remain owned by the existing controllers. Week controls stick below the app header. No API, database, dependencies or auth changes. Scoped brief: `docs/guidance/ui/changes/calendar-week-agenda.md`.
-
-Orchestrate: native GPT-6.1-sol medium regression worker owned only two component tests, delivered 37/37 passing in 3.04s after initial red (12 new failures, 25 existing passes); one clarification of non-class weekday editability, no integration conflict. Coordinator accepted after inspecting diffs and running affected checks; account weekly remaining 98% at start, worker token/time telemetry beyond reported test times unknown, coordination messages about one minute estimated. DeepSeek paused and honored.
-
-Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-class/weekend events, editor, day dialog, existing Month/Term. Intercepted real ClassroomPageClient fixture APIs; no hosted writes. Screenshots under selected prototype artifact `vertical-week/output/playwright/implemented-*`. Caught and fixed mobile sticky-header overlap; editor autofocus remains shared caret-at-end. Checklist keyboard/state semantics covered, no manual follow-up. Component/owner/Pattern Lab regressions, type/lint, architecture, UI/design policies and precommit audit verified. Final focused checks and draft-first independent fixed-SHA review follow; exact reviewed SHA/verdict lives in PR and lifecycle log. No merge or production promotion authorized in this task.
-
 ## 2026-10-11 — Bound Week agenda desktop width
 
 Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
@@ -540,3 +478,59 @@ Coordinator branch codex/test-publish-date from 0009d60ee. GPT-6.1-Sol/high work
 Post-review failure check reproduced Cancel retaining a failed date for close-time retry (two PATCHes). Cancel/Escape now reset the pending date to its acknowledged value. Regression RED then GREEN; updated focused1215/78 and all static checks PASS, audit PASS, browser8/8 PASS with failed-save captures in all four role/theme viewport combinations (teacher and student scenarios per project). Artifacts: output/playwright/test-publication-date-cancellation. Initial CI38749335978 cancelled while draft for this correction; one batched correction and targeted independent follow-up, with receipts in PR1599 lifecycle.
 
 CI38750707277 exposed two existing browser contracts still using the former Publish/More-actions paths (four dark-project failures, 191 passes). PR returned to draft and the remaining obsolete run cancelled. Updated publication/unpublication contracts to exercise Publish today with the Toronto date PATCH and date-menu Unpublish; aligned the existing exam-mode scenario too. All eight targeted experience-matrix cases PASS across desktop/mobile and light/dark; no product-code change in this correction.
+
+Synced main0cfcc47cc (optional student-table gridlines). Only archive append markers conflicted; retained both archive batches/content. Test workspace/gridline source and component coverage merged automatically. Final merged-head validation and CI remain required; no merge to main or production operation.
+
+## 2026-10-15 — Student-table gridlines toggle
+
+Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
+selected Assignment/Test grading, Gradebook and the teacher dashboard matrix.
+Reused checked work-surface menus and DataTable dividers; Gradebook uses cell
+borders for its border-separated matrix and existing saved display preferences.
+Other screens retain per-page display state. Risk profile: none.
+Reference: Attendance table canon and Pattern Lab production Gradebook owners.
+Teacher desktop/mobile, light/dark, off/on/menu and keyboard focus verified by
+Playwright: 24 surface/viewport/theme cases. Student role n/a (teacher tables only).
+Captures/repro scripts: output/playwright/gridlines* (ignored, synthetic data).
+Composite checklist reviewed; checked semantics, keyboard/focus and persistence
+covered by component regressions. No new primitive or experimental pattern.
+Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
+verified against source, no worker corrections or conflicts; tokens/time unknown.
+Weekly usage at start: 1% used; storage healthy (~328 GB available).
+
+## 2026-10-15 — PR1596 CI diagnosis and snapshot repair
+
+Reviewed Linux CI and local Darwin Pattern Lab image differences: only the
+Assignment artifact table's intended two divider removals and resulting 2px
+vertical shift. Updated desktop/mobile light/dark baselines for both platforms.
+SDK normal proof failed after its matrix with cleanup-only evidence; existing
+output discarded the failing cleanup stage. Added fixed-label cleanup diagnostics
+and canonical-field names with redaction/accessor tests; no execution, budget,
+comparison or teardown guard changed. Offline proof suites120PASS (3RED→GREEN).
+Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementation;
+no worker edits or conflicts, attributable time/tokens unknown. Next: independent
+delta review, clean fixed-SHA native reproduction, actual cleanup correction if
+needed, final CI and authorized main merge. PR remains draft; heartbeat paused.
+
+## 2026-10-15 — PR1596 Assignment child-dialog focus correction
+
+Hosted diagnostic CI38742184503 passed updated Pattern Lab snapshots but exposed
+AssignmentModal's delayed title focus racing Schedule Release. Deterministic
+fake-timer regression reproduced the title stealing focus at100ms. Extend the
+existing title-focus guard to scheduling/post/revert child dialogs; shared
+ModalLayer/DialogPanel focus ownership remains unchanged.41component testsPASS,
+new regressionRED→GREEN. Real browser pending-timer/escape verificationPASS in
+teacher desktop/mobile×light/dark; screenshots inspected. Student n/a.
+Reference: shared nested-dialog focus contract; reuse ModalLayer/DialogPanel,
+extend feature-owned focus guard. Composite focus/keyboard checklist reviewed.
+Hosted c1139b535 diagnostic CI38742184503 passed all24installed-SDK cases,
+SQL/races, normal exact teardown/canonical equality and both forced cleanup
+cases. Original cleanup-only failure did not reproduce; exact cause unknown,
+new fixed-label diagnostics retained. Superseded diagnostic cancelled after
+this evidence, before final PR CI; no guard/budget/comparison weakened.
+Rebased onto main0009d60ee (#1597); resolve Gradebook preference/reference
+conflicts by retaining both zero-weight filters and gridlines. Range-diff confirms
+only those integration lines and continuity archive markers differ. Four snapshot
+checks and four teacher desktop/mobile×light/dark combined preference/browser
+casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
+Review ledger retains3launches/2batches; final integration review/CI remain gates.

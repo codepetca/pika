@@ -508,6 +508,25 @@ describe('TeacherAttendanceTab', () => {
     vi.unstubAllGlobals()
   })
 
+  it('defaults student gridlines off and toggles them through More actions', async () => {
+    mockCombinedFetch()
+    const { container } = render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+    await screen.findByRole('button', { name: 'Select Daily date' })
+    const body = container.querySelector('tbody')!
+    expect(body).not.toHaveClass('divide-y')
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    const toggle = screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(toggle)
+    expect(body).toHaveClass('divide-y')
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(body).not.toHaveClass('divide-y')
+  })
+
   it('keeps saved hours on past, current, and future dates, separate from the QR window', async () => {
     const fetchMock = mockCombinedFetch()
     render(<TooltipProvider><AppMessageProvider>
