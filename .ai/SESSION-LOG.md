@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 — Approved browser baseline and bounded row diagnostic gap
-
-Human approved Chrome155.0.8059.40 and test-onlypgrowlocksIFavailable onlyin
-disposable rehearsals. RootrecheckedChrome428dccc1/codesignPASS; readonlypackage
-inspectionfound1.2in pinnedPG17.6.1.044, control95be083d/SQL6645e58b/library6298dac1.
-No extension install, sharedlocal/prod SQL, account/provider/activation changes.
-Sol/high disjointprivatebrowserauthor updatesapprovedpin/inducedseals/cache
-packaging; no acceptance/runtime/attempt yet. Protocol36/fix30 clocks retained.
-
-RetainedSol/high rowauthor ends boundedsourcefix13withconcretegap, no repoedits:
-REL_17_6 subcommitreleaseschildXIDlock, waitersfollowparent, holder-owncurrent
-updatedtuple notreportedbypgrowlocks. Rootreadgap/officialanchors; thisis source
-analysis, notnativebuildreceipt. NofakePID0parentmapping/observer/cap widening.
-Root asks seriousverificationcriteria adjustment to actualRPC/freshread/exact
-state/backendblocking evidence withoutopaquechildrow attribution; noappauth/
-permissions/caps/rollout change. Source23reviews/fix13, priorclocks unchanged.
-Storage341.10GBhealthy; weekly100%remaining accountwide, attributionunknown.
-
-Browserpackage reviews37 Astra/high and38 Sol/high COMPLETEPASS (requested;
-effectiveunknown), samefrozen373287launcher/a363ca82closure,21CPU/fivecompiler
-closures. Rootoneboundedf0attemptCLOSED1/SPENT:query/discovery-argv/query-error,
-HTTP0/ownershipunknown;CLIchildrenclosed/browserclosureunconfirmed. Receipt
-0e58246b...durableprivate; no retry/signals/appacceptance. Supplementalstartup
-suite34PASS/45timeoutFAIL over4050s; sourcecauseunconfirmed, notcleanPASS.
-Humanapprovedpracticalconcurrencyverification:actualRPC/freshreads/exacteffects/
-ownedbackendblocking insteadofopaquechildrow attribution. Auth/permissions/caps/
-rolloutunchanged. SameSol/high sourceauthor deliveredtwofiles sourcefix14:
-41CPU/TSC0/lint/audit PASS, source16015ce0/testb600d3df; nativecarriers explicitly
-unbound. Targetedindependentreview24 pending; no extension/native/sharedlocal/
-prod/activation change.
-
 ## 2026-10-13 Private Survey runner checkpoint and admission correction
 
 Sourcefix15/16 checkpoint1abac5164 binds committed seed/30directions to private
@@ -864,3 +833,36 @@ Fixed response resource/status/cause labels distinguish login from other JSON;
 no raw errors, URLs, bodies or error hashes retained. 9 RED cases then107/3 CPU
 PASS; independent review and one newly authorized full rehearsal follow. Frozen
 app/auth/migrations and all production/provider/shared-local holds unchanged.
+
+## 2026-10-15 — Login-order rehearsal fails; isolated recovery and preserved diagnosis
+
+Fix50 committed45a87ebcf, independent Astra/high review88 CLEAN162s/0findings;
+107focused/3files PASS, appType/lint/audit PASS. Both broad check invocations
+remain failed:3354PASS/2unchanged timing failures then serial3355PASS/1unchanged
+timing failure, each isolated failing case subsequently passed unchanged.
+Architecture/UI/design/type/lint separatelyPASS; no green full-gate claim.
+Normal push verified exacthead on OPEN/DRAFT1581; existing main conflict remains.
+
+ONEauthorized login-order attempt42685/mA01Ct/c57312d1a4f4 FAILED/SPENT137129ms.
+Browser login entered response-body/completedsubmit; contextsclosed/pending0,
+boundary firstFailure/responseFailure NULL. Not another recorded body rejection;
+outer login timeout, response completion/status/MIME remain indistinguishable.
+Read-only isolatedDB counts show sole synthetic owner's session issued4529ms
+after browserstart,27706ms before browserreceipt. Credentials/session issuance
+succeeded; browser cookie/redirect/identity still NOT verified. Source diagnosis88
+identifies outer30s timer rejecting without boundary failure and later body task
+settling during cleanup as compatible explanation, not proven CDP root cause.
+Request-stage Fetch interception does not imply missing continueResponse.
+
+Native browser monitor identity-mismatch stayed sticky; ownedSettledFALSE even
+after0probes/0families and closed browser. Original cleanup remains FAILED, not
+retroactively repaired. Current exact process markers absent; recovered ONLY
+this fixture's5containers/2syntheticvolumes/1network after both-label, mount and
+attachment validation. Temporary app MOVED to private evidence (recoverable),
+not deleted; all receipts retained. Separate post-recovery capture before source
+writesPASS7630sourcefiles/49485deps602159413B, source/deps unchanged; all4ports
+clear and isolated Docker resources absent. No new attempt or renewed clock.
+Next requires distinguishing request completion/body wait/outer timer and the
+specific native identity mismatch; no more speculative full rehearsal. Auth/app/
+migrations/dependencies unchanged; all production/shared-local/provider holds
+remain. Overall goal and login fix NOT accepted; draft PR not ready or merged.

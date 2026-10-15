@@ -47318,3 +47318,35 @@ pending (Chrome baseline,test-onlypgrowlocks ifavailable). Final broader focused
 /var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Xd8d1g.
 No native/application acceptance; privatebootstrap/control/cancel/payload gaps
 remain. Three clean detachedreviewcheckouts removed; commits/reports preserved.
+
+<!-- pika-session-log-archive-batch:bc1415df7f180e5437a5ab4aee1aebd62b6c3ce2ac725f086d819c95f25cf8c5 -->
+## 2026-10-13 — Approved browser baseline and bounded row diagnostic gap
+
+Human approved Chrome155.0.8059.40 and test-onlypgrowlocksIFavailable onlyin
+disposable rehearsals. RootrecheckedChrome428dccc1/codesignPASS; readonlypackage
+inspectionfound1.2in pinnedPG17.6.1.044, control95be083d/SQL6645e58b/library6298dac1.
+No extension install, sharedlocal/prod SQL, account/provider/activation changes.
+Sol/high disjointprivatebrowserauthor updatesapprovedpin/inducedseals/cache
+packaging; no acceptance/runtime/attempt yet. Protocol36/fix30 clocks retained.
+
+RetainedSol/high rowauthor ends boundedsourcefix13withconcretegap, no repoedits:
+REL_17_6 subcommitreleaseschildXIDlock, waitersfollowparent, holder-owncurrent
+updatedtuple notreportedbypgrowlocks. Rootreadgap/officialanchors; thisis source
+analysis, notnativebuildreceipt. NofakePID0parentmapping/observer/cap widening.
+Root asks seriousverificationcriteria adjustment to actualRPC/freshread/exact
+state/backendblocking evidence withoutopaquechildrow attribution; noappauth/
+permissions/caps/rollout change. Source23reviews/fix13, priorclocks unchanged.
+Storage341.10GBhealthy; weekly100%remaining accountwide, attributionunknown.
+
+Browserpackage reviews37 Astra/high and38 Sol/high COMPLETEPASS (requested;
+effectiveunknown), samefrozen373287launcher/a363ca82closure,21CPU/fivecompiler
+closures. Rootoneboundedf0attemptCLOSED1/SPENT:query/discovery-argv/query-error,
+HTTP0/ownershipunknown;CLIchildrenclosed/browserclosureunconfirmed. Receipt
+0e58246b...durableprivate; no retry/signals/appacceptance. Supplementalstartup
+suite34PASS/45timeoutFAIL over4050s; sourcecauseunconfirmed, notcleanPASS.
+Humanapprovedpracticalconcurrencyverification:actualRPC/freshreads/exacteffects/
+ownedbackendblocking insteadofopaquechildrow attribution. Auth/permissions/caps/
+rolloutunchanged. SameSol/high sourceauthor deliveredtwofiles sourcefix14:
+41CPU/TSC0/lint/audit PASS, source16015ce0/testb600d3df; nativecarriers explicitly
+unbound. Targetedindependentreview24 pending; no extension/native/sharedlocal/
+prod/activation change.
