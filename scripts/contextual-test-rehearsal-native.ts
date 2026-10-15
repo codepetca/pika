@@ -7,9 +7,11 @@ import { createHash } from 'node:crypto'
 import { readFileSync, realpathSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
+import { isProxy } from 'node:util/types'
 import { assertContextualTestUnusedRunnerOutput, captureContextualTestDependencies, captureContextualTestSource, contextualTestReadOnlyDependencyProfile, createContextualTestOwnedFamily,
   createContextualTestPinnedCommand, immutableContextualTestData, verifyContextualTestTransportPins, verifyContextualTestBinary, type ContextualTestBinaryPin } from './contextual-test-rehearsal-launch'
 import { parseKernelProcessRows, type OwnedProcessRow } from './contextual-test-process-ownership'
+import { createContextualTestRouteReadiness } from './contextual-test-route-readiness'
 import type { ContextualTestControllerAdmission, ContextualTestControllerControls } from './contextual-test-rehearsal-controller'
 
 export type ContextualTestNativePins = Readonly<{
@@ -32,6 +34,24 @@ export type ContextualTestOwnedLaunch = {
 }
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 const fixedError = () => new Error('Private contextual Test native control failed')
+type NativeDiagnosticRole = 'app' | 'browser' | 'command' | 'probe' | 'unknown'
+type NativeDiagnosticPhase = 'birth' | 'monitor' | 'ready' | 'wait' | 'settle' | 'aggregate' | 'probe'
+type NativeDiagnosticCause = 'snapshot-schema' | 'kernel-unverified' | 'identity-mismatch' | 'unverified-group' | 'closure-deadline' |
+  'probe-deadline' | 'probe-exit' | 'probe-overflow' | 'signal-error' | 'output-overflow' | 'child-error' |
+  'prior-uncertainty' | 'active-probes' | 'children-remain' | 'route-readiness' | 'route-closure' | 'unknown'
+type NativeDiagnosticRow = Readonly<{ role: NativeDiagnosticRole; phase: NativeDiagnosticPhase; cause: NativeDiagnosticCause; closed: boolean; uncertain: boolean }>
+export type ContextualTestNativeDiagnostics = Readonly<{ firstFailure: NativeDiagnosticRow | null; failures: readonly NativeDiagnosticRow[];
+  overflow: boolean; activeProbes: number; unsettledFamilies: number }>
+/** No inherited properties, accessors, proxy traps or private exception text. */
+function nativeProcessCause(error: unknown): NativeDiagnosticCause {
+  try {
+    if (!error || typeof error !== 'object' || isProxy(error)) return 'unknown'
+    const descriptor = Object.getOwnPropertyDescriptor(error, 'processCause')
+    const cause: unknown = descriptor && Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined
+    return cause === 'snapshot-schema' || cause === 'kernel-unverified' || cause === 'identity-mismatch' ||
+      cause === 'unverified-group' || cause === 'closure-deadline' ? cause : 'unknown'
+  } catch { return 'unknown' }
+}
 
 /** Short fixed read-only probes. An unjoined helper poisons the controller; it
  * is never called closed or killed using a guessed PID. Long-lived owned app
@@ -41,29 +61,47 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
   const env: NodeJS.ProcessEnv = { PATH: '/usr/bin:/bin', HOME: pins.outputDir, LANG: 'C', LC_ALL: 'C', NODE_ENV: 'development' }
   let poisoned = false, cleaning = false, activeProbes = 0, controllerEnd = cleanupDeadline
   const children = new Set<ContextualTestOwnedChild>()
+  const routeReadiness = createContextualTestRouteReadiness()
+  const failures: NativeDiagnosticRow[] = []
+  let firstFailure: NativeDiagnosticRow | null = null, overflow = false
+  const record = (role: NativeDiagnosticRole, phase: NativeDiagnosticPhase, cause: NativeDiagnosticCause, closed = false, uncertain = false) => {
+    // Diagnostics never participate in admission, poison or closure decisions.
+    try {
+      const row = Object.freeze({ role: role === 'app' || role === 'browser' || role === 'command' || role === 'probe' ? role : 'unknown',
+        phase, cause, closed, uncertain })
+      if (phase !== 'aggregate') firstFailure ??= row
+      if (failures.length < 16) failures.push(row); else overflow = true
+    } catch { /* Reporting must not interrupt cleanup. */ }
+  }
+  const diagnostics = (): ContextualTestNativeDiagnostics => Object.freeze({ firstFailure: firstFailure && Object.freeze({ ...firstFailure }),
+    failures: Object.freeze(failures.map(row => Object.freeze({ ...row }))), overflow, activeProbes, unsettledFamilies: children.size })
   const checkCleanup = () => assert(Date.now() < controllerEnd, 'Private native cleanup expired')
   const check = () => { assert(!poisoned && !cleaning, 'Private native controller closed'); checkCleanup() }
   // Failure permanently rejects new work. Only private observation for an
   // already captured family may continue, under the original shortened clock.
   const probeWithAdmission = async (admit: () => void, pin: ContextualTestBinaryPin, args: readonly string[], end: number, input?: string): Promise<string> => {
-    admit(); verifyContextualTestBinary(pin)
-    end = Math.min(end, controllerEnd)
-    assert(end > Date.now() && end <= cleanupDeadline && args.every(v => !v.includes('\0')))
+    try {
+      admit(); verifyContextualTestBinary(pin)
+      end = Math.min(end, controllerEnd)
+      assert(end > Date.now() && end <= cleanupDeadline && args.every(v => !v.includes('\0')))
+    } catch (error) { record('probe', 'probe', nativeProcessCause(error)); throw error }
     return new Promise((resolve, reject) => {
-      const child = spawn(pin.path, [...args], { shell: false, env, cwd: pins.outputDir, stdio: ['pipe','pipe','pipe'] })
+      let child: ChildProcess
+      try { child = spawn(pin.path, [...args], { shell: false, env, cwd: pins.outputDir, stdio: ['pipe','pipe','pipe'] }) }
+      catch (error) { record('probe', 'probe', nativeProcessCause(error)); throw error }
       activeProbes++
       let count = 0, failed = false, output = ''
-      const timer = setTimeout(() => { poisoned = true; reject(fixedError()) }, Math.min(30000, end - Date.now()))
-      child.on('error', () => { failed = true })
-      child.stdin.on('error', () => { failed = true })
-      child.stdout.on('data', (bytes: Buffer) => { count += bytes.length; if (count > 16 * 1024 ** 2) { failed = true; poisoned = true } else output += bytes.toString('utf8') })
-      child.stderr.on('data', (bytes: Buffer) => { count += bytes.length; if (count > 16 * 1024 ** 2) { failed = true; poisoned = true } })
+      const timer = setTimeout(() => { poisoned = true; record('probe', 'probe', 'probe-deadline'); reject(fixedError()) }, Math.min(30000, end - Date.now()))
+      child.on('error', () => { failed = true; record('probe', 'probe', 'child-error') })
+      child.stdin!.on('error', () => { failed = true; record('probe', 'probe', 'child-error') })
+      child.stdout!.on('data', (bytes: Buffer) => { count += bytes.length; if (count > 16 * 1024 ** 2) { failed = true; poisoned = true; record('probe', 'probe', 'probe-overflow') } else output += bytes.toString('utf8') })
+      child.stderr!.on('data', (bytes: Buffer) => { count += bytes.length; if (count > 16 * 1024 ** 2) { failed = true; poisoned = true; record('probe', 'probe', 'probe-overflow') } })
       child.once('close', (code, signal) => {
         clearTimeout(timer); activeProbes--
         try { admit(); verifyContextualTestBinary(pin); assert(!failed && code === 0 && signal === null && Date.now() < end); resolve(output.trim()) }
-        catch { reject(fixedError()) }
+        catch (error) { record('probe', 'probe', code !== 0 || signal !== null ? 'probe-exit' : Date.now() >= end ? 'probe-deadline' : nativeProcessCause(error), true); reject(fixedError()) }
       })
-      child.stdin.end(input)
+      child.stdin!.end(input)
     })
   }
   const probe = (pin: ContextualTestBinaryPin, args: readonly string[], end: number, input?: string) => probeWithAdmission(check, pin, args, end, input)
@@ -110,29 +148,35 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     check(); verifyContextualTestBinary(pins.node); verifyContextualTestBinary(pins.sandbox)
     assert(input.deadline > Date.now() && input.deadline <= cleanupDeadline)
     assert(realpathSync(input.cwd) === input.cwd && input.profile.startsWith('(version 1)'))
-    const child = spawn(pins.sandbox.path, ['-p', input.profile, pins.node.path, ...input.args], {
-      cwd: input.cwd, env: { ...input.env, NODE_ENV: 'development' }, detached: true, shell: false, stdio: ['ignore','pipe','pipe'],
-    })
-    let closed = false, code: number | null = null, uncertain = false, count = 0, readyText = ''
+    let child: ChildProcess
+    try {
+      child = spawn(pins.sandbox.path, ['-p', input.profile, pins.node.path, ...input.args], {
+        cwd: input.cwd, env: { ...input.env, NODE_ENV: 'development' }, detached: true, shell: false, stdio: ['ignore','pipe','pipe'],
+      })
+    } catch (error) { record(input.role, 'birth', nativeProcessCause(error)); throw error }
+    let closed = false, code: number | null = null, uncertain = false, count = 0, readyText = '', born = false
     let announceReady!: () => void
     const readyPromise = new Promise<void>(resolve => { announceReady = resolve })
     // Never retain raw Next/Playwright output; fixed private receipts are used.
     child.stdout!.on('data', (bytes: Buffer) => {
-      count += bytes.length; if (count > 64 * 1024 ** 2) uncertain = true
+      count += bytes.length; if (count > 64 * 1024 ** 2) { uncertain = true; record(input.role, 'monitor', 'output-overflow', closed, uncertain) }
       if (input.role === 'app') {
         readyText = (readyText + bytes.toString('utf8').replace(/\x1b\[[0-9;]*m/g, '')).slice(-4096)
         if (/Ready in \d/.test(readyText)) { announceReady(); readyText = '' }
       }
     })
-    child.stderr!.on('data', (bytes: Buffer) => { count += bytes.length; if (count > 64 * 1024 ** 2) uncertain = true })
+    child.stderr!.on('data', (bytes: Buffer) => { count += bytes.length; if (count > 64 * 1024 ** 2) { uncertain = true; record(input.role, 'monitor', 'output-overflow', closed, uncertain) } })
     const closedPromise = new Promise<void>(resolve => { child.once('close', value => { closed = true; code = value; resolve() }) })
-    child.once('error', () => { uncertain = true })
+    child.once('error', () => { uncertain = true; record(input.role, born ? 'monitor' : 'birth', 'child-error', closed, uncertain) })
     let family: OwnedFamily
     try { family = await birth(child, input.role, pins.node.path, input.cwd, input.args, Math.min(input.deadline, Date.now() + 30000)) }
-    catch { poisoned = true; throw fixedError() }
+    catch (error) { record(input.role, 'birth', nativeProcessCause(error), closed, uncertain); poisoned = true; throw fixedError() }
+    born = true
     let monitor: Promise<void> = Promise.resolve(), stopping = false
     const tick = setInterval(() => {
-      monitor = monitor.then(async () => { if (!stopping) family.refresh(await ownedRows()) }).catch(() => { uncertain = true; poisoned = true })
+      monitor = monitor.then(async () => { if (!stopping) family.refresh(await ownedRows()) }).catch(error => {
+        uncertain = true; poisoned = true; record(input.role, 'monitor', nativeProcessCause(error), closed, uncertain)
+      })
     }, 250)
     tick.unref()
     const result: ContextualTestOwnedChild = Object.freeze({ child,
@@ -145,22 +189,33 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
             timeout = setTimeout(() => reject(fixedError()), Math.max(0, end - Date.now()))
           })])
           assert(!closed && !uncertain)
-          const listeners = await probe(pins.lsof, ['-nP','-iTCP:3117','-sTCP:LISTEN','-Fp'], end)
-          const current = await rows(); const snapshot = family.refresh(current)
-          const pids = listeners.split('\n').filter(line => /^p\d+$/.test(line)).map(line => Number(line.slice(1)))
-          assert(pids.length > 0 && pids.every(pid => [snapshot.identity,...snapshot.descendants].some(owner => owner.pid === pid)
-            && current.some(row => row.pid === pid && row.state === 'alive')))
-        } finally { if (timeout) clearTimeout(timeout); readyText = '' }
+          const ownedListener = async () => {
+            const listeners = await probe(pins.lsof, ['-nP','-iTCP:3117','-sTCP:LISTEN','-Fp'], end)
+            const current = await rows(); const snapshot = family.refresh(current)
+            const pids = listeners.split('\n').filter(line => /^p\d+$/.test(line)).map(line => Number(line.slice(1)))
+            assert(pids.length > 0 && pids.every(pid => [snapshot.identity,...snapshot.descendants].some(owner => owner.pid === pid)
+              && current.some(row => row.pid === pid && row.state === 'alive')))
+          }
+          await ownedListener()
+          // Listening is not readiness for a cold demand-compiled route. The
+          // controller reserves this one GET in the existing app budget first.
+          try { await routeReadiness.run(end) }
+          catch (error) { record('app', 'ready', 'route-readiness', closed, uncertain); throw error }
+          assert(!closed && !uncertain && Date.now() < end)
+          await ownedListener()
+        } catch (error) { record(input.role, 'ready', nativeProcessCause(error), closed, uncertain); throw error }
+        finally { if (timeout) clearTimeout(timeout); readyText = '' }
       },
       async wait() {
-        const timer = setTimeout(() => { uncertain = true }, Math.max(0, input.deadline - Date.now()))
+        const timer = setTimeout(() => { uncertain = true; record(input.role, 'wait', 'closure-deadline', closed, uncertain) }, Math.max(0, input.deadline - Date.now()))
         try {
           await Promise.race([closedPromise, new Promise<never>((_, reject) => {
             const handle = setTimeout(() => reject(fixedError()), Math.max(0, input.deadline - Date.now())); handle.unref()
             void closedPromise.then(() => clearTimeout(handle))
           })])
           await monitor; assert(closed && code === 0 && !uncertain && Date.now() < input.deadline)
-        } finally { clearTimeout(timer) }
+        } catch (error) { record(input.role, 'wait', uncertain ? 'prior-uncertainty' : nativeProcessCause(error), closed, uncertain); throw error }
+        finally { clearTimeout(timer) }
       },
       async settle(end) {
         stopping = true; clearInterval(tick)
@@ -170,27 +225,34 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
           const settlementRows = () => observeRows(admit, end)
           await family.settle(input.role === 'app' ? 'group' : 'pid', {
             rows: settlementRows, now: Date.now, admit,
-            signal: (pid, signal) => { process.kill(pid, signal) }, closed: () => closed, end,
+            signal: (pid, signal) => { try { process.kill(pid, signal) } catch (error) { record(input.role, 'settle', 'signal-error', closed, uncertain); throw error } }, closed: () => closed, end,
           })
           assert(closed && family.absent(await settlementRows())); admit(); children.delete(result)
           assert(!uncertain, 'Private native ownership observation failed')
-        } catch { poisoned = true; throw fixedError() }
+        } catch (error) { const cause = nativeProcessCause(error); record(input.role, 'settle', cause !== 'unknown' ? cause : uncertain ? 'prior-uncertainty' : 'unknown', closed, uncertain); poisoned = true; throw fixedError() }
       },
       state: () => ({ closed, code, uncertain, family: family.snapshot() }),
     })
     children.add(result); return result
   }
-  return Object.freeze({ probe, rows, spawnOwned,
+  return Object.freeze({ probe, rows, spawnOwned, diagnostics,
     async settleAll(end: number) {
       assert(end <= cleanupDeadline && end <= Date.now() + 360000); controllerEnd = Math.min(controllerEnd, end); cleaning = true
       // Start every verified family before awaiting any failure or slow close.
       // Each retains its own fresh kernel/group checks and the same deadline.
-      const results = await Promise.allSettled([...children].reverse().map(child => child.settle(controllerEnd)))
+      const results = await Promise.allSettled([
+        ...[...children].reverse().map(child => child.settle(controllerEnd)),
+        routeReadiness.settle(controllerEnd).catch(error => { record('app', 'settle', 'route-closure'); throw error }),
+      ])
       const failures = results.filter(result => result.status === 'rejected').map(() => fixedError())
+      if (activeProbes !== 0) record('unknown', 'aggregate', 'active-probes')
+      if (children.size !== 0) record('unknown', 'aggregate', 'children-remain')
+      if (poisoned) record('unknown', 'aggregate', 'prior-uncertainty', false, true)
       if (poisoned || children.size !== 0 || activeProbes !== 0) failures.push(fixedError())
       if (failures.length) { poisoned = true; throw new AggregateError(failures, 'Private contextual Test native cleanup failed') }
     },
     async settleCommand(child: ChildProcess, end: number) {
+      let closed = false
       try {
         assert(end <= cleanupDeadline); end = Math.min(end, controllerEnd)
         const admit = () => { checkCleanup(); assert(Date.now() < end) }
@@ -198,7 +260,6 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
         // cleanup, but native poison never grants a new capture.
         const captureAdmission = () => { admit(); assert(!poisoned) }
         captureAdmission(); assert(child.pid && child.spawnfile)
-        let closed = false
         child.once('close', () => { closed = true })
         const current = await observeRows(captureAdmission, end), root = current.find(row => row.pid === child.pid)
         assert(root, 'Failed command ownership unconfirmed')
@@ -212,11 +273,15 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
           argv: child.spawnargs, expectedArgv: child.spawnargs, expectedCwd: pins.outputDir, role: 'browser', rows: current })
         // Only this captured family survives later poison/cleanup admission.
         await family.settle('pid', { rows: () => observeRows(admit, end), now: Date.now, admit,
-          signal: (pid, signal) => { process.kill(pid, signal) }, closed: () => closed, end })
+          signal: (pid, signal) => { try { process.kill(pid, signal) } catch (error) { record('command', 'settle', 'signal-error', closed); throw error } }, closed: () => closed, end })
         admit(); assert(closed)
-      } catch { poisoned = true; throw fixedError() }
+      } catch (error) { record('command', 'settle', nativeProcessCause(error), closed); poisoned = true; throw fixedError() }
     },
-    assertClosed() { assert(!poisoned && children.size === 0 && activeProbes === 0) },
+    assertClosed() {
+      try { routeReadiness.assertClosed() }
+      catch (error) { record('app', 'settle', 'route-closure'); throw error }
+      assert(!poisoned && children.size === 0 && activeProbes === 0)
+    },
   })
 }
 
@@ -286,7 +351,7 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
     }
     assert.equal(captureContextualTestDependencies(admission.dependencies.root, executionEnd).sha256, admission.dependencies.sha256)
   }
-  return Object.freeze({ now: Date.now, command, sqlControl: Object.freeze({ nativePins: pins, transportPins: admission.transportPins }),
+  return Object.freeze({ now: Date.now, command, nativeDiagnostics: native.diagnostics, sqlControl: Object.freeze({ nativePins: pins, transportPins: admission.transportPins }),
     async assertReady(value) {
       assert(!admitted); assert.deepEqual(value, admission)
       assert.equal(contextualTestExecutionDigest(admission, pins, seal), seal.manifestSha256)

@@ -804,3 +804,18 @@ Five running containers/two volumes/one network and isolated workdir retained;
 both project labels/creation times verified, no signals/deletion/retry/clock reset.
 Raw DOM error-context absent. Serious exact-target recovery/closure gate remains;
 diagnose navigation/readiness and cleanup without widening auth/egress. All holds.
+
+Approved exact-target recovery removed only5290b7aaa6fb's5containers/2volumes/
+1network and temporary app directory; independent both-label/name/port/receipt
+hash checks pass, evidence/shared dependencies preserved. Original run staysfailed.
+Source diagnoses83/84: cold route work outlasted navigation failure; native inner
+cleanup cause unretained/unknown, not permission to clear sticky uncertainty.
+Fix47 adds one unauthenticated fixed-loopback /login readiness GET before browser
+login, charged to existing server50 allocation within aggregate1000; original
+ready180s/browser30s/full45min/cleanup6min bounds remain. Complete bounded body and
+request/response/socket close required; positive Node close-before-end and late
+original-error regressions included. Native cleanup now retains bounded fixed
+cause/role/phase metadata even when closure fails, without changing its decisions.
+Root controller4RED/native3RED and authors' targeted regressions precedeGREEN;
+independent review/full gate pending. No new native attempt authorized or started;
+production/shared-local/Survey/account/billing/activation holds unchanged.

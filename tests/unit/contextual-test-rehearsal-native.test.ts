@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events'
 import { resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 const native = vi.hoisted(() => ({ spawn: vi.fn(), verify: vi.fn() }))
+const routeReadiness = vi.hoisted(() => ({ run: vi.fn(), settle: vi.fn(), assertClosed: vi.fn() }))
+vi.mock('../../scripts/contextual-test-route-readiness', () => ({ createContextualTestRouteReadiness: () => routeReadiness }))
 vi.mock('node:child_process', () => ({ spawn: native.spawn }))
 vi.mock('node:net', () => ({ createServer: () => ({ once() {}, listen(_options: unknown, ready: () => void) { ready() }, close(done: () => void) { done() } }) }))
 vi.mock('../../scripts/contextual-test-rehearsal-launch', async original => ({
@@ -35,6 +37,7 @@ const pins: ContextualTestNativePins = {
 }
 let rows: Row[], app: Child, owned: Child[], kill: ReturnType<typeof vi.spyOn>, nextPid: number, output: string
 beforeEach(() => {
+  routeReadiness.run.mockReset().mockResolvedValue(undefined); routeReadiness.settle.mockReset().mockResolvedValue(undefined); routeReadiness.assertClosed.mockReset()
   native.spawn.mockReset(); native.verify.mockReset(); rows = []; owned = []; nextPid = 8000; output = ''
   kill = vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
     if (pid < 0) rows = rows.filter(row => row.pgid !== -pid)
@@ -84,6 +87,133 @@ function commandFixture(control: ReturnType<typeof createContextualTestNativeCon
 }
 
 describe('real native controller with CPU process doubles only', () => {
+  it('keeps route readiness inside the original ready end and blocks success until the route completes', async () => {
+    const started = Date.now(), clock = vi.spyOn(Date, 'now').mockReturnValue(started)
+    let finish!: () => void
+    const pending = new Promise<void>(resolve => { finish = resolve })
+    routeReadiness.run.mockImplementationOnce(async end => { expect(end).toBe(started + 180000); await pending })
+    try {
+      const controls = createContextualTestNativeControls(pins, started + 300000), child = await controls.spawnOwned({ ...launch(), deadline: started + 240000 })
+      let ready = false
+      const run = child.ready().then(() => { ready = true })
+      clock.mockReturnValue(started + 170000)
+      app.stdout.emit('data', Buffer.from('Ready in 1ms'))
+      await vi.waitFor(() => expect(routeReadiness.run).toHaveBeenCalledOnce())
+      expect(ready).toBe(false)
+      finish(); await run
+      await controls.settleAll(started + 175000)
+      expect(routeReadiness.settle).toHaveBeenCalledWith(started + 175000)
+      controls.assertClosed()
+    } finally { finish?.(); clock.mockRestore() }
+  })
+  it('rejects route readiness failure and still settles verified processes without granting readiness', async () => {
+    routeReadiness.run.mockRejectedValueOnce(Error('DO-NOT-RECORD route'))
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned(launch())
+    app.stdout.emit('data', Buffer.from('Ready in 1ms'))
+    await expect(child.ready()).rejects.toThrow()
+    await controls.settleAll(Date.now() + 5000)
+    expect(routeReadiness.settle).toHaveBeenCalledOnce(); expect(child.state().closed).toBe(true)
+    expect(controls.diagnostics().firstFailure).toMatchObject({ role: 'app', phase: 'ready', cause: 'route-readiness' })
+    expect(JSON.stringify(controls.diagnostics())).not.toContain('DO-NOT-RECORD')
+  })
+  it('retains route closure failure while still attempting every verified-family cleanup', async () => {
+    routeReadiness.settle.mockRejectedValueOnce(Error('DO-NOT-RECORD route close'))
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned(launch())
+    await expect(controls.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(child.state().closed).toBe(true)
+    expect(controls.diagnostics().firstFailure).toMatchObject({ role: 'app', phase: 'settle', cause: 'route-closure' })
+    expect(() => controls.assertClosed()).toThrow()
+  })
+  it('retains the first monitor cause after positive close and absence, isolated from the other role', async () => {
+    vi.useFakeTimers()
+    const control = createContextualTestNativeControls(pins, Date.now() + 20000)
+    const appChild = await control.spawnOwned(launch())
+    const browserChild = await control.spawnOwned({ ...launch(), role: 'browser' })
+    rows[0].state = 'unverified'
+    await vi.advanceTimersByTimeAsync(250)
+    expect(appChild.state().uncertain).toBe(true)
+    expect(browserChild.state().uncertain).toBe(false)
+    rows = []; for (const child of owned) child.emit('close', 1)
+    await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(control.diagnostics()).toMatchObject({
+      firstFailure: { role: 'app', phase: 'monitor', cause: 'kernel-unverified', closed: false, uncertain: true },
+      activeProbes: 0, unsettledFamilies: 0,
+    })
+    expect(control.diagnostics().failures.some(row => row.role === 'browser')).toBe(false)
+    expect(() => control.assertClosed()).toThrow()
+    expect(kill).not.toHaveBeenCalled()
+  })
+  it('reports active probe aggregate counts without granting closure', async () => {
+    vi.useFakeTimers()
+    const control = createContextualTestNativeControls(pins, Date.now() + 20000), probe = new Child(9000)
+    native.spawn.mockReturnValueOnce(probe)
+    const rejected = expect(control.probe(pins.docker, [], Date.now() + 1000)).rejects.toThrow()
+    await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(control.diagnostics()).toMatchObject({ activeProbes: 1, unsettledFamilies: 0, firstFailure: null })
+    expect(control.diagnostics().failures).toContainEqual({ role: 'unknown', phase: 'aggregate', cause: 'active-probes', closed: false, uncertain: false })
+    probe.emit('close', 0, null); await rejected
+    expect(control.diagnostics().activeProbes).toBe(0)
+    expect(() => control.assertClosed()).toThrow()
+  })
+  it.each(['output', 'child'])('retains the fixed %s failure without clearing uncertainty on close', async source => {
+    const control = createContextualTestNativeControls(pins, Date.now() + 20000), child = await control.spawnOwned(launch())
+    if (source === 'output') owned[0].stderr.emit('data', { length: 64 * 1024 ** 2 + 1 })
+    else owned[0].emit('error', Error('PRIVATE-SENTINEL'))
+    rows = []; owned[0].emit('close', 1)
+    await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(control.diagnostics().firstFailure).toEqual({ role: 'app', phase: 'monitor',
+      cause: source === 'output' ? 'output-overflow' : 'child-error', closed: false, uncertain: true })
+    expect(child.state().closed).toBe(true); expect(() => control.assertClosed()).toThrow()
+    expect(JSON.stringify(control.diagnostics())).not.toContain('PRIVATE-SENTINEL')
+  })
+  it('retains signal-error without reading the private thrown error or accepting closure', async () => {
+    const control = createContextualTestNativeControls(pins, Date.now() + 20000)
+    await control.spawnOwned(launch())
+    kill.mockImplementation(() => { throw Error('PRIVATE-SENTINEL') })
+    await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(control.diagnostics()).toMatchObject({ firstFailure: { role: 'app', phase: 'settle', cause: 'signal-error' }, unsettledFamilies: 1 })
+    expect(JSON.stringify(control.diagnostics())).not.toContain('PRIVATE-SENTINEL')
+    expect(() => control.assertClosed()).toThrow()
+  })
+  it.each(['own', 'getter', 'proxy', 'inherited', 'descriptor', 'private'])('projects only safe own fixed process causes: %s', async shape => {
+    vi.useFakeTimers()
+    const secret = vi.fn(() => { throw Error('PRIVATE-SENTINEL') })
+    const error = shape === 'own' ? { processCause: 'identity-mismatch', message: 'PRIVATE-SENTINEL' }
+      : shape === 'getter' ? Object.defineProperty({}, 'processCause', { get: secret })
+      : shape === 'proxy' ? new Proxy({}, { get: secret, getOwnPropertyDescriptor: secret, getPrototypeOf: secret })
+      : shape === 'inherited' ? Object.create({ processCause: 'identity-mismatch' })
+      : { processCause: 'PRIVATE-SENTINEL' }
+    const create = launchModule.createContextualTestOwnedFamily
+    const factory = vi.spyOn(launchModule, 'createContextualTestOwnedFamily').mockImplementation(input => {
+      const family = create(input)
+      return { ...family, refresh() { throw error } }
+    })
+    const getDescriptor = Object.getOwnPropertyDescriptor
+    const descriptorSpy = shape === 'descriptor' ? vi.spyOn(Object, 'getOwnPropertyDescriptor').mockImplementation((target, key) =>
+      target === error && key === 'processCause' ? Object.create({ get value() { return secret() } }) : getDescriptor(target, key)) : undefined
+    try {
+      const control = createContextualTestNativeControls(pins, Date.now() + 20000), child = await control.spawnOwned(launch())
+      await vi.advanceTimersByTimeAsync(250)
+      rows = []; owned[0].emit('close', 1)
+      await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
+      expect(control.diagnostics().firstFailure?.cause).toBe(shape === 'own' ? 'identity-mismatch' : 'unknown')
+      expect(JSON.stringify(control.diagnostics())).not.toContain('PRIVATE-SENTINEL')
+      expect(secret).not.toHaveBeenCalled(); expect(child.state().uncertain).toBe(true)
+    } finally { descriptorSpy?.mockRestore(); factory.mockRestore() }
+  })
+  it('bounds copied diagnostic snapshots and preserves the first failure across overflow', async () => {
+    const control = createContextualTestNativeControls(pins, Date.now() + 20000)
+    const empty = control.diagnostics()
+    for (let i = 0; i < 20; i++) await expect(control.settleCommand(new Child(9990) as never, Date.now() + 5000)).rejects.toThrow()
+    const snapshot = control.diagnostics(), again = control.diagnostics()
+    expect(empty).toEqual({ firstFailure: null, failures: [], overflow: false, activeProbes: 0, unsettledFamilies: 0 })
+    expect(snapshot.failures).toHaveLength(16); expect(snapshot.overflow).toBe(true)
+    expect(snapshot.firstFailure).toEqual(snapshot.failures[0])
+    expect(snapshot).not.toBe(again); expect(snapshot.failures).not.toBe(again.failures)
+    expect(snapshot.firstFailure).not.toBe(again.firstFailure)
+    for (const row of snapshot.failures) expect(Object.keys(row).sort()).toEqual(['cause','closed','phase','role','uncertain'])
+    expect(native.spawn.mock.calls.length).toBe(2); expect(kill).not.toHaveBeenCalled()
+  })
   it('does not inspect or launch anything at controller construction', () => {
     const controls = createContextualTestNativeControls(pins, Date.now() + 20000)
     controls.assertClosed(); expect(native.spawn).not.toHaveBeenCalled(); expect(kill).not.toHaveBeenCalled()

@@ -13,6 +13,7 @@ import { readFullStartupReport, validateFullStartupReport, type FullStartupRepor
 import { hashPassword } from '../src/lib/crypto'
 import { createAssignmentListNativeAdapters } from './contextual-assignment-list-proof-platform'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
+import type { ContextualTestNativeDiagnostics } from './contextual-test-rehearsal-native'
 import { runContextualTestDisposableLifecycle, readContextualTestBinding, validateContextualTestRunBinding, executeContextualTestSql, assertContextualTestSqlSettled,
   type ContextualTestRunBinding, type ContextualTestDisposableInput } from './contextual-test-rehearsal-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
@@ -48,6 +49,8 @@ export type ContextualTestControllerControls = Readonly<{
   launchApp(input: ContextualTestControllerLaunch): Promise<{ ready(): Promise<void> }>
   launchPlaywright(input: ContextualTestControllerLaunch): Promise<{ wait(): Promise<{ code: number | null; signal: string | null; closed: boolean }> }>
   settleAll(originalCleanupDeadline: number): Promise<void>
+  /** Diagnostic snapshot only; never authority for settlement or success. */
+  nativeDiagnostics?(): unknown
 }>
 type LedgerState = { version: 1; nonce: string; deadline: number; app: number; storage: number; api: number;
   flags: { denied: boolean; capExceeded: boolean; expired: boolean; uncertain: boolean } }
@@ -61,7 +64,7 @@ type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sour
   reviewedManifestSha256: string; startedAt: number; deadline: number; cleanupDeadline: number; endedAt: number;
   cleanupStartedAt: number | null; cleanupEnd: number | null; cleanup: CleanupReceipt;
   outcome: 'passed' | 'failed'; firstFailureStage: Stage | null; lifecycleCompleted: boolean; ownedSettled: boolean;
-  playwrightValidated: boolean; server: LedgerState | null; startup: FullStartupReport | null }>
+  playwrightValidated: boolean; server: LedgerState | null; startup: FullStartupReport | null; nativeDiagnostics: ContextualTestNativeDiagnostics | null }>
 /** Test seams replace only I/O; no injected result is native acceptance proof. */
 export type ContextualTestControllerEdges = {
   openEvidence(admission: ContextualTestControllerAdmission): void
@@ -72,7 +75,7 @@ export type ContextualTestControllerEdges = {
   passwordHash(password: string): Promise<string>
   sql: typeof executeContextualTestSql
   assertSqlSettled: typeof assertContextualTestSqlSettled
-  createLedger(binding: ContextualTestRunBinding): { snapshot(): unknown }
+  createLedger(binding: ContextualTestRunBinding): { snapshot(): unknown; reserveAppReadiness(): void }
   readPlaywrightReceipt(binding: ContextualTestRunBinding): unknown
   readStartupReport?(binding: ContextualTestRunBinding): unknown
   verifyArtifacts(binding: ContextualTestRunBinding, rawReceipt: unknown): void
@@ -81,6 +84,53 @@ export type ContextualTestControllerEdges = {
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex')
 const hex = /^[a-f0-9]{64}$/
 const fixedError = () => new Error('Private contextual Test controller failed; consult sanitized retained receipt')
+/** Private fixed producer metadata may be retained even when closure fails.
+ * Never inspect exception messages, accessors, proxies or inherited fields. */
+function projectNativeDiagnostics(raw: unknown): ContextualTestNativeDiagnostics | null {
+  try {
+    const data = (value: unknown, keys: readonly string[]): Record<string, unknown> => {
+      assert(value && typeof value === 'object' && !isProxy(value) && Object.getPrototypeOf(value) === Object.prototype)
+      assert.deepEqual(Reflect.ownKeys(value).sort(), [...keys].sort())
+      const descriptors = Object.getOwnPropertyDescriptors(value)
+      Object.setPrototypeOf(descriptors, null)
+      const result: Record<string, unknown> = Object.create(null)
+      for (const key of keys) {
+        assert(Object.hasOwn(descriptors, key) && Object.hasOwn(descriptors[key], 'value'))
+        result[key] = descriptors[key].value
+      }
+      return result
+    }
+    const roles = ['app','browser','command','probe','unknown'] as const
+    const phases = ['birth','monitor','ready','wait','settle','aggregate','probe'] as const
+    const causes = ['snapshot-schema','kernel-unverified','identity-mismatch','unverified-group','closure-deadline','unknown',
+      'probe-deadline','probe-exit','probe-overflow','signal-error','output-overflow','child-error','prior-uncertainty','active-probes','children-remain','route-readiness','route-closure'] as const
+    const row = (value: unknown) => {
+      const v = data(value, ['role','phase','cause','closed','uncertain'])
+      assert(roles.includes(v.role as typeof roles[number]) && phases.includes(v.phase as typeof phases[number]) && causes.includes(v.cause as typeof causes[number]))
+      assert(typeof v.closed === 'boolean' && typeof v.uncertain === 'boolean')
+      return Object.freeze({ role: v.role as typeof roles[number], phase: v.phase as typeof phases[number], cause: v.cause as typeof causes[number], closed: v.closed, uncertain: v.uncertain })
+    }
+    const snapshot = data(raw, ['firstFailure','failures','overflow','activeProbes','unsettledFamilies'])
+    assert(typeof snapshot.overflow === 'boolean')
+    for (const key of ['activeProbes','unsettledFamilies']) assert(Number.isSafeInteger(snapshot[key]) && Number(snapshot[key]) >= 0 && Number(snapshot[key]) <= 1000000)
+    const entries = snapshot.failures
+    assert(entries && typeof entries === 'object' && !isProxy(entries) && Array.isArray(entries) && Object.getPrototypeOf(entries) === Array.prototype)
+    const descriptors = Object.getOwnPropertyDescriptors(entries) as unknown as Record<string, PropertyDescriptor>
+    Object.setPrototypeOf(descriptors, null)
+    assert(Object.hasOwn(descriptors.length, 'value'))
+    const length = descriptors.length.value
+    assert(Number.isSafeInteger(length) && length >= 0 && length <= 16)
+    assert.deepEqual(Reflect.ownKeys(entries).sort(), [...Array.from({ length }, (_, i) => String(i)), 'length'].sort())
+    const failures = Array.from({ length }, (_, i) => {
+      assert(Object.hasOwn(descriptors[String(i)], 'value'))
+      return row(descriptors[String(i)].value)
+    })
+    const firstFailure = snapshot.firstFailure === null ? null : row(snapshot.firstFailure)
+    assert(firstFailure === null || firstFailure.phase !== 'aggregate')
+    return Object.freeze({ firstFailure, failures: Object.freeze(failures), overflow: snapshot.overflow,
+      activeProbes: Number(snapshot.activeProbes), unsettledFamilies: Number(snapshot.unsettledFamilies) })
+  } catch { return null }
+}
 /** Project only the execution control's five existing stage labels. Never read
  * accessors, iterate supplied arrays or retain any supplied exception object. */
 function projectExecutionCleanupStages(error: unknown): ExecutionCleanupStage[] {
@@ -149,8 +199,15 @@ const defaults: ContextualTestControllerEdges = {
     // Requiring the CJS policy must not auto-install its app-only hooks into
     // this controller. Native caller env remains separately hermetic.
     assert(!process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE && !process.env.PIKA_CONTEXTUAL_TEST_BINDING_SHA256)
-    const ledgerModule = createRequire(import.meta.url)('./contextual-test-rehearsal-egress.cjs') as { createContextualTestSharedLedger(input: ContextualTestRunBinding, options: { create: true }): { snapshot(): unknown } }
-    return ledgerModule.createContextualTestSharedLedger(binding, { create: true })
+    const ledgerModule = createRequire(import.meta.url)('./contextual-test-rehearsal-egress.cjs') as { createContextualTestSharedLedger(input: ContextualTestRunBinding, options: { create: true }): { snapshot(): unknown; charge(bucket: 'app'): void } }
+    const ledger = ledgerModule.createContextualTestSharedLedger(binding, { create: true })
+    let reserved = false
+    return { snapshot: () => ledger.snapshot(), reserveAppReadiness() {
+      assert(!reserved); reserved = true
+      // One cold-route GET consumes the existing server app allocation (50),
+      // leaving browser 950 + server 50 = the original aggregate 1000 ceiling.
+      ledger.charge('app')
+    } }
   },
   readPlaywrightReceipt: readReceipt,
   readStartupReport: readFullStartupReport,
@@ -246,7 +303,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
   admission = immutableContextualTestData(admission)
   let stage: Stage = 'preflight', firstFailureStage: Stage | null = null, attempted = false, lifecycleStarted = false
   let ownedSettled = false, lifecycleCompleted = false, playwrightValidated = false, failure = false
-  let binding: ContextualTestRunBinding | undefined, ledger: { snapshot(): unknown } | undefined, server: LedgerState | null = null
+  let binding: ContextualTestRunBinding | undefined, ledger: { snapshot(): unknown; reserveAppReadiness(): void } | undefined, server: LedgerState | null = null
   let startup: FullStartupReport | null = null
   let cleanupEnd: number | undefined, cleanupStartedAt: number | null = null
   const cleanup: { -readonly [K in keyof CleanupReceipt]: CleanupReceipt[K] } = {
@@ -312,6 +369,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
       stage = 'app-ready'
       const app = await controls.launchApp({ binding, args: commands.app, cwd: binding.appDir,
         env: contextualTestAppEnvironment(binding, status, admission.sessionSecret, join(admission.runner.repository, 'scripts/contextual-test-rehearsal-egress.cjs'), file.file, file.sha256), dependencySandboxProfile: profile })
+      ledger.reserveAppReadiness()
       await app.ready(); workCheck()
       stage = 'browser'
       const browser = await controls.launchPlaywright({ binding, args: commands.runner, cwd: admission.runner.repository,
@@ -345,13 +403,15 @@ export async function runContextualTestRehearsalController(admission: Contextual
         } catch { if (!failure) stage = 'proof'; failed() }
       }
       const plan = createContextualTestPlan(admission.projectId)
+      let nativeDiagnostics: ContextualTestNativeDiagnostics | null = null
+      try { if (controls.nativeDiagnostics) nativeDiagnostics = projectNativeDiagnostics(controls.nativeDiagnostics()) } catch { /* Never retain raw reporting failures. */ }
       const receipt: Receipt = Object.freeze({ version: 1, projectId: plan.projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree,
         runnerHead: admission.runner.head, runnerTree: admission.runner.tree, reviewedManifestSha256: admission.review.manifestSha256,
         startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, endedAt: controls.now(),
         cleanupStartedAt, cleanupEnd: cleanupEnd ?? null,
         cleanup: Object.freeze({ ...cleanup, executionFailures: Object.freeze([...cleanup.executionFailures]) }),
         outcome: !failure && ownedSettled && lifecycleCompleted && playwrightValidated && server !== null ? 'passed' : 'failed', firstFailureStage,
-        lifecycleCompleted, ownedSettled, playwrightValidated, server, startup })
+        lifecycleCompleted, ownedSettled, playwrightValidated, server, startup, nativeDiagnostics })
       try { edges.writeReceipt(receipt, admission) } catch { failure = true }
       if (!failure && receipt.outcome === 'passed') return receipt
     }

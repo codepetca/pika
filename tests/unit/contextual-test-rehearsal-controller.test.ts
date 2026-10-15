@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -46,7 +46,7 @@ function fixture() {
     async passwordHash() { events.push('password-hash'); return 'synthetic-bcrypt' },
     async sql(_binding: unknown, kind: string) { events.push(`sql-${kind}`); return '{}' },
     assertSqlSettled() { events.push('sql-closed') },
-    createLedger() { events.push('ledger-create'); return { snapshot() { events.push('ledger-read'); return { version: 1, nonce: admission.nonce, deadline: admission.deadline, app: 1, storage: 2, api: 10, flags: { denied: false, capExceeded: false, expired: false, uncertain: false } } } } },
+    createLedger() { events.push('ledger-create'); return { reserveAppReadiness() { events.push('readiness-reserve') }, snapshot() { events.push('ledger-read'); return { version: 1, nonce: admission.nonce, deadline: admission.deadline, app: 1, storage: 2, api: 10, flags: { denied: false, capExceeded: false, expired: false, uncertain: false } } } } },
     readPlaywrightReceipt() { events.push('pw-receipt'); return { version: 1, projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, outcome: 'passed', contextsClosed: true, counts: { appRequests: 30, storageRequests: 4, tests: 8, reservations: 2, uploads: 2 }, firstFailure: null, pending: 0, pageErrors: 0, consoleErrors: 0, artifacts: ['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].flatMap(actor => ['desktop','mobile'].flatMap(view => ['light','dark'].map(theme => ({ label: `${actor}-${view}-${theme}`, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })))), witnesses: [], endedAt: 2000, deadline: admission.deadline } },
     verifyArtifacts() { events.push('verify-artifacts') },
     writeReceipt(receipt: unknown) { events.push('receipt'); receipts.push(receipt) },
@@ -55,6 +55,51 @@ function fixture() {
 }
 
 describe('contextual Test controller CPU composition (no native proof)', () => {
+  it('reserves exactly one readiness request before app readiness and never launches PW before its completion', async () => {
+    const f = fixture()
+    let ready!: () => void
+    const pending = new Promise<void>(resolve => { ready = resolve })
+    f.control.launchApp = async () => ({ async ready() { f.events.push('route-ready-enter'); await pending; f.events.push('route-ready-complete') } })
+    const run = runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)
+    await vi.waitFor(() => expect(f.events).toContain('route-ready-enter'))
+    expect(f.events.filter(event => event === 'readiness-reserve')).toHaveLength(1)
+    expect(f.events.indexOf('readiness-reserve')).toBeLessThan(f.events.indexOf('route-ready-enter'))
+    expect(f.events).not.toContain('pw-spawn')
+    ready(); await run
+    expect(f.events.indexOf('route-ready-complete')).toBeLessThan(f.events.indexOf('pw-spawn'))
+  })
+  it('does not dispatch readiness or browser work after a failed request reservation', async () => {
+    const f = fixture(), base = f.edges.createLedger
+    f.edges.createLedger = () => ({ ...base(), reserveAppReadiness() { f.events.push('reservation-failed'); throw Error('budget exhausted') } })
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
+    expect(f.events.filter(event => event === 'reservation-failed')).toHaveLength(1)
+    expect(f.events).not.toContain('app-ready'); expect(f.events).not.toContain('pw-spawn')
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'app-ready', ownedSettled: true })
+  })
+  it('retains only fixed native diagnostics even when closure fails, without accepting the run', async () => {
+    const f = fixture()
+    const row = { role: 'browser', phase: 'monitor', cause: 'kernel-unverified', closed: false, uncertain: true }
+    const diagnostics = { firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 1 }
+    const control = { ...f.control, nativeDiagnostics: () => diagnostics, async settleAll() { throw Error('SECRET unproved closure') } }
+    await expect(runContextualTestRehearsalController(f.admission as never, control, f.edges as never)).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false, nativeDiagnostics: diagnostics })
+    row.cause = 'SECRET'
+    expect((f.receipts[0] as { nativeDiagnostics: { firstFailure: { cause: string } } }).nativeDiagnostics.firstFailure.cause).toBe('kernel-unverified')
+  })
+  it('rejects unsafe native metadata without evaluating getters/proxies or retaining raw data', async () => {
+    const getter = vi.fn(() => { throw Error('SECRET') })
+    const row = { role: 'app', phase: 'settle', cause: 'unknown', closed: false, uncertain: true }
+    const good = { firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 1 }
+    for (const raw of [new Proxy({}, { get: getter, ownKeys: getter }), Object.defineProperty({}, 'firstFailure', { get: getter }),
+      { ...good, token: 'SECRET' }, { ...good, failures: [Object.defineProperty({}, 'cause', { get: getter })] },
+      { ...good, firstFailure: { ...row, cause: 'SECRET' } }, { ...good, failures: Array(17).fill(row) }]) {
+      const f = fixture(), control = { ...f.control, nativeDiagnostics: () => raw }
+      const result = await runContextualTestRehearsalController(f.admission as never, control, f.edges as never)
+      expect(result).toMatchObject({ outcome: 'passed', nativeDiagnostics: null })
+      expect(JSON.stringify(result)).not.toContain('SECRET')
+    }
+    expect(getter).not.toHaveBeenCalled()
+  })
   it('runs the existing lifecycle with one attempt, exact captured binding, bootstrap, one app and one PW child', async () => {
     const f = fixture(); await runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)
     expect(f.events.indexOf('ready')).toBeLessThan(f.events.indexOf('attempt'))
@@ -229,7 +274,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
   })
   it('retains bounded failed ledger flags after proven settlement but never accepts them', async () => {
     const f = fixture(), base = f.edges.createLedger
-    f.edges.createLedger = () => ({ snapshot() { return { ...base().snapshot(), flags: { denied: true, capExceeded: false, expired: false, uncertain: false } } } })
+    f.edges.createLedger = () => ({ ...base(), snapshot() { return { ...base().snapshot(), flags: { denied: true, capExceeded: false, expired: false, uncertain: false } } } })
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
     expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'proof', ownedSettled: true, server: { flags: { denied: true } } })
   })
@@ -248,7 +293,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
   it('retains the original admitted clock even if the caller changes its object during readiness', async () => {
     const f = fixture(), originalEnd = f.admission.cleanupDeadline
     const originalLedger = f.edges.createLedger().snapshot(), originalReceipt = f.edges.readPlaywrightReceipt()
-    f.edges.createLedger = () => ({ snapshot: () => originalLedger })
+    f.edges.createLedger = () => ({ reserveAppReadiness() {}, snapshot: () => originalLedger })
     f.edges.readPlaywrightReceipt = () => originalReceipt
     f.control.assertReady = async () => { f.admission.deadline += 1000; f.admission.cleanupDeadline += 1000 }
     f.control.settleAll = async end => { f.events.push('settle'); expect(end).toBe(Math.min(originalEnd, 1001 + 360000)) }
@@ -262,7 +307,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
   })
   it('returned terminal receipt and retained counter projection cannot mutate later', async () => {
     const f = fixture(), state = f.edges.createLedger().snapshot()
-    f.edges.createLedger = () => ({ snapshot: () => state })
+    f.edges.createLedger = () => ({ reserveAppReadiness() {}, snapshot: () => state })
     const receipt = await runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)
     state.flags.denied = true
     expect(receipt.server?.flags.denied).toBe(false)
