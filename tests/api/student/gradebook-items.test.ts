@@ -90,11 +90,11 @@ describe('student saved standalone marks', () => {
     ])
     const response = await request()
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ items: [
-      { id: 'item-1', title: item.title, earned: 0, possible: 10, percent: 0, categoryName: 'Term Work', included: true },
-      { id: 'item-2', title: item.title, earned: 8, possible: 10, percent: 80, categoryName: 'Term Work', included: false },
-      { id: 'item-3', title: item.title, earned: 5, possible: 10, percent: 50, categoryName: 'Term Work', included: false },
-      { id: 'item-4', title: item.title, earned: 7, possible: 10, percent: 70, categoryName: 'Term Work', included: true },
+    expect(await response.json()).toEqual({ compactZeroWeightAssessments: true, items: [
+      { id: 'item-1', isZeroWeight: false, title: item.title, earned: 0, possible: 10, percent: 0, categoryName: 'Term Work', included: true },
+      { id: 'item-2', isZeroWeight: false, title: item.title, earned: 8, possible: 10, percent: 80, categoryName: 'Term Work', included: false },
+      { id: 'item-3', isZeroWeight: true, title: item.title, earned: 5, possible: 10, percent: 50, categoryName: 'Term Work', included: false },
+      { id: 'item-4', isZeroWeight: false, title: item.title, earned: 7, possible: 10, percent: 70, categoryName: 'Term Work', included: true },
     ] })
     expect(query.select.mock.calls[0][0]).not.toContain('*')
     expect(query.select.mock.calls[0][0]).toContain('gradebook_weight')
@@ -108,15 +108,18 @@ describe('student saved standalone marks', () => {
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
   })
 
-  it('hides only zero-weight marks when the classroom student option is enabled', async () => {
-    mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: true } } })
+  it.each([undefined, false, true])('retains zero-weight marks with compact preference %s and legacy hide enabled', async compactZeroWeightAssessments => {
+    mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: true, gradebook_compact_zero_weight_assessments: compactZeroWeightAssessments } } })
     queryRows([
       returnedScore,
       { ...returnedScore, gradebook_items: { ...item, id: 'zero', gradebook_weight: 0 } },
       { ...returnedScore, gradebook_items: { ...item, id: 'excluded', include_in_final: false } },
     ])
     const data = await (await request()).json()
-    expect(data.items.map((mark: { id: string }) => mark.id)).toEqual(['item-1', 'excluded'])
+    expect(data.items.map((mark: { id: string }) => mark.id)).toEqual(['item-1', 'zero', 'excluded'])
+    expect(data.compactZeroWeightAssessments).toBe(compactZeroWeightAssessments ?? true)
+    expect(data.items[1]).toMatchObject({ isZeroWeight: true, included: false })
+    expect(data.items[2]).toMatchObject({ isZeroWeight: false, included: false })
     expect(data.items[0].earned).toBe(0)
   })
 
@@ -164,7 +167,7 @@ describe('student saved standalone marks', () => {
 
   it.each(['42P01', 'PGRST205'])('tolerates unapplied tables with %s during rollout', async code => {
     queryRows([], { code })
-    expect(await (await request()).json()).toEqual({ items: [] })
+    expect(await (await request()).json()).toEqual({ items: [], compactZeroWeightAssessments: true })
   })
 
   it.each([null, { name: 'Practice', percentage: 0 }])('labels non-contributing categories as not counted: %s', async category => {
@@ -184,11 +187,11 @@ describe('student saved standalone marks', () => {
 
   it('returns an empty list when only blank scores exist', async () => {
     queryRows([{ ...returnedScore, earned: null }, { ...returnedScore, earned: null, returned_at: null }])
-    expect(await (await request()).json()).toEqual({ items: [] })
+    expect(await (await request()).json()).toEqual({ items: [], compactZeroWeightAssessments: true })
   })
 
   it('returns an empty list when no marks were saved', async () => {
     queryRows([])
-    expect(await (await request()).json()).toEqual({ items: [] })
+    expect(await (await request()).json()).toEqual({ items: [], compactZeroWeightAssessments: true })
   })
 })

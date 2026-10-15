@@ -14,11 +14,13 @@ export interface StudentGradeItem {
   possible: number
   percent: number
   included: boolean
+  isZeroWeight?: boolean
   href: string | null
 }
 
 export interface StudentGradesResponse {
   currentPercent: number | null
+  compactZeroWeightAssessments?: boolean
   items: StudentGradeItem[]
 }
 
@@ -31,6 +33,7 @@ export interface StudentGradeCalculationItem extends StudentGradeItem {
 
 export function buildStudentGradesResponse(input: {
   categories: Array<{ id: string; percentage: number }>
+  compactZeroWeightAssessments?: boolean
   items: StudentGradeCalculationItem[]
 }): StudentGradesResponse {
   const currentPercent = calculateCategorizedFinalPercent({
@@ -51,12 +54,13 @@ export function buildStudentGradesResponse(input: {
       || a.title.localeCompare(b.title)
       || a.id.localeCompare(b.id)
     ))
-    .map(({ categoryId: _categoryId, weight: _weight, returnedAt: _returnedAt, ...item }) => ({
+    .map(({ categoryId: _categoryId, weight, returnedAt: _returnedAt, ...item }) => ({
       ...item,
+      isZeroWeight: weight === 0,
       earned: round2(item.earned),
       possible: round2(item.possible),
       percent: round2(item.percent),
     }))
 
-  return { currentPercent, items }
+  return { currentPercent, compactZeroWeightAssessments: input.compactZeroWeightAssessments ?? true, items }
 }

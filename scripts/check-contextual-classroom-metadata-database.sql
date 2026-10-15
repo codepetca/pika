@@ -113,6 +113,32 @@ begin
     raise exception 'invalid student zero-weight setting accepted';
   exception when sqlstate 'PT400' then null;
   end;
+  -- Older clients omit the new setting: a missing persisted key defaults on.
+  update public.classrooms set feature_visibility = feature_visibility - 'gradebook_compact_zero_weight_assessments' where id=class_id;
+  result := public.update_classroom_metadata_for_owner_v1(owner_id, class_id,
+    jsonb_build_object('feature_visibility', flags - 'gradebook_compact_zero_weight_assessments' - 'gradebook_hide_zero_weight_student'));
+  if result->'feature_visibility'->'gradebook_compact_zero_weight_assessments' is distinct from 'true'::jsonb then
+    raise exception 'missing compaction setting did not default on';
+  end if;
+  for flags in select (result->'feature_visibility') || jsonb_build_object('gradebook_compact_zero_weight_assessments', compact)
+    from (values (true), (false)) setting(compact) loop
+    result := public.update_classroom_metadata_for_owner_v1(owner_id, class_id, jsonb_build_object('feature_visibility', flags));
+    if result->'feature_visibility'->'gradebook_compact_zero_weight_assessments' is distinct from flags->'gradebook_compact_zero_weight_assessments' then
+      raise exception 'explicit compaction setting did not save';
+    end if;
+    result := public.update_classroom_metadata_for_owner_v1(owner_id, class_id,
+      jsonb_build_object('feature_visibility', flags - 'gradebook_compact_zero_weight_assessments' - 'gradebook_hide_zero_weight_student'));
+    if result->'feature_visibility'->'gradebook_compact_zero_weight_assessments' is distinct from flags->'gradebook_compact_zero_weight_assessments'
+      or result->'feature_visibility'->'gradebook_hide_zero_weight_student' is distinct from 'true'::jsonb then
+      raise exception 'older client cleared optional zero-weight settings';
+    end if;
+    result := public.update_classroom_metadata_for_owner_v1(owner_id, class_id, '{"title":"compaction unrelated metadata update"}'::jsonb);
+    if result->'feature_visibility'->'gradebook_compact_zero_weight_assessments' is distinct from flags->'gradebook_compact_zero_weight_assessments' then
+      raise exception 'unrelated metadata update cleared compaction';
+    end if;
+  end loop;
+  perform pg_temp.expect_metadata_error(owner_id, class_id,
+    jsonb_build_object('feature_visibility', flags || '{"gradebook_compact_zero_weight_assessments":"true"}'::jsonb), 'PT400');
 end;
 $gradebook_visibility$;
 

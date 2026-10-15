@@ -51,9 +51,13 @@ export async function updateContextualClassroomMetadata(input: {
     || (row.actual_site_published && !row.actual_site_slug)) throw unavailable()
   for (const [key, value] of Object.entries(patch)) {
     const actual = Object.entries(row).find(([column]) => column === key)?.[1]
-    if (key === 'feature_visibility' && value && typeof value === 'object'
-      && !('gradebook_hide_zero_weight_student' in value) && actual && typeof actual === 'object') {
-      const { gradebook_hide_zero_weight_student: _setting, ...features } = actual as Record<string, unknown>
+    if (key === 'feature_visibility' && value && typeof value === 'object' && actual && typeof actual === 'object') {
+      // The locked RPC may preserve optional settings omitted by an older client.
+      // Explicitly supplied settings still require exact response equality.
+      const features = { ...actual } as Record<string, unknown>
+      for (const setting of ['gradebook_hide_zero_weight_student', 'gradebook_compact_zero_weight_assessments']) {
+        if (!(setting in value)) delete features[setting]
+      }
       if (!isDeepStrictEqual(features, value)) throw unavailable()
     } else if (!isDeepStrictEqual(actual, value)) throw unavailable()
   }

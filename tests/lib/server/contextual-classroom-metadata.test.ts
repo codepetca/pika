@@ -54,6 +54,26 @@ describe('metadata owner adapter and strict feature contracts (SDK fetch stub, n
     expect((await fixture({ ...classroom, feature_visibility: visibility }).run({ featureVisibility: older })).feature_visibility).toEqual(visibility)
     await expect(fixture({ ...classroom, feature_visibility: { ...visibility, tests: false } }).run({ featureVisibility: older })).rejects.toMatchObject({ statusCode: 503 })
   })
+  it.each([true, false])('supports shared zero-weight compaction %s and sends its explicit value unchanged', async compact => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_compact_zero_weight_assessments: compact }
+    const f = fixture({ ...classroom, feature_visibility: visibility })
+    expect((await f.run({ featureVisibility: visibility })).feature_visibility).toEqual(visibility)
+    expect(JSON.parse(String(f.requests[0].options?.body)).p_patch.feature_visibility).toEqual(visibility)
+    await expect(fixture({ ...classroom, feature_visibility: { ...visibility, gradebook_compact_zero_weight_assessments: !compact } }).run({ featureVisibility: visibility })).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it.each([true, false])('accepts compaction %s preserved by the locked RPC for an older client omitting both optional settings', async compact => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: true, gradebook_compact_zero_weight_assessments: compact }
+    const { gradebook_hide_zero_weight_student: _legacy, gradebook_compact_zero_weight_assessments: _compact, ...older } = visibility
+    const f = fixture({ ...classroom, feature_visibility: visibility })
+    expect((await f.run({ featureVisibility: older })).feature_visibility).toEqual(visibility)
+    expect(JSON.parse(String(f.requests[0].options?.body)).p_patch.feature_visibility).toEqual(older)
+    await expect(fixture({ ...classroom, feature_visibility: { ...visibility, tests: false } }).run({ featureVisibility: older })).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it.each(['true', null, 0])('rejects malformed compact settings at both feature boundaries %#', value => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_compact_zero_weight_assessments: value }
+    expect(contextualClassroomMetadataPatchSchema.safeParse({ featureVisibility: visibility }).success).toBe(false)
+    expect(contextualClassroomMetadataDBPatchSchema.safeParse({ feature_visibility: visibility }).success).toBe(false)
+  })
   it('retains explicit-null slug, unpublishing, omitted fields and the full thirty-column owner response', async () => {
     const row = { ...classroom, actual_site_slug: null, actual_site_published: false }
     const f = fixture(row)

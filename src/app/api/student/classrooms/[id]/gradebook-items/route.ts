@@ -10,6 +10,6 @@ export const revalidate = 0
 export const GET = withErrorHandler('GetStudentReturnedGradebookItems', async (_request, context) => {
   const user = await requireRole('student')
   const { id } = studentGradebookItemsParamsSchema.parse(await context.params)
-  const items = await getStudentReturnedGradebookItems(user.id, id)
-  return NextResponse.json({ items }, { headers: { 'Cache-Control': 'private, no-store' } })
+  const response = await getStudentReturnedGradebookItems(user.id, id)
+  return NextResponse.json(response, { headers: { 'Cache-Control': 'private, no-store' } })
 })
