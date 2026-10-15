@@ -791,3 +791,7 @@ focused checks/lint pass; earlier108 also passes TypeScript. Source review and
 full gate precede ONE newly authorized bounded rehearsal; no new
 admission/clock/token allocated. Historical exact failing action remains
 unattested; production/shared-local/provider/activation holds unchanged.
+Final acad53e3 passes3252focused/8skip plus all policies/TSC/lint. Review81 failed
+with a provider safety refusal, no report; final independent P1 closure is not
+accepted. No rephrase/reroute or native dispatch. Fresh rehearsal remains unspent;
+review access must legitimately resolve before advancing. PR1581 stays draft.
