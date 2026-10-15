@@ -47188,3 +47188,22 @@ settlement before the held-child assertion. No native/metadata acceptance, PR,
 shared/prod migration or live change. One targeted delta review follows; clocks
 and routine waiver retained. Browser commit-gate proposal is source-only pending
 review and its separately bounded diagnostic.
+
+<!-- pika-session-log-archive-batch:2f8b00e6537cd7d45a43f631d88bffff509421c6a861b6cb54773fb5a860c5cf -->
+## 2026-10-13 Survey positively closed startup diagnostics
+
+The first admitted disposable Survey attempt failed at startup and was fully
+spent; its stderr was not retained by the Survey-specific command branch, so
+the cause remains unknown. Preserve existing bounded private startup receipts
+after actual positive close, with an original-deadline check immediately before
+the exclusive0600 write. Late/unjoined closure remains typed sticky poison,
+blocks late writes and ordinary post-command observation, and cannot be masked
+by secondary observation. Legacy startup and successful Survey behavior hold.
+Independent targeted review13 PASS at exact platform6591dc5b/test36e8cfb0; prior
+source security coverage reused. Root actual40 tests/2 files, lint, audit and
+diff checks PASS; whole-script types still have14 known genuine263 RPC metadata
+gaps and are not passing. No past stderr recovery, native acceptance, PR,
+shared/prod migration or activation inferred. Routine workflow-budget approvals
+waived by the owner; correctness and serious-operation holds remain. Separate
+synthetic browser diagnostic now retains inner post-read failure with a completed
+CLI command and positive full cleanup; exact cause is under read-only diagnosis.

@@ -12,6 +12,7 @@ import type { ContextualTestControllerAdmission } from '../../scripts/contextual
 import { runContextualTestRehearsalController } from '../../scripts/contextual-test-rehearsal-controller'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { settleOwnedFamily, type Capture, type OwnedProcessRow } from '../../scripts/contextual-test-process-ownership'
+import * as launchModule from '../../scripts/contextual-test-rehearsal-launch'
 
 class Child extends EventEmitter {
   exitCode: number | null = null
@@ -31,21 +32,22 @@ const pins: ContextualTestNativePins = {
   helper: { path: resolve('scripts/contextual-test-process-identity.py'), sha256: '476c8c4696b8252debabb3ff7c5249deea10349cc91526ebc6eca924ef47f807' },
   dockerHost: 'unix:///cpu/docker.sock', outputDir: '/private/tmp',
 }
-let rows: Row[], app: Child, kill: ReturnType<typeof vi.spyOn>, nextPid: number, output: string
+let rows: Row[], app: Child, owned: Child[], kill: ReturnType<typeof vi.spyOn>, nextPid: number, output: string
 beforeEach(() => {
-  native.spawn.mockReset(); native.verify.mockReset(); rows = []; nextPid = 8000; output = ''
+  native.spawn.mockReset(); native.verify.mockReset(); rows = []; owned = []; nextPid = 8000; output = ''
   kill = vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
     if (pid < 0) rows = rows.filter(row => row.pgid !== -pid)
     else rows = rows.filter(row => row.pid !== pid)
-    if (!rows.some(row => row.pid === 1000)) app.emit('close', 0)
+    for (const child of owned) if (!rows.some(row => row.pid === child.pid)) child.emit('close', 0)
     return true
   }) as typeof process.kill)
   native.spawn.mockImplementation((file: string, args: string[]) => {
     if (file === pins.sandbox.path) {
-      app = new Child(1000)
-      rows = [{ pid: 1000, ppid: 42, pgid: 1000, started: '100:1', executable: pins.node.path, state: 'alive' },
-        { pid: 1001, ppid: 1000, pgid: 1000, started: '100:2', executable: pins.node.path, state: 'alive' }]
-      return app
+      const pid = (owned.length + 1) * 1000, child = new Child(pid)
+      owned.push(child); app = owned[0]
+      rows.push({ pid, ppid: 42, pgid: pid, started: `${pid}:1`, executable: pins.node.path, state: 'alive' },
+        { pid: pid + 1, ppid: pid, pgid: pid, started: `${pid}:2`, executable: pins.node.path, state: 'alive' })
+      return child
     }
     const child = new Child(nextPid++)
     child.stdin.end.mockImplementation(() => queueMicrotask(() => {
@@ -59,7 +61,7 @@ beforeEach(() => {
     return child
   })
 })
-afterEach(() => { kill.mockRestore() })
+afterEach(() => { kill.mockRestore(); vi.useRealTimers() })
 const launch = () => ({ args: ['/cpu/spec.js'], cwd: process.cwd(), env: {}, role: 'app' as const, profile: '(version 1)\n(allow default)', deadline: Date.now() + 10000 })
 
 describe('real native controller with CPU process doubles only', () => {
@@ -98,6 +100,81 @@ describe('real native controller with CPU process doubles only', () => {
     rows.push({ pid: 9999, ppid: 1, pgid: 1000, started: '300:1', executable: '/foreign', state: 'alive' })
     await expect(child.settle(Date.now() + 5000)).rejects.toThrow()
     expect(kill).not.toHaveBeenCalled()
+  })
+  it('still settles an older verified family when another child fails identity verification', async () => {
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000)
+    const older = await controls.spawnOwned(launch()), newer = await controls.spawnOwned({ ...launch(), role: 'browser' })
+    rows.find(row => row.pid === newer.child.pid)!.started = '9999:1'
+    try {
+      await expect(controls.settleAll(Date.now() + 5000)).rejects.toThrow()
+      expect(older.state().closed).toBe(true)
+      expect(kill.mock.calls).toEqual([[-1000, 'SIGTERM']])
+      expect(() => controls.assertClosed()).toThrow()
+      rows.find(row => row.pid === newer.child.pid)!.started = '2000:1'
+      await newer.settle(Date.now() + 5000)
+      // Both verified families are now positively closed/absent. The prior
+      // ownership rejection must still prevent acceptance and new work.
+      expect(newer.state().closed).toBe(true)
+      expect(() => controls.assertClosed()).toThrow()
+      await expect(controls.spawnOwned(launch())).rejects.toThrow()
+    } finally { if (!older.state().closed) await older.settle(Date.now() + 5000).catch(() => {}) }
+  })
+  it.each(['closed', 'unseen-orphan'])('a failed birth (%s) cannot strand an older verified family or clear the failure', async exit => {
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000), older = await controls.spawnOwned(launch())
+    const spawnDouble = native.spawn.getMockImplementation()!
+    native.spawn.mockImplementation((file: string, args: string[]) => {
+      const child = spawnDouble(file, args) as Child
+      if (file === pins.sandbox.path) {
+        rows = rows.filter(row => exit === 'closed' ? row.pgid !== child.pid : row.pid !== child.pid)
+        if (exit === 'closed') queueMicrotask(() => child.emit('close', 1))
+      }
+      return child
+    })
+    await expect(controls.spawnOwned({ ...launch(), role: 'browser' })).rejects.toThrow()
+    try {
+      await expect(controls.settleAll(Date.now() + 5000)).rejects.toThrow()
+      expect(older.state().closed).toBe(true)
+      expect(kill.mock.calls).toEqual([[-1000, 'SIGTERM']])
+      expect(() => controls.assertClosed()).toThrow()
+      await expect(controls.spawnOwned(launch())).rejects.toThrow()
+      await expect(controls.probe(pins.docker, ['version'], Date.now() + 1000)).rejects.toThrow()
+      await expect(controls.rows()).rejects.toThrow()
+      if (exit === 'unseen-orphan') expect(rows.some(row => row.pid === 2001)).toBe(true)
+    } finally { if (!older.state().closed) await older.settle(Date.now() + 5000).catch(() => {}) }
+  })
+  it('an unjoined failed probe does not block captured-family cleanup or become positive closure', async () => {
+    vi.useFakeTimers()
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000), older = await controls.spawnOwned(launch())
+    const spawnDouble = native.spawn.getMockImplementation()!
+    native.spawn.mockImplementation((file: string, args: string[]) => file === pins.docker.path ? new Child(9000) : spawnDouble(file, args))
+    const rejected = expect(controls.probe(pins.docker, ['version'], Date.now() + 1000)).rejects.toThrow()
+    await vi.advanceTimersByTimeAsync(1000); await rejected
+    await expect(controls.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(older.state().closed).toBe(true)
+    expect(kill.mock.calls).toEqual([[-1000, 'SIGTERM']])
+    expect(() => controls.assertClosed()).toThrow()
+  })
+  it('starts other families before a missing close exhausts the shared deadline', async () => {
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000)
+    const older = await controls.spawnOwned(launch()), newer = await controls.spawnOwned({ ...launch(), role: 'browser' })
+    let now = Date.now()
+    const end = now + 5000, sentAt: number[] = []
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now += 10)
+    kill.mockImplementation(((pid: number) => {
+      sentAt.push(now)
+      rows = rows.filter(row => pid < 0 ? row.pgid !== -pid : row.pid !== pid)
+      if (pid === -1000) app.emit('close', 0)
+      return true
+    }) as typeof process.kill)
+    try {
+      await expect(controls.settleAll(end)).rejects.toThrow()
+      expect(older.state().closed).toBe(true); expect(newer.state().closed).toBe(false)
+      expect(kill.mock.calls.some(([pid]) => pid === -1000)).toBe(true)
+      expect(sentAt.every(at => at < end)).toBe(true)
+      expect(() => controls.assertClosed()).toThrow()
+      await expect(controls.settleAll(end + 1000)).rejects.toThrow()
+      expect(sentAt.every(at => at < end)).toBe(true)
+    } finally { clock.mockRestore() }
   })
 })
 
@@ -142,6 +219,30 @@ describe('fresh execution seal (CPU only, no admission)', () => {
     const { admission, seal } = sealFixture(), controls = createContextualTestExecutionControls(admission, pins, seal)
     await expect(controls.assertReady(admission)).rejects.toThrow()
     expect(native.spawn).not.toHaveBeenCalled(); expect(native.verify).not.toHaveBeenCalled(); expect(kill).not.toHaveBeenCalled()
+  })
+  it('joins command settlements after native failure and retains only fixed cleanup failure stages', async () => {
+    vi.useFakeTimers()
+    const { admission, seal } = sealFixture(), actualPins = { ...pins, node: pin(realpathSync(process.execPath)) }
+    const accepted = contextualTestExecutionDigest(admission, actualPins, seal)
+    const input = { ...admission, review: { ...admission.review, manifestSha256: accepted } }
+    const command = { beginCleanup: vi.fn(), joinSettlements: vi.fn(async () => { throw Error('raw synthetic private command detail') }),
+      assertClosed: vi.fn(() => { throw Error('raw synthetic private closure detail') }) }
+    const factory = vi.spyOn(launchModule, 'createContextualTestPinnedCommand').mockReturnValue(command as unknown as ReturnType<typeof launchModule.createContextualTestPinnedCommand>)
+    try {
+      const controls = createContextualTestExecutionControls(input, actualPins, { ...seal, manifestSha256: accepted })
+      native.spawn.mockImplementationOnce(() => new Child(9000))
+      const rejected = expect(controls.assertReady(input)).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(30000); await rejected
+      const end = Date.now() + 5000
+      const failure = await controls.settleAll(end).catch(error => error) as AggregateError
+      expect(command.beginCleanup).toHaveBeenCalledExactlyOnceWith(end)
+      expect(command.joinSettlements).toHaveBeenCalledTimes(1); expect(command.assertClosed).toHaveBeenCalledTimes(1)
+      expect(failure).toBeInstanceOf(AggregateError)
+      expect(failure.errors.map(error => error.cleanupStage)).toEqual(['owned-families', 'command-settlements', 'command-closure', 'native-closure'])
+      expect(failure.errors.every(error => error.message === 'Private contextual Test native control failed')).toBe(true)
+      expect(JSON.stringify(failure)).not.toContain('raw synthetic private')
+      expect(kill).not.toHaveBeenCalled()
+    } finally { factory.mockRestore() }
   })
   it.each([false, true])('composes the actual controller and real native admission predicate; changed=%s', async changed => {
     const { admission, seal } = sealFixture(), actualPins = { ...pins, node: pin(realpathSync(process.execPath)) }

@@ -14,7 +14,10 @@ test('isolated contextual Tests: real owner/member lifecycle and fail-closed den
     startup.stage('spec-entry')
     test.setTimeout(45 * 60 * 1000)
     startup.stage('runtime-import')
-    const { createContextualTestRuntime } = await import('./helpers/contextual-test-runtime')
+    // Playwright compiles this .ts spec as CommonJS. Its late require uses the
+    // same installed TypeScript hook as collection while keeping native edges
+    // outside the ordinary, skipped test path.
+    const { createContextualTestRuntime } = require('./helpers/contextual-test-runtime') as typeof import('./helpers/contextual-test-runtime')
     startup.stage('runtime-imported')
     const owned = await createContextualTestRuntime(browser, testInfo, startup.stage)
     let outcome: 'passed' | 'failed' = 'failed'

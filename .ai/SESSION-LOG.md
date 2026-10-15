@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Survey positively closed startup diagnostics
-
-The first admitted disposable Survey attempt failed at startup and was fully
-spent; its stderr was not retained by the Survey-specific command branch, so
-the cause remains unknown. Preserve existing bounded private startup receipts
-after actual positive close, with an original-deadline check immediately before
-the exclusive0600 write. Late/unjoined closure remains typed sticky poison,
-blocks late writes and ordinary post-command observation, and cannot be masked
-by secondary observation. Legacy startup and successful Survey behavior hold.
-Independent targeted review13 PASS at exact platform6591dc5b/test36e8cfb0; prior
-source security coverage reused. Root actual40 tests/2 files, lint, audit and
-diff checks PASS; whole-script types still have14 known genuine263 RPC metadata
-gaps and are not passing. No past stderr recovery, native acceptance, PR,
-shared/prod migration or activation inferred. Routine workflow-budget approvals
-waived by the owner; correctness and serious-operation holds remain. Separate
-synthetic browser diagnostic now retains inner post-read failure with a completed
-CLI command and positive full cleanup; exact cause is under read-only diagnosis.
-
 ## 2026-10-13 Survey response predicate SQL grouping
 
 Fresh disposable startup now retains a private diagnostic: migration263 failed
@@ -718,6 +700,21 @@ spent token and reviews preserved; temporary clean reviewer copy removed normall
 No retry, phase exit or production change. Next evidence should use fixed envelope
 shape/code-site labels and an earlier body marker, not further signature guessing.
 Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+## 2026-10-14 Small-proof recovery and cleanup isolation
+
+Owner approved recovery then small loader/cleanup proofs before one fresh full
+rehearsal. Fresh six-minute recovery completed in81.798s: exact isolated project
+88dfc3bb2a65 containers, synthetic fixture volumes and network removed; temp
+workdir moved into its private evidence directory. All four ports clear; original
+failed controller receipt immutable and historical closure not retroactively
+accepted. Runtime late loading now uses the installed Playwright CommonJS hook;
+actual inert runtime export loads in a separate sandboxed noDB/no-network/no-fork
+process. Cleanup attempts each captured family despite another failure, joins
+commands independently and preserves permanent failure, identity checks and
+original shortened deadlines. Two bounded authors delivered; root integration
+89tests/6files PASS. Independent review and real cleanup proof still pending;
+no app exit, fresh admission, production change or Survey-probe planning inferred.
 
 ## 2026-10-14 Fixed error-shape/code-site observation and earliest body marker
 

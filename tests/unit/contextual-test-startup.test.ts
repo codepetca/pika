@@ -146,11 +146,11 @@ describe('full-app startup private CPU reporting', () => {
       if (failAt === 'timeout') throw original
     } })
     const runtime = { createContextualTestRuntime: async () => ({ runtime: {}, close }) }
-    // Replacing only the compiled dynamic-import expression with a CPU double
+    // Replacing only the compiled late-require expression with a CPU double
     // avoids invoking the actual runtime/native graph; all surrounding spec code runs.
-    const injected = compiled.replace(/import\(['"]\.\/helpers\/contextual-test-runtime['"]\)/, 'cpuImport()')
+    const injected = compiled.replace(/require\(['"]\.\/helpers\/contextual-test-runtime['"]\)/, 'cpuRequireRuntime()')
     expect(injected).not.toBe(compiled); const cpu = new Script(injected)
-    cpu.runInNewContext({ exports: {}, Promise, cpuImport: () => failAt === 'import' ? Promise.reject(original) : Promise.resolve(runtime), process: { env: { PIKA_CONTEXTUAL_TEST_REHEARSAL: 'true' } }, require: (specifier: string) => {
+    cpu.runInNewContext({ exports: {}, Promise, cpuRequireRuntime: () => { if (failAt === 'import') throw original; return runtime }, process: { env: { PIKA_CONTEXTUAL_TEST_REHEARSAL: 'true' } }, require: (specifier: string) => {
       if (specifier === '@playwright/test') return { test }
       if (specifier.endsWith('contextual-test-workflow')) return { runContextualTestWorkflow: async () => { throw original } }
       return { contextualTestStartupBinding: () => ({}), createContextualTestStartup: () => ({

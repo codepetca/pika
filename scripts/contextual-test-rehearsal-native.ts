@@ -39,11 +39,14 @@ const fixedError = () => new Error('Private contextual Test native control faile
 export function createContextualTestNativeControls(pins: ContextualTestNativePins, cleanupDeadline: number) {
   assert.equal(process.platform, 'darwin')
   const env: NodeJS.ProcessEnv = { PATH: '/usr/bin:/bin', HOME: pins.outputDir, LANG: 'C', LC_ALL: 'C', NODE_ENV: 'development' }
-  let poisoned = false, activeProbes = 0, controllerEnd = cleanupDeadline
+  let poisoned = false, cleaning = false, activeProbes = 0, controllerEnd = cleanupDeadline
   const children = new Set<ContextualTestOwnedChild>()
-  const check = () => assert(!poisoned && Date.now() < controllerEnd, 'Private native controller closed')
-  const probe = async (pin: ContextualTestBinaryPin, args: readonly string[], end: number, input?: string): Promise<string> => {
-    check(); verifyContextualTestBinary(pin)
+  const checkCleanup = () => assert(Date.now() < controllerEnd, 'Private native cleanup expired')
+  const check = () => { assert(!poisoned && !cleaning, 'Private native controller closed'); checkCleanup() }
+  // Failure permanently rejects new work. Only private observation for an
+  // already captured family may continue, under the original shortened clock.
+  const probeWithAdmission = async (admit: () => void, pin: ContextualTestBinaryPin, args: readonly string[], end: number, input?: string): Promise<string> => {
+    admit(); verifyContextualTestBinary(pin)
     end = Math.min(end, controllerEnd)
     assert(end > Date.now() && end <= cleanupDeadline && args.every(v => !v.includes('\0')))
     return new Promise((resolve, reject) => {
@@ -57,24 +60,27 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
       child.stderr.on('data', (bytes: Buffer) => { count += bytes.length; if (count > 16 * 1024 ** 2) { failed = true; poisoned = true } })
       child.once('close', (code, signal) => {
         clearTimeout(timer); activeProbes--
-        try { check(); verifyContextualTestBinary(pin); assert(!failed && code === 0 && signal === null && Date.now() < end); resolve(output.trim()) }
+        try { admit(); verifyContextualTestBinary(pin); assert(!failed && code === 0 && signal === null && Date.now() < end); resolve(output.trim()) }
         catch { reject(fixedError()) }
       })
       child.stdin.end(input)
     })
   }
-  const rows = async (): Promise<OwnedProcessRow[]> => {
-    check(); const end = Math.min(controllerEnd, Date.now() + 30000)
+  const probe = (pin: ContextualTestBinaryPin, args: readonly string[], end: number, input?: string) => probeWithAdmission(check, pin, args, end, input)
+  const observeRows = async (admit: () => void, deadline = controllerEnd): Promise<OwnedProcessRow[]> => {
+    admit(); const end = Math.min(deadline, controllerEnd, Date.now() + 30000)
     verifyContextualTestBinary(pins.helper)
     assert.equal(pins.helper.sha256, '476c8c4696b8252debabb3ff7c5249deea10349cc91526ebc6eca924ef47f807')
-    const text = await probe(pins.ps, ['-axo','pid=,ppid=,pgid='], end)
+    const text = await probeWithAdmission(admit, pins.ps, ['-axo','pid=,ppid=,pgid='], end)
     const input = text.split('\n').map(line => {
       const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s*$/.exec(line); assert(match)
       return match.slice(1).map(Number)
     }).filter(([pid]) => pid > 1)
     assert(input.length <= 20000)
-    return parseKernelProcessRows(await probe(pins.python, ['-I','-B', pins.helper.path], end, JSON.stringify(input)))
+    return parseKernelProcessRows(await probeWithAdmission(admit, pins.python, ['-I','-B', pins.helper.path], end, JSON.stringify(input)))
   }
+  const rows = () => observeRows(check)
+  const ownedRows = () => observeRows(checkCleanup)
   const birth = async (child: ChildProcess, role: 'app' | 'browser', executable: string, cwd: string, argv: readonly string[], end: number): Promise<OwnedFamily> => {
     assert(child.pid && child.pid > 1)
     while (Date.now() < end) {
@@ -126,7 +132,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     catch { poisoned = true; throw fixedError() }
     let monitor: Promise<void> = Promise.resolve(), stopping = false
     const tick = setInterval(() => {
-      monitor = monitor.then(async () => { if (!stopping) family.refresh(await rows()) }).catch(() => { uncertain = true })
+      monitor = monitor.then(async () => { if (!stopping) family.refresh(await ownedRows()) }).catch(() => { uncertain = true; poisoned = true })
     }, 250)
     tick.unref()
     const result: ContextualTestOwnedChild = Object.freeze({ child,
@@ -157,13 +163,18 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
         } finally { clearTimeout(timer) }
       },
       async settle(end) {
-        assert(end <= cleanupDeadline && end > Date.now()); stopping = true; clearInterval(tick); await monitor
-        await family.settle(input.role === 'app' ? 'group' : 'pid', {
-          rows, now: Date.now, admit: () => assert(Date.now() < end && !poisoned),
-          signal: (pid, signal) => { process.kill(pid, signal) }, closed: () => closed, end,
-        })
-        assert(closed && family.absent(await rows())); children.delete(result)
-        assert(!uncertain, 'Private native ownership observation failed')
+        stopping = true; clearInterval(tick)
+        try {
+          assert(end <= cleanupDeadline); end = Math.min(end, controllerEnd); assert(end > Date.now()); await monitor
+          const admit = () => { checkCleanup(); assert(Date.now() < end) }
+          const settlementRows = () => observeRows(admit, end)
+          await family.settle(input.role === 'app' ? 'group' : 'pid', {
+            rows: settlementRows, now: Date.now, admit,
+            signal: (pid, signal) => { process.kill(pid, signal) }, closed: () => closed, end,
+          })
+          assert(closed && family.absent(await settlementRows())); admit(); children.delete(result)
+          assert(!uncertain, 'Private native ownership observation failed')
+        } catch { poisoned = true; throw fixedError() }
       },
       state: () => ({ closed, code, uncertain, family: family.snapshot() }),
     })
@@ -171,9 +182,13 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
   }
   return Object.freeze({ probe, rows, spawnOwned,
     async settleAll(end: number) {
-      assert(end <= cleanupDeadline && end <= Date.now() + 360000); controllerEnd = Math.min(controllerEnd, end)
-      for (const child of [...children].reverse()) await child.settle(controllerEnd)
-      assert(!poisoned && children.size === 0 && activeProbes === 0)
+      assert(end <= cleanupDeadline && end <= Date.now() + 360000); controllerEnd = Math.min(controllerEnd, end); cleaning = true
+      // Start every verified family before awaiting any failure or slow close.
+      // Each retains its own fresh kernel/group checks and the same deadline.
+      const results = await Promise.allSettled([...children].reverse().map(child => child.settle(controllerEnd)))
+      const failures = results.filter(result => result.status === 'rejected').map(() => fixedError())
+      if (poisoned || children.size !== 0 || activeProbes !== 0) failures.push(fixedError())
+      if (failures.length) { poisoned = true; throw new AggregateError(failures, 'Private contextual Test native cleanup failed') }
     },
     async settleCommand(child: ChildProcess, end: number) {
       check(); assert(child.pid && child.spawnfile)
@@ -292,7 +307,15 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
     },
     async settleAll(end) {
       executionEnd = Math.min(executionEnd, end); command.beginCleanup(executionEnd)
-      await native.settleAll(executionEnd); await command.joinSettlements(); command.assertClosed(); native.assertClosed()
+      const results = await Promise.allSettled([native.settleAll(executionEnd), command.joinSettlements()])
+      const failures: Error[] = []
+      const failed = (stage: 'owned-families' | 'command-settlements' | 'command-closure' | 'native-closure') =>
+        failures.push(Object.assign(fixedError(), { cleanupStage: stage }))
+      if (results[0].status === 'rejected') failed('owned-families')
+      if (results[1].status === 'rejected') failed('command-settlements')
+      try { command.assertClosed() } catch { failed('command-closure') }
+      try { native.assertClosed() } catch { failed('native-closure') }
+      if (failures.length) throw new AggregateError(failures, 'Private contextual Test execution cleanup failed')
     },
   })
 }
