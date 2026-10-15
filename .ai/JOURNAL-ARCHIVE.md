@@ -47224,3 +47224,43 @@ shared/prod migration or activation. Source-only preparation of a fresh reviewed
 component follows, not a ready/merge/phase-exit claim. Browser diagnostics now
 confirm URL-wait timeout but not a body error; completion-boundary observation
 remains source-only, with original reader/gate/traffic controls intact.
+
+<!-- pika-session-log-archive-batch:c44be2e6b252571496fbea521946fb72266b5ef08d6b42f3bfecca012dc43e60 -->
+## 2026-10-13 Survey genuine metadata and bounded RPC typing
+
+Sole disposable8f component at d9223d7d68 closed0; SQL001–263 parsing, rollback,
+guarded real SDK, terminal/generation/restoration/preservation and exact teardown
+completed. Root independently checked target containers/volumes/networks/ports/
+workdir absent and validated twelve genuine RPC contracts. Whole440703-byte
+generated artifact82324a71 copied mechanically; only60 generated lines added.
+Receipt f848e342 retains nativeVerified=false: full committed races, backend/
+waiter observations, actual cancellation/payload and existing-screen proof remain.
+All spent candidates and executed seals preserved; no retry/rebind.
+
+New metadata exposed broad SDK RPC-union type recursion. Narrow only learner-open
+and integrated proof binding to the genuine fixed RPC Args/Returns. Runtime
+behavior unchanged; actual SDK seam retains fixed path/body/shared abort signal.
+Worker180/5 focused checks and strict scripts TSC PASS; root verification and
+targeted review precede integration. Sol/high source worker, approximately7min
+before exact binding extension; effective telemetry/tokens unknown. Original
+Survey22:04/review16/sourcefix7 counter continues, no reset. Browser sourcefix29
+attempt failed before its case with unknown family closure; lane parked pending
+verified recovery/owner reset. No blind signals, new browser trial, PR/main merge,
+shared/prod migration, provider/account/billing or activation. Routine approvals
+waived; serious holds and batch2/whole-goal acceptance remain.
+
+Root actual180/5 and strict scripts TSC PASS; independent targeted review17
+36a6eda0 complete PASS for metadata/leaf/bind source,228s observed. Broader app
+TSC then exposed two broad RPC-union sites (creation binding/unpublication result)
+and optional owner classroom narrowing. Batch sourcefix8 narrows only actual RPC
+types, preserves receiver/runtime bytes and explicitly fails closed on missing
+owner evidence; real archived/absent-parent and exact-body/count checks retained.
+Root full app TSC0,66/5 affected checks/lint/audit10/diff PASS; targeted review18
+dba10aa5 complete PASS,150s observed; prior17 pins unchanged. No passing scripts
+check was substituted for the broader failure. Both reviews cover source only,
+not remaining native/application/CI/merge/phase acceptance.
+Remaining acceptance map540b215d requires committed fresh case cohorts, exact
+two-session waiter observation and closed cancellation/payload budgets; accepted
+component is not replayed. Sol/high source-only committed-plan preparation owns
+two new inert module/test paths; root owns integration/dispatch and unchanged
+caps. No native target or live permission was granted by that source assignment.

@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Survey genuine metadata and bounded RPC typing
-
-Sole disposable8f component at d9223d7d68 closed0; SQL001–263 parsing, rollback,
-guarded real SDK, terminal/generation/restoration/preservation and exact teardown
-completed. Root independently checked target containers/volumes/networks/ports/
-workdir absent and validated twelve genuine RPC contracts. Whole440703-byte
-generated artifact82324a71 copied mechanically; only60 generated lines added.
-Receipt f848e342 retains nativeVerified=false: full committed races, backend/
-waiter observations, actual cancellation/payload and existing-screen proof remain.
-All spent candidates and executed seals preserved; no retry/rebind.
-
-New metadata exposed broad SDK RPC-union type recursion. Narrow only learner-open
-and integrated proof binding to the genuine fixed RPC Args/Returns. Runtime
-behavior unchanged; actual SDK seam retains fixed path/body/shared abort signal.
-Worker180/5 focused checks and strict scripts TSC PASS; root verification and
-targeted review precede integration. Sol/high source worker, approximately7min
-before exact binding extension; effective telemetry/tokens unknown. Original
-Survey22:04/review16/sourcefix7 counter continues, no reset. Browser sourcefix29
-attempt failed before its case with unknown family closure; lane parked pending
-verified recovery/owner reset. No blind signals, new browser trial, PR/main merge,
-shared/prod migration, provider/account/billing or activation. Routine approvals
-waived; serious holds and batch2/whole-goal acceptance remain.
-
-Root actual180/5 and strict scripts TSC PASS; independent targeted review17
-36a6eda0 complete PASS for metadata/leaf/bind source,228s observed. Broader app
-TSC then exposed two broad RPC-union sites (creation binding/unpublication result)
-and optional owner classroom narrowing. Batch sourcefix8 narrows only actual RPC
-types, preserves receiver/runtime bytes and explicitly fails closed on missing
-owner evidence; real archived/absent-parent and exact-body/count checks retained.
-Root full app TSC0,66/5 affected checks/lint/audit10/diff PASS; targeted review18
-dba10aa5 complete PASS,150s observed; prior17 pins unchanged. No passing scripts
-check was substituted for the broader failure. Both reviews cover source only,
-not remaining native/application/CI/merge/phase acceptance.
-Remaining acceptance map540b215d requires committed fresh case cohorts, exact
-two-session waiter observation and closed cancellation/payload budgets; accepted
-component is not replayed. Sol/high source-only committed-plan preparation owns
-two new inert module/test paths; root owns integration/dispatch and unchanged
-caps. No native target or live permission was granted by that source assignment.
-
 ## 2026-10-13 Restart recovery and preserved source
 
 Human confirmed restart; kernel boot1791859016 (Oct12 22:36:56 Toronto) postdates
@@ -813,4 +774,22 @@ Five containers, two volumes, one network and isolated temp workdir remain;
 both project labels/creation times/network members checked, no resources deleted.
 Preserve them and evidence pending a separately bounded exact-project recovery
 decision; no original clock extension, old admission replay or fresh rehearsal.
+Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+## 2026-10-14 Reviewed login readiness; full rehearsal and positive cleanup
+
+Runtime a6ebcfb5 plus docs-only416f4a7 passes3221focused/8skip and all policies,
+TSC/lint/audit. Reviews74/75 complete;74 found one inherited-Proxy diagnostic
+trap. Root reproduced RED, fixed direct-prototype projection, and review76
+closed it with9 independent CPU cases/zero traps;64 related checks pass.
+ONE fresh967633e36713/HaumAK full rehearsal FAILED/SPENT114.785s. The earlier
+timeout is replaced by a workflow assertion after one server API allocation;
+denied/uncertain guard flags set. Exact rejection site remains unknown; no
+authenticated-session or workflow acceptance. Browser contexts/pending and all
+six cleanup stages pass, ownedSettled=true. No raw DOM error-context retained.
+BEFOREpost-run edits/tests, independent comparison matches7628 source files and
+49485 dependencies/602159341bytes; exact containers/volumes/networks absent by
+both labels/name, workdir absent, four ports clear. Private evidence retained;
+no canonical-database equality or native acceptance inferred. No retry or new
+full clock: next isolate the server guard rejection without widening egress.
 Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
