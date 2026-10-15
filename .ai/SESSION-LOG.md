@@ -555,3 +555,19 @@ Owner requested More actions toggles “Hide 0-weight teacher” and “Hide 0-w
 UI brief: production Gradebook More actions/Pattern Lab gradebook-compact reference; extend toolbar/display preferences/classroom setting, reuse shared menu semantics and StudentGradesView. Teacher+student production owners, desktop1440/mobile390, light/dark, default/open/checked and all four toggle combinations PASS in16 Playwright captures under output/playwright/gradebook-zero-weight; Escape returns focus, no page overflow, student grade unchanged. No new shared visual pattern or promotion; no unrelated refactor. Composite checklist reviewed, semantic tests and keyboard coverage pass. Targeted behavior115 tests and previously failing Gallery87 tests PASS with bounded workers; architecture/UI/design policies PASS.
 
 Migration266 only extends the dormant metadata writer allowlist and preserves omitted student setting, retaining238 publication/ownership/lifecycle guards, signature and ACLs. Active legacy metadata supports the JSON setting without schema rollout;266 must precede enabling the dormant writer with this app. SQL rollback harness expanded; no canonical local/production migration applied. Initial broad check exposed finite265 proof inventories and concurrent Gallery timeouts; one GPT6.1-sol/high read-only worker mapped the eight exact profile consumers. Coordinator verified map and adds fixed filename/hash/bytes266 admission, retained historical profiles and future-tail/mutation tests. Worker effective model/time/token telemetry unknown; no edits delegated. Weekly99% remaining at startup; storage healthy. Final focused checks, fixed-SHA independent review and CI evidence follow in PR/lifecycle log. No merge, release, activation or migration application authorized.
+## 2026-10-15 — Student-table gridlines toggle
+
+Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
+selected Assignment/Test grading, Gradebook and the teacher dashboard matrix.
+Reused checked work-surface menus and DataTable dividers; Gradebook uses cell
+borders for its border-separated matrix and existing saved display preferences.
+Other screens retain per-page display state. Risk profile: none.
+Reference: Attendance table canon and Pattern Lab production Gradebook owners.
+Teacher desktop/mobile, light/dark, off/on/menu and keyboard focus verified by
+Playwright: 24 surface/viewport/theme cases. Student role n/a (teacher tables only).
+Captures/repro scripts: output/playwright/gridlines* (ignored, synthetic data).
+Composite checklist reviewed; checked semantics, keyboard/focus and persistence
+covered by component regressions. No new primitive or experimental pattern.
+Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
+verified against source, no worker corrections or conflicts; tokens/time unknown.
+Weekly usage at start: 1% used; storage healthy (~328 GB available).

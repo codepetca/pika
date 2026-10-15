@@ -71,7 +71,7 @@ export function GradebookCompactPattern() {
       hideZeroWeightStudent={hideZeroWeightStudent} onHideZeroWeightStudentChange={setHideZeroWeightStudent} />
     <Button variant="secondary" aria-pressed={!maximumEditsEnabled} onClick={() => setMaximumEditsEnabled((enabled) => !enabled)}>Pause maximum changes (fixture)</Button>
     <div className="h-96">
-      <GradebookTable students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments, preferences.hideZeroWeightTeacher)} displayMode={preferences.scoreDisplayMode}
+      <GradebookTable showGridlines={preferences.showGridlines} students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments, preferences.hideZeroWeightTeacher)} displayMode={preferences.scoreDisplayMode}
         ultraCompact={preferences.ultraCompact} lastNameFirst={preferences.lastNameFirst}
         showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
         keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}

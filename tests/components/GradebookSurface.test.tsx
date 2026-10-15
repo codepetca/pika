@@ -29,6 +29,23 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
+  it('toggles gridlines on student cells without changing selection or metadata', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<TooltipProvider><GradebookCompactPattern /></TooltipProvider>)
+    const studentBody = screen.getByRole('row', { name: /Avery Chen/ }).parentElement!
+    expect(studentBody.className).toBe('')
+    await user.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'false')
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(studentBody.className).toContain('border-b')
+    expect(container.querySelector('thead')).not.toHaveClass('border-b')
+    expect(screen.getByRole('checkbox', { name: /Select Avery/ })).not.toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(studentBody.className).toBe('')
+  })
+
   it('shows draft assignment and test columns in the Pattern Lab when the menu setting is cleared', async () => {
     const user = userEvent.setup()
     render(<TooltipProvider><GradebookCompactPattern /></TooltipProvider>)

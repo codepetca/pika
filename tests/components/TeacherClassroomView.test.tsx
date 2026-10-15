@@ -1456,6 +1456,19 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('dialog', { name: 'New Assignment' })).toBeNull()
   })
 
+  it('toggles selected assignment student gridlines from More actions', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Assignment grading actions' })).toBeInTheDocument())
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+  })
+
   it('opens selected assignment Markdown and returns to visual mode on normal edit', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)

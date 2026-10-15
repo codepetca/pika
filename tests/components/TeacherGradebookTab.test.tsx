@@ -278,6 +278,21 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('32.5%')
   })
 
+  it('defaults gridlines off and persists the chosen display across remounts', async () => {
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(screen.getByRole('row', { name: /Ada Lovelace/ }).parentElement!.className).toContain('border-b')
+    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ showGridlines: true })
+    view.unmount()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Show gridlines' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show gridlines' }))
+    expect(screen.getByRole('row', { name: /Ada Lovelace/ }).parentElement!.className).toBe('')
+  })
+
   it('persists display preferences and exposes three weight metadata rows', async () => {
     renderGradebook('grades')
     await screen.findByText('Ada')
