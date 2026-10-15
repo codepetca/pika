@@ -6,7 +6,7 @@ import { types } from 'node:util'
 
 type Failure = 'deadline' | 'failed' | 'origin' | 'endpoint' | 'request-cap' | 'test-cap' | 'upload-cap'
   | 'storage-method' | 'storage-reservation' | 'storage-bytes' | 'response-body' | 'response-cap'
-  | 'response-json' | 'response-acknowledgement' | 'context-close'
+  | 'response-json' | 'response-acknowledgement' | 'response-original-incompatible' | 'context-close'
 type OriginalResponse = { url(): string; status(): number; headers(): Record<string, string>; body(): Promise<Buffer> }
 type Reservation = { testId: string; bytes: number; url: string | null; readPath: string | null; managedId: string | null; uploaded: boolean }
 type Task = { promise: Promise<unknown>; end: number }
@@ -39,6 +39,7 @@ export class ContextualTestBoundary {
   private responseFailure: ResponseFailure | null = null
   private readonly tasks = new Map<object, Set<Task>>()
   private readonly responses = new WeakMap<object, Promise<unknown>>()
+  private readonly requests = new WeakMap<object, { context: object; task: Task; finish: () => void }>()
   private readonly reservations = new Map<string, Reservation>()
   private readonly testIds: Set<string>
   private readonly counts = { appRequests: 0, storageRequests: 0, tests: 2, reservations: 0, uploads: 0 }
@@ -58,6 +59,30 @@ export class ContextualTestBoundary {
   }
   receipt() { return { counts: { ...this.counts }, firstFailure: this.failed, requestFailure: this.requestFailure ? { ...this.requestFailure } : null, responseFailure: this.responseFailure ? { ...this.responseFailure } : null, pending: [...this.tasks.values()].reduce((n, set) => n + set.size, 0) } }
   pending(context: object) { return this.tasks.get(context)?.size ?? 0 }
+  requestStarted(context: object, request: object) {
+    if (this.requests.has(request)) return
+    const end = Math.min(this.deadline, this.now() + this.plan.limits.operationMs)
+    let finish!: () => void
+    const promise = new Promise<void>(resolve => { finish = resolve })
+    const task = { end, promise }
+    const set = this.tasks.get(context) ?? new Set<Task>(); this.tasks.set(context, set); set.add(task)
+    this.requests.set(request, { context, task, finish })
+  }
+  requestFinished(context: object, request: object, failed = false) {
+    const lifetime = this.requests.get(request)
+    if (!lifetime || lifetime.context !== context) return
+    // Keep the original end for response validation even after transport ends.
+    // Body tasks remain separately owned until their original bytes settle.
+    if (failed) this.failed ??= 'response-body'
+    const set = this.tasks.get(context)
+    set?.delete(lifetime.task); if (!set?.size) this.tasks.delete(context)
+    lifetime.finish()
+  }
+  canNavigate(context: object, navigationRequest: object) {
+    const navigation = this.requests.get(navigationRequest)?.task
+    if ([...(this.tasks.get(context) ?? [])].some(task => task !== navigation)) this.reject('endpoint')
+    this.check()
+  }
   private rejectOrigin(reason: RequestFailure['reason'], u: URL | null, method: string, resource: string): never {
     // Diagnostics only: exact known origins project to fixed labels. No URL,
     // path, query, body, credential, arbitrary method/resource name or hash is
@@ -112,16 +137,27 @@ export class ContextualTestBoundary {
       reservation.uploaded = true
     }
   }
-  observe(context: object, response: OriginalResponse, request?: { method(): string; postDataJSON(): unknown }) {
+  observe(context: object, response: OriginalResponse, request?: { method(): string; postDataJSON(): unknown }, source: 'browser' | 'api' = 'browser') {
     const cached = this.responses.get(response)
     if (cached) return cached
-    const end = Math.min(this.deadline, this.now() + this.plan.limits.operationMs)
+    const end = (request && this.requests.get(request)?.task.end) ?? Math.min(this.deadline, this.now() + this.plan.limits.operationMs)
     let phase: Failure = 'response-body'
-    // The async body starts synchronously: response.body() is called on the
-    // original Response before any await, queue, navigation or collection hook.
+    // Start the original response read at headers, but retain ownership through
+    // transport completion: Playwright defers acquisition until requestfinished.
     const original = (async () => {
-      const mime = response.headers()['content-type'] ?? ''
+      const headers = response.headers(), mime = headers['content-type'] ?? ''
       if (!/json/i.test(mime)) return undefined
+      // Pinned Playwright 1.58's Chromium adapter can refetch an empty inspector
+      // body when the provisional Content-Length is truthy. The synchronous
+      // headers preserve that same payload (duplicates join, never overwrite).
+      // Until an original-only reader supports positive lengths, reject them
+      // before body(), including incidental JSON. APIResponse has no CDP path.
+      if (source === 'browser') {
+        phase = 'response-original-incompatible'
+        const lengths = Object.entries(headers).filter(([name]) => name.toLowerCase() === 'content-length')
+        if (lengths.length > 1 || (lengths.length === 1 && lengths[0][1] !== '0')) this.reject(phase)
+      }
+      phase = 'response-body'
       const bytes = await response.body()
       phase = 'response-cap'
       if (bytes.byteLength > this.plan.limits.responseBytes) this.reject(phase)
@@ -178,9 +214,9 @@ export class ContextualTestBoundary {
       }
     }
   }
-  async settle(context: object) {
+  async settle(context: object, operationEnd = this.deadline) {
     while (this.pending(context)) {
-      const tasks = [...this.tasks.get(context)!], end = Math.min(this.deadline, ...tasks.map(task => task.end))
+      const tasks = [...this.tasks.get(context)!], end = Math.min(this.deadline, operationEnd, ...tasks.map(task => task.end))
       const remaining = end - this.now()
       if (remaining <= 0) this.reject('deadline')
       let timer: ReturnType<typeof setTimeout> | undefined
@@ -188,12 +224,16 @@ export class ContextualTestBoundary {
         timer = setTimeout(() => { this.failed ??= 'deadline'; reject(new Error('Private Test rehearsal boundary')) }, remaining)
       })]) } finally { if (timer) clearTimeout(timer) }
     }
+    if (this.now() >= operationEnd) this.reject('deadline')
     this.check()
   }
   async beforeContextClose(context: object, close: () => Promise<void>) {
     let failed = false
     try { await this.settle(context) } catch { failed = true }
     try { await close() } catch { failed = true; this.failed ??= 'context-close' }
+    // Event handlers stay installed during disposal. A late response must join
+    // the same bounded ownership and can never turn a failed close into success.
+    try { await this.settle(context) } catch { failed = true }
     if (failed) this.reject('failed')
   }
 }

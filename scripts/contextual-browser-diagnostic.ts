@@ -8,14 +8,14 @@ import { dirname, join } from 'node:path'
 import type { BrowserStartupJournal, BrowserStartupStage } from './contextual-browser-startup'
 import { captureContextualTestDependencies, contextualTestReadOnlyDependencyProfile, immutableContextualTestData, verifyContextualTestBinary } from './contextual-test-rehearsal-launch'
 import { createContextualTestNativeControls, type ContextualTestNativePins, type ContextualTestOwnedChild } from './contextual-test-rehearsal-native'
-import { assertDiagnosticPrivateUmask, assertDiagnosticRunnerOutputModes, diagnosticDirectory, diagnosticHash, diagnosticRead, diagnosticReportPassed, diagnosticSourceFiles, diagnosticWrite,
+import { assertDiagnosticPrivateUmask, assertDiagnosticRunnerOutputModes, diagnosticDirectory, diagnosticHash, diagnosticRead, diagnosticReportPassed, diagnosticSourceFiles, diagnosticWrite, navigationLifecyclePassed,
   DIAGNOSTIC_CHROME, DIAGNOSTIC_CHROME_SHA, DIAGNOSTIC_VERSION, type DiagnosticAdmission } from './contextual-browser-diagnostic-data'
 
 export type BrowserDiagnosticInput = {
   repository: string; outputDir: string; pins: ContextualTestNativePins
   sourceSha256: Readonly<Record<string, string>>
   dependencies: { root: string; sha256: string }
-  mode?: 'login-body'
+  mode?: DiagnosticAdmission['mode']
 }
 type Stage = 'preflight' | 'browser' | 'cleanup' | 'receipt' | 'complete'
 const fixedFailure = () => new Error('Private browser diagnostic failed; consult fixed private receipts')
@@ -30,7 +30,7 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
   input = await step('runtime-input', () => {
     assertDiagnosticPrivateUmask(process.umask())
     const snapshot = immutableContextualTestData(input)
-    assert(snapshot.mode === undefined || snapshot.mode === 'login-body')
+    assert(snapshot.mode === undefined || snapshot.mode === 'login-body' || snapshot.mode === 'navigation-lifecycle')
     diagnosticDirectory(snapshot.outputDir); assert.equal(readdirSync(snapshot.outputDir).length, 0)
     assert.equal(realpathSync(snapshot.repository), snapshot.repository)
     assert.equal(realpathSync(snapshot.dependencies.root), snapshot.dependencies.root)
@@ -71,7 +71,7 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
     mkdirSync(join(input.outputDir, 'runner-output'), { mode: 0o700 })
     const startedAt = Date.now(), deadline = startedAt + 90000, cleanupDeadline = deadline + 360000
     const admission: DiagnosticAdmission = { version: 1, nonce: randomBytes(16).toString('hex'), outputDir: input.outputDir, startedAt, deadline, cleanupDeadline,
-      ...(input.mode === 'login-body' ? { mode: input.mode } : {}) }
+      ...(input.mode !== undefined ? { mode: input.mode } : {}) }
     diagnosticWrite(input.outputDir, 'admission.json', admission)
     diagnosticWrite(input.outputDir, 'spent.json', { version: 1, nonce: admission.nonce, startedAt })
     return admission
@@ -114,7 +114,9 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
       assertDiagnosticRunnerOutputModes(input.outputDir)
       reportPassed = diagnosticReportPassed(JSON.parse(diagnosticRead(join(input.outputDir, 'report.json'))))
       const lifecycle = JSON.parse(diagnosticRead(join(input.outputDir, 'lifecycle.json')))
-      if (input.mode === 'login-body') {
+      if (input.mode === 'navigation-lifecycle') {
+        lifecyclePassed = navigationLifecyclePassed(lifecycle)
+      } else if (input.mode === 'login-body') {
         assert.deepEqual(Object.keys(lifecycle).sort(), ['atCutoff','bodyDone','bodySettled','bodyVerified','contextClosed','diagnosticOnly','events','failure','fetchHeld','mode','navigationHeld',
           'originalSeen','overflow','pageErrors','posts','requestFinished','requests','serverClosed','socketsRemaining','unexpectedRequests','version','versionMatched'].sort())
         lifecyclePassed = lifecycle.version === 1 && lifecycle.mode === 'login-body' && lifecycle.versionMatched === true && lifecycle.diagnosticOnly === true
@@ -137,7 +139,8 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
     nativeDiagnostics: native.diagnostics(), diagnosticOnly: true,
     nodeVersion: 'v24.12.0', playwrightVersion: '1.58.0', chromeVersion: DIAGNOSTIC_VERSION,
     sourceManifestSha256: diagnosticHash(JSON.stringify(input.sourceSha256)), dependencySha256: dependencies.sha256,
-    networkScope: input.mode === 'login-body' ? 'one-synthetic-loopback-login;3-requests;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
+    networkScope: input.mode === 'navigation-lifecycle' ? 'one-synthetic-loopback-navigation;3-requests;1-json;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
+      : input.mode === 'login-body' ? 'one-synthetic-loopback-login;3-requests;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
       : 'offline-context-and-all-route-abort; inherited-sandbox-is-not-global-egress-isolation' }
   diagnosticWrite(input.outputDir, 'controller.json', receipt)
   if (receipt.outcome !== 'passed') throw fixedFailure()

@@ -70,6 +70,7 @@ class FakePage extends EventEmitter {
     this.current = url
     if (options.waitUntil === 'load' && !this.neverHydrates) this.hydrated = true
   })
+  readonly reload = vi.fn(async () => {})
   readonly waitForFunction = vi.fn(async (_predicate: () => boolean, _arg: undefined, options: { timeout: number }) => {
     this.readyEnd = Date.now() + options.timeout
     if (!(this.hydrated && this.email === 'teacher@example.com' && this.secret === 'test1234')) {
@@ -111,7 +112,10 @@ class FakePage extends EventEmitter {
       this.loginResponse = new FakeResponse(this, request, { success: true }, this.loginStatus, async () => {
         // The app has consumed its Fetch body before assigning location. The
         // separate inspector read can still be in flight at document commit.
-        const bytes = await originalBody()
+        let bytes: Buffer
+        try { bytes = await originalBody() }
+        catch (error) { this.owner.emit('requestfailed', request); throw error }
+        this.owner.emit('requestfinished', request)
         if (this.raceNavigation) await new Promise(resolve => setTimeout(resolve, 1))
         if (this.navigationCommitted) throw Error('Protocol error (Network.getResponseBody): No resource with given identifier found')
         return bytes
@@ -165,7 +169,6 @@ class FakeContext extends EventEmitter {
     const continued = vi.fn(async () => {}), aborted = vi.fn(async () => {})
     await this.routeHandler?.({ request: () => request, continue: continued, abort: aborted })
     expect(continued).toHaveBeenCalledOnce(); expect(aborted).not.toHaveBeenCalled()
-    this.emit('requestfinished', request)
   }
   async navigate(page: FakePage) {
     const request = new FakeRequest(plan.appOrigin + '/classrooms', 'GET', undefined, page)
@@ -216,6 +219,82 @@ async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Para
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it('keeps an explicit reload after draining rather than substituting same-document navigation', async () => {
+    const s = await setup()
+    await s.runtime.withActor('ownerTeacher', async page => {
+      const c = s.browser.contexts[0], request = new FakeRequest(plan.appOrigin + '/incidental')
+      await c.dispatch(request)
+      const reloading = s.runtime.reload(page)
+      await Promise.resolve(); expect(c.page.reload).not.toHaveBeenCalled()
+      const response = new FakeResponse(c.page, request)
+      c.emit('response', response); c.emit('requestfinished', request); await reloading
+      expect(c.page.reload).toHaveBeenCalledWith(expect.objectContaining({ waitUntil: 'domcontentloaded' }))
+      expect(c.page.goto).toHaveBeenCalledTimes(1)
+    })
+  })
+  it('rejects positive-length original browser login before body acquisition or identity dispatch', async () => {
+    const browser = new FakeBrowser()
+    browser.configure = c => c.on('response', (response: FakeResponse) => {
+      Object.assign(response, { headers: () => ({ 'content-type': 'application/json', 'content-length': '16' }) })
+      // Transport finishes independently of whether the inspector read is used.
+      c.emit('requestfinished', response.request())
+    })
+    const s = await setup(browser), callback = vi.fn()
+    await expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+    const c = browser.contexts[0]
+    expect(c.page.loginResponse!.body).not.toHaveBeenCalled(); expect(c.requests).toEqual([])
+    expect(callback).not.toHaveBeenCalled()
+  })
+  it('still accepts positive-length APIResponse identity bodies without using the browser adapter', async () => {
+    const browser = new FakeBrowser()
+    browser.configure = c => { c.fetchReply = url => Object.assign(new FakeResponse(c.page, new FakeRequest(url), { user: c.actor }), {
+      headers: () => ({ 'content-type': 'application/json', 'content-length': '128' }),
+    }) }
+    const s = await setup(browser), callback = vi.fn()
+    await s.runtime.withActor('ownerTeacher', callback)
+    expect(callback).toHaveBeenCalledOnce(); expect(browser.contexts[0].responses[0].body).toHaveBeenCalledOnce()
+  })
+  it('waits for a pre-header request and its completion-delayed body before owned navigation', async () => {
+    const s = await setup(), entered = deferred<void>(), headers = deferred<void>(), body = deferred<Buffer>()
+    const work = s.runtime.withActor('ownerTeacher', async page => {
+      const c = s.browser.contexts[0], request = new FakeRequest(plan.appOrigin + '/api/teacher/classrooms')
+      await c.dispatch(request)
+      const navigating = s.runtime.navigate(page, plan.appOrigin + '/pattern-lab', 'load')
+      entered.resolve(); await headers.promise
+      const response = new FakeResponse(c.page, request, {}, 200, () => body.promise)
+      c.emit('response', response); c.emit('requestfinished', request)
+      await Promise.resolve(); expect(c.page.goto).toHaveBeenCalledTimes(1)
+      body.resolve(Buffer.from('{}')); await navigating
+      expect(response.body).toHaveBeenCalledOnce()
+      expect(c.page.goto).toHaveBeenLastCalledWith(plan.appOrigin + '/pattern-lab', expect.objectContaining({ waitUntil: 'load' }))
+    })
+    await entered.promise; expect(s.browser.contexts[0].page.goto).toHaveBeenCalledTimes(1)
+    headers.resolve(); await work
+  })
+  it('never starts navigation after an incidental JSON body fails', async () => {
+    const s = await setup()
+    await expect(s.runtime.withActor('ownerTeacher', async page => {
+      const c = s.browser.contexts[0], request = new FakeRequest(plan.appOrigin + '/incidental')
+      await c.dispatch(request)
+      c.emit('response', new FakeResponse(c.page, request, {}, 200, async () => { throw Error('private') }))
+      c.emit('requestfinished', request)
+      await s.runtime.navigate(page, plan.appOrigin + '/pattern-lab')
+    })).rejects.toThrow()
+    expect(s.browser.contexts[0].page.goto).toHaveBeenCalledTimes(1)
+  })
+  it('waits for headers arriving after actor work returns before closing', async () => {
+    const s = await setup(), entered = deferred<void>(), body = deferred<Buffer>()
+    let request!: FakeRequest
+    const work = s.runtime.withActor('ownerTeacher', async () => {
+      request = new FakeRequest(plan.appOrigin + '/api/teacher/classrooms')
+      await s.browser.contexts[0].dispatch(request); entered.resolve()
+    })
+    await entered.promise; await new Promise<void>(resolve => setImmediate(resolve))
+    const c = s.browser.contexts[0]; expect(c.close).not.toHaveBeenCalled()
+    c.emit('response', new FakeResponse(c.page, request, {}, 200, () => body.promise)); c.emit('requestfinished', request)
+    await Promise.resolve(); expect(c.close).not.toHaveBeenCalled()
+    body.resolve(Buffer.from('{}')); await work; expect(c.close).toHaveBeenCalledOnce()
+  })
   it('owns font captures and rejects unknown labels, wrong actors, state drift and duplicate evidence', async () => {
     const s = await setup(), screenshot = vi.fn(async () => Buffer.from([137,80,78,71,13,10,26,10,0]))
     await s.runtime.withActor('ownerTeacher', async page => {
@@ -340,7 +419,7 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     await expect(s.close('failed')).rejects.toThrow()
     expect(s.receipt().login).toEqual({ attempts: 1, overflow: false, entries: [{ attempt: 1, entered: failedStep, completed: loginSteps[loginSteps.indexOf(failedStep) - 1] ?? null }] })
     expect(JSON.stringify(s.receipt().login)).not.toMatch(/DO-NOT-RECORD|private\.invalid|secret|CPU-private|@|http/)
-    if (failedStep !== 'context') expect(browser.contexts[0].close).toHaveBeenCalledOnce()
+    if (failedStep !== 'context') expect(browser.contexts[0].close).toHaveBeenCalledTimes(failedStep === 'session' ? 2 : 1)
   })
   it('preserves callback results and errors, rejects marker reordering and bounds metadata without stopping further logins', async () => {
     const progress = createContextualTestLoginProgress(), action = vi.fn(), error = Error('DO-NOT-RECORD')
@@ -505,6 +584,7 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       await c.dispatch(request)
       const response = new FakeResponse(c.page, request, { test: { id: '50000000-0000-4000-8000-000000000044', classroom_id: plan.classrooms.classA.id } }, 201)
       c.emit('response', response)
+      c.emit('requestfinished', request)
       const first = await s.runtime.response(page, response as unknown as Response), second = await s.runtime.response(page, response as unknown as Response)
       expect(first).toEqual(second); expect(response.body).toHaveBeenCalledOnce()
     })

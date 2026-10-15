@@ -158,7 +158,7 @@ function tinyPdf(): Buffer {
   return Buffer.from(body)
 }
 async function visit(r: ContextualTestRuntime, page: Page, classroom: string): Promise<void> {
-  r.check(); await page.goto(`${r.plan.appOrigin}/classrooms/${classroom}?tab=tests`, { waitUntil: 'domcontentloaded' }); await r.settle(page); r.check()
+  r.check(); await r.navigate(page, `${r.plan.appOrigin}/classrooms/${classroom}?tab=tests`); r.check()
 }
 async function ownerEdit(page: Page, title: string): Promise<void> {
   await page.getByRole('button', { name: title, exact: true }).click()
@@ -184,7 +184,7 @@ async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, cl
   await expect(editor.getByTestId('teacher-test-authoring-save-status')).toHaveText('Test saved', { timeout: 30_000 })
   await editor.getByRole('button', { name: 'Close test editor', exact: true }).click()
   await r.settle(page)
-  await page.reload({ waitUntil: 'domcontentloaded' }); await visit(r, page, classroom); await ownerEdit(page, title)
+  await r.reload(page); await visit(r, page, classroom); await ownerEdit(page, title)
   const reloadedMarkdown = await page.getByTestId('test-markdown-editor').inputValue()
   requireThat(reloadedMarkdown.includes(`Title: ${title}`) && reloadedMarkdown.includes('A private solution') && reloadedMarkdown.includes('Explain **your reasoning**.'))
   const saved = await r.api<Draft>(page, 'GET', `/api/teacher/tests/${id}/draft`)
@@ -217,7 +217,7 @@ async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, cl
   await expect(page.getByTestId('teacher-test-split-container')).toBeVisible()
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Close Preview', exact: true }).click()
-  await page.goto(`${r.plan.appOrigin}/classrooms/${classroom}/tests/${id}/preview`, { waitUntil: 'domcontentloaded' })
+  await r.navigate(page, `${r.plan.appOrigin}/classrooms/${classroom}/tests/${id}/preview`)
   await expect(page.getByTestId('teacher-test-split-container')).toBeVisible(); await r.settle(page)
   await visit(r, page, classroom); await ownerEdit(page, title)
   const publishedResponse = page.waitForResponse(res => new URL(res.url()).pathname === `/api/teacher/tests/${id}/publish` && res.request().method() === 'POST')
@@ -286,7 +286,7 @@ async function participate(r: ContextualTestRuntime, ownerPage: Page, exam: Exam
     const text = `Reasoned response ${member} ${exam.owner}`
     await answer(r, page, exam, text)
     const before = await r.api<{ attempt: Attempt }>(page, 'GET', `/api/student/tests/${exam.id}/attempt`)
-    await page.reload({ waitUntil: 'domcontentloaded' }); await begin(r, page, exam)
+    await r.reload(page); await begin(r, page, exam)
     await expect(page.getByRole('textbox', { name: /Response for question/ })).toHaveValue(text)
     const recovered = await r.api<{ attempt: Attempt }>(page, 'GET', `/api/student/tests/${exam.id}/attempt`)
     requireThat(recovered.attempt.draft_revision >= before.attempt.draft_revision && recovered.attempt.responses[exam.openId] === text)

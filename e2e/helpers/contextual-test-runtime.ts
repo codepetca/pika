@@ -87,13 +87,23 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const output = join(binding.outputDir, 'playwright')
   stage('output')
   mkdirSync(output, { mode: 0o700 }) // exclusive run ownership; never adopt old output
-  const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; requests: Set<Request>; actor?: string }>()
+  const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; actor?: string }>()
   const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string; fontReference?: string }> = []
   const witnesses: Array<{ label: string; sha256: string }> = []
   const loginProgress = createContextualTestLoginProgress()
   let screenshots = 0, fontShots = 0, pngBytes = 0, snapshots = 0, pageErrors = 0, consoleErrors = 0, closeStarted = false
-  const requireOwned = (page: Page) => { const context = page.context(); assert(contexts.has(context), 'Private Page ownership'); return context }
+  const requireOwned = (page: Page) => {
+    const context = page.context(), state = contexts.get(context)
+    assert(state && !state.closing && !state.closed, 'Private Page ownership'); return context
+  }
   const fixedTimeout = () => { boundary.check(); return Math.min(plan.limits.operationMs, binding.deadline - Date.now()) }
+  const depart = async (page: Page, action: (timeout: number) => Promise<unknown>) => {
+    const context = requireOwned(page), end = Math.min(binding.deadline, Date.now() + plan.limits.operationMs)
+    await boundary.settle(context, end)
+    boundary.check(); assert(Date.now() < end, 'Private navigation deadline')
+    await action(end - Date.now())
+    await boundary.settle(context, end)
+  }
   const requestBody = (request: Request) => {
     if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method())) return undefined
     try { return request.postDataJSON() } catch { return request.postDataBuffer() ?? undefined }
@@ -112,7 +122,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       boundary.check(); assert(Object.hasOwn(plan.actors, label) || ['ownerTeacherPeer', 'ownerStudentPeer'].includes(label))
       const login = loginProgress.begin()
       const context = await login.step('context', () => browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false }))
-      const state = { closing: false, closed: false, requests: new Set<Request>() }; contexts.set(context, state)
+      const state = { closing: false, closed: false }; contexts.set(context, state)
       let loginSubmitted = false, loginVerified = false, loginNavigationEnd = 0
       let loginGate: Awaited<ReturnType<typeof installLoginFetchGate>> | undefined
       // Register closure before any fallible context setup. Failed route or
@@ -124,9 +134,9 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
           loginGate = await installLoginFetchGate(context, plan.appOrigin, () => {
             boundary.check(); assert(!state.closing && loginSubmitted && Date.now() < loginNavigationEnd, 'Private login deadline')
           })
-          context.on('request', request => state.requests.add(request))
-          context.on('requestfinished', request => state.requests.delete(request))
-          context.on('requestfailed', request => state.requests.delete(request))
+          context.on('request', request => boundary.requestStarted(context, request))
+          context.on('requestfinished', request => boundary.requestFinished(context, request))
+          context.on('requestfailed', request => boundary.requestFinished(context, request, true))
           context.on('response', response => { void boundary.observe(context, response, response.request()) })
           context.on('page', page => {
             page.on('pageerror', () => { pageErrors++ })
@@ -142,6 +152,9 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
                 // closed immediately instead of pausing the browser protocol.
                 boundary.violate('endpoint')
               }
+              // Fail closed if a request began between the departure drain and
+              // dispatch. Never pause a navigation route waiting for its loader.
+              if (request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) boundary.canNavigate(context, request)
               await route.continue()
             }
             catch { try { boundary.violate('endpoint') } catch { /* retain fixed first failure */ }
@@ -218,9 +231,14 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       assert(path.startsWith('/') && !path.startsWith('//') && !path.includes('\\'), 'Private relative API path')
       const target = new URL(path, plan.appOrigin); assert.equal(target.origin, plan.appOrigin)
       boundary.admit(target.href, method, body, 'api')
-      const response = await context.request.fetch(target.href, { method, data: body, timeout: fixedTimeout(), maxRedirects: 0 })
+      const request = { method: () => method, postDataJSON: () => body }
+      boundary.requestStarted(context, request)
+      let response: Awaited<ReturnType<typeof context.request.fetch>>
+      try { response = await context.request.fetch(target.href, { method, data: body, timeout: fixedTimeout(), maxRedirects: 0 }) }
+      catch (error) { boundary.requestFinished(context, request, true); throw error }
       try {
-        const original = boundary.observe(context, response, { method: () => method, postDataJSON: () => body })
+        const original = boundary.observe(context, response, request, 'api')
+        boundary.requestFinished(context, request)
         // Bound the consumer before awaiting its cached value. The original
         // body task remains registered if it hangs; no timeout grants success.
         await boundary.settle(context); const value = await original
@@ -238,6 +256,13 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       return value as T
     },
     settle: page => boundary.settle(requireOwned(page)),
+    async navigate(page, url, waitUntil = 'domcontentloaded') {
+      const target = new URL(url)
+      assert.equal(target.origin, plan.appOrigin, 'Private navigation origin')
+      assert(!target.username && !target.password, 'Private navigation credentials')
+      await depart(page, timeout => page.goto(target.href, { waitUntil, timeout }))
+    },
+    reload: page => depart(page, timeout => page.reload({ waitUntil: 'domcontentloaded', timeout })),
     async witness(label) {
       boundary.check(); contextualTestArtifactLabel(label)
       const raw = await executeContextualTestSql(binding, 'witness')

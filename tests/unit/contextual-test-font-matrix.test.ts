@@ -23,6 +23,7 @@ describe('fixed font matrix CPU contract (not visual evidence)', () => {
       async evaluate(_fn: unknown, value: string) { themes.push(value) }, async goto(value: string) { currentUrl = value; urls.push(value) },
       locator(selector: string) { expect(selector).toMatch(/^#(?:history-preview|student-image-upload)\[/); return { ...control, getByRole: () => control } } }
     const runtime = { plan: { appOrigin: 'http://localhost:3117' }, check() {},
+      async navigate(p: typeof page, url: string, waitUntil: string) { expect(p).toBe(page); expect(waitUntil).toBe('load'); await p.goto(url) },
       async withActor(actor: string, action: (p: typeof page) => Promise<void>) { actors.push(actor); currentActor = actor; await action(page) },
       async captureFont(label: string, p: typeof page) {
         expect(p).toBe(page); const shot = contextualTestFontShot(label)

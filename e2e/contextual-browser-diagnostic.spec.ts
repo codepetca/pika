@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { diagnosticAdmissionFromEnvironment, diagnosticWrite, DIAGNOSTIC_VERSION } from '../scripts/contextual-browser-diagnostic-data'
+import { diagnosticAdmissionFromEnvironment, diagnosticWrite, DIAGNOSTIC_VERSION, navigationLifecyclePassed } from '../scripts/contextual-browser-diagnostic-data'
 import { runLoginBodyDiagnostic } from './helpers/contextual-browser-login-diagnostic'
+import { runNavigationLifecycleDiagnostic } from './helpers/contextual-browser-navigation-diagnostic'
 
 // The same standard browser fixture launches the same headed pinned Chrome.
 // The body-read mode is bound into the exclusive admission, never an env switch.
@@ -8,6 +9,15 @@ const optedIn = process.env.PIKA_BROWSER_DIAGNOSTIC === 'true'
 const admission = optedIn ? diagnosticAdmissionFromEnvironment() : undefined
 test.skip(!optedIn, 'Requires the explicitly admitted private browser diagnostic')
 test('private browser fixture diagnostic', async ({ browser }) => {
+  if (admission!.mode === 'navigation-lifecycle') {
+    const versionMatched = browser.version() === DIAGNOSTIC_VERSION
+    expect(versionMatched).toBe(true)
+    const result = await runNavigationLifecycleDiagnostic(browser, Math.min(admission!.deadline, Date.now() + 20000))
+    const receipt = { version: 1, mode: 'navigation-lifecycle', versionMatched, ...result }
+    diagnosticWrite(admission!.outputDir, 'lifecycle.json', receipt)
+    expect(navigationLifecyclePassed(receipt)).toBe(true)
+    return
+  }
   if (admission!.mode === 'login-body') {
     const versionMatched = browser.version() === DIAGNOSTIC_VERSION
     expect(versionMatched).toBe(true)

@@ -11,48 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 CLI body retrieval source investigation
-
-Human approved source-only diagnosis, not another native run. Retained Astra/high
-traced pinned CLI/VM/channel/routing paths: no cancellation/global serialization
-cause supported. Early body Promise creation lacks a happens-before guarantee
-against browser navigation; native cause remains unknown. Private source report
-4c9b3891... and cleanup report b6343181... preserved. Cleanup catch discards typed
-process causes; fixed12s deadline versus identity rejection cannot be recovered.
-Next proposed work is bounded body-state/cleanup-cause observability with CPU
-checks and review, not a claimed fix or fresh execution. No code/runtime/production
-change, retry, restart or signal. Original review42/fix32 and all holds retained.
-
-## 2026-10-13 Source-only body and cleanup diagnostics prepared
-
-Human approved narrow diagnostics plus CPU verification/review, not another
-browser run. Fresh private032b383fa26c source33 observes the same original body
-Promise and labels snapshots document-entry/url-failure; no fulfillment credit
-or changed navigation gate. Cleanup records allowlisted cause/provenance/original
-budget while rethrowing the same failure. No raw payload/error/argv/environment.
-Root caught missing snapshot provenance before review; phase field corrected.
-Final25diagnostic CPU checks/four serialized VM scenarios,6case,21packaging,
-19privacy and exact compiler/inverse checks PASS; root independently replayed.
-Same original ownership, byte/witness/request and deadline bounds; no new hooks,
-dependencies, acceptance/runtime or native proof. Targeted review next; prior
-full PR gate remains failed. Production/shared-local/cutover/provider holds stay.
-
-## 2026-10-13 Reviewed body diagnostics identify pending native read
-
-Human approved ONE fresh isolated Source33 check after review43 PASS0. Exact
-source/compiler/import closure and current CLI/Chrome signature/process/port
-preflight PASS. Sole032b383fa26c launcher51294 closed1/SPENT after24.959s:
-receipt33f2bfbb... shows original body Promise pending at document entry and
-URL failure, HTTP2of3, URLdeadline. This establishes pending state, not Chrome's
-internal cause or a product auth defect. Owned browser/CLI/server/requests all
-closed within this run; cleanupFailures[], queryDiagnostic/cleanupDiagnostic
-null.16durable witnesses max588B retained privately. No retry, restart, unrelated
-signals, payload logging or spent evidence alteration. Earlier93 cleanup failure
-is not rewritten by this separate success. PR1581 stays draft; native/app
-acceptance and full failed PR gate remain unresolved. Next decision must address
-body-read/navigation ordering before another run; no source criteria changed.
-Original review43/fix33 and production/shared-local/cutover/provider holds remain.
-
 ## 2026-10-13 Pre-navigation original-body validation prepared
 
 Human approved source-only synthetic timing change and review, not a new run.
@@ -881,3 +839,67 @@ independent delta review precede preparation and the one exclusive invocation.
 Historical failures stay failed; PR1581 stays draft and all production/shared-local,
 rollout and provider holds remain. Existing review counters96 and clocks retained;
 preparation is fix batch56. No attempt has yet been spent for this authorization.
+
+## 2026-10-15 — Fresh guard rehearsal failed; partial font visuals retained
+
+Reviewed runner bab32e815/tree700cf2d2 pushed to existing draft1581; original frozen
+app21e755 plus exact font overlay only. Final focused gate3455PASS/8skip and all
+static/type/lint PASS. Review97 found missing closed-inventory import; batch57
+corrected it and startup-summary size. Review98 CLEAN; prior95/96 coverage reused.
+ONE S2ahHo attempt19285 CLOSED1 after149s: teacher and student login identity
+complete; then non-login response-body inspector-resource-unavailable and another
+captured Chrome descendant executable mismatch (same birth/PGID). No origin
+rejection; no new Tests/uploads. Fail-closed cleanup retained uncertainty.
+Root inspected16 teacher-reference PNGs: desktop readable; mobile sticky header
+occludes some headings. Student and original16 workflow screenshots not reached;
+visual gate incomplete. No product font commit or retry. Evidence preserved.
+Independent pre/post recovery checks confirm7643 source files and49485 dependency
+entries unchanged and current process candidates0. Review99 CLEAN exact-recovery
+binding; removed only this fixture's5 containers/2 synthetic volumes/1 network,
+retained temporary app. Historical failed acceptance remains failed. Cumulative
+99review turns/57fix batches; original clocks/waiver retained. All production,
+shared-local, provider and rollout holds unchanged; source diagnosis remains.
+
+## 2026-10-15 — Underlying harness assumptions diagnosed without another run
+
+Human requested root-cause analysis instead of repeated rehearsals. Two bounded
+read-only Astra assignments (ultra process/high response; effective config and
+usage unknown) plus root verification found two invalid contracts: P_EXEC does
+not prove executable-vnode publication complete, and immediate Playwright body()
+invocation defers bytes until completion while full navigation can discard them.
+Tracked pre-header requests are omitted from settlement. Existing mocks assume
+fixed images and premature requestfinished ordering, missing both counterexamples.
+Both prior actor logins completed identity; saved other/inspector labels cannot
+identify the exact executable/request or prove historical trigger. Pinned Apple/
+Chrome sources and installed Playwright corroborate mechanisms, not shipped-kernel
+native reproduction. Recommend explicit lineage/image and request/departure
+contracts, deterministic regressions, then narrow confirmation before full app.
+Private underlying-harness-diagnosis-20261015.md in restart-recovery evidence has
+sources, uncertainty and delegation receipt. No implementation/test/browser/DB,
+fixture operation, signal, PR review or new attempt. Documentation only;99/57
+counters and all production/shared-local/provider/rollout holds unchanged.
+
+## 2026-10-15 — Harness ownership contracts corrected before narrow confirmation
+
+Human approved the recommended source corrections and narrow confirmation, not
+another full-app rehearsal. Batch58 splits process birth/lineage from pathname:
+private macOS flavor18 exact192-byte ABI supplies unique IDs, UUID and pidversion;
+descendant pathname publication may change only within the same image generation.
+Roots, unknown groups, later exec and fresh signal-time checks remain strict.
+Browser requests are owned from start through transport/body completion; all
+workflow departure/reload/close paths drain within the original deadline.
+Pinned Playwright adapter tests expose its empty-body refetch fallback: browser
+JSON with positive/malformed Content-Length now fails before body() (temporary
+carrier restriction); APIResponse remains independent. No product auth/UI edit.
+Deterministic process/request tests and TypeScript pass; startup note compacted
+without dropping required setup paths. Full gate/browser review remain required.
+Process commitbdc7f2bc independently reviewed100 CLEAN; exact self/child native
+ABI/exec check PASS64ms, child reaped, no parent signals. Synthetic3-request
+navigation mode prepared using existing Playwright controls; browser not run.
+Chrome auto-updated155.0.8059.84; signature verified, diagnostic-only pin updated
+for review. Full-app admission remains unchanged and no full rehearsal authorized.
+Orchestrate workers Astra ultra/process and Astra high/request; effective config
+and token usage unknown. Prior99review turns/57batches carry forward; review100/batch58 now
+active, routine-stop waiver retained. PR1581 stays draft; production/shared-local,
+provider-held Survey/socket scope and rollout holds unchanged. Private evidence
+under restart-recovery/underlying-harness-diagnosis-20261015.md retains details.

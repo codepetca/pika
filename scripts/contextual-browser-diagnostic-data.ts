@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path'
 import { types } from 'node:util'
 
 export const DIAGNOSTIC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-export const DIAGNOSTIC_VERSION = '155.0.8059.79'
-export const DIAGNOSTIC_CHROME_SHA = 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f'
+export const DIAGNOSTIC_VERSION = '155.0.8059.84'
+export const DIAGNOSTIC_CHROME_SHA = '63ee57066ef61169445ded279701d974ad23c805a60b8f77a4b8776183ac58fb'
 export const diagnosticHash = (value: Buffer | string) => createHash('sha256').update(value).digest('hex')
 export const diagnosticSourceFiles = Object.freeze([
   'scripts/contextual-browser-diagnostic-data.ts', 'scripts/contextual-browser-diagnostic.ts',
@@ -15,6 +15,7 @@ export const diagnosticSourceFiles = Object.freeze([
   'e2e/helpers/contextual-browser-diagnostic-reporter.ts', 'e2e/contextual-browser-diagnostic.spec.ts',
   'e2e/helpers/contextual-browser-diagnostic-setup.ts',
   'e2e/helpers/contextual-browser-login-diagnostic.ts',
+  'e2e/helpers/contextual-browser-navigation-diagnostic.ts', 'e2e/helpers/contextual-test-boundary.ts',
   'e2e/helpers/contextual-login-fetch-gate.ts',
   'playwright.contextual-browser-diagnostic.config.ts', 'scripts/contextual-test-rehearsal-native.ts',
   'scripts/contextual-test-route-readiness.ts',
@@ -23,7 +24,7 @@ export const diagnosticSourceFiles = Object.freeze([
   'e2e/helpers/contextual-test-rehearsal.ts', 'package.json', 'pnpm-lock.yaml',
   'e2e/helpers/contextual-test-font-overlay.ts',
 ])
-export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string; startedAt: number; deadline: number; cleanupDeadline: number; mode?: 'login-body' }
+export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string; startedAt: number; deadline: number; cleanupDeadline: number; mode?: 'login-body' | 'navigation-lifecycle' }
 export function diagnosticDirectory(path: string) {
   assert.equal(realpathSync(path), path)
   const info = lstatSync(path); assert(info.isDirectory() && !info.isSymbolicLink() && (info.mode & 0o777) === 0o700 && info.uid === process.getuid?.())
@@ -66,7 +67,7 @@ export function validateDiagnosticAdmission(raw: unknown, now: number): Diagnost
   assert(raw && typeof raw === 'object' && !Array.isArray(raw))
   const v = raw as DiagnosticAdmission
   assert.deepEqual(Object.keys(v).sort(), ['cleanupDeadline','deadline','nonce','outputDir','startedAt','version', ...(Object.hasOwn(v, 'mode') ? ['mode'] : [])].sort())
-  assert(v.mode === undefined || v.mode === 'login-body')
+  assert(v.mode === undefined || v.mode === 'login-body' || v.mode === 'navigation-lifecycle')
   assert(v.version === 1 && /^[a-f0-9]{32}$/.test(v.nonce) && typeof v.outputDir === 'string')
   assert([now,v.startedAt,v.deadline,v.cleanupDeadline].every(Number.isSafeInteger))
   assert(v.startedAt <= now && now < v.deadline && v.deadline === v.startedAt + 90000 && v.cleanupDeadline === v.deadline + 360000)
@@ -150,4 +151,19 @@ export function validateDiagnosticReport(raw: unknown): DiagnosticReport {
 export function diagnosticReportPassed(raw: unknown) {
   const v = validateDiagnosticReport(raw)
   return v.status === 'passed' && v.discovered === 1 && v.started === 1 && v.ended === 1 && v.passed === 1 && !v.overflow && v.errors.length === 0
+}
+export function navigationLifecyclePassed(raw: unknown) {
+  assert(raw && typeof raw === 'object' && !Array.isArray(raw))
+  const v = raw as Record<string, unknown>
+  const flags = ['versionMatched','diagnosticOnly','preHeaderHeld','bodyHeld','bodyVerified','destinationAfterValidation',
+    'boundaryFailed','contextClosed','serverClosed'] as const
+  const counts = ['requests','jsonRequests','originalBodies','unexpectedRequests','pageErrors','pending','socketsRemaining'] as const
+  assert.deepEqual(Object.keys(v).sort(), ['version','mode','failure', ...flags, ...counts].sort())
+  assert(v.version === 1 && v.mode === 'navigation-lifecycle')
+  for (const key of flags) assert(typeof v[key] === 'boolean')
+  for (const key of counts) assert(Number.isSafeInteger(v[key]) && Number(v[key]) >= 0 && Number(v[key]) <= 8)
+  assert(v.failure === null || typeof v.failure === 'string' && ['setup','pre-header','body','departure','cleanup'].includes(v.failure))
+  return flags.filter(key => key !== 'boundaryFailed').every(key => v[key] === true) && v.boundaryFailed === false
+    && v.requests === 3 && v.jsonRequests === 1 && v.originalBodies === 1 && v.unexpectedRequests === 0
+    && v.pageErrors === 0 && v.pending === 0 && v.socketsRemaining === 0 && v.failure === null
 }

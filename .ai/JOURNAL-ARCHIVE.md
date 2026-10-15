@@ -47441,3 +47441,48 @@ No restart/retry/unknown signals. Permission consumed; pause further native
 attempts for source diagnosis and a supported verification decision. CURRENT
 failure summary corrected; startup-doc79PASS, prior full gate still not green.
 Production/shared-local/cutover and provider-refused Survey scopes remain held.
+
+<!-- pika-session-log-archive-batch:71215674529aeee29220002dbf8e94b9961bdd72b991718b765d60948821b70f -->
+## 2026-10-13 CLI body retrieval source investigation
+
+Human approved source-only diagnosis, not another native run. Retained Astra/high
+traced pinned CLI/VM/channel/routing paths: no cancellation/global serialization
+cause supported. Early body Promise creation lacks a happens-before guarantee
+against browser navigation; native cause remains unknown. Private source report
+4c9b3891... and cleanup report b6343181... preserved. Cleanup catch discards typed
+process causes; fixed12s deadline versus identity rejection cannot be recovered.
+Next proposed work is bounded body-state/cleanup-cause observability with CPU
+checks and review, not a claimed fix or fresh execution. No code/runtime/production
+change, retry, restart or signal. Original review42/fix32 and all holds retained.
+
+<!-- pika-session-log-archive-batch:9c310f045da870d3c50b068ce38f0e604e11bcfe612a0982a66374134cc413ae -->
+## 2026-10-13 Source-only body and cleanup diagnostics prepared
+
+Human approved narrow diagnostics plus CPU verification/review, not another
+browser run. Fresh private032b383fa26c source33 observes the same original body
+Promise and labels snapshots document-entry/url-failure; no fulfillment credit
+or changed navigation gate. Cleanup records allowlisted cause/provenance/original
+budget while rethrowing the same failure. No raw payload/error/argv/environment.
+Root caught missing snapshot provenance before review; phase field corrected.
+Final25diagnostic CPU checks/four serialized VM scenarios,6case,21packaging,
+19privacy and exact compiler/inverse checks PASS; root independently replayed.
+Same original ownership, byte/witness/request and deadline bounds; no new hooks,
+dependencies, acceptance/runtime or native proof. Targeted review next; prior
+full PR gate remains failed. Production/shared-local/cutover/provider holds stay.
+
+<!-- pika-session-log-archive-batch:ee132ac93031f0a1751395630440a466b124cc226e72c0c4b3ffbd3ed0390a63 -->
+## 2026-10-13 Reviewed body diagnostics identify pending native read
+
+Human approved ONE fresh isolated Source33 check after review43 PASS0. Exact
+source/compiler/import closure and current CLI/Chrome signature/process/port
+preflight PASS. Sole032b383fa26c launcher51294 closed1/SPENT after24.959s:
+receipt33f2bfbb... shows original body Promise pending at document entry and
+URL failure, HTTP2of3, URLdeadline. This establishes pending state, not Chrome's
+internal cause or a product auth defect. Owned browser/CLI/server/requests all
+closed within this run; cleanupFailures[], queryDiagnostic/cleanupDiagnostic
+null.16durable witnesses max588B retained privately. No retry, restart, unrelated
+signals, payload logging or spent evidence alteration. Earlier93 cleanup failure
+is not rewritten by this separate success. PR1581 stays draft; native/app
+acceptance and full failed PR gate remain unresolved. Next decision must address
+body-read/navigation ordering before another run; no source criteria changed.
+Original review43/fix33 and production/shared-local/cutover/provider holds remain.

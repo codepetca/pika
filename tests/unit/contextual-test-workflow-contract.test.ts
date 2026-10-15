@@ -125,6 +125,13 @@ describe('contextual Tests workflow CPU contract (not browser evidence)', () => 
     expect(spec).toContain('finally')
     expect(spec).not.toContain('createIsolatedLifecycleFixture')
   })
+  it('routes every explicit workflow document departure through owned navigation', () => {
+    for (const helper of ['contextual-test-workflow', 'contextual-test-font-matrix']) {
+      const source = readFileSync(new URL(`../../e2e/helpers/${helper}.ts`, import.meta.url), 'utf8')
+      expect(source).not.toMatch(/\bpage\.(?:goto|reload|goBack|goForward)\s*\(/)
+      expect(source).toContain('r.navigate(page,')
+    }
+  })
   it('uses actual owner grading controls for the first grade before peer conflict', () => {
     const flow = readFileSync(new URL('../../e2e/helpers/contextual-test-workflow.ts', import.meta.url), 'utf8')
     expect(flow.includes('test-grading-student-row-${student}')).toBe(true)

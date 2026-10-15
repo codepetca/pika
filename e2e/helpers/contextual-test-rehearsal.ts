@@ -144,6 +144,8 @@ export type ContextualTestRuntime = {
   api<T>(page: Page, method: string, path: string, body?: unknown, expectedStatus?: number): Promise<T>
   response<T>(page: Page, response: Response): Promise<T>
   settle(page: Page): Promise<void>
+  navigate(page: Page, url: string, waitUntil?: 'load' | 'domcontentloaded'): Promise<void>
+  reload(page: Page): Promise<void>
   witness(label: string): Promise<RehearsalWitness>
   mutate(cell: keyof RehearsalPlan['mutations']): Promise<void>
   snapshot(label: string, page: Page): Promise<void>

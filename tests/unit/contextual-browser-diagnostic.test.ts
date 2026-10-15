@@ -103,6 +103,23 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     expect(validateDiagnosticAdmission(a, 2000)).toEqual(a)
     for (const patch of [{ startedAt: 2001 }, { deadline: 92000 }, { cleanupDeadline: 452000 }, { retries: 1 }]) expect(() => validateDiagnosticAdmission({ ...a, ...patch }, 2000)).toThrow()
     expect(() => validateDiagnosticAdmission(a, 91000)).toThrow()
+    expect(validateDiagnosticAdmission({ ...a, mode: 'navigation-lifecycle' }, 2000).mode).toBe('navigation-lifecycle')
+    expect(() => validateDiagnosticAdmission({ ...a, mode: 'arbitrary' }, 2000)).toThrow()
+  })
+  it('accepts only the complete exact navigation lifecycle receipt without weakened counters or extra data', () => {
+    const good = { version: 1, mode: 'navigation-lifecycle', versionMatched: true, diagnosticOnly: true,
+      preHeaderHeld: true, bodyHeld: true, bodyVerified: true, destinationAfterValidation: true, boundaryFailed: false,
+      contextClosed: true, serverClosed: true, requests: 3, jsonRequests: 1, originalBodies: 1, unexpectedRequests: 0,
+      pageErrors: 0, pending: 0, socketsRemaining: 0, failure: null }
+    expect(data.navigationLifecyclePassed(good)).toBe(true)
+    for (const patch of [{ preHeaderHeld: false }, { bodyHeld: false }, { bodyVerified: false }, { destinationAfterValidation: false },
+      { boundaryFailed: true }, { contextClosed: false }, { serverClosed: false }, { requests: 2 }, { requests: 4 },
+      { jsonRequests: 2 }, { originalBodies: 0 }, { pending: 1 }, { socketsRemaining: 1 }, { pageErrors: 1 }, { failure: 'body' }]) {
+      expect(data.navigationLifecyclePassed({ ...good, ...patch })).toBe(false)
+    }
+    for (const patch of [{ mode: 'login-body' }, { requests: 9 }, { requests: NaN }, { bodyVerified: 1 }, { failure: 'PRIVATE' }, { url: 'PRIVATE' }]) {
+      expect(() => data.navigationLifecyclePassed({ ...good, ...patch })).toThrow()
+    }
   })
   it('ordinary compiled spec discovery skips before admission or fixtures; invalid explicit opt-in fails at collection', () => {
     const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
@@ -114,6 +131,7 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
       const context = { exports: {}, process: { env: { PIKA_BROWSER_DIAGNOSTIC: optIn } }, require: (specifier: string) => {
         if (specifier === '@playwright/test') return { test, expect: () => { throw Error('Fixture executed') } }
         if (specifier === './helpers/contextual-browser-login-diagnostic') return { runLoginBodyDiagnostic: () => { throw Error('Fixture executed') } }
+        if (specifier === './helpers/contextual-browser-navigation-diagnostic') return { runNavigationLifecycleDiagnostic: () => { throw Error('Fixture executed') } }
         expect(specifier).toBe('../scripts/contextual-browser-diagnostic-data')
         return { diagnosticAdmissionFromEnvironment: () => { calls.push('read'); if (invalid) throw Error('Invalid admission'); return {} } }
       } }
@@ -122,6 +140,33 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     for (const env of [undefined, 'false']) { const ordinary = collect(env); ordinary.run(); expect(ordinary.calls).toEqual(['skip','declare']) }
     const invalid = collect('true', true); expect(invalid.run).toThrow('Invalid admission'); expect(invalid.calls).toEqual(['read'])
     const admitted = collect('true'); admitted.run(); expect(admitted.calls).toEqual(['read','admitted','declare'])
+  })
+  it.each([true, false])('dispatches only the admitted navigation mode and records its strict result (passed=%s)', async passed => {
+    const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
+    const { babelTransform } = require(join(dirname(pw.resolve('playwright/package.json')), 'lib/transform/babelBundle.js'))
+    const file = join(root, 'e2e/contextual-browser-diagnostic.spec.ts')
+    const compiled = babelTransform(readFileSync(file, 'utf8'), file, false, [], []).code
+    let body!: (fixtures: { browser: unknown }) => Promise<void>
+    const browser = { version: () => data.DIAGNOSTIC_VERSION }, calls: string[] = [], records: unknown[] = []
+    const result = { diagnosticOnly: true, preHeaderHeld: true, bodyHeld: true, bodyVerified: passed, destinationAfterValidation: passed,
+      boundaryFailed: !passed, contextClosed: true, serverClosed: true, requests: passed ? 3 : 2, jsonRequests: 1, originalBodies: 1,
+      unexpectedRequests: 0, pageErrors: 0, pending: 0, socketsRemaining: 0, failure: passed ? null : 'body' }
+    const test = Object.assign((_name: string, action: typeof body) => { body = action }, { skip() {} })
+    new Script(compiled).runInNewContext({ exports: {}, Date, process: { env: { PIKA_BROWSER_DIAGNOSTIC: 'true' } }, require(specifier: string) {
+      if (specifier === '@playwright/test') return { test, expect }
+      if (specifier === '../scripts/contextual-browser-diagnostic-data') return { ...data,
+        diagnosticAdmissionFromEnvironment: () => ({ mode: 'navigation-lifecycle', deadline: Date.now() + 90000, outputDir: '/CPU-private' }),
+        diagnosticWrite: (_output: string, name: string, value: unknown) => { expect(name).toBe('lifecycle.json'); records.push(value) },
+      }
+      if (specifier === './helpers/contextual-browser-navigation-diagnostic') return { runNavigationLifecycleDiagnostic: async (actual: unknown, end: number) => {
+        expect(actual).toBe(browser); expect(end - Date.now()).toBeLessThanOrEqual(20000); calls.push('navigation'); return result
+      } }
+      if (specifier === './helpers/contextual-browser-login-diagnostic') return { runLoginBodyDiagnostic: () => { throw Error('Wrong mode') } }
+      throw Error('Unexpected import')
+    } })
+    if (passed) await body({ browser }); else await expect(body({ browser })).rejects.toThrow()
+    expect(calls).toEqual(['navigation']); expect(records).toHaveLength(1)
+    expect(data.navigationLifecyclePassed(records[0])).toBe(passed)
   })
   it('requires umask077 and verifies private defaults after Playwright-style remove/recreate', () => {
     const original = process.umask(0o022), folder = realpathSync(mkdtempSync(join(tmpdir(), 'pika-browser-modes-')))

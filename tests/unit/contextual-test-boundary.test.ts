@@ -11,6 +11,82 @@ function response(body: () => Promise<Buffer>, status = 200, url = plan.appOrigi
 function boundary(now = () => 1_000) { return new ContextualTestBoundary(plan, 2_701_000, now) }
 
 describe('contextual Test browser boundary', () => {
+  it.each(['1', '42', '-1', '', ' 0', '0 ', '00', '0, 0', 'NaN', 'private'])('rejects browser JSON Content-Length %j before a possible library refetch', async length => {
+    const b = boundary(), c = {}, r = response(async () => Buffer.from('{}'))
+    Object.assign(r, { headers: () => ({ 'content-type': 'application/json', 'content-length': length }) })
+    await b.observe(c, r); await expect(b.settle(c)).rejects.toThrow()
+    expect(r.body).not.toHaveBeenCalled(); expect(b.receipt().firstFailure).toBe('response-original-incompatible')
+    expect(b.receipt().responseFailure).toMatchObject({ phase: 'response-original-incompatible', resource: 'session', cause: 'unknown' })
+  })
+  it.each([undefined, '0'])('reads browser JSON with safe Content-Length %j once and retains parse failures', async length => {
+    const b = boundary(), c = {}, r = response(async () => Buffer.from('{'))
+    Object.assign(r, { headers: () => ({ 'content-type': 'application/json', ...(length === undefined ? {} : { 'content-length': length }) }) })
+    await b.observe(c, r); await expect(b.settle(c)).rejects.toThrow()
+    expect(r.body).toHaveBeenCalledOnce(); expect(b.receipt().firstFailure).toBe('response-json')
+  })
+  it('does not constrain APIResponse bodies by the Chromium-only Content-Length fallback', async () => {
+    const b = boundary(), c = {}, r = response(async () => Buffer.from('{}'))
+    Object.assign(r, { headers: () => ({ 'content-type': 'application/json', 'content-length': '2' }) })
+    await b.observe(c, r, undefined, 'api'); await b.settle(c); expect(r.body).toHaveBeenCalledOnce()
+  })
+  it('owns pre-header requests through delayed body completion before departure', async () => {
+    const b = boundary(), c = {}, request = { method: () => 'GET', postDataJSON: () => undefined }
+    const body = deferred<Buffer>(), departed = vi.fn()
+    b.requestStarted(c, request)
+    const departure = b.settle(c).then(departed)
+    await Promise.resolve(); expect(departed).not.toHaveBeenCalled()
+    const original = b.observe(c, response(() => body.promise), request)
+    b.requestFinished(c, request)
+    await Promise.resolve(); expect(departed).not.toHaveBeenCalled()
+    body.resolve(Buffer.from('{}')); await original; await departure
+    expect(departed).toHaveBeenCalledOnce(); expect(b.pending(c)).toBe(0)
+  })
+  it('fails cancellation after headers even if the original body later resolves', async () => {
+    const b = boundary(), c = {}, request = { method: () => 'GET', postDataJSON: () => undefined }, body = deferred<Buffer>()
+    b.requestStarted(c, request); b.observe(c, response(() => body.promise), request)
+    b.requestFinished(c, request, true); body.resolve(Buffer.from('{}'))
+    await expect(b.settle(c)).rejects.toThrow(); expect(b.receipt().firstFailure).toBe('response-body')
+  })
+  it('does not renew a request operation bound when headers finally arrive', async () => {
+    let now = 1000; const b = boundary(() => now), c = {}, request = { method: () => 'GET', postDataJSON: () => undefined }
+    b.requestStarted(c, request); now += plan.limits.operationMs - 1
+    const body = deferred<Buffer>(); b.observe(c, response(() => body.promise), request); b.requestFinished(c, request)
+    now++; expect(() => b.check()).toThrow(); body.resolve(Buffer.from('{}'))
+    await expect(b.settle(c)).rejects.toThrow()
+  })
+  it('joins a response delivered during close and rejects its body failure', async () => {
+    const b = boundary(), c = {}, body = deferred<Buffer>(), closeEntered = deferred<void>()
+    const closed = b.beforeContextClose(c, async () => {
+      b.observe(c, response(() => body.promise)); closeEntered.resolve()
+    })
+    const failure = expect(closed).rejects.toThrow()
+    await closeEntered.promise; body.reject(Error('late private cancellation')); await failure
+    expect(b.pending(c)).toBe(0); expect(b.receipt().firstFailure).toBe('response-body')
+  })
+  it('joins a request first seen during close before its headers arrive', async () => {
+    const b = boundary(), c = {}, request = { method: () => 'GET', postDataJSON: () => undefined }
+    const entered = deferred<void>(), body = deferred<Buffer>(), completed = vi.fn()
+    const close = b.beforeContextClose(c, async () => { b.requestStarted(c, request); entered.resolve() }).then(completed)
+    await entered.promise; await new Promise<void>(resolve => setImmediate(resolve))
+    expect(completed).not.toHaveBeenCalled()
+    b.observe(c, response(() => body.promise), request); b.requestFinished(c, request)
+    await Promise.resolve(); expect(completed).not.toHaveBeenCalled()
+    body.resolve(Buffer.from('{}')); await close; expect(completed).toHaveBeenCalledOnce()
+  })
+  it('rejects a navigation racing a newly started request without waiting inside its route', async () => {
+    const b = boundary(), c = {}, navigation = {}, late = {}
+    b.requestStarted(c, navigation); expect(() => b.canNavigate(c, navigation)).not.toThrow()
+    b.requestStarted(c, late); expect(() => b.canNavigate(c, navigation)).toThrow()
+    b.requestFinished(c, navigation); b.requestFinished(c, late)
+    await expect(b.settle(c)).rejects.toThrow()
+  })
+  it('enforces the departure operation end even when a transport task finishes at that end', async () => {
+    let now = 1000; const b = boundary(() => now), c = {}, request = {}
+    b.requestStarted(c, request)
+    const departure = b.settle(c, 1001)
+    now = 1001; b.requestFinished(c, request)
+    await expect(departure).rejects.toThrow(); expect(b.receipt().firstFailure).toBe('deadline')
+  })
   it('invokes the original response body immediately and exactly once', async () => {
     const gate = deferred<Buffer>(), b = boundary(), context = {}, r = response(() => gate.promise)
     const first = b.observe(context, r), second = b.observe(context, r)
