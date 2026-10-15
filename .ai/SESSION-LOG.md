@@ -720,6 +720,21 @@ throwing cleanup entry at both callers, keeps only private verified command
 settlement available during cleanup, and rejects timer-expiry proof credit.
 Real-transport CPU regressions reproduce the old defects; restored implementation
 85checks/TSC/lint PASS. Targeted review and actual small/native proof remain gates.
+Review72 closed findings; review73 checked direct coordinator launch after an
+extra outer macOS sandbox made the first small check fail. Child guards remain.
+Actual cleanup proof442ms PASS with verified SIGTERM closure and sticky failure;
+final runtimefb2 focused3206/8skip and all policies/TSC/lint PASS. ONE fresh full
+58bf13c71114/VryaWK attempt FAILED after130.741s: actual runtime and workflow
+entered, baseline witness captured, then workflow timeout before test authoring.
+Contexts close/pending0/page+console errors0; native ownedSettledfalse still blocks
+acceptance. Exact cleanup rejection cause unproved. No full retry. Fresh current
+checks find no matching processes/open workdir/evidence handles or app listener.
+Within original cleanup end, stop only its five exact label-verified containers;
+preserve containers/volumes/network/workdir/evidence. All test ports clear. Before
+post-run source/cache edits, current byte comparison matches7627source files and
+49485dependency files; preservationCompletefalse/nativeAcceptancefalse, no shared
+DB equality attested. Full attempt spent; new full invocation needs authorization.
+Production/shared-local/provider-Survey/account/billing/activation holds remain.
 
 ## 2026-10-14 Fixed error-shape/code-site observation and earliest body marker
 
