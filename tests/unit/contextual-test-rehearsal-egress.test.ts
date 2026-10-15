@@ -16,7 +16,7 @@ describe('installed socket guard matches native argument normalization without n
   const connectSource = native.slice(native.indexOf('function connect(...args)'), native.indexOf('\nfunction getDefaultAutoSelectFamily'))
   const socketStart = native.indexOf('Socket.prototype.connect = function(...args)')
   const socketPrefix = native.slice(socketStart, native.indexOf('  if (netClientSocketChannel.hasSubscribers)', socketStart))
-  function harness(settings: { deadline?: number; normalize?: typeof normalize; bytes?: number } = {}) {
+  function harness(settings: { deadline?: number; normalize?: typeof normalize; bytes?: number; sameRealm?: boolean } = {}) {
     const state = { app: 0, storage: 0, api: 0, flags: { denied: false, uncertain: false, expired: false, capExceeded: false } }
     const note = vi.fn((flag: keyof typeof state.flags) => { state.flags[flag] = true })
     const ledger = { note, snapshot: () => state, charge(bucket: 'app' | 'storage' | 'api') {
@@ -42,12 +42,21 @@ describe('installed socket guard matches native argument normalization without n
     const sourceFile = require.resolve('../../scripts/contextual-test-rehearsal-egress.cjs')
     const context = vm.createContext({ module: vmModule, exports: vmModule.exports, require: (id: string) => {
       if (!Object.hasOwn(modules, id)) throw Error('Unapproved CPU dependency'); return modules[id]
-    }, process: { env: {}, argv: [] }, __filename: sourceFile, fetch: originalFetch, URL, Request, Response, AbortSignal, Buffer })
+    }, process: { env: {}, argv: [] }, __filename: sourceFile, fetch: originalFetch, URL, Request, Response, AbortSignal, Buffer, Socket,
+    normalizedArgsSymbol: marker, isPipeName() { throw Error('Unused synthetic primitive-normalizer path') } })
+    if (settings.sameRealm) {
+      // Actual native source, but only its empty/options branches in this realm.
+      // This keeps both the sample and target on the installer's own prototype.
+      const realmNormalize = vm.runInContext('(' + normalize.toString() + ')', context, { timeout: 1000 })
+      ;(modules['node:net'] as { _normalizeArgs: typeof normalize })._normalizeArgs = realmNormalize
+      context.normalizeSocketArgs = realmNormalize
+    }
     vm.runInContext(readFileSync(sourceFile, 'utf8'), context, { timeout: 1000 })
     const install = () => vmModule.exports.installContextualTestEgress({ deadline: settings.deadline ?? Date.now() + 10000, ledger })
     return { install, state, note, dispatch, nativeConnect, originalFetch, forbidden, Socket,
       fetch: (url: string) => (context.fetch as typeof fetch)(url),
-      socket: (...args: unknown[]) => Reflect.apply((Socket.prototype as unknown as { connect: (...args: unknown[]) => unknown }).connect, {}, args) }
+      socket: (...args: unknown[]) => Reflect.apply((Socket.prototype as unknown as { connect: (...args: unknown[]) => unknown }).connect, {}, args),
+      evaluate: (source: string) => vm.runInContext(source, context, { timeout: 1000 }) }
   }
   it('admits the real net.connect normalized tuple through the actual installer and bounded fetch', async () => {
     const h = harness(); h.install()
@@ -92,6 +101,44 @@ describe('installed socket guard matches native argument normalization without n
       expect(h.dispatch).toHaveBeenCalledOnce(); expect(h.dispatch.mock.calls[0][1]).toBe(target)
       expect(h.note).not.toHaveBeenCalled()
     }
+  })
+  it.each(['direct', 'marked'] as const)('rejects %s lookup inherited from the accepted native prototype without evaluating it', form => {
+    for (const getter of [false, true]) {
+      const h = harness({ sameRealm: true }); h.install()
+      const result = h.evaluate(`(() => {
+        let lookups = 0, getters = 0;
+        const lookup = () => { lookups++; };
+        Object.defineProperty(Object.prototype, 'lookup', ${getter
+          ? '{ get() { getters++; return lookup; }, configurable: true }'
+          : '{ value: lookup, configurable: true }'});
+        try {
+          const target = { host: 'localhost', port: 3117 };
+          try { Socket.prototype.connect.call({}, ${form === 'marked' ? 'normalizeSocketArgs([target])' : 'target'}); }
+          catch { return { rejected: true, lookups, getters }; }
+          return { rejected: false, lookups, getters };
+        } finally { delete Object.prototype.lookup; }
+      })()`)
+      expect(result).toEqual({ rejected: true, lookups: 0, getters: 0 })
+      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+    }
+    const ordinary = harness({ sameRealm: true }); ordinary.install()
+    ordinary.evaluate("Socket.prototype.connect.call({}, normalizeSocketArgs([{ host: 'localhost', port: 3117 }]))")
+    expect(ordinary.dispatch).toHaveBeenCalledOnce(); expect(ordinary.note).not.toHaveBeenCalled()
+  })
+  it.each(['direct', 'marked'] as const)('does not mistake inherited descriptor value for %s own data', form => {
+    const h = harness({ sameRealm: true }); h.install()
+    const result = h.evaluate(`(() => {
+      let reads = 0;
+      Object.defineProperty(Object.prototype, 'value', { value: 'localhost', configurable: true });
+      try {
+        const target = { get host() { reads++; return 'localhost'; }, port: 3117 };
+        try { Socket.prototype.connect.call({}, ${form === 'marked' ? 'normalizeSocketArgs([target])' : 'target'}); }
+        catch { return { rejected: true, reads }; }
+        return { rejected: false, reads };
+      } finally { delete Object.prototype.value; }
+    })()`)
+    expect(result).toEqual({ rejected: true, reads: 0 })
+    expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
   })
   const marked = (options: unknown, callback: unknown = null, value: unknown = true) => Object.assign([options, callback], { [marker]: value })
   const cases: Array<[string, () => unknown[]]> = [

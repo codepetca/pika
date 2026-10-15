@@ -414,7 +414,10 @@ function installContextualTestEgress(options) {
       const data = value => {
         assert(value && typeof value === 'object' && !isProxy(value))
         const descriptors = Object.getOwnPropertyDescriptors(value)
-        assert(Reflect.ownKeys(descriptors).every(key => 'value' in descriptors[key]))
+        // This dictionary must not inherit destination fields or descriptor
+        // values from the very prototype whose inherited hooks we inspect.
+        Object.setPrototypeOf(descriptors, null)
+        assert(Reflect.ownKeys(descriptors).every(key => Object.hasOwn(descriptors[key], 'value')))
         return descriptors
       }
       assert(!isProxy(args[0]))

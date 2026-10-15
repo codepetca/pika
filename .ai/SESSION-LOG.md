@@ -783,8 +783,11 @@ wrong ports, Unix paths, accessors, proxies, coercible ports and contradictory
 hostnames remain rejected. No auth, origin allowlist, dependency or app changes.
 Author103 focused tests, TypeScript and targeted lint pass after9 RED regressions.
 Reviews78/79 found one shared P1: custom lookup can redirect an admitted localhost
-tuple externally. Fix44 rejects own/inherited custom lookup without evaluating
-functions/getters;2 RED regressions then106 focused checks/TSC/lint pass. Root
-review and full gate precede ONE newly authorized bounded rehearsal; no new
+tuple externally. Fix44 initially passes106 checks; review80 finds descriptor-map
+inheritance leaves the accepted native-prototype case open. Root reproduces it
+locally before Fix45: null-prototype maps/own-data checks, actual same-realm direct
+and marked native-prototype/getter/value cases. Two RED regressions then110
+focused checks/lint pass; earlier108 also passes TypeScript. Source review and
+full gate precede ONE newly authorized bounded rehearsal; no new
 admission/clock/token allocated. Historical exact failing action remains
 unattested; production/shared-local/provider/activation holds unchanged.
