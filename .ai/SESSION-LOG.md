@@ -782,6 +782,9 @@ preserving original arguments. Malformed tuples, forged markers, foreign hosts,
 wrong ports, Unix paths, accessors, proxies, coercible ports and contradictory
 hostnames remain rejected. No auth, origin allowlist, dependency or app changes.
 Author103 focused tests, TypeScript and targeted lint pass after9 RED regressions.
-Independent review and full gate precede ONE newly authorized bounded rehearsal;
-no new admission/clock/token allocated. Historical exact failing action remains
+Reviews78/79 found one shared P1: custom lookup can redirect an admitted localhost
+tuple externally. Fix44 rejects own/inherited custom lookup without evaluating
+functions/getters;2 RED regressions then106 focused checks/TSC/lint pass. Root
+review and full gate precede ONE newly authorized bounded rehearsal; no new
+admission/clock/token allocated. Historical exact failing action remains
 unattested; production/shared-local/provider/activation holds unchanged.

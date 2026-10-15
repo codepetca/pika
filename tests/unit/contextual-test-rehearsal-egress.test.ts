@@ -69,6 +69,30 @@ describe('installed socket guard matches native argument normalization without n
       expect(h.note).not.toHaveBeenCalled()
     }
   })
+  it.each(['direct', 'marked'] as const)('rejects %s custom lookup before connector dispatch or lookup evaluation', form => {
+    const lookup = vi.fn((_host: string, _options: unknown, callback: (error: null, address: string, family: number) => void) => callback(null, '203.0.113.9', 4))
+    const getter = vi.fn(() => lookup)
+    const ordinary = { host: 'localhost', port: 3117 }
+    const targets = [
+      { ...ordinary, lookup },
+      Object.assign(Object.create({ lookup }), ordinary),
+      Object.defineProperty({ ...ordinary }, 'lookup', { get: getter }),
+      Object.assign(Object.create(Object.defineProperty({}, 'lookup', { get: getter })), ordinary),
+    ]
+    for (const target of targets) {
+      const h = harness(); h.install()
+      expect(() => h.socket(form === 'marked' ? normalize([target]) : target)).toThrow()
+      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+      expect(lookup).not.toHaveBeenCalled(); expect(getter).not.toHaveBeenCalled()
+    }
+  })
+  it('retains ordinary default lookup options and their original identity', () => {
+    for (const target of [{ host: 'localhost', port: 3117 }, { host: 'localhost', port: 3117, lookup: undefined }]) {
+      const h = harness(); h.install(); h.nativeConnect(target)
+      expect(h.dispatch).toHaveBeenCalledOnce(); expect(h.dispatch.mock.calls[0][1]).toBe(target)
+      expect(h.note).not.toHaveBeenCalled()
+    }
+  })
   const marked = (options: unknown, callback: unknown = null, value: unknown = true) => Object.assign([options, callback], { [marker]: value })
   const cases: Array<[string, () => unknown[]]> = [
     ['foreign host', () => [{ host: 'example.invalid', port: 54331 }]],

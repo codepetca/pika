@@ -434,9 +434,12 @@ function installContextualTestEgress(options) {
       assert(prototype === null || prototype === optionsPrototype)
       assert(typeof descriptors.host?.value === 'string')
       assert(['number', 'string'].includes(typeof descriptors.port?.value))
-      for (const key of ['hostname', 'path', 'socketPath']) {
+      for (const key of ['hostname', 'path', 'socketPath', 'lookup']) {
         assert(descriptors[key] || !prototype || !Object.getOwnPropertyDescriptor(prototype, key))
       }
+      // A custom lookup could resolve the admitted localhost to another host.
+      // Only an absent/undefined own value may use Node's ordinary resolver.
+      assert(descriptors.lookup?.value === undefined)
       // Node uses host, not hostname. Both names may exist only when identical.
       assert(target.hostname === undefined || target.hostname === target.host)
     } catch { return deny() }
