@@ -11,7 +11,7 @@ import { createContextualTestPlan } from '../e2e/helpers/contextual-test-rehears
 import { applyContextualTestFontOverlay, contextualTestFontOverlay } from '../e2e/helpers/contextual-test-font-overlay'
 import type { ContextualTestRunBinding } from './contextual-test-rehearsal-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
-import { createFamilyOperationGate, reconcileOwnedFamily, ownedFamilyAbsent, requireLiveKernelRoot, settleOwnedFamily, type Capture, type OwnedProcessRow } from './contextual-test-process-ownership'
+import { captureKernelRootIdentity, createFamilyOperationGate, reconcileOwnedFamily, ownedFamilyAbsent, requireLiveKernelRoot, settleOwnedFamily, type Capture, type OwnedProcessRow } from './contextual-test-process-ownership'
 
 const hex = /^[a-f0-9]{64}$/
 /** Snapshot admitted JSON-shaped data, not the caller's mutable object graph. */
@@ -319,7 +319,7 @@ export function createContextualTestOwnedFamily(input: { pid: number; pgid: numb
   assert.deepEqual(input.argv, input.expectedArgv); assert.equal(input.cwd, input.expectedCwd)
   const row = input.rows.find(value => value.pid === input.pid); assert(row)
   requireLiveKernelRoot(row); assert.equal(row.executable, input.executable); assert.equal(row.pgid, input.pgid)
-  let capture: Capture = { identity: { pid: row.pid, pgid: row.pgid, started: row.started, executable: row.executable, cwd: input.cwd, role: input.role }, descendants: [] }
+  let capture: Capture = { identity: captureKernelRootIdentity(row, input.cwd, input.role), descendants: [] }
   capture = reconcileOwnedFamily(capture, input.rows)
   const gate = createFamilyOperationGate()
   return Object.freeze({ snapshot: () => structuredClone(capture),

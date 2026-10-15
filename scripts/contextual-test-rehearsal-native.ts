@@ -109,7 +109,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
   const observeRows = async (admit: () => void, deadline = controllerEnd): Promise<OwnedProcessRow[]> => {
     admit(); const end = Math.min(deadline, controllerEnd, Date.now() + 30000)
     verifyContextualTestBinary(pins.helper)
-    assert.equal(pins.helper.sha256, '1c44d97370e46b90ad31af5db7da0907a4801ec1581a077d7825103c3add550d')
+    assert.equal(pins.helper.sha256, '4b5d355992525ce7eeca1d03e7a1170a63bf71a3c6be82f3d8d43c79c5a3c53b')
     const text = await probeWithAdmission(admit, pins.ps, ['-axo','pid=,ppid=,pgid='], end)
     const input = text.split('\n').map(line => {
       const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s*$/.exec(line); assert(match)
@@ -137,7 +137,8 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
         assert(child.exitCode === null && child.signalCode === null, 'Private child exited during birth capture')
         const latest = await rows()
         const fresh = latest.find(row => row.pid === child.pid)
-        assert(fresh && fresh.started === root.started && fresh.executable === root.executable && fresh.pgid === root.pgid)
+        assert(fresh && fresh.started === root.started && fresh.executable === root.executable && fresh.pgid === root.pgid
+          && fresh.uniqueId === root.uniqueId && fresh.imageUuid === root.imageUuid && fresh.pidVersion === root.pidVersion)
         return createContextualTestOwnedFamily({ pid: child.pid, pgid: child.pid, executable, cwd,
           argv: [executable, ...argv], expectedArgv: [executable, ...argv], expectedCwd: cwd, role, rows: latest })
       }
@@ -320,7 +321,7 @@ export async function verifyContextualTestNativeReadiness(pins: ContextualTestNa
   for (const key of ['node','ps','python','lsof','sandbox','codesign','chrome','docker'] as const) verifyContextualTestBinary(pins[key])
   assert.equal(pins.chrome.path, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
   assert.equal(pins.chrome.sha256, 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f')
-  assert.equal(sha(readFileSync(pins.helper.path)), '1c44d97370e46b90ad31af5db7da0907a4801ec1581a077d7825103c3add550d')
+  assert.equal(sha(readFileSync(pins.helper.path)), '4b5d355992525ce7eeca1d03e7a1170a63bf71a3c6be82f3d8d43c79c5a3c53b')
   await control.probe(pins.codesign, ['--verify','--deep','--strict',dirname(dirname(dirname(pins.chrome.path)))], input.deadline)
   assert.deepEqual(input.requiredImages.map(image => image.ref).sort(), [...CONTEXTUAL_TEST_REQUIRED_IMAGES].sort())
   for (const image of input.requiredImages) {

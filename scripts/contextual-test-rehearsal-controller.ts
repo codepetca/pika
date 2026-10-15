@@ -114,15 +114,17 @@ function projectNativeDiagnostics(raw: unknown): ContextualTestNativeDiagnostics
       let identityMismatch: ContextualTestIdentityMismatch | null = null
       if (v.identityMismatch !== null) {
         assert(v.cause === 'identity-mismatch')
-        const detail = data(v.identityMismatch, ['member','state','startTimeChanged','pgidChanged','executableChanged','previousExecutableClass','observedExecutableClass'])
+        const detail = data(v.identityMismatch, ['member','state','startTimeChanged','pgidChanged','executableChanged','birthIdentityChanged','imageGenerationChanged','previousExecutableClass','observedExecutableClass'])
         assert(detail.member === 'root' || detail.member === 'descendant')
         assert(detail.state === 'alive' || detail.state === 'zombie' || detail.state === 'exiting' || detail.state === 'unknown')
         assert(typeof detail.startTimeChanged === 'boolean' && typeof detail.pgidChanged === 'boolean' && typeof detail.executableChanged === 'boolean')
-        assert(detail.startTimeChanged || detail.pgidChanged || detail.executableChanged)
+        assert(typeof detail.birthIdentityChanged === 'boolean' && typeof detail.imageGenerationChanged === 'boolean')
+        assert(detail.startTimeChanged || detail.pgidChanged || detail.executableChanged || detail.birthIdentityChanged || detail.imageGenerationChanged)
         assert(contextualTestExecutableClasses.includes(detail.previousExecutableClass as typeof contextualTestExecutableClasses[number])
           && contextualTestExecutableClasses.includes(detail.observedExecutableClass as typeof contextualTestExecutableClasses[number]))
         identityMismatch = Object.freeze({ member: detail.member, state: detail.state, startTimeChanged: detail.startTimeChanged,
           pgidChanged: detail.pgidChanged, executableChanged: detail.executableChanged,
+          birthIdentityChanged: detail.birthIdentityChanged, imageGenerationChanged: detail.imageGenerationChanged,
           previousExecutableClass: detail.previousExecutableClass as ContextualTestIdentityMismatch['previousExecutableClass'],
           observedExecutableClass: detail.observedExecutableClass as ContextualTestIdentityMismatch['observedExecutableClass'] })
       }

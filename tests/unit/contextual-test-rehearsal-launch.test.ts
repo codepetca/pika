@@ -171,7 +171,8 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
     expect(() => contextualTestReadOnlyDependencyProfile([])).toThrow()
   })
   it('reuses exact family reconciliation, rejecting argv/cwd and kernel identity mismatches', async () => {
-    const row = { pid: 501, ppid: 1, pgid: 501, started: '123:4', executable: '/pinned/node', state: 'alive' as const }
+    const row = { pid: 501, ppid: 1, pgid: 501, started: '123:4', executable: '/pinned/node', state: 'alive' as const,
+      uniqueId: '5010', parentUniqueId: '10', imageUuid: 'a'.repeat(32), pidVersion: 1 }
     const input = { pid: 501, pgid: 501, executable: '/pinned/node', cwd: '/owned/app', argv: ['/pinned/node','next'], expectedArgv: ['/pinned/node','next'], expectedCwd: '/owned/app', role: 'app' as const, rows: [row] }
     const family = createContextualTestOwnedFamily(input)
     expect(family.snapshot().identity.started).toBe('123:4'); expect(family.absent([])).toBe(true)
@@ -180,12 +181,14 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
     await expect(family.observe(() => {}, async () => [{ ...row, started: '999:1' }])).rejects.toThrow()
   })
   it('serializes snapshot acquisition with publication so pending births cannot be overwritten by stale observations', async () => {
-    const root = { pid: 501, ppid: 1, pgid: 501, started: '123:4', executable: '/pinned/node', state: 'alive' as const }
-    const starting = { ...root, pid: 502, ppid: 501, started: '123:5', executable: '', state: 'starting' as const }
+    const root = { pid: 501, ppid: 1, pgid: 501, started: '123:4', executable: '/pinned/node', state: 'alive' as const,
+      uniqueId: '5010', parentUniqueId: '10', imageUuid: 'a'.repeat(32), pidVersion: 1 }
+    const starting = { ...root, pid: 502, ppid: 501, started: '123:5', executable: '', state: 'starting' as const,
+      uniqueId: '5020', parentUniqueId: root.uniqueId, imageUuid: '', pidVersion: null }
     const family = createContextualTestOwnedFamily({ ...root, cwd: '/owned/app', argv: ['/pinned/node'], expectedArgv: ['/pinned/node'], expectedCwd: '/owned/app', role: 'app', rows: [root] })
     let finish!: (rows: (typeof root | typeof starting)[]) => void
     const firstRows = vi.fn(() => new Promise<(typeof root | typeof starting)[]>(resolve => { finish = resolve }))
-    const nextRows = vi.fn(async () => [root, { ...starting, state: 'alive' as const, executable: '/cpu/helper' }])
+    const nextRows = vi.fn(async () => [root, { ...starting, state: 'alive' as const, executable: '/cpu/helper', imageUuid: 'b'.repeat(32), pidVersion: 2 }])
     const first = family.observe(() => {}, firstRows), next = family.observe(() => {}, nextRows)
     await Promise.resolve()
     expect(firstRows).toHaveBeenCalledOnce(); expect(nextRows).not.toHaveBeenCalled()

@@ -150,7 +150,8 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     expect(getter).not.toHaveBeenCalled()
   })
   it('copies fixed mismatch details without affecting a failed closure or retaining producer mutations', async () => {
-    const f = fixture(), detail = { member: 'descendant', state: 'exiting', startTimeChanged: true, pgidChanged: false, executableChanged: true, previousExecutableClass: 'chrome', observedExecutableClass: 'chrome-renderer' }
+    const f = fixture(), detail = { member: 'descendant', state: 'exiting', startTimeChanged: true, pgidChanged: false, executableChanged: true,
+      birthIdentityChanged: false, imageGenerationChanged: false, previousExecutableClass: 'chrome', observedExecutableClass: 'chrome-renderer' }
     const row = { role: 'browser', phase: 'monitor', cause: 'identity-mismatch', closed: false, uncertain: true, identityMismatch: detail }
     const diagnostics = { firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 0 }
     await expect(runContextualTestRehearsalController(f.admission as never, { ...f.control, nativeDiagnostics: () => diagnostics,
@@ -159,13 +160,26 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     detail.member = 'SECRET'
     expect(JSON.stringify(f.receipts[0])).not.toContain('SECRET')
   })
+  it.each(['birthIdentityChanged', 'imageGenerationChanged'] as const)('retains a %s-only rejection without exposing kernel identifiers', async field => {
+    const f = fixture(), detail = { member: 'descendant', state: 'alive', startTimeChanged: false,
+      pgidChanged: false, executableChanged: false, birthIdentityChanged: false, imageGenerationChanged: false,
+      previousExecutableClass: 'chrome', observedExecutableClass: 'chrome', [field]: true }
+    const row = { role: 'browser', phase: 'monitor', cause: 'identity-mismatch', closed: false, uncertain: true, identityMismatch: detail }
+    await expect(runContextualTestRehearsalController(f.admission as never, { ...f.control,
+      nativeDiagnostics: () => ({ firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 0 }),
+      async settleAll() { throw Error('SECRET') } }, f.edges as never)).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', nativeDiagnostics: { firstFailure: { identityMismatch: detail } } })
+    expect(JSON.stringify(f.receipts[0])).not.toContain('SECRET')
+  })
   it('rejects malformed mismatch details without executing getters or proxy traps or changing gates', async () => {
     const trap = vi.fn(() => { throw Error('SECRET') })
-    const good = { member: 'root', state: 'alive', startTimeChanged: true, pgidChanged: false, executableChanged: false, previousExecutableClass: 'node', observedExecutableClass: 'node' }
+    const good = { member: 'root', state: 'alive', startTimeChanged: true, pgidChanged: false, executableChanged: false,
+      birthIdentityChanged: false, imageGenerationChanged: false, previousExecutableClass: 'node', observedExecutableClass: 'node' }
     for (const detail of [new Proxy(good, { get: trap, ownKeys: trap, getPrototypeOf: trap }),
       Object.defineProperty({ ...good }, 'member', { get: trap }), Object.create(good),
       { ...good, pid: 999 }, { ...good, state: 'SECRET' }, { ...good, member: 'SECRET' },
       { ...good, startTimeChanged: 'SECRET' }, { ...good, startTimeChanged: false },
+      { ...good, birthIdentityChanged: 'SECRET' }, { ...good, imageGenerationChanged: 'SECRET' },
       { ...good, previousExecutableClass: '/SECRET/node' }, { ...good, observedExecutableClass: 'SECRET' },
       Object.defineProperty({ ...good }, 'observedExecutableClass', { get: trap })]) {
       const f = fixture(), row = { role: 'app', phase: 'monitor', cause: 'identity-mismatch', closed: false, uncertain: true, identityMismatch: detail }

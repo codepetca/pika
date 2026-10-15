@@ -28,12 +28,20 @@ class Child extends EventEmitter {
   readonly spawnargs = ['/cpu/node','/cpu/spec.js']
   constructor(readonly pid: number) { super() }
 }
-type Row = { pid: number; ppid: number; pgid: number; started: string; executable: string; state: string }
+type Row = { pid: number; ppid: number; pgid: number; started: string; executable: string; state: string;
+  uniqueId?: string; parentUniqueId?: string; imageUuid?: string; pidVersion?: number | null }
+function kernelRow(row: Row) {
+  if (row.state === 'unverified') return { ...row, started: 'unverified', executable: '', uniqueId: '',
+    parentUniqueId: '', imageUuid: '', pidVersion: null }
+  return { ...row, uniqueId: row.uniqueId ?? String(row.pid * 10), parentUniqueId: row.parentUniqueId ?? String(row.ppid * 10),
+    imageUuid: row.state === 'starting' ? '' : row.imageUuid ?? 'a'.repeat(32),
+    pidVersion: row.state === 'starting' ? null : row.pidVersion ?? 1 }
+}
 const pin = (path: string) => ({ path, sha256: 'a'.repeat(64) })
 const pins: ContextualTestNativePins = {
   node: pin('/cpu/node'), ps: pin('/cpu/ps'), python: pin('/cpu/python'), lsof: pin('/cpu/lsof'), sandbox: pin('/cpu/sandbox'),
   codesign: pin('/cpu/codesign'), chrome: pin('/cpu/chrome'), docker: pin('/cpu/docker'),
-  helper: { path: resolve('scripts/contextual-test-process-identity.py'), sha256: '1c44d97370e46b90ad31af5db7da0907a4801ec1581a077d7825103c3add550d' },
+  helper: { path: resolve('scripts/contextual-test-process-identity.py'), sha256: '4b5d355992525ce7eeca1d03e7a1170a63bf71a3c6be82f3d8d43c79c5a3c53b' },
   dockerHost: 'unix:///cpu/docker.sock', outputDir: '/private/tmp',
 }
 let rows: Row[], app: Child, owned: Child[], kill: ReturnType<typeof vi.spyOn>, nextPid: number, output: string
@@ -59,7 +67,7 @@ beforeEach(() => {
       let text = output
       const inventory = [...rows, { pid: 42, ppid: 1, pgid: 42, started: '1:1', executable: '/coordinator/node', state: 'alive' }]
       if (file === pins.ps.path) text = args[0] === '-axo' ? inventory.map(row => `${row.pid} ${row.ppid} ${row.pgid}`).join('\n') : '/cpu/node /cpu/spec.js'
-      if (file === pins.python.path) text = JSON.stringify({ schema: 2, rows: inventory })
+      if (file === pins.python.path) text = JSON.stringify({ schema: 3, rows: inventory.map(kernelRow) })
       if (file === pins.lsof.path) text = args.includes('-iTCP:3117') ? 'p1001' : `p1000\nfcwd\nn${process.cwd()}`
       child.stdout.emit('data', Buffer.from(text)); child.emit('close', 0, null)
     }))
@@ -88,10 +96,10 @@ function commandFixture(control: ReturnType<typeof createContextualTestNativeCon
 }
 
 describe('real native controller with CPU process doubles only', () => {
-  it('defers a first-exec child without uncertainty, then still poisons on later executable drift', async () => {
+  it('defers first exec, accepts pathname publication, then poisons on an image-generation change', async () => {
     vi.useFakeTimers()
     const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned({ ...launch(), role: 'browser' })
-    const starting = { pid: 1002, ppid: 1000, pgid: 1000, started: '1002:1', executable: '', state: 'starting' }
+    const starting: Row = { pid: 1002, ppid: 1000, pgid: 1000, started: '1002:1', executable: '', state: 'starting' }
     rows.push(starting)
     await vi.advanceTimersByTimeAsync(250)
     expect(child.state().family.pending).toHaveLength(1)
@@ -101,7 +109,11 @@ describe('real native controller with CPU process doubles only', () => {
     await vi.advanceTimersByTimeAsync(250)
     expect(child.state().family.pending).toEqual([])
     expect(child.state().family.descendants.some(p => p.pid === starting.pid && p.executable === '/cpu/helper')).toBe(true)
-    starting.executable = '/cpu/other'
+    starting.executable = '/cpu/published-helper'
+    await vi.advanceTimersByTimeAsync(250)
+    expect(child.state().uncertain).toBe(false)
+    expect(kill).not.toHaveBeenCalled()
+    starting.executable = '/cpu/other'; starting.pidVersion = 2
     await vi.advanceTimersByTimeAsync(250)
     expect(child.state().uncertain).toBe(true)
     await expect(controls.spawnOwned(launch())).rejects.toThrow()
@@ -490,12 +502,13 @@ describe('real native controller with CPU process doubles only', () => {
 
 describe('fresh execution seal (CPU only, no admission)', () => {
   it('escalates a SIGTERM-resistant owned family inside the shared six-minute reserve', async () => {
-    const capture: Capture = { identity: { pid: 1000, pgid: 1000, started: '100:1', executable: '/cpu/node', cwd: '/cpu', role: 'app' }, descendants: [] }
+    const capture: Capture = { identity: { pid: 1000, pgid: 1000, started: '100:1', executable: '/cpu/node', cwd: '/cpu', role: 'app',
+      uniqueId: '10000', imageUuid: 'a'.repeat(32), pidVersion: 1 }, descendants: [] }
     let time = 1000, alive = true, closed = false
     const signals: Array<{ signal: string; at: number }> = []
     const end = time + 360000
     const result = await settleOwnedFamily(capture, 'group', {
-      rows: async () => { time += 1000; return alive ? [{ ...capture.identity, ppid: 42, state: 'alive' }] as OwnedProcessRow[] : [] },
+      rows: async () => { time += 1000; return alive ? [{ ...capture.identity, ppid: 42, parentUniqueId: '420', state: 'alive' }] as OwnedProcessRow[] : [] },
       now: () => time, admit: () => expect(time).toBeLessThan(end), end, closed: () => closed, update() {},
       signal: (pid, signal) => { expect(pid).toBe(-1000); signals.push({ signal, at: time }); if (signal === 'SIGKILL') { alive = false; closed = true } },
     })
