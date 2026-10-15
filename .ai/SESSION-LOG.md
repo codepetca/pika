@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Recovery merged; owner unpublish source preparation
-
-PR1577 merged18126e952 after exact reviewedf703568d CI38175680856 passed all10
-checks/PR Gate. Canonical main fast-forwarded cleanly; reviewed and merge trees
-match. Native acceptance remains the explicitly verified b11 ancestor reuse,
-not a claimed f703 execution. Original review ledger19turns1944measureds,
-seven accepted findings resolved/ten source batches, no counter reset.
-Next bounded dormant owner unpublish uses sealed261/private shared255 core,
-preserves literal legacy teacher dispatch and seven-argument current-owner RPC.
-Product TDD104checks pass; coordinator independently verifies private SDK model,
-operational lifetime and strict TypeScript checks. No native run/PR acceptance
-yet. Independent review and fresh exact-source disposable proof remain required.
-Routine/budget waiver persists; sharedlocal249+/prod259+, production promotion,
-provider/account and admission/home/page/cohort/cutover holds remain unchanged.
-
-PR1578 draft63d1 source focused2133/120files and24TS audit PASS. Initial security/
-compatibility plus targeted privacy review cover that source; one P2 corrected
-privately (canonical fullrow/cron database-side digests, no rawaccount exports).
-First fresh disposablea1fbab47a8f7 replay001–261 PASS but rollback fixture failed;
-exactcleanup/global741resources/canonical183table+2cron preservation PASS.
-No native acceptance. Source diagnosis identified deliberate faulttrigger leaking
-into setup and112/095 normal Draft/Classroom trigger expectations. Correct fixture
-to narrow latefault and exact classroomblueprint+1/archive+3/fullotherfields;
-54focusedsource tests PASS. Private SDK exactsame effects and three corruption
-models PASS. Fresh source review/disposable proof/CI remain pending; no migration
-or production/cohort activation. Prior attempt receipts retained, no reset.
-
 ## 2026-10-11 — Unpublish fixture constraint diagnosis
 
 Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
@@ -555,3 +528,11 @@ Owner requested More actions toggles “Hide 0-weight teacher” and “Hide 0-w
 UI brief: production Gradebook More actions/Pattern Lab gradebook-compact reference; extend toolbar/display preferences/classroom setting, reuse shared menu semantics and StudentGradesView. Teacher+student production owners, desktop1440/mobile390, light/dark, default/open/checked and all four toggle combinations PASS in16 Playwright captures under output/playwright/gradebook-zero-weight; Escape returns focus, no page overflow, student grade unchanged. No new shared visual pattern or promotion; no unrelated refactor. Composite checklist reviewed, semantic tests and keyboard coverage pass. Targeted behavior115 tests and previously failing Gallery87 tests PASS with bounded workers; architecture/UI/design policies PASS.
 
 Migration266 only extends the dormant metadata writer allowlist and preserves omitted student setting, retaining238 publication/ownership/lifecycle guards, signature and ACLs. Active legacy metadata supports the JSON setting without schema rollout;266 must precede enabling the dormant writer with this app. SQL rollback harness expanded; no canonical local/production migration applied. Initial broad check exposed finite265 proof inventories and concurrent Gallery timeouts; one GPT6.1-sol/high read-only worker mapped the eight exact profile consumers. Coordinator verified map and adds fixed filename/hash/bytes266 admission, retained historical profiles and future-tail/mutation tests. Worker effective model/time/token telemetry unknown; no edits delegated. Weekly99% remaining at startup; storage healthy. Final focused checks, fixed-SHA independent review and CI evidence follow in PR/lifecycle log. No merge, release, activation or migration application authorized.
+
+## 2026-10-15 — Test publication date menus
+
+Owner requested Publish today / Schedule test instead of the standalone date field, a published-date menu for changes/valid Unpublish, and future Tests hidden from the student Tests list while remaining on Calendar. Implemented one feature-owned control in selected workspace and authoring, reusing the existing menu, date-save acknowledgement and publication/unpublish APIs. Access remains separately teacher-controlled. Worked Tests cannot ordinarily move into the future; manual open access and submitted/returned work stay visible. Added Toronto-midnight reveal, friendly scheduled Calendar selections, editor-save and owner-change guards. No schema, migration, dependency or scheduler changes.
+
+Validation: focused --base origin/main --max-workers 2 PASS 1214 tests/78 files, architecture/UI/design/TypeScript/lint PASS; Pika audit PASS. Playwright 8/8 teacher/student × desktop/mobile × light/dark PASS, plus teacher flow after nonvisual owner/closing safeguards PASS. Screenshots inspected against Pattern Lab controls; artifacts output/playwright/test-publication-date and test-publication-date-guard. Composite checklist reviewed; keyboard/focus and semantic states covered; no manual follow-up. Initial unconstrained runs hit existing markdown/reorder timing failures, each passed isolated; bounded final suite passed. Browser regression caught and fixed editor Unpublish eligibility and post-success navigation.
+
+Coordinator branch codex/test-publish-date from 0009d60ee. GPT-6.1-Sol/high worker supplied contract investigation and student filtering; its 71 tests/3 files were accepted and integrated without student-slice corrections. Per-worker tokens/active time and coordinator attribution unknown; account weekly remaining 94% at start, 92% before review (shared account, no task-cost inference). Storage healthy ~319 GB; DeepSeek paused. Draft-first independent review/CI receipts belong to this PR lifecycle. No main merge or production operation authorized/performed.

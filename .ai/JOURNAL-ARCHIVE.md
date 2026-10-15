@@ -46842,3 +46842,31 @@ to that proof, retain exact259 checks and unknown261/tampered260 rejection. This
 does not change recovery runtime, migrations, private verifier or application.
 Sharedlocal249+/prod259+/promotion/provider/account/cutover holds remain; Tests,
 Surveys/Grades and broader integration/rollout remain unfinished.
+
+<!-- pika-session-log-archive-batch:8c55c56bd203406836121bd33a17c49aee565e5640846a2b0fe83b01e1303590 -->
+## 2026-10-11 — Recovery merged; owner unpublish source preparation
+
+PR1577 merged18126e952 after exact reviewedf703568d CI38175680856 passed all10
+checks/PR Gate. Canonical main fast-forwarded cleanly; reviewed and merge trees
+match. Native acceptance remains the explicitly verified b11 ancestor reuse,
+not a claimed f703 execution. Original review ledger19turns1944measureds,
+seven accepted findings resolved/ten source batches, no counter reset.
+Next bounded dormant owner unpublish uses sealed261/private shared255 core,
+preserves literal legacy teacher dispatch and seven-argument current-owner RPC.
+Product TDD104checks pass; coordinator independently verifies private SDK model,
+operational lifetime and strict TypeScript checks. No native run/PR acceptance
+yet. Independent review and fresh exact-source disposable proof remain required.
+Routine/budget waiver persists; sharedlocal249+/prod259+, production promotion,
+provider/account and admission/home/page/cohort/cutover holds remain unchanged.
+
+PR1578 draft63d1 source focused2133/120files and24TS audit PASS. Initial security/
+compatibility plus targeted privacy review cover that source; one P2 corrected
+privately (canonical fullrow/cron database-side digests, no rawaccount exports).
+First fresh disposablea1fbab47a8f7 replay001–261 PASS but rollback fixture failed;
+exactcleanup/global741resources/canonical183table+2cron preservation PASS.
+No native acceptance. Source diagnosis identified deliberate faulttrigger leaking
+into setup and112/095 normal Draft/Classroom trigger expectations. Correct fixture
+to narrow latefault and exact classroomblueprint+1/archive+3/fullotherfields;
+54focusedsource tests PASS. Private SDK exactsame effects and three corruption
+models PASS. Fresh source review/disposable proof/CI remain pending; no migration
+or production/cohort activation. Prior attempt receipts retained, no reset.

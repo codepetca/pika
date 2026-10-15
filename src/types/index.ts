@@ -1011,6 +1011,7 @@ export interface SurveyQuestionResult {
 export interface TestAssessment {
   /** Optional classroom calendar date; has no effect on learner access. */
   test_date?: string | null
+  questions_locked_at?: string | null
   id: string
   artifact_id?: string
   source_artifact_id?: string | null
@@ -1161,6 +1162,7 @@ export interface AssessmentEditorSummaryUpdate {
 
 export interface AssessmentWorkspaceSummaryPatch extends Partial<AssessmentEditorSummaryUpdate> {
   status?: TestAssessmentStatus
+  test_date?: string | null
 }
 
 export type StudentTestStatus = 'not_started' | 'responded' | 'can_view_results'
