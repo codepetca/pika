@@ -16,9 +16,9 @@ Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
-Browser PASS; failed isolated run recovered, evidence kept; no app exit.
-Loader noDB actual import PASS; cleanup isolation fix awaits independent review.
-Browser3HTTP/body/cleanup PASS; prior6 failed. No app exit.
+Browser PASS; failed run recovered; no app exit.
+Loader import PASS; cleanup fix review pending.
+Browser3HTTP/body/cleanup PASS; prior6 failed.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.
