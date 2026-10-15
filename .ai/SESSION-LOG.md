@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Vertical Week design exploration
-
-Delivered three experimental standalone Week concepts (lesson agenda, day navigator, expandable week) for teacher/student; recommend agenda for rich lesson reading. Artifacts: /Users/stew/.codex/visualizations/2026/10/11/01a12a93-1a8c-7ed0-a906-1eab3ca18157/vertical-week/review.html (README, brief, provenance, reproducible CLI receipts alongside). Source caaa1c926; actual Pattern Lab owner captures include horizontal Week, Month, Term. No application code/data/DB/release changes or canon promotion.
-
-Final Playwright: 110 checks PASS, 24 concept×role×viewport×theme combinations, zero runtime errors; all matrix screenshots and representative full/long/edit/dialog states visually reviewed. Standalone file mode verified. GPT-6.1-sol medium worker supplied source inventory and bounded reviews; eight accepted findings fixed, including future custom-edit visibility and mobile sticky-title offset. Weekly remaining 99%; DeepSeek pause honored. Worker time/tokens unavailable, coordinator review ~3min estimate. Next: human design review; no implementation rollout authorized.
-
 ## 2026-10-11 — Implement selected Week lesson agenda
 
 Owner chose concept A for teacher/student Week, preserving Month/Term. Worktree `vertical-week-prototypes/pika`, branch `codex/calendar-week-agenda`, based on main `872d195825e4053e18ba8ca49a42613b1f106e22`. Shared LessonCalendar now renders seven agenda days; LessonDayCell extends full lesson reading, explicit teacher Edit/Add, Today/no-class labels and independent event buttons. Existing visibility, date grouping, autosave queue, rich links and actual Markdown sidebar remain owned by the existing controllers. Week controls stick below the app header. No API, database, dependencies or auth changes. Scoped brief: `docs/guidance/ui/changes/calendar-week-agenda.md`.
@@ -480,6 +474,7 @@ Owner requested More actions toggles “Hide 0-weight teacher” and “Hide 0-w
 UI brief: production Gradebook More actions/Pattern Lab gradebook-compact reference; extend toolbar/display preferences/classroom setting, reuse shared menu semantics and StudentGradesView. Teacher+student production owners, desktop1440/mobile390, light/dark, default/open/checked and all four toggle combinations PASS in16 Playwright captures under output/playwright/gradebook-zero-weight; Escape returns focus, no page overflow, student grade unchanged. No new shared visual pattern or promotion; no unrelated refactor. Composite checklist reviewed, semantic tests and keyboard coverage pass. Targeted behavior115 tests and previously failing Gallery87 tests PASS with bounded workers; architecture/UI/design policies PASS.
 
 Migration266 only extends the dormant metadata writer allowlist and preserves omitted student setting, retaining238 publication/ownership/lifecycle guards, signature and ACLs. Active legacy metadata supports the JSON setting without schema rollout;266 must precede enabling the dormant writer with this app. SQL rollback harness expanded; no canonical local/production migration applied. Initial broad check exposed finite265 proof inventories and concurrent Gallery timeouts; one GPT6.1-sol/high read-only worker mapped the eight exact profile consumers. Coordinator verified map and adds fixed filename/hash/bytes266 admission, retained historical profiles and future-tail/mutation tests. Worker effective model/time/token telemetry unknown; no edits delegated. Weekly99% remaining at startup; storage healthy. Final focused checks, fixed-SHA independent review and CI evidence follow in PR/lifecycle log. No merge, release, activation or migration application authorized.
+
 ## 2026-10-15 — Student-table gridlines toggle
 
 Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
@@ -522,5 +517,14 @@ new regressionRED→GREEN. Real browser pending-timer/escape verificationPASS in
 teacher desktop/mobile×light/dark; screenshots inspected. Student n/a.
 Reference: shared nested-dialog focus contract; reuse ModalLayer/DialogPanel,
 extend feature-owned focus guard. Composite focus/keyboard checklist reviewed.
-SDK cleanup diagnosis still running on hosted fixed c1139b535; no guard/budget or
-teardown comparison weakened. Final focused checks/review/CI remain gates.
+Hosted c1139b535 diagnostic CI38742184503 passed all24installed-SDK cases,
+SQL/races, normal exact teardown/canonical equality and both forced cleanup
+cases. Original cleanup-only failure did not reproduce; exact cause unknown,
+new fixed-label diagnostics retained. Superseded diagnostic cancelled after
+this evidence, before final PR CI; no guard/budget/comparison weakened.
+Rebased onto main0009d60ee (#1597); resolve Gradebook preference/reference
+conflicts by retaining both zero-weight filters and gridlines. Range-diff confirms
+only those integration lines and continuity archive markers differ. Four snapshot
+checks and four teacher desktop/mobile×light/dark combined preference/browser
+casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
+Review ledger retains3launches/2batches; final integration review/CI remain gates.
