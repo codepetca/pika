@@ -47207,3 +47207,20 @@ shared/prod migration or activation inferred. Routine workflow-budget approvals
 waived by the owner; correctness and serious-operation holds remain. Separate
 synthetic browser diagnostic now retains inner post-read failure with a completed
 CLI command and positive full cleanup; exact cause is under read-only diagnosis.
+
+<!-- pika-session-log-archive-batch:e1613959972cd8c2beedfcf647f796d1eadae503f58d8560a35a2cace7736c4c -->
+## 2026-10-13 Survey response predicate SQL grouping
+
+Fresh disposable startup now retains a private diagnostic: migration263 failed
+at response-submission statement24 with SQLSTATE42601/end-of-input. Group only
+the CASE expression in the text-response IF condition and update its two exact
+digest pins; link3/text2 key counts, PT400, locks, validation and grants remain
+unchanged. The source regression reproduced RED then GREEN; root52 affected
+checks/lint/diff PASS. Independent targeted review15 PASS; native PostgreSQL
+parsing and genuine263 metadata remain gates. Prior SQL reconstructs byte-exact
+after removing the two parentheses. Both previous disposable candidates stay
+spent with preserved receipts and positively checked cleanup; no retry/rebind,
+shared/prod migration or activation. Source-only preparation of a fresh reviewed
+component follows, not a ready/merge/phase-exit claim. Browser diagnostics now
+confirm URL-wait timeout but not a body error; completion-boundary observation
+remains source-only, with original reader/gate/traffic controls intact.

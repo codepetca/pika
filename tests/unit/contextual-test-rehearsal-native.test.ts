@@ -385,6 +385,77 @@ describe('fresh execution seal (CPU only, no admission)', () => {
       await expect(command.run('git', ['status'])).rejects.toThrow()
     } finally { for (const spy of spies.reverse()) spy.mockRestore() }
   })
+  it.each(['stable', 'source', 'dependencies'])('checks unchanged state through real pinned commands after native cleanup; %s', async change => {
+    vi.useFakeTimers()
+    const { admission, seal } = sealFixture(), node = realpathSync(process.execPath), imageId = 'sha256:' + 'a'.repeat(64)
+    const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f' } }
+    const base = { ...admission, appDir: process.cwd(), runner: { ...admission.runner, repository: process.cwd() },
+      dependencies: { ...admission.dependencies, root: resolve('node_modules') } }
+    const reviewed = { ...seal, requiredImages: CONTEXTUAL_TEST_REQUIRED_IMAGES.map(ref => ({ ref, id: imageId })) }
+    const accepted = contextualTestExecutionDigest(base, actualPins, reviewed), input = { ...base, review: { ...base.review, manifestSha256: accepted } }
+    const transport = launchModule.createContextualTestPinnedCommand, spawnDouble = native.spawn.getMockImplementation()!
+    let command!: ReturnType<typeof transport>, afterSettlement = false
+    const sourceChecks: Array<{ cleaning: boolean; deadline: number }> = []
+    const spies = [
+      vi.spyOn(launchModule, 'verifyContextualTestTransportPins').mockImplementation(() => {}),
+      vi.spyOn(launchModule, 'assertContextualTestUnusedRunnerOutput').mockImplementation(() => {}),
+      vi.spyOn(launchModule, 'captureContextualTestSource').mockImplementation(async (repository, _head, _tree, run, deadline) => {
+        sourceChecks.push({ cleaning: command.state().cleaning, deadline })
+        // Exercise the actual pinned transport supplied by execution controls,
+        // including its admission and positive command-close predicate.
+        await expect(run('git', ['-C', repository, 'status', '--porcelain'])).resolves.toBe('')
+        const source = repository === input.frozen.repository ? input.frozen : input.runner
+        return afterSettlement && change === 'source' ? { ...source, sha256: '0'.repeat(64) } : source
+      }),
+      vi.spyOn(launchModule, 'captureContextualTestDependencies').mockImplementation(() => ({ ...input.dependencies, files: 1, bytes: 1,
+        sha256: afterSettlement && change === 'dependencies' ? '0'.repeat(64) : input.dependencies.sha256 })),
+      vi.spyOn(launchModule, 'createContextualTestPinnedCommand').mockImplementation((transportPins, budget, seams) => {
+        command = transport(transportPins, budget, { ...seams, verify() {}, spawn(_file, args) {
+          const child = new Child(nextPid++)
+          child.stdin.end.mockImplementation(() => queueMicrotask(() => {
+            child.stdout.emit('data', Buffer.from(args[0] === '--version' ? seal.versions.supabase : ''))
+            child.emit('close', 0, null)
+          }))
+          return child as never
+        } })
+        return command
+      }),
+    ]
+    native.spawn.mockImplementation((file: string, args: string[]) => {
+      if (file === pins.sandbox.path && args.includes('-e')) {
+        const probe = new Child(nextPid++)
+        probe.stdin.end.mockImplementation(() => queueMicrotask(() => probe.emit('close', 0, null)))
+        return probe
+      }
+      const helper = spawnDouble(file, args) as Child
+      if (file === pins.sandbox.path) rows.forEach(row => { if (row.pgid === helper.pid) row.executable = node })
+      const text = file === node ? seal.versions.node : file === pins.docker.path ? imageId : file === pins.ps.path && args.includes('-ww') ? `${node} /cpu/spec.js` : undefined
+      if (text !== undefined) helper.stdin.end.mockImplementation(() => queueMicrotask(() => { helper.stdout.emit('data', Buffer.from(text)); helper.emit('close', 0, null) }))
+      return helper
+    })
+    try {
+      const controls = createContextualTestExecutionControls(input, actualPins, { ...reviewed, manifestSha256: accepted })
+      await controls.assertReady(input)
+      const launchInput = { binding: { projectId: input.projectId, outputDir: input.outputDir }, cwd: process.cwd(), env: {},
+        args: ['/cpu/spec.js'], dependencySandboxProfile: '(version 1)' } as never
+      await controls.launchApp(launchInput)
+      const browser = await controls.launchPlaywright(launchInput)
+      rows = rows.filter(row => row.pgid !== owned[1].pid); owned[1].emit('close', 1, null)
+      await expect(browser.wait()).rejects.toThrow()
+      const end = Date.now() + 5000
+      await controls.settleAll(end); afterSettlement = true
+      expect(owned[0].listenerCount('close')).toBe(0); expect(rows).toEqual([])
+      expect(kill.mock.calls).toEqual([[-1000, 'SIGTERM']])
+      if (change === 'stable') await expect(controls.assertUnchanged()).resolves.toBeUndefined()
+      else await expect(controls.assertUnchanged()).rejects.toThrow()
+      expect(sourceChecks.slice(0, 2)).toEqual([{ cleaning: false, deadline: input.cleanupDeadline }, { cleaning: false, deadline: input.cleanupDeadline }])
+      expect(sourceChecks.slice(2)).toEqual(Array.from({ length: change === 'source' ? 1 : 2 }, () => ({ cleaning: true, deadline: end })))
+      expect(command.state()).toEqual({ poisoned: false, fault: false, pending: 0, cleaning: true })
+      // No admitted source/dependency recheck renews the cleanup lease.
+      vi.setSystemTime(end)
+      await expect(command.run('git', ['status'])).rejects.toThrow()
+    } finally { for (const spy of spies.reverse()) spy.mockRestore() }
+  })
   it.each([false, true])('composes the actual controller and real native admission predicate; changed=%s', async changed => {
     const { admission, seal } = sealFixture(), actualPins = { ...pins, node: pin(realpathSync(process.execPath)) }
     const accepted = contextualTestExecutionDigest(admission, actualPins, seal)

@@ -125,6 +125,52 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
     expect(f.events).not.toContain('exact-disposal'); expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false })
   })
+  it.each(['execution', 'unchanged'])('distinguishes %s cleanup rejection without replacing the browser failure', async failure => {
+    const f = fixture()
+    f.control.launchPlaywright = async () => ({ async wait() { return { code: 1, signal: null, closed: true } } })
+    if (failure === 'execution') f.control.settleAll = async () => {
+      throw new AggregateError([Object.assign(Error('PRIVATE-SENTINEL'), { cleanupStage: 'owned-families', path: 'PRIVATE-SENTINEL' })], 'PRIVATE-SENTINEL')
+    }
+    else f.control.assertUnchanged = async () => { throw Error('PRIVATE-SENTINEL') }
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'browser', ownedSettled: false,
+      lifecycleCompleted: false, playwrightValidated: false, server: null, startup: null, cleanupEnd: 361001,
+      cleanup: { entry: 'passed', executionSettlement: failure === 'execution' ? 'failed' : 'passed', commandJoins: 'passed',
+        commandClosure: 'passed', sqlClosure: 'passed', unchanged: failure === 'execution' ? 'not-run' : 'failed',
+        executionFailures: failure === 'execution' ? ['owned-families'] : [] } })
+    expect(f.events).not.toContain('exact-disposal'); expect(f.events).not.toContain('canonical-after')
+    expect(JSON.stringify(f.receipts)).not.toContain('PRIVATE-SENTINEL')
+  })
+  it('projects only bounded own data cleanup stages without reading private getters', async () => {
+    let reads = 0
+    const secret = () => { reads++; throw Error('PRIVATE-SENTINEL') }
+    const getterStage = Object.defineProperty({}, 'cleanupStage', { get: secret })
+    const getterEntry = [null]; Object.defineProperty(getterEntry, '0', { get: secret })
+    const getterErrors = new AggregateError([]); Object.defineProperty(getterErrors, 'errors', { get: secret })
+    const valid = Object.defineProperties({ cleanupStage: 'owned-families' }, {
+      message: { get: secret }, stack: { get: secret }, path: { get: secret }, toJSON: { get: secret },
+    })
+    const cases: Array<[unknown, string[]]> = [
+      [new AggregateError([valid, valid, { cleanupStage: 'native-closure' }]), ['owned-families', 'native-closure']],
+      [new AggregateError(['command-entry', 'owned-families', 'command-settlements', 'command-closure', 'native-closure']
+        .map(cleanupStage => ({ cleanupStage }))), ['command-entry', 'owned-families', 'command-settlements', 'command-closure', 'native-closure']],
+      [new AggregateError([getterStage]), ['unknown']], [getterErrors, ['unknown']],
+      [new AggregateError([{ cleanupStage: 'PRIVATE-SENTINEL' }]), ['unknown']],
+      [new AggregateError([Object.create({ cleanupStage: 'owned-families' })]), ['unknown']],
+      [new AggregateError([]), ['unknown']], [Error('PRIVATE-SENTINEL'), ['unknown']],
+      [Object.defineProperty(new AggregateError([]), 'errors', { value: getterEntry }), ['unknown']],
+      [new AggregateError(Array.from({ length: 6 }, () => valid)), ['owned-families', 'unknown']],
+      [new Proxy({}, { getOwnPropertyDescriptor: secret, getPrototypeOf: secret }), ['unknown']],
+    ]
+    for (const [error, executionFailures] of cases) {
+      const f = fixture(); f.control.settleAll = async () => { throw error }
+      await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
+      expect(f.receipts[0]).toMatchObject({ ownedSettled: false, cleanup: { executionSettlement: 'failed', unchanged: 'not-run', executionFailures } })
+      expect(JSON.stringify(f.receipts)).not.toContain('PRIVATE-SENTINEL')
+    }
+    // Neither accessors nor Proxy traps may execute while projecting labels.
+    expect(reads).toBe(0)
+  })
   it('attempts captured families and command joins even when cleanup entry and closure reject', async () => {
     const f = fixture()
     f.control.command.beginCleanup = () => { f.events.push('entry-failed'); throw Error('private entry detail') }
@@ -134,6 +180,8 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     expect(f.events).toContain('settle'); expect(f.events).toContain('join-failed'); expect(f.events).toContain('closure-failed')
     expect(f.events).not.toContain('exact-disposal')
     expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false, cleanupEnd: 361001 })
+    expect(f.receipts[0]).toMatchObject({ cleanup: { entry: 'failed', executionSettlement: 'passed', commandJoins: 'failed',
+      commandClosure: 'failed', sqlClosure: 'passed', unchanged: 'not-run', executionFailures: [] } })
     expect(JSON.stringify(f.receipts)).not.toContain('private')
   })
   it('does not start PW or retry when app ready fails', async () => {
@@ -155,6 +203,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
     expect(f.events).not.toContain('exact-disposal')
     expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false })
+    expect(f.receipts[0]).toMatchObject({ cleanup: { sqlClosure: 'failed', unchanged: 'not-run' } })
   })
   it('rejects wrong metadata target before any native readiness or evidence write', async () => {
     const f = fixture(); f.admission.assignmentMetadata.manifest.syntheticTag = 'assignmentlist_deadbeef0000'
@@ -215,6 +264,9 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     state.flags.denied = true
     expect(receipt.server?.flags.denied).toBe(false)
     expect(Object.isFrozen(receipt)).toBe(true); expect(Object.isFrozen(receipt.server)).toBe(true); expect(Object.isFrozen(receipt.server?.flags)).toBe(true)
+    expect(receipt).toMatchObject({ cleanup: { entry: 'passed', executionSettlement: 'passed', commandJoins: 'passed',
+      commandClosure: 'passed', sqlClosure: 'passed', unchanged: 'passed', executionFailures: [] } })
+    expect(Object.isFrozen(receipt.cleanup)).toBe(true); expect(Object.isFrozen(receipt.cleanup.executionFailures)).toBe(true)
   })
   it('a receipt write failure never returns a successful controller outcome', async () => {
     const f = fixture(); f.edges.writeReceipt = () => { throw Error('private filesystem failure') }

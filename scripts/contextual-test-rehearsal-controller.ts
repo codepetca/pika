@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { constants, closeSync, fsyncSync, fstatSync, lstatSync, openSync, readFileSync, readSync, realpathSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, normalize } from 'node:path'
+import { isProxy } from 'node:util/types'
 import { createContextualTestPlan } from '../e2e/helpers/contextual-test-rehearsal'
 import { readFullStartupReport, validateFullStartupReport, type FullStartupReport } from '../e2e/helpers/contextual-test-startup'
 import { hashPassword } from '../src/lib/crypto'
@@ -51,9 +52,14 @@ export type ContextualTestControllerControls = Readonly<{
 type LedgerState = { version: 1; nonce: string; deadline: number; app: number; storage: number; api: number;
   flags: { denied: boolean; capExceeded: boolean; expired: boolean; uncertain: boolean } }
 type Stage = 'preflight' | 'attempt' | 'lifecycle' | 'snapshot' | 'binding' | 'fixture' | 'ledger' | 'app-ready' | 'browser' | 'proof' | 'cleanup' | 'complete'
+type CleanupState = 'not-run' | 'passed' | 'failed'
+const executionCleanupStages = ['command-entry', 'owned-families', 'command-settlements', 'command-closure', 'native-closure'] as const
+type ExecutionCleanupStage = typeof executionCleanupStages[number] | 'unknown'
+type CleanupReceipt = Readonly<{ entry: CleanupState; executionSettlement: CleanupState; commandJoins: CleanupState;
+  commandClosure: CleanupState; sqlClosure: CleanupState; unchanged: CleanupState; executionFailures: readonly ExecutionCleanupStage[] }>
 type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sourceTree: string; runnerHead: string; runnerTree: string;
   reviewedManifestSha256: string; startedAt: number; deadline: number; cleanupDeadline: number; endedAt: number;
-  cleanupStartedAt: number | null; cleanupEnd: number | null;
+  cleanupStartedAt: number | null; cleanupEnd: number | null; cleanup: CleanupReceipt;
   outcome: 'passed' | 'failed'; firstFailureStage: Stage | null; lifecycleCompleted: boolean; ownedSettled: boolean;
   playwrightValidated: boolean; server: LedgerState | null; startup: FullStartupReport | null }>
 /** Test seams replace only I/O; no injected result is native acceptance proof. */
@@ -75,6 +81,27 @@ export type ContextualTestControllerEdges = {
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex')
 const hex = /^[a-f0-9]{64}$/
 const fixedError = () => new Error('Private contextual Test controller failed; consult sanitized retained receipt')
+/** Project only the execution control's five existing stage labels. Never read
+ * accessors, iterate supplied arrays or retain any supplied exception object. */
+function projectExecutionCleanupStages(error: unknown): ExecutionCleanupStage[] {
+  const stages = new Set<ExecutionCleanupStage>()
+  const data = (value: unknown, key: string): unknown => {
+    if (!value || typeof value !== 'object' || isProxy(value)) return undefined
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    return descriptor && 'value' in descriptor ? descriptor.value : undefined
+  }
+  try {
+    if (!error || typeof error !== 'object' || isProxy(error) || !(error instanceof AggregateError)) return ['unknown']
+    const errors = data(error, 'errors'), length = data(errors, 'length')
+    if (!Array.isArray(errors) || typeof length !== 'number' || !Number.isSafeInteger(length) || length < 1) return ['unknown']
+    for (let index = 0; index < Math.min(length, executionCleanupStages.length); index++) {
+      const stage = data(data(errors, String(index)), 'cleanupStage')
+      stages.add(executionCleanupStages.find(allowed => allowed === stage) ?? 'unknown')
+    }
+    if (length > executionCleanupStages.length) stages.add('unknown')
+  } catch { stages.add('unknown') }
+  return [...stages]
+}
 function path(value: string) { assert(isAbsolute(value) && normalize(value) === value && !/[\x00-\x1f\x7f]/.test(value)) }
 function directory(value: string) {
   path(value); assert.equal(realpathSync(value), value)
@@ -220,6 +247,10 @@ export async function runContextualTestRehearsalController(admission: Contextual
   let binding: ContextualTestRunBinding | undefined, ledger: { snapshot(): unknown } | undefined, server: LedgerState | null = null
   let startup: FullStartupReport | null = null
   let cleanupEnd: number | undefined, cleanupStartedAt: number | null = null
+  const cleanup: { -readonly [K in keyof CleanupReceipt]: CleanupReceipt[K] } = {
+    entry: 'not-run', executionSettlement: 'not-run', commandJoins: 'not-run', commandClosure: 'not-run',
+    sqlClosure: 'not-run', unchanged: 'not-run', executionFailures: [],
+  }
   const cleanupClock = () => {
     if (cleanupEnd === undefined) { cleanupStartedAt = controls.now(); cleanupEnd = Math.min(admission.cleanupDeadline, cleanupStartedAt + 360000) }
     return cleanupEnd
@@ -230,13 +261,16 @@ export async function runContextualTestRehearsalController(admission: Contextual
     const previous = stage; stage = 'cleanup'
     try {
       const end = cleanupClock(), failures: Error[] = []
-      try { controls.command.beginCleanup(end) } catch { failures.push(fixedError()) }
+      try { controls.command.beginCleanup(end); cleanup.entry = 'passed' } catch { cleanup.entry = 'failed'; failures.push(fixedError()) }
       const results = await Promise.allSettled([Promise.resolve().then(() => controls.settleAll(end)), Promise.resolve().then(() => controls.command.joinSettlements?.())])
+      cleanup.executionSettlement = results[0].status === 'fulfilled' ? 'passed' : 'failed'
+      if (results[0].status === 'rejected') cleanup.executionFailures = projectExecutionCleanupStages(results[0].reason)
+      cleanup.commandJoins = results[1].status === 'fulfilled' ? 'passed' : 'failed'
       for (const result of results) if (result.status === 'rejected') failures.push(fixedError())
-      try { controls.command.assertClosed() } catch { failures.push(fixedError()) }
-      if (binding) try { edges.assertSqlSettled(binding) } catch { failures.push(fixedError()) }
+      try { controls.command.assertClosed(); cleanup.commandClosure = 'passed' } catch { cleanup.commandClosure = 'failed'; failures.push(fixedError()) }
+      if (binding) try { edges.assertSqlSettled(binding); cleanup.sqlClosure = 'passed' } catch { cleanup.sqlClosure = 'failed'; failures.push(fixedError()) }
       if (failures.length) throw new AggregateError(failures, 'Private contextual Test cleanup failed')
-      await controls.assertUnchanged()
+      try { await controls.assertUnchanged(); cleanup.unchanged = 'passed' } catch { cleanup.unchanged = 'failed'; throw fixedError() }
       ownedSettled = true
     } catch { failed(); throw fixedError() }
     finally { stage = previous }
@@ -313,6 +347,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
         runnerHead: admission.runner.head, runnerTree: admission.runner.tree, reviewedManifestSha256: admission.review.manifestSha256,
         startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, endedAt: controls.now(),
         cleanupStartedAt, cleanupEnd: cleanupEnd ?? null,
+        cleanup: Object.freeze({ ...cleanup, executionFailures: Object.freeze([...cleanup.executionFailures]) }),
         outcome: !failure && ownedSettled && lifecycleCompleted && playwrightValidated && server !== null ? 'passed' : 'failed', firstFailureStage,
         lifecycleCompleted, ownedSettled, playwrightValidated, server, startup })
       try { edges.writeReceipt(receipt, admission) } catch { failure = true }

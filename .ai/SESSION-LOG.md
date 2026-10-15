@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Survey response predicate SQL grouping
-
-Fresh disposable startup now retains a private diagnostic: migration263 failed
-at response-submission statement24 with SQLSTATE42601/end-of-input. Group only
-the CASE expression in the text-response IF condition and update its two exact
-digest pins; link3/text2 key counts, PT400, locks, validation and grants remain
-unchanged. The source regression reproduced RED then GREEN; root52 affected
-checks/lint/diff PASS. Independent targeted review15 PASS; native PostgreSQL
-parsing and genuine263 metadata remain gates. Prior SQL reconstructs byte-exact
-after removing the two parentheses. Both previous disposable candidates stay
-spent with preserved receipts and positively checked cleanup; no retry/rebind,
-shared/prod migration or activation. Source-only preparation of a fresh reviewed
-component follows, not a ready/merge/phase-exit claim. Browser diagnostics now
-confirm URL-wait timeout but not a body error; completion-boundary observation
-remains source-only, with original reader/gate/traffic controls intact.
-
 ## 2026-10-13 Survey genuine metadata and bounded RPC typing
 
 Sole disposable8f component at d9223d7d68 closed0; SQL001–263 parsing, rollback,
@@ -700,6 +684,22 @@ spent token and reviews preserved; temporary clean reviewer copy removed normall
 No retry, phase exit or production change. Next evidence should use fixed envelope
 shape/code-site labels and an earlier body marker, not further signature guessing.
 Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+## 2026-10-14 Login readiness and cleanup-stage diagnosis
+
+Failed full run reached workflow with nonempty fields but disabled Login; no
+known login error or server traffic was observed. Runner now verifies the
+existing public field-setter transition before replacing both defaults with
+fixture credentials and using normal login/session checks. One original30s end
+covers readiness and login. Actual frozen-component SSR/hydration CPU regression
+and both fixture roles pass; installed Next/Chrome timing remains unproved.
+No unconditional cleanup-engine bug was established. Fixed cleanup-stage
+receipts now distinguish settlement, closure and unchanged-state rejection;
+real-controls CPU regression preserves cleanup-clock/poison rules. Automatic raw
+Playwright DOM-error snapshots disabled, with installed-method regression.
+Integrated95 affected tests and audit pass; full gate and independent review
+precede ONE fresh human-authorized45-minute rehearsal. Prior attempts remain
+failed/spent; production/shared-local/provider/activation holds unchanged.
 
 ## 2026-10-14 Small-proof recovery and cleanup isolation
 

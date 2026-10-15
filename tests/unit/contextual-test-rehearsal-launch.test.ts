@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { contextualTestAppEnvironment, contextualTestRunnerEnvironment, contextualTestLaunchCommands, validateContextualTestDemoStatus,
   createContextualTestPinnedCommand, contextualTestSnapshotPath, contextualTestReadOnlyDependencyProfile, createContextualTestOwnedFamily } from '../../scripts/contextual-test-rehearsal-launch'
@@ -41,19 +43,37 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
     expect(createHash('sha256').update(source).digest('hex')).toBe('09414bbc83f8529a4e58e70a1ba547f931c742496dddeef694787595b0b0fc7f')
     const app = contextualTestAppEnvironment(binding() as never, status(), 's'.repeat(64), '/runner/preload.cjs', '/private/tmp/private-tests-output/run-binding.json', 'd'.repeat(64))
     const forbidden = vi.fn(() => { throw Error('CPU native dispatch forbidden') })
-    const module = { exports: {} as { env: { NEXT_PUBLIC_GIT_COMMIT: string } } }
-    runInNewContext(source, { module, process: { env: app }, require: (name: string) => {
+    const configModule = { exports: {} as { env: { NEXT_PUBLIC_GIT_COMMIT: string } } }
+    runInNewContext(source, { module: configModule, process: { env: app }, require: (name: string) => {
       if (name === 'child_process') return { execSync: forbidden }
       if (name === './package.json') return JSON.parse(readFileSync('package.json', 'utf8'))
       throw Error('Unexpected frozen config dependency')
     } })
-    expect(module.exports.env.NEXT_PUBLIC_GIT_COMMIT).toBe(plan.sourceSha); expect(forbidden).not.toHaveBeenCalled()
+    expect(configModule.exports.env.NEXT_PUBLIC_GIT_COMMIT).toBe(plan.sourceSha); expect(forbidden).not.toHaveBeenCalled()
   })
   it('keeps the Playwright child env separate from the app preload and app credentials', () => {
     const env = contextualTestRunnerEnvironment(binding() as never, '/private/tmp/private-tests-output/run-binding.json', 'd'.repeat(64))
     expect(env.PIKA_CONTEXTUAL_TEST_REHEARSAL).toBe('true')
     expect(env.PIKA_CONTEXTUAL_TEST_BINDING_FILE).toBe('/private/tmp/private-tests-output/run-binding.json')
+    expect(env.PLAYWRIGHT_NO_COPY_PROMPT).toBe('1')
     for (const key of ['NODE_OPTIONS','NODE_EXTRA_CA_CERTS','SUPABASE_SECRET_KEY','SESSION_SECRET','NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY']) expect(env).not.toHaveProperty(key)
+  })
+  it('disables the installed Playwright automatic raw page snapshot before it reads a page', async () => {
+    const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
+    expect(require('@playwright/test/package.json').version).toBe('1.58.0')
+    const source = readFileSync(join(dirname(pw.resolve('playwright/package.json')), 'lib/index.js'), 'utf8')
+    const start = source.indexOf('  async _takePageSnapshot(context) {')
+    const end = source.indexOf('\n  async didCreateRequestContext(', start)
+    expect(start).toBeGreaterThan(0); expect(end).toBeGreaterThan(start)
+    // Execute only this installed artifact method with inert data. No runner,
+    // browser, filesystem output, or actual page snapshot is created.
+    const env = contextualTestRunnerEnvironment(binding() as never, '/private/tmp/private-tests-output/run-binding.json', 'd'.repeat(64))
+    const Recorder = runInNewContext(`(class { ${source.slice(start, end)} })`, { process: { env } })
+    const recorder = new Recorder()
+    recorder._testInfo = { errors: [{}] }
+    const pages = vi.fn(() => [{ _wrapApiCall: async (call: () => Promise<void>) => call(), _snapshotForAI: async () => ({ full: 'synthetic DOM must not be read' }) }])
+    await recorder._takePageSnapshot({ pages })
+    expect(pages).not.toHaveBeenCalled()
   })
   it('selects only fixed Next dev and the dedicated existing Playwright CLI/spec', () => {
     const commands = contextualTestLaunchCommands('/runner', '/deps', binding() as never)

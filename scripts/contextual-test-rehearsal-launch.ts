@@ -85,6 +85,8 @@ export function contextualTestAppEnvironment(binding: ContextualTestRunBinding, 
 export function contextualTestRunnerEnvironment(binding: ContextualTestRunBinding, file: string, sha256: string): Readonly<Record<string, string>> {
   bindingFile(binding, file, sha256)
   return Object.freeze({ ...basicEnvironment(), NODE_ENV: 'development', HOME: binding.outputDir, TMPDIR: join(binding.workdir, 'tmp'),
+    // Playwright otherwise writes raw DOM error-context even with trace/video/screenshots off.
+    PLAYWRIGHT_NO_COPY_PROMPT: '1',
     PIKA_CONTEXTUAL_TEST_REHEARSAL: 'true', PIKA_CONTEXTUAL_TEST_BINDING_FILE: file, PIKA_CONTEXTUAL_TEST_BINDING_SHA256: sha256 })
 }
 export function contextualTestLaunchCommands(runnerRoot: string, dependencyRoot: string, binding: ContextualTestRunBinding) {

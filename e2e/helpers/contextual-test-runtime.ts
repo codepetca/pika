@@ -30,6 +30,19 @@ export function contextualTestArtifactLabel(value: string) {
   return value
 }
 
+/** Serialized into the page: observe only the existing public preset's effect.
+ * Its setter-only source contract and public defaults are guarded by CPU tests.
+ */
+export function contextualTestLoginReady(): boolean {
+  const forms = document.querySelectorAll('form')
+  if (forms.length !== 1) return false
+  const email = forms[0].querySelector<HTMLInputElement>('input[type="email"]')
+  const password = forms[0].querySelector<HTMLInputElement>('input[type="password"]')
+  const submit = forms[0].querySelector<HTMLButtonElement>('button[type="submit"]')
+  return email?.value === 'teacher@example.com' && password?.value === 'test1234'
+    && submit?.textContent?.trim() === 'Login' && !submit.disabled
+}
+
 export async function createContextualTestRuntime(browser: Browser, _testInfo: TestInfo, stage: (stage: ContextualTestStartupStage) => void = () => {}) {
   stage('runtime-entry')
   stage('binding')
@@ -94,19 +107,36 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
         const page = await context.newPage()
         const actorLabel = label === 'ownerTeacherPeer' ? 'ownerTeacher' : label === 'ownerStudentPeer' ? 'ownerStudent' : label
         const actor = plan.actors[actorLabel]
-        await page.goto(plan.appOrigin + '/login', { timeout: fixedTimeout(), waitUntil: 'domcontentloaded' })
-        await page.getByLabel('School Email').fill(actor.email)
-        await page.getByLabel(/^Password(?:\s*\*)?$/).fill(binding.password)
-        const loginResponse = page.waitForResponse(response => response.url() === plan.appOrigin + '/api/auth/login' && response.request().method() === 'POST', { timeout: fixedTimeout() })
-        await page.getByRole('button', { name: 'Login', exact: true }).click()
-        const original = await loginResponse
-        await runtime.response(page, original)
-        assert.equal(original.status(), 200, 'Private login rejected')
-        await page.waitForURL(url => url.origin === plan.appOrigin && url.pathname === '/classrooms', { timeout: fixedTimeout() })
-        const current = await runtime.api<{ user: { id: string; role: string; email: string } }>(page, 'GET', '/api/auth/me')
-        assert.equal(current.user.id, actor.id, 'Private session actor')
-        assert.equal(current.user.role, actor.role, 'Private session role')
-        assert.equal(current.user.email, actor.email, 'Private session email')
+        // One original operation end covers readiness, real login and identity.
+        // Load alone is not hydration proof. Activate the existing public field
+        // preset exactly once, observe its React-owned transition, then replace
+        // both public defaults before the only authentication submission.
+        const loginEnd = Math.min(binding.deadline, Date.now() + plan.limits.operationMs)
+        const loginTimeout = () => { boundary.check(); const remaining = loginEnd - Date.now(); assert(remaining > 0, 'Private login deadline'); return remaining }
+        let loginTimer: ReturnType<typeof setTimeout> | undefined
+        try {
+          await Promise.race([(async () => {
+            await page.goto(plan.appOrigin + '/login', { timeout: loginTimeout(), waitUntil: 'load' })
+            await page.getByRole('button', { name: 'Teacher', exact: true }).click({ timeout: loginTimeout() })
+            await page.waitForFunction(contextualTestLoginReady, undefined, { timeout: loginTimeout() })
+            await page.getByLabel('School Email').fill(actor.email, { timeout: loginTimeout() })
+            await page.getByLabel(/^Password(?:\s*\*)?$/).fill(binding.password, { timeout: loginTimeout() })
+            const loginResponse = page.waitForResponse(response => response.url() === plan.appOrigin + '/api/auth/login' && response.request().method() === 'POST', { timeout: loginTimeout() })
+            // A synchronous deadline/setup failure before Promise.all must not
+            // leave the already-created waiter rejection unobserved.
+            void loginResponse.catch(() => {})
+            const [, original] = await Promise.all([page.getByRole('button', { name: 'Login', exact: true }).click({ timeout: loginTimeout() }), loginResponse])
+            loginTimeout(); await runtime.response(page, original); loginTimeout()
+            assert.equal(original.status(), 200, 'Private login rejected')
+            await page.waitForURL(url => url.origin === plan.appOrigin && url.pathname === '/classrooms', { timeout: loginTimeout() })
+            loginTimeout()
+            const current = await runtime.api<{ user: { id: string; role: string; email: string } }>(page, 'GET', '/api/auth/me')
+            loginTimeout()
+            assert.equal(current.user.id, actor.id, 'Private session actor')
+            assert.equal(current.user.role, actor.role, 'Private session role')
+            assert.equal(current.user.email, actor.email, 'Private session email')
+          })(), new Promise<never>((_resolve, reject) => { loginTimer = setTimeout(() => reject(safeError()), loginTimeout()) })])
+        } finally { if (loginTimer) clearTimeout(loginTimer) }
         await callback(page); await boundary.settle(context)
       }
       finally {

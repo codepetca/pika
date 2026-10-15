@@ -45,7 +45,27 @@ class FakePage extends EventEmitter {
   private loginWait?: ReturnType<typeof deferred<FakeResponse>>
   private loginPredicate?: (response: FakeResponse) => boolean
   loginResponse?: FakeResponse
-  readonly goto = vi.fn(async (url: string) => { this.current = url })
+  loginBody?: () => Promise<Buffer>
+  hydrated = false
+  neverHydrates = false
+  presetActivations = 0
+  loginPosts = 0
+  readyEnd?: number
+  advanceOnPreset = 0
+  private email = ''
+  private secret = ''
+  private domEmail = ''
+  private domSecret = ''
+  readonly goto = vi.fn(async (url: string, options: { waitUntil: string }) => {
+    this.current = url
+    if (options.waitUntil === 'load' && !this.neverHydrates) this.hydrated = true
+  })
+  readonly waitForFunction = vi.fn(async (_predicate: () => boolean, _arg: undefined, options: { timeout: number }) => {
+    this.readyEnd = Date.now() + options.timeout
+    if (!(this.hydrated && this.email === 'teacher@example.com' && this.secret === 'test1234')) {
+      await new Promise<void>((_resolve, reject) => setTimeout(() => reject(Error('CPU form not hydrated')), options.timeout))
+    }
+  })
   readonly waitForURL = vi.fn(async (predicate: (url: URL) => boolean) => {
     expect(predicate(new URL(this.current))).toBe(true)
   })
@@ -54,14 +74,27 @@ class FakePage extends EventEmitter {
   url = () => this.current
   getByLabel(label: string | RegExp) {
     this.labels.push(label)
-    return { fill: async (value: string) => { this.fills.push({ label, value }) } }
+    return { fill: async (value: string) => {
+      this.fills.push({ label, value })
+      if (label === 'School Email') { this.domEmail = value; if (this.hydrated) this.email = value }
+      else { this.domSecret = value; if (this.hydrated) this.secret = value }
+    } }
   }
-  getByRole(role: string, options: unknown) {
+  getByRole(role: string, options: { name: string; exact: boolean }) {
     this.roles.push({ role, options })
     return { click: async () => {
-      const request = new FakeRequest(plan.appOrigin + '/api/auth/login', 'POST', { email: this.owner.actor.email, password })
+      if (options.name === 'Teacher') {
+        this.presetActivations++
+        if (this.advanceOnPreset) vi.setSystemTime(Date.now() + this.advanceOnPreset)
+        if (this.hydrated) { this.email = this.domEmail = 'teacher@example.com'; this.secret = this.domSecret = 'test1234' }
+        return
+      }
+      if (!this.email || !this.secret) throw Error('CPU disabled Login with unhydrated inputs')
+      expect(this.domEmail).toBe(this.owner.actor.email); expect(this.domSecret).toBe(password)
+      this.loginPosts++
+      const request = new FakeRequest(plan.appOrigin + '/api/auth/login', 'POST', { email: this.email, password: this.secret })
       await this.owner.dispatch(request)
-      this.loginResponse = new FakeResponse(this, request, { success: true })
+      this.loginResponse = new FakeResponse(this, request, { success: true }, 200, this.loginBody)
       this.owner.emit('response', this.loginResponse)
       expect(this.loginPredicate?.(this.loginResponse)).toBe(true)
       this.current = plan.appOrigin + '/classrooms'
@@ -164,24 +197,74 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       expect(s.receipt().outcome).toBe('failed')
     } finally { body.resolve(Buffer.from('{}')); vi.useRealTimers() }
   })
-  it('uses the real login selectors and validates the persisted session without a login shortcut', async () => {
-    const s = await setup(new FakeBrowser('ownerStudent'))
-    await s.runtime.withActor('ownerStudentPeer', async page => {
+  it.each([['ownerTeacher', 'ownerTeacherPeer'], ['ownerStudent', 'ownerStudentPeer']] as const)('proves the public form handler before fixture fills and validates the real %s session', async (actor, label) => {
+    const s = await setup(new FakeBrowser(actor))
+    await s.runtime.withActor(label, async page => {
       expect(page).toBe(s.browser.contexts[0].page)
       expect(platform.executeContextualTestSql).not.toHaveBeenCalled()
     })
     const c = s.browser.contexts[0]
     expect(s.browser.newContext).toHaveBeenCalledWith({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false })
-    expect(c.page.goto).toHaveBeenCalledWith(plan.appOrigin + '/login', expect.objectContaining({ waitUntil: 'domcontentloaded' }))
+    expect(c.page.goto).toHaveBeenCalledWith(plan.appOrigin + '/login', expect.objectContaining({ waitUntil: 'load' }))
     expect(c.page.labels[0]).toBe('School Email')
     expect(c.page.labels[1]).toBeInstanceOf(RegExp)
     expect((c.page.labels[1] as RegExp).test('Password *')).toBe(true)
-    expect(c.page.fills.map(fill => fill.value)).toEqual([plan.actors.ownerStudent.email, password])
-    expect(c.page.roles).toEqual([{ role: 'button', options: { name: 'Login', exact: true } }])
+    expect(c.page.fills.map(fill => fill.value)).toEqual([plan.actors[actor].email, password])
+    expect(c.page.roles).toEqual([{ role: 'button', options: { name: 'Teacher', exact: true } }, { role: 'button', options: { name: 'Login', exact: true } }])
+    expect(c.page.presetActivations).toBe(1); expect(c.page.waitForFunction).toHaveBeenCalledOnce(); expect(c.page.loginPosts).toBe(1)
     expect(c.page.loginResponse!.body).toHaveBeenCalledOnce()
     expect(c.requests[0]).toMatchObject({ url: plan.appOrigin + '/api/auth/me', options: { method: 'GET', maxRedirects: 0 } })
     expect(c.responses[0].body).toHaveBeenCalledOnce(); expect(c.responses[0].dispose).toHaveBeenCalledOnce()
     expect(c.close).toHaveBeenCalledOnce()
+  })
+  it.each([30000, 5000])('fails a nonfunctional preset at its original %ims end without fixture fills, POST or retry', async lease => {
+    vi.useFakeTimers()
+    try {
+      const browser = new FakeBrowser(); browser.configure = c => { c.page.neverHydrates = true }
+      const s = await setup(browser, lease), callback = vi.fn()
+      const end = Date.now() + lease
+      const failed = expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(lease)
+      await failed
+      const c = browser.contexts[0]
+      expect(c.page.readyEnd).toBe(end); expect(c.page.presetActivations).toBe(1)
+      expect(c.page.fills).toEqual([]); expect(c.page.loginPosts).toBe(0); expect(c.requests).toEqual([])
+      expect(callback).not.toHaveBeenCalled(); expect(c.close).toHaveBeenCalledOnce()
+    } finally { vi.useRealTimers() }
+  })
+  it('does not renew the login operation after the preset consumes its original end', async () => {
+    vi.useFakeTimers()
+    try {
+      const browser = new FakeBrowser(); browser.configure = c => { c.page.advanceOnPreset = 30000 }
+      const s = await setup(browser), callback = vi.fn()
+      await expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+      const c = browser.contexts[0]
+      expect(c.page.presetActivations).toBe(1); expect(c.page.waitForFunction).not.toHaveBeenCalled()
+      expect(c.page.fills).toEqual([]); expect(c.page.loginPosts).toBe(0); expect(callback).not.toHaveBeenCalled()
+      expect(c.close).toHaveBeenCalledOnce()
+    } finally { vi.useRealTimers() }
+  })
+  it('stops after the original login end while joining a later original body without dispatching identity reads', async () => {
+    vi.useFakeTimers()
+    const body = deferred<Buffer>()
+    try {
+      const browser = new FakeBrowser()
+      browser.configure = c => { c.page.advanceOnPreset = 10000; c.page.loginBody = () => body.promise }
+      const s = await setup(browser), callback = vi.fn()
+      const originalEnd = Date.now() + 30000
+      const failed = expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(20000)
+      expect(Date.now()).toBe(originalEnd)
+      const c = browser.contexts[0]
+      expect(c.page.presetActivations).toBe(1); expect(c.page.loginPosts).toBe(1)
+      expect(c.requests).toEqual([]); expect(callback).not.toHaveBeenCalled()
+      // The original body remains owned until it finishes; timeout never grants
+      // a second login, /auth/me dispatch, callback or successful completion.
+      body.resolve(Buffer.from('{"success":true}'))
+      await failed
+      expect(c.requests).toEqual([]); expect(callback).not.toHaveBeenCalled()
+      expect(c.close).toHaveBeenCalledOnce(); expect(c.page.loginResponse!.body).toHaveBeenCalledOnce()
+    } finally { body.resolve(Buffer.from('{}')); vi.useRealTimers() }
   })
   it.each(['id','role','email'] as const)('rejects a persisted session with the wrong %s and closes the context', async field => {
     const browser = new FakeBrowser()
