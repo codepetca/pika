@@ -86,6 +86,36 @@ begin
   perform pg_temp.expect_metadata_error(owner_b,b,'{"title":"archived"}','PT403');
 end; $policy$;
 
+-- Optional Gradebook visibility is independent of existing feature flags.
+do $gradebook_visibility$
+declare
+  owner_id uuid;
+  class_id uuid;
+  flags jsonb;
+  result jsonb;
+begin
+  select teacher_id, id, feature_visibility into owner_id, class_id, flags
+    from public.classrooms where id = (select id from metadata_fixture where name = 'class_a');
+  if class_id is null then raise exception 'missing metadata fixture'; end if;
+  result := public.update_classroom_metadata_for_owner_v1(owner_id, class_id,
+    jsonb_build_object('feature_visibility', flags || '{"gradebook_hide_zero_weight_student":true}'::jsonb));
+  if result->'feature_visibility'->'gradebook_hide_zero_weight_student' is distinct from 'true'::jsonb then
+    raise exception 'student zero-weight setting did not save';
+  end if;
+  result := public.update_classroom_metadata_for_owner_v1(owner_id, class_id,
+    jsonb_build_object('feature_visibility', flags - 'gradebook_hide_zero_weight_student'));
+  if result->'feature_visibility'->'gradebook_hide_zero_weight_student' is distinct from 'true'::jsonb then
+    raise exception 'older client cleared student zero-weight setting';
+  end if;
+  begin
+    perform public.update_classroom_metadata_for_owner_v1(owner_id, class_id,
+      jsonb_build_object('feature_visibility', flags || '{"gradebook_hide_zero_weight_student":"true"}'::jsonb));
+    raise exception 'invalid student zero-weight setting accepted';
+  exception when sqlstate 'PT400' then null;
+  end;
+end;
+$gradebook_visibility$;
+
 -- Owned, rollback-only fault trigger; production trigger definitions remain intact.
 create function pg_temp.metadata_fault() returns trigger language plpgsql as $fault$
 declare mode text:=current_setting('pika.metadata_proof_fault',true);target uuid;transfer uuid;

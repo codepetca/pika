@@ -85,6 +85,27 @@ describe('PATCH /api/teacher/classrooms/[id] feature visibility', () => {
     })
   })
 
+  it.each([true, false])('saves the student zero-weight setting as %s', async hide => {
+    const featureVisibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: hide }
+    mockUpdateResult({ data: { id: CLASSROOM_ID, feature_visibility: featureVisibility }, error: null })
+    expect((await PATCH(request(featureVisibility), context())).status).toBe(200)
+    expect(mocks.update).toHaveBeenCalledWith({ feature_visibility: featureVisibility })
+  })
+
+  it('preserves the student setting when an older client omits it', async () => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: true }
+    mocks.assertTeacherOwnsClassroom.mockResolvedValue({ ok: true, classroom: { id: CLASSROOM_ID, teacher_id: TEACHER_ID, feature_visibility: visibility } })
+    mockUpdateResult({ data: { id: CLASSROOM_ID, feature_visibility: visibility }, error: null })
+    const { gradebook_hide_zero_weight_student: _setting, ...oldClient } = visibility
+    expect((await PATCH(request(oldClient), context())).status).toBe(200)
+    expect(mocks.update).toHaveBeenCalledWith({ feature_visibility: visibility })
+  })
+
+  it('rejects a nonboolean student setting', async () => {
+    expect((await PATCH(request({ ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: 'true' }), context())).status).toBe(400)
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
   it('rejects partial feature payloads at the API boundary', async () => {
     const response = await PATCH(request({ tests: false }), context())
 

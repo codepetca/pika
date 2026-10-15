@@ -108,6 +108,18 @@ describe('student saved standalone marks', () => {
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
   })
 
+  it('hides only zero-weight marks when the classroom student option is enabled', async () => {
+    mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: true } } })
+    queryRows([
+      returnedScore,
+      { ...returnedScore, gradebook_items: { ...item, id: 'zero', gradebook_weight: 0 } },
+      { ...returnedScore, gradebook_items: { ...item, id: 'excluded', include_in_final: false } },
+    ])
+    const data = await (await request()).json()
+    expect(data.items.map((mark: { id: string }) => mark.id)).toEqual(['item-1', 'excluded'])
+    expect(data.items[0].earned).toBe(0)
+  })
+
   it.each([
     { maximum: 5, score_scale: 1, earned: 8, possible: 5, percent: 160 },
     { maximum: 5, score_scale: 0.5, earned: 4, possible: 5, percent: 80 },

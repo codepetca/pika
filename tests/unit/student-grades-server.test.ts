@@ -290,7 +290,8 @@ describe('student grades server projection', () => {
     expect(result.currentPercent).toBe(percent)
   })
 
-  it('labels returned zero-weight work as not counted across all assessment kinds', async () => {
+  it.each([false, true])('filters returned zero-weight work only when requested: %s', async hideZeroWeight => {
+    mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true, gradebook_hide_zero_weight_student: hideZeroWeight } } })
     mocks.loadPagedRows
       .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
       .mockResolvedValueOnce({ rows: [], error: null })
@@ -322,7 +323,8 @@ describe('student grades server projection', () => {
     expect(result.currentPercent).toBe(80)
     expect(result.items.find((item) => item.id === 'included')?.included).toBe(true)
     for (const id of ['zero-assignment', 'zero-test', 'zero-item']) {
-      expect(result.items.find((item) => item.id === id)?.included).toBe(false)
+      if (hideZeroWeight) expect(result.items.find((item) => item.id === id)).toBeUndefined()
+      else expect(result.items.find((item) => item.id === id)?.included).toBe(false)
     }
   })
 

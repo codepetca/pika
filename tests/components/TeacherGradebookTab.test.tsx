@@ -349,6 +349,65 @@ describe('TeacherGradebookTab', () => {
     expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide unreleased assessments' })).toHaveAttribute('aria-checked', 'false')
   })
 
+  it('keeps teacher and student zero-weight choices independent and persists each in its own scope', async () => {
+    const response = gradebookResponse()
+    response.assessment_columns[0].weight = 0
+    fetchMock.mockImplementation(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        return { ok: true, json: async () => ({ classroom: { ...classroom, feature_visibility: body.featureVisibility } }) }
+      }
+      return { ok: true, json: async () => response }
+    })
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight teacher' })).toHaveAttribute('aria-checked', 'false')
+    const studentToggle = within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })
+    expect(studentToggle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(studentToggle)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/teacher/classrooms/'), expect.objectContaining({ method: 'PATCH' })))
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+    await waitFor(() => expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'true'))
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight teacher' }))
+    expect(screen.queryByRole('button', { name: 'Edit A1: Essay' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit T1: Test 1' })).toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ hideZeroWeightTeacher: true })
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1)
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight teacher' }))
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+  })
+
+  it('restores the student zero-weight choice after a failed save and leaves teacher columns visible', async () => {
+    fetchMock.mockImplementation(async (_input: unknown, init?: RequestInit) => init?.method === 'PATCH'
+      ? { ok: false, json: async () => ({ error: 'Settings save failed' }) }
+      : { ok: true, json: async () => gradebookResponse() })
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' }))
+    await screen.findByText('Settings save failed')
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+  })
+
+  it('ignores a student-setting response after switching classrooms', async () => {
+    let finishSave!: (value: unknown) => void
+    const pendingSave = new Promise(resolve => { finishSave = resolve })
+    fetchMock.mockImplementation(async (_input: unknown, init?: RequestInit) => init?.method === 'PATCH'
+      ? pendingSave : { ok: true, json: async () => gradebookResponse() })
+    const onClassroomUpdated = vi.fn()
+    const tree = (current: typeof classroom) => <AppMessageProvider><TooltipProvider>
+      <TeacherGradebookTab classroom={current} onClassroomUpdated={onClassroomUpdated} />
+    </TooltipProvider></AppMessageProvider>
+    const view = render(tree(classroom))
+    await screen.findByText('Ada')
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' }))
+    view.rerender(tree({ ...classroom, id: 'other-classroom' }))
+    await act(async () => { finishSave({ ok: true, json: async () => ({ classroom: { ...classroom, feature_visibility: { ...classroom.feature_visibility, gradebook_hide_zero_weight_student: true } } }) }) })
+    expect(onClassroomUpdated).not.toHaveBeenCalled()
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide 0-weight student' })).toHaveAttribute('aria-checked', 'false')
+  })
+
   it('restores an existing maximum while production changes are paused and blocks other columns', async () => {
     const data = gradebookResponse()
     let restored = false

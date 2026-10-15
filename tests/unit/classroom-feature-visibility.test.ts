@@ -27,6 +27,12 @@ describe('classroom feature visibility', () => {
     })
   })
 
+  it('defaults the student zero-weight option off and restores only a boolean', () => {
+    expect(normalizeClassroomFeatureVisibility({}).gradebook_hide_zero_weight_student).toBe(false)
+    expect(normalizeClassroomFeatureVisibility({ gradebook_hide_zero_weight_student: true }).gradebook_hide_zero_weight_student).toBe(true)
+    expect(normalizeClassroomFeatureVisibility({ gradebook_hide_zero_weight_student: 'true' }).gradebook_hide_zero_weight_student).toBe(false)
+  })
+
   it('keeps the teacher core while removing disabled optional tabs', () => {
     const visibility = normalizeClassroomFeatureVisibility({
       attendance: false,

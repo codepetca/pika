@@ -43,6 +43,17 @@ describe('metadata owner adapter and strict feature contracts (SDK fetch stub, n
     expect(f.requests[0].options?.method).toBe('POST')
     expect(JSON.parse(String(f.requests[0].options?.body))).toEqual({ p_actor_id: actorId, p_classroom_id: classroomId, p_patch: database })
   })
+  it.each([true, false])('supports student zero-weight visibility %s without changing other feature flags', async hide => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: hide }
+    const f = fixture({ ...classroom, feature_visibility: visibility })
+    expect((await f.run({ featureVisibility: visibility })).feature_visibility).toEqual(visibility)
+  })
+  it('accepts the server-preserved student setting omitted by an older client', async () => {
+    const visibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook_hide_zero_weight_student: true }
+    const { gradebook_hide_zero_weight_student: _setting, ...older } = visibility
+    expect((await fixture({ ...classroom, feature_visibility: visibility }).run({ featureVisibility: older })).feature_visibility).toEqual(visibility)
+    await expect(fixture({ ...classroom, feature_visibility: { ...visibility, tests: false } }).run({ featureVisibility: older })).rejects.toMatchObject({ statusCode: 503 })
+  })
   it('retains explicit-null slug, unpublishing, omitted fields and the full thirty-column owner response', async () => {
     const row = { ...classroom, actual_site_slug: null, actual_site_published: false }
     const f = fixture(row)
