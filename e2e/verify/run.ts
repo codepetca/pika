@@ -13,6 +13,8 @@ import fs from 'fs'
 
 import type { VerificationResult, VerificationScript } from './types'
 
+import { gradebookZeroWeightFilters } from './gradebook-zero-weight-filters'
+
 // Import scenarios
 import { addStudentsModal } from './add-students-modal'
 import { assessmentUxParity } from './assessment-ux-parity'
@@ -24,6 +26,7 @@ import { patternLabGradebook } from './pattern-lab-gradebook'
 import { classroomsLivePattern } from './classrooms-live-pattern'
 
 const scenarios: Record<string, VerificationScript> = {
+  'gradebook-zero-weight-filters': gradebookZeroWeightFilters,
   'classrooms-live-pattern': classroomsLivePattern,
   'add-students-modal': addStudentsModal,
   'assessment-ux-parity': assessmentUxParity,

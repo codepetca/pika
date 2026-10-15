@@ -60,6 +60,10 @@ export function TeacherGradebookTab({
   const [studentGradesVisible, setStudentGradesVisible] = useState(
     normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades,
   )
+  const [hideZeroWeightStudent, setHideZeroWeightStudent] = useState(
+    normalizeClassroomFeatureVisibility(classroom.feature_visibility).gradebook_hide_zero_weight_student === true,
+  )
+  const studentVisibilityRequestRef = useRef(0)
   const [savingStudentGradesVisibility, setSavingStudentGradesVisibility] = useState(false)
   const [studentGradesVisibilityError, setStudentGradesVisibilityError] = useState('')
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
@@ -94,7 +98,7 @@ export function TeacherGradebookTab({
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
   const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
-  const visibleAssessmentColumns = visibleGradebookAssessments(assessmentColumns, preferences.hideUnreleasedAssessments)
+  const visibleAssessmentColumns = visibleGradebookAssessments(assessmentColumns, preferences.hideUnreleasedAssessments, preferences.hideZeroWeightTeacher)
   const [categories, setCategories] = useState<GradebookCategory[]>([])
   const [gradebookEditorOpen, setGradebookEditorOpen] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<GradebookAssessmentColumn | null>(null)
@@ -134,15 +138,22 @@ export function TeacherGradebookTab({
   }, [classroom.id])
 
   useEffect(() => {
+    studentVisibilityRequestRef.current += 1
     setStudentGradesVisible(normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades)
+    setHideZeroWeightStudent(normalizeClassroomFeatureVisibility(classroom.feature_visibility).gradebook_hide_zero_weight_student === true)
     setStudentGradesVisibilityError('')
     setSavingStudentGradesVisibility(false)
-  }, [classroom.feature_visibility])
+  }, [classroom.id, classroom.feature_visibility])
 
-  async function updateStudentGradesVisibility(visible: boolean) {
+  async function updateStudentGradesVisibility(visible: boolean, hideZeroWeight = hideZeroWeightStudent) {
     if (savingStudentGradesVisibility || isReadOnly) return
+    const classroomId = classroom.id
+    const requestId = ++studentVisibilityRequestRef.current
+    const isCurrentRequest = () => studentVisibilityRequestRef.current === requestId && currentClassroomIdRef.current === classroomId
     const previous = studentGradesVisible
+    const previousHideZeroWeight = hideZeroWeightStudent
     setStudentGradesVisible(visible)
+    setHideZeroWeightStudent(hideZeroWeight)
     setSavingStudentGradesVisibility(true)
     setStudentGradesVisibilityError('')
     try {
@@ -153,20 +164,26 @@ export function TeacherGradebookTab({
           featureVisibility: {
             ...normalizeClassroomFeatureVisibility(classroom.feature_visibility),
             student_grades: visible,
+            gradebook_hide_zero_weight_student: hideZeroWeight,
           },
         }),
       })
       const json = await response.json()
       if (!response.ok) throw new Error(json.error || 'Could not update grade visibility')
+      if (!isCurrentRequest()) return
       const updatedClassroom = json.classroom as Classroom
       setStudentGradesVisible(normalizeClassroomFeatureVisibility(updatedClassroom.feature_visibility).student_grades)
+      setHideZeroWeightStudent(normalizeClassroomFeatureVisibility(updatedClassroom.feature_visibility).gradebook_hide_zero_weight_student === true)
+      invalidateCachedJSONMatching(`student-returned-marks:${classroom.id}`)
       invalidateCachedJSONMatching(`student-grades:${classroom.id}`)
       onClassroomUpdated(updatedClassroom)
     } catch (caught) {
+      if (!isCurrentRequest()) return
       setStudentGradesVisible(previous)
+      setHideZeroWeightStudent(previousHideZeroWeight)
       setStudentGradesVisibilityError(caught instanceof Error ? caught.message : 'Could not update grade visibility')
     } finally {
-      setSavingStudentGradesVisibility(false)
+      if (isCurrentRequest()) setSavingStudentGradesVisibility(false)
     }
   }
 
@@ -844,6 +861,8 @@ export function TeacherGradebookTab({
       studentGradesVisible={studentGradesVisible}
       onStudentGradesVisibilityChange={(visible) => { void updateStudentGradesVisibility(visible) }}
       savingStudentGradesVisibility={savingStudentGradesVisibility}
+      hideZeroWeightStudent={hideZeroWeightStudent}
+      onHideZeroWeightStudentChange={(hide) => { void updateStudentGradesVisibility(studentGradesVisible, hide) }}
     />
   )
 
@@ -961,7 +980,7 @@ export function TeacherGradebookTab({
         ) : (
           <div className="space-y-2 px-3 py-6 text-sm text-text-muted">
             <p>No students enrolled yet.</p>
-            {assessmentColumns.filter((column) => column.assessment_type === 'item').map((column) => <Button key={column.assessment_id} type="button" variant="ghost" className="w-full justify-start" disabled={isReadOnly || !itemsAvailable} onClick={() => openAssessment(column)} aria-label={`Edit item: ${column.title}`}>{column.title}</Button>)}
+            {visibleAssessmentColumns.filter((column) => column.assessment_type === 'item').map((column) => <Button key={column.assessment_id} type="button" variant="ghost" className="w-full justify-start" disabled={isReadOnly || !itemsAvailable} onClick={() => openAssessment(column)} aria-label={`Edit item: ${column.title}`}>{column.title}</Button>)}
           </div>
         )}
       </div>

@@ -6,6 +6,8 @@ import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialo
 import { applyMaximumToCell, applyMaximumToColumn, previewMaximumChange, type GradebookMaximumState, type MaximumChangeMode } from '@/lib/gradebook-maximum'
 import { calculateCategorizedFinalPercent } from '@/lib/gradebook'
 import { getAssessmentColumnKey } from '@/lib/gradebook-display'
+import { StudentGradesView } from '@/components/gradebook/StudentGradesView'
+import { buildStudentGradesResponse } from '@/lib/student-grades'
 import { GradebookTable } from '@/components/gradebook/GradebookTable'
 import { GradebookToolbar } from '@/components/gradebook/GradebookToolbar'
 import { DEFAULT_GRADEBOOK_PREFERENCES, visibleGradebookAssessments } from '@/lib/gradebook-editor'
@@ -15,7 +17,7 @@ const columns: GradebookAssessmentColumn[] = Array.from({ length: 12 }, (_, inde
   assessment_id: String(index), assessment_type: index % 2 ? 'test' : 'assignment',
   code: `${index % 2 ? 'T' : 'A'}${Math.floor(index / 2) + 1}`,
   title: `${index % 2 ? 'Unit test' : 'Research assignment'} ${Math.floor(index / 2) + 1}`,
-  possible: 100, weight: 10, include_in_final: true,
+  possible: 100, weight: index === 2 ? 0 : 10, include_in_final: true,
   category_id: 'term', category_name: index === 0 ? 'Term Work' : 'Term', category_percentage: 100,
   ...(index === 10 ? { is_draft: true } : index === 11 ? { status: 'draft' as const } : {}),
 }))
@@ -36,6 +38,7 @@ const noop = () => {}
 
 /** Deterministic evidence using the production toolbar and table owners. */
 export function GradebookCompactPattern() {
+  const [hideZeroWeightStudent, setHideZeroWeightStudent] = useState(false)
   const [preferences, setPreferences] = useState({ ...DEFAULT_GRADEBOOK_PREFERENCES, showWeights: true })
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({})
   const [maximumEditsEnabled, setMaximumEditsEnabled] = useState(true)
@@ -53,7 +56,7 @@ export function GradebookCompactPattern() {
       return result
     }) ?? []
     const calculation = calculateCategorizedFinalPercent({ categories: [{ id: 'term', percentage: 100 }],
-      items: cells.filter((cell) => cell.earned != null).map((cell) => ({ earned: cell.earned!, possible: cell.possible, weight: 10, categoryId: 'term' })) })
+      items: cells.filter((cell) => cell.earned != null).map((cell) => ({ earned: cell.earned!, possible: cell.possible, weight: columns.find(column => getAssessmentColumnKey(column) === getAssessmentColumnKey(cell))?.weight ?? 10, categoryId: 'term' })) })
     return { ...student, assessment_scores: cells, final_percent: calculation.finalPercent }
   })
   function saveMaximum(maximum: number, mode: MaximumChangeMode = 'keep_marks') {
@@ -64,10 +67,11 @@ export function GradebookCompactPattern() {
   return <div className="space-y-3" data-testid="gradebook-compact-pattern">
     <GradebookToolbar preferences={preferences} onChange={(changes) => setPreferences((value) => ({ ...value, ...changes }))}
       selectedCount={0} isReadOnly={false} onEditCategories={noop} onCopyEmails={noop} onExport={noop}
-      studentGradesVisible={false} onStudentGradesVisibilityChange={noop} />
+      studentGradesVisible={false} onStudentGradesVisibilityChange={noop}
+      hideZeroWeightStudent={hideZeroWeightStudent} onHideZeroWeightStudentChange={setHideZeroWeightStudent} />
     <Button variant="secondary" aria-pressed={!maximumEditsEnabled} onClick={() => setMaximumEditsEnabled((enabled) => !enabled)}>Pause maximum changes (fixture)</Button>
     <div className="h-96">
-      <GradebookTable students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)} displayMode={preferences.scoreDisplayMode}
+      <GradebookTable students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments, preferences.hideZeroWeightTeacher)} displayMode={preferences.scoreDisplayMode}
         ultraCompact={preferences.ultraCompact} lastNameFirst={preferences.lastNameFirst}
         showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
         keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
@@ -79,6 +83,16 @@ export function GradebookCompactPattern() {
         selectedStudentId={null} onStudentSelect={noop} onStudentDeselect={noop}
         sortColumn="first_name" sortDirection="asc" onSort={noop} />
     </div>
+    <StudentGradesView showRoleLabel grades={buildStudentGradesResponse({
+      categories: [{ id: 'term', percentage: 100 }],
+      items: displayedColumns.filter(column => !column.is_draft && column.status !== 'draft'
+        && !(hideZeroWeightStudent && column.weight === 0)).map(column => {
+        const cell = displayedStudents[0].assessment_scores?.find(cell => getAssessmentColumnKey(cell) === getAssessmentColumnKey(column))
+        return { id: column.assessment_id, kind: column.assessment_type === 'assignment' ? 'Classwork' as const : 'Test' as const,
+          title: column.title, earned: cell?.earned ?? 0, possible: column.possible, percent: cell?.percent ?? 0,
+          included: column.weight > 0, href: null, categoryId: 'term', weight: column.weight, returnedAt: '2026-10-15T12:00:00Z' }
+      }),
+    })} />
     <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null} maximumChangesDisabled={!maximumEditsEnabled}
       target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title, value: maximumTarget.possible,
         isOverride: maximumTarget.is_maximum_override, undoValue: maximumTarget.source_possible } : null}

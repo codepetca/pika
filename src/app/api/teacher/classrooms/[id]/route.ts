@@ -6,7 +6,7 @@ import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
 import { updateClassroomPublishingSchema } from '@/lib/validations/teacher'
 import { normalizeActualCourseSiteConfig } from '@/lib/course-site-publishing'
-import { isMissingClassroomFeatureVisibilityColumnError } from '@/lib/classroom-feature-visibility'
+import { isMissingClassroomFeatureVisibilityColumnError, normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import { mapClassroomCreationDatabaseError } from '@/lib/server/classroom-creation-entitlement'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import { authorizeSharedClassroomDetailReadActor, readContextualClassroomDetail } from '@/lib/server/contextual-classroom-detail'
@@ -175,7 +175,11 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   if (joinPolicy !== undefined) updates.join_policy = joinPolicy
   if (themeColor !== undefined) updates.theme_color = themeColor
   if (lessonPlanVisibility !== undefined) updates.lesson_plan_visibility = lessonPlanVisibility
-  if (featureVisibility !== undefined) updates.feature_visibility = featureVisibility
+  if (featureVisibility !== undefined) updates.feature_visibility = {
+    ...featureVisibility,
+    gradebook_hide_zero_weight_student: featureVisibility.gradebook_hide_zero_weight_student
+      ?? normalizeClassroomFeatureVisibility(ownership.classroom.feature_visibility).gradebook_hide_zero_weight_student ?? false,
+  }
   if (actualSiteSlug !== undefined) updates.actual_site_slug = actualSiteSlug
   if (actualSitePublished !== undefined) updates.actual_site_published = actualSitePublished
   if (actualSiteConfig !== undefined) updates.actual_site_config = normalizeActualCourseSiteConfig(actualSiteConfig)

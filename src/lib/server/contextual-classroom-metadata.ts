@@ -51,7 +51,11 @@ export async function updateContextualClassroomMetadata(input: {
     || (row.actual_site_published && !row.actual_site_slug)) throw unavailable()
   for (const [key, value] of Object.entries(patch)) {
     const actual = Object.entries(row).find(([column]) => column === key)?.[1]
-    if (!isDeepStrictEqual(actual, value)) throw unavailable()
+    if (key === 'feature_visibility' && value && typeof value === 'object'
+      && !('gradebook_hide_zero_weight_student' in value) && actual && typeof actual === 'object') {
+      const { gradebook_hide_zero_weight_student: _setting, ...features } = actual as Record<string, unknown>
+      if (!isDeepStrictEqual(features, value)) throw unavailable()
+    } else if (!isDeepStrictEqual(actual, value)) throw unavailable()
   }
   return hydrateClassroomRecord(row)
 }

@@ -46824,3 +46824,21 @@ regressions are being added before a new reviewed source binding. No native PASS
 Tests phase exit, sharedlocal249+/prod259+ application, promotion, provider/account
 or admission/home/page/cutover activation. Task-scoped routine/budget waiver remains;
 actual counters/evidence retained, no reset.
+
+<!-- pika-session-log-archive-batch:b7f6deec4678d5a158bde12aa9a071ad544c452a6c201a1dd4541458c5cc678c -->
+## 2026-10-11 — Recovery native pass and member-list forward seal
+
+PR1577 reviewed b11ff987a passed the fresh isolated001–260 rehearsal ec9995cfb906:
+16 acceptance groups,13 closed database labels,10 held schedules, genuine CLI
+types identical, mixed-role authority/revocations, unsubmit/single/bulk reset,
+observed8.012s57014 cancellation and positive settlement. Exact target-only cleanup,
+canonical183tables/settings/schema/cron and complete741-resource baseline passed.
+All seven previous failures and sources/receipts remain retained; no replay.
+Eighteen completed reviews1839s, seven accepted findings resolved, no reset.
+Ready CI38174577820 caught an older member-list fixture/profile still capped259;
+16759 full tests passed, one failed. Returned draft before correction; remaining
+lanes cancelled, no green CI/merge claim. Add only externally sealed260 acceptance
+to that proof, retain exact259 checks and unknown261/tampered260 rejection. This
+does not change recovery runtime, migrations, private verifier or application.
+Sharedlocal249+/prod259+/promotion/provider/account/cutover holds remain; Tests,
+Surveys/Grades and broader integration/rollout remain unfinished.
