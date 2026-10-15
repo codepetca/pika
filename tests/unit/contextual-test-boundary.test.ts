@@ -46,6 +46,27 @@ describe('contextual Test browser boundary', () => {
     expect(JSON.stringify(b.receipt())).not.toContain('password-cookie-secret')
     expect(b.receipt().firstFailure).toBe('response-body')
   })
+  it.each([
+    ['Protocol error (Network.getResponseBody): No resource with given identifier found', 'inspector-resource-unavailable'],
+    ['Protocol error (Network.getResponseBody): Request content was evicted from inspector cache', 'inspector-resource-unavailable'],
+    ['Response body is unavailable for redirect responses', 'redirect-body-unavailable'],
+    ['Target page, context or browser has been closed', 'target-closed'],
+    ['DO-NOT-RETAIN password cookie https://private.invalid?token=secret', 'unknown'],
+  ])('retains only a fixed body failure category for %s', async (message, cause) => {
+    const b = boundary(), c = {}
+    await b.observe(c, response(async () => { throw Error(message) }, 200, plan.appOrigin + '/api/auth/login'))
+    expect(b.receipt().responseFailure).toEqual({ phase: 'response-body', resource: 'login', status: 'success', cause })
+    expect(JSON.stringify(b.receipt())).not.toMatch(/DO-NOT-RETAIN|private\.invalid|password|cookie|token=|Protocol error/)
+  })
+  it('attributes an unrelated JSON failure independently of a successful login without inspecting hostile errors', async () => {
+    const b = boundary(), c = {}, trap = vi.fn(() => { throw Error('must not inspect') })
+    const hostile = new Proxy(new Error('private'), { get: trap, getOwnPropertyDescriptor: trap, getPrototypeOf: trap, ownKeys: trap })
+    await b.observe(c, response(async () => Buffer.from('{}'), 200, plan.appOrigin + '/api/auth/login'))
+    await b.observe(c, response(async () => { throw hostile }, 502, plan.appOrigin + '/private?secret=value'))
+    expect(b.receipt().responseFailure).toEqual({ phase: 'response-body', resource: 'other', status: 'server-error', cause: 'unknown' })
+    expect(trap).not.toHaveBeenCalled()
+    expect(() => b.check()).toThrow()
+  })
   it('still closes a context when its body verification fails', async () => {
     const b = boundary(), c = {}, close = vi.fn(async () => {})
     await b.observe(c, response(async () => { throw Error('private') }))

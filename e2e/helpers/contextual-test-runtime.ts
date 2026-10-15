@@ -109,6 +109,9 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       const login = loginProgress.begin()
       const context = await login.step('context', () => browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false }))
       const state = { closing: false, closed: false, requests: new Set<Request>() }; contexts.set(context, state)
+      let holdLoginNavigation = false, loginNavigationEnd = 0
+      let releaseLoginNavigation!: (verified: boolean) => void
+      const loginNavigation = new Promise<boolean>(resolve => { releaseLoginNavigation = resolve })
       // Register closure before any fallible context setup. Failed route or
       // timeout setup must not strand an actor until the outer suite teardown.
       context.on('close', () => { state.closed = true })
@@ -125,7 +128,18 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
           })
           await context.route('**/*', async route => {
             if (state.closing) { await route.abort('aborted').catch(() => {}); return }
-            try { const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request)); await route.continue() }
+            try {
+              const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request))
+              if (holdLoginNavigation && request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
+                // Chromium clears old inspector response data at document
+                // commit. Keep the original page until its login body has been
+                // verified; starting response.body() alone does not capture it.
+                const verified = await loginNavigation
+                if (!verified || state.closing) { await route.abort('aborted'); return }
+                boundary.check(); assert(Date.now() < loginNavigationEnd, 'Private login deadline')
+              }
+              await route.continue()
+            }
             catch { try { boundary.violate('endpoint') } catch { /* retain fixed first failure */ }
               await route.abort('blockedbyclient').catch(() => {}) }
           })
@@ -144,6 +158,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
         // preset exactly once, observe its React-owned transition, then replace
         // both public defaults before the only authentication submission.
         const loginEnd = Math.min(binding.deadline, Date.now() + plan.limits.operationMs)
+        loginNavigationEnd = loginEnd
         const loginTimeout = () => { boundary.check(); const remaining = loginEnd - Date.now(); assert(remaining > 0, 'Private login deadline'); return remaining }
         let loginTimer: ReturnType<typeof setTimeout> | undefined
         try {
@@ -154,16 +169,20 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
             await login.step('email', () => page.getByLabel('School Email').fill(actor.email, { timeout: loginTimeout() }))
             await login.step('password', () => page.getByLabel(/^Password(?:\s*\*)?$/).fill(binding.password, { timeout: loginTimeout() }))
             const original = await login.step('submit', async () => {
+              holdLoginNavigation = true
               const loginResponse = page.waitForResponse(response => response.url() === plan.appOrigin + '/api/auth/login' && response.request().method() === 'POST', { timeout: loginTimeout() })
               // A synchronous deadline/setup failure before Promise.all must not
               // leave the already-created waiter rejection unobserved.
               void loginResponse.catch(() => {})
-              const [, response] = await Promise.all([page.getByRole('button', { name: 'Login', exact: true }).click({ timeout: loginTimeout() }), loginResponse])
+              // A normal click may wait for the very navigation whose release
+              // depends on body verification. We explicitly await it below.
+              const [, response] = await Promise.all([page.getByRole('button', { name: 'Login', exact: true }).click({ timeout: loginTimeout(), noWaitAfter: true }), loginResponse])
               return response
             })
             await login.step('response-body', async () => {
               loginTimeout(); await runtime.response(page, original); loginTimeout()
               assert.equal(original.status(), 200, 'Private login rejected')
+              holdLoginNavigation = false; releaseLoginNavigation(true)
             })
             await login.step('redirect', () => page.waitForURL(url => url.origin === plan.appOrigin && url.pathname === '/classrooms', { timeout: loginTimeout() }))
             const current = await login.step('session', async () => {
@@ -182,6 +201,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       }
       finally {
         state.closing = true
+        releaseLoginNavigation(false)
         await boundary.beforeContextClose(context, () => context.close())
         // A late original body failure during close still invalidates this run.
         boundary.check(); assert(state.closed); assert.equal(boundary.pending(context), 0)

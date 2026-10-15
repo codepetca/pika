@@ -2,6 +2,7 @@
  * Original Response bytes, never a browser-evaluated or replayed substitute.
  */
 import type { RehearsalPlan } from './contextual-test-rehearsal'
+import { types } from 'node:util'
 
 type Failure = 'deadline' | 'failed' | 'origin' | 'endpoint' | 'request-cap' | 'test-cap' | 'upload-cap'
   | 'storage-method' | 'storage-reservation' | 'storage-bytes' | 'response-body' | 'response-cap'
@@ -9,8 +10,26 @@ type Failure = 'deadline' | 'failed' | 'origin' | 'endpoint' | 'request-cap' | '
 type OriginalResponse = { url(): string; status(): number; headers(): Record<string, string>; body(): Promise<Buffer> }
 type Reservation = { testId: string; bytes: number; url: string | null; readPath: string | null; managedId: string | null; uploaded: boolean }
 type Task = { promise: Promise<unknown>; end: number }
+type ResponseFailure = {
+  phase: Failure; resource: 'login' | 'session' | 'test-api' | 'other';
+  status: 'success' | 'redirect' | 'client-error' | 'server-error' | 'other';
+  cause: 'inspector-resource-unavailable' | 'redirect-body-unavailable' | 'target-closed' | 'unknown';
+}
+/** Classify known library failures without retaining their text, stack, URL or
+ * hash. Never invoke a thrown object's getter, proxy trap or coercion. */
+function bodyFailureCause(error: unknown): ResponseFailure['cause'] {
+  if (!error || typeof error !== 'object' || types.isProxy(error) || !types.isNativeError(error)) return 'unknown'
+  const descriptor = Object.getOwnPropertyDescriptor(error, 'message')
+  const message: unknown = descriptor && 'value' in descriptor ? descriptor.value : undefined
+  if (typeof message !== 'string' || message.length > 16384) return 'unknown'
+  if (message.includes('Network.getResponseBody') && ['No resource with given identifier found', 'No data found for resource with given identifier', 'Request content was evicted from inspector cache'].some(text => message.includes(text))) return 'inspector-resource-unavailable'
+  if (message.includes('Response body is unavailable for redirect responses')) return 'redirect-body-unavailable'
+  if (message.includes('Target page, context or browser has been closed')) return 'target-closed'
+  return 'unknown'
+}
 export class ContextualTestBoundary {
   private failed: Failure | null = null
+  private responseFailure: ResponseFailure | null = null
   private readonly tasks = new Map<object, Set<Task>>()
   private readonly responses = new WeakMap<object, Promise<unknown>>()
   private readonly reservations = new Map<string, Reservation>()
@@ -30,7 +49,7 @@ export class ContextualTestBoundary {
     if (this.now() >= this.deadline || [...this.tasks.values()].some(set => [...set].some(task => this.now() >= task.end))) this.reject('deadline')
     if (this.failed) this.reject('failed')
   }
-  receipt() { return { counts: { ...this.counts }, firstFailure: this.failed, pending: [...this.tasks.values()].reduce((n, set) => n + set.size, 0) } }
+  receipt() { return { counts: { ...this.counts }, firstFailure: this.failed, responseFailure: this.responseFailure ? { ...this.responseFailure } : null, pending: [...this.tasks.values()].reduce((n, set) => n + set.size, 0) } }
   pending(context: object) { return this.tasks.get(context)?.size ?? 0 }
   admit(value: string, method: string, body?: unknown) {
     this.check()
@@ -91,7 +110,19 @@ export class ContextualTestBoundary {
     const set = this.tasks.get(context) ?? new Set<Task>(); this.tasks.set(context, set)
     const task: Task = { end, promise: Promise.resolve() }
     const timer = setTimeout(() => { this.failed ??= 'deadline' }, Math.max(0, end - this.now())); timer.unref?.()
-    const guarded = original.catch(() => { this.failed ??= phase; return undefined }).finally(() => {
+    const guarded = original.catch(error => {
+      this.failed ??= phase
+      if (!this.responseFailure) {
+        let resource: ResponseFailure['resource'] = 'other', status: ResponseFailure['status'] = 'other'
+        try {
+          const path = new URL(response.url()).pathname, code = response.status()
+          resource = path === '/api/auth/login' ? 'login' : path === '/api/auth/me' ? 'session' : /^\/api\/(?:teacher|student)\/tests(?:\/|$)/.test(path) ? 'test-api' : 'other'
+          status = code >= 200 && code < 300 ? 'success' : code >= 300 && code < 400 ? 'redirect' : code >= 400 && code < 500 ? 'client-error' : code >= 500 && code < 600 ? 'server-error' : 'other'
+        } catch { /* Metadata cannot replace the original latched failure. */ }
+        this.responseFailure = { phase, resource, status, cause: phase === 'response-body' ? bodyFailureCause(error) : 'unknown' }
+      }
+      return undefined
+    }).finally(() => {
       clearTimeout(timer); set.delete(task); if (!set.size) this.tasks.delete(context)
     })
     task.promise = guarded; set.add(task); this.responses.set(response, guarded)

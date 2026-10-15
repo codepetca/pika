@@ -19,11 +19,13 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 class FakeRequest {
-  constructor(private target: string, private verb = 'GET', private data?: unknown) {}
+  constructor(private target: string, private verb = 'GET', private data?: unknown, private navigationPage?: FakePage) {}
   url = () => this.target
   method = () => this.verb
   postDataJSON = () => this.data
   postDataBuffer = () => this.data ? Buffer.from(JSON.stringify(this.data)) : null
+  isNavigationRequest = () => Boolean(this.navigationPage)
+  frame = () => this.navigationPage!.mainFrame()
 }
 class FakeResponse {
   readonly body: ReturnType<typeof vi.fn<() => Promise<Buffer>>>
@@ -47,6 +49,12 @@ class FakePage extends EventEmitter {
   private loginPredicate?: (response: FakeResponse) => boolean
   loginResponse?: FakeResponse
   loginBody?: () => Promise<Buffer>
+  raceNavigation = false
+  navigationStarted = false
+  navigationCommitted = false
+  navigationAborted = false
+  navigationTask?: Promise<void>
+  loginStatus = 200
   hydrated = false
   neverHydrates = false
   presetActivations = 0
@@ -68,8 +76,11 @@ class FakePage extends EventEmitter {
     }
   })
   readonly waitForURL = vi.fn(async (predicate: (url: URL) => boolean) => {
+    await this.navigationTask
     expect(predicate(new URL(this.current))).toBe(true)
   })
+  private readonly frame = { page: () => this }
+  mainFrame = () => this.frame
   constructor(readonly owner: FakeContext) { super() }
   context = () => this.owner
   url = () => this.current
@@ -83,7 +94,7 @@ class FakePage extends EventEmitter {
   }
   getByRole(role: string, options: { name: string; exact: boolean }) {
     this.roles.push({ role, options })
-    return { click: async () => {
+    return { click: async (clickOptions?: { noWaitAfter?: boolean }) => {
       if (options.name === 'Teacher') {
         this.presetActivations++
         if (this.advanceOnPreset) vi.setSystemTime(Date.now() + this.advanceOnPreset)
@@ -95,11 +106,26 @@ class FakePage extends EventEmitter {
       this.loginPosts++
       const request = new FakeRequest(plan.appOrigin + '/api/auth/login', 'POST', { email: this.email, password: this.secret })
       await this.owner.dispatch(request)
-      this.loginResponse = new FakeResponse(this, request, { success: true }, 200, this.loginBody)
+      const originalBody = this.loginBody ?? (async () => Buffer.from('{"success":true}'))
+      this.loginResponse = new FakeResponse(this, request, { success: true }, this.loginStatus, async () => {
+        // The app has consumed its Fetch body before assigning location. The
+        // separate inspector read can still be in flight at document commit.
+        const bytes = await originalBody()
+        if (this.raceNavigation) await new Promise(resolve => setTimeout(resolve, 1))
+        if (this.navigationCommitted) throw Error('Protocol error (Network.getResponseBody): No resource with given identifier found')
+        return bytes
+      })
       this.owner.emit('response', this.loginResponse)
       expect(this.loginPredicate?.(this.loginResponse)).toBe(true)
-      this.current = plan.appOrigin + '/classrooms'
       this.loginWait!.resolve(this.loginResponse)
+      if (this.raceNavigation) {
+        this.navigationStarted = true
+        this.navigationTask = this.owner.navigate(this).then(continued => {
+          this.navigationCommitted = continued; this.navigationAborted = !continued
+          if (continued) this.current = plan.appOrigin + '/classrooms'
+        })
+        if (!clickOptions?.noWaitAfter) await this.navigationTask
+      } else this.current = plan.appOrigin + '/classrooms'
     } }
   }
   waitForResponse(predicate: (response: FakeResponse) => boolean) {
@@ -135,6 +161,14 @@ class FakeContext extends EventEmitter {
     expect(continued).toHaveBeenCalledOnce(); expect(aborted).not.toHaveBeenCalled()
     this.emit('requestfinished', request)
   }
+  async navigate(page: FakePage) {
+    const request = new FakeRequest(plan.appOrigin + '/classrooms', 'GET', undefined, page)
+    this.emit('request', request)
+    let continued = false
+    await this.routeHandler?.({ request: () => request, continue: async () => { continued = true }, abort: async () => {} })
+    this.emit(continued ? 'requestfinished' : 'requestfailed', request)
+    return continued
+  }
 }
 class FakeBrowser {
   readonly contexts: FakeContext[] = []
@@ -168,6 +202,61 @@ async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Para
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it('verifies the original login bytes before document commit without waiting for click navigation', async () => {
+    const browser = new FakeBrowser(); browser.configure = c => { c.page.raceNavigation = true }
+    const s = await setup(browser), callback = vi.fn()
+    await s.runtime.withActor('ownerTeacher', callback)
+    const c = browser.contexts[0]
+    expect(c.page.navigationStarted).toBe(true); expect(c.page.navigationCommitted).toBe(true)
+    expect(c.page.loginPosts).toBe(1); expect(c.page.loginResponse!.body).toHaveBeenCalledOnce()
+    expect(callback).toHaveBeenCalledOnce(); expect(c.requests).toHaveLength(1)
+  })
+  it.each(['body', 'status'] as const)('aborts held login navigation after %s verification fails, with no identity request or retry', async failure => {
+    const browser = new FakeBrowser()
+    browser.configure = c => {
+      c.page.raceNavigation = true
+      if (failure === 'body') c.page.loginBody = async () => { throw Error('CPU private body failure') }
+      else c.page.loginStatus = 401
+    }
+    const s = await setup(browser), callback = vi.fn()
+    await expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+    const c = browser.contexts[0]; await c.page.navigationTask
+    expect(c.page.navigationCommitted).toBe(false); expect(c.page.navigationAborted).toBe(true)
+    expect(c.page.loginPosts).toBe(1); expect(c.page.loginResponse!.body).toHaveBeenCalledOnce()
+    expect(c.requests).toEqual([]); expect(callback).not.toHaveBeenCalled(); expect(c.close).toHaveBeenCalledOnce()
+  })
+  it('aborts held navigation at the original login deadline even when the original body settles later', async () => {
+    vi.useFakeTimers()
+    const body = deferred<Buffer>()
+    try {
+      const browser = new FakeBrowser()
+      browser.configure = c => { c.page.raceNavigation = true; c.page.loginBody = () => body.promise }
+      const s = await setup(browser), callback = vi.fn()
+      const failed = expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(30000)
+      const c = browser.contexts[0]; await c.page.navigationTask
+      expect(c.page.navigationAborted).toBe(true); expect(c.page.navigationCommitted).toBe(false)
+      body.resolve(Buffer.from('{"success":true}')); await vi.advanceTimersByTimeAsync(1); await failed
+      expect(c.requests).toEqual([]); expect(callback).not.toHaveBeenCalled()
+      expect(c.page.loginPosts).toBe(1); expect(c.page.loginResponse!.body).toHaveBeenCalledOnce()
+    } finally { body.resolve(Buffer.from('{}')); vi.useRealTimers() }
+  })
+  it('does not release navigation when a different observed JSON body fails during login', async () => {
+    const browser = new FakeBrowser()
+    browser.configure = c => {
+      c.page.raceNavigation = true
+      c.on('response', (reply: FakeResponse) => {
+        if (reply.url().endsWith('/api/auth/login')) c.emit('response', new FakeResponse(c.page,
+          new FakeRequest(plan.appOrigin + '/other'), {}, 200, async () => { throw Error('CPU unrelated failure') }))
+      })
+    }
+    const s = await setup(browser), callback = vi.fn()
+    await expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+    const c = browser.contexts[0]; await c.page.navigationTask
+    expect(c.page.navigationAborted).toBe(true); expect(c.requests).toEqual([]); expect(callback).not.toHaveBeenCalled()
+    await expect(s.close('failed')).rejects.toThrow()
+    expect(s.receipt().responseFailure).toMatchObject({ resource: 'other', phase: 'response-body' })
+  })
   it.each(loginSteps)('retains the entered %s step and last completion on actual runtime failure without sensitive data', async failedStep => {
     const secret = Error('DO-NOT-RECORD password https://private.invalid?token=secret'), browser = new FakeBrowser()
     if (failedStep === 'context') browser.newContext.mockRejectedValueOnce(secret)
@@ -386,7 +475,7 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     const receipt = s.receipt()
     expect(receipt).toMatchObject({ version: 1, outcome: 'failed', contextsClosed: true, firstFailure: 'response-body', pending: 0 })
     expect(JSON.stringify(receipt)).not.toContain('DO-NOT-RECORD')
-    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','version','witnesses','login'].sort())
+    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','responseFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','version','witnesses','login'].sort())
   })
   it('disposes the original API response when JSON verification fails and retains no response body', async () => {
     const s = await setup(); let response!: FakeResponse

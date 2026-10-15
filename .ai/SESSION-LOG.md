@@ -855,3 +855,12 @@ checksPASS, ownedSettledTRUE,0activeprobes/0families. Independent preservation
 before later writesPASS7630sourcefiles/49485deps602159424B; bothlabel/name resource
 queries0containers/volumes/networks, workdirabsent andall4portsclear. Evidence0600
 retained; token permanentlyspent, no retry/renewal/nativeacceptance or rollout.
+
+Fix50 reproduces the inspector-body/document-commit race with the actual runtime
+and CPU browser doubles. Hold the login document request until its one original
+body/status passes; nonwaiting click avoids waiting on that same held navigation.
+Original deadline, explicit redirect/session/identity checks and cleanup remain.
+Fixed response resource/status/cause labels distinguish login from other JSON;
+no raw errors, URLs, bodies or error hashes retained. 9 RED cases then107/3 CPU
+PASS; independent review and one newly authorized full rehearsal follow. Frozen
+app/auth/migrations and all production/provider/shared-local holds unchanged.
