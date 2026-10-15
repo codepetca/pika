@@ -715,6 +715,11 @@ commands independently and preserves permanent failure, identity checks and
 original shortened deadlines. Two bounded authors delivered; root integration
 89tests/6files PASS. Independent review and real cleanup proof still pending;
 no app exit, fresh admission, production change or Survey-probe planning inferred.
+Reviews70/71 found three unique cleanup/proof blockers. One batch now isolates
+throwing cleanup entry at both callers, keeps only private verified command
+settlement available during cleanup, and rejects timer-expiry proof credit.
+Real-transport CPU regressions reproduce the old defects; restored implementation
+85checks/TSC/lint PASS. Targeted review and actual small/native proof remain gates.
 
 ## 2026-10-14 Fixed error-shape/code-site observation and earliest body marker
 

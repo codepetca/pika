@@ -125,6 +125,17 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
     expect(f.events).not.toContain('exact-disposal'); expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false })
   })
+  it('attempts captured families and command joins even when cleanup entry and closure reject', async () => {
+    const f = fixture()
+    f.control.command.beginCleanup = () => { f.events.push('entry-failed'); throw Error('private entry detail') }
+    f.control.command.joinSettlements = async () => { f.events.push('join-failed'); throw Error('private join detail') }
+    f.control.command.assertClosed = () => { f.events.push('closure-failed'); throw Error('private closure detail') }
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
+    expect(f.events).toContain('settle'); expect(f.events).toContain('join-failed'); expect(f.events).toContain('closure-failed')
+    expect(f.events).not.toContain('exact-disposal')
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false, cleanupEnd: 361001 })
+    expect(JSON.stringify(f.receipts)).not.toContain('private')
+  })
   it('does not start PW or retry when app ready fails', async () => {
     const f = fixture(); f.control.launchApp = async () => ({ async ready() { throw Error('not ready') } })
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()

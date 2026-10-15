@@ -191,19 +191,30 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
       if (failures.length) { poisoned = true; throw new AggregateError(failures, 'Private contextual Test native cleanup failed') }
     },
     async settleCommand(child: ChildProcess, end: number) {
-      check(); assert(child.pid && child.spawnfile)
-      let closed = false
-      child.once('close', () => { closed = true })
-      const current = await rows(), root = current.find(row => row.pid === child.pid)
-      assert(root, 'Failed command ownership unconfirmed')
-      assert.equal(root.executable, realpathSync(child.spawnfile))
-      const actualArgv = await probe(pins.ps, ['-ww','-p',String(child.pid),'-o','command='], end)
-      const actualCwd = await probe(pins.lsof, ['-a','-p',String(child.pid),'-d','cwd','-Fn'], end)
-      assert.equal(actualArgv, child.spawnargs.join(' '))
-      assert.equal(actualCwd.split('\n').filter(line => line.startsWith('n')).join('\n'), `n${pins.outputDir}`)
-      const family = createContextualTestOwnedFamily({ pid: root.pid, pgid: root.pgid, executable: root.executable, cwd: pins.outputDir,
-        argv: child.spawnargs, expectedArgv: child.spawnargs, expectedCwd: pins.outputDir, role: 'browser', rows: current })
-      await family.settle('pid', { rows, now: Date.now, admit: () => assert(Date.now() < end && !poisoned), signal: (pid, signal) => { process.kill(pid, signal) }, closed: () => closed, end })
+      try {
+        assert(end <= cleanupDeadline); end = Math.min(end, controllerEnd)
+        const admit = () => { checkCleanup(); assert(Date.now() < end) }
+        // Authorized transport children may need ownership capture during
+        // cleanup, but native poison never grants a new capture.
+        const captureAdmission = () => { admit(); assert(!poisoned) }
+        captureAdmission(); assert(child.pid && child.spawnfile)
+        let closed = false
+        child.once('close', () => { closed = true })
+        const current = await observeRows(captureAdmission, end), root = current.find(row => row.pid === child.pid)
+        assert(root, 'Failed command ownership unconfirmed')
+        assert.equal(root.executable, realpathSync(child.spawnfile))
+        const actualArgv = await probeWithAdmission(captureAdmission, pins.ps, ['-ww','-p',String(child.pid),'-o','command='], end)
+        const actualCwd = await probeWithAdmission(captureAdmission, pins.lsof, ['-a','-p',String(child.pid),'-d','cwd','-Fn'], end)
+        assert.equal(actualArgv, child.spawnargs.join(' '))
+        assert.equal(actualCwd.split('\n').filter(line => line.startsWith('n')).join('\n'), `n${pins.outputDir}`)
+        captureAdmission()
+        const family = createContextualTestOwnedFamily({ pid: root.pid, pgid: root.pgid, executable: root.executable, cwd: pins.outputDir,
+          argv: child.spawnargs, expectedArgv: child.spawnargs, expectedCwd: pins.outputDir, role: 'browser', rows: current })
+        // Only this captured family survives later poison/cleanup admission.
+        await family.settle('pid', { rows: () => observeRows(admit, end), now: Date.now, admit,
+          signal: (pid, signal) => { process.kill(pid, signal) }, closed: () => closed, end })
+        admit(); assert(closed)
+      } catch { poisoned = true; throw fixedError() }
     },
     assertClosed() { assert(!poisoned && children.size === 0 && activeProbes === 0) },
   })
@@ -306,11 +317,12 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
       return { async wait() { await child.wait(); const state = child.state(); return { closed: state.closed, code: state.code, signal: null } } }
     },
     async settleAll(end) {
-      executionEnd = Math.min(executionEnd, end); command.beginCleanup(executionEnd)
-      const results = await Promise.allSettled([native.settleAll(executionEnd), command.joinSettlements()])
+      executionEnd = Math.min(executionEnd, end)
       const failures: Error[] = []
-      const failed = (stage: 'owned-families' | 'command-settlements' | 'command-closure' | 'native-closure') =>
+      const failed = (stage: 'command-entry' | 'owned-families' | 'command-settlements' | 'command-closure' | 'native-closure') =>
         failures.push(Object.assign(fixedError(), { cleanupStage: stage }))
+      try { command.beginCleanup(executionEnd) } catch { failed('command-entry') }
+      const results = await Promise.allSettled([Promise.resolve().then(() => native.settleAll(executionEnd)), Promise.resolve().then(() => command.joinSettlements())])
       if (results[0].status === 'rejected') failed('owned-families')
       if (results[1].status === 'rejected') failed('command-settlements')
       try { command.assertClosed() } catch { failed('command-closure') }

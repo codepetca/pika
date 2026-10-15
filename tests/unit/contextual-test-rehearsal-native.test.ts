@@ -4,10 +4,11 @@ import { resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 const native = vi.hoisted(() => ({ spawn: vi.fn(), verify: vi.fn() }))
 vi.mock('node:child_process', () => ({ spawn: native.spawn }))
+vi.mock('node:net', () => ({ createServer: () => ({ once() {}, listen(_options: unknown, ready: () => void) { ready() }, close(done: () => void) { done() } }) }))
 vi.mock('../../scripts/contextual-test-rehearsal-launch', async original => ({
   ...await original<typeof import('../../scripts/contextual-test-rehearsal-launch')>(), verifyContextualTestBinary: native.verify,
 }))
-import { createContextualTestExecutionControls, createContextualTestNativeControls, contextualTestExecutionDigest, type ContextualTestNativePins } from '../../scripts/contextual-test-rehearsal-native'
+import { CONTEXTUAL_TEST_REQUIRED_IMAGES, createContextualTestExecutionControls, createContextualTestNativeControls, contextualTestExecutionDigest, type ContextualTestNativePins } from '../../scripts/contextual-test-rehearsal-native'
 import type { ContextualTestControllerAdmission } from '../../scripts/contextual-test-rehearsal-controller'
 import { runContextualTestRehearsalController } from '../../scripts/contextual-test-rehearsal-controller'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
@@ -63,6 +64,24 @@ beforeEach(() => {
 })
 afterEach(() => { kill.mockRestore(); vi.useRealTimers() })
 const launch = () => ({ args: ['/cpu/spec.js'], cwd: process.cwd(), env: {}, role: 'app' as const, profile: '(version 1)\n(allow default)', deadline: Date.now() + 10000 })
+function commandFixture(control: ReturnType<typeof createContextualTestNativeControls>, budget = { startedAt: Date.now() - 1, deadline: Date.now() + 60000, cleanupDeadline: Date.now() + 120000 }) {
+  const child = new Child(9000), executable = realpathSync(process.execPath), argv = [executable, '/cpu/spec.js']
+  Object.defineProperties(child, { spawnfile: { value: executable }, spawnargs: { value: argv } })
+  rows.push({ pid: child.pid, ppid: 42, pgid: child.pid, started: '9000:1', executable, state: 'alive' }); owned.push(child)
+  const spawnDouble = native.spawn.getMockImplementation()!
+  native.spawn.mockImplementation((file: string, args: string[]) => {
+    const helper = spawnDouble(file, args) as Child
+    if (args.includes(String(child.pid)) && (file === pins.ps.path || file === pins.lsof.path)) helper.stdin.end.mockImplementation(() => queueMicrotask(() => {
+      helper.stdout.emit('data', Buffer.from(file === pins.ps.path ? argv.join(' ') : `p9000\nfcwd\nn${pins.outputDir}`)); helper.emit('close', 0, null)
+    }))
+    return helper
+  })
+  const real = launchModule.createContextualTestPinnedCommand({ git: pin(executable), docker: pin(executable), supabase: pin(executable),
+    dockerHost: pins.dockerHost, outputDir: pins.outputDir, socketIdentity: [1, 2, 3, 4] }, budget,
+  { verify() {}, spawn: () => child as never, settle: control.settleCommand })
+  const command = { ...real, beginCleanup: vi.fn(real.beginCleanup), joinSettlements: vi.fn(real.joinSettlements), assertClosed: vi.fn(real.assertClosed) }
+  return { child, command }
+}
 
 describe('real native controller with CPU process doubles only', () => {
   it('does not inspect or launch anything at controller construction', () => {
@@ -176,6 +195,55 @@ describe('real native controller with CPU process doubles only', () => {
       expect(sentAt.every(at => at < end)).toBe(true)
     } finally { clock.mockRestore() }
   })
+  it('settles an authorized failing cleanup command after successful owned-family cleanup', async () => {
+    vi.useFakeTimers()
+    const end = Date.now() + 20000, control = createContextualTestNativeControls(pins, end), appChild = await control.spawnOwned(launch())
+    await control.settleAll(end)
+    expect(appChild.state().closed).toBe(true)
+    const { child, command } = commandFixture(control)
+    command.beginCleanup(end)
+    const rejected = expect(command.run('git', ['status'])).rejects.toThrow()
+    child.emit('error'); await vi.advanceTimersByTimeAsync(0); await rejected
+    await command.joinSettlements()
+    expect(kill.mock.calls).toEqual([[-1000, 'SIGTERM'], [9000, 'SIGTERM']])
+    expect(command.state()).toMatchObject({ fault: true, poisoned: false, pending: 0 })
+    await expect(control.rows()).rejects.toThrow(); await expect(control.probe(pins.docker, [], end)).rejects.toThrow()
+    await expect(control.spawnOwned(launch())).rejects.toThrow()
+  })
+  it.each(['stable', 'reused', 'expired'])('a captured command survives later cleanup/poison only with fresh identity and original deadline; %s', async state => {
+    vi.useFakeTimers()
+    const end = Date.now() + 20000, control = createContextualTestNativeControls(pins, end)
+    const { child, command } = commandFixture(control, { startedAt: Date.now() - 1, deadline: Date.now() + 10000, cleanupDeadline: end })
+    const create = launchModule.createContextualTestOwnedFamily
+    let captured = false, resume: (() => void) | undefined
+    const factory = vi.spyOn(launchModule, 'createContextualTestOwnedFamily').mockImplementation(input => { const family = create(input); if (input.pid === child.pid) captured = true; return family })
+    const spawnDouble = native.spawn.getMockImplementation()!
+    native.spawn.mockImplementation((file: string, args: string[]) => {
+      const helper = spawnDouble(file, args) as Child
+      if (captured && file === pins.ps.path && args[0] === '-axo' && !resume) {
+        const send = helper.stdin.end.getMockImplementation()!
+        helper.stdin.end.mockImplementation(() => { resume = () => send() })
+      }
+      return helper
+    })
+    try {
+      const rejected = expect(command.run('git', ['status'])).rejects.toThrow()
+      child.emit('error'); await vi.advanceTimersByTimeAsync(0)
+      expect(captured).toBe(true); expect(resume).toBeTypeOf('function')
+      await expect(control.settleAll(end)).rejects.toThrow() // active observation makes poison sticky
+      if (state === 'reused') rows.find(row => row.pid === child.pid)!.started = '9999:1'
+      if (state === 'expired') vi.setSystemTime(end)
+      resume!(); await vi.advanceTimersByTimeAsync(0)
+      if (state !== 'stable') { expect(kill).not.toHaveBeenCalled(); child.emit('close', 1, null) }
+      await rejected
+      if (state !== 'stable') await expect(command.joinSettlements()).rejects.toThrow()
+      else { await command.joinSettlements(); expect(kill.mock.calls).toEqual([[9000, 'SIGTERM']]) }
+      expect(() => control.assertClosed()).toThrow()
+      const observations = native.spawn.mock.calls.length, signals = kill.mock.calls.length
+      await expect(control.settleCommand(new Child(9990) as never, end)).rejects.toThrow()
+      expect(native.spawn).toHaveBeenCalledTimes(observations); expect(kill).toHaveBeenCalledTimes(signals)
+    } finally { factory.mockRestore() }
+  })
 })
 
 describe('fresh execution seal (CPU only, no admission)', () => {
@@ -243,6 +311,79 @@ describe('fresh execution seal (CPU only, no admission)', () => {
       expect(JSON.stringify(failure)).not.toContain('raw synthetic private')
       expect(kill).not.toHaveBeenCalled()
     } finally { factory.mockRestore() }
+  })
+  it.each(['controller', 'execution'])('real poisoned transport cannot skip a captured app through the actual %s cleanup caller', async caller => {
+    vi.useFakeTimers()
+    const { admission, seal } = sealFixture(), node = realpathSync(process.execPath), imageId = 'sha256:' + 'a'.repeat(64)
+    const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f' } }
+    const base = { ...admission, appDir: process.cwd(), dependencies: { ...admission.dependencies, root: resolve('node_modules') } }
+    const reviewed = { ...seal, requiredImages: CONTEXTUAL_TEST_REQUIRED_IMAGES.map(ref => ({ ref, id: imageId })) }
+    const accepted = contextualTestExecutionDigest(base, actualPins, reviewed), input = { ...base, review: { ...base.review, manifestSha256: accepted } }
+    const transport = launchModule.createContextualTestPinnedCommand, spawnDouble = native.spawn.getMockImplementation()!
+    const child = new Child(9000)
+    Object.defineProperties(child, { spawnfile: { value: node }, spawnargs: { value: [node, '/cpu/spec.js'] } })
+    const spies = [
+      vi.spyOn(launchModule, 'verifyContextualTestTransportPins').mockImplementation(() => {}),
+      vi.spyOn(launchModule, 'captureContextualTestSource').mockImplementation(async repository => repository === input.frozen.repository ? input.frozen : input.runner),
+      vi.spyOn(launchModule, 'captureContextualTestDependencies').mockReturnValue({ ...input.dependencies, files: 1, bytes: 1 }),
+    ]
+    let command!: ReturnType<typeof commandFixture>['command']
+    spies.push(vi.spyOn(launchModule, 'createContextualTestPinnedCommand').mockImplementation((transportPins, budget, seams) => {
+      const real = transport(transportPins, budget, { ...seams, verify() {}, spawn(_file, args) {
+        if (args[0] === '--version') {
+          const version = new Child(9001)
+          version.stdin.end.mockImplementation(() => queueMicrotask(() => { version.stdout.emit('data', Buffer.from(seal.versions.supabase)); version.emit('close', 0, null) }))
+          return version as never
+        }
+        rows.push({ pid: 9000, ppid: 42, pgid: 9000, started: '9000:1', executable: '/foreign', state: 'alive' })
+        return child as never
+      } })
+      command = { ...real, beginCleanup: vi.fn(real.beginCleanup), joinSettlements: vi.fn(real.joinSettlements), assertClosed: vi.fn(real.assertClosed) }
+      return command
+    }))
+    native.spawn.mockImplementation((file: string, args: string[]) => {
+      if (file === pins.sandbox.path && args.includes('-e')) {
+        const probe = new Child(nextPid++)
+        probe.stdin.end.mockImplementation(() => queueMicrotask(() => probe.emit('close', 0, null)))
+        return probe
+      }
+      const helper = spawnDouble(file, args) as Child
+      if (file === pins.sandbox.path) rows.forEach(row => { if (row.pgid === helper.pid) row.executable = node })
+      const text = file === node ? seal.versions.node : file === pins.docker.path ? imageId : file === pins.ps.path && args.includes('-ww') ? `${node} /cpu/spec.js` : undefined
+      if (text !== undefined) helper.stdin.end.mockImplementation(() => queueMicrotask(() => { helper.stdout.emit('data', Buffer.from(text)); helper.emit('close', 0, null) }))
+      return helper
+    })
+    const receipts: unknown[] = []
+    try {
+      const controls = createContextualTestExecutionControls(input, actualPins, { ...reviewed, manifestSha256: accepted })
+      await controls.assertReady(input)
+      const appOwned = await controls.launchApp({ binding: { projectId: input.projectId }, cwd: input.appDir, env: {}, args: ['/cpu/spec.js'], dependencySandboxProfile: '(version 1)' } as never) as Awaited<ReturnType<ReturnType<typeof createContextualTestNativeControls>['spawnOwned']>>
+      const rejected = expect(command.run('git', ['status'])).rejects.toThrow()
+      child.emit('error'); await vi.advanceTimersByTimeAsync(0)
+      expect(command.state().poisoned).toBe(true); expect(kill).not.toHaveBeenCalled()
+      child.emit('close', 1, null); await rejected
+      const expectedEnd = caller === 'execution' ? Date.now() + 5000 : Math.min(admission.cleanupDeadline, Date.now() + 360000)
+      if (caller === 'execution') {
+        const failure = await controls.settleAll(expectedEnd).catch(error => error) as AggregateError
+        expect(failure.errors.map(error => error.cleanupStage)).toContain('command-entry')
+      } else {
+        // Controller admission is independently validated against the ordinary
+        // fixture; native controls already hold the exact captured app above.
+        await expect(runContextualTestRehearsalController(admission, { ...controls, assertReady: async () => {} }, {
+          openEvidence() {}, createAdapters() { return {} },
+          async lifecycle(_identity: unknown, _migrations: unknown, _adapters: unknown, _work: unknown, settle: () => Promise<void>) { await settle() },
+          writeReceipt(receipt: unknown) { receipts.push(receipt) },
+        } as never)).rejects.toThrow()
+        expect(receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false })
+      }
+      expect(kill.mock.calls).toEqual([[-1000, 'SIGTERM']])
+      expect(appOwned.state().closed).toBe(true)
+      expect(command.joinSettlements).toHaveBeenCalled(); expect(command.assertClosed).toHaveBeenCalled()
+      expect(command.beginCleanup.mock.calls.every(([end]) => end === expectedEnd)).toBe(true)
+      expect(command.state()).toMatchObject({ poisoned: true, cleaning: true, pending: 0 })
+      expect(rows.some(row => row.pgid === 1000)).toBe(false)
+      await expect(command.run('git', ['status'])).rejects.toThrow()
+    } finally { for (const spy of spies.reverse()) spy.mockRestore() }
   })
   it.each([false, true])('composes the actual controller and real native admission predicate; changed=%s', async changed => {
     const { admission, seal } = sealFixture(), actualPins = { ...pins, node: pin(realpathSync(process.execPath)) }

@@ -229,9 +229,13 @@ export async function runContextualTestRehearsalController(admission: Contextual
   const settle = async () => {
     const previous = stage; stage = 'cleanup'
     try {
-      const end = cleanupClock(); controls.command.beginCleanup(end)
-      await controls.settleAll(end); await controls.command.joinSettlements?.()
-      controls.command.assertClosed(); if (binding) edges.assertSqlSettled(binding)
+      const end = cleanupClock(), failures: Error[] = []
+      try { controls.command.beginCleanup(end) } catch { failures.push(fixedError()) }
+      const results = await Promise.allSettled([Promise.resolve().then(() => controls.settleAll(end)), Promise.resolve().then(() => controls.command.joinSettlements?.())])
+      for (const result of results) if (result.status === 'rejected') failures.push(fixedError())
+      try { controls.command.assertClosed() } catch { failures.push(fixedError()) }
+      if (binding) try { edges.assertSqlSettled(binding) } catch { failures.push(fixedError()) }
+      if (failures.length) throw new AggregateError(failures, 'Private contextual Test cleanup failed')
       await controls.assertUnchanged()
       ownedSettled = true
     } catch { failed(); throw fixedError() }
