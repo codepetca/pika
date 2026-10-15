@@ -9,6 +9,125 @@ import { join } from 'node:path'
 const require = createRequire(import.meta.url)
 const { createContextualTestEgressPolicy, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry, disableContextualTestNextVersionLookup } = require('../../scripts/contextual-test-rehearsal-egress.cjs')
 
+describe('installed socket guard matches native argument normalization without native dispatch', () => {
+  const normalize = require('node:net')._normalizeArgs as (args: unknown[]) => unknown[]
+  const marker = Object.getOwnPropertySymbols(normalize([]))[0]
+  const native = (process as unknown as { binding(name: string): Record<string, string> }).binding('natives').net
+  const connectSource = native.slice(native.indexOf('function connect(...args)'), native.indexOf('\nfunction getDefaultAutoSelectFamily'))
+  const socketStart = native.indexOf('Socket.prototype.connect = function(...args)')
+  const socketPrefix = native.slice(socketStart, native.indexOf('  if (netClientSocketChannel.hasSubscribers)', socketStart))
+  function harness(settings: { deadline?: number; normalize?: typeof normalize; bytes?: number } = {}) {
+    const state = { app: 0, storage: 0, api: 0, flags: { denied: false, uncertain: false, expired: false, capExceeded: false } }
+    const note = vi.fn((flag: keyof typeof state.flags) => { state.flags[flag] = true })
+    const ledger = { note, snapshot: () => state, charge(bucket: 'app' | 'storage' | 'api') {
+      if (Object.values(state.flags).some(Boolean)) throw Error('Closed synthetic ledger')
+      state[bucket]++
+    } }
+    const dispatch = vi.fn((_args: unknown[], _options: unknown, _callback: unknown) => ({}))
+    const Socket = function () {}
+    const nativeContext = { Socket, ArrayIsArray: Array.isArray, normalizedArgsSymbol: marker, normalizeArgs: normalize, dispatch }
+    // Execute only the installed native normalization prefix; all handle creation,
+    // lookup and connect code is replaced by a CPU dispatch spy.
+    vm.runInNewContext(socketPrefix + 'return dispatch(args, options, cb); };', nativeContext, { timeout: 1000 })
+    const nativeConnect = vm.runInNewContext('(' + connectSource + ')', { Socket, normalizeArgs: normalize, debug() {} }, { timeout: 1000 }) as (...args: unknown[]) => unknown
+    const synthetic = { host: '127.0.0.1', port: 54331, path: undefined }
+    const originalFetch = vi.fn(async () => { nativeConnect(synthetic); return new Response(settings.bytes ? Buffer.alloc(settings.bytes) : '{}') })
+    const forbidden = vi.fn(() => { throw Error('No native CPU dispatch') })
+    const modules: Record<string, unknown> = {
+      'node:assert/strict': require('node:assert/strict'), 'node:fs': {}, 'node:path': require('node:path'), 'node:crypto': {}, 'node:util': require('node:util'),
+      'node:net': { Socket, _normalizeArgs: settings.normalize ?? normalize }, 'node:tls': {}, 'node:http': { request: forbidden }, 'node:https': {},
+      'node:child_process': { fork: forbidden }, 'node:http2': {}, 'node:worker_threads': {}, 'node:module': { syncBuiltinESMExports() {} },
+    }
+    const vmModule = { exports: {} as { installContextualTestEgress(options: unknown): unknown } }
+    const sourceFile = require.resolve('../../scripts/contextual-test-rehearsal-egress.cjs')
+    const context = vm.createContext({ module: vmModule, exports: vmModule.exports, require: (id: string) => {
+      if (!Object.hasOwn(modules, id)) throw Error('Unapproved CPU dependency'); return modules[id]
+    }, process: { env: {}, argv: [] }, __filename: sourceFile, fetch: originalFetch, URL, Request, Response, AbortSignal, Buffer })
+    vm.runInContext(readFileSync(sourceFile, 'utf8'), context, { timeout: 1000 })
+    const install = () => vmModule.exports.installContextualTestEgress({ deadline: settings.deadline ?? Date.now() + 10000, ledger })
+    return { install, state, note, dispatch, nativeConnect, originalFetch, forbidden, Socket,
+      fetch: (url: string) => (context.fetch as typeof fetch)(url),
+      socket: (...args: unknown[]) => Reflect.apply((Socket.prototype as unknown as { connect: (...args: unknown[]) => unknown }).connect, {}, args) }
+  }
+  it('admits the real net.connect normalized tuple through the actual installer and bounded fetch', async () => {
+    const h = harness(); h.install()
+    const response = await h.fetch('http://127.0.0.1:54331/rest/v1/rpc/consume_auth_rate_limit')
+    expect(await response.text()).toBe('{}')
+    expect(h.dispatch).toHaveBeenCalledOnce()
+    expect(h.dispatch.mock.calls[0][1]).toEqual({ host: '127.0.0.1', port: 54331, path: undefined })
+    expect(h.state).toEqual({ app: 0, storage: 0, api: 1, flags: { denied: false, uncertain: false, expired: false, capExceeded: false } })
+    expect(h.forbidden).not.toHaveBeenCalled()
+  })
+  it('preserves direct, positional and marked callback arguments and their effective native options', () => {
+    const callback = () => {}, options = { host: '127.0.0.1', port: 54331 }, tuple = normalize([options, callback])
+    for (const args of [[{ host: 'localhost', port: 3117 }], [54331, '127.0.0.1', callback], [tuple], [{ ...options, hostname: options.host }]]) {
+      const h = harness(); h.install(); h.socket(...args)
+      expect(h.dispatch).toHaveBeenCalledOnce()
+      const originalArgs = h.dispatch.mock.calls[0][0]
+      expect(originalArgs).toEqual(args)
+      args.forEach((arg, index) => expect(originalArgs[index]).toBe(arg))
+      expect(h.note).not.toHaveBeenCalled()
+    }
+  })
+  const marked = (options: unknown, callback: unknown = null, value: unknown = true) => Object.assign([options, callback], { [marker]: value })
+  const cases: Array<[string, () => unknown[]]> = [
+    ['foreign host', () => [{ host: 'example.invalid', port: 54331 }]],
+    ['wrong port', () => [{ host: '127.0.0.1', port: 3117 }]],
+    ['Unix path', () => [{ path: '/synthetic/socket' }]],
+    ['unmarked array', () => [[{ host: '127.0.0.1', port: 54331 }, null]]],
+    ['nested array', () => [[[{ host: '127.0.0.1', port: 54331 }, null], null]]],
+    ['forged symbol', () => [Object.assign([{ host: '127.0.0.1', port: 54331 }, null], { [Symbol('normalizedArgs')]: true })]],
+    ['contradictory hostname', () => [{ hostname: '127.0.0.1', host: 'example.invalid', port: 54331 }]],
+    ['hostname only', () => [{ hostname: '127.0.0.1', port: 54331 }]],
+    ['marked nested array', () => [marked([{ host: '127.0.0.1', port: 54331 }])]],
+    ['marked foreign host', () => [normalize([{ host: 'example.invalid', port: 54331 }])]],
+    ['marked invalid callback', () => [marked({ host: '127.0.0.1', port: 54331 }, 'invalid')]],
+    ['truthy nontrue marker hiding another destination', () => [Object.assign(marked({ host: 'example.invalid', port: 80 }, null, 1), { host: '127.0.0.1', port: 54331 })]],
+    ['false marker', () => [marked({ host: '127.0.0.1', port: 54331 }, null, false)]],
+    ['proxy options', () => [new Proxy({ host: '127.0.0.1', port: 54331 }, {})]],
+    ['proxy tuple', () => [new Proxy(normalize([{ host: '127.0.0.1', port: 54331 }]), {})]],
+    ['host accessor', () => [{ get host() { throw Error('Accessor must not execute') }, port: 54331 }]],
+    ['tuple accessor', () => [Object.defineProperty(marked({}, null), '0', { get() { throw Error('Accessor must not execute') } })]],
+    ['coercible port', () => [{ host: '127.0.0.1', port: { valueOf() { throw Error('Coercion must not execute') } } }]],
+    ['inherited hidden host', () => [Object.assign(Object.create({ host: 'example.invalid' }), { hostname: '127.0.0.1', port: 54331 })]],
+  ]
+  it.each(cases)('rejects %s before original connector dispatch and latches denial', (_label, args) => {
+    const h = harness(); h.install()
+    expect(() => h.socket(...args())).toThrow()
+    expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+    expect(h.state.api).toBe(0)
+  })
+  it('never evaluates destination accessors, proxy traps or port coercion while rejecting them', () => {
+    const read = vi.fn(() => '127.0.0.1'), coerce = vi.fn(() => 54331), trap = vi.fn(() => '127.0.0.1')
+    const targets = [
+      { get host() { return read() }, port: 54331 },
+      { host: '127.0.0.1', port: { valueOf: coerce } },
+      new Proxy({ host: '127.0.0.1', port: 54331 }, { get: trap }),
+      Object.defineProperty(marked({ host: '127.0.0.1', port: 54331 }), marker, { get: read }),
+    ]
+    for (const target of targets) {
+      const h = harness(); h.install(); expect(() => h.socket(target)).toThrow()
+      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+    }
+    expect(read).not.toHaveBeenCalled(); expect(coerce).not.toHaveBeenCalled(); expect(trap).not.toHaveBeenCalled()
+  })
+  it('fails installation closed if the trusted normalizer marker shape drifts', () => {
+    for (const normalize of [() => [], () => Object.assign([{}, null], { [Symbol('one')]: true, [Symbol('two')]: true }), () => Object.assign([{}, null], { [marker]: 1 })]) {
+      const h = harness({ normalize })
+      expect(h.install).toThrow(); expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+    }
+  })
+  it('retains deadline rejection and the bounded original-body cap', async () => {
+    const expired = harness({ deadline: Date.now() - 1 }); expired.install()
+    expect(() => expired.nativeConnect({ host: '127.0.0.1', port: 54331 })).toThrow()
+    expect(expired.dispatch).not.toHaveBeenCalled(); expect(expired.note).toHaveBeenCalledWith('expired')
+    const large = harness({ bytes: 1048577 }); large.install()
+    await expect(large.fetch('http://127.0.0.1:54331/rest/v1/users')).rejects.toThrow('Tests server bounded fetch failed')
+    expect(large.dispatch).toHaveBeenCalledOnce(); expect(large.state.api).toBe(1)
+    expect(large.state.flags).toMatchObject({ capExceeded: true, uncertain: true, denied: false })
+  })
+})
+
 describe('installed Next version lookup stays offline before native dispatch', () => {
   const file = realpathSync(require.resolve('next/dist/server/dev/hot-reloader-webpack'))
   const registry = 'https://registry.npmjs.org/-/package/next/dist-tags'
@@ -271,7 +390,7 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
     const Socket = function () {}; Socket.prototype.connect = () => {}
     const modules: Record<string, unknown> = {
       'node:assert/strict': require('node:assert/strict'), 'node:fs': require('node:fs'), 'node:path': require('node:path'), 'node:crypto': require('node:crypto'),
-      'node:net': { Socket, _normalizeArgs: () => [] }, 'node:tls': {}, 'node:http': { request: () => { throw Error('No HTTP in CPU test') } }, 'node:https': {},
+      'node:net': { Socket, _normalizeArgs: require('node:net')._normalizeArgs }, 'node:util': require('node:util'), 'node:tls': {}, 'node:http': { request: () => { throw Error('No HTTP in CPU test') } }, 'node:https': {},
       'node:child_process': child, 'node:http2': {}, 'node:worker_threads': {}, 'node:module': { syncBuiltinESMExports() {} },
     }
     const vmModule = { exports: {} as { installContextualTestEgress(options: unknown): unknown } }

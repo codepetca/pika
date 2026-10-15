@@ -396,8 +396,50 @@ function installContextualTestEgress(options) {
   const deny = () => { options.ledger?.note('denied'); throw new Error('Tests server native escape rejected') }
   const originalFork = child.fork
   const originalConnect = net.Socket.prototype.connect
+  const { isProxy } = require('node:util').types
+  // net.connect passes one already-normalized tuple to Socket.connect. Use the
+  // actual native marker, never an array guess or a symbol-name comparison.
+  let normalizedArgsSymbol, optionsPrototype
+  try {
+    const sample = net._normalizeArgs([]), symbols = Object.getOwnPropertySymbols(sample)
+    assert(Array.isArray(sample) && sample.length === 2 && sample[1] === null && symbols.length === 1)
+    normalizedArgsSymbol = symbols[0]
+    assert(Object.getOwnPropertyDescriptor(sample, normalizedArgsSymbol)?.value === true)
+    assert(sample[0] && typeof sample[0] === 'object' && !Array.isArray(sample[0]))
+    optionsPrototype = Object.getPrototypeOf(sample[0])
+  } catch { return deny() }
   net.Socket.prototype.connect = function (...args) {
-    const normalized = net._normalizeArgs(args)
+    let normalized
+    try {
+      const data = value => {
+        assert(value && typeof value === 'object' && !isProxy(value))
+        const descriptors = Object.getOwnPropertyDescriptors(value)
+        assert(Reflect.ownKeys(descriptors).every(key => 'value' in descriptors[key]))
+        return descriptors
+      }
+      assert(!isProxy(args[0]))
+      if (Array.isArray(args[0])) {
+        const descriptors = data(args[0])
+        // Native accepts any truthy marker. Reject nontrue values explicitly:
+        // re-normalizing them would validate different options than native uses.
+        assert(descriptors[normalizedArgsSymbol]?.value === true)
+        normalized = args[0]
+      } else normalized = net._normalizeArgs(args)
+      const tuple = data(normalized)
+      assert(normalized.length === 2 && tuple[0] && tuple[1])
+      assert(normalized[1] === null || typeof normalized[1] === 'function')
+      const target = normalized[0], descriptors = data(target)
+      assert(!Array.isArray(target))
+      const prototype = Object.getPrototypeOf(target)
+      assert(prototype === null || prototype === optionsPrototype)
+      assert(typeof descriptors.host?.value === 'string')
+      assert(['number', 'string'].includes(typeof descriptors.port?.value))
+      for (const key of ['hostname', 'path', 'socketPath']) {
+        assert(descriptors[key] || !prototype || !Object.getOwnPropertyDescriptor(prototype, key))
+      }
+      // Node uses host, not hostname. Both names may exist only when identical.
+      assert(target.hostname === undefined || target.hostname === target.host)
+    } catch { return deny() }
     policy.socket(normalized[0])
     return Reflect.apply(originalConnect, this, args)
   }

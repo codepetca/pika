@@ -47264,3 +47264,26 @@ two-session waiter observation and closed cancellation/payload budgets; accepted
 component is not replayed. Sol/high source-only committed-plan preparation owns
 two new inert module/test paths; root owns integration/dispatch and unchanged
 caps. No native target or live permission was granted by that source assignment.
+
+<!-- pika-session-log-archive-batch:ad44b29dba0ab53204b51a5fe045c1cacfae7038eb3c4c9b5a2c0ffc8b733a9b -->
+## 2026-10-13 Restart recovery and preserved source
+
+Human confirmed restart; kernel boot1791859016 (Oct12 22:36:56 Toronto) postdates
+all prior attempts. This resolves preboot detached-browser lifetime uncertainty,
+not failed-app acceptance or permission to retry a spent candidate. Root clean
+29c4eca71/source tree preserved; genuine440703-byte metadata still82324a71.
+The three /private/tmp evidence roots cleared on reboot. Own durable session logs
+survive; exact-byte review/source/receipt recovery is bounded and provenance-
+checked, never fabricated from summaries or executing recorded tool scripts.
+Coordinator handoff relocated to private0700/0600 .codex/verification/classroom-
+access/2026-10-12-restart-recovery; future evidence must survive restarts. Existing
+Survey22:04/review18/fix8 and Protocol12:08/review36/fix29 counters stay unchanged.
+
+Startup verified; fresh342.03GB available/healthy. Canonical Pika Docker services
+running, old Survey disposable projects absent; other/stopped projects untouched.
+Old workers gone, proposed committed-proof source/test files absent; one fresh
+Sol/high read-only recovery worker and one disjoint Sol/high pure committed-plan
+writer continue agreed work. Whole phase/native/app/CI/merge remains unaccepted.
+No shared/prod migration, account/provider/billing/release/admission/home/cutover
+or valuable cleanup. Routine approvals waived; serious holds persist. Weekly49%
+remaining is account-wide, not attributable cost; effective worker usage unknown.
