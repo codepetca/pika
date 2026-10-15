@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import type { BrowserStartupJournal, BrowserStartupStage } from './contextual-browser-startup'
 import { captureContextualTestDependencies, contextualTestReadOnlyDependencyProfile, immutableContextualTestData, verifyContextualTestBinary } from './contextual-test-rehearsal-launch'
 import { createContextualTestNativeControls, type ContextualTestNativePins, type ContextualTestOwnedChild } from './contextual-test-rehearsal-native'
 import { assertDiagnosticPrivateUmask, assertDiagnosticRunnerOutputModes, diagnosticDirectory, diagnosticHash, diagnosticRead, diagnosticReportPassed, diagnosticSourceFiles, diagnosticWrite,
@@ -24,22 +25,26 @@ const fixedFailure = () => new Error('Private browser diagnostic failed; consult
  * The inherited sandbox only denies dependency writes. Offline routing protects
  * this diagnostic context; this is not a claim of zero OS-wide browser egress.
  */
-export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInput) {
-  assertDiagnosticPrivateUmask(process.umask())
-  input = immutableContextualTestData(input)
-  assert(input.mode === undefined || input.mode === 'login-body')
-  diagnosticDirectory(input.outputDir); assert.equal(readdirSync(input.outputDir).length, 0)
-  assert.equal(realpathSync(input.repository), input.repository)
-  assert.equal(realpathSync(input.dependencies.root), input.dependencies.root)
-  assert.equal(input.pins.outputDir, input.outputDir)
-  assert.equal(realpathSync(process.execPath), input.pins.node.path)
-  assert.equal(input.pins.node.path, '/Users/stew/.local/share/mise/installs/node/24.12.0/bin/node')
-  assert.equal(input.pins.node.sha256, '90ee1d271eec831fd38d16c78c19cc36809548ac5cd034a6e0c10c4389c881ef')
-  assert.equal(process.version, 'v24.12.0')
-  assert.equal(input.pins.chrome.path, DIAGNOSTIC_CHROME); assert.equal(input.pins.chrome.sha256, DIAGNOSTIC_CHROME_SHA)
-  assert.equal(input.pins.helper.path, join(input.repository, 'scripts/contextual-test-process-identity.py'))
-  assert.equal(JSON.parse(readFileSync(join(input.dependencies.root, '@playwright/test/package.json'), 'utf8')).version, '1.58.0')
-  const sourceCheck = () => {
+export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInput, startup?: BrowserStartupJournal) {
+  const step = <T>(stage: BrowserStartupStage, work: () => T | Promise<T>) => startup ? startup.step(stage, work) : Promise.resolve().then(work)
+  input = await step('runtime-input', () => {
+    assertDiagnosticPrivateUmask(process.umask())
+    const snapshot = immutableContextualTestData(input)
+    assert(snapshot.mode === undefined || snapshot.mode === 'login-body')
+    diagnosticDirectory(snapshot.outputDir); assert.equal(readdirSync(snapshot.outputDir).length, 0)
+    assert.equal(realpathSync(snapshot.repository), snapshot.repository)
+    assert.equal(realpathSync(snapshot.dependencies.root), snapshot.dependencies.root)
+    assert.equal(snapshot.pins.outputDir, snapshot.outputDir)
+    assert.equal(realpathSync(process.execPath), snapshot.pins.node.path)
+    assert.equal(snapshot.pins.node.path, '/Users/stew/.local/share/mise/installs/node/24.12.0/bin/node')
+    assert.equal(snapshot.pins.node.sha256, '90ee1d271eec831fd38d16c78c19cc36809548ac5cd034a6e0c10c4389c881ef')
+    assert.equal(process.version, 'v24.12.0')
+    assert.equal(snapshot.pins.chrome.path, DIAGNOSTIC_CHROME); assert.equal(snapshot.pins.chrome.sha256, DIAGNOSTIC_CHROME_SHA)
+    assert.equal(snapshot.pins.helper.path, join(snapshot.repository, 'scripts/contextual-test-process-identity.py'))
+    assert.equal(JSON.parse(readFileSync(join(snapshot.dependencies.root, '@playwright/test/package.json'), 'utf8')).version, '1.58.0')
+    return snapshot
+  })
+  const sourceFilesCheck = () => {
     assert.deepEqual(Object.keys(input.sourceSha256).sort(), [...diagnosticSourceFiles].sort())
     for (const file of diagnosticSourceFiles) {
       assert(/^[a-f0-9]{64}$/.test(input.sourceSha256[file]))
@@ -49,20 +54,29 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
       const after = lstatSync(path)
       assert(before.ino === after.ino && before.dev === after.dev && before.size === after.size && before.mtimeMs === after.mtimeMs && before.ctimeMs === after.ctimeMs)
     }
-    for (const key of ['node','ps','python','lsof','sandbox','codesign','chrome','helper'] as const) verifyContextualTestBinary(input.pins[key])
   }
-  sourceCheck()
+  const binaryKeys = ['node','ps','python','lsof','sandbox','codesign','chrome','helper'] as const
+  const sourceCheck = () => { sourceFilesCheck(); for (const key of binaryKeys) verifyContextualTestBinary(input.pins[key]) }
+  await step('source-files', sourceFilesCheck)
+  for (const key of binaryKeys) await step(`pin-${key}`, () => verifyContextualTestBinary(input.pins[key]))
   // Data preparation has no native dispatch and allocates no attempt clock.
-  const dependencies = captureContextualTestDependencies(input.dependencies.root, Date.now() + 30000)
-  assert.equal(dependencies.sha256, input.dependencies.sha256)
-  const profile = contextualTestReadOnlyDependencyProfile(dependencies.roots)
-  mkdirSync(join(input.outputDir, 'tmp'), { mode: 0o700 })
-  mkdirSync(join(input.outputDir, 'runner-output'), { mode: 0o700 })
-  const startedAt = Date.now(), deadline = startedAt + 90000, cleanupDeadline = deadline + 360000
-  const admission: DiagnosticAdmission = { version: 1, nonce: randomBytes(16).toString('hex'), outputDir: input.outputDir, startedAt, deadline, cleanupDeadline,
-    ...(input.mode === 'login-body' ? { mode: input.mode } : {}) }
-  diagnosticWrite(input.outputDir, 'admission.json', admission)
-  diagnosticWrite(input.outputDir, 'spent.json', { version: 1, nonce: admission.nonce, startedAt })
+  const dependencies = await step('runtime-dependencies', () => {
+    const result = captureContextualTestDependencies(input.dependencies.root, Date.now() + 30000)
+    assert.equal(result.sha256, input.dependencies.sha256)
+    return result
+  })
+  const profile = await step('runtime-profile', () => contextualTestReadOnlyDependencyProfile(dependencies.roots))
+  const admission = await step('runtime-admission', () => {
+    mkdirSync(join(input.outputDir, 'tmp'), { mode: 0o700 })
+    mkdirSync(join(input.outputDir, 'runner-output'), { mode: 0o700 })
+    const startedAt = Date.now(), deadline = startedAt + 90000, cleanupDeadline = deadline + 360000
+    const admission: DiagnosticAdmission = { version: 1, nonce: randomBytes(16).toString('hex'), outputDir: input.outputDir, startedAt, deadline, cleanupDeadline,
+      ...(input.mode === 'login-body' ? { mode: input.mode } : {}) }
+    diagnosticWrite(input.outputDir, 'admission.json', admission)
+    diagnosticWrite(input.outputDir, 'spent.json', { version: 1, nonce: admission.nonce, startedAt })
+    return admission
+  })
+  const { startedAt, deadline, cleanupDeadline } = admission
   const native = createContextualTestNativeControls(input.pins, cleanupDeadline)
   let stage: Stage = 'preflight', failedStage: Stage | null = null, owned: ContextualTestOwnedChild | undefined
   let cleanupStartedAt = 0, cleanupEnd = cleanupDeadline, ownedSettled = false, unchanged = false, reportPassed = false, lifecyclePassed = false

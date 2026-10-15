@@ -11,6 +11,7 @@ export const DIAGNOSTIC_CHROME_SHA = 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86
 export const diagnosticHash = (value: Buffer | string) => createHash('sha256').update(value).digest('hex')
 export const diagnosticSourceFiles = Object.freeze([
   'scripts/contextual-browser-diagnostic-data.ts', 'scripts/contextual-browser-diagnostic.ts',
+  'scripts/contextual-browser-startup.ts',
   'e2e/helpers/contextual-browser-diagnostic-reporter.ts', 'e2e/contextual-browser-diagnostic.spec.ts',
   'e2e/helpers/contextual-browser-diagnostic-setup.ts',
   'e2e/helpers/contextual-browser-login-diagnostic.ts',

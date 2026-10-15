@@ -47373,3 +47373,21 @@ overflow and CPU malformed tests,14observers;200/4000/64MiB/16/time caps unchang
 Next probe specification worker blocked by provider safety check; no report or
 native action, no retry through another worker. Full accounting/cancellation/
 payload/restoration and app verification remain unfinished; prod/cutover held.
+
+<!-- pika-session-log-archive-batch:d5b59feff934e9e213cc6b14195582a613748836a37b2b79356998cdf55ced5d -->
+## 2026-10-13 Browser diagnosis and resource-failure CPU coverage
+
+Readonly process diagnosis found no matching failed-attempt daemon/session,
+runtime cwd/socket/profile or visible3197listener. Old query-error means an
+error-bearing process-discovery spawnSync result; discarded errno prevents
+recovering its cause. No evidence necessitates reboot; no signals/restarts or
+SPENT retry. Historical family closure still unknown; provider-refused fault
+probe scope remains held. Private diagnosis01e4f223... retained.
+Fresh strict339295adf focused2920PASS/8skip plus arch/UI/design/appType/lint.
+Sourcefix20 adds three synthetic Survey cases: late observer rejection, terminal
+cutoff rejects overall progression before second direction, unconfirmed owned
+child close poisons later work. Serial focused6PASS includes original positives;
+lint/diffPASS. Budget-exhaustion candidate removed after CPU5s timeout; coverage
+still missing, no counter bypass or native cap changes. No production/helper
+change or native acceptance. Root audit/checkpoint/independent review next;
+overall inventory, native/app and production/cutover holds unchanged.

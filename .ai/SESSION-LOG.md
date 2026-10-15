@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Browser diagnosis and resource-failure CPU coverage
-
-Readonly process diagnosis found no matching failed-attempt daemon/session,
-runtime cwd/socket/profile or visible3197listener. Old query-error means an
-error-bearing process-discovery spawnSync result; discarded errno prevents
-recovering its cause. No evidence necessitates reboot; no signals/restarts or
-SPENT retry. Historical family closure still unknown; provider-refused fault
-probe scope remains held. Private diagnosis01e4f223... retained.
-Fresh strict339295adf focused2920PASS/8skip plus arch/UI/design/appType/lint.
-Sourcefix20 adds three synthetic Survey cases: late observer rejection, terminal
-cutoff rejects overall progression before second direction, unconfirmed owned
-child close poisons later work. Serial focused6PASS includes original positives;
-lint/diffPASS. Budget-exhaustion candidate removed after CPU5s timeout; coverage
-still missing, no counter bypass or native cap changes. No production/helper
-change or native acceptance. Root audit/checkpoint/independent review next;
-overall inventory, native/app and production/cutover holds unchanged.
-
 ## 2026-10-13 Offline host lifetime fixture correction
 
 Surveyresource review30 PASS0findings. Fullfocused5b34:2922PASS/8skip/1FAIL in
@@ -862,3 +845,20 @@ and one independent reviewed-source pass precede ONE new execution. Existing
 review/fix clocks retained under human waiver; no provider scope or retry change.
 Weekly90%remaining/ordinaryallowed; storage315.59GBhealthy. All production,
 shared-local, provider-refused and rollout holds unchanged. Not product acceptance.
+
+## 2026-10-15 — Durable browser diagnostic startup reporting
+
+Previous one-shot preparation exists but output is empty: no admission/browser/
+controller receipt, terminal session unavailable. Current read-only checks PASS
+all16source hashes,49485 dependency entries and process absence; historical exit
+cause remains unknown, no body/identity conclusion. Old token remains SPENT.
+Human authorizes startup reporting, review and ONE fresh bounded browser-only run.
+Runner now reports pre-admission input/source/binary/dependency/profile/admission
+stages through a private exclusive fsync-flushed journal. Fixed labels/codes only;
+no raw messages/stacks/paths/payloads. Entered survives an interrupted process;
+failed records preserve stage and block continuation. Browser deadlines, ownership,
+cleanup and request limits unchanged. Initial missing-module RED then36focused
+CPU PASS; type/lint/audit and independent review precede the single fresh attempt.
+Private launcher records binding/import/preparation before runtime handoff. No
+full-app approval or product acceptance; production/shared-local/provider holds
+unchanged. Existing review counters/waiver retained; no repeated broad review.
