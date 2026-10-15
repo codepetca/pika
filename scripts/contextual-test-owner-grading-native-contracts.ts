@@ -1,3 +1,4 @@
+import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateGradebookZeroWeightStudentVisibilityReviewedMigration } from './gradebook-zero-weight-student-visibility-reviewed-migration'
 import { validateTestReturnUngradedWorkReviewedMigration } from './test-return-ungraded-work-reviewed-migration'
 import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
@@ -42,7 +43,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   // The current native harness asserts265 Return and clear-preservation behavior.
   // Historical source seals remain valid; those schemas cannot execute this proof.
   const inventory=loadAssignmentListReviewedMigrations(repository)
-  assert([265,266].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266 extension')
+  assert([265,266,267].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266/267 extensions')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
   if(inventory.length>=260)validateTestOwnerRecoveryReviewedMigration(inventory[259])
@@ -51,7 +52,8 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   if (inventory.length >= 263) validateTestCalendarDateReviewedMigration(inventory[262])
   if (inventory.length >= 264) validateTestAiGradingSavedWorkReviewedMigration(inventory[263])
   if (inventory.length >= 265) validateTestReturnUngradedWorkReviewedMigration(inventory[264])
-  if (inventory.length === 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(inventory[265])
+  if (inventory.length >= 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(inventory[265])
+  if (inventory.length === 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(inventory[266])
   const migrations=inventory.map(({name,sha256})=>({name,sha256}));const migrationManifestSha256=hash(JSON.stringify(migrations))
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`,guard=testOwnerGuardSql(projectId)
   const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';",terminal="end;$guard$;select 'ok';rollback;"

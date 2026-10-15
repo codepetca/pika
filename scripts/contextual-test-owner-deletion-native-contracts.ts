@@ -1,3 +1,4 @@
+import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateGradebookZeroWeightStudentVisibilityReviewedMigration } from './gradebook-zero-weight-student-visibility-reviewed-migration'
 import { validateTestReturnUngradedWorkReviewedMigration } from './test-return-ungraded-work-reviewed-migration'
 import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
@@ -34,7 +35,7 @@ const plans = new WeakMap<object, TestOwnerDeletionNativePlan>()
 export function testOwnerDeletionNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
   const f = newTestOwnerDeletionFixture(original), inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([262,263, 264, 265, 266].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
+  assert([262,263, 264, 265, 266, 267].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
   assert.equal(inventory[252].name, '253_classroom_test_tier_caps.sql')
   assert.equal(inventory[252].sha256, '076bb9775a6959ecfc1012a652205968fda74b601daaad3ba6ef0e8f9975cc09')
   assert.equal(hash(inventory[252].sql), inventory[252].sha256)
@@ -49,7 +50,8 @@ export function testOwnerDeletionNativePlan(original: AssignmentListProofFixture
   if (inventory.length >= 263) validateTestCalendarDateReviewedMigration(inventory[262])
   if (inventory.length >= 264) validateTestAiGradingSavedWorkReviewedMigration(inventory[263])
   if (inventory.length >= 265) validateTestReturnUngradedWorkReviewedMigration(inventory[264])
-  if (inventory.length === 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(inventory[265])
+  if (inventory.length >= 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(inventory[265])
+  if (inventory.length === 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(inventory[266])
   const source = readFileSync(resolve(repository, 'supabase/migrations', TEST_OWNER_DELETION_REVIEWED_MIGRATION.name), 'utf8')
   validateTestOwnerDeletionReviewedMigration({ name: TEST_OWNER_DELETION_REVIEWED_MIGRATION.name, sql: source, sha256: hash(source) })
   assert.equal(source, inventory[261].sql)

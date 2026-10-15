@@ -2,12 +2,12 @@ import { loadGradebookMaximumState } from '@/lib/server/gradebook-maximum'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
-import type { ReturnedGradebookItem } from '@/lib/gradebook-student-items'
+import type { ReturnedGradebookItem, ReturnedGradebookItemsResponse } from '@/lib/gradebook-student-items'
 
 export async function getStudentReturnedGradebookItems(
   studentId: string,
   classroomId: string,
-): Promise<ReturnedGradebookItem[]> {
+): Promise<ReturnedGradebookItemsResponse> {
   const access = await assertStudentCanAccessClassroom(studentId, classroomId)
   if (!access.ok) throw new ApiError(access.status, access.error)
   if (!access.classroom.feature_visibility.classwork) {
@@ -17,6 +17,7 @@ export async function getStudentReturnedGradebookItems(
   const supabase = getServiceRoleClient()
   const maximumState = await loadGradebookMaximumState(classroomId)
   const items: ReturnedGradebookItem[] = []
+  const compactZeroWeightAssessments = access.classroom.feature_visibility.gradebook_compact_zero_weight_assessments ?? true
   const pageSize = 1000
   for (let offset = 0; ; offset += pageSize) {
     // Saved standalone marks are immediately visible; blank marks stay absent.
@@ -35,12 +36,11 @@ export async function getStudentReturnedGradebookItems(
 
     if (error) {
       // The new tables may not exist yet during the human-controlled rollout.
-      if (error.code === '42P01' || error.code === 'PGRST205') return []
+      if (error.code === '42P01' || error.code === 'PGRST205') return { items: [], compactZeroWeightAssessments }
       throw new ApiError(500, 'Could not load Gradebook marks')
     }
 
-    items.push(...(data ?? []).filter(score => !(access.classroom.feature_visibility.gradebook_hide_zero_weight_student
-      && Number(score.gradebook_items.gradebook_weight) === 0)).map(score => {
+    items.push(...(data ?? []).map(score => {
       const item = score.gradebook_items
       const state = maximumState.states.get(`item:${item.id}`)
       const earned = Number(score.earned) * (state?.score_scale ?? 1)
@@ -52,10 +52,11 @@ export async function getStudentReturnedGradebookItems(
         possible,
         percent: Math.round((earned / possible) * 10_000) / 100,
         categoryName: item.gradebook_categories?.name ?? null,
+        isZeroWeight: Number(item.gradebook_weight) === 0,
         included: item.include_in_final && item.gradebook_weight > 0
           && (item.gradebook_categories?.percentage ?? 0) > 0,
       }
     }))
-    if ((data?.length ?? 0) < pageSize) return items
+    if ((data?.length ?? 0) < pageSize) return { items, compactZeroWeightAssessments }
   }
 }

@@ -33,6 +33,15 @@ describe('classroom feature visibility', () => {
     expect(normalizeClassroomFeatureVisibility({ gradebook_hide_zero_weight_student: 'true' }).gradebook_hide_zero_weight_student).toBe(false)
   })
 
+  it('defaults shared zero-weight compaction on and preserves explicit boolean values', () => {
+    for (const value of [undefined, null, 'false', 0]) {
+      expect(normalizeClassroomFeatureVisibility({ gradebook_compact_zero_weight_assessments: value }).gradebook_compact_zero_weight_assessments).toBe(true)
+    }
+    for (const compact of [true, false]) {
+      expect(normalizeClassroomFeatureVisibility({ gradebook_compact_zero_weight_assessments: compact }).gradebook_compact_zero_weight_assessments).toBe(compact)
+    }
+  })
+
   it('keeps the teacher core while removing disabled optional tabs', () => {
     const visibility = normalizeClassroomFeatureVisibility({
       attendance: false,

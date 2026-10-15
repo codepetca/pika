@@ -83,7 +83,8 @@ describe('finite owner draft GET offline authority', () => {
     expect(union.inventory).toEqual({ actors: 7, classes: 5, tests: 16, questions: 1009, initialDrafts: 10, enrollments: 5,
       triggerCategories: 15, archiveRevisionRows: 5, activeGenerations: 5, sdkCases: 15, sdkCreates: 3, sdkRepairs: 1, privilegeDriftProbes: 1, sqlBaseAllocatedIds: 15, sqlRollbackBulkIds: 10001 })
     expect(union.sql.fixture.allowedFixtureIds).toHaveLength(10016)
-    expect(union.sql.fixture.allowedFixtureIds.every(id => !x.f.allocatedIds.includes(id) && !x.original.allocatedIds.includes(id))).toBe(true)
+    const appFixtureIds = new Set([...x.f.allocatedIds, ...x.original.allocatedIds])
+    expect(union.sql.fixture.allowedFixtureIds.every(id => !appFixtureIds.has(id))).toBe(true)
     expect(union.sql.setup).toContain('commit;'); expect(Object.isFrozen(union.inventory)).toBe(true)
   })
   it.each(['after-fixture', 'before-capture'])('rejects optional generation in forced mode %s', mode => {

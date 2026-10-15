@@ -7,6 +7,7 @@ export const classroomFeatureVisibilitySchema = z.object({
   gradebook: z.boolean(),
   student_grades: z.boolean(),
   gradebook_hide_zero_weight_student: z.boolean().optional(),
+  gradebook_compact_zero_weight_assessments: z.boolean().optional(),
   calendar: z.boolean(),
   syllabus: z.boolean(),
   announcements: z.boolean(),

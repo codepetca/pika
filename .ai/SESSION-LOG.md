@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Bound Week agenda desktop width
-
-Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
-
 ## 2026-10-12 — Dormant existing Tests screen adopter
 
 - Extended server-derived strict admission mode through the actual classroom consumer; shared publish uses its dedicated original-version POST, complete shared reorder uses atomic transport, and standalone preview proves the current owner and requested parent. Existing transport is retained; no rollout/schema/provider/account changes.
@@ -481,6 +477,8 @@ CI38750707277 exposed two existing browser contracts still using the former Publ
 
 Synced main0cfcc47cc (optional student-table gridlines). Only archive append markers conflicted; retained both archive batches/content. Test workspace/gridline source and component coverage merged automatically. Final merged-head validation and CI remain required; no merge to main or production operation.
 
+Latest sync includes main5e71c54fd and its Gradebook updates. All our archived entries already exist on main (normalized content checked), so retained the canonical main archive without duplicate appends. Test publication source unchanged by this second sync. No migration application or production operation.
+
 ## 2026-10-15 — Student-table gridlines toggle
 
 Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
@@ -534,3 +532,12 @@ only those integration lines and continuity archive markers differ. Four snapsho
 checks and four teacher desktop/mobile×light/dark combined preference/browser
 casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
 Review ledger retains3launches/2batches; final integration review/CI remain gates.
+
+## 2026-10-15 — Shared compact zero-weight assessments
+
+- User follow-up replaces #1597's two hide actions with one **Compact 0-weight assessments**, default on. New branch `codex/gradebook-compact-zero-weight` from main `0cfcc47cc`; previous feature/release #1597/#1598 already complete.
+- Extend existing toolbar/table/inspector and student Grades/returned-marks owners. All zero-weight work stays visible, muted and compact; off restores regular presentation. Ignore retired teacher preference/student hide flag. Shared classroom JSON setting preserves old clients and unrelated updates; migration267 prepares dormant metadata RPC compatibility without applying SQL or activating flags.
+- UI brief: `docs/guidance/ui/changes/gradebook-compact-zero-weight.md`. Composite checklist reviewed: semantic checked state, Enter activation, Escape/focus return covered; 44px primary actions maintained. Both roles, desktop/mobile, light/dark, compact/expanded verified in 36 Playwright captures. Mobile desktop-table fixture additionally unfreezes/scrolls to zero column; actual mobile presentation is the inspector.
+- Local targeted checks: persistence 770 tests/12 files, student 93/7, teacher/editor/surface 84/4 PASS. TypeScript, lint (existing warnings), UI/design policy and audit PASS. Broad focused run: 6124 passed with one unchanged proof test timing out at5s; its equivalent ID-disjointness assertion now uses Set membership (no relaxed timeout/criteria), all109 file tests PASS. Final focused rerun pending at this entry.
+- Orchestration: two bounded implementation workers requested GPT-6.1-sol/high; effective config and per-worker tokens/active time unknown. Both delivered verified, zero integration conflicts; third bounded visual turn inspected36 captures. Weekly allowance at start90% remaining; storage healthy ~315GB free. Development review planned standard risk, one GPT-6.1-sol/high full-diff wave; ledger0 launches/0 fix batches before publication, cap7 launches/4 batches/60min.
+- Evidence: `~/.codex/artifacts/pika/gradebook-compact-zero-weight/`; reviewed-head/PR/check receipts to be recorded there and in lifecycle metrics. No merge/deploy for this follow-up yet; old heartbeat remains paused.

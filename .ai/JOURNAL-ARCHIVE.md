@@ -46844,7 +46844,6 @@ does not change recovery runtime, migrations, private verifier or application.
 Sharedlocal249+/prod259+/promotion/provider/account/cutover holds remain; Tests,
 Surveys/Grades and broader integration/rollout remain unfinished.
 
-<!-- pika-session-log-archive-batch:8c55c56bd203406836121bd33a17c49aee565e5640846a2b0fe83b01e1303590 -->
 <!-- pika-session-log-archive-batch:0ee6b393b82981d9c89a5821b0d3a664f3981a4c3d00afafc80115d76bd48608 -->
 ## 2026-10-11 — Recovery merged; owner unpublish source preparation
 
@@ -46929,61 +46928,7 @@ Delivered three experimental standalone Week concepts (lesson agenda, day naviga
 
 Final Playwright: 110 checks PASS, 24 concept×role×viewport×theme combinations, zero runtime errors; all matrix screenshots and representative full/long/edit/dialog states visually reviewed. Standalone file mode verified. GPT-6.1-sol medium worker supplied source inventory and bounded reviews; eight accepted findings fixed, including future custom-edit visibility and mobile sticky-title offset. Weekly remaining 99%; DeepSeek pause honored. Worker time/tokens unavailable, coordinator review ~3min estimate. Next: human design review; no implementation rollout authorized.
 
-<!-- pika-session-log-archive-batch:bea78bfd23c5d7e1875e0e2763f750c162ef09eda19393c01ffe403dd2091b66 -->
-## 2026-10-11 — Unpublish fixture constraint diagnosis
-
-Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
-review turns1101measured seconds/two formal findings resolved/five source batches
-retained; private diagnostic deltas reviewed, no counter reset. Four fresh isolated
-attempts replayed001–261 then failed rollback; each exactcleanup/global741resources/
-canonical183table+2cron preservation PASS. No native acceptance. Bounded final
-diagnostic observed23514/inlineblockline6: limits fixture inserted empty Test Draft
-violating134 question_identity_version CHECK. Correct only fixture to valid marked
-content while retaining wrong-parent/version/work/parity assertions; no product or
-migration change. Raw error/user data not retained. Fresh source review and complete
-native/CI acceptance remain required; all sharedlocal249+/production259+, promotion,
-provider/account and admission/home/page/cohort/cutover holds unchanged.
-
-Two further fresh isolated attempts retain cleanup/preservation PASS and no native
-acceptance. Reviewed bounded diagnostics identify the later wrong-parent fixture
-failure: legacy PT409/test_unpublish_not_eligible. Installed143 intentionally
-preserves any existing question lock; the earlier locked-question probe left that
-fixture locked. Keep that protection and expected rejection, but rollback the probe
-setup before subsequent limits cases. Source-only correction/verification is in
-progress; no shared schema or product permission changes, no readiness/merge claim.
-
-Later fresh corrected-source replay reaches55000/anonymousline14. Source mapping
-corrects an initial version-reset guess:171 intentionally rejects provider-binding
-DELETE. Preserve that retained evidence guard and isolate the synthetic provider
-fence setup/assertion with rollback instead of deleting its immutable binding.
-No native acceptance; independent review/current-source proof remain required.
-
-Current bd12564f focused2137/120files plus policies/tsc/lint PASS; provider-fixture
-delta reviewed clean36s. Eleven completed reviews1383measured seconds/two formal
-findings resolved/nine fix batches/four draft correction pushes retained. Eighth
-fresh exact-source abd33efe796a now passes001–261/productrollbackcontractsACLs and
-genuineCLItypes438871B byte-equal7b2ab664acf1cc1808a227d1803aca392c854fe2d6650ab41579cabcdd89f00f.
-Later fixture preparation fails before dispatch:453657-byte generated setup exceeds
-unchanged256KiB runner limit. Exactcleanup/global741/canonical183tables+2cron PASS.
-Compact only inherited bulk Draft content into source-equivalent SQL derived from
-already inserted1001questions; retain all IDs/rows/content/cases/guards and caps.
-Correction verification/review/fresh nativeSDK/heldlocks/cancellation/CI pending;
-partial actual passes are not full native acceptance, merge or rollout. Holds remain.
-
-Compacted preparation196218B keeps1019questions/15Drafts,66targetchecks+fullfocused
-2146/120files/policies/tsc/lint PASS. Targeted review140s accepts one guard defect:
-missing insertion marker yields indexOf=-1 and passes ordering comparison. Require
-exactly one nonnegative earlier insertion witness; regress absent/duplicate/late
-marker. No cap/fixture case/product/migration changes. Counters12completedreviews
-1523seconds/3formalaccepted(one pending correction)/10fixbatches/5draftpushes;
-fresh complete native acceptance remains pending, all holds retained.
-
-## 2026-10-11 — Vertical Week design exploration
-
-Delivered three experimental standalone Week concepts (lesson agenda, day navigator, expandable week) for teacher/student; recommend agenda for rich lesson reading. Artifacts: /Users/stew/.codex/visualizations/2026/10/11/01a12a93-1a8c-7ed0-a906-1eab3ca18157/vertical-week/review.html (README, brief, provenance, reproducible CLI receipts alongside). Source caaa1c926; actual Pattern Lab owner captures include horizontal Week, Month, Term. No application code/data/DB/release changes or canon promotion.
-
-Final Playwright: 110 checks PASS, 24 concept×role×viewport×theme combinations, zero runtime errors; all matrix screenshots and representative full/long/edit/dialog states visually reviewed. Standalone file mode verified. GPT-6.1-sol medium worker supplied source inventory and bounded reviews; eight accepted findings fixed, including future custom-edit visibility and mobile sticky-title offset. Weekly remaining 99%; DeepSeek pause honored. Worker time/tokens unavailable, coordinator review ~3min estimate. Next: human design review; no implementation rollout authorized.
-
+<!-- pika-session-log-archive-batch:9e491896c9f36e48409059b9c44a064b818df42769471f12ac5282c2b1d20c68 -->
 ## 2026-10-11 — Implement selected Week lesson agenda
 
 Owner chose concept A for teacher/student Week, preserving Month/Term. Worktree `vertical-week-prototypes/pika`, branch `codex/calendar-week-agenda`, based on main `872d195825e4053e18ba8ca49a42613b1f106e22`. Shared LessonCalendar now renders seven agenda days; LessonDayCell extends full lesson reading, explicit teacher Edit/Add, Today/no-class labels and independent event buttons. Existing visibility, date grouping, autosave queue, rich links and actual Markdown sidebar remain owned by the existing controllers. Week controls stick below the app header. No API, database, dependencies or auth changes. Scoped brief: `docs/guidance/ui/changes/calendar-week-agenda.md`.
@@ -46991,3 +46936,8 @@ Owner chose concept A for teacher/student Week, preserving Month/Term. Worktree 
 Orchestrate: native GPT-6.1-sol medium regression worker owned only two component tests, delivered 37/37 passing in 3.04s after initial red (12 new failures, 25 existing passes); one clarification of non-class weekday editability, no integration conflict. Coordinator accepted after inspecting diffs and running affected checks; account weekly remaining 98% at start, worker token/time telemetry beyond reported test times unknown, coordination messages about one minute estimated. DeepSeek paused and honored.
 
 Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-class/weekend events, editor, day dialog, existing Month/Term. Intercepted real ClassroomPageClient fixture APIs; no hosted writes. Screenshots under selected prototype artifact `vertical-week/output/playwright/implemented-*`. Caught and fixed mobile sticky-header overlap; editor autofocus remains shared caret-at-end. Checklist keyboard/state semantics covered, no manual follow-up. Component/owner/Pattern Lab regressions, type/lint, architecture, UI/design policies and precommit audit verified. Final focused checks and draft-first independent fixed-SHA review follow; exact reviewed SHA/verdict lives in PR and lifecycle log. No merge or production promotion authorized in this task.
+
+<!-- pika-session-log-archive-batch:4f86c421f3c938a2f4d9e64013fb81a74f5f3be17dce7f3b5c63052ba8babe55 -->
+## 2026-10-11 — Bound Week agenda desktop width
+
+Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
