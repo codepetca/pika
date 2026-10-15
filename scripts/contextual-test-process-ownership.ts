@@ -4,7 +4,12 @@ import {isAbsolute} from 'node:path'
 export type Capture={identity:{pid:number;pgid:number;started:string;executable:string;cwd:string;role:'app'|'browser'};descendants:Capture['identity'][]}
 export type OwnedProcessRow={pid:number;ppid:number;pgid:number;started:string;executable:string;state?:'alive'|'zombie'|'exiting'|'unverified'}
 export type ProcessFailureCause='snapshot-schema'|'kernel-unverified'|'identity-mismatch'|'unverified-group'|'closure-deadline'|'unknown'
-function processFailure(cause:ProcessFailureCause):never{throw Object.assign(Error('Owned process verification rejected'),{processCause:cause})}
+export type ContextualTestIdentityMismatch=Readonly<{member:'root'|'descendant';state:'alive'|'zombie'|'exiting'|'unknown';startTimeChanged:boolean;pgidChanged:boolean;executableChanged:boolean}>
+const identityMismatches=new WeakMap<object,ContextualTestIdentityMismatch>()
+/** Only the actual ownership rejection carries trusted details. WeakMap lookup
+ * never inspects caller properties, prototypes, accessors or proxy traps. */
+export function contextualTestIdentityMismatch(error:unknown):ContextualTestIdentityMismatch|null{return error!==null&&typeof error==='object'?identityMismatches.get(error)??null:null}
+function processFailure(cause:ProcessFailureCause,detail?:ContextualTestIdentityMismatch):never{const error=Object.assign(Error('Owned process verification rejected'),{processCause:cause});if(detail)identityMismatches.set(error,Object.freeze(detail));throw error}
 function processCause(e:unknown):ProcessFailureCause{const cause=(e as {processCause?:ProcessFailureCause})?.processCause;return cause&&['snapshot-schema','kernel-unverified','identity-mismatch','unverified-group','closure-deadline'].includes(cause)?cause:'unknown'}
 export function parseKernelProcessRows(text:string):OwnedProcessRow[]{
   try{assert(Buffer.byteLength(text)<=16*1024*1024);const value=JSON.parse(text);assert(value.schema===1&&Array.isArray(value.rows)&&value.rows.length<=20000)
@@ -23,7 +28,14 @@ export function reconcileOwnedFamily(capture:Capture,rows:readonly OwnedProcessR
   assert.equal(new Set(rows.map(r=>r.pid)).size,rows.length,'Duplicate process snapshot PID')
   const known=new Map([capture.identity,...capture.descendants].map(p=>[p.pid,p]));assert.equal(known.size,1+capture.descendants.length)
   const live=new Map<number,OwnedProcessRow>()
-  for(const p of known.values()){const row=rows.find(r=>r.pid===p.pid);if(row){if(row.state==='unverified')processFailure('kernel-unverified');if(row.started!==p.started||row.pgid!==p.pgid||(!(row.state==='zombie'||row.state==='exiting')||row.executable!=='')&&row.executable!==p.executable)processFailure('identity-mismatch');if(row.state!=='zombie'&&row.state!=='exiting')live.set(row.pid,row)}}
+  for(const p of known.values()){const row=rows.find(r=>r.pid===p.pid);if(row){if(row.state==='unverified')processFailure('kernel-unverified');if(row.started!==p.started||row.pgid!==p.pgid||(!(row.state==='zombie'||row.state==='exiting')||row.executable!=='')&&row.executable!==p.executable){
+    // Preserve the rejection predicate above, including the empty-executable
+    // exception for terminal states; retain only fixed comparison results.
+    let detail:ContextualTestIdentityMismatch|undefined
+    try{detail={member:p.pid===capture.identity.pid?'root':'descendant',state:row.state==='alive'||row.state==='zombie'||row.state==='exiting'?row.state:'unknown',
+      startTimeChanged:row.started!==p.started,pgidChanged:row.pgid!==p.pgid,executableChanged:(!(row.state==='zombie'||row.state==='exiting')||row.executable!=='')&&row.executable!==p.executable}}catch{/* Diagnostics cannot replace rejection. */}
+    processFailure('identity-mismatch',detail)
+  }if(row.state!=='zombie'&&row.state!=='exiting')live.set(row.pid,row)}}
   let changed=true;while(changed){changed=false;for(const row of rows)if(!known.has(row.pid)&&live.has(row.ppid)){if(row.state==='unverified'||row.state==='zombie'||row.state==='exiting')processFailure('kernel-unverified');assert(row.pid>1&&row.pgid>1&&row.started&&row.executable);if(capture.identity.role==='app')assert.equal(row.pgid,capture.identity.pgid)
     known.set(row.pid,{pid:row.pid,pgid:row.pgid,started:row.started,executable:row.executable,cwd:capture.identity.cwd,role:capture.identity.role});live.set(row.pid,row);changed=true}}
   const groups=new Set([...known.values()].map(p=>p.pgid));if(rows.some(r=>groups.has(r.pgid)&&!known.has(r.pid)))processFailure('unverified-group')

@@ -102,7 +102,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
   })
   it('retains only fixed native diagnostics even when closure fails, without accepting the run', async () => {
     const f = fixture()
-    const row = { role: 'browser', phase: 'monitor', cause: 'kernel-unverified', closed: false, uncertain: true }
+    const row = { role: 'browser', phase: 'monitor', cause: 'kernel-unverified', closed: false, uncertain: true, identityMismatch: null }
     const diagnostics = { firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 1 }
     const control = { ...f.control, nativeDiagnostics: () => diagnostics, async settleAll() { throw Error('SECRET unproved closure') } }
     await expect(runContextualTestRehearsalController(f.admission as never, control, f.edges as never)).rejects.toThrow()
@@ -112,7 +112,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
   })
   it('rejects unsafe native metadata without evaluating getters/proxies or retaining raw data', async () => {
     const getter = vi.fn(() => { throw Error('SECRET') })
-    const row = { role: 'app', phase: 'settle', cause: 'unknown', closed: false, uncertain: true }
+    const row = { role: 'app', phase: 'settle', cause: 'unknown', closed: false, uncertain: true, identityMismatch: null }
     const good = { firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 1 }
     for (const raw of [new Proxy({}, { get: getter, ownKeys: getter }), Object.defineProperty({}, 'firstFailure', { get: getter }),
       { ...good, token: 'SECRET' }, { ...good, failures: [Object.defineProperty({}, 'cause', { get: getter })] },
@@ -123,6 +123,38 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
       expect(JSON.stringify(result)).not.toContain('SECRET')
     }
     expect(getter).not.toHaveBeenCalled()
+  })
+  it('copies fixed mismatch details without affecting a failed closure or retaining producer mutations', async () => {
+    const f = fixture(), detail = { member: 'descendant', state: 'exiting', startTimeChanged: true, pgidChanged: false, executableChanged: true }
+    const row = { role: 'browser', phase: 'monitor', cause: 'identity-mismatch', closed: false, uncertain: true, identityMismatch: detail }
+    const diagnostics = { firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 0 }
+    await expect(runContextualTestRehearsalController(f.admission as never, { ...f.control, nativeDiagnostics: () => diagnostics,
+      async settleAll() { throw Error('SECRET') } }, f.edges as never)).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', ownedSettled: false, nativeDiagnostics: diagnostics })
+    detail.member = 'SECRET'
+    expect(JSON.stringify(f.receipts[0])).not.toContain('SECRET')
+  })
+  it('rejects malformed mismatch details without executing getters or proxy traps or changing gates', async () => {
+    const trap = vi.fn(() => { throw Error('SECRET') })
+    const good = { member: 'root', state: 'alive', startTimeChanged: true, pgidChanged: false, executableChanged: false }
+    for (const detail of [new Proxy(good, { get: trap, ownKeys: trap, getPrototypeOf: trap }),
+      Object.defineProperty({ ...good }, 'member', { get: trap }), Object.create(good),
+      { ...good, pid: 999 }, { ...good, state: 'SECRET' }, { ...good, member: 'SECRET' },
+      { ...good, startTimeChanged: 'SECRET' }, { ...good, startTimeChanged: false }]) {
+      const f = fixture(), row = { role: 'app', phase: 'monitor', cause: 'identity-mismatch', closed: false, uncertain: true, identityMismatch: detail }
+      const result = await runContextualTestRehearsalController(f.admission as never, { ...f.control,
+        nativeDiagnostics: () => ({ firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 0 }) }, f.edges as never)
+      expect(result).toMatchObject({ outcome: 'passed', nativeDiagnostics: null })
+      expect(JSON.stringify(result)).not.toContain('SECRET')
+    }
+    expect(trap).not.toHaveBeenCalled()
+  })
+  it('does not attach mismatch details to an unknown cause', async () => {
+    const f = fixture(), row = { role: 'app', phase: 'monitor', cause: 'unknown', closed: false, uncertain: true,
+      identityMismatch: { member: 'root', state: 'alive', startTimeChanged: true, pgidChanged: false, executableChanged: false } }
+    const result = await runContextualTestRehearsalController(f.admission as never, { ...f.control,
+      nativeDiagnostics: () => ({ firstFailure: row, failures: [row], overflow: false, activeProbes: 0, unsettledFamilies: 0 }) }, f.edges as never)
+    expect(result).toMatchObject({ outcome: 'passed', nativeDiagnostics: null })
   })
   it('runs the existing lifecycle with one attempt, exact captured binding, bootstrap, one app and one PW child', async () => {
     const f = fixture(); await runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)

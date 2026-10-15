@@ -106,10 +106,21 @@ function projectNativeDiagnostics(raw: unknown): ContextualTestNativeDiagnostics
     const causes = ['snapshot-schema','kernel-unverified','identity-mismatch','unverified-group','closure-deadline','unknown',
       'probe-deadline','probe-exit','probe-overflow','signal-error','output-overflow','child-error','prior-uncertainty','active-probes','children-remain','route-readiness','route-closure'] as const
     const row = (value: unknown) => {
-      const v = data(value, ['role','phase','cause','closed','uncertain'])
+      const v = data(value, ['role','phase','cause','closed','uncertain','identityMismatch'])
       assert(roles.includes(v.role as typeof roles[number]) && phases.includes(v.phase as typeof phases[number]) && causes.includes(v.cause as typeof causes[number]))
       assert(typeof v.closed === 'boolean' && typeof v.uncertain === 'boolean')
-      return Object.freeze({ role: v.role as typeof roles[number], phase: v.phase as typeof phases[number], cause: v.cause as typeof causes[number], closed: v.closed, uncertain: v.uncertain })
+      let identityMismatch = null
+      if (v.identityMismatch !== null) {
+        assert(v.cause === 'identity-mismatch')
+        const detail = data(v.identityMismatch, ['member','state','startTimeChanged','pgidChanged','executableChanged'])
+        assert(detail.member === 'root' || detail.member === 'descendant')
+        assert(detail.state === 'alive' || detail.state === 'zombie' || detail.state === 'exiting' || detail.state === 'unknown')
+        assert(typeof detail.startTimeChanged === 'boolean' && typeof detail.pgidChanged === 'boolean' && typeof detail.executableChanged === 'boolean')
+        assert(detail.startTimeChanged || detail.pgidChanged || detail.executableChanged)
+        identityMismatch = Object.freeze({ member: detail.member, state: detail.state, startTimeChanged: detail.startTimeChanged,
+          pgidChanged: detail.pgidChanged, executableChanged: detail.executableChanged })
+      }
+      return Object.freeze({ role: v.role as typeof roles[number], phase: v.phase as typeof phases[number], cause: v.cause as typeof causes[number], closed: v.closed, uncertain: v.uncertain, identityMismatch })
     }
     const snapshot = data(raw, ['firstFailure','failures','overflow','activeProbes','unsettledFamilies'])
     assert(typeof snapshot.overflow === 'boolean')

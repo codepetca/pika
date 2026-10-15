@@ -13,13 +13,14 @@ export const diagnosticSourceFiles = Object.freeze([
   'scripts/contextual-browser-diagnostic-data.ts', 'scripts/contextual-browser-diagnostic.ts',
   'e2e/helpers/contextual-browser-diagnostic-reporter.ts', 'e2e/contextual-browser-diagnostic.spec.ts',
   'e2e/helpers/contextual-browser-diagnostic-setup.ts',
+  'e2e/helpers/contextual-browser-login-diagnostic.ts',
   'playwright.contextual-browser-diagnostic.config.ts', 'scripts/contextual-test-rehearsal-native.ts',
   'scripts/contextual-test-route-readiness.ts',
   'scripts/contextual-test-rehearsal-launch.ts', 'scripts/contextual-test-process-ownership.ts',
   'scripts/contextual-test-process-identity.py', 'scripts/contextual-assignment-list-proof-path.ts',
   'e2e/helpers/contextual-test-rehearsal.ts', 'package.json', 'pnpm-lock.yaml',
 ])
-export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string; startedAt: number; deadline: number; cleanupDeadline: number }
+export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string; startedAt: number; deadline: number; cleanupDeadline: number; mode?: 'login-body' }
 export function diagnosticDirectory(path: string) {
   assert.equal(realpathSync(path), path)
   const info = lstatSync(path); assert(info.isDirectory() && !info.isSymbolicLink() && (info.mode & 0o777) === 0o700 && info.uid === process.getuid?.())
@@ -61,7 +62,8 @@ export function diagnosticWrite(outputDir: string, name: 'admission.json' | 'spe
 export function validateDiagnosticAdmission(raw: unknown, now: number): DiagnosticAdmission {
   assert(raw && typeof raw === 'object' && !Array.isArray(raw))
   const v = raw as DiagnosticAdmission
-  assert.deepEqual(Object.keys(v).sort(), ['cleanupDeadline','deadline','nonce','outputDir','startedAt','version'])
+  assert.deepEqual(Object.keys(v).sort(), ['cleanupDeadline','deadline','nonce','outputDir','startedAt','version', ...(Object.hasOwn(v, 'mode') ? ['mode'] : [])].sort())
+  assert(v.mode === undefined || v.mode === 'login-body')
   assert(v.version === 1 && /^[a-f0-9]{32}$/.test(v.nonce) && typeof v.outputDir === 'string')
   assert([now,v.startedAt,v.deadline,v.cleanupDeadline].every(Number.isSafeInteger))
   assert(v.startedAt <= now && now < v.deadline && v.deadline === v.startedAt + 90000 && v.cleanupDeadline === v.deadline + 360000)

@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path'
 import { isProxy } from 'node:util/types'
 import { assertContextualTestUnusedRunnerOutput, captureContextualTestDependencies, captureContextualTestSource, contextualTestReadOnlyDependencyProfile, createContextualTestOwnedFamily,
   createContextualTestPinnedCommand, immutableContextualTestData, verifyContextualTestTransportPins, verifyContextualTestBinary, type ContextualTestBinaryPin } from './contextual-test-rehearsal-launch'
-import { parseKernelProcessRows, type OwnedProcessRow } from './contextual-test-process-ownership'
+import { contextualTestIdentityMismatch, parseKernelProcessRows, type ContextualTestIdentityMismatch, type OwnedProcessRow } from './contextual-test-process-ownership'
 import { createContextualTestRouteReadiness } from './contextual-test-route-readiness'
 import type { ContextualTestControllerAdmission, ContextualTestControllerControls } from './contextual-test-rehearsal-controller'
 
@@ -39,7 +39,7 @@ type NativeDiagnosticPhase = 'birth' | 'monitor' | 'ready' | 'wait' | 'settle' |
 type NativeDiagnosticCause = 'snapshot-schema' | 'kernel-unverified' | 'identity-mismatch' | 'unverified-group' | 'closure-deadline' |
   'probe-deadline' | 'probe-exit' | 'probe-overflow' | 'signal-error' | 'output-overflow' | 'child-error' |
   'prior-uncertainty' | 'active-probes' | 'children-remain' | 'route-readiness' | 'route-closure' | 'unknown'
-type NativeDiagnosticRow = Readonly<{ role: NativeDiagnosticRole; phase: NativeDiagnosticPhase; cause: NativeDiagnosticCause; closed: boolean; uncertain: boolean }>
+type NativeDiagnosticRow = Readonly<{ role: NativeDiagnosticRole; phase: NativeDiagnosticPhase; cause: NativeDiagnosticCause; closed: boolean; uncertain: boolean; identityMismatch: ContextualTestIdentityMismatch | null }>
 export type ContextualTestNativeDiagnostics = Readonly<{ firstFailure: NativeDiagnosticRow | null; failures: readonly NativeDiagnosticRow[];
   overflow: boolean; activeProbes: number; unsettledFamilies: number }>
 /** No inherited properties, accessors, proxy traps or private exception text. */
@@ -64,11 +64,11 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
   const routeReadiness = createContextualTestRouteReadiness()
   const failures: NativeDiagnosticRow[] = []
   let firstFailure: NativeDiagnosticRow | null = null, overflow = false
-  const record = (role: NativeDiagnosticRole, phase: NativeDiagnosticPhase, cause: NativeDiagnosticCause, closed = false, uncertain = false) => {
+  const record = (role: NativeDiagnosticRole, phase: NativeDiagnosticPhase, cause: NativeDiagnosticCause, closed = false, uncertain = false, error?: unknown) => {
     // Diagnostics never participate in admission, poison or closure decisions.
     try {
       const row = Object.freeze({ role: role === 'app' || role === 'browser' || role === 'command' || role === 'probe' ? role : 'unknown',
-        phase, cause, closed, uncertain })
+        phase, cause, closed, uncertain, identityMismatch: cause === 'identity-mismatch' ? contextualTestIdentityMismatch(error) : null })
       if (phase !== 'aggregate') firstFailure ??= row
       if (failures.length < 16) failures.push(row); else overflow = true
     } catch { /* Reporting must not interrupt cleanup. */ }
@@ -170,12 +170,12 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     child.once('error', () => { uncertain = true; record(input.role, born ? 'monitor' : 'birth', 'child-error', closed, uncertain) })
     let family: OwnedFamily
     try { family = await birth(child, input.role, pins.node.path, input.cwd, input.args, Math.min(input.deadline, Date.now() + 30000)) }
-    catch (error) { record(input.role, 'birth', nativeProcessCause(error), closed, uncertain); poisoned = true; throw fixedError() }
+    catch (error) { record(input.role, 'birth', nativeProcessCause(error), closed, uncertain, error); poisoned = true; throw fixedError() }
     born = true
     let monitor: Promise<void> = Promise.resolve(), stopping = false
     const tick = setInterval(() => {
       monitor = monitor.then(async () => { if (!stopping) family.refresh(await ownedRows()) }).catch(error => {
-        uncertain = true; poisoned = true; record(input.role, 'monitor', nativeProcessCause(error), closed, uncertain)
+        uncertain = true; poisoned = true; record(input.role, 'monitor', nativeProcessCause(error), closed, uncertain, error)
       })
     }, 250)
     tick.unref()
@@ -206,7 +206,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
           catch (error) { record('app', 'ready', 'route-readiness', closed, uncertain); throw error }
           assert(!closed && !uncertain && Date.now() < end)
           await ownedListener()
-        } catch (error) { record(input.role, 'ready', nativeProcessCause(error), closed, uncertain); throw error }
+        } catch (error) { record(input.role, 'ready', nativeProcessCause(error), closed, uncertain, error); throw error }
         finally { if (timeout) clearTimeout(timeout); readyText = '' }
       },
       async wait() {
@@ -217,7 +217,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
             void closedPromise.then(() => clearTimeout(handle))
           })])
           await monitor; assert(closed && code === 0 && !uncertain && Date.now() < input.deadline)
-        } catch (error) { record(input.role, 'wait', uncertain ? 'prior-uncertainty' : nativeProcessCause(error), closed, uncertain); throw error }
+        } catch (error) { record(input.role, 'wait', uncertain ? 'prior-uncertainty' : nativeProcessCause(error), closed, uncertain, error); throw error }
         finally { clearTimeout(timer) }
       },
       async settle(end) {
@@ -232,7 +232,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
           })
           assert(closed && family.absent(await settlementRows())); admit(); children.delete(result)
           assert(!uncertain, 'Private native ownership observation failed')
-        } catch (error) { const cause = nativeProcessCause(error); record(input.role, 'settle', cause !== 'unknown' ? cause : uncertain ? 'prior-uncertainty' : 'unknown', closed, uncertain); poisoned = true; throw fixedError() }
+        } catch (error) { const cause = nativeProcessCause(error); record(input.role, 'settle', cause !== 'unknown' ? cause : uncertain ? 'prior-uncertainty' : 'unknown', closed, uncertain, error); poisoned = true; throw fixedError() }
       },
       state: () => ({ closed, code, uncertain, family: family.snapshot() }),
     })
@@ -278,7 +278,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
         await family.settle('pid', { rows: () => observeRows(admit, end), now: Date.now, admit,
           signal: (pid, signal) => { try { process.kill(pid, signal) } catch (error) { record('command', 'settle', 'signal-error', closed); throw error } }, closed: () => closed, end })
         admit(); assert(closed)
-      } catch (error) { record('command', 'settle', nativeProcessCause(error), closed); poisoned = true; throw fixedError() }
+      } catch (error) { record('command', 'settle', nativeProcessCause(error), closed, false, error); poisoned = true; throw fixedError() }
     },
     assertClosed() {
       try { routeReadiness.assertClosed() }

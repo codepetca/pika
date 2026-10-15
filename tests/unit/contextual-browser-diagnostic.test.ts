@@ -113,6 +113,7 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
       const calls: string[] = [], test = Object.assign(() => calls.push('declare'), { skip: (skip: boolean) => calls.push(skip ? 'skip' : 'admitted') })
       const context = { exports: {}, process: { env: { PIKA_BROWSER_DIAGNOSTIC: optIn } }, require: (specifier: string) => {
         if (specifier === '@playwright/test') return { test, expect: () => { throw Error('Fixture executed') } }
+        if (specifier === './helpers/contextual-browser-login-diagnostic') return { runLoginBodyDiagnostic: () => { throw Error('Fixture executed') } }
         expect(specifier).toBe('../scripts/contextual-browser-diagnostic-data')
         return { diagnosticAdmissionFromEnvironment: () => { calls.push('read'); if (invalid) throw Error('Invalid admission'); return {} } }
       } }

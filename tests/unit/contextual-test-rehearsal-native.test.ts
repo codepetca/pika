@@ -87,6 +87,23 @@ function commandFixture(control: ReturnType<typeof createContextualTestNativeCon
 }
 
 describe('real native controller with CPU process doubles only', () => {
+  it.each(['started', 'pgid', 'executable', 'all'] as const)('retains the first private %s mismatch detail through positive closure without changing uncertainty', async field => {
+    vi.useFakeTimers()
+    const control = createContextualTestNativeControls(pins, Date.now() + 20000), child = await control.spawnOwned(launch())
+    if (field === 'started' || field === 'all') rows[0].started = '987654321:123456'
+    if (field === 'pgid' || field === 'all') rows[0].pgid = 7654321
+    if (field === 'executable' || field === 'all') rows[0].executable = '/PRIVATE-SENTINEL'
+    await vi.advanceTimersByTimeAsync(250)
+    const detail = { member: 'root', state: 'alive', startTimeChanged: field === 'started' || field === 'all',
+      pgidChanged: field === 'pgid' || field === 'all', executableChanged: field === 'executable' || field === 'all' }
+    expect(control.diagnostics().firstFailure).toMatchObject({ cause: 'identity-mismatch', identityMismatch: detail })
+    rows = []; owned[0].emit('close', 1)
+    await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
+    expect(control.diagnostics().firstFailure).toMatchObject({ identityMismatch: detail, closed: false, uncertain: true })
+    expect(child.state()).toMatchObject({ closed: true, uncertain: true })
+    expect(() => control.assertClosed()).toThrow(); expect(kill).not.toHaveBeenCalled()
+    expect(JSON.stringify(control.diagnostics())).not.toMatch(/987654321|123456|7654321|PRIVATE-SENTINEL|\/cpu/)
+  })
   it('keeps route readiness inside the original ready end and blocks success until the route completes', async () => {
     const started = Date.now(), clock = vi.spyOn(Date, 'now').mockReturnValue(started)
     let finish!: () => void
@@ -179,7 +196,7 @@ describe('real native controller with CPU process doubles only', () => {
     const rejected = expect(control.probe(pins.docker, [], Date.now() + 1000)).rejects.toThrow()
     await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
     expect(control.diagnostics()).toMatchObject({ activeProbes: 1, unsettledFamilies: 0, firstFailure: null })
-    expect(control.diagnostics().failures).toContainEqual({ role: 'unknown', phase: 'aggregate', cause: 'active-probes', closed: false, uncertain: false })
+    expect(control.diagnostics().failures).toContainEqual({ role: 'unknown', phase: 'aggregate', cause: 'active-probes', closed: false, uncertain: false, identityMismatch: null })
     probe.emit('close', 0, null); await rejected
     expect(control.diagnostics().activeProbes).toBe(0)
     expect(() => control.assertClosed()).toThrow()
@@ -191,7 +208,7 @@ describe('real native controller with CPU process doubles only', () => {
     rows = []; owned[0].emit('close', 1)
     await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
     expect(control.diagnostics().firstFailure).toEqual({ role: 'app', phase: 'monitor',
-      cause: source === 'output' ? 'output-overflow' : 'child-error', closed: false, uncertain: true })
+      cause: source === 'output' ? 'output-overflow' : 'child-error', closed: false, uncertain: true, identityMismatch: null })
     expect(child.state().closed).toBe(true); expect(() => control.assertClosed()).toThrow()
     expect(JSON.stringify(control.diagnostics())).not.toContain('PRIVATE-SENTINEL')
   })
@@ -207,7 +224,7 @@ describe('real native controller with CPU process doubles only', () => {
   it.each(['own', 'getter', 'proxy', 'inherited', 'descriptor', 'private'])('projects only safe own fixed process causes: %s', async shape => {
     vi.useFakeTimers()
     const secret = vi.fn(() => { throw Error('PRIVATE-SENTINEL') })
-    const error = shape === 'own' ? { processCause: 'identity-mismatch', message: 'PRIVATE-SENTINEL' }
+    const error = shape === 'own' ? { processCause: 'identity-mismatch', message: 'PRIVATE-SENTINEL', identityMismatch: { member: 'root', state: 'alive', startTimeChanged: true, pgidChanged: false, executableChanged: false } }
       : shape === 'getter' ? Object.defineProperty({}, 'processCause', { get: secret })
       : shape === 'proxy' ? new Proxy({}, { get: secret, getOwnPropertyDescriptor: secret, getPrototypeOf: secret })
       : shape === 'inherited' ? Object.create({ processCause: 'identity-mismatch' })
@@ -226,6 +243,7 @@ describe('real native controller with CPU process doubles only', () => {
       rows = []; owned[0].emit('close', 1)
       await expect(control.settleAll(Date.now() + 5000)).rejects.toThrow()
       expect(control.diagnostics().firstFailure?.cause).toBe(shape === 'own' ? 'identity-mismatch' : 'unknown')
+      expect(control.diagnostics().firstFailure?.identityMismatch).toBeNull()
       expect(JSON.stringify(control.diagnostics())).not.toContain('PRIVATE-SENTINEL')
       expect(secret).not.toHaveBeenCalled(); expect(child.state().uncertain).toBe(true)
     } finally { descriptorSpy?.mockRestore(); factory.mockRestore() }
@@ -240,7 +258,7 @@ describe('real native controller with CPU process doubles only', () => {
     expect(snapshot.firstFailure).toEqual(snapshot.failures[0])
     expect(snapshot).not.toBe(again); expect(snapshot.failures).not.toBe(again.failures)
     expect(snapshot.firstFailure).not.toBe(again.firstFailure)
-    for (const row of snapshot.failures) expect(Object.keys(row).sort()).toEqual(['cause','closed','phase','role','uncertain'])
+    for (const row of snapshot.failures) expect(Object.keys(row).sort()).toEqual(['cause','closed','identityMismatch','phase','role','uncertain'])
     expect(native.spawn.mock.calls.length).toBe(2); expect(kill).not.toHaveBeenCalled()
   })
   it('does not inspect or launch anything at controller construction', () => {

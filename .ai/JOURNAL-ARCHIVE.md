@@ -47350,3 +47350,26 @@ rolloutunchanged. SameSol/high sourceauthor deliveredtwofiles sourcefix14:
 41CPU/TSC0/lint/audit PASS, source16015ce0/testb600d3df; nativecarriers explicitly
 unbound. Targetedindependentreview24 pending; no extension/native/sharedlocal/
 prod/activation change.
+
+<!-- pika-session-log-archive-batch:c371ebefcb3424fc661d672dad5a59ac156b63d2cb31df4c18e23b4f576e5b2d -->
+## 2026-10-13 Private Survey runner checkpoint and admission correction
+
+Sourcefix15/16 checkpoint1abac5164 binds committed seed/30directions to private
+owned-session carriers; call-through CPU coverage248PASS, final affected3PASS.
+Fullfocused at that checkpoint:2916PASS/8skip/1unchanged5s fixturetimeout;
+narrow failedcasePASS739ms, supported maxworkers4 rerun2917PASS/8skip plus
+architecture/UI/design/appType/lint. No timeout widening or native acceptance.
+DraftPR1581 OPEN; draftCI skips are not ready-PR gate success.
+Independent reviews25Sol/high and26Astra/high complete assigned7path scope,
+same mutable-selector admission race deduplicated to one blocker. Root captures
+selector and source-bound frozen workload synchronously across gate, factory,
+dispatch and cleanup; three delayed-input-mutation CPU cases added. Initial
+selector regression failed on old source; two workload negatives timed out due
+to a repeated mock snapshot wait, corrected to one-shot wait. Fixed suite25PASS,
+ESLint/diffPASS; targeted correction review pending. Original clocks/counters
+retained under human task-scoped review-stop waiver; no routine approval reset.
+Human approved practical SQL size/shape, real server cancellation plus one wire
+overflow and CPU malformed tests,14observers;200/4000/64MiB/16/time caps unchanged.
+Next probe specification worker blocked by provider safety check; no report or
+native action, no retry through another worker. Full accounting/cancellation/
+payload/restoration and app verification remain unfinished; prod/cutover held.

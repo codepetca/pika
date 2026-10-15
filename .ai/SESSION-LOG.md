@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Private Survey runner checkpoint and admission correction
-
-Sourcefix15/16 checkpoint1abac5164 binds committed seed/30directions to private
-owned-session carriers; call-through CPU coverage248PASS, final affected3PASS.
-Fullfocused at that checkpoint:2916PASS/8skip/1unchanged5s fixturetimeout;
-narrow failedcasePASS739ms, supported maxworkers4 rerun2917PASS/8skip plus
-architecture/UI/design/appType/lint. No timeout widening or native acceptance.
-DraftPR1581 OPEN; draftCI skips are not ready-PR gate success.
-Independent reviews25Sol/high and26Astra/high complete assigned7path scope,
-same mutable-selector admission race deduplicated to one blocker. Root captures
-selector and source-bound frozen workload synchronously across gate, factory,
-dispatch and cleanup; three delayed-input-mutation CPU cases added. Initial
-selector regression failed on old source; two workload negatives timed out due
-to a repeated mock snapshot wait, corrected to one-shot wait. Fixed suite25PASS,
-ESLint/diffPASS; targeted correction review pending. Original clocks/counters
-retained under human task-scoped review-stop waiver; no routine approval reset.
-Human approved practical SQL size/shape, real server cancellation plus one wire
-overflow and CPU malformed tests,14observers;200/4000/64MiB/16/time caps unchanged.
-Next probe specification worker blocked by provider safety check; no report or
-native action, no retry through another worker. Full accounting/cancellation/
-payload/restoration and app verification remain unfinished; prod/cutover held.
-
 ## 2026-10-13 Browser diagnosis and resource-failure CPU coverage
 
 Readonly process diagnosis found no matching failed-attempt daemon/session,
@@ -866,3 +844,21 @@ Next requires distinguishing request completion/body wait/outer timer and the
 specific native identity mismatch; no more speculative full rehearsal. Auth/app/
 migrations/dependencies unchanged; all production/shared-local/provider holds
 remain. Overall goal and login fix NOT accepted; draft PR not ready or merged.
+
+## 2026-10-15 — Approved narrow browser/body and identity diagnostic
+
+Human authorizes one narrow browser diagnostic; no fresh full-app rehearsal.
+Existing Playwright browser-only carrier gains sealed login-body mode: one
+synthetic loopback POST/JSON/navigation exchange, at most3HTTP requests, original
+body read once, eight-second observation then hold release/abort within one20s
+operation and existing30s browser/90s diagnostic/6min cleanup bounds. Fixed event
+order/timing records request completion, body resolution and post-abort behavior;
+no Pika account/session/database/auth bypass, raw errors or network payloads saved.
+Root writes browser module/tests. Astra/high author89 separately adds private
+WeakMap-bound identity mismatch booleans, member/state through native/controller
+diagnostics. Rejection/poison/signaling/closure predicates unchanged;106 CPU PASS.
+Initial new helper missing-module RED then28browser CPU PASS; combined verification
+and one independent reviewed-source pass precede ONE new execution. Existing
+review/fix clocks retained under human waiver; no provider scope or retry change.
+Weekly90%remaining/ordinaryallowed; storage315.59GBhealthy. All production,
+shared-local, provider-refused and rollout holds unchanged. Not product acceptance.
