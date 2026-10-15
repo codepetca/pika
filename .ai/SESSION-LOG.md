@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-11 — Recovery merged; owner unpublish source preparation
-
-PR1577 merged18126e952 after exact reviewedf703568d CI38175680856 passed all10
-checks/PR Gate. Canonical main fast-forwarded cleanly; reviewed and merge trees
-match. Native acceptance remains the explicitly verified b11 ancestor reuse,
-not a claimed f703 execution. Original review ledger19turns1944measureds,
-seven accepted findings resolved/ten source batches, no counter reset.
-Next bounded dormant owner unpublish uses sealed261/private shared255 core,
-preserves literal legacy teacher dispatch and seven-argument current-owner RPC.
-Product TDD104checks pass; coordinator independently verifies private SDK model,
-operational lifetime and strict TypeScript checks. No native run/PR acceptance
-yet. Independent review and fresh exact-source disposable proof remain required.
-Routine/budget waiver persists; sharedlocal249+/prod259+, production promotion,
-provider/account and admission/home/page/cohort/cutover holds remain unchanged.
-
-PR1578 draft63d1 source focused2133/120files and24TS audit PASS. Initial security/
-compatibility plus targeted privacy review cover that source; one P2 corrected
-privately (canonical fullrow/cron database-side digests, no rawaccount exports).
-First fresh disposablea1fbab47a8f7 replay001–261 PASS but rollback fixture failed;
-exactcleanup/global741resources/canonical183table+2cron preservation PASS.
-No native acceptance. Source diagnosis identified deliberate faulttrigger leaking
-into setup and112/095 normal Draft/Classroom trigger expectations. Correct fixture
-to narrow latefault and exact classroomblueprint+1/archive+3/fullotherfields;
-54focusedsource tests PASS. Private SDK exactsame effects and three corruption
-models PASS. Fresh source review/disposable proof/CI remain pending; no migration
-or production/cohort activation. Prior attempt receipts retained, no reset.
-
 ## 2026-10-11 — Unpublish fixture constraint diagnosis
 
 Draft1578 head1f585 focused2134/120files and source audit PASS. Seven independent
@@ -571,3 +544,17 @@ covered by component regressions. No new primitive or experimental pattern.
 Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
 verified against source, no worker corrections or conflicts; tokens/time unknown.
 Weekly usage at start: 1% used; storage healthy (~328 GB available).
+
+## 2026-10-15 — PR1596 CI diagnosis and snapshot repair
+
+Reviewed Linux CI and local Darwin Pattern Lab image differences: only the
+Assignment artifact table's intended two divider removals and resulting 2px
+vertical shift. Updated desktop/mobile light/dark baselines for both platforms.
+SDK normal proof failed after its matrix with cleanup-only evidence; existing
+output discarded the failing cleanup stage. Added fixed-label cleanup diagnostics
+and canonical-field names with redaction/accessor tests; no execution, budget,
+comparison or teardown guard changed. Offline proof suites120PASS (3RED→GREEN).
+Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementation;
+no worker edits or conflicts, attributable time/tokens unknown. Next: independent
+delta review, clean fixed-SHA native reproduction, actual cleanup correction if
+needed, final CI and authorized main merge. PR remains draft; heartbeat paused.
