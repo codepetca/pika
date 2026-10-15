@@ -91,7 +91,9 @@ function projectExecutionCleanupStages(error: unknown): ExecutionCleanupStage[] 
     return descriptor && 'value' in descriptor ? descriptor.value : undefined
   }
   try {
-    if (!error || typeof error !== 'object' || isProxy(error) || !(error instanceof AggregateError)) return ['unknown']
+    // The native producer constructs direct AggregateErrors. Do not traverse a
+    // supplied prototype chain: even a non-Proxy may inherit a Proxy trap.
+    if (!error || typeof error !== 'object' || isProxy(error) || Object.getPrototypeOf(error) !== AggregateError.prototype) return ['unknown']
     const errors = data(error, 'errors'), length = data(errors, 'length')
     if (!Array.isArray(errors) || typeof length !== 'number' || !Number.isSafeInteger(length) || length < 1) return ['unknown']
     for (let index = 0; index < Math.min(length, executionCleanupStages.length); index++) {

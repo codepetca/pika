@@ -150,6 +150,8 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
     const valid = Object.defineProperties({ cleanupStage: 'owned-families' }, {
       message: { get: secret }, stack: { get: secret }, path: { get: secret }, toJSON: { get: secret },
     })
+    const inheritedProxy = new AggregateError([valid])
+    Object.setPrototypeOf(inheritedProxy, new Proxy(AggregateError.prototype, { getPrototypeOf: secret }))
     const cases: Array<[unknown, string[]]> = [
       [new AggregateError([valid, valid, { cleanupStage: 'native-closure' }]), ['owned-families', 'native-closure']],
       [new AggregateError(['command-entry', 'owned-families', 'command-settlements', 'command-closure', 'native-closure']
@@ -161,6 +163,7 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
       [Object.defineProperty(new AggregateError([]), 'errors', { value: getterEntry }), ['unknown']],
       [new AggregateError(Array.from({ length: 6 }, () => valid)), ['owned-families', 'unknown']],
       [new Proxy({}, { getOwnPropertyDescriptor: secret, getPrototypeOf: secret }), ['unknown']],
+      [inheritedProxy, ['unknown']],
     ]
     for (const [error, executionFailures] of cases) {
       const f = fixture(); f.control.settleAll = async () => { throw error }
