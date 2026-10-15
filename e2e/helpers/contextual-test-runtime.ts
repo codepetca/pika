@@ -25,6 +25,34 @@ const witnessSchema = z.object({
 }).strict()
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex')
 const safeError = () => new Error('Private contextual Test rehearsal failed; inspect fixed-schema receipt')
+const loginSteps = ['context', 'setup', 'page', 'navigate', 'preset', 'form-ready', 'email', 'password', 'submit', 'response-body', 'redirect', 'session', 'identity'] as const
+type LoginStep = typeof loginSteps[number]
+/** Diagnostic metadata only: fixed labels and ordinals, never action results or
+ * errors. Retention overflow does not change login behavior or grant a retry. */
+export function createContextualTestLoginProgress() {
+  type Progress = { attempt: number; entered: LoginStep | null; completed: LoginStep | null }
+  const entries: Progress[] = []
+  let attempts = 0
+  return {
+    begin() {
+      const row: Progress = { attempt: ++attempts, entered: null, completed: null }
+      if (entries.length < 64) entries.push(row)
+      let next = 0
+      return {
+        async step<T>(label: LoginStep, action: () => T | Promise<T>): Promise<T> {
+          assert(next < loginSteps.length && loginSteps[next] === label && row.entered === row.completed, 'Private login marker order')
+          row.entered = label; next++
+          const result = await action()
+          row.completed = label
+          return result
+        },
+      }
+    },
+    snapshot() {
+      return { attempts, overflow: attempts > 64, entries: entries.map(({ attempt, entered, completed }) => ({ attempt, entered, completed })) }
+    },
+  }
+}
 export function contextualTestArtifactLabel(value: string) {
   assert(/^[A-Za-z][A-Za-z0-9-]{0,99}$/.test(value), 'Private artifact label')
   return value
@@ -60,6 +88,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; requests: Set<Request> }>()
   const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string }> = []
   const witnesses: Array<{ label: string; sha256: string }> = []
+  const loginProgress = createContextualTestLoginProgress()
   let screenshots = 0, snapshots = 0, pageErrors = 0, consoleErrors = 0, closeStarted = false
   const requireOwned = (page: Page) => { const context = page.context(); assert(contexts.has(context), 'Private Page ownership'); return context }
   const fixedTimeout = () => { boundary.check(); return Math.min(plan.limits.operationMs, binding.deadline - Date.now()) }
@@ -77,34 +106,37 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
     plan, password: binding.password, deadline: binding.deadline, check: () => boundary.check(),
     async withActor(label, callback) {
       boundary.check(); assert(Object.hasOwn(plan.actors, label) || ['ownerTeacherPeer', 'ownerStudentPeer'].includes(label))
-      const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false })
+      const login = loginProgress.begin()
+      const context = await login.step('context', () => browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false }))
       const state = { closing: false, closed: false, requests: new Set<Request>() }; contexts.set(context, state)
       // Register closure before any fallible context setup. Failed route or
       // timeout setup must not strand an actor until the outer suite teardown.
       context.on('close', () => { state.closed = true })
       try {
-      context.setDefaultTimeout(fixedTimeout()); context.setDefaultNavigationTimeout(fixedTimeout())
-      context.on('request', request => state.requests.add(request))
-      context.on('requestfinished', request => state.requests.delete(request))
-      context.on('requestfailed', request => state.requests.delete(request))
-      context.on('response', response => { void boundary.observe(context, response, response.request()) })
-      context.on('page', page => {
-        page.on('pageerror', () => { pageErrors++ })
-        page.on('console', message => { if (message.type() === 'error') consoleErrors++ })
-      })
-      await context.route('**/*', async route => {
-        if (state.closing) { await route.abort('aborted').catch(() => {}); return }
-        try { const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request)); await route.continue() }
-        catch { try { boundary.violate('endpoint') } catch { /* retain fixed first failure */ }
-          await route.abort('blockedbyclient').catch(() => {}) }
-      })
-      await context.routeWebSocket('**/*', socket => {
-        try { const u = new URL(socket.url()); if (u.origin !== 'ws://localhost:3117' || u.pathname !== '/_next/webpack-hmr') boundary.violate('endpoint') }
-        catch { /* boundary retains the fixed failure, not the socket URL */ }
-        finally { socket.close({ code: 1008, reason: 'Private rehearsal blocks WebSockets' }) }
-      })
-      assert.equal(context.serviceWorkers().length, 0)
-        const page = await context.newPage()
+        await login.step('setup', async () => {
+          context.setDefaultTimeout(fixedTimeout()); context.setDefaultNavigationTimeout(fixedTimeout())
+          context.on('request', request => state.requests.add(request))
+          context.on('requestfinished', request => state.requests.delete(request))
+          context.on('requestfailed', request => state.requests.delete(request))
+          context.on('response', response => { void boundary.observe(context, response, response.request()) })
+          context.on('page', page => {
+            page.on('pageerror', () => { pageErrors++ })
+            page.on('console', message => { if (message.type() === 'error') consoleErrors++ })
+          })
+          await context.route('**/*', async route => {
+            if (state.closing) { await route.abort('aborted').catch(() => {}); return }
+            try { const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request)); await route.continue() }
+            catch { try { boundary.violate('endpoint') } catch { /* retain fixed first failure */ }
+              await route.abort('blockedbyclient').catch(() => {}) }
+          })
+          await context.routeWebSocket('**/*', socket => {
+            try { const u = new URL(socket.url()); if (u.origin !== 'ws://localhost:3117' || u.pathname !== '/_next/webpack-hmr') boundary.violate('endpoint') }
+            catch { /* boundary retains the fixed failure, not the socket URL */ }
+            finally { socket.close({ code: 1008, reason: 'Private rehearsal blocks WebSockets' }) }
+          })
+          assert.equal(context.serviceWorkers().length, 0)
+        })
+        const page = await login.step('page', () => context.newPage())
         const actorLabel = label === 'ownerTeacherPeer' ? 'ownerTeacher' : label === 'ownerStudentPeer' ? 'ownerStudent' : label
         const actor = plan.actors[actorLabel]
         // One original operation end covers readiness, real login and identity.
@@ -116,25 +148,34 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
         let loginTimer: ReturnType<typeof setTimeout> | undefined
         try {
           await Promise.race([(async () => {
-            await page.goto(plan.appOrigin + '/login', { timeout: loginTimeout(), waitUntil: 'load' })
-            await page.getByRole('button', { name: 'Teacher', exact: true }).click({ timeout: loginTimeout() })
-            await page.waitForFunction(contextualTestLoginReady, undefined, { timeout: loginTimeout() })
-            await page.getByLabel('School Email').fill(actor.email, { timeout: loginTimeout() })
-            await page.getByLabel(/^Password(?:\s*\*)?$/).fill(binding.password, { timeout: loginTimeout() })
-            const loginResponse = page.waitForResponse(response => response.url() === plan.appOrigin + '/api/auth/login' && response.request().method() === 'POST', { timeout: loginTimeout() })
-            // A synchronous deadline/setup failure before Promise.all must not
-            // leave the already-created waiter rejection unobserved.
-            void loginResponse.catch(() => {})
-            const [, original] = await Promise.all([page.getByRole('button', { name: 'Login', exact: true }).click({ timeout: loginTimeout() }), loginResponse])
-            loginTimeout(); await runtime.response(page, original); loginTimeout()
-            assert.equal(original.status(), 200, 'Private login rejected')
-            await page.waitForURL(url => url.origin === plan.appOrigin && url.pathname === '/classrooms', { timeout: loginTimeout() })
-            loginTimeout()
-            const current = await runtime.api<{ user: { id: string; role: string; email: string } }>(page, 'GET', '/api/auth/me')
-            loginTimeout()
-            assert.equal(current.user.id, actor.id, 'Private session actor')
-            assert.equal(current.user.role, actor.role, 'Private session role')
-            assert.equal(current.user.email, actor.email, 'Private session email')
+            await login.step('navigate', () => page.goto(plan.appOrigin + '/login', { timeout: loginTimeout(), waitUntil: 'load' }))
+            await login.step('preset', () => page.getByRole('button', { name: 'Teacher', exact: true }).click({ timeout: loginTimeout() }))
+            await login.step('form-ready', () => page.waitForFunction(contextualTestLoginReady, undefined, { timeout: loginTimeout() }))
+            await login.step('email', () => page.getByLabel('School Email').fill(actor.email, { timeout: loginTimeout() }))
+            await login.step('password', () => page.getByLabel(/^Password(?:\s*\*)?$/).fill(binding.password, { timeout: loginTimeout() }))
+            const original = await login.step('submit', async () => {
+              const loginResponse = page.waitForResponse(response => response.url() === plan.appOrigin + '/api/auth/login' && response.request().method() === 'POST', { timeout: loginTimeout() })
+              // A synchronous deadline/setup failure before Promise.all must not
+              // leave the already-created waiter rejection unobserved.
+              void loginResponse.catch(() => {})
+              const [, response] = await Promise.all([page.getByRole('button', { name: 'Login', exact: true }).click({ timeout: loginTimeout() }), loginResponse])
+              return response
+            })
+            await login.step('response-body', async () => {
+              loginTimeout(); await runtime.response(page, original); loginTimeout()
+              assert.equal(original.status(), 200, 'Private login rejected')
+            })
+            await login.step('redirect', () => page.waitForURL(url => url.origin === plan.appOrigin && url.pathname === '/classrooms', { timeout: loginTimeout() }))
+            const current = await login.step('session', async () => {
+              loginTimeout()
+              return runtime.api<{ user: { id: string; role: string; email: string } }>(page, 'GET', '/api/auth/me')
+            })
+            await login.step('identity', () => {
+              loginTimeout()
+              assert.equal(current.user.id, actor.id, 'Private session actor')
+              assert.equal(current.user.role, actor.role, 'Private session role')
+              assert.equal(current.user.email, actor.email, 'Private session email')
+            })
           })(), new Promise<never>((_resolve, reject) => { loginTimer = setTimeout(() => reject(safeError()), loginTimeout()) })])
         } finally { if (loginTimer) clearTimeout(loginTimer) }
         await callback(page); await boundary.settle(context)
@@ -219,7 +260,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       && screenshots === 16 && pageErrors === 0 && Date.now() < binding.deadline
     writeFileSync(join(binding.outputDir, 'playwright-receipt.json'), JSON.stringify({ version: 1, projectId: plan.projectId,
       sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, outcome: complete ? 'passed' : 'failed',
-      contextsClosed: closed, ...boundaryReceipt, pageErrors, consoleErrors, artifacts, witnesses,
+      contextsClosed: closed, ...boundaryReceipt, pageErrors, consoleErrors, artifacts, witnesses, login: loginProgress.snapshot(),
       endedAt: Date.now(), deadline: binding.deadline }), { mode: 0o600, flag: 'wx' })
     if (!complete) throw safeError()
   } }

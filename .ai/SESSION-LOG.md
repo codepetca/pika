@@ -782,3 +782,10 @@ No replay, new clock, canonical-database equality or application acceptance.
 Next isolate the failing login step with fixed-enum evidence, not a guessed fix
 or wider egress. Fresh native attempt requires separate one-shot authority;
 production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+Follow-on human authorization: fixed login-step markers, independent review,
+then ONE fresh bounded attempt; prior allowance remains spent. Diagnostics retain
+only ordinal/entered/completed fixed labels (first64 logins, overflow flag), no
+results/errors/identity. Actual runtime fault injection covers all13 steps;
+82focused/4files, appType/lint/audit PASS. Existing login actions, original end,
+network/cap/cleanup/auth/product contracts unchanged. Native attempt unallocated.

@@ -7,11 +7,12 @@ import type { Browser, Page, Response, TestInfo } from '@playwright/test'
 
 const platform = vi.hoisted(() => ({ readContextualTestBinding: vi.fn(), executeContextualTestSql: vi.fn() }))
 vi.mock('../../scripts/contextual-test-rehearsal-binding', () => platform)
-import { createContextualTestRuntime } from '../../e2e/helpers/contextual-test-runtime'
+import { createContextualTestLoginProgress, createContextualTestRuntime } from '../../e2e/helpers/contextual-test-runtime'
 import { createContextualTestPlan, type ActorLabel } from '../../e2e/helpers/contextual-test-rehearsal'
 
 const plan = createContextualTestPlan('pika_assignment_list_012345abcdef')
 const password = 'CPU-private-login-password'
+const loginSteps = ['context', 'setup', 'page', 'navigate', 'preset', 'form-ready', 'email', 'password', 'submit', 'response-body', 'redirect', 'session', 'identity'] as const
 function deferred<T>() {
   let resolve!: (value: T) => void, reject!: (reason: Error) => void
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no })
@@ -167,6 +168,63 @@ async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Para
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it.each(loginSteps)('retains the entered %s step and last completion on actual runtime failure without sensitive data', async failedStep => {
+    const secret = Error('DO-NOT-RECORD password https://private.invalid?token=secret'), browser = new FakeBrowser()
+    if (failedStep === 'context') browser.newContext.mockRejectedValueOnce(secret)
+    browser.configure = c => {
+      if (failedStep === 'setup') c.setDefaultTimeout.mockImplementationOnce(() => { throw secret })
+      if (failedStep === 'page') c.newPage.mockRejectedValueOnce(secret)
+      if (failedStep === 'navigate') c.page.goto.mockRejectedValueOnce(secret)
+      if (failedStep === 'form-ready') c.page.waitForFunction.mockRejectedValueOnce(secret)
+      if (failedStep === 'redirect') c.page.waitForURL.mockRejectedValueOnce(secret)
+      if (failedStep === 'session') c.request.fetch.mockRejectedValueOnce(secret)
+      if (failedStep === 'identity') c.fetchReply = url => new FakeResponse(c.page, new FakeRequest(url), { user: { ...c.actor, id: 'foreign' } })
+      if (failedStep === 'preset' || failedStep === 'submit') {
+        const original = c.page.getByRole.bind(c.page)
+        vi.spyOn(c.page, 'getByRole').mockImplementation((role, options) => {
+          const locator = original(role, options)
+          return options.name === (failedStep === 'preset' ? 'Teacher' : 'Login') ? { click: async () => { throw secret } } : locator
+        })
+      }
+      if (failedStep === 'email' || failedStep === 'password') {
+        const original = c.page.getByLabel.bind(c.page)
+        vi.spyOn(c.page, 'getByLabel').mockImplementation(label => {
+          const locator = original(label)
+          return (label === 'School Email') === (failedStep === 'email') ? { fill: async () => { throw secret } } : locator
+        })
+      }
+    }
+    const s = await setup(browser), callback = vi.fn()
+    if (failedStep === 'response-body') vi.spyOn(s.runtime, 'response').mockRejectedValueOnce(secret)
+    await expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+    expect(callback).not.toHaveBeenCalled()
+    await expect(s.close('failed')).rejects.toThrow()
+    expect(s.receipt().login).toEqual({ attempts: 1, overflow: false, entries: [{ attempt: 1, entered: failedStep, completed: loginSteps[loginSteps.indexOf(failedStep) - 1] ?? null }] })
+    expect(JSON.stringify(s.receipt().login)).not.toMatch(/DO-NOT-RECORD|private\.invalid|secret|CPU-private|@|http/)
+    if (failedStep !== 'context') expect(browser.contexts[0].close).toHaveBeenCalledOnce()
+  })
+  it('preserves callback results and errors, rejects marker reordering and bounds metadata without stopping further logins', async () => {
+    const progress = createContextualTestLoginProgress(), action = vi.fn(), error = Error('DO-NOT-RECORD')
+    const failed = progress.begin()
+    await expect(failed.step('page', action)).rejects.toThrow('Private login marker order')
+    expect(action).not.toHaveBeenCalled()
+    await expect(failed.step('context', () => { throw error })).rejects.toBe(error)
+    await expect(failed.step('setup', action)).rejects.toThrow('Private login marker order')
+    for (let attempt = 0; attempt < 65; attempt++) {
+      const login = progress.begin(), result = { privateValue: 'DO-NOT-RECORD' }
+      for (const step of loginSteps) expect(await login.step(step, () => result)).toBe(result)
+      await expect(login.step(undefined as never, action)).rejects.toThrow('Private login marker order')
+    }
+    const snapshot = progress.snapshot()
+    expect(snapshot).toMatchObject({ attempts: 66, overflow: true })
+    expect(snapshot.entries).toHaveLength(64)
+    expect(snapshot.entries[0]).toEqual({ attempt: 1, entered: 'context', completed: null })
+    expect(snapshot.entries[1]).toEqual({ attempt: 2, entered: 'identity', completed: 'identity' })
+    expect(JSON.stringify(snapshot)).not.toContain('DO-NOT-RECORD')
+    snapshot.entries[0].completed = 'identity'
+    expect(progress.snapshot().entries[0].completed).toBeNull()
+    expect(action).not.toHaveBeenCalled()
+  })
   it.each(['runtime-entry','binding','plan','boundary','output'] as const)('marks %s before its fallible action and never creates runtime output or browser contexts on injected failure', async failAt => {
     const reached: string[] = [], browser = new FakeBrowser()
     await expect(setup(browser, 120000, stage => { reached.push(stage); if (stage === failAt) throw Error('CPU stage failure') })).rejects.toThrow('CPU stage failure')
@@ -216,6 +274,8 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     expect(c.requests[0]).toMatchObject({ url: plan.appOrigin + '/api/auth/me', options: { method: 'GET', maxRedirects: 0 } })
     expect(c.responses[0].body).toHaveBeenCalledOnce(); expect(c.responses[0].dispose).toHaveBeenCalledOnce()
     expect(c.close).toHaveBeenCalledOnce()
+    await expect(s.close('failed')).rejects.toThrow()
+    expect(s.receipt().login).toEqual({ attempts: 1, overflow: false, entries: [{ attempt: 1, entered: 'identity', completed: 'identity' }] })
   })
   it.each([30000, 5000])('fails a nonfunctional preset at its original %ims end without fixture fills, POST or retry', async lease => {
     vi.useFakeTimers()
@@ -230,6 +290,8 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       expect(c.page.readyEnd).toBe(end); expect(c.page.presetActivations).toBe(1)
       expect(c.page.fills).toEqual([]); expect(c.page.loginPosts).toBe(0); expect(c.requests).toEqual([])
       expect(callback).not.toHaveBeenCalled(); expect(c.close).toHaveBeenCalledOnce()
+      await expect(s.close('failed')).rejects.toThrow()
+      expect(s.receipt().login.entries).toEqual([{ attempt: 1, entered: 'form-ready', completed: 'preset' }])
     } finally { vi.useRealTimers() }
   })
   it('does not renew the login operation after the preset consumes its original end', async () => {
@@ -324,7 +386,7 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     const receipt = s.receipt()
     expect(receipt).toMatchObject({ version: 1, outcome: 'failed', contextsClosed: true, firstFailure: 'response-body', pending: 0 })
     expect(JSON.stringify(receipt)).not.toContain('DO-NOT-RECORD')
-    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','version','witnesses'].sort())
+    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','version','witnesses','login'].sort())
   })
   it('disposes the original API response when JSON verification fails and retains no response body', async () => {
     const s = await setup(); let response!: FakeResponse
