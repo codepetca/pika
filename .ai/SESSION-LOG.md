@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Create Classroom step focus consistency
-
-Extended only the actual wizard step focus owner: Blueprint source now focuses its visible native selector, with an open guard and focus restoration for parent reopen. Preserved name/Calendar behavior, title/date drafts, existing reopen selection reset policy, import/generation/idempotency logic and shared controls. Preimplementation reuse brief: `docs/guidance/ui/create-classroom-step-focus-consistency.md`.
-
-Validation: wizard30, TypeScript/audit PASS; eight teacher viewport/theme/motion contexts plus two separate current references PASS,42PNG/10videos,25source/52mediahashes;64syntheticGET and zero mutation/unknown/error/overflow. Four goldens unchanged PASS. External receipts retain one prebrowser harness-resolution failure and a corrected new unit-test assumption. Student n/a: local teacher-only adopter/shared unchanged. Independent review, stableSHA CI/PR Gate and main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
-
 ## 2026-10-14 — Announcement Schedule focus consistency
 
 Extended Announcement-only committed picker focus ownership via optional shared date-input ref. Entry focuses Date; Cancel/Done/Escape return to a surviving initiator/action, outside pointer/Tab destinations persist, and hidden/read-only/class/editor/unmount retirement blocks stale callbacks while retaining drafts and request ownership. Shared Assignment defaults remain unchanged. Brief: `docs/guidance/ui/announcement-schedule-focus-consistency.md`.
@@ -448,3 +442,33 @@ One Sol6.1/medium read-only diagnosis verified; no edits by worker. Automatic
 DeepSeek remains paused. Weekly41% remaining; storage healthy316GB. Attribution
 of coordinator/worker tokens and active time unknown. PR lifecycle carries final
 review/check/SHA receipts; prior2review turns/1test correction batch retained.
+CI on0c9 passed build, all database/SDK and dark browser lanes; cancelled while
+light browser still running after main1610 merged and conflicted at the table
+frame class. Merge1e471b7f9 retains scrollbar-stable plus container ownership;
+continuity union keeps every unique body once. Updated roster4-case browser
+matrix passes15.6s with both changes. Scrollbar geometry8-case integration passes26.4s (both themes/viewports and
+normal/reduced motion); fresh screenshots inspected. Final focused/delta review follow; no runtime or production change.
+
+## 2026-10-16 Stable student-table scrollbar space
+
+Task/branch: `codex/student-table-scrollbar`; risk profile `none`. Extend the
+shared hover-scrollbar utility with opt-in stable gutter sizing; reuse the
+existing Tests and Classwork student table owners. Only the thumb visibility
+changes on hover/focus, preserving real horizontal overflow on narrow tables.
+UI brief: teacher rosters; Attendance/Test canon and Pattern Lab work-surface
+reference; desktop1440x900/mobile390x844, light/dark, idle/hover/focus/selected,
+normal/reduced motion. Primary signal: existing scrollbar thumb; no new controls,
+columns, widget semantics or business logic. Student role n/a (teacher rosters).
+Visual evidence: 16 production-owner matrix cases passed at localhost3147,
+synthetic read-only fixtures, `/tmp/pika-scrollbar-matrix`; four Pattern Lab
+reference cases passed. UI/design policy and TypeScript passed; final focused
+checks/review tracked in PR. Initial browser cold-compile timeout and a sampling
+race with the existing split animation were corrected in verification; an
+unrelated CI-inventory timeout triggered a lower-concurrency focused retry.
+Audit heuristic flags TeacherClassroomView for missing component tests despite
+class-only changes; actual keyboard focus/geometry regression coverage is in
+the existing CI experience matrix, with no semantic changes. No new component
+or experimental pattern; no adjacent refactor needed. Coordinator implementation;
+one Luna/medium independent review planned (low-risk CSS), no implementation
+worker. Initial weekly43% remaining, storage316GB healthy; per-task tokens and
+effective reviewer configuration unknown. No merge/deployment/DB changes.

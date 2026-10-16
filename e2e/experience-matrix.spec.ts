@@ -1459,6 +1459,33 @@ test.describe('Teacher student-table scroll containment', () => {
         }
         const scrollPane = page.getByTestId(pane)
         await expect.poll(() => scrollPane.getByRole('row').count()).toBeGreaterThanOrEqual(LONG_ROSTER_SIZE + 1)
+        if (surface === 'assignment' || surface === 'test') {
+          await page.mouse.move(1, 1)
+          await expect(scrollPane).toHaveCSS('scrollbar-gutter', 'stable')
+          await expect(scrollPane).toHaveCSS('scrollbar-width', 'thin')
+          // Finish workspace entry/split animations before comparing scrollbar geometry.
+          await page.screenshot({ path: testInfo.outputPath(`${surface}-scrollbar-idle.png`), animations: 'disabled' })
+          const geometry = () => scrollPane.evaluate(element => ({
+            width: element.clientWidth, height: element.clientHeight, scrollWidth: element.scrollWidth,
+          }))
+          const idle = await geometry()
+          await scrollPane.hover()
+          expect(await geometry()).toEqual(idle)
+          await page.screenshot({ path: testInfo.outputPath(`${surface}-scrollbar-hover.png`), animations: 'disabled' })
+          const selectAll = scrollPane.getByRole('checkbox').first()
+          await selectAll.focus()
+          await page.mouse.move(1, 1)
+          await expect(selectAll).toBeFocused()
+          expect(await geometry()).toEqual(idle)
+          await page.screenshot({ path: testInfo.outputPath(`${surface}-scrollbar-focus.png`), animations: 'disabled' })
+          if (idle.scrollWidth > idle.width) {
+            // Retain genuine horizontal scrolling on narrow layouts.
+            await scrollPane.evaluate(element => { element.scrollLeft = element.scrollWidth })
+            expect(await scrollPane.evaluate(element => element.scrollLeft)).toBeGreaterThan(0)
+            await scrollPane.evaluate(element => { element.scrollLeft = 0 })
+          }
+          await testInfo.attach('scrollbar-geometry', { body: JSON.stringify(idle), contentType: 'application/json' })
+        }
         async function verifyContainment(state: string) {
           await expect.poll(() => scrollPane.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
           await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
