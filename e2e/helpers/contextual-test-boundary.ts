@@ -319,7 +319,13 @@ export class ContextualTestBoundary {
   }
   private async drain<T>(context: object, operationEnd: number, next: () => T | Promise<T>): Promise<T> {
     while (this.pending(context)) {
-      await this.waitTasks([...this.tasks.get(context)!], operationEnd)
+      const tasks = [...this.tasks.get(context)!], end = Math.min(this.deadline, operationEnd, ...tasks.map(task => task.end))
+      const remaining = end - this.now()
+      if (remaining <= 0) this.reject('deadline')
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try { await Promise.race([Promise.all(tasks.map(task => task.promise)), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => { this.failed ??= 'deadline'; reject(new Error('Private Test rehearsal boundary')) }, remaining)
+      })]) } finally { if (timer) clearTimeout(timer) }
     }
     if (this.now() >= operationEnd) this.reject('deadline')
     this.check()
@@ -337,8 +343,8 @@ export class ContextualTestBoundary {
       return action(remaining)
     })
     await this.settle(context, operationEnd)
-    // This removes only the host-side gap. canNavigate still rejects requests
-    // that race the native command before interception; never wait in its route.
+    // This alone removes only the host-side gap. The runtime's departure fence
+    // handles late unsent reads; callers without that fence still fail closed.
   }
   async beforeContextClose(context: object, close: () => Promise<void>) {
     let failed = false

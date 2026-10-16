@@ -16,8 +16,7 @@ Exits: docs/guidance/classroom-access-and-entitlements-roadmap.md.
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
-Redirect6case PASS; full-app login PASS then navigation-pending1; no app exit.
-Approved unsent-read navigation fence implemented/229CPU PASS; review pending.
+Redirect PASS; full-app navigation-pending1; no exit. Unsent-read fence reviewfix.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.

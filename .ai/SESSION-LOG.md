@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Approved Playwright carrier replacement — source implementation
-
-Owner approved replacing the lost private runner with the existing Playwright
-test infrastructure, preserving the frozen app, finite scenarios and all safety
-checks; routine approval/review-budget waiver carries. Added a separately opt-in
-Tests lifecycle spec/config, real-login fixture, original-response task joins,
-fixed disposable SQL/witnesses, shared request ledger, pinned native ownership
-edges and lifecycle/controller composition. Reuses existing disposable adapters;
-no new dependency, product/legacy UI change or alternate permission framework.
-
-Retained Sol/high workers delivered workflow, platform, runtime regression tests
-and controller composition; root inspected/integrated and corrected setup cleanup,
-physical-close reporting, durable server failure flags, absolute HTTP deadlines,
-transport settlement joins and native bridge. Targeted batch127CPU and repository
-TypeScript passed; two additional seal regressions then passed. Full focused
-check initially3049PASS/8skip/one unchanged five-second offline-test timeout;
-serial recheck remains required. All component checks are source/CPU evidence,
-not real-app acceptance. Independent high-risk review and current sealed readiness
-must precede one fresh45-minute/no-retry disposable rehearsal with bounded cleanup.
-
-No replacement native app/browser/DB target admitted or started. A first pinned
-transport TDD check accidentally invoked one read-only Supabase status against a
-nonexistent fresh path; it failed before any start/write and dispatch is now
-mocked in CPU tests. No production/shared-local migration, provider/Survey probe,
-account/billing or rollout change; all serious holds and historical failures stay.
-Original Protocol clock/review54/fix38 and app/Survey counters are not reset.
-
 ## 2026-10-14 Playwright carrier first review remediation
 
 Independent fixed-head reviews55 (Astra/high security) and56 (Sol/high
@@ -968,3 +941,22 @@ tsc/eslint/audit PASS; canonical focused gate and independent fixed-SHA review
 pending. Cumulative ledger enters this fix at115reviews/69fixbatches; existing
 routine-budget waiver/clocks carry. No fresh native attempt, SDK disk edit,
 dependency, app/auth/schema change, merge or production rollout. All holds remain.
+
+## 2026-10-16 — Navigation review catches false abort acknowledgement
+
+Reviews116(Astra/high security) and117(Sol6.1/high compatibility) completed at
+a2aae101. One accepted P1: pinned Playwright swallowed native abort rejection
+and separately treated target closure as a resolved client abort. Actual SDK
+CPU experiments reproduced false success. One remediation batch makes both
+layers propagate/await the real command reply, retains normal handling state,
+and pins the intermediate source chain. Dependencies on disk remain unchanged.
+Native-abort regression RED before correction; new client regressions require a
+real reply and reject closed-target channel failure. No browser run performed.
+
+First canonical run3651PASS/8skip/4fail: startup doc budget33chars over, two
+existing navigation diagnostic cases exposed an extra microtask from drain
+refactoring, and one unchanged offline transport test hit15s under heavy load.
+Trimmed CURRENT and restored the original drain continuation (no test/timeout
+relaxation). Two targeted SDK/parser CPU timeouts passed serially. Final focused
+gate and targeted review pending; cumulative117reviews/71fixbatches, original
+clocks/task waiver retained. Production and all prior attempt holds unchanged.

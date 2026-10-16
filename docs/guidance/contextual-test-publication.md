@@ -11,6 +11,9 @@ have no response, and never have reached `route.continue()`. It retires only
 after both abort acknowledgement and the same request's `requestfailed`, within
 the original deadline shortened by the departure deadline. Mutation, unknown
 ownership, released work, body failure, missing signal and expiry stay fatal.
+The pinned runner propagates Chromium abort-command rejection and awaits the
+actual client channel reply; Playwright's ordinary swallowed errors and
+target-close shortcut cannot serve as positive cancellation acknowledgement.
 
 The main-document request must match the intended target; redirect hops must
 reference the exact prior request. The fence remains until the pinned SDK's

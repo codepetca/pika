@@ -47711,3 +47711,31 @@ replace the lost private carrier using existing version-controlled Playwright
 lifecycle/disposable helpers, preserving the frozen app, complete finite matrix,
 isolation/cleanup/caps and all serious holds; not yet approved or executed.
 Protocol original clock/review53/fix38 and app/Survey ledgers carry without reset.
+
+<!-- pika-session-log-archive-batch:55a89f17bec9de0e4678fc63204f39a9215d26ad35a44d47777e611819f8fa8a -->
+## 2026-10-14 Approved Playwright carrier replacement — source implementation
+
+Owner approved replacing the lost private runner with the existing Playwright
+test infrastructure, preserving the frozen app, finite scenarios and all safety
+checks; routine approval/review-budget waiver carries. Added a separately opt-in
+Tests lifecycle spec/config, real-login fixture, original-response task joins,
+fixed disposable SQL/witnesses, shared request ledger, pinned native ownership
+edges and lifecycle/controller composition. Reuses existing disposable adapters;
+no new dependency, product/legacy UI change or alternate permission framework.
+
+Retained Sol/high workers delivered workflow, platform, runtime regression tests
+and controller composition; root inspected/integrated and corrected setup cleanup,
+physical-close reporting, durable server failure flags, absolute HTTP deadlines,
+transport settlement joins and native bridge. Targeted batch127CPU and repository
+TypeScript passed; two additional seal regressions then passed. Full focused
+check initially3049PASS/8skip/one unchanged five-second offline-test timeout;
+serial recheck remains required. All component checks are source/CPU evidence,
+not real-app acceptance. Independent high-risk review and current sealed readiness
+must precede one fresh45-minute/no-retry disposable rehearsal with bounded cleanup.
+
+No replacement native app/browser/DB target admitted or started. A first pinned
+transport TDD check accidentally invoked one read-only Supabase status against a
+nonexistent fresh path; it failed before any start/write and dispatch is now
+mocked in CPU tests. No production/shared-local migration, provider/Survey probe,
+account/billing or rollout change; all serious holds and historical failures stay.
+Original Protocol clock/review54/fix38 and app/Survey counters are not reset.

@@ -14,6 +14,23 @@ const plan = createContextualTestPlan('pika_assignment_list_012345abcdef')
 // Exercise the installed adapter, not a mock that assumes redirect interception.
 const { rewriteContextualRedirectAdapter: transform } = require('../../scripts/contextual-playwright-redirect-guard.cjs') as { rewriteContextualRedirectAdapter(value: string): string }
 const { assertContextualNavigationSources: assertNavigationSources } = require('../../scripts/contextual-playwright-redirect-guard.cjs') as { assertContextualNavigationSources(sources: Record<string, Buffer>): void }
+const { rewriteContextualRouteClient: transformClient } = require('../../scripts/contextual-playwright-redirect-guard.cjs') as { rewriteContextualRouteClient(source: string): string }
+function clientFixture() {
+  const clientFile = join(dirname(require.resolve('playwright-core/package.json')), 'lib/client/network.js')
+  const compiled = new Module(clientFile) as Module & { _compile(source: string, file: string): void }
+  compiled.filename = clientFile; compiled.paths = [join(dirname(require.resolve('playwright-core/package.json')), 'node_modules')]
+  compiled._compile(transformClient(readFileSync(clientFile, 'utf8')), clientFile)
+  const native = compiled.exports as { Route: { prototype: object } }
+  const handled = vi.fn(), safeRace = vi.fn(async (promise: Promise<unknown>) => { void promise.catch(() => {}); return undefined })
+  // Actual installed Route.abort/_handleRoute/_raceWithTargetClose methods;
+  // only its channel reply and already-closed target are controlled here.
+  const route = Object.assign(Object.create(native.Route.prototype), {
+    _handlingPromise: { resolve: handled }, _didThrow: false,
+    _channel: { abort: vi.fn(async (_params: { errorCode: string }) => {}) },
+    request: () => ({ _targetClosedScope: () => ({ safeRace }) }),
+  }) as { abort(code: string): Promise<void>; _channel: { abort: ReturnType<typeof vi.fn> }; _didThrow: boolean }
+  return { route, handled, safeRace, clientFile }
+}
 type Session = { send: ReturnType<typeof vi.fn>; _sendMayFail: ReturnType<typeof vi.fn> }
 type Route = { continue(overrides: object): Promise<void>; abort(code: string): Promise<void> }
 type Request = { url(): string; method(): string; postDataBuffer(): Buffer | null; redirectedFrom(): object }
@@ -48,7 +65,8 @@ function fixture(resourceType = 'Fetch', worker = false) {
 describe('pinned Chromium redirect interception', () => {
   it('pins the exact commit-event and request-identity plumbing and rejects every source drift', () => {
     const root = dirname(require.resolve('playwright-core/package.json'))
-    const names = ['client/frame.js', 'client/channelOwner.js', 'client/connection.js', 'server/dispatchers/frameDispatcher.js', 'protocol/validator.js']
+    const names = ['client/frame.js', 'client/channelOwner.js', 'client/connection.js', 'server/dispatchers/frameDispatcher.js', 'protocol/validator.js',
+      'server/network.js', 'server/dispatchers/networkDispatchers.js']
     const sources = Object.fromEntries(names.map(name => [name, readFileSync(join(root, 'lib', name))]))
     expect(() => assertNavigationSources(sources)).not.toThrow()
     for (const name of names) expect(() => assertNavigationSources({ ...sources, [name]: Buffer.concat([sources[name], Buffer.from('\n')]) })).toThrow('Private navigation source mismatch')
@@ -81,6 +99,27 @@ describe('pinned Chromium redirect interception', () => {
   it('rejects changed SDK bytes instead of guessing or silently skipping the shim', () => {
     expect(() => transform(source + '\n')).toThrow('Private redirect adapter source mismatch')
     expect(() => transform(transform(source))).toThrow('Private redirect adapter source mismatch')
+    const clientSource = readFileSync(clientFixture().clientFile, 'utf8')
+    expect(() => transformClient(clientSource + '\n')).toThrow('Private route client source mismatch')
+    expect(() => transformClient(transformClient(clientSource))).toThrow('Private route client source mismatch')
+  })
+
+  it('does not count target closure as a client abort acknowledgement', async () => {
+    const f = clientFixture(), completed = vi.fn()
+    let acknowledge!: () => void
+    f.route._channel.abort.mockImplementation(() => new Promise<void>(resolve => { acknowledge = resolve }))
+    const abort = f.route.abort('aborted').then(completed)
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(f.safeRace).not.toHaveBeenCalled(); expect(completed).not.toHaveBeenCalled(); expect(f.handled).not.toHaveBeenCalled()
+    acknowledge(); await abort
+    expect(completed).toHaveBeenCalledOnce(); expect(f.handled).toHaveBeenCalledExactlyOnceWith(true)
+  })
+
+  it('propagates a client command rejection even if its target is already closed', async () => {
+    const f = clientFixture()
+    f.route._channel.abort.mockRejectedValue(Error('private channel rejection'))
+    await expect(f.route.abort('aborted')).rejects.toThrow('private channel rejection')
+    expect(f.safeRace).not.toHaveBeenCalled(); expect(f.handled).not.toHaveBeenCalled(); expect(f.route._didThrow).toBe(true)
   })
   it.each(['Document', 'Fetch', 'XHR', 'Image', 'Script', 'Font'])('routes a redirected %s before any native continuation', async resource => {
     const f = fixture(resource)
@@ -107,6 +146,20 @@ describe('pinned Chromium redirect interception', () => {
     expect(f.send).toHaveBeenCalledExactlyOnceWith('Fetch.continueRequest', {
       requestId: 'hop-2', url: undefined, headers: undefined, method: undefined, postData: undefined,
     })
+  })
+
+  it('rejects a failed native abort even when a matching failed terminal was observed', async () => {
+    const f = fixture(), b = new ContextualTestBoundary(plan, Date.now() + 30000), context = {}
+    f.adapter._onRequest(f.info, f.event, f.info, f.pause)
+    const { request, route } = f.started[0]
+    b.requestStarted(context, request); b.requestIntercepted(context, request, 'GET')
+    f.send.mockImplementation(async () => {
+      b.requestFinished(context, request, true)
+      throw Error('Invalid InterceptionId')
+    })
+    await expect(b.cancelUnsentRead(context, request, () => route.abort('aborted'), Date.now() + 1000)).rejects.toThrow()
+    expect(b.receipt().firstFailure).toBe('response-body')
+    expect(b.pending(context)).toBe(1)
   })
 
   it.each(['url', 'method', 'headers', 'postData'])('rejects request %s overrides rather than change redirect inheritance', async key => {
