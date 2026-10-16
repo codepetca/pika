@@ -53,3 +53,21 @@ coverage was reused. TypeScript, lint (existing warnings only), architecture,
 UI policy, and design policy passed. The audit's composite-test warning is a
 heuristic false positive for className-only edits; no semantic/handler changes
 or policy weakening were introduced. Fixed-head independent review follows.
+
+### CI baseline correction
+
+The first GitHub run exposed omitted student-header baselines and a Linux capture
+font mismatch. The stock Playwright Noble container resolved `system-ui` to
+WenQuanYi Zen Hei; adding the existing Ubuntu `fonts-dejavu-core` capture-runtime
+package resolves it to DejaVu Sans, matching the GitHub runner. No application
+font, dependency, test threshold, or test behavior changes. Regenerated four
+Linux teacher-contract baselines plus all eight Mac/Linux student-header
+baselines. The four Mac teacher-contract baselines retain their prior evidence.
+
+All eight corrected Linux captures compare successfully against actual GitHub
+run38922863858 artifacts using Playwright's existing 100-pixel / 1% / 0.2
+threshold settings; desktop captures are pixel-identical. Eight Linux snapshot
+cases and four Mac header cases pass. Captures were visually inspected before
+accepting the correction. Local comparison receipt:
+`output/playwright/ci-baseline-font-comparison.json`. The prior claim of eight
+passing captures described that local runtime, not equivalence to GitHub fonts.

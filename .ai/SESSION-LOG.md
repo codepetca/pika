@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
-
-Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
-targeted+cumulative review. Fresh14th06132387f727 fully PASS:001–261/rollbackACL/
-genuine438871B types, seven contracts/14heldraces/fullgraph equality, real SDK
-nonowner/fences/both owner roles/canonical/noop, cancellation503/one57014/8013ms/
-zeroRPC/restoration. Exact8synthetic cleanup/global741/canonical183tables2cron/
-ports/source preserved; prior failed evidence retained. No rollout or goal exit.
-Eligible CI38190378056 exactbacb fails Architecture DB at10000-question fixture
-INSERT in limitsDO (57014/blueprint per-row trigger); other7jobs cancelled by
-failfast and PR Gate fails. Returned1578 to draft before corrections, one watcher
-closed, no duplicateCI. Bounded source proposal keeps all10002rows/alltriggers/
-assertions: four fixed2500 INSERT statements under one savepoint, temporary graph
-baseline before savepoint and exact rollback equality. Eleven closed frames plus
-28races use39<=40dispatch;12s/180s/caps unchanged. Revised framing still needs
-checks/independent review/fresh native/eligibleCI, not acceptance from prior pass.
-PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
-Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
-production promotion/provider/account/admission/home/page/cohort/cutover holds.
-
 ## 2026-10-12 — Unpublication merged; next deletion boundary
 
 PR1578 actual normalmatchedsquashmergea37d03b3ac4943b25b76e8dd30412c6a7ff8da9d
@@ -537,3 +517,17 @@ fixed-head independent follow-up review recorded in PR1605. No new abstraction,
 dependency, database, merge or deployment. Model recommendation:gpt-6-luna/medium
 for small independent delta review. No implementation delegation; review token
 and effective-model telemetry unknown. Evidence:output/playwright/title-hover/.
+
+## 2026-10-16 — PR1605 merge authorization and snapshot correction
+
+Owner explicitly authorized squash merge after CI.026a196e9 Test & Build and dark
+experience lane passed; Pattern Lab dark failed screenshot comparisons. Returned
+PR to draft before correction. Diagnosed omitted student headers plus Linux
+capture runtime resolving system-ui to WenQuanYi rather than GitHub's DejaVu.
+Regenerated baselines with fonts-dejavu-core in ephemeral capture container;
+application fonts/dependencies/thresholds unchanged.8Linux comparisons against
+GitHub actuals pass existing tolerances (desktop pixel-identical);8Linux and4Mac
+snapshot cases pass. Product source/review unchanged; one batched snapshot-only
+remediation and independent delta review follow. PR Gate on reviewed final SHA
+still required before authorized main merge. Source evidence and artifacts in
+change brief and ignored output/playwright; CI38922863858 cancelled after draft.
