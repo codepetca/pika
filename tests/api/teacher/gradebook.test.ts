@@ -322,7 +322,7 @@ function buildPagedMockFrom(
 beforeEach(() => { mockSupabaseClient.rpc.mockReset(); mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } }) })
 
 describe('GET /api/teacher/gradebook', () => {
-  it.each([null, undefined, '2026-01-02T12:00:00.000Z'])('shows assignment and Test marks only after each student return (%s)', async (returnedAt) => {
+  it.each([null, undefined, '2026-01-02T12:00:00.000Z'])('shows graded assignment and Test marks regardless of student return (%s)', async (returnedAt) => {
     const fixture: GradebookFixture = {
       categories: [{ id: 'term', name: 'Term', percentage: 100, position: 0, is_default: true }],
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2099-01-01T12:00:00.000Z', is_draft: false, points_possible: 30, include_in_final: true, gradebook_category_id: 'term' }],
@@ -340,22 +340,22 @@ describe('GET /api/teacher/gradebook', () => {
       const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
       const body = await response.json()
       expect(response.status).toBe(200)
-      const visiblePercent = returnedAt ? (overridden ? 90 : 80) : null
+      const visiblePercent = overridden ? 90 : 80
       expect(body.students[0]).toMatchObject({ assignments_percent: visiblePercent, tests_percent: visiblePercent, final_percent: visiblePercent })
       expect(body.class_summary.average_final_percent).toBe(visiblePercent)
-      expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: visiblePercent, graded_count: returnedAt ? 1 : 0 })
-      expect(body.class_summary.tests[0]).toMatchObject({ average_percent: visiblePercent, scored_count: returnedAt ? 1 : 0 })
+      expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: visiblePercent, graded_count: 1 })
+      expect(body.class_summary.tests[0]).toMatchObject({ average_percent: visiblePercent, scored_count: 1 })
       expect(body.selected_student.assignments[0].percent).toBe(visiblePercent)
-      expect(body.selected_student.tests).toHaveLength(returnedAt ? 1 : 0)
+      expect(body.selected_student.tests).toHaveLength(1)
       for (const cell of body.students[0].assessment_scores) {
         expect(cell.percent).toBe(visiblePercent)
-        if (!returnedAt) expect(cell).toMatchObject({ earned: null, is_graded: false, status: 'submitted' })
-        if (!returnedAt) expect(cell.calculated_earned ?? null).toBeNull()
+        expect(cell.is_graded).toBe(true)
+        if (overridden) expect(cell.calculated_earned).toBe(cell.assessment_type === 'assignment' ? 24 : 8)
       }
     }
   })
 
-  it('keeps fully scored Test responses hidden when no returned attempt exists', async () => {
+  it('shows fully scored Test responses without a returned attempt', async () => {
     mockSupabaseClient.from = buildMockFrom({
       tests: [{ id: 't1', title: 'Test', status: 'closed', returned_at: '2026-01-02T12:00:00.000Z' }],
       testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
@@ -364,11 +364,49 @@ describe('GET /api/teacher/gradebook', () => {
       scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9 }],
     })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
-    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: null, percent: null, is_graded: false })
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 9, percent: 90, is_graded: true, calculated_earned: 10 })
+    expect(body.students[0].final_percent).toBe(90)
+  })
+
+  it.each([0, 9])('shows an unreturned manual mark without rubric or question scores (%s)', async (earned) => {
+    mockSupabaseClient.from = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', is_draft: false, points_possible: 10 }],
+      tests: [{ id: 't1', title: 'Test', status: 'closed' }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
+      scoreOverrides: [
+        { student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned },
+        { student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned },
+      ],
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))).json()
+    for (const cell of body.students[0].assessment_scores) {
+      expect(cell).toMatchObject({ earned, percent: earned * 10, is_graded: true, is_manual_override: true, calculated_earned: null })
+    }
+    expect(body.students[0].final_percent).toBe(earned * 10)
+    expect(body.selected_student.assignments[0].percent).toBe(earned * 10)
+    expect(body.selected_student.tests[0].percent).toBe(earned * 10)
+  })
+
+  it('keeps draft assignment and Test marks blank even with grades and overrides', async () => {
+    mockSupabaseClient.from = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Draft Essay', is_draft: true, points_possible: 10 }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
+      tests: [{ id: 't1', title: 'Draft Test', status: 'draft' }],
+      testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
+      testResponses: [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 10 }],
+      scoreOverrides: [
+        { student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: 9 },
+        { student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9 },
+      ],
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    for (const cell of body.students[0].assessment_scores) {
+      expect(cell).toMatchObject({ earned: null, percent: null, is_graded: false })
+    }
     expect(body.students[0].final_percent).toBeNull()
   })
 
-  it('uses each student return independently in class summaries', async () => {
+  it('includes returned and unreturned graded marks in class summaries', async () => {
     mockSupabaseClient.from = buildMockFrom({
       enrollments: [
         { student_id: 'student-1', users: { email: 'one@example.invalid' } },
@@ -392,13 +430,13 @@ describe('GET /api/teacher/gradebook', () => {
     })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
     expect(body.students.find((student: any) => student.student_id === 'student-1').final_percent).toBe(0)
-    expect(body.students.find((student: any) => student.student_id === 'student-2').final_percent).toBeNull()
-    expect(body.class_summary).toMatchObject({ students_with_final: 1, average_final_percent: 0 })
-    expect(body.class_summary.assignments[0]).toMatchObject({ graded_count: 1, average_percent: 0, median_percent: 0 })
-    expect(body.class_summary.tests[0]).toMatchObject({ scored_count: 1, average_percent: 0 })
+    expect(body.students.find((student: any) => student.student_id === 'student-2').final_percent).toBe(100)
+    expect(body.class_summary).toMatchObject({ students_with_final: 2, average_final_percent: 50 })
+    expect(body.class_summary.assignments[0]).toMatchObject({ graded_count: 2, average_percent: 50, median_percent: 50 })
+    expect(body.class_summary.tests[0]).toMatchObject({ scored_count: 2, average_percent: 50 })
   })
 
-  it.each([null, '2026-01-02T12:00:00.000Z'])('gates saved unsubmitted Test marks on return (%s)', async (returnedAt) => {
+  it.each([null, '2026-01-02T12:00:00.000Z'])('shows graded saved unsubmitted Test marks regardless of return (%s)', async (returnedAt) => {
     mockSupabaseClient.from = buildMockFrom({
       tests: [{ id: 't1', title: 'Saved Test', status: 'active' }],
       testQuestions: [{ id: 'q1', test_id: 't1', points: 10 }],
@@ -406,11 +444,13 @@ describe('GET /api/teacher/gradebook', () => {
       testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: false, returned_at: returnedAt }],
     })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
-    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: returnedAt ? 8 : null, percent: returnedAt ? 80 : null, is_graded: Boolean(returnedAt) })
-    expect(body.students[0].final_percent).toBe(returnedAt ? 80 : null)
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 8, percent: 80, is_graded: true })
+    expect(body.students[0].final_percent).toBe(80)
   })
 
-  it.each([null, 0])('keeps returned unsubmitted Test work pending while a question is ungraded (first score %s)', async (firstScore) => {
+  it.each([
+    [null, null], [0, null], [null, '2026-01-02T12:00:00.000Z'], [0, '2026-01-02T12:00:00.000Z'],
+  ])('keeps unsubmitted Test work pending with an ungraded question (score %s, return %s)', async (firstScore, returnedAt) => {
     mockSupabaseClient.from = buildMockFrom({
       tests: [{ id: 't1', title: 'Returned saved Test', status: 'closed', include_in_final: true }],
       testQuestions: [{ id: 'q1', test_id: 't1', points: 5 }, { id: 'q2', test_id: 't1', points: 5 }],
@@ -418,7 +458,7 @@ describe('GET /api/teacher/gradebook', () => {
         { test_id: 't1', question_id: 'q1', student_id: 'student-1', score: firstScore },
         { test_id: 't1', question_id: 'q2', student_id: 'student-1', score: null },
       ],
-      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: false, returned_at: '2026-01-02T12:00:00.000Z' }],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: false, returned_at: returnedAt }],
     })
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
     const body = await response.json()

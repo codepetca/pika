@@ -86,11 +86,14 @@ The student API must project this disclosure contract server-side. It must
 not send the teacher Gradebook payload to the browser and rely on presentation
 code to hide unreleased grades.
 
-The teacher Gradebook also shows assignment and test marks only after they have
-been returned to that student. Unreturned marks, including Gradebook overrides,
-are absent from assessment cells, the student inspector, calculated totals, and
-class summaries. Submission statuses remain available. Test eligibility uses the
-student's attempt return timestamp, not a classroom-wide Test return timestamp.
+The teacher Gradebook shows fully graded assignment and Test marks immediately,
+including work that has not been returned to the student. Saved per-assessment
+Gradebook overrides are also visible immediately. These marks contribute to
+teacher assessment cells, the student inspector, calculated totals, and class
+summaries. Partially graded work without an override remains pending; draft work
+is excluded. Student Grades still requires each assignment document or Test
+attempt to have been returned to that student, including marks with overrides.
+Teacher and student totals can therefore differ until work is returned.
 Standalone Gradebook marks and explicit final-grade overrides retain their existing
 behavior.
 
