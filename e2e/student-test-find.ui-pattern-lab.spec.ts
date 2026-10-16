@@ -3,7 +3,7 @@ import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-stude
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
-test('blocks Find and exempts selected-text browser focus without hiding real exits', async ({ page }, info) => {
+test('blocks Find while selected-text popup focus loss remains an exit', async ({ page }, info) => {
   test.setTimeout(90_000)
   const testId = '30000000-0000-4000-8000-000000000013'
   const assessment = {
@@ -96,12 +96,12 @@ test('blocks Find and exempts selected-text browser focus without hiding real ex
     document.hasFocus = hasFocus
   })
   await page.waitForTimeout(900)
-  expect(events).toEqual([])
+  await expect.poll(() => events.filter(event => event.event_type === 'away_start').length).toBe(1)
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await expect.poll(() => events.filter(event => event.metadata?.source === 'browser_interaction').length).toBe(1)
-  expect(events[0].event_type).toBe('away_end')
+  await expect.poll(() => events.filter(event => event.event_type === 'away_end').length).toBe(1)
+  expect(events.some(event => event.metadata?.source === 'browser_interaction')).toBe(false)
   await expect(response).toHaveValue('My draft stays here.')
-  await page.screenshot({ path: info.outputPath('browser-interaction-return.png'), animations: 'disabled' })
+  await page.screenshot({ path: info.outputPath('popup-exit-recorded.png'), animations: 'disabled' })
   await page.evaluate(() => {
     const hasFocus = document.hasFocus
     document.hasFocus = () => false
@@ -141,9 +141,10 @@ test('blocks Find and exempts selected-text browser focus without hiding real ex
     topDocument.hasFocus = hasFocus
   })
   await page.waitForTimeout(900)
-  expect(events.filter(event => event.event_type === 'away_start')).toHaveLength(awayBeforeReferenceMenu)
+  await expect.poll(() => events.filter(event => event.event_type === 'away_start').length).toBe(awayBeforeReferenceMenu + 1)
   await frame.locator('body').evaluate(body => body.ownerDocument.defaultView!.dispatchEvent(new Event('focus')))
-  await expect.poll(() => events.filter(event => event.metadata?.source === 'browser_interaction').length).toBe(2)
+  await expect.poll(() => events.filter(event => event.event_type === 'away_end').length).toBe(awayBeforeReferenceMenu + 1)
+  expect(events.some(event => event.metadata?.source === 'browser_interaction')).toBe(false)
   await page.screenshot({ path: info.outputPath('reference-find-blocked.png'), animations: 'disabled' })
   await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await page.getByRole('dialog', { name: 'Submit your answers?' }).getByRole('button', { name: 'Submit', exact: true }).click()
@@ -151,7 +152,7 @@ test('blocks Find and exempts selected-text browser focus without hiding real ex
   expect(await dispatchFind()).toBe(true)
 })
 
-test('shows separate browser evidence without a teacher exit warning', async ({ page }, info) => {
+test('shows popup focus loss as ordinary teacher exit evidence', async ({ page }, info) => {
   test.setTimeout(90_000)
   const testId = '30000000-0000-4000-8000-000000000013'
   const assessment = { id: testId, classroom_id: TABLE_CLASSROOM_ID, title: 'Browser interaction check',
@@ -167,8 +168,8 @@ test('shows separate browser evidence without a teacher exit warning', async ({ 
         first_name: 'Student', last_name: 'Alpha', email: 'student@example.invalid',
         status: 'not_started', points_earned: 0, points_possible: 1, percent: null,
         graded_open_responses: 0, ungraded_open_responses: 0, effective_access: 'open', access_source: 'test',
-        focus_summary: { exit_count: 0, away_count: 0, away_total_seconds: 0, route_exit_attempts: 0,
-          window_unmaximize_attempts: 0, browser_interaction_count: 2, browser_interaction_seconds: 8,
+        focus_summary: { exit_count: 1, away_count: 1, away_total_seconds: 8, route_exit_attempts: 0,
+          window_unmaximize_attempts: 0,
           last_away_started_at: null, last_away_ended_at: null },
       }],
     } })
@@ -176,13 +177,15 @@ test('shows separate browser evidence without a teacher exit warning', async ({ 
   })
   await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=tests', { timeout: 60_000 })
   await page.getByText(assessment.title, { exact: true }).click()
-  const exit = page.getByLabel(/Exits 0\. .*Browser interactions 2/)
+  const exit = page.getByLabel(/Exits 1\. Away\/focus 1/)
   await expect(exit).toHaveCount(1)
-  await expect(page.getByTestId('test-exit-detected-alert')).toHaveCount(0)
+  await expect(exit).toHaveClass(/text-warning/)
   if (info.project.metadata.viewport === 'desktop') {
     await exit.hover()
-    await expect(page.getByRole('tooltip')).toContainText('Browser interactions: 2 (0:08), excluded from exits.')
+    await expect(page.getByRole('tooltip')).toContainText('Exits: 1')
+    await expect(page.getByRole('tooltip')).toContainText('Away/focus: 1')
+    await expect(page.getByRole('tooltip')).not.toContainText('Browser interactions')
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
-  await page.screenshot({ path: info.outputPath('teacher-browser-evidence.png'), animations: 'disabled' })
+  await page.screenshot({ path: info.outputPath('teacher-popup-exit.png'), animations: 'disabled' })
 })

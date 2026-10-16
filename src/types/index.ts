@@ -912,8 +912,6 @@ export type TestAiGradingBasis = 'teacher_key' | 'generated_reference'
 
 export interface TestFocusSummary {
   exit_count: number
-  browser_interaction_count?: number
-  browser_interaction_seconds?: number
   away_count: number
   away_total_seconds: number
   route_exit_attempts: number

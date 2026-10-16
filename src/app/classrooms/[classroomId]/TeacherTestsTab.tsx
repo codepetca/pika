@@ -2510,12 +2510,6 @@ export function TeacherTestsTab({
                 const awayMinutes = Math.floor(awaySeconds / 60)
                 const awayRemainder = awaySeconds % 60
                 const awayLabel = `${awayMinutes}:${String(awayRemainder).padStart(2, '0')}`
-                const browserCount = student.focus_summary?.browser_interaction_count ?? 0
-                const browserSeconds = Math.max(0, Math.round(student.focus_summary?.browser_interaction_seconds ?? 0))
-                const browserDuration = `${Math.floor(browserSeconds / 60)}:${String(browserSeconds % 60).padStart(2, '0')}`
-                const browserDescription = browserCount > 0
-                  ? ` Browser interactions ${browserCount}, duration ${browserDuration}, excluded from exits.`
-                  : ''
                 const routeExitAttempts = student.focus_summary?.route_exit_attempts ?? 0
                 const windowUnmaximizeAttempts = student.focus_summary?.window_unmaximize_attempts ?? 0
                 const exitsCount = getTestGradingExitCount(student)
@@ -2634,13 +2628,12 @@ export function TeacherTestsTab({
                             <p>Away/focus: {awayCount}</p>
                             <p>In-app exits: {routeExitAttempts}</p>
                             <p>Window exits: {windowUnmaximizeAttempts}</p>
-                            {browserCount > 0 && <p>Browser interactions: {browserCount} ({browserDuration}), excluded from exits.</p>}
                           </div>
                         }
                       >
                         <span
                           className={exitsClassName}
-                          aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.${browserDescription}`}
+                          aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
                         >
                           {exitsCount}
                         </span>

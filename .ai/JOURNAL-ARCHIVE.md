@@ -47279,3 +47279,8 @@ not applied yet. Last permitted default correction commit (4 total) includes
 this batch; targeted delta re-review follows before any ready event. Review
 session began18:10:36UTC;60min wall cap remains. No extra CI rerun is justified
 until this confirmed blocker is fixed and revalidated. No product/gate changes.
+
+<!-- pika-session-log-archive-batch:f6b1349c71653dab699e5225caa6e81b106d7d3f9d6282efd499edfd35ced620 -->
+## 2026-10-13 — Test date rollout compatibility
+
+Production release review reproduced a schema-first gap: legacy return-to-draft commits then rejects the full Test row after migration263 adds test_date. The legacy acknowledgement now accepts a missing, null or validated calendar date while preserving strict unknown-key/status/identity validation. Targeted 16-case regression passes before/after the column; no SQL or UI change. A minimal production compatibility slice must deploy before exact authorized259–263 application, then the cumulative main calendar release may follow. Owner requested production publication and required migration; exact complete pending-set permission remains separate.

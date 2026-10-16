@@ -1,25 +1,21 @@
-# Test browser interactions
+# Test browser shortcuts and exit tracking
 
-- Surface: active student test workspace; teacher Tests grading table exit tooltip.
-- References: existing `student-test-attempt` Pattern Lab composition and teacher/student table fixture; existing Exits tooltip owns the teacher evidence presentation.
-- Roles/viewports/themes: student and teacher, desktop 1440×900 and mobile 390×844, light and dark.
-- States: active attempt with selected text and browser focus loss, return to test, genuine hidden/navigation/window exit, submitted attempt; teacher zero exits with browser evidence, tooltip open and real exit highlight.
-- Primary signal: browser interactions have a separate count/duration and do not increase Exits or Away. No new column, control or warning.
-- Exclusions: in-app translation, automatic identification of a translator, selected-text collection, cross-origin/browser-owned reference internals, new dependencies or migrations.
-- Composite-widget review: preserve workspace focus, reference-frame lifecycle, tooltip keyboard behavior, and test cleanup. No new composite widget.
+- Surface: active student test workspace and teacher Exits tooltip.
+- References: existing `student-test-attempt` Pattern Lab composition, production student test owner in the teacher/student table fixture, and existing teacher Exits tooltip.
+- Roles/viewports/themes: student and teacher; desktop 1440×900 and mobile390×844; light/dark.
+- States: active attempt, selected-text right-click then sustained focus loss/return, genuine route/window exits, submission cleanup; teacher ordinary exit details.
+- Primary signal: translation/browser popup focus loss follows ordinary Exits/Away accounting. Ctrl/Cmd+F stays blocked during active tests and is restored afterward.
+- Exclusions: translation exemption, browser-interaction counters, in-app translation, new columns/controls, dependency or schema changes.
+- Composite review: preserve focus grace, reference access restrictions, cleanup, draft preservation and existing tooltip semantics.
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Attempt and reference layout | ExamDocumentWorkspace / student-test-attempt | reuse | Only event handling changes. |
-| Focus incident classification | exam-mode-incidents reducer | extend | One-use selected-text context-menu intent separates browser focus loss. |
-| Teacher evidence | Existing Exits Tooltip | extend | Show count and duration without adding a competing visual signal. |
+| Exit detection | Existing exam incident reducer | reuse | Restore normal focus-loss handling after right-click. |
+| Teacher evidence | Existing Exits tooltip | reuse | Remove the separate browser-interaction presentation. |
+| Exam workspace | Existing student-test-attempt owner | reuse | Preserve layout and Find blocking. |
 
-Native reproduction on macOS Chrome 155.0.8059.84: selecting a synthetic French phrase, right-clicking and choosing Translate Selection to English opened the native Translated popup. Trusted contextmenu preceded trusted blur by 4.119 seconds; fullscreen and inner/outer dimensions stayed unchanged. The diagnostic visibility state was stale after a macOS fullscreen window switch, so the visible-page guard is verified separately by deterministic browser tests. Diagnostic source/trace: `/tmp/pika-translation-repro/`; only selection length was recorded.
+Owner explicitly removed the selected-text right-click exemption because page focus cannot reliably distinguish native translation UI from an app switch. Remove the exemption and its count/duration transport, summaries and tooltip details. Translation popup focus loss remains subject to the existing600ms grace and standard exit accounting.
 
-The page cannot identify which native menu action was chosen. The exemption is therefore called a browser interaction: selected text inside the exam/reference arms one blur for 15 seconds; the page must remain visible and window-compliant. Focus ends the interaction. Hidden page, navigation/lifecycle and sustained window violations still count normally. Duration is stored through existing focus-event metadata and excluded before ordinary away accounting.
+Verification: the new Ctrl/Cmd regression failed with the exemption and passes after removal; accessible-reference regression verifies ordinary away start/end and ignores internal frame transfers. 8/8 Playwright scenarios passed (51.6s), covering both roles at1440×900 and390×844 in light/dark, draft preservation, reference focus, Find blocking and post-submission cleanup. All8 captures visually inspected. Teacher desktop tooltip shows Exits1/Away-focus1 and no browser-interaction detail; teacher mobile retains the existing hidden telemetry columns. Student mutation fixtures acknowledge events without updating displayed totals; payload assertions prove exit recording.
 
-Verification: 8/8 Playwright scenarios passed again after main sync and frame-focus remediation (1.0m); coordinator inspected both roles at 1440×900 and 390×844 in light/dark, including open desktop teacher tooltip. Browser evidence preserves zero exit styling, ordinary blur remains counted, drafts stay intact, accessible reference menus work, and Find is restored after submission. Teacher mobile retains the existing hidden Exits column; no new mobile treatment.
-
-Capture provenance: 2026-10-16, Playwright Chromium, local http://localhost:3012, `/e2e-fixtures/teacher-student-tables?role=student|teacher&tab=tests`, production owners with synthetic API responses. Final captures render the uncommitted frame-focus remediation on37aa15af (main82a413518 merged); source contents match the ensuing remediation commit identified in PR1606. Current-conformance evidence is under ignored `test-results/student-test-find.ui-patte-*`: `browser-interaction-return.png`, `reference-find-blocked.png`, and `teacher-browser-evidence.png`. References: existing student-test-attempt workspace and teacher Exits tooltip at matching viewport/theme. No new pattern, decorative signal or layout change; text remains legible and document width does not overflow. Native popup evidence is supplemental; browser-owned UI is not available in headless Playwright.
-
-Independent review found that native focus loss inside a focused reference dispatches on the frame window. The correction observes focus/blur on the same accessible exam documents as context menus and ignores internal transfers while the top document retains focus. A component regression fails before the correction; E2E now uses trusted frame click, waits past the grace period, then dispatches frame-owned popup blur/focus instead of top-window substitutes. Both roles/themes/viewports were recaptured and visually inspected after the main UI sync.
+Capture provenance: 2026-10-16, Playwright Chromium, local http://localhost:3012, `/e2e-fixtures/teacher-student-tables?role=student|teacher&tab=tests`; production owners with synthetic APIs. Uncommitted removal on09c897644, source-identical to ensuing removal commit identified in PR1606. Ignored artifacts: `test-results/student-test-find.ui-patte-*/popup-exit-recorded.png`, `reference-find-blocked.png`, `teacher-popup-exit.png`. References are the existing test workspace and Exits tooltip at matching viewport/theme. Text is legible, drafts remain mounted, no document-width overflow. Prior exemption captures are historical. Native Chrome was not repeated because this removal restores ordinary focus-loss classification; the existing reproduction established that the popup emits blur.

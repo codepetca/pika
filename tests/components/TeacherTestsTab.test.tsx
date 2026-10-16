@@ -3109,8 +3109,6 @@ describe('TeacherTestsTab', () => {
     })
     const focusSummary = {
       exit_count: 0,
-      browser_interaction_count: 2,
-      browser_interaction_seconds: 8,
       away_count: 0,
       away_total_seconds: 0,
       route_exit_attempts: 0,
@@ -3136,7 +3134,6 @@ describe('TeacherTestsTab', () => {
     const row = await screen.findByTestId('test-grading-student-row-student-1')
     expect(screen.queryByTestId('test-exit-detected-alert')).not.toBeInTheDocument()
     expect(within(row).getByLabelText(/Exits 0\./)).toHaveClass('text-text-muted')
-    expect(within(row).getByLabelText(/Exits 0\./)).toHaveAccessibleName(/Browser interactions 2, duration 0:08, excluded from exits/)
 
     await act(async () => {
       intervalCallback?.()

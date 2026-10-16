@@ -202,34 +202,7 @@ describe('StudentTestsTab exam mode', () => {
     .filter(([url]: [string]) => url.endsWith('/focus-events'))
     .map(([, options]) => JSON.parse(options.body))
 
-  function selectQuestionForContextMenu() {
-    const question = screen.getByText('2 + 2 = ?')
-    const range = document.createRange()
-    range.selectNodeContents(question)
-    window.getSelection()!.removeAllRanges()
-    window.getSelection()!.addRange(range)
-    fireEvent.contextMenu(question)
-  }
-
-  it('records a selected-text browser popup separately and keeps the next ordinary blur detectable', async () => {
-    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
-    await renderActiveTest()
-    selectQuestionForContextMenu()
-    fireEvent(window, new Event('blur'))
-    await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
-    expect(focusWrites()).toEqual([])
-    await act(async () => { fireEvent(window, new Event('focus')) })
-    expect(focusWrites()).toEqual([expect.objectContaining({
-      event_type: 'away_end',
-      metadata: expect.objectContaining({ source: 'browser_interaction', interaction_type: 'selected_text_context_menu', duration_ms: 20_000 }),
-    })])
-    expect(JSON.stringify(focusWrites())).not.toContain('2 + 2')
-    fireEvent(window, new Event('blur'))
-    await act(async () => { await vi.advanceTimersByTimeAsync(800) })
-    expect(focusWrites().map(body => body.event_type)).toEqual(['away_end', 'away_start'])
-  })
-
-  it('tracks popup focus on accessible reference windows and ignores internal focus transfers', async () => {
+  it('counts selected-text popup exits in accessible references and ignores internal focus transfers', async () => {
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
     const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
     await renderActiveTest()
@@ -252,46 +225,16 @@ describe('StudentTestsTab exam mode', () => {
     hasFocus.mockReturnValue(false)
     fireEvent(referenceWindow, new Event('blur'))
     await act(async () => { await vi.advanceTimersByTimeAsync(900) })
-    expect(focusWrites()).toEqual([])
+    expect(focusWrites().map(body => body.event_type)).toEqual(['away_start'])
     hasFocus.mockReturnValue(true)
     await act(async () => { fireEvent(referenceWindow, new Event('focus')) })
-    expect(focusWrites()).toEqual([expect.objectContaining({
-      event_type: 'away_end', metadata: expect.objectContaining({ source: 'browser_interaction', duration_ms: 900 }),
-    })])
+    expect(focusWrites().map(body => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusWrites()[1].metadata).toMatchObject({ source: 'focus', duration_ms: 900 })
 
     hasFocus.mockReturnValue(false)
     fireEvent(referenceWindow, new Event('blur'))
     await act(async () => { await vi.advanceTimersByTimeAsync(800) })
-    expect(focusWrites().map(body => body.event_type)).toEqual(['away_end', 'away_start'])
-  })
-
-  it.each(['visibility', 'route', 'window'] as const)('keeps %s exits detectable while a selected-text popup has focus', async source => {
-    let visible: DocumentVisibilityState = 'visible'
-    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visible)
-    await renderActiveTest()
-    selectQuestionForContextMenu()
-    fireEvent(window, new Event('blur'))
-    await act(async () => { await vi.advanceTimersByTimeAsync(900) })
-    await act(async () => {
-      if (source === 'visibility') {
-        visible = 'hidden'
-        fireEvent(document, new Event('visibilitychange'))
-      } else if (source === 'route') {
-        window.dispatchEvent(new CustomEvent(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, {
-          detail: { classroomId: classroom.id, source: 'tab_switch' },
-        }))
-      } else {
-        Object.defineProperty(window, 'innerWidth', { configurable: true, value: 500 })
-        Object.defineProperty(window, 'innerHeight', { configurable: true, value: 300 })
-        fireEvent(window, new Event('resize'))
-        await vi.advanceTimersByTimeAsync(1600)
-      }
-    })
-    const writes = focusWrites()
-    expect(writes[0]).toMatchObject({ event_type: 'away_end', metadata: { source: 'browser_interaction' } })
-    expect(writes[0].metadata.duration_ms).toBeGreaterThanOrEqual(900)
-    expect(writes[1]).toMatchObject({ event_type: source === 'visibility' ? 'away_start' : source === 'route' ? 'route_exit_attempt' : 'window_unmaximize_attempt' })
-    expect(writes[0].incident_id).not.toBe(writes[1].incident_id)
+    expect(focusWrites().map(body => body.event_type)).toEqual(['away_start', 'away_end', 'away_start'])
   })
 
   it('keeps the pending draft debounce through parent renders and eventually saves once', async () => {
@@ -3054,7 +2997,14 @@ describe('StudentTestsTab exam mode', () => {
     })
     expect(focusBodies).toEqual([])
 
-    // Blocking Find must not grant an exemption for a real departure afterward.
+    // A selected-text context menu (including Chrome translation) grants no exemption.
+    const question = screen.getByText('2 + 2 = ?')
+    const selection = document.getSelection()!
+    const range = document.createRange()
+    range.selectNodeContents(question)
+    selection.removeAllRanges()
+    selection.addRange(range)
+    fireEvent.contextMenu(question)
     fireEvent(window, new Event('blur'))
     await act(async () => {
       vi.advanceTimersByTime(800)
@@ -3062,6 +3012,12 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusBodies).toEqual(expect.arrayContaining([
       expect.objectContaining({ event_type: 'away_start' }),
     ]))
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    expect(focusBodies.map(body => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
+    expect(focusBodies[1].metadata.duration_ms).toBe(800)
+    expect(focusBodies.some(body => body.metadata?.source === 'browser_interaction')).toBe(false)
+    selection.removeAllRanges()
 
     unmount()
     expect(window.dispatchEvent(findShortcut())).toBe(true)

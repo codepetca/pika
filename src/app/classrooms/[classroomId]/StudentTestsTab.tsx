@@ -13,7 +13,6 @@ import {
   mergeTestFocusSummaries,
 } from '@/lib/tests'
 import { blockExamBrowserFind } from '@/lib/exam-mode-browser-find'
-import { listenForExamContextMenus } from '@/lib/exam-mode-context-menu'
 import { observeExamDocuments } from '@/lib/exam-mode-documents'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
@@ -33,7 +32,6 @@ import { getTestDocumentImageType, isPdfTestDocument, normalizeTestDocuments } f
 import {
   createExamIncidentState,
   EXAM_FOCUS_LOSS_GRACE_MS,
-  hasCurrentBrowserInteractionIntent,
   reduceExamIncident,
   type ExamIncidentEffect,
   type ExamIncidentEvent,
@@ -812,12 +810,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
           { source: effect.source, duration_ms: effect.durationMs },
           commonOptions
         )
-      } else if (effect.type === 'browser_interaction_end') {
-        enqueueFocusEvent(
-          'away_end',
-          { source: 'browser_interaction', interaction_type: 'selected_text_context_menu', duration_ms: effect.durationMs },
-          commonOptions
-        )
       } else if (effect.type === 'window_exit') {
         enqueueFocusEvent(
           'window_unmaximize_attempt',
@@ -848,8 +840,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
 
   const shouldSuppressForDocInteraction = useCallback((source?: string) => {
     if (!focusEnabledRef.current) return false
-    const state = examIncidentStateRef.current
-    if (state.browserInteraction || hasCurrentBrowserInteractionIntent(state, Date.now())) return false
     if (source && UNSUPPRESSED_ROUTE_EXIT_SOURCES.has(source)) return false
     return Date.now() <= docsInteractionSuppressionUntilRef.current
   }, [])
@@ -1354,20 +1344,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [focusEnabled])
 
   useEffect(() => {
-    if (!focusEnabled || !testsRegionRef.current) return
-    return listenForExamContextMenus(window, testsRegionRef.current, {
-      onContextMenu: hasSelection => applyExamIncidentEvent({
-        type: 'context_menu',
-        atMs: Date.now(),
-        incidentId: createExamTelemetryId('incident'),
-        hasSelection,
-        isCompliant: document.visibilityState === 'visible' && getExamWindowComplianceSnapshot().isCompliant,
-      }),
-      onCancel: () => applyExamIncidentEvent({ type: 'cancel_browser_intent', atMs: Date.now() }),
-    })
-  }, [applyExamIncidentEvent, focusEnabled])
-
-  useEffect(() => {
     if (!focusEnabled) return
 
     const handleBlur = () => {
@@ -1375,11 +1351,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
       if (document.hasFocus()) return
       if (shouldSuppressForDocInteraction()) return
       clearPendingBlurTimeout()
-      applyExamIncidentEvent({
-        type: 'blur', atMs: Date.now(),
-        isCompliant: document.visibilityState === 'visible' && getExamWindowComplianceSnapshot().isCompliant,
-      })
-      if (examIncidentStateRef.current.browserInteraction) return
+      applyExamIncidentEvent({ type: 'blur', atMs: Date.now() })
       pendingBlurTimeoutRef.current = window.setTimeout(() => {
         pendingBlurTimeoutRef.current = null
         applyExamIncidentEvent({

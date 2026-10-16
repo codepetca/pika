@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 — Test date rollout compatibility
-
-Production release review reproduced a schema-first gap: legacy return-to-draft commits then rejects the full Test row after migration263 adds test_date. The legacy acknowledgement now accepts a missing, null or validated calendar date while preserving strict unknown-key/status/identity validation. Targeted 16-case regression passes before/after the column; no SQL or UI change. A minimal production compatibility slice must deploy before exact authorized259–263 application, then the cumulative main calendar release may follow. Owner requested production publication and required migration; exact complete pending-set permission remains separate.
-
 ## 2026-10-13 — Week agenda and Test dates live in production
 
 Owner approved production259–263 once from a7e033952611ab03f80c7bd8c0f776d7f2302cdb/digest5b1577215b69a5e7d8361eec08c651dda3f0aace59393ceb6192b3ef22b4f79f. Preview38486242383/history258 and catalog preflight passed; compatibility1584(main)/1585(production) passed independent review and all10 CI jobs. Backport productioneeb66a4d6 deployed READY/dpl_FBzFiXRRiKnZQRwsGY5tQuPejKQ8 before one apply38491403501: applied-verified259–263/history263. Ten function bodies/owners/search paths/ACLs match reviewed source (private unpublish core intentionally invoker); tests.test_date nullable date/no default. No production test fixtures, data deletion or activation changes.
@@ -392,3 +388,24 @@ on final fixed SHA (4turns total after follow-up,2batches). Initial translation
 review17:49–17:52; exact reviewer elapsed/tokens unknown (92s final investigation
 interval only). Full local gate and targeted verdict recorded in PR/lifecycle
 metadata; no merge/deploy authority inferred. Synthetic diagnostic server stopped.
+
+## 2026-10-16 — Owner removes translation exemption (PR1606)
+
+Owner explicitly revoked selected-text right-click exemption after app-switch
+loophole discussion. Returned PR1606 to draft, cancelled obsolete CI38943808374.
+Removed context-menu listener/intent/reducer exemption, browser-interaction
+metadata emission, summary fields/counting, and teacher tooltip detail. Restored
+existing incident/summary behavior; no migration/data cleanup (unmerged feature).
+Preserved Ctrl/Cmd+F blocking and accessible-frame focus observation so popup
+blur in references is recorded normally; internal focus transfers stay ignored.
+Red regression proved right-click suppressed exit before removal; green covers
+ordinary away start/end and duration after selection, parent and reference.
+A full-suite selection stub leaked from an older test; regression now uses native
+document.getSelection to avoid that stub. No production workaround added.
+8/8 browser cases pass51.6s; all8 role/theme/viewport captures visually inspected.
+Audit passes. Final focused gate and fixed-SHA delta review in progress. No
+implementation delegation (small coherent removal); one Sol/medium reviewer
+planned for standard behavioral delta, PR review turn5 (prior4), current user
+change1wave/0fix batches. Weekly46% remaining, storage healthy317GB; attributable
+worker/coordinator tokens unknown. Final reviewed SHA/checks in PR and local
+lifecycle records. No merge, deployment, database or in-app translation work.
