@@ -26,7 +26,6 @@ No exit: docs/guidance/contextual-test-publication.md.
 253#1524 OFF (CI37715526569 PASS).
 Quota notices: upgrade/tier only; creation-error deferred.
 
-Setup: docs/dev-workflow.md. Worktrees: `$HOME/.codex/worktrees/pika/`, `$HOME/.codex/worktrees/<id>/pika`.
-Env: `$HOME/Repos/.env/pika/.env.local` or `.env.example`.
+Setup/worktrees/env: docs/dev-workflow.md.
 Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
 individual-student purge ON; other purge/Pal OFF.
