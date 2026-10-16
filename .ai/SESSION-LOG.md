@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Pre-navigation original-body validation prepared
-
-Human approved source-only synthetic timing change and review, not a new run.
-Fresh private8ad06f8f7a3c source34 retains one original POST body invocation and
-exact byte/JSON validation, then settles that same task through the original
-deadline gate before a separate navigation evaluation. The owned document gate
-requires positive validated-task admission and pending0; empty tasks alone do
-not authorize unsolicited navigation. Existing request/ownership/privacy/deadline
-bounds, diagnostics and seven-module packaging remain unchanged. TDD old-order
-RED, new13direct/14serialized/35observability/21package/19privacy checks PASS;
-root independently replayed and verified compiler/inverse/import closure. No
-semantic full-graph TypeScript or native claim. Firstfreeze22:39:25UTC, entry
-8f38845b...; acceptance/runtime absent, oldSPENT unchanged. Targeted independent
-review45 next; author handoff calls44, but actual44 already completed metadata
-scope, counters never reset. PR1581 remains draft with full gate still failed.
-Production/shared-local/cutover/provider holds remain; no app/auth/source rollout.
-
 ## 2026-10-13 Post-publication deadline gap corrected in verifier source
 
 Targeted review45 completed source34/continuity scope with one blocking P2:
@@ -911,3 +894,27 @@ before/exact/after-end regressions reproduced4fail/2pass then allpass; affected
 131tests PASS. Targeted review102 and final gate follow before the one synthetic
 browser attempt. Prior full gate3526PASS/8skip and allstaticchecks passed; Chrome
 diagnostic pin only is155.0.8059.84, signatureverified. All holds unchanged.
+
+Review102 CLEAN targeted deadline correction/privateinvoker; finalgate3532PASS/
+8skip plus allstatic/type/lint PASS. Code0890ac28 pushed to draft1581. ONE synthetic
+browser attempt55881 PASS (s9iNPr):3HTTP/1JSON/1originalbody, bothholds+validated
+departure, zero unexpectedrequests/pending/sockets, context/server/ownedprocess
+closure PASS; no nativefailure. Independent43385 confirms21sources/dependencies
+unchanged; freeze released. Kernel64ms and browser13.441s checks prove narrow
+contracts, not realPika/fullapp/visual acceptance. Both attempts spent/pass;
+historical failures unchanged. Full-app pin still.79; needs reviewedbinding and
+separateboundedrun. No DB/production changes. Cumulative102reviews/59batches,
+originalclocks/waiver and allholds retained. Final receipts in private handoff.
+
+## 2026-10-15 — Fresh full-app lifecycle binding
+
+User authorized one bounded real-Pika rehearsal after narrow kernel/browser checks
+passed. Batch60 binds full-app Chrome155.0.8059.84 (signature/hash verified), current
+process helper and fresh exclusive one-shot wrapper; no old attempt is retried.
+Screenshot-only positioning correction delegated to Sol6.1/high; root handles
+binding, CPU gates and sole native operation. All production/shared-local/provider/
+rollout holds remain; frozen app21e755d3 and migrations001–262 unchanged. Targeted
+review103 follows clean CPU checks; historical102reviews/59batches and clocks
+retained under owner routine-stop waiver. Weekly66%remaining; effective worker
+configuration/tokens unknown. Current production lines above are this branch's
+historical baseline, not an assertion against newer unrelated release work.

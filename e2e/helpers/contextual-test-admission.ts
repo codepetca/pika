@@ -7,8 +7,8 @@ import { contextualTestStartupBinding } from './contextual-test-startup'
 import { assertContextualTestUnusedRunnerOutput } from '../../scripts/contextual-test-rehearsal-launch'
 
 export const CONTEXTUAL_TEST_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-// Owner-approved installed Chrome155.0.8059.79; an update fails closed, not repinned.
-export const CONTEXTUAL_TEST_CHROME_SHA256 = 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f'
+// Owner-approved installed Chrome155.0.8059.84; an update fails closed, not repinned.
+export const CONTEXTUAL_TEST_CHROME_SHA256 = '63ee57066ef61169445ded279701d974ad23c805a60b8f77a4b8776183ac58fb'
 export function contextualTestConfigBinding() {
   try {
     // Playwright reloads config in a worker after creating its own output. This

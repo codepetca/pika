@@ -306,20 +306,45 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       assert.equal(await gallery.count(), 1)
       await page.waitForFunction(() => document.fonts.status === 'loaded', undefined, { timeout: fixedTimeout() })
       const observed = await gallery.evaluate(element => {
+        // Preserve real sticky chrome and editor scrolling. Locator screenshots
+        // may scroll a tall gallery back under the mobile navigation; capture a
+        // viewport-bounded clip instead, after ordinary document scrolling.
+        const navs = document.querySelectorAll('nav[aria-label="Pattern Lab sections"]')
+        if (navs.length !== 1) throw new Error('Private font capture navigation')
+        const nav = navs[0], style = getComputedStyle(nav)
+        if (style.position !== 'sticky') throw new Error('Private font capture navigation')
+        const inset = Number.parseFloat(style.top), height = nav.getBoundingClientRect().height
+        if (!Number.isFinite(inset) || height <= 0) throw new Error('Private font capture navigation')
+        const original = element.getBoundingClientRect()
+        window.scrollTo({ top: window.scrollY + original.top - (inset + height + 8), behavior: 'instant' })
         const editor = element.querySelector('.tiptap.ProseMirror')
-        const box = element.getBoundingClientRect()
+        const box = element.getBoundingClientRect(), heading = element.querySelector('h2')
+        const clip = { x: Math.ceil(box.left), y: Math.ceil(box.top),
+          width: Math.floor(box.right) - Math.ceil(box.left),
+          height: Math.floor(Math.min(box.bottom, window.innerHeight)) - Math.ceil(box.top) }
+        const inside = (node: Element) => {
+          const rect = node.getBoundingClientRect()
+          return rect.height > 0 && rect.top >= clip.y && rect.bottom <= clip.y + clip.height
+            && rect.left >= clip.x && rect.right <= clip.x + clip.width
+        }
+        // History fixtures intentionally contain 40 scrollable paragraphs. Their
+        // first two blocks prove representative heading/body typography; editing
+        // and empty fixtures have one paragraph, which must fit in full.
+        const blocks = editor ? Array.from(editor.querySelectorAll(':scope > *')).slice(0, 2) : []
         return { dark: document.documentElement.classList.contains('dark'), ready: document.fonts.status === 'loaded',
+          clip, positioned: box.top >= nav.getBoundingClientRect().bottom + 1 && clip.x >= 0 && box.right <= window.innerWidth && clip.y >= 0
+            && clip.width > 0 && clip.height > 0 && !!heading && inside(heading) && blocks.length > 0 && blocks.every(inside),
           fits: element.scrollWidth <= element.clientWidth + 1 && box.width <= window.innerWidth + 1
             && !!editor && editor.scrollWidth <= editor.clientWidth + 1,
           editable: editor?.getAttribute('contenteditable'), text: editor?.textContent?.trim(),
           preview: !!element.querySelector('[data-history-preview-mode="focused"], [data-history-preview-mode="locked"]') }
       })
-      assert.equal(observed.dark, shot.theme === 'dark'); assert(observed.ready && observed.fits)
+      assert.equal(observed.dark, shot.theme === 'dark'); assert(observed.ready && observed.fits && observed.positioned)
       assert.equal(observed.editable, shot.state === 'editing' || shot.state === 'empty' ? 'true' : 'false')
       assert.equal(observed.preview, shot.state === 'preview')
       if (shot.state === 'editing') assert.equal(observed.text, contextualTestFontEditingText)
       if (shot.state === 'empty') assert.equal(observed.text, '')
-      const bytes = await gallery.screenshot({ type: 'png', timeout: fixedTimeout() })
+      const bytes = await page.screenshot({ type: 'png', fullPage: false, clip: observed.clip, timeout: fixedTimeout() })
       save(label, 'png', bytes, shot.fontReference); fontShots++
     },
   }

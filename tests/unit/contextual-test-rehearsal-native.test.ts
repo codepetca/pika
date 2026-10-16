@@ -577,7 +577,7 @@ describe('fresh execution seal (CPU only, no admission)', () => {
   it.each(['controller', 'execution'])('real poisoned transport cannot skip a captured app through the actual %s cleanup caller', async caller => {
     vi.useFakeTimers()
     const { admission, seal } = sealFixture(), node = realpathSync(process.execPath), imageId = 'sha256:' + 'a'.repeat(64)
-    const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f' } }
+    const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: '63ee57066ef61169445ded279701d974ad23c805a60b8f77a4b8776183ac58fb' } }
     const base = { ...admission, appDir: process.cwd(), dependencies: { ...admission.dependencies, root: resolve('node_modules') } }
     const reviewed = { ...seal, requiredImages: CONTEXTUAL_TEST_REQUIRED_IMAGES.map(ref => ({ ref, id: imageId })) }
     const accepted = contextualTestExecutionDigest(base, actualPins, reviewed), input = { ...base, review: { ...base.review, manifestSha256: accepted } }
@@ -650,7 +650,7 @@ describe('fresh execution seal (CPU only, no admission)', () => {
   it.each(['stable', 'source', 'dependencies'])('checks unchanged state through real pinned commands after native cleanup; %s', async change => {
     vi.useFakeTimers()
     const { admission, seal } = sealFixture(), node = realpathSync(process.execPath), imageId = 'sha256:' + 'a'.repeat(64)
-    const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f' } }
+    const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: '63ee57066ef61169445ded279701d974ad23c805a60b8f77a4b8776183ac58fb' } }
     const base = { ...admission, appDir: process.cwd(), runner: { ...admission.runner, repository: process.cwd() },
       dependencies: { ...admission.dependencies, root: resolve('node_modules') } }
     const reviewed = { ...seal, requiredImages: CONTEXTUAL_TEST_REQUIRED_IMAGES.map(ref => ({ ref, id: imageId })) }

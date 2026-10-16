@@ -320,7 +320,7 @@ export async function verifyContextualTestNativeReadiness(pins: ContextualTestNa
   assert.equal(process.platform, 'darwin')
   for (const key of ['node','ps','python','lsof','sandbox','codesign','chrome','docker'] as const) verifyContextualTestBinary(pins[key])
   assert.equal(pins.chrome.path, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
-  assert.equal(pins.chrome.sha256, 'fbeec33e75ea8da7bdb6e48f987ed32f5089c49d86013046e87319f5df11c13f')
+  assert.equal(pins.chrome.sha256, '63ee57066ef61169445ded279701d974ad23c805a60b8f77a4b8776183ac58fb')
   assert.equal(sha(readFileSync(pins.helper.path)), '4b5d355992525ce7eeca1d03e7a1170a63bf71a3c6be82f3d8d43c79c5a3c53b')
   await control.probe(pins.codesign, ['--verify','--deep','--strict',dirname(dirname(dirname(pins.chrome.path)))], input.deadline)
   assert.deepEqual(input.requiredImages.map(image => image.ref).sort(), [...CONTEXTUAL_TEST_REQUIRED_IMAGES].sort())

@@ -47486,3 +47486,21 @@ is not rewritten by this separate success. PR1581 stays draft; native/app
 acceptance and full failed PR gate remain unresolved. Next decision must address
 body-read/navigation ordering before another run; no source criteria changed.
 Original review43/fix33 and production/shared-local/cutover/provider holds remain.
+
+<!-- pika-session-log-archive-batch:ca1ac748bc48ff64d29a2a9cab010346d7c2da31c547f67386d02b4edc1bf7c4 -->
+## 2026-10-13 Pre-navigation original-body validation prepared
+
+Human approved source-only synthetic timing change and review, not a new run.
+Fresh private8ad06f8f7a3c source34 retains one original POST body invocation and
+exact byte/JSON validation, then settles that same task through the original
+deadline gate before a separate navigation evaluation. The owned document gate
+requires positive validated-task admission and pending0; empty tasks alone do
+not authorize unsolicited navigation. Existing request/ownership/privacy/deadline
+bounds, diagnostics and seven-module packaging remain unchanged. TDD old-order
+RED, new13direct/14serialized/35observability/21package/19privacy checks PASS;
+root independently replayed and verified compiler/inverse/import closure. No
+semantic full-graph TypeScript or native claim. Firstfreeze22:39:25UTC, entry
+8f38845b...; acceptance/runtime absent, oldSPENT unchanged. Targeted independent
+review45 next; author handoff calls44, but actual44 already completed metadata
+scope, counters never reset. PR1581 remains draft with full gate still failed.
+Production/shared-local/cutover/provider holds remain; no app/auth/source rollout.

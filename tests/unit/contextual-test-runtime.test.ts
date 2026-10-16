@@ -209,6 +209,7 @@ afterEach(async () => {
   for (const handle of handles.splice(0)) { try { await handle.close('failed') } catch { /* Expected fixed failed receipt or already closed. */ } }
   for (const output of outputs.splice(0)) rmSync(output, { recursive: true })
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
 })
 async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Parameters<typeof createContextualTestRuntime>[2]) {
   const outputDir = realpathSync(mkdtempSync(join(tmpdir(), 'contextual-runtime-cpu-'))); outputs.push(outputDir)
@@ -303,19 +304,59 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       const label = 'font-ownerTeacher-desktop-light-preview'
       await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
       await page.goto(`${plan.appOrigin}/pattern-lab?role=teacher#history-preview`, { waitUntil: 'load' })
-      const observation = { dark: false, ready: true, fits: true, editable: 'false', text: 'Fixed preview', preview: true }
+      const observation = { dark: false, ready: true, fits: true, positioned: true,
+        clip: { x: 16, y: 180, width: 358, height: 500 }, editable: 'false', text: 'Fixed preview', preview: true }
       const gallery = { waitFor: vi.fn(async () => {}), count: vi.fn(async () => 1), evaluate: vi.fn(async () => observation), screenshot }
-      Object.assign(page, { viewportSize: () => ({ width: 1440, height: 900 }), locator: (selector: string) => {
+      Object.assign(page, { screenshot, viewportSize: () => ({ width: 1440, height: 900 }), locator: (selector: string) => {
         expect(selector).toBe('#history-preview[data-testid="history-preview-gallery"]'); return gallery
       } })
       s.browser.contexts[0].page.waitForFunction.mockResolvedValue(undefined)
       observation.dark = true; await expect(s.runtime.captureFont(label, page)).rejects.toThrow(); expect(screenshot).not.toHaveBeenCalled()
       observation.dark = false; observation.fits = false; await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
-      observation.fits = true; await s.runtime.captureFont(label, page)
+      observation.fits = true; observation.positioned = false; await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
+      observation.positioned = true; await s.runtime.captureFont(label, page)
+      expect(screenshot).toHaveBeenCalledWith(expect.objectContaining({ fullPage: false, clip: observation.clip }))
       await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
     })
     await expect(s.close('passed')).rejects.toThrow()
     expect(s.receipt().artifacts).toEqual([expect.objectContaining({ label: 'font-ownerTeacher-desktop-light-preview', kind: 'png', fontReference: 'teacher-history-viewer' })])
+  })
+  it.each([
+    { height: 500, contentBottom: 300, blocked: false, passes: true },
+    { height: 1200, contentBottom: 300, blocked: false, passes: true },
+    { height: 1200, contentBottom: 850, blocked: false, passes: false },
+    { height: 500, contentBottom: 300, blocked: true, passes: false },
+  ])('positions a mobile font capture below real sticky chrome and fails closed on clipped evidence (%j)', async ({ height, contentBottom, blocked, passes }) => {
+    const s = await setup(), screenshot = vi.fn(async () => Buffer.from([137,80,78,71,13,10,26,10,0]))
+    await s.runtime.withActor('ownerTeacher', async page => {
+      await page.goto(`${plan.appOrigin}/pattern-lab?role=teacher#history-preview`, { waitUntil: 'load' })
+      let scrollY = 900
+      const rect = (top: number, bottom: number) => ({ top, bottom, left: 16, right: 374, width: 358, height: bottom - top })
+      const heading = { getBoundingClientRect: () => rect(1000 - scrollY + 16, 1000 - scrollY + 44) }
+      const blocks = [{ getBoundingClientRect: () => rect(1000 - scrollY + 150, 1000 - scrollY + contentBottom) }]
+      const editor = { scrollWidth: 326, clientWidth: 326, getAttribute: () => 'false', textContent: 'Fixed preview', querySelectorAll: () => blocks }
+      let navReads = 0
+      const nav = { getBoundingClientRect: () => rect(8, blocked && navReads++ > 0 ? 240 : 172) }
+      const element = { scrollWidth: 358, clientWidth: 358, getBoundingClientRect: () => rect(1000 - scrollY, 1000 - scrollY + height),
+        querySelector: (selector: string) => selector === '.tiptap.ProseMirror' ? editor : selector === 'h2' ? heading : {},
+      }
+      const scrollTo = vi.fn((options: { top: number }) => { scrollY = options.top })
+      vi.stubGlobal('window', { innerWidth: 390, innerHeight: 844, get scrollY() { return scrollY }, scrollTo })
+      vi.stubGlobal('document', { fonts: { status: 'loaded' }, documentElement: { classList: { contains: () => false } }, querySelectorAll: () => [nav] })
+      vi.stubGlobal('getComputedStyle', () => ({ position: 'sticky', top: '8px', height: '164px' }))
+      const gallery = { waitFor: async () => {}, count: async () => 1,
+        evaluate: async (callback: (value: unknown) => unknown) => callback(element), screenshot: vi.fn() }
+      Object.assign(page, { screenshot, viewportSize: () => ({ width: 390, height: 844 }), locator: () => gallery })
+      s.browser.contexts[0].page.waitForFunction.mockResolvedValue(undefined)
+      const capturing = s.runtime.captureFont('font-ownerTeacher-mobile-light-preview', page)
+      if (passes) {
+        await capturing
+        expect(screenshot).toHaveBeenCalledWith(expect.objectContaining({ fullPage: false,
+          clip: { x: 16, y: 180, width: 358, height: Math.min(height, 664) } }))
+      } else { await expect(capturing).rejects.toThrow(); expect(screenshot).not.toHaveBeenCalled() }
+      expect(scrollTo).toHaveBeenCalledWith({ top: 820, behavior: 'instant' })
+      expect(gallery.screenshot).not.toHaveBeenCalled()
+    })
   })
   it('aborts a foreign stylesheet without dispatch, retains only fixed labels and closes the context', async () => {
     const s = await setup()
