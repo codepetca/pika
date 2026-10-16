@@ -16,9 +16,7 @@ Exits: docs/guidance/classroom-access-and-entitlements-roadmap.md.
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
-Loader/cleanup proofs PASS; no app exit.
-First login/cleanup PASS; empty placeholder fails; Tiptap stale-class CPU repro.
-Visuals incomplete; exact placeholder-selector candidate prepared; holds unchanged.
+Login/cleanup PASS; Tiptap placeholder candidate awaits visuals; no app exit.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.
@@ -26,6 +24,7 @@ No exit: docs/guidance/contextual-test-publication.md.
 253#1524 OFF (CI37715526569 PASS).
 Quota notices: upgrade/tier only; creation-error deferred.
 
-Setup/worktrees/env: docs/dev-workflow.md.
+Setup: docs/dev-workflow.md. Worktrees: `$HOME/.codex/worktrees/pika/`, `$HOME/.codex/worktrees/<id>/pika`.
+Env: `$HOME/Repos/.env/pika/.env.local` or `.env.example`.
 Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
 individual-student purge ON; other purge/Pal OFF.
