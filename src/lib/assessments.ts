@@ -265,6 +265,12 @@ export function mergeAssessmentFocusSummaries(
 
   return {
     exit_count: Math.max(current.exit_count, incoming.exit_count),
+    ...(current.browser_interaction_count !== undefined || incoming.browser_interaction_count !== undefined
+      ? { browser_interaction_count: Math.max(current.browser_interaction_count ?? 0, incoming.browser_interaction_count ?? 0) }
+      : {}),
+    ...(current.browser_interaction_seconds !== undefined || incoming.browser_interaction_seconds !== undefined
+      ? { browser_interaction_seconds: Math.max(current.browser_interaction_seconds ?? 0, incoming.browser_interaction_seconds ?? 0) }
+      : {}),
     away_count: Math.max(current.away_count, incoming.away_count),
     away_total_seconds: Math.max(current.away_total_seconds, incoming.away_total_seconds),
     route_exit_attempts: Math.max(current.route_exit_attempts, incoming.route_exit_attempts),
@@ -323,6 +329,7 @@ export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFo
   const versionedWindowIncidents = new Set<string>()
   const versionedAwayStartedAt = new Map<string, number>()
   const versionedAwayEnded = new Set<string>()
+  const browserInteractions = new Set<string>()
 
   for (const event of sorted) {
     const eventAtMs = getEventAtMs(event)
@@ -335,6 +342,21 @@ export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFo
         : ''
     const incidentKey = incidentId ? `${event.session_id || 'session'}:${incidentId}` : ''
     const isVersionedIncident = Boolean(incidentKey)
+
+    // A completed browser-owned interaction is evidence, separate from away/exit accounting.
+    if (
+      event.event_type === 'away_end' &&
+      metadata.source === 'browser_interaction' &&
+      metadata.interaction_type === 'selected_text_context_menu'
+    ) {
+      const durationMs = metadata.duration_ms
+      if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0) continue
+      if (incidentKey && browserInteractions.has(incidentKey)) continue
+      if (incidentKey) browserInteractions.add(incidentKey)
+      summary.browser_interaction_count = (summary.browser_interaction_count ?? 0) + 1
+      summary.browser_interaction_seconds = (summary.browser_interaction_seconds ?? 0) + durationMs / 1000
+      continue
+    }
 
     if (isVersionedIncident && event.event_type !== 'away_end') {
       versionedExitIncidents.add(incidentKey)

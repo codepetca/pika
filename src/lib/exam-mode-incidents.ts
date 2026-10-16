@@ -1,5 +1,6 @@
 export const EXAM_FOCUS_LOSS_GRACE_MS = 600
 export const EXAM_INCIDENT_CORRELATION_MS = 1_500
+export const EXAM_BROWSER_CONTEXT_MENU_INTENT_MS = 15_000
 
 type AwaySource = 'visibility' | 'blur'
 
@@ -17,10 +18,20 @@ export type ExamIncidentState = {
   pendingBlurAtMs: number | null
   activeIncident: ExamIncident | null
   recentIncident: ExamIncident | null
+  browserIntent: { incidentId: string; expiresAtMs: number } | null
+  browserInteraction: { id: string; startedAtMs: number } | null
 }
 
 export type ExamIncidentEvent =
-  | { type: 'blur'; atMs: number }
+  | { type: 'blur'; atMs: number; isCompliant?: boolean }
+  | {
+      type: 'context_menu'
+      atMs: number
+      incidentId: string
+      hasSelection: boolean
+      isCompliant: boolean
+    }
+  | { type: 'cancel_browser_intent'; atMs: number }
   | { type: 'focus'; atMs: number; incidentId: string }
   | { type: 'blur_timeout'; atMs: number; incidentId: string }
   | { type: 'visibility_hidden'; atMs: number; incidentId: string }
@@ -36,6 +47,12 @@ export type ExamIncidentEvent =
   | { type: 'reset'; atMs: number }
 
 export type ExamIncidentEffect =
+  | {
+      type: 'browser_interaction_end'
+      incidentId: string
+      occurredAtMs: number
+      durationMs: number
+    }
   | {
       type: 'away_start'
       incidentId: string
@@ -68,6 +85,37 @@ export function createExamIncidentState(): ExamIncidentState {
     pendingBlurAtMs: null,
     activeIncident: null,
     recentIncident: null,
+    browserIntent: null,
+    browserInteraction: null,
+  }
+}
+
+export function hasCurrentBrowserInteractionIntent(state: ExamIncidentState, atMs: number): boolean {
+  const intent = state.browserIntent
+  return Boolean(
+    intent &&
+      atMs >= intent.expiresAtMs - EXAM_BROWSER_CONTEXT_MENU_INTENT_MS &&
+      atMs < intent.expiresAtMs
+  )
+}
+
+function endBrowserInteraction(
+  state: ExamIncidentState,
+  atMs: number
+): { state: ExamIncidentState; effects: ExamIncidentEffect[] } {
+  const interaction = state.browserInteraction
+  return {
+    state: { ...state, browserIntent: null, browserInteraction: null },
+    effects: interaction
+      ? [
+          {
+            type: 'browser_interaction_end',
+            incidentId: interaction.id,
+            occurredAtMs: atMs,
+            durationMs: Math.max(0, atMs - interaction.startedAtMs),
+          },
+        ]
+      : [],
   }
 }
 
@@ -191,11 +239,58 @@ function endAwayIncident(
   }
 }
 
-export function reduceExamIncident(
+function reduceExamIncidentEvent(
   state: ExamIncidentState,
   event: ExamIncidentEvent
 ): { state: ExamIncidentState; effects: ExamIncidentEffect[] } {
+  if (event.type === 'context_menu') {
+    const eligible =
+      event.hasSelection &&
+      event.isCompliant &&
+      state.documentVisible &&
+      !state.activeIncident &&
+      state.pendingBlurAtMs === null &&
+      !state.browserInteraction
+    return {
+      state: {
+        ...state,
+        browserIntent: eligible
+          ? {
+              incidentId: event.incidentId,
+              expiresAtMs: event.atMs + EXAM_BROWSER_CONTEXT_MENU_INTENT_MS,
+            }
+          : null,
+      },
+      effects: [],
+    }
+  }
+
+  if (event.type === 'cancel_browser_intent') {
+    return { state: { ...state, browserIntent: null }, effects: [] }
+  }
+
   if (event.type === 'blur') {
+    if (state.browserInteraction) return { state, effects: [] }
+    const intent = state.browserIntent
+    if (
+      intent &&
+      hasCurrentBrowserInteractionIntent(state, event.atMs) &&
+      event.isCompliant !== false &&
+      state.documentVisible &&
+      !state.activeIncident &&
+      state.pendingBlurAtMs === null
+    ) {
+      return {
+        state: {
+          ...state,
+          browserIntent: null,
+          browserInteraction: { id: intent.incidentId, startedAtMs: event.atMs },
+          pendingBlurAtMs: null,
+        },
+        effects: [],
+      }
+    }
+    state = { ...state, browserIntent: null }
     if (!state.documentVisible || state.activeIncident) return { state, effects: [] }
     return { state: { ...state, pendingBlurAtMs: event.atMs }, effects: [] }
   }
@@ -355,4 +450,24 @@ export function reduceExamIncident(
     },
     effects: ended.effects,
   }
+}
+
+export function reduceExamIncident(
+  state: ExamIncidentState,
+  event: ExamIncidentEvent
+): { state: ExamIncidentState; effects: ExamIncidentEffect[] } {
+  if (
+    event.type === 'focus' ||
+    event.type === 'visibility_hidden' ||
+    event.type === 'window_noncompliant' ||
+    event.type === 'route_exit' ||
+    event.type === 'lifecycle_exit' ||
+    event.type === 'reset'
+  ) {
+    // Browser UI duration has its own identity and never enters exit correlation.
+    const ended = endBrowserInteraction(state, event.atMs)
+    const result = reduceExamIncidentEvent(ended.state, event)
+    return { state: result.state, effects: [...ended.effects, ...result.effects] }
+  }
+  return reduceExamIncidentEvent(state, event)
 }

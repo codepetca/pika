@@ -3,7 +3,7 @@ import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-stude
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
-test('blocks browser Find during the attempt without hiding real exits', async ({ page }, info) => {
+test('blocks Find and exempts selected-text browser focus without hiding real exits', async ({ page }, info) => {
   test.setTimeout(90_000)
   const testId = '30000000-0000-4000-8000-000000000013'
   const assessment = {
@@ -19,7 +19,7 @@ test('blocks browser Find during the attempt without hiding real exits', async (
     question_type: 'open_response', question_text: 'Explain your approach.',
     options: [], points: 1, position: 0, response_max_chars: 2000,
   }]
-  const events: Array<{ event_type: string }> = []
+  const events: Array<{ event_type: string; metadata?: Record<string, unknown> }> = []
   let responses = {}
   let revision = 41
   let submitted = false
@@ -86,6 +86,18 @@ test('blocks browser Find during the attempt without hiding real exits', async (
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
 
   expect(await dispatchFind()).toBe(false)
+  await response.evaluate((element: HTMLTextAreaElement) => {
+    element.setSelectionRange(0, 8)
+    element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    window.dispatchEvent(new Event('blur'))
+  })
+  await page.waitForTimeout(900)
+  expect(events).toEqual([])
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect.poll(() => events.filter(event => event.metadata?.source === 'browser_interaction').length).toBe(1)
+  expect(events[0].event_type).toBe('away_end')
+  await expect(response).toHaveValue('My draft stays here.')
+  await page.screenshot({ path: info.outputPath('browser-interaction-return.png'), animations: 'disabled' })
   await page.evaluate(() => window.dispatchEvent(new Event('blur')))
   await expect.poll(() => events.some(event => event.event_type === 'away_start')).toBe(true)
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
@@ -102,9 +114,59 @@ test('blocks browser Find during the attempt without hiding real exits', async (
     await page.keyboard.press(key)
     await expect(frame.locator('body')).toHaveAttribute('data-find-prevented', 'true')
   }
+  const awayBeforeReferenceMenu = events.filter(event => event.event_type === 'away_start').length
+  await frame.getByRole('button', { name: 'Read reference' }).evaluate(element => {
+    const doc = element.ownerDocument
+    const range = doc.createRange()
+    range.selectNodeContents(element)
+    doc.getSelection()!.removeAllRanges()
+    doc.getSelection()!.addRange(range)
+    element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+  })
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await page.waitForTimeout(900)
+  expect(events.filter(event => event.event_type === 'away_start')).toHaveLength(awayBeforeReferenceMenu)
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect.poll(() => events.filter(event => event.metadata?.source === 'browser_interaction').length).toBe(2)
   await page.screenshot({ path: info.outputPath('reference-find-blocked.png'), animations: 'disabled' })
   await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await page.getByRole('dialog', { name: 'Submit your answers?' }).getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.getByText('Response Submitted', { exact: true })).toBeVisible()
   expect(await dispatchFind()).toBe(true)
+})
+
+test('shows separate browser evidence without a teacher exit warning', async ({ page }, info) => {
+  test.setTimeout(90_000)
+  const testId = '30000000-0000-4000-8000-000000000013'
+  const assessment = { id: testId, classroom_id: TABLE_CLASSROOM_ID, title: 'Browser interaction check',
+    assessment_type: 'test', status: 'active', show_results: false, documents: [], position: 0,
+    stats: { total_students: 1, responded: 0, submitted: 0, questions_count: 1 } }
+  await page.addInitScript(theme => localStorage.setItem('theme', theme), info.project.metadata.theme as string)
+  await mockTableShellReads(page, 'teacher')
+  await page.route('**/api/teacher/tests**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/results')) return route.fulfill({ json: {
+      test: assessment, questions: [], active_ai_grading_run: null, students: [{
+        student_id: '40000000-0000-4000-8000-000000000001', name: 'Student Alpha',
+        first_name: 'Student', last_name: 'Alpha', email: 'student@example.invalid',
+        status: 'not_started', points_earned: 0, points_possible: 1, percent: null,
+        graded_open_responses: 0, ungraded_open_responses: 0, effective_access: 'open', access_source: 'test',
+        focus_summary: { exit_count: 0, away_count: 0, away_total_seconds: 0, route_exit_attempts: 0,
+          window_unmaximize_attempts: 0, browser_interaction_count: 2, browser_interaction_seconds: 8,
+          last_away_started_at: null, last_away_ended_at: null },
+      }],
+    } })
+    return route.fulfill({ json: { tests: [assessment] } })
+  })
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=tests', { timeout: 60_000 })
+  await page.getByText(assessment.title, { exact: true }).click()
+  const exit = page.getByLabel(/Exits 0\. .*Browser interactions 2/)
+  await expect(exit).toHaveCount(1)
+  await expect(page.getByTestId('test-exit-detected-alert')).toHaveCount(0)
+  if (info.project.metadata.viewport === 'desktop') {
+    await exit.hover()
+    await expect(page.getByRole('tooltip')).toContainText('Browser interactions: 2 (0:08), excluded from exits.')
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+  await page.screenshot({ path: info.outputPath('teacher-browser-evidence.png'), animations: 'disabled' })
 })

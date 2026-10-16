@@ -718,3 +718,53 @@ describe('assessment utilities', () => {
     })
   })
 })
+
+describe('selected-text browser interaction evidence', () => {
+  const browserEnd = {
+    event_type: 'away_end' as const,
+    occurred_at: '2026-10-16T13:00:02.500Z',
+    session_id: 'session-browser',
+    metadata: {
+      detector_version: 2, incident_id: 'browser-1', client_event_id: 'browser-event-1',
+      source: 'browser_interaction', interaction_type: 'selected_text_context_menu', duration_ms: 2500,
+    },
+  }
+
+  it('keeps browser interaction duration outside exits and ordinary away accounting', () => {
+    expect(summarizeAssessmentFocusEvents([browserEnd])).toEqual({
+      ...emptyAssessmentFocusSummary(), browser_interaction_count: 1, browser_interaction_seconds: 2.5,
+    })
+  })
+
+  it('deduplicates both retried events and repeated completion of the same interaction', () => {
+    const repeated = { ...browserEnd, metadata: { ...browserEnd.metadata, client_event_id: 'retry-new-event' } }
+    const result = summarizeAssessmentFocusEvents([browserEnd, browserEnd, repeated])
+    expect(result).toMatchObject({ exit_count: 0, browser_interaction_count: 1, browser_interaction_seconds: 2.5 })
+  })
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, '2500'])('ignores invalid browser duration %s without changing away timestamps', duration => {
+    const result = summarizeAssessmentFocusEvents([{ ...browserEnd, metadata: { ...browserEnd.metadata, duration_ms: duration } }])
+    expect(result).toEqual(emptyAssessmentFocusSummary())
+  })
+
+  it('does not interrupt ordinary away pairing or mask a nearby route exit', () => {
+    const result = summarizeAssessmentFocusEvents([
+      { event_type: 'away_start', occurred_at: '2026-10-16T13:00:00.000Z' },
+      browserEnd,
+      { event_type: 'away_end', occurred_at: '2026-10-16T13:00:03.000Z' },
+      { event_type: 'route_exit_attempt', occurred_at: '2026-10-16T13:00:03.100Z' },
+    ])
+    expect(result).toMatchObject({
+      exit_count: 2, away_count: 1, away_total_seconds: 3,
+      browser_interaction_count: 1, browser_interaction_seconds: 2.5,
+      last_away_started_at: '2026-10-16T13:00:00.000Z', last_away_ended_at: '2026-10-16T13:00:03.000Z',
+    })
+  })
+
+  it('preserves browser evidence when older summary responses omit the new fields', () => {
+    const summary = summarizeAssessmentFocusEvents([browserEnd])
+    const merged = mergeAssessmentFocusSummaries(summary, emptyAssessmentFocusSummary())
+    expect(merged).toMatchObject({ browser_interaction_count: 1, browser_interaction_seconds: 2.5 })
+    expect(mergeAssessmentFocusSummaries(emptyAssessmentFocusSummary(), summary)).toEqual(merged)
+  })
+})

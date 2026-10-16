@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Unpublication actual-writer contention fixtures
-
-69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
-Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
-wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
-Source mapping likely schedule11holderreceipt failure; direct availability and
-AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
-Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
-proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
-Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
-PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
-Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
-PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
-6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
-
 ## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
 
 Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
@@ -527,3 +512,38 @@ accessible frames, later loads and cleanup. Browser-owned PDF/external frames
 remain subject to browser access restrictions; sandbox/CSP unchanged. Focused
 runs at default/2/1 workers hit varying unchanged infrastructure timeouts.
 Independent review and gate receipts belong to the PR.
+
+## 2026-10-16 — Selected-text browser interaction exemption (PR1606)
+
+Owner authorized native Chrome reproduction and narrow right-click exemption;
+in-app translation remains deferred. Worktree block-test-browser-find, PR1606
+returned to draft before implementation; prior reviewed Find head326ba559e.
+Chrome155.0.8059.84 native Translate Selection popup reproduced after owner idle:
+trusted contextmenu -> blur4.119s later; fullscreen/dimensions unchanged. Trace
+/tmp/pika-translation-repro/ stores selection length only. Visibility was stale
+following macOS fullscreen switching; visible-page guard uses deterministic E2E.
+
+Reducer arms one blur for15s after scoped selected-text contextmenu while visible
+and compliant. Focus closes separate browser duration. Hidden, route/lifecycle,
+and sustained window violations flush browser evidence then log normal exits.
+Pointer/key/focus cancels pending intent; accessible references share document
+observation with Find. Browser-owned/cross-origin contents remain inaccessible.
+Existing away_end transport carries exact browser-interaction metadata; summary
+short-circuits before away accounting and dedups client/incident retries. Optional
+summary count/duration preserve old payloads; teacher existing Exits tooltip adds
+separate evidence, no exit highlight. No selected text, migration, dependency or
+in-app translation. Brief: docs/guidance/ui/changes/test-browser-interactions.md.
+
+Orchestration: Sol/medium read-only schema map completed and verified; Sol/high
+reducer then DOM helper implementation delivered41 reducer +16 helper tests,
+coordinator inspected and integrated. No overlapping ownership/rework conflicts.
+Worker tokens/time unknown; weekly47% remaining at start. TDD red/green for
+summary, student integration and teacher evidence. Focused6 suites306 passed;
+new window integration adds a passing fourth integration case.
+Types, lint, UI/design policy and audit pass. Browser matrix first run6/8 passed;
+2 desktop cases interrupted by live HMR edits (component_unmount/next load).
+Stable-source rerun8/8 passes52.5s and all8 role/theme/viewport screenshots
+visually inspected; focused gate pending. PR remains draft until fixed-SHA
+independent review. New translation delta review: standard behavioral risk,
+one Sol/high reviewer planned; prior Find review coverage retained. No merge or
+deploy authority assumed.

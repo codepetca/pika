@@ -48,4 +48,20 @@ describe('exam browser Find blocking', () => {
     cleanup()
     expect(find(window)).toBe(true)
   })
+
+  it('detaches the old frame document after an inaccessible navigation', () => {
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    const oldWindow = frame.contentWindow!
+    const cleanup = blockExamBrowserFind(window)
+    try {
+      expect(find(oldWindow)).toBe(false)
+      Object.defineProperty(frame, 'contentDocument', {
+        get: () => { throw new DOMException('Blocked', 'SecurityError') },
+      })
+      frame.dispatchEvent(new Event('load'))
+      expect(find(oldWindow)).toBe(true)
+      expect(find(window)).toBe(false)
+    } finally { cleanup() }
+  })
 })
