@@ -1576,7 +1576,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       )}
 
       {/* Editor with History Column */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-card border border-border bg-surface-panel shadow-elevated">
+      <div className="flex min-h-0 flex-1 flex-col rounded-card bg-surface-panel shadow-elevated">
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex flex-wrap items-center justify-between gap-3">

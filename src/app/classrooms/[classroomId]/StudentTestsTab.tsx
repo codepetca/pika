@@ -1596,12 +1596,12 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
                   questionsPane={(
                   <section
                     data-testid="student-test-detail-pane"
-                    className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
+                    className={`rounded-xl bg-surface p-3 sm:p-4 ${
                       showCurrentTestInfoPanel
                         ? 'h-full min-h-0 overflow-y-auto scrollbar-hover'
                         : 'lg:h-full'
                     } ${
-                      showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
+                      showNotMaximizedWarning ? 'border border-warning bg-warning-bg/20' : ''
                     }`}
                     onPointerDownCapture={markExamFormInteraction}
                     onKeyDownCapture={markExamFormInteraction}
@@ -1820,7 +1820,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
                       </div>
                     </div>
                   ) : requiresStart ? (
-                    <div className="rounded-card border border-border bg-surface-panel p-5 shadow-elevated">
+                    <div className="rounded-card bg-surface-panel p-5 shadow-elevated">
                       <p className="text-sm text-text-muted">
                         Review the test details, then start when you are ready.
                       </p>

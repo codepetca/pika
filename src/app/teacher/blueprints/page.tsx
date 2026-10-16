@@ -1323,7 +1323,7 @@ export default function TeacherBlueprintsPage() {
             role="region"
             aria-label="Course blueprint list"
             tabIndex={-1}
-            className={`self-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${blueprints.length > 0 ? 'rounded-card border border-border bg-surface p-4' : ''}`}
+            className={`self-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${blueprints.length > 0 ? 'rounded-card bg-surface p-4' : ''}`}
           >
             {blueprints.length > 0 && (loadingList || listReadError) ? (
               <div className="mb-3 flex items-center justify-between gap-2">
@@ -1352,10 +1352,10 @@ export default function TeacherBlueprintsPage() {
                       || importingPackage
                       || applyingProposalId !== null
                       || classroomProposalPreparing}
-                    className={`w-full rounded-card border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={`w-full rounded-card px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                       selectedBlueprintId === blueprint.id
-                        ? 'border-primary bg-info-bg'
-                        : 'border-border hover:bg-surface-hover'
+                        ? 'bg-info-bg'
+                        : 'hover:bg-surface-hover'
                     }`}
                   >
                     <div className="text-sm font-semibold text-text-default">{blueprint.title}</div>
@@ -1373,7 +1373,7 @@ export default function TeacherBlueprintsPage() {
             role="region"
             aria-label="Selected course blueprint"
             tabIndex={-1}
-            className={`min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${detail?.id === selectedBlueprintId && detail ? 'rounded-card border border-border bg-surface p-4' : ''}`}
+            className={`min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${detail?.id === selectedBlueprintId && detail ? 'rounded-card bg-surface p-4' : ''}`}
           >
             {detail?.id === selectedBlueprintId && detail && detailReadError ? (
               <p role="alert" className="mb-4 text-sm text-danger">{detailReadError}</p>
@@ -1419,7 +1419,7 @@ export default function TeacherBlueprintsPage() {
                   className="space-y-5"
                 >
                   {activeWorkspace === 'overview' && counts ? (
-                    <div className="rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
+                    <div className="rounded-card bg-surface-2 px-4 py-3 text-sm text-text-muted">
                       {counts.assignments} assignments • {counts.tests} tests • {counts.materials} materials • {counts.surveys} surveys • {counts.lesson_templates} lesson templates
                     </div>
                   ) : null}
@@ -1471,7 +1471,7 @@ export default function TeacherBlueprintsPage() {
                     </Button>
                   </div>
 
-                  <div className="rounded-card border border-border bg-surface-2 p-4">
+                  <div className="rounded-card bg-surface-2 p-4">
                     <div className="text-sm font-semibold text-text-default">Course Blueprint</div>
                     <div className="mt-1 text-sm text-text-muted">
                       {repositoryManaged
@@ -1536,7 +1536,7 @@ export default function TeacherBlueprintsPage() {
                 ) : activeTab === 'proposals' ? (
 
                   <div className="space-y-4">
-                    <div className="rounded-card border border-border bg-surface-2 p-4">
+                    <div className="rounded-card bg-surface-2 p-4">
                       <div className="text-sm font-semibold text-text-default">
                         Review Blueprint Proposals
                       </div>
@@ -1556,7 +1556,7 @@ export default function TeacherBlueprintsPage() {
                         <Spinner />
                       </div>
                     ) : proposals.length === 0 ? (
-                      <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                      <div className="rounded-card bg-surface-2 p-4 text-sm text-text-muted">
                         No change proposals. Pull the current course package before editing it in a repository.
                       </div>
                     ) : (
@@ -1575,7 +1575,7 @@ export default function TeacherBlueprintsPage() {
                           return (
                             <div
                               key={proposal.id}
-                              className="rounded-card border border-border bg-surface p-4"
+                              className="rounded-card bg-surface p-4"
                             >
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -1708,7 +1708,7 @@ export default function TeacherBlueprintsPage() {
                       </div>
                     </div>
 
-                    <label className="flex items-center gap-3 rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-default">
+                    <label className="flex items-center gap-3 rounded-card bg-surface-2 px-4 py-3 text-sm text-text-default">
                       <input
                         type="checkbox"
                         checked={plannedSite.published}
@@ -1721,7 +1721,7 @@ export default function TeacherBlueprintsPage() {
                         Publish this planned course site
                     </label>
 
-                    <div className="rounded-card border border-border bg-surface-2 p-4">
+                    <div className="rounded-card bg-surface-2 p-4">
                       <div className="text-sm font-semibold text-text-default">Published Sections</div>
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
                         {PLANNED_SITE_CONFIG_OPTIONS.map(
@@ -1747,7 +1747,7 @@ export default function TeacherBlueprintsPage() {
                     </div>
 
                     {plannedSite.published && plannedSite.slug ? (
-                      <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                      <div className="rounded-card bg-surface-2 p-4 text-sm text-text-muted">
                         Planned course site: <a className="text-primary underline" href={`/planned/${plannedSite.slug}`} target="_blank" rel="noreferrer">{`/planned/${plannedSite.slug}`}</a>
                       </div>
                     ) : null}
@@ -1761,7 +1761,7 @@ export default function TeacherBlueprintsPage() {
                 ) : activeTab === 'sync' ? (
                   <div className="space-y-4">
                     {detail.linked_classrooms.length === 0 ? (
-                      <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                      <div className="rounded-card bg-surface-2 p-4 text-sm text-text-muted">
                         No classrooms have been created from this blueprint yet.
                       </div>
                     ) : (
@@ -1806,20 +1806,20 @@ export default function TeacherBlueprintsPage() {
                           </div>
                         </div>
 
-                        <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                        <div className="rounded-card bg-surface-2 p-4 text-sm text-text-muted">
                           Updating a classroom never imports release controls or student data. Save new classroom artifacts to the Blueprint first. New Blueprint work arrives as drafts; assignments with student work and tests or surveys with responses keep their historical version and receive a new draft successor.
                         </div>
 
                         {mergeSuggestions ? (
                           <div className="space-y-4">
                             {mergeSuggestions.suggestions.length === 0 ? (
-                              <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                              <div className="rounded-card bg-surface-2 p-4 text-sm text-text-muted">
                                 No classroom changes to save for this course blueprint.
                               </div>
                             ) : (
                               <>
                                 {mergeSuggestions.suggestions.map((suggestion) => (
-                                  <div key={suggestion.area} className="rounded-card border border-border bg-surface-2 p-4">
+                                  <div key={suggestion.area} className="rounded-card bg-surface-2 p-4">
                                     <label className="flex items-start gap-3">
                                       <input
                                         type="checkbox"
@@ -1899,7 +1899,7 @@ export default function TeacherBlueprintsPage() {
                     </div>
 
                     {aiTarget === 'assignments' || aiTarget === 'tests' ? (
-                      <div className="rounded-card border border-border bg-surface-2 p-4 space-y-3">
+                      <div className="rounded-card bg-surface-2 p-4 space-y-3">
                         <p className="text-sm text-text-muted">
                           Draft previews use the selected Authoring Guidance. Review and edit the result before proposing it.
                         </p>
@@ -1938,7 +1938,7 @@ export default function TeacherBlueprintsPage() {
                     </div>
 
                     {aiAnalysis ? (
-                      <div className="rounded-card border border-border bg-surface-2 p-4">
+                      <div className="rounded-card bg-surface-2 p-4">
                         <div className="text-sm font-semibold text-text-default">Completeness Review</div>
                         <div className="mt-2 text-sm text-text-muted">
                           Missing: {aiAnalysis.missing?.length ? aiAnalysis.missing.join(', ') : 'nothing obvious'}
@@ -1958,7 +1958,7 @@ export default function TeacherBlueprintsPage() {
                           <p className="text-sm text-text-muted">Trial preview using unsaved guidance. Apply the guidance, then generate a new preview before proposing the content.</p>
                         ) : null}
                         {aiPreview.guidance ? (
-                          <details className="rounded-card border border-border bg-surface-2 p-3 text-sm text-text-muted">
+                          <details className="rounded-card bg-surface-2 p-3 text-sm text-text-muted">
                             <summary className="cursor-pointer text-text-default">
                               {aiPreview.guidance.trial ? 'Trial guidance' : 'Guidance used'}: Blueprint revision {aiPreview.guidance.blueprint_revision}
                               {aiPreview.guidance.unit_label ? ` · ${aiPreview.guidance.unit_label}` : ' · course rules'}
@@ -1974,14 +1974,14 @@ export default function TeacherBlueprintsPage() {
                         />
                       </div>
                     ) : aiPreview ? (
-                      <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                      <div className="rounded-card bg-surface-2 p-4 text-sm text-text-muted">
                         Markdown preview is hidden by your display setting.
                       </div>
                     ) : null}
                   </div>
                 ) : activeTab === 'grading' ? (
                   <div className="space-y-4">
-                    <div className="rounded-card border border-border bg-surface-2 p-4">
+                    <div className="rounded-card bg-surface-2 p-4">
                       <div className="text-sm font-semibold text-text-default">
                         Reusable Gradebook Setup
                       </div>
@@ -1989,7 +1989,7 @@ export default function TeacherBlueprintsPage() {
                         These defaults travel with the Blueprint. Student scores, overrides, and report cards remain in each classroom.
                       </div>
                     </div>
-                    <label className="flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3 text-sm text-text-default">
+                    <label className="flex items-center gap-3 rounded-card bg-surface px-4 py-3 text-sm text-text-default">
                       <input
                         type="checkbox"
                         checked={grading.use_weights}
@@ -2030,7 +2030,7 @@ export default function TeacherBlueprintsPage() {
                         />
                       </FormField>
                     </div>
-                    <div className="flex items-center justify-between gap-3 rounded-card border border-border bg-surface-2 px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between gap-3 rounded-card bg-surface-2 px-4 py-3 text-sm">
                       <span className="text-text-muted">
                         Category total
                       </span>
@@ -2077,7 +2077,7 @@ export default function TeacherBlueprintsPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                    <div className="rounded-card bg-surface-2 p-4 text-sm text-text-muted">
                       Markdown editing is hidden by your display setting.
                     </div>
                   )

@@ -96,7 +96,7 @@ export function BlueprintAuthoringGuidanceEditor({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-card border border-border bg-info-bg p-5">
+      <div className="rounded-card bg-info-bg p-5">
         <div className="text-xs font-semibold uppercase tracking-wide text-primary">Teacher only</div>
         <h2 className="mt-2 text-lg font-semibold text-text-default">Authoring Guidance</h2>
         <p className="mt-2 max-w-prose text-sm text-text-muted">
@@ -107,7 +107,7 @@ export function BlueprintAuthoringGuidanceEditor({
       </div>
 
       {readOnly ? (
-        <div className="rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
+        <div className="rounded-card bg-surface-2 px-4 py-3 text-sm text-text-muted">
           This Blueprint is repository-managed. Edit authoring-guidance.md in the course package, then review the proposal here.
         </div>
       ) : null}
@@ -119,7 +119,7 @@ export function BlueprintAuthoringGuidanceEditor({
         </Button>
       </div>
 
-      <div className="space-y-5 rounded-card border border-border bg-surface-2 p-4">
+      <div className="space-y-5 rounded-card bg-surface-2 p-4">
         <GuidanceField
           label="Course expectations"
           value={guidance.course_expectations_markdown}
@@ -170,11 +170,11 @@ export function BlueprintAuthoringGuidanceEditor({
           </Button>
         </div>
         {guidance.unit_exceptions.length === 0 ? (
-          <div className="rounded-card border border-border bg-surface-2 px-4 py-5 text-sm text-text-muted">
+          <div className="rounded-card bg-surface-2 px-4 py-5 text-sm text-text-muted">
             No unit rules yet. Course rules apply to every unit.
           </div>
         ) : guidance.unit_exceptions.map((unit, index) => (
-          <div key={unit.id} className="space-y-4 rounded-card border border-border bg-surface-2 p-4">
+          <div key={unit.id} className="space-y-4 rounded-card bg-surface-2 p-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <FormField label={`Unit ${index + 1} name`}>
                 <Input
@@ -218,7 +218,7 @@ export function BlueprintAuthoringGuidanceEditor({
       </div>
 
       {dirty && !readOnly ? (
-        <div className="space-y-3 rounded-card border border-border bg-surface-2 p-4">
+        <div className="space-y-3 rounded-card bg-surface-2 p-4">
           <div className="font-semibold text-text-default">Try these changes on a draft</div>
           <p className="text-sm text-text-muted">Generate a temporary preview with the edited rules. The Blueprint guidance stays unchanged until you apply it.</p>
           <FormField label="Unit guidance for trial">
@@ -252,7 +252,7 @@ export function BlueprintAuthoringGuidanceEditor({
       </div>
 
       {reviewing && dirty ? (
-        <div className="space-y-4 rounded-card border border-border bg-surface-2 p-4">
+        <div className="space-y-4 rounded-card bg-surface-2 p-4">
           <h3 className="text-base font-semibold text-text-default">Review guidance changes</h3>
           <div className="grid gap-4 lg:grid-cols-2">
             <div>
@@ -286,7 +286,7 @@ export function BlueprintAuthoringGuidanceEditor({
           <div className="text-sm text-text-muted">No guidance revisions yet.</div>
         ) : null}
         {history.map((item) => (
-          <details key={item.id} className="rounded-card border border-border bg-surface-2 px-4 py-3">
+          <details key={item.id} className="rounded-card bg-surface-2 px-4 py-3">
             <summary className="cursor-pointer text-sm font-medium text-text-default">
               Revision {item.content_revision} · {new Date(item.created_at).toLocaleString()} · {item.source_kind}
             </summary>

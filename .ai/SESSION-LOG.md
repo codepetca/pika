@@ -547,3 +547,59 @@ visually inspected; focused gate pending. PR remains draft until fixed-SHA
 independent review. New translation delta review: standard behavioral risk,
 one Sol/high reviewer planned; prior Find review coverage retained. No merge or
 deploy authority assumed.
+## 2026-10-16 — Borderless content cards
+
+Owner requested removing Classwork/Test list and other decorative card outlines,
+and remembering this preference. Branch `codex/borderless-cards`; base59938479b.
+Updated shared Card and teacher work-item frame, student work actions, classroom,
+announcement, blueprint and calendar containers; preserved functional controls,
+focus, table rules, warning/error and drag indicators. Recorded the preference in
+DESIGN/stable guidance and the borderless-content-cards change brief. No behavior,
+database or dependency changes. Risk profile:none. Model recommendation: current
+coding model for implementation; gpt-6-luna/medium for bounded inventory and low-risk
+independent review. Inventory delivered read-only, verified against owners; no
+rework or integration conflicts. Effective worker settings/token usage unknown;
+weekly50% remaining at startup; storage healthy. Initial focused suite exposed
+four test files expecting decorative borders (updated),3441other tests passed.
+Resource-heavy concurrent rerun was terminated; final run uses four workers.
+Playwright role/viewport/theme capture checks cover border widths, hover, selected
+Test semantics, focus and overflow. Snapshot baseline refresh and final review/CI
+are recorded in the PR. Audit heuristic flags composite files based solely on
+existing aria/role markup; diff is className-only and preserves their semantics.
+Evidence: ignored output/playwright and /tmp/pika-borderless-*.log. No merge,
+production promotion or migration application authorized.
+Final local:24Playwright checks/captures and8Mac/Linux baselines pass;
+focused3443pass/3timing flakes, then isolated54/54pass; types/lint/architecture/
+UI/design policies pass. Existing lint warnings retained. One independent
+full-diff review planned on frozen commit; review budget1initial,up to1targeted
+if necessary,5min target; token telemetry unknown. Capture-script navigation
+style injection caused artifact-only hydration warnings; product markup unchanged.
+
+## 2026-10-16 — Assignment/Test title edit cue
+
+Owner follow-up adds the More actions Pencil at the right of editable selected
+Assignment/Test titles on hover and keyboard focus. Reused existing title buttons,
+edit callbacks and permissions; reserved icon space prevents hover reflow. No cue
+for read-only or pending Assignment detail state. Student n/a (no definition-edit
+control). Risk:none.206affected tests pass;8teacher desktop/mobile×light/dark
+browser cases pass (hover,focus,keyboard editor opening),normal/reduced motion
+verification included. UI/design policies and four-file audit pass. Parent
+borderless coverage atd8ce0bc16 reused; delta-focused workflow/static checks and
+fixed-head independent follow-up review recorded in PR1605. No new abstraction,
+dependency, database, merge or deployment. Model recommendation:gpt-6-luna/medium
+for small independent delta review. No implementation delegation; review token
+and effective-model telemetry unknown. Evidence:output/playwright/title-hover/.
+
+## 2026-10-16 — PR1605 merge authorization and snapshot correction
+
+Owner explicitly authorized squash merge after CI.026a196e9 Test & Build and dark
+experience lane passed; Pattern Lab dark failed screenshot comparisons. Returned
+PR to draft before correction. Diagnosed omitted student headers plus Linux
+capture runtime resolving system-ui to WenQuanYi rather than GitHub's DejaVu.
+Regenerated baselines with fonts-dejavu-core in ephemeral capture container;
+application fonts/dependencies/thresholds unchanged.8Linux comparisons against
+GitHub actuals pass existing tolerances (desktop pixel-identical);8Linux and4Mac
+snapshot cases pass. Product source/review unchanged; one batched snapshot-only
+remediation and independent delta review follow. PR Gate on reviewed final SHA
+still required before authorized main merge. Source evidence and artifacts in
+change brief and ignored output/playwright; CI38922863858 cancelled after draft.

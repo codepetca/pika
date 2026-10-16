@@ -62,7 +62,7 @@ export function StudentClassResourcesSidebar({ classroom }: Props) {
           <RichTextViewer content={currentContent!} />
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-surface-2 p-4">
+        <div className="rounded-lg bg-surface-2 p-4">
           <p className="text-sm text-text-muted">No resources have been added yet.</p>
         </div>
       )}

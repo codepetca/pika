@@ -102,6 +102,11 @@ capture sets must be refreshed before they can prove current conformance:
 - Controls and cards use modest shared radii. Pill shapes are for badges,
   statuses, and intentionally compact selectors rather than ordinary
   containers.
+- Content cards and browsing lists are borderless, including Classwork, Tests,
+  classroom cards, announcements, and course blueprints. Use semantic surface
+  tones and spacing for grouping and hover/selection feedback, rather than
+  decorative outlines. Preserve keyboard focus rings and functional control,
+  table, status, and active-drag indicators. Owner preference: 2026-10-16.
 - Teacher tables and split workspaces prioritize scanning and adjacent
   inspection. Student work gives reading and authoring more room without
   introducing a separate visual language.

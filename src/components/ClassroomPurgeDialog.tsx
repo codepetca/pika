@@ -366,7 +366,7 @@ export function ClassroomPurgeDialog({
           ) : null}
 
           {operation ? (
-            <div className="rounded-card border border-border bg-surface-2 p-4" aria-live="polite">
+            <div className="rounded-card bg-surface-2 p-4" aria-live="polite">
               <p className="text-sm font-medium text-text-default">
                 {operation.status === 'completed'
                   ? 'Deletion complete'
@@ -378,7 +378,7 @@ export function ClassroomPurgeDialog({
             </div>
           ) : attendanceOperation ? (
             <>
-              <div className="rounded-card border border-border bg-surface-2 p-4" aria-live="polite">
+              <div className="rounded-card bg-surface-2 p-4" aria-live="polite">
                 <p className="text-sm font-medium text-text-default">
                   {attendanceOperation.attendance_removed
                     ? 'Linked attendance removed'

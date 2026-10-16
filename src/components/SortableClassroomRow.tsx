@@ -145,7 +145,7 @@ export function SortableClassroomRow({
       data-testid="classroom-card"
       data-classroom-theme-color={theme.value}
       className={[
-        'classroom-theme classroom-theme-card classroom-theme-card-interactive overflow-hidden rounded-card border border-border bg-surface shadow-elevated',
+        'classroom-theme classroom-theme-card classroom-theme-card-interactive overflow-hidden rounded-card bg-surface shadow-elevated',
         isDragging ? 'opacity-40' : '',
       ].join(' ')}
     >

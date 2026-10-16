@@ -1514,6 +1514,7 @@ describe('TeacherClassroomView', () => {
 
     const editTitle = screen.getByRole('button', { name: 'Edit Assignment One' })
     expect(editTitle).toHaveAttribute('title', 'Assignment One')
+    expect(editTitle.querySelector('svg.lucide-pencil')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(editTitle)
 
     expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'visual')
@@ -1538,6 +1539,7 @@ describe('TeacherClassroomView', () => {
 
     const editTitle = await screen.findByRole('button', { name: 'Edit Assignment Two' })
     await waitFor(() => expect(editTitle).toBeDisabled())
+    expect(editTitle.querySelector('svg.lucide-pencil')).not.toBeInTheDocument()
     fireEvent.click(editTitle)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -1553,6 +1555,7 @@ describe('TeacherClassroomView', () => {
 
     const editTitle = await screen.findByRole('button', { name: 'Edit Assignment Two' })
     expect(editTitle).toHaveAttribute('aria-disabled', 'true')
+    expect(editTitle.querySelector('svg.lucide-pencil')).not.toBeInTheDocument()
     fireEvent.click(editTitle)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 

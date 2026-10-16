@@ -61,7 +61,7 @@ export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
     name: 'Content surfaces',
     owner: 'src/ui/Card.tsx',
     maturity: 'stable',
-    useWhen: 'Content needs a bounded semantic surface or selected treatment.',
+    useWhen: 'Content needs a borderless semantic surface or selected treatment, with grouping through tone and spacing.',
     avoidWhen: 'Spacing and a section heading provide enough hierarchy without another box.',
     reference: 'DESIGN.md#observed-visual-language',
   },

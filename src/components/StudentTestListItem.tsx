@@ -27,9 +27,9 @@ export const StudentTestListItem = forwardRef<HTMLButtonElement, Props>(function
       disabled={state.unavailable}
       aria-current={selected ? 'true' : undefined}
       className={cn(
-        'gap-3 rounded-card p-card text-left disabled:opacity-100',
+        'gap-3 rounded-card border-0 p-card text-left disabled:opacity-100',
         state.unavailable && 'bg-surface-2',
-        selected && 'border-primary bg-surface-selected',
+        selected && 'bg-surface-selected',
       )}
     >
       <span className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

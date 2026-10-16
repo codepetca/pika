@@ -2690,9 +2690,12 @@ export function TeacherClassroomView({
                 disabled={isReadOnly}
                 aria-disabled={!canEditAssignment || undefined}
                 onClick={() => openSelectedAssignmentEditor()}
-                className="h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50 sm:text-xl"
+                className="group/title h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50 sm:text-xl"
               >
                 <span className="min-w-0 truncate">{selectedAssignmentSummary.title}</span>
+                {canEditAssignment && (
+                  <Pencil className="ml-auto h-4 w-4 shrink-0 text-text-muted opacity-0 transition-opacity duration-fast ease-standard group-hover/title:opacity-100 group-focus-visible/title:opacity-100 motion-reduce:transition-none" aria-hidden="true" />
+                )}
               </Button>
             ) : null}
             {workspaceStatus}
