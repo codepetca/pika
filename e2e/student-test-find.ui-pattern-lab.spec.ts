@@ -89,7 +89,11 @@ test('blocks Find and exempts selected-text browser focus without hiding real ex
   await response.evaluate((element: HTMLTextAreaElement) => {
     element.setSelectionRange(0, 8)
     element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    // Native browser UI is unavailable headlessly; simulate its external focus state.
+    const hasFocus = document.hasFocus
+    document.hasFocus = () => false
     window.dispatchEvent(new Event('blur'))
+    document.hasFocus = hasFocus
   })
   await page.waitForTimeout(900)
   expect(events).toEqual([])
@@ -98,13 +102,21 @@ test('blocks Find and exempts selected-text browser focus without hiding real ex
   expect(events[0].event_type).toBe('away_end')
   await expect(response).toHaveValue('My draft stays here.')
   await page.screenshot({ path: info.outputPath('browser-interaction-return.png'), animations: 'disabled' })
-  await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await page.evaluate(() => {
+    const hasFocus = document.hasFocus
+    document.hasFocus = () => false
+    window.dispatchEvent(new Event('blur'))
+    document.hasFocus = hasFocus
+  })
   await expect.poll(() => events.some(event => event.event_type === 'away_start')).toBe(true)
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(response).toHaveValue('My draft stays here.')
   await page.getByRole('button', { name: 'Allowed HTML reference', exact: true }).click()
   const frame = page.frameLocator('iframe[title="Allowed HTML reference"]')
-  await frame.getByRole('button', { name: 'Read reference' }).focus()
+  const awayBeforeFrameFocus = events.filter(event => event.event_type === 'away_start').length
+  await frame.getByRole('button', { name: 'Read reference' }).click()
+  await page.waitForTimeout(1600)
+  expect(events.filter(event => event.event_type === 'away_start')).toHaveLength(awayBeforeFrameFocus)
   for (const key of ['Control+f', 'Meta+f']) {
     await frame.locator('body').evaluate(body => {
       body.ownerDocument.defaultView!.addEventListener('keydown', event => {
@@ -122,11 +134,15 @@ test('blocks Find and exempts selected-text browser focus without hiding real ex
     doc.getSelection()!.removeAllRanges()
     doc.getSelection()!.addRange(range)
     element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    const topDocument = doc.defaultView!.top!.document
+    const hasFocus = topDocument.hasFocus
+    topDocument.hasFocus = () => false
+    doc.defaultView!.dispatchEvent(new Event('blur'))
+    topDocument.hasFocus = hasFocus
   })
-  await page.evaluate(() => window.dispatchEvent(new Event('blur')))
   await page.waitForTimeout(900)
   expect(events.filter(event => event.event_type === 'away_start')).toHaveLength(awayBeforeReferenceMenu)
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await frame.locator('body').evaluate(body => body.ownerDocument.defaultView!.dispatchEvent(new Event('focus')))
   await expect.poll(() => events.filter(event => event.metadata?.source === 'browser_interaction').length).toBe(2)
   await page.screenshot({ path: info.outputPath('reference-find-blocked.png'), animations: 'disabled' })
   await page.getByRole('button', { name: 'Submit', exact: true }).click()

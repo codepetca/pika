@@ -14,6 +14,7 @@ import {
 } from '@/lib/tests'
 import { blockExamBrowserFind } from '@/lib/exam-mode-browser-find'
 import { listenForExamContextMenus } from '@/lib/exam-mode-context-menu'
+import { observeExamDocuments } from '@/lib/exam-mode-documents'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { StudentTestResults } from '@/components/StudentTestResults'
@@ -1370,6 +1371,8 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     if (!focusEnabled) return
 
     const handleBlur = () => {
+      // Moving between the exam and its reference frames keeps focus inside the page.
+      if (document.hasFocus()) return
       if (shouldSuppressForDocInteraction()) return
       clearPendingBlurTimeout()
       applyExamIncidentEvent({
@@ -1411,14 +1414,19 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('blur', handleBlur)
-    window.addEventListener('focus', handleFocus)
+    const stopObservingFocus = observeExamDocuments(window, targetWindow => {
+      targetWindow.addEventListener('blur', handleBlur)
+      targetWindow.addEventListener('focus', handleFocus)
+      return () => {
+        targetWindow.removeEventListener('blur', handleBlur)
+        targetWindow.removeEventListener('focus', handleFocus)
+      }
+    }, testsRegionRef.current ?? undefined)
 
     return () => {
       clearPendingBlurTimeout()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('blur', handleBlur)
-      window.removeEventListener('focus', handleFocus)
+      stopObservingFocus()
       applyExamIncidentEvent(
         { type: 'reset', atMs: Date.now() },
         { updateSummary: false }

@@ -229,6 +229,42 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusWrites().map(body => body.event_type)).toEqual(['away_end', 'away_start'])
   })
 
+  it('tracks popup focus on accessible reference windows and ignores internal focus transfers', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    await renderActiveTest()
+    const frame = document.createElement('iframe')
+    screen.getByRole('region', { name: 'Tests' }).append(frame)
+    frame.dispatchEvent(new Event('load'))
+    const referenceWindow = frame.contentWindow!
+    const text = frame.contentDocument!.createElement('p')
+    text.textContent = 'Reference phrase'
+    frame.contentDocument!.body.append(text)
+    fireEvent(window, new Event('blur'))
+    fireEvent(referenceWindow, new Event('focus'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(800) })
+    expect(focusWrites()).toEqual([])
+
+    const range = frame.contentDocument!.createRange()
+    range.selectNodeContents(text)
+    referenceWindow.getSelection()!.addRange(range)
+    fireEvent.contextMenu(text)
+    hasFocus.mockReturnValue(false)
+    fireEvent(referenceWindow, new Event('blur'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(900) })
+    expect(focusWrites()).toEqual([])
+    hasFocus.mockReturnValue(true)
+    await act(async () => { fireEvent(referenceWindow, new Event('focus')) })
+    expect(focusWrites()).toEqual([expect.objectContaining({
+      event_type: 'away_end', metadata: expect.objectContaining({ source: 'browser_interaction', duration_ms: 900 }),
+    })])
+
+    hasFocus.mockReturnValue(false)
+    fireEvent(referenceWindow, new Event('blur'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(800) })
+    expect(focusWrites().map(body => body.event_type)).toEqual(['away_end', 'away_start'])
+  })
+
   it.each(['visibility', 'route', 'window'] as const)('keeps %s exits detectable while a selected-text popup has focus', async source => {
     let visible: DocumentVisibilityState = 'visible'
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visible)
