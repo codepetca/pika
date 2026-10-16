@@ -46941,3 +46941,32 @@ Visual verification: both roles, 1440×900/390×844, light/dark, long/empty/no-c
 ## 2026-10-11 — Bound Week agenda desktop width
 
 Owner requested a comfortable desktop Week list. Reuse canonical PageLayout standard width (56rem/896px) for both teacher/student owners and Pattern Lab examples; Month/Term remain full width. No new width token or feature-local max-width. Real fixture matrix teacher/student ×1440/1920/390×light/dark passed measured cap/centering, no horizontal overflow, edit/large day modal, date/view navigation and intercepted saves. Artifacts: prior vertical-week/output/playwright/bounded-*. Component suite116, gallery42 and keyboard owner checks2 PASS; type/UI/design/audit PASS. Previous ready CI38137283129 failed only new whole-gallery calendar test timeout; all database/browser lanes passed. Isolated CalendarMockup rendering corrects that test overhead without increasing timeouts. PR1574 returned to draft before corrections. Sync latest main to resolve conflicts, then targeted independent review and stable-head ready CI. Weekly remaining80% at follow-up start, account-wide; no new substantial implementation delegation. No merge/production promotion authorization.
+
+<!-- pika-session-log-archive-batch:c8db780a72fd45c0497783169ba5ca53017d3f824d9e1db77509690d5275e538 -->
+## 2026-10-12 — Dormant existing Tests screen adopter
+
+- Extended server-derived strict admission mode through the actual classroom consumer; shared publish uses its dedicated original-version POST, complete shared reorder uses atomic transport, and standalone preview proves the current owner and requested parent. Existing transport is retained; no rollout/schema/provider/account changes.
+- Worker Sol/high delivered206 checks/5 suites and TypeScript. Coordinator integration238/7 PASS; wider focused976/66 plus architecture/UI/design/TypeScript/lint PASS. The1,001-real-row ceiling stress test needed bounded15s headroom in the concurrent suite (exact no-write assertion retained). One audit heuristic flags an unchanged intentional no-store results read; original accepted source contains the same statement, so no unrelated caching change or audit weakening.
+- Both historical account-role owners and members, desktop1440×900/mobile390×844, light/dark rendered using synthetic intercepted APIs; confirmed expected owner/member controls and no horizontal overflow. Existing publication confirmation/conflict, preview/fullscreen/return and keyboard reorder exercised. No authenticated persistence or Tests phase exit claimed; review and final-SHA CI remain required.
+- Explicitly superseded the historical whole-UI source freeze with direct existing/shared transport regression coverage; unchanged legacy API hash and precise dormant dispatcher normalization remain. Guidance: contextual-test-screen-adoption.md. Native deletion component evidence belongs to PR1579, not this browser fixture or newer source revision.
+- PR1579 merged normally as8e9dabd597 after exact895 CI38204673501 all10 PASS; canonical clean main fast-forwarded and tree equality verified. PR1580 remains dormant/draft. Initial security review clean; compatibility found a same-batch refresh/reorder race. Coordinator reproduced RED1/115, then bound synchronous eligibility to the request generation of the rendered list, including successful replacement/failed refresh. No order-CAS or server contract change. All holds remain.
+
+<!-- pika-session-log-archive-batch:15e3c2abe223a5861c749e080bf574f054474386b5d96b1117ef575664c9f3d3 -->
+## 2026-10-12 — Bounded unpublication proof framing
+
+Reviewed e93 source passes2149 focused tests; private bounded engine diagnostics
+reviewed clean72s. Fresh replay verifies001–261/rollbackACL/genuine438871B types,
+then confirms combined contracts frame12s timeout after setup/privilege restoration.
+Two independently reviewed exact synthetic recoveries preserve global741/canonical
+183tables/2cron/ports/source and original failed evidence; no shared reset/schema,
+production, account, provider or activation operations. One intervening type-artifact
+collision resolved by recoverable archival of its verified prior output.
+Seven closed source-derived frames now preserve every original SQL byte/assertion
+and14schedules in one session/transaction/aggregate180s clock. Intermediate exact
+transaction witnesses; monolithic SQL is reconstruction-only.12s/40dispatch/SQL/
+response caps unchanged.80targeted tests/TypeScript/audit/diff PASS. Native timing,
+independent corrected-source review, fullfocused and eligible CI remain pending.
+PR14completedreviews1615measureds/3resolved/13sourcefixbatches/6draftpushes before
+next review; ancillary cleanup4turns219s/1resolved kept separate. Task-scoped
+routine-approval/review-budget waiver persists without counter resets. Tests phase,
+goal and existing local249+/prod259+/promotion/account/provider/cutover holds remain.

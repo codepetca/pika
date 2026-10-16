@@ -1050,10 +1050,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     aria-selected={isSelected}
                     tabIndex={-1}
                     className={[
-                      'group cursor-pointer transition-colors',
+                      'cursor-pointer transition-colors duration-fast ease-standard motion-reduce:transition-none',
                       isSelected
                         ? 'bg-info-bg hover:bg-info-bg-hover'
-                        : 'hover:bg-surface-hover',
+                        : 'bg-surface hover:bg-surface-hover',
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}
                   >
@@ -1100,8 +1100,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       <DataTableCell
                         key={status}
                         className={cn(
-                          'sticky !p-0 bg-surface text-center group-hover:bg-surface-hover',
-                          isSelected && 'bg-info-bg group-hover:bg-info-bg-hover',
+                          'sticky !p-0 bg-inherit text-center',
                           STICKY_ATTENDANCE_OFFSETS[status],
                         )}
                       >
@@ -1124,10 +1123,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     )) : null}
                     {showAttendance ? (
                     <DataTableCell
-                      className={cn(
-                        'sticky right-0 !p-0 bg-surface text-center group-hover:bg-surface-hover',
-                        isSelected && 'bg-info-bg group-hover:bg-info-bg-hover',
-                      )}
+                      className="sticky right-0 !p-0 bg-inherit text-center"
                     >
                       {attendanceStudent?.hasManualOverride ? (
                         <span onClick={(event) => event.stopPropagation()}>

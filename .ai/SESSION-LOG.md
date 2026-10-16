@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Dormant existing Tests screen adopter
-
-- Extended server-derived strict admission mode through the actual classroom consumer; shared publish uses its dedicated original-version POST, complete shared reorder uses atomic transport, and standalone preview proves the current owner and requested parent. Existing transport is retained; no rollout/schema/provider/account changes.
-- Worker Sol/high delivered206 checks/5 suites and TypeScript. Coordinator integration238/7 PASS; wider focused976/66 plus architecture/UI/design/TypeScript/lint PASS. The1,001-real-row ceiling stress test needed bounded15s headroom in the concurrent suite (exact no-write assertion retained). One audit heuristic flags an unchanged intentional no-store results read; original accepted source contains the same statement, so no unrelated caching change or audit weakening.
-- Both historical account-role owners and members, desktop1440×900/mobile390×844, light/dark rendered using synthetic intercepted APIs; confirmed expected owner/member controls and no horizontal overflow. Existing publication confirmation/conflict, preview/fullscreen/return and keyboard reorder exercised. No authenticated persistence or Tests phase exit claimed; review and final-SHA CI remain required.
-- Explicitly superseded the historical whole-UI source freeze with direct existing/shared transport regression coverage; unchanged legacy API hash and precise dormant dispatcher normalization remain. Guidance: contextual-test-screen-adoption.md. Native deletion component evidence belongs to PR1579, not this browser fixture or newer source revision.
-- PR1579 merged normally as8e9dabd597 after exact895 CI38204673501 all10 PASS; canonical clean main fast-forwarded and tree equality verified. PR1580 remains dormant/draft. Initial security review clean; compatibility found a same-batch refresh/reorder race. Coordinator reproduced RED1/115, then bound synchronous eligibility to the request generation of the rendered list, including successful replacement/failed refresh. No order-CAS or server contract change. All holds remain.
-
-## 2026-10-12 — Bounded unpublication proof framing
-
-Reviewed e93 source passes2149 focused tests; private bounded engine diagnostics
-reviewed clean72s. Fresh replay verifies001–261/rollbackACL/genuine438871B types,
-then confirms combined contracts frame12s timeout after setup/privilege restoration.
-Two independently reviewed exact synthetic recoveries preserve global741/canonical
-183tables/2cron/ports/source and original failed evidence; no shared reset/schema,
-production, account, provider or activation operations. One intervening type-artifact
-collision resolved by recoverable archival of its verified prior output.
-Seven closed source-derived frames now preserve every original SQL byte/assertion
-and14schedules in one session/transaction/aggregate180s clock. Intermediate exact
-transaction witnesses; monolithic SQL is reconstruction-only.12s/40dispatch/SQL/
-response caps unchanged.80targeted tests/TypeScript/audit/diff PASS. Native timing,
-independent corrected-source review, fullfocused and eligible CI remain pending.
-PR14completedreviews1615measureds/3resolved/13sourcefixbatches/6draftpushes before
-next review; ancillary cleanup4turns219s/1resolved kept separate. Task-scoped
-routine-approval/review-budget waiver persists without counter resets. Tests phase,
-goal and existing local249+/prod259+/promotion/account/provider/cutover holds remain.
-
 ## 2026-10-12 — Unpublication interframe DDL-lock isolation
 
 Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
@@ -541,3 +514,15 @@ Review ledger retains3launches/2batches; final integration review/CI remain gate
 - Local targeted checks: persistence 770 tests/12 files, student 93/7, teacher/editor/surface 84/4 PASS. TypeScript, lint (existing warnings), UI/design policy and audit PASS. Broad focused run: 6124 passed with one unchanged proof test timing out at5s; its equivalent ID-disjointness assertion now uses Set membership (no relaxed timeout/criteria), all109 file tests PASS. Final focused rerun pending at this entry.
 - Orchestration: two bounded implementation workers requested GPT-6.1-sol/high; effective config and per-worker tokens/active time unknown. Both delivered verified, zero integration conflicts; third bounded visual turn inspected36 captures. Weekly allowance at start90% remaining; storage healthy ~315GB free. Development review planned standard risk, one GPT-6.1-sol/high full-diff wave; ledger0 launches/0 fix batches before publication, cap7 launches/4 batches/60min.
 - Evidence: `~/.codex/artifacts/pika/gradebook-compact-zero-weight/`; reviewed-head/PR/check receipts to be recorded there and in lifecycle metrics. No merge/deploy for this follow-up yet; old heartbeat remains paused.
+
+## 2026-10-16 — Daily row hover synchronization
+- `codex/daily-row-hover`: removed the row-only color transition so First/Last/ID/Log and opaque sticky attendance cells highlight together; existing Daily/Attendance pattern reused, no new component or pattern. Teacher-only; student n/a. Risk profile: none.
+- Playwright reproduced the old fade frame by frame, then verified immediate matching colors on rapid row changes. Selected/unselected Daily scenario passed desktop 1440x900 and mobile 390x844, light/dark (4/4); screenshots inspected under `output/playwright/daily-hover` and `test-results`. Pattern Lab page mockups inspected as reference.
+- `pnpm check:focused -- --base origin/main` PASS (904 tests, architecture/UI/design policy, TypeScript, lint); TeacherAttendanceTab component suite 65/65 PASS. Audit reports missing-a11y-tests because it scans existing ARIA anywhere in the file: reviewed false positive for a class-only change; semantics/keyboard unchanged and existing semantic tests plus browser interaction matrix pass. No policy exception added.
+- Coordinator handled the small implementation directly; weekly allowance reading 60% remaining, storage healthy. Independent low-risk review next; no merge/production authorization inferred.
+
+## 2026-10-16 — Preserve Daily row fade
+- Owner requested PR #1603 retain the fade. `codex/daily-row-hover` now animates one opaque row background using semantic fast motion; attendance and Undo cells inherit that background, matching every frame without duplicated hover/selection styles. Reduced motion disables the row transition.
+- Reused/extended the approved teacher Daily/Attendance composition, no shared component or new pattern. Teacher-only; desktop 1440x900/mobile 390x844, light/dark, hover and selected screenshots inspected. Supplemental samples cover rapid hover, selected enter/exit and reduced motion in all four combinations (`output/playwright/daily-hover/fade-results.json`).
+- Focused checks PASS (904 tests, architecture/UI/design policies, TypeScript/lint); updated Daily E2E scenario PASS 4/4 including frame equality, retained fade and reduced-motion checks. Audit still flags the same reviewed false positive for existing ARIA; semantics/keyboard untouched.
+- PR returned to draft before edits; targeted independent review next. No merge/production authorization inferred. Prior implementation review remains applicable to unchanged behavior; coordinator owns changes, no implementation delegation.
