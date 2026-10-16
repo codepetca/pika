@@ -1142,8 +1142,28 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(summaryStudentRow).toBeFocused()
   await expect(summary).toBeVisible()
   await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+  const verifyRowHover = async () => {
+    await page.mouse.move(0, 0)
+    await summaryStudentRow.getByRole('cell').first().hover()
+    // Sample before the hover settles: sticky cells and the row must match on every frame.
+    const frames = await summaryStudentRow.evaluate(async (row) => {
+      const samples = []
+      for (let frame = 0; frame < 3; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const rowColor = getComputedStyle(row).backgroundColor
+        samples.push(Array.from(row.querySelectorAll('td.sticky')).every(
+          (cell) => getComputedStyle(cell).backgroundColor === rowColor,
+        ))
+      }
+      return samples
+    })
+    expect(frames).toEqual([true, true, true])
+  }
+  await verifyRowHover()
   await page.keyboard.press('Escape')
   await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'false')
+  await verifyRowHover()
+  await page.screenshot({ path: testInfo.outputPath(`daily-attendance-${viewport}-hover.png`) })
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {

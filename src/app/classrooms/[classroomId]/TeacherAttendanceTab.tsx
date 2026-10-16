@@ -1050,7 +1050,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     aria-selected={isSelected}
                     tabIndex={-1}
                     className={[
-                      'group cursor-pointer transition-colors',
+                      'group cursor-pointer',
                       isSelected
                         ? 'bg-info-bg hover:bg-info-bg-hover'
                         : 'hover:bg-surface-hover',
