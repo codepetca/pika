@@ -198,6 +198,45 @@ describe('StudentTestsTab exam mode', () => {
   const sessionReads = () => fetchMock.mock.calls.filter(([url]: [string]) => url.endsWith('/session-status'))
   const draftWrites = () => fetchMock.mock.calls.filter(([url]: [string]) => url.endsWith('/attempt'))
 
+  const focusWrites = () => fetchMock.mock.calls
+    .filter(([url]: [string]) => url.endsWith('/focus-events'))
+    .map(([, options]) => JSON.parse(options.body))
+
+  it('counts selected-text popup exits in accessible references and ignores internal focus transfers', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    await renderActiveTest()
+    const frame = document.createElement('iframe')
+    screen.getByRole('region', { name: 'Tests' }).append(frame)
+    frame.dispatchEvent(new Event('load'))
+    const referenceWindow = frame.contentWindow!
+    const text = frame.contentDocument!.createElement('p')
+    text.textContent = 'Reference phrase'
+    frame.contentDocument!.body.append(text)
+    fireEvent(window, new Event('blur'))
+    fireEvent(referenceWindow, new Event('focus'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(800) })
+    expect(focusWrites()).toEqual([])
+
+    const range = frame.contentDocument!.createRange()
+    range.selectNodeContents(text)
+    referenceWindow.getSelection()!.addRange(range)
+    fireEvent.contextMenu(text)
+    hasFocus.mockReturnValue(false)
+    fireEvent(referenceWindow, new Event('blur'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(900) })
+    expect(focusWrites().map(body => body.event_type)).toEqual(['away_start'])
+    hasFocus.mockReturnValue(true)
+    await act(async () => { fireEvent(referenceWindow, new Event('focus')) })
+    expect(focusWrites().map(body => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusWrites()[1].metadata).toMatchObject({ source: 'focus', duration_ms: 900 })
+
+    hasFocus.mockReturnValue(false)
+    fireEvent(referenceWindow, new Event('blur'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(800) })
+    expect(focusWrites().map(body => body.event_type)).toEqual(['away_start', 'away_end', 'away_start'])
+  })
+
   it('keeps the pending draft debounce through parent renders and eventually saves once', async () => {
     const view = await renderActiveTest()
     fireEvent.click(screen.getByRole('radio', { name: '4' }))
@@ -2832,7 +2871,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.getByText('Submitted')).toBeInTheDocument()
   })
 
-  it('does not log exit telemetry for Cmd+F interruption bursts', async () => {
+  it.each([{ ctrlKey: true }, { metaKey: true }])('blocks browser Find only during an active test: %j', async (modifier) => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -2912,11 +2951,14 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} />)
+    const { unmount } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
     })
+
+    const findShortcut = () => new KeyboardEvent('keydown', { key: 'f', ...modifier, bubbles: true, cancelable: true })
+    expect(window.dispatchEvent(findShortcut())).toBe(true)
 
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
@@ -2935,17 +2977,52 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     vi.useFakeTimers()
-    fireEvent.keyDown(window, { key: 'f', metaKey: true })
-    fireEvent(window, new Event('blur'))
-    fullscreenElement = null
-    fireEvent(document, new Event('fullscreenchange'))
-    fireEvent(window, new Event('resize'))
+    expect(window.dispatchEvent(findShortcut())).toBe(false)
+    const reference = document.createElement('iframe')
+    document.body.append(reference)
+    reference.dispatchEvent(new Event('load'))
+    expect(reference.contentWindow!.dispatchEvent(findShortcut())).toBe(false)
+    expect(window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'F', ...modifier, bubbles: true, cancelable: true,
+    }))).toBe(false)
+    expect(window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', bubbles: true, cancelable: true,
+    }))).toBe(true)
+    expect(window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', ...modifier, shiftKey: true, bubbles: true, cancelable: true,
+    }))).toBe(true)
 
     await act(async () => {
       vi.advanceTimersByTime(800)
     })
-
     expect(focusBodies).toEqual([])
+
+    // A selected-text context menu (including Chrome translation) grants no exemption.
+    const question = screen.getByText('2 + 2 = ?')
+    const selection = document.getSelection()!
+    const range = document.createRange()
+    range.selectNodeContents(question)
+    selection.removeAllRanges()
+    selection.addRange(range)
+    fireEvent.contextMenu(question)
+    fireEvent(window, new Event('blur'))
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+    expect(focusBodies).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: 'away_start' }),
+    ]))
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    expect(focusBodies.map(body => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
+    expect(focusBodies[1].metadata.duration_ms).toBe(800)
+    expect(focusBodies.some(body => body.metadata?.source === 'browser_interaction')).toBe(false)
+    selection.removeAllRanges()
+
+    unmount()
+    expect(window.dispatchEvent(findShortcut())).toBe(true)
+    expect(reference.contentWindow!.dispatchEvent(findShortcut())).toBe(true)
+    reference.remove()
   })
 
   it('ignores transient noise but captures sustained blur when its timer is throttled', async () => {
