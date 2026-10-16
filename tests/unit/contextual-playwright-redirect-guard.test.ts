@@ -13,6 +13,7 @@ const plan = createContextualTestPlan('pika_assignment_list_012345abcdef')
 
 // Exercise the installed adapter, not a mock that assumes redirect interception.
 const { rewriteContextualRedirectAdapter: transform } = require('../../scripts/contextual-playwright-redirect-guard.cjs') as { rewriteContextualRedirectAdapter(value: string): string }
+const { assertContextualNavigationSources: assertNavigationSources } = require('../../scripts/contextual-playwright-redirect-guard.cjs') as { assertContextualNavigationSources(sources: Record<string, Buffer>): void }
 type Session = { send: ReturnType<typeof vi.fn>; _sendMayFail: ReturnType<typeof vi.fn> }
 type Route = { continue(overrides: object): Promise<void>; abort(code: string): Promise<void> }
 type Request = { url(): string; method(): string; postDataBuffer(): Buffer | null; redirectedFrom(): object }
@@ -45,6 +46,14 @@ function fixture(resourceType = 'Fetch', worker = false) {
 }
 
 describe('pinned Chromium redirect interception', () => {
+  it('pins the exact commit-event and request-identity plumbing and rejects every source drift', () => {
+    const root = dirname(require.resolve('playwright-core/package.json'))
+    const names = ['client/frame.js', 'client/channelOwner.js', 'client/connection.js', 'server/dispatchers/frameDispatcher.js', 'protocol/validator.js']
+    const sources = Object.fromEntries(names.map(name => [name, readFileSync(join(root, 'lib', name))]))
+    expect(() => assertNavigationSources(sources)).not.toThrow()
+    for (const name of names) expect(() => assertNavigationSources({ ...sources, [name]: Buffer.concat([sources[name], Buffer.from('\n')]) })).toThrow('Private navigation source mismatch')
+    expect(() => assertNavigationSources({})).toThrow('Private navigation source set mismatch')
+  })
   it('loads before the SDK in both the CLI and its forked worker, without changing SDK bytes', () => {
     const preload = join(process.cwd(), 'scripts/contextual-playwright-preload.cjs')
     const result = spawnSync(process.execPath, ['--require', preload, join(process.cwd(), 'tests/fixtures/contextual-redirect-preload-probe.cjs')], {

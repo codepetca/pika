@@ -9,6 +9,7 @@ import { z } from 'zod'
 import type { Browser, BrowserContext, Page, Request, Response, TestInfo } from '@playwright/test'
 import { readContextualTestBinding, executeContextualTestSql } from '../../scripts/contextual-test-rehearsal-binding'
 import { ContextualTestBoundary } from './contextual-test-boundary'
+import { ContextualTestNavigation } from './contextual-test-navigation'
 import { installLoginFetchGate } from './contextual-login-fetch-gate'
 import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWitness } from './contextual-test-rehearsal'
 import type { ContextualTestStartupStage } from './contextual-test-startup'
@@ -90,7 +91,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const output = join(binding.outputDir, 'playwright')
   stage('output')
   mkdirSync(output, { mode: 0o700 }) // exclusive run ownership; never adopt old output
-  const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; actor?: string }>()
+  const contexts = new Map<BrowserContext, { closing: boolean; closed: boolean; actor?: string; navigation: ContextualTestNavigation }>()
   const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string; fontReference?: string }> = []
   const witnesses: Array<{ label: string; sha256: string }> = []
   const loginProgress = createContextualTestLoginProgress()
@@ -104,9 +105,9 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
     assert(state && !state.closing && !state.closed, 'Private Page ownership'); return context
   }
   const fixedTimeout = () => { boundary.check(); return Math.min(plan.limits.operationMs, binding.deadline - Date.now()) }
-  const depart = async (page: Page, action: (timeout: number) => Promise<unknown>) => {
+  const depart = async (page: Page, url: string, action: (timeout: number) => Promise<unknown>, kind: 'navigate' | 'reload' = 'navigate') => {
     const context = requireOwned(page), end = Math.min(binding.deadline, Date.now() + plan.limits.operationMs)
-    await boundary.depart(context, end, action)
+    await contexts.get(context)!.navigation.depart(page, url, end, action, kind)
   }
   const requestBody = (request: Request) => {
     if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method())) return undefined
@@ -126,7 +127,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       boundary.check(); assert(Object.hasOwn(plan.actors, label) || ['ownerTeacherPeer', 'ownerStudentPeer'].includes(label))
       const login = loginProgress.begin()
       const context = await login.step('context', () => browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false }))
-      const state = { closing: false, closed: false }; contexts.set(context, state)
+      const state = { closing: false, closed: false, navigation: new ContextualTestNavigation(boundary, context) }; contexts.set(context, state)
       let loginSubmitted = false, loginVerified = false, loginNavigationEnd = 0
       let loginGate: Awaited<ReturnType<typeof installLoginFetchGate>> | undefined
       // Register closure before any fallible context setup. Failed route or
@@ -149,22 +150,28 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
           await context.route('**/*', async route => {
             if (state.closing) { await route.abort('aborted').catch(() => {}); return }
             let phase: 'route-inspection' | 'route-continue' = 'route-inspection'
+            let abortAttempted = false
             try {
               const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request), request.resourceType())
+              boundary.requestIntercepted(context, request, request.method())
               if (loginSubmitted && !loginVerified && request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
                 // The fetch gate prevents navigation from starting before the
                 // original bytes are verified. Any premature navigation fails
                 // closed immediately instead of pausing the browser protocol.
                 boundary.endpoint('navigation-before-login')
               }
-              // Fail closed if a request began between the departure drain and
-              // dispatch. Never pause a navigation route waiting for its loader.
+              if (await state.navigation.route({ request: () => request,
+                continue: options => { phase = 'route-continue'; return route.continue(options) },
+                abort: errorCode => { abortAttempted = true; return route.abort(errorCode) },
+              })) return
+              // Outside an explicit departure, no cancellation exemption exists.
               if (request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) boundary.canNavigate(context, request)
               phase = 'route-continue'
+              boundary.requestReleased(context, request)
               await route.continue()
             }
             catch { try { boundary.endpoint(phase) } catch { /* retain fixed first failure */ }
-              await route.abort('blockedbyclient').catch(() => {}) }
+              if (!abortAttempted) await route.abort('blockedbyclient').catch(() => {}) }
           })
           await context.routeWebSocket('**/*', socket => {
             try { const u = new URL(socket.url()); if (u.origin !== 'ws://localhost:3117' || u.pathname !== '/_next/webpack-hmr') boundary.endpoint('websocket') }
@@ -266,9 +273,9 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       const target = new URL(url)
       assert.equal(target.origin, plan.appOrigin, 'Private navigation origin')
       assert(!target.username && !target.password, 'Private navigation credentials')
-      await depart(page, timeout => page.goto(target.href, { waitUntil, timeout }))
+      await depart(page, target.href, timeout => page.goto(target.href, { waitUntil, timeout }))
     },
-    reload: page => depart(page, timeout => page.reload({ waitUntil: 'domcontentloaded', timeout })),
+    reload: page => depart(page, page.url(), timeout => page.reload({ waitUntil: 'domcontentloaded', timeout }), 'reload'),
     async witness(label) {
       boundary.check(); contextualTestArtifactLabel(label)
       const raw = await executeContextualTestSql(binding, 'witness')

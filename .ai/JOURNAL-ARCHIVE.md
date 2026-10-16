@@ -47637,3 +47637,77 @@ restart, migration, production/provider/account/cutover change. Next recommend
 source-only field-specific safe labels, preserving all existing validation, before
 any separately approved fresh run. Original clock/review50/fix37/waiver carry;
 PR1581 draft/full gate failed. Independent factual receipt review51 next.
+
+<!-- pika-session-log-archive-batch:54e86d0fd74ea13c02cab808f0999499d9073de2d725a57a8c26821e1e5d2c25 -->
+## 2026-10-14 Metadata-field labels preserve original validation
+
+Human Go requests identifying the failed metadata field without weakening checks.
+Root clarified ONE fresh isolated field diagnostic after review/current readiness,
+not replay or approval reuse of spent37. New privatebff37b7a2e29 source38 adds
+fixed state/pid/pgid/started/executable/argv/cwd labels at actual original operands.
+The original three assertions/comparisons, short circuit/getter read order and
+same error remain; catch-only notification deduplicates helper fallback, and
+existing-capture discovery records the detailed field before outer normalization.
+No rejected value reread/raw data/new diagnostic authority. Root read source/
+fixture delta and independently replayed41field+31guard/14direct/15serialized36
+observability/21package19privacy/seven syntax checks and exact38→37/historical
+inverses/compiler/import closure PASS. Five zero-diagnostic transpiles are not
+semantic graph TypeScript or native proof. Firstfreeze12:44:13UTC, entry2d7c050f,
+metadata64600eea/receipt9b08187f/handofff2fa010b hash/mode0600 match. Same driver,
+kernel, cases, body/task, cleanup/caps/deadlines and approved Chrome pin retained.
+Acceptance/runtime absent, actual field still unknown pending reviewed run.
+Independent targeted review52 next; original clock/review52/fix38/waiver carry
+without reset. PR1581 draft/full gate failed; production/shared-local/provider/
+account/migration/cutover holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:d7f233197f154576ae44a642e8d5698cbb227dff9de7bbb642777f351c3aa2f1 -->
+## 2026-10-14 Fresh metadata-field diagnostic passes without reproducing fault
+
+Targeted52 source/two-doc review completed PASS0/gapsnone048657b0..., root read/
+hash/mode verified. Fresh12:51:07.687UTC source/CLI/Chrome signature/kernel/port
+preflight PASS; acceptance654266a7... admitted ONE new field diagnostic. Sole
+launcher2668 closed0/SPENT;12:51:34.660→12:51:44.516UTC9.856s. Receipt1ed1ebd6...
+complete: all3HTTP requests, hold+navigate both exact28B/bodyhash98d20c60... verified;
+original task settles before navigation and all browser/CLI/server/requests close
+within budget. No first/cleanup failure; all query/cleanup/guard diagnostics null.
+20 physical committed snapshots (40 hard-link alias paths), max1056B, independently
+checked paired inode/0600/nlink2, both real validators, monotonic prefix and exact
+terminal receipt match; within32/4096.15 capture records. No metadata field failed
+THIS run, so prior unrecorded field remains unknown; do not invent a cause or
+reclassify any of six historical failures. Native browser protocol/body/cleanup
+now pass, not actual Pika/auth/Survey acceptance or overall phase exit. No retry,
+validation relaxation, app source/migration/production/provider/account/cutover
+change. Preserve candidate/result immutable; no further metadata run authorized.
+Recommend carrying this successful protocol proof into remaining bounded app/
+Survey work, respecting its existing holds, rather than another metadata retry.
+Original clock/review52/fix38/waiver carry; factual receipt review53 next.
+
+<!-- pika-session-log-archive-batch:3fa7dc0c4b24b13c6de5c491cb646720cd36bfd4dec606cd1ffbe90deab84a52 -->
+## 2026-10-14 Real-app rehearsal resumption and bounded source recovery
+
+Owner Go authorized real-runner comparison, a justified small correction/review
+and a fresh disposable app run conditional on readiness. Frozen app21e755d3/tree
+b59213ae clean; owning plan worktreea600727af clean at start/envPASS. Cached
+319.888GB free and79% weekly remaining healthy/account-wide. Orchestrate retained
+Sol/high for two bounded read-only assignments: resumption map (~7m44s reported)
+and controller/adapter source-recovery feasibility (elapsed/effective model/tokens
+unknown). Root read/hash-verified map6704d307 and independently confirmed driver
+126f2596 starts original body reads immediately; actor context closes before final
+task join, but that is not a demonstrated login cause or justified patch yet.
+
+Static same-chat recovery preserved the finite plan2f8ab393 and historical fixture
+3947eb6e (matches original manifest), plus earlier controllercddf6309 and adapter
+dea5560b as non-executable text, all0600 in durable private historical-app-a55f.
+Selectors/limitations are recorded in RECOVERY.md; no stored command/SQL/module
+executed. Earlier controller/adapter hashes differ from the later reviewed
+manifest; final e761 controller/flow/binding and actual seed remain unproved.
+Partial flow outputs were not stitched over an unknown gap. Final-source search
+ended bounded, not an assertion that no copy can exist elsewhere.
+
+No app source fix, new native attempt/target, DB/Docker operation, migration,
+production/provider/account/rollout change or phase exit. Source38 synthetic
+success and six historical failures remain immutable. Proposed owner decision:
+replace the lost private carrier using existing version-controlled Playwright
+lifecycle/disposable helpers, preserving the frozen app, complete finite matrix,
+isolation/cleanup/caps and all serious holds; not yet approved or executed.
+Protocol original clock/review53/fix38 and app/Survey ledgers carry without reset.

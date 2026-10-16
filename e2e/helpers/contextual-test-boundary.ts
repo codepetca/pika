@@ -10,6 +10,11 @@ type Failure = 'deadline' | 'failed' | 'origin' | 'endpoint' | 'request-cap' | '
 type OriginalResponse = { url(): string; status(): number; headers(): Record<string, string>; body(): Promise<Buffer> }
 type Reservation = { testId: string; bytes: number; url: string | null; readPath: string | null; managedId: string | null; uploaded: boolean }
 type Task = { promise: Promise<unknown>; end: number; kind: 'transport' | 'body' }
+type RequestLifetime = {
+  context: object; task: Task; finish: () => void;
+  state: 'seen' | 'held' | 'released' | 'cancelling'; method?: string;
+  responseSeen: boolean; terminal: boolean; abortAcknowledged: boolean;
+}
 const endpointReasons = ['prohibited-api', 'navigation-pending', 'navigation-before-login',
   'route-inspection', 'route-continue', 'websocket', 'unspecified'] as const
 type EndpointReason = typeof endpointReasons[number]
@@ -44,7 +49,8 @@ export class ContextualTestBoundary {
   private endpointFailure: EndpointFailure | null = null
   private readonly tasks = new Map<object, Set<Task>>()
   private readonly responses = new WeakMap<object, Promise<unknown>>()
-  private readonly requests = new WeakMap<object, { context: object; task: Task; finish: () => void }>()
+  private readonly requests = new WeakMap<object, RequestLifetime>()
+  private readonly transports = new WeakMap<Task, RequestLifetime>()
   private readonly reservations = new Map<string, Reservation>()
   private readonly testIds: Set<string>
   private readonly counts = { appRequests: 0, storageRequests: 0, tests: 2, reservations: 0, uploads: 0 }
@@ -82,7 +88,46 @@ export class ContextualTestBoundary {
     const promise = new Promise<void>(resolve => { finish = resolve })
     const task: Task = { end, promise, kind: 'transport' }
     const set = this.tasks.get(context) ?? new Set<Task>(); this.tasks.set(context, set); set.add(task)
-    this.requests.set(request, { context, task, finish })
+    const lifetime: RequestLifetime = { context, task, finish, state: 'seen', responseSeen: false, terminal: false, abortAcknowledged: false }
+    this.requests.set(request, lifetime); this.transports.set(task, lifetime)
+  }
+  requestIntercepted(context: object, request: object, method: string) {
+    this.check()
+    const lifetime = this.requests.get(request)
+    if (!lifetime || lifetime.context !== context || lifetime.state !== 'seen' || lifetime.terminal || lifetime.responseSeen) this.endpoint('route-inspection')
+    lifetime.state = 'held'; lifetime.method = method
+  }
+  requestReleased(context: object, request: object) {
+    this.check()
+    const lifetime = this.requests.get(request)
+    if (!lifetime || lifetime.context !== context || lifetime.state !== 'held' || lifetime.terminal || lifetime.responseSeen) this.endpoint('route-continue')
+    // Mark BEFORE invoking continue(), not after its asynchronous acknowledgement.
+    lifetime.state = 'released'
+  }
+  private retire(lifetime: RequestLifetime) {
+    const set = this.tasks.get(lifetime.context)
+    set?.delete(lifetime.task); if (!set?.size) this.tasks.delete(lifetime.context)
+    lifetime.finish()
+  }
+  /** Only the departure fence calls this, after endpoint admission and exact
+   * frame/route ownership validation. No response or released request qualifies.
+   * Both the abort acknowledgement and that request's failed terminal event are
+   * required, in either order, under the ORIGINAL (possibly shortened) deadline. */
+  async cancelUnsentRead(context: object, request: object, abort: () => Promise<void>, operationEnd: number) {
+    this.check()
+    const lifetime = this.requests.get(request)
+    if (!lifetime || lifetime.context !== context || lifetime.state !== 'held' || lifetime.terminal || lifetime.responseSeen
+      || !['GET', 'HEAD'].includes(lifetime.method ?? '')) this.endpoint('route-inspection')
+    if (!Number.isSafeInteger(operationEnd) || operationEnd <= this.now() || operationEnd > this.deadline) this.reject('deadline')
+    lifetime.task.end = Math.min(lifetime.task.end, operationEnd)
+    lifetime.state = 'cancelling'
+    const acknowledgement = Promise.resolve().then(abort).then(() => {
+      if (this.now() >= lifetime.task.end) this.failed ??= 'deadline'
+      lifetime.abortAcknowledged = true
+      if (lifetime.terminal) this.retire(lifetime)
+    }, () => { this.failed ??= 'response-body'; throw new Error('Private Test rehearsal boundary') })
+    await this.waitTasks([lifetime.task], lifetime.task.end, acknowledgement)
+    this.check()
   }
   requestFinished(context: object, request: object, failed = false) {
     const lifetime = this.requests.get(request)
@@ -90,16 +135,37 @@ export class ContextualTestBoundary {
     // Keep the original end for response validation even after transport ends.
     // Body tasks remain separately owned until their original bytes settle.
     if (this.now() >= lifetime.task.end) this.failed ??= 'deadline'
-    if (failed) this.failed ??= 'response-body'
-    const set = this.tasks.get(context)
-    set?.delete(lifetime.task); if (!set?.size) this.tasks.delete(context)
-    lifetime.finish()
+    if (lifetime.state === 'cancelling') {
+      if (lifetime.terminal || !failed || lifetime.responseSeen) this.failed ??= 'response-body'
+      lifetime.terminal = true
+      if (lifetime.abortAcknowledged) this.retire(lifetime)
+    } else {
+      if (failed) this.failed ??= 'response-body'
+      lifetime.terminal = true
+      this.retire(lifetime)
+    }
   }
   canNavigate(context: object, navigationRequest: object) {
     const navigation = this.requests.get(navigationRequest)?.task
     const pending = [...(this.tasks.get(context) ?? [])].filter(task => task !== navigation)
     if (pending.length) this.endpoint('navigation-pending', pending)
     this.check()
+  }
+  /** At interception, only unsent transports may still be retiring. Waiting for
+   * these abort/terminal pairs cannot wait on a document loader we are holding.
+   * Released work and original bodies still fail closed at this stage. */
+  async waitForNavigation(context: object, navigationRequest: object, operationEnd: number) {
+    const navigation = this.requests.get(navigationRequest)
+    if (!navigation || navigation.context !== context || navigation.state !== 'held') this.endpoint('route-inspection')
+    for (;;) {
+      this.check()
+      const pending = [...(this.tasks.get(context) ?? [])].filter(task => task !== navigation.task)
+      if (pending.some(task => task.kind === 'body' || this.transports.get(task)?.state === 'released')) this.endpoint('navigation-pending', pending)
+      if (!pending.length) break
+      await this.waitTasks(pending, operationEnd)
+    }
+    if (this.now() >= operationEnd) this.reject('deadline')
+    this.canNavigate(context, navigationRequest)
   }
   private rejectOrigin(reason: RequestFailure['reason'], u: URL | null, method: string, resource: string): never {
     // Diagnostics only: exact known origins project to fixed labels. No URL,
@@ -158,6 +224,11 @@ export class ContextualTestBoundary {
   observe(context: object, response: OriginalResponse, request?: { method(): string; postDataJSON(): unknown }, source: 'browser' | 'api' = 'browser') {
     const cached = this.responses.get(response)
     if (cached) return cached
+    const lifetime = request && this.requests.get(request)
+    if (lifetime) {
+      lifetime.responseSeen = true
+      if (lifetime.state === 'cancelling') this.failed ??= 'response-body'
+    }
     const end = (request && this.requests.get(request)?.task.end) ?? Math.min(this.deadline, this.now() + this.plan.limits.operationMs)
     let phase: Failure = 'response-body'
     // Start the original response read at headers, but retain ownership through
@@ -235,15 +306,20 @@ export class ContextualTestBoundary {
       }
     }
   }
+  private async waitTasks(tasks: readonly Task[], operationEnd: number, acknowledgement: Promise<unknown> = Promise.resolve()) {
+    const end = Math.min(this.deadline, operationEnd, ...tasks.map(task => task.end)), remaining = end - this.now()
+    // Observe a rejected acknowledgement even if expiry prevents entering race.
+    void acknowledgement.catch(() => {})
+    if (remaining <= 0) this.reject('deadline')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try { await Promise.race([Promise.all([acknowledgement, ...tasks.map(task => task.promise)]), new Promise<never>((_, reject) => {
+      timer = setTimeout(() => { this.failed ??= 'deadline'; reject(new Error('Private Test rehearsal boundary')) }, remaining)
+    })]) } finally { if (timer) clearTimeout(timer) }
+    if (this.now() >= end) this.reject('deadline')
+  }
   private async drain<T>(context: object, operationEnd: number, next: () => T | Promise<T>): Promise<T> {
     while (this.pending(context)) {
-      const tasks = [...this.tasks.get(context)!], end = Math.min(this.deadline, operationEnd, ...tasks.map(task => task.end))
-      const remaining = end - this.now()
-      if (remaining <= 0) this.reject('deadline')
-      let timer: ReturnType<typeof setTimeout> | undefined
-      try { await Promise.race([Promise.all(tasks.map(task => task.promise)), new Promise<never>((_, reject) => {
-        timer = setTimeout(() => { this.failed ??= 'deadline'; reject(new Error('Private Test rehearsal boundary')) }, remaining)
-      })]) } finally { if (timer) clearTimeout(timer) }
+      await this.waitTasks([...this.tasks.get(context)!], operationEnd)
     }
     if (this.now() >= operationEnd) this.reject('deadline')
     this.check()

@@ -11,6 +11,91 @@ function response(body: () => Promise<Buffer>, status = 200, url = plan.appOrigi
 function boundary(now = () => 1_000) { return new ContextualTestBoundary(plan, 2_701_000, now) }
 
 describe('contextual Test browser boundary', () => {
+  it.each(['GET', 'HEAD'])('joins both signals for an intercepted unsent %s cancellation', async method => {
+    for (const terminalFirst of [true, false]) {
+      const b = boundary(), c = {}, r = {}, ack = deferred<void>()
+      b.requestStarted(c, r); b.requestIntercepted(c, r, method)
+      const cancelled = b.cancelUnsentRead(c, r, () => ack.promise, 2000)
+      if (terminalFirst) b.requestFinished(c, r, true)
+      else ack.resolve()
+      await Promise.resolve(); await Promise.resolve()
+      expect(b.pending(c)).toBe(1)
+      if (terminalFirst) ack.resolve()
+      else b.requestFinished(c, r, true)
+      await cancelled; await b.settle(c)
+      expect(b.pending(c)).toBe(0); expect(b.receipt().firstFailure).toBeNull()
+    }
+  })
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])('never cancels an intercepted %s mutation/non-read', async method => {
+    const b = boundary(), c = {}, r = {}, abort = vi.fn(async () => {})
+    b.requestStarted(c, r); b.requestIntercepted(c, r, method)
+    await expect(b.cancelUnsentRead(c, r, abort, 2000)).rejects.toThrow()
+    expect(abort).not.toHaveBeenCalled(); b.requestFinished(c, r)
+  })
+  it.each(['unknown', 'unintercepted', 'released', 'responded', 'finished', 'wrong-context'])('refuses cancellation of %s work', async mode => {
+    const b = boundary(), c = {}, r = { method: () => 'GET', postDataJSON: () => undefined }, abort = vi.fn(async () => {})
+    if (mode !== 'unknown') b.requestStarted(c, r)
+    if (!['unknown', 'unintercepted'].includes(mode)) b.requestIntercepted(c, r, 'GET')
+    if (mode === 'released') b.requestReleased(c, r)
+    if (mode === 'responded') await b.observe(c, response(async () => Buffer.from('{}')), r)
+    if (mode === 'finished') b.requestFinished(c, r)
+    await expect(b.cancelUnsentRead(mode === 'wrong-context' ? {} : c, r, abort, 2000)).rejects.toThrow()
+    expect(abort).not.toHaveBeenCalled(); b.requestFinished(c, r)
+  })
+  it('does not consider a successful terminal event an expected abort', async () => {
+    const b = boundary(), c = {}, r = {}
+    b.requestStarted(c, r); b.requestIntercepted(c, r, 'GET')
+    const work = b.cancelUnsentRead(c, r, async () => { b.requestFinished(c, r) }, 2000)
+    await expect(work).rejects.toThrow(); expect(b.receipt().firstFailure).toBe('response-body')
+  })
+  it('retains abort acknowledgement failure even after requestfailed', async () => {
+    const b = boundary(), c = {}, r = {}
+    b.requestStarted(c, r); b.requestIntercepted(c, r, 'GET')
+    await expect(b.cancelUnsentRead(c, r, async () => { b.requestFinished(c, r, true); throw Error('PRIVATE') }, 2000)).rejects.toThrow()
+    expect(b.pending(c)).toBe(1); expect(b.receipt().firstFailure).toBe('response-body')
+  })
+  it.each(['ack', 'terminal'])('fails the original deadline if cancellation %s is missing', async missing => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(1000)
+      const b = boundary(Date.now), c = {}, r = {}, never = deferred<void>()
+      b.requestStarted(c, r); b.requestIntercepted(c, r, 'HEAD')
+      const work = b.cancelUnsentRead(c, r, () => missing === 'ack' ? never.promise : Promise.resolve(), 1010)
+      const rejected = expect(work).rejects.toThrow()
+      if (missing === 'ack') b.requestFinished(c, r, true)
+      await vi.advanceTimersByTimeAsync(10); await rejected
+      expect(b.receipt().firstFailure).toBe('deadline'); expect(b.pending(c)).toBe(1)
+      if (missing === 'ack') never.resolve(); else b.requestFinished(c, r, true)
+      await Promise.resolve()
+    } finally { vi.useRealTimers() }
+  })
+  it('a response during expected abort remains fatal and keeps its original body', async () => {
+    const b = boundary(), c = {}, r = { method: () => 'GET', postDataJSON: () => undefined }, original = response(async () => Buffer.from('{}'))
+    b.requestStarted(c, r); b.requestIntercepted(c, r, 'GET')
+    await expect(b.cancelUnsentRead(c, r, async () => {
+      await b.observe(c, original, r); b.requestFinished(c, r, true)
+    }, 2000)).rejects.toThrow()
+    expect(original.body).toHaveBeenCalledOnce(); expect(b.receipt().firstFailure).toBe('response-body')
+  })
+  it('waits for both abort signals before releasing a held navigation', async () => {
+    const b = boundary(), c = {}, read = {}, nav = {}, ack = deferred<void>(), release = vi.fn()
+    b.requestStarted(c, read); b.requestIntercepted(c, read, 'GET')
+    const cancelled = b.cancelUnsentRead(c, read, () => ack.promise, 2000)
+    b.requestStarted(c, nav); b.requestIntercepted(c, nav, 'GET')
+    const navigation = b.waitForNavigation(c, nav, 2000).then(release)
+    b.requestFinished(c, read, true); await Promise.resolve()
+    expect(release).not.toHaveBeenCalled()
+    ack.resolve(); await cancelled; await navigation
+    expect(release).toHaveBeenCalledOnce(); b.requestFinished(c, nav)
+  })
+  it('does not wait on already released work at navigation interception', async () => {
+    const b = boundary(), c = {}, read = {}, nav = {}
+    b.requestStarted(c, read); b.requestIntercepted(c, read, 'GET'); b.requestReleased(c, read)
+    b.requestStarted(c, nav); b.requestIntercepted(c, nav, 'GET')
+    await expect(b.waitForNavigation(c, nav, 2000)).rejects.toThrow()
+    expect(b.receipt().endpointFailure?.reason).toBe('navigation-pending')
+    b.requestFinished(c, read); b.requestFinished(c, nav)
+  })
   it.each(['1', '42', '-1', '', ' 0', '0 ', '00', '0, 0', 'NaN', 'private'])('rejects browser JSON Content-Length %j before a possible library refetch', async length => {
     const b = boundary(), c = {}, r = response(async () => Buffer.from('{}'))
     Object.assign(r, { headers: () => ({ 'content-type': 'application/json', 'content-length': length }) })

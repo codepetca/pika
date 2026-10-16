@@ -20,6 +20,7 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 class FakeRequest {
+  ownerPage?: FakePage
   constructor(private target: string, private verb = 'GET', private data?: unknown, private navigationPage?: FakePage) {}
   url = () => this.target
   method = () => this.verb
@@ -27,7 +28,8 @@ class FakeRequest {
   postDataJSON = () => this.data
   postDataBuffer = () => this.data ? Buffer.from(JSON.stringify(this.data)) : null
   isNavigationRequest = () => Boolean(this.navigationPage)
-  frame = () => this.navigationPage!.mainFrame()
+  frame = () => (this.navigationPage ?? this.ownerPage)!.mainFrame()
+  redirectedFrom = () => null
 }
 class FakeResponse {
   readonly body: ReturnType<typeof vi.fn<() => Promise<Buffer>>>
@@ -68,10 +70,12 @@ class FakePage extends EventEmitter {
   private domEmail = ''
   private domSecret = ''
   readonly goto = vi.fn(async (url: string, options: { waitUntil: string }) => {
-    this.current = url
+    if (!await this.owner.navigate(this, url)) throw Error('CPU rejected navigation')
     if (options.waitUntil === 'load' && !this.neverHydrates) this.hydrated = true
   })
-  readonly reload = vi.fn(async () => {})
+  readonly reload = vi.fn(async () => {
+    if (!await this.owner.navigate(this, this.current, true)) throw Error('CPU rejected reload')
+  })
   readonly waitForFunction = vi.fn(async (_predicate: () => boolean, _arg: undefined, options: { timeout: number }) => {
     this.readyEnd = Date.now() + options.timeout
     if (!(this.hydrated && this.email === 'teacher@example.com' && this.secret === 'test1234')) {
@@ -82,8 +86,13 @@ class FakePage extends EventEmitter {
     await this.navigationTask
     expect(predicate(new URL(this.current))).toBe(true)
   })
-  private readonly frame = { page: () => this }
+  private readonly frame = { page: () => this, _eventEmitter: new EventEmitter() }
   mainFrame = () => this.frame
+  frames = () => [this.frame]
+  commit(url: string, request?: FakeRequest) {
+    this.current = url
+    this.frame._eventEmitter.emit('navigated', { url, ...(request ? { newDocument: { request: { _object: request } } } : {}) })
+  }
   constructor(readonly owner: FakeContext) { super() }
   context = () => this.owner
   url = () => this.current
@@ -155,6 +164,7 @@ class FakeContext extends EventEmitter {
   readonly requests: Array<{ url: string; options: Record<string, unknown> }> = []
   readonly responses: FakeResponse[] = []
   fetchReply?: (url: string, options: Record<string, unknown>) => FakeResponse
+  beforeCommit?: () => Promise<void>
   private routeHandler?: (route: { request(): FakeRequest; continue(): Promise<void>; abort(): Promise<void> }) => Promise<void>
   readonly route = vi.fn(async (_pattern: string, handler: typeof this.routeHandler) => { this.routeHandler = handler })
   readonly request = { fetch: vi.fn(async (url: string, options: Record<string, unknown>) => {
@@ -166,16 +176,21 @@ class FakeContext extends EventEmitter {
     super(); this.actor = plan.actors[actorLabel]; this.page = new FakePage(this)
   }
   async dispatch(request: FakeRequest) {
+    request.ownerPage = this.page
     this.emit('request', request)
     const continued = vi.fn(async () => {}), aborted = vi.fn(async () => {})
     await this.routeHandler?.({ request: () => request, continue: continued, abort: aborted })
     expect(continued).toHaveBeenCalledOnce(); expect(aborted).not.toHaveBeenCalled()
   }
-  async navigate(page: FakePage) {
-    const request = new FakeRequest(plan.appOrigin + '/classrooms', 'GET', undefined, page)
+  async navigate(page: FakePage, url = plan.appOrigin + '/classrooms', reload = false) {
+    const current = new URL(page.url()), next = new URL(url)
+    const samePath = current.origin + current.pathname + current.search === next.origin + next.pathname + next.search
+    if (!reload && samePath && (current.href !== next.href || next.hash !== '')) { page.commit(url); return true }
+    const request = new FakeRequest(url, 'GET', undefined, page)
     this.emit('request', request)
     let continued = false
     await this.routeHandler?.({ request: () => request, continue: async () => { continued = true }, abort: async () => {} })
+    if (continued) { await this.beforeCommit?.(); page.commit(url, request) }
     this.emit(continued ? 'requestfinished' : 'requestfailed', request)
     return continued
   }
@@ -221,6 +236,53 @@ async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Para
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it.each(['navigate', 'reload'] as const)('cancels only unsent late reads around native %s and releases destination assets after commit', async mode => {
+    const s = await setup(), sends = vi.fn(), aborts = vi.fn()
+    await s.runtime.withActor('ownerTeacher', async page => {
+      const c = s.browser.contexts[0], originalRequest = new FakeRequest(plan.appOrigin + '/api/auth/me')
+      await c.dispatch(originalRequest)
+      const body = deferred<Buffer>(), original = new FakeResponse(c.page, originalRequest, {}, 200, () => body.promise)
+      c.emit('response', original); c.emit('requestfinished', originalRequest)
+      const lateRead = async (method: string) => {
+        const read = new FakeRequest(plan.appOrigin + '/api/auth/me', method); read.ownerPage = c.page
+        c.emit('request', read)
+        await c.route.mock.calls[0][1]!({ request: () => read, continue: async () => { sends() },
+          abort: async () => { aborts(); c.emit('requestfailed', read) } })
+      }
+      c.beforeCommit = () => lateRead('HEAD')
+      const command = async () => {
+        // Model the server dispatcher's await before native navigation. This
+        // request arrives after the final drain, not in a host-only microtask.
+        await Promise.resolve()
+        const cancelled = lateRead('GET')
+        const navigated = c.navigate(c.page, mode === 'reload' ? c.page.url() : plan.appOrigin + '/pattern-lab', mode === 'reload')
+        await Promise.all([cancelled, navigated])
+        const asset = new FakeRequest(plan.appOrigin + '/_next/static/asset.js')
+        await c.dispatch(asset); c.emit('requestfinished', asset)
+      }
+      c.page.goto.mockImplementation(command); c.page.reload.mockImplementation(command)
+      const departing = mode === 'reload' ? s.runtime.reload(page) : s.runtime.navigate(page, plan.appOrigin + '/pattern-lab')
+      await Promise.resolve(); expect(c.page.reload).not.toHaveBeenCalled(); expect(c.page.goto).toHaveBeenCalledTimes(1)
+      body.resolve(Buffer.from('{}')); await departing
+      expect(original.body).toHaveBeenCalledOnce(); expect(sends).not.toHaveBeenCalled(); expect(aborts).toHaveBeenCalledTimes(2)
+    })
+    await expect(s.close('failed')).rejects.toThrow()
+    expect(s.receipt().firstFailure).toBeNull(); expect(s.receipt().pending).toBe(0)
+  })
+  it('does not let cancellation conceal a prohibited endpoint or skip admission', async () => {
+    const s = await setup(), send = vi.fn()
+    await expect(s.runtime.withActor('ownerTeacher', async page => {
+      const c = s.browser.contexts[0]
+      c.page.goto.mockImplementation(async () => {
+        const request = new FakeRequest(plan.appOrigin + '/api/billing/private'); request.ownerPage = c.page
+        c.emit('request', request)
+        await c.route.mock.calls[0][1]!({ request: () => request, continue: async () => { send() }, abort: async () => { c.emit('requestfailed', request) } })
+      })
+      await s.runtime.navigate(page, plan.appOrigin + '/pattern-lab')
+    })).rejects.toThrow()
+    await expect(s.close('failed')).rejects.toThrow()
+    expect(send).not.toHaveBeenCalled(); expect(s.receipt().endpointFailure.reason).toBe('prohibited-api')
+  })
   it.each(['navigate', 'reload'] as const)('does not insert a host microtask gap before %s command dispatch', async mode => {
     const s = await setup(), events: string[] = []
     await s.runtime.withActor('ownerTeacher', async page => {
@@ -228,7 +290,7 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       const command = async () => {
         events.push('command')
         // Unlike the default inert doubles, this emits request, route and finish.
-        if (!await c.navigate(c.page)) throw Error('CPU rejected navigation')
+        if (!await c.navigate(c.page, mode === 'reload' ? c.page.url() : plan.appOrigin + '/pattern-lab', mode === 'reload')) throw Error('CPU rejected navigation')
       }
       c.page.goto.mockImplementation(command); c.page.reload.mockImplementation(command)
       queueMicrotask(() => {

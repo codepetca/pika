@@ -1,5 +1,26 @@
 # Contextual classroom-owner Test publication
 
+## Current private rehearsal navigation policy (2026-10-16)
+
+The owner explicitly approved expected cancellation only for verified unsent
+GET/HEAD reads during an owned navigation. The departure fence arms before the
+drain; all already-released transports and original response bodies must finish.
+Every intercepted request still passes existing origin, endpoint and quota
+admission. A cancellable read must belong to a live frame of that exact page,
+have no response, and never have reached `route.continue()`. It retires only
+after both abort acknowledgement and the same request's `requestfailed`, within
+the original deadline shortened by the departure deadline. Mutation, unknown
+ownership, released work, body failure, missing signal and expiry stay fatal.
+
+The main-document request must match the intended target; redirect hops must
+reference the exact prior request. The fence remains until the pinned SDK's
+new-document event identifies the released last hop. Continuation alone is not
+commit. Fragment-only navigation has no cancellation allowance. Private commit
+plumbing is source-hash-pinned; no SDK files, response bodies, authentication,
+production flags, schemas or app code are changed. Regression tests are CPU
+evidence, not a successful native rehearsal. Review precedes any fresh bounded
+full-app attempt; all previous attempts stay spent and production holds remain.
+
 Prepared access-phase2 owner-authoring slice after #1503, which merged at
 865d837b740e781086f0209eb9c4d9c8dab78db3 after reviewed9c39132d passed all five
 checks in CI37435496517. HTTP/body/SQL source-contract TDD186/4 passed. Normal

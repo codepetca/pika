@@ -8,8 +8,24 @@ const { createRequire, registerHooks } = require('node:module')
 const { dirname, join } = require('node:path')
 const { pathToFileURL } = require('node:url')
 const UPSTREAM_SHA256 = 'ad55830a87387450440a4b372ae6a93a6c91c089ccc1e72ffeb298662dddb744'
+// The departure fence consumes the SDK's existing, request-correlated frame
+// commit event, not a URL-only public event or another CDP interception session.
+const NAVIGATION_SOURCES = Object.freeze({
+  'client/frame.js': 'f3eeec1734312b518d488763365f7b3f877284bf92c01edc267bdbb1648ef8c7',
+  'client/channelOwner.js': '7052cae26b3fc156572494b9cf8a6cdddc8d3845aea7dec9ef7642f44f866c7e',
+  'client/connection.js': 'e063a23c7fb0ed81e7a09baa0844851c660b3cba1c39176963f17b10a1bf1526',
+  'server/dispatchers/frameDispatcher.js': '59c3fd3d39f0dfe8424c50810d035cf74ad44d845d143b7ca7dbcd6d5ead6096',
+  'protocol/validator.js': '6643ff17117b16115867af7c647bbe5de151682d9cc8d7998db343405e465c59',
+})
 const digest = value => createHash('sha256').update(value).digest('hex')
 let installed
+
+function assertContextualNavigationSources(sources) {
+  assert.deepEqual(Object.keys(sources).sort(), Object.keys(NAVIGATION_SOURCES).sort(), 'Private navigation source set mismatch')
+  for (const [name, expected] of Object.entries(NAVIGATION_SOURCES)) {
+    assert.equal(digest(sources[name]), expected, 'Private navigation source mismatch')
+  }
+}
 
 function rewriteContextualRedirectAdapter(source) {
   assert.equal(typeof source, 'string')
@@ -46,6 +62,11 @@ function installContextualRedirectInterception() {
   const manifest = realpathSync(createRequire(playwrightManifest).resolve('playwright-core/package.json'))
   for (const path of [testManifest, playwrightManifest]) assert.equal(JSON.parse(readFileSync(path, 'utf8')).version, '1.58.0')
   assert.equal(JSON.parse(readFileSync(manifest, 'utf8')).version, '1.58.0')
+  assertContextualNavigationSources(Object.fromEntries(Object.keys(NAVIGATION_SOURCES).map(name => {
+    const path = join(dirname(manifest), 'lib', name)
+    assert.equal(realpathSync(path), path)
+    return [name, readFileSync(path)]
+  })))
   const file = join(dirname(manifest), 'lib/server/chromium/crNetworkManager.js')
   assert.equal(realpathSync(file), file)
   assert(!require.cache[file], 'Private redirect adapter loaded before guard')
@@ -76,4 +97,4 @@ function assertContextualRedirectInterception() {
   assert.equal(installed.prototype._onRequestPaused, installed.pause)
 }
 
-module.exports = { rewriteContextualRedirectAdapter, installContextualRedirectInterception, assertContextualRedirectInterception }
+module.exports = { rewriteContextualRedirectAdapter, installContextualRedirectInterception, assertContextualRedirectInterception, assertContextualNavigationSources }
