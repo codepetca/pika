@@ -28,6 +28,10 @@ export async function runContextualTestFontMatrix(r: ContextualTestRuntime): Pro
       await page.evaluate(value => localStorage.setItem('theme', value), theme)
       const referenceRole = actor === 'ownerTeacher' ? 'teacher' : 'student'
       await r.navigate(page, `${r.plan.appOrigin}/pattern-lab?role=${referenceRole}#history-preview`, 'load')
+      // Student references differ only by fragment, which preserves the closed
+      // preview and prior theme. Remount each case through the owned departure
+      // path so both the preview and stored theme start from their real defaults.
+      await r.reload(page)
       const history = page.locator('#history-preview[data-testid="history-preview-gallery"]')
       await history.getByRole('button', { name: 'Exit preview', exact: true }).waitFor({ state: 'visible' })
       await r.captureFont(`font-${actor}-${view}-${theme}-preview`, page)

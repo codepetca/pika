@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Source-only ownership guard diagnostics verified
-
-Human Go approved privacy-safe guard/cause labels, offline checks and review only.
-Fresh private bca45d9d95e9 source36 records fixed allowlisted guard-step, own-data
-processCause/code in first primary/cleanup slots; final receipt seals both. Real
-operations remain authoritative and rethrow the identical original error, even
-if observation fails. Catch-only metadata notification cannot skip validation;
-capture binding before awaited snapshot is preserved. No raw error/PID/path/body
-output, new channel, dependency, policy weakening or renewed deadline. Root
-independently replayed31guard/14direct/15serialized(36observability)/21package/
-19privacy checks and exact historical inverse/compiler/import closure PASS.
-Firstfreeze2026-10-14T01:07:13Z entry884f0ee9..., metadata2c0003ff..., source
-handoff95ef7a2a... retained0600. Five transpiles zero diagnostics, not full semantic
-TypeScript verification. Acceptance/runtime absent; nativeVerifiedfalse. Existing
-failed cf7 result stays failed/SPENT despite separately successful recovery.
-Independent targeted review49 next, original clock/review49/fix36 carry without
-reset under standing workflow waiver. PR1581 stays draft/full gate failed; no
-browser rerun, app/auth, production/shared-local/provider/account/cutover change.
-
 ## 2026-10-13 Source36 native preflight blocked by Chrome update
 
 Human Go authorized one exact reviewed fresh isolated check. Startup08792b440
@@ -958,3 +939,29 @@ with one normal keyboard sequence, no post-delete action/retry or weaker checks.
 placeholder overlay unchanged and pending visuals. No fresh native attempt.
 Counters106reviews/64fixcommits carry; all production/sharedlocal/provider/rollout
 holds unchanged. Prior spent failure/evidence preserved, no goal exit claimed.
+
+Review107 CLEAN0 at d2c3b7a6; focused3560PASS/8skip and static gates PASS; draft1581
+exacthead verified. No second native attempt in that turn.
+
+## 2026-10-16 — Placeholder verified in partial matrix; reset retained gallery state
+
+Human approved ONEfreshboundedrehearsal. Startup/pins PASS, storage335.46GBhealthy,
+weekly61%remaining. Review108 CLEAN0 freshwx wrapper identifiers only, no source
+change; prior107coverage reused. tPOFbM57957 SPENT/FAILED188902ms: two real logins
+identityPASS,20fontPNGs1002741bytes hash-verified (16teacher/fourstudentdesktoplight).
+AllfivecapturedemptychecksPASS;rootviewedfiveempty/threestudentnonempty, Sol6.1/high
+workerreviewed12teachernonempty. Readable, themesconsistent; mobilefocusedpreview
+inner scroller omits document heading/startofSection1, so no such coverage claimed.
+AllcleanupPASS,ownedSettledtrue,activeProbes/unsettled0;independent46013 beforewrites
+proves7649sources/49485dependencies unchanged,currentprocesscandidates0. Exactfixture
+containers/volumes/network/tempapp absent,fourportsclear;freeze released,evidencekept.
+
+Nextworkflowtimeout after studentlightempty; network/body/requestfailuresNULL,
+pending/page/consoleerrors0. Source: studenthash-onlynavigation retainsclosedpreview
+andmountedtheme, but nextcasewaitsExitpreview. Exacttimeoutline unretained; stateful
+matrixregression reproducesclosedpreview failure RED, then GREEN with one existing
+runtime-ownedreloadpercase. No newbrowseredge, retry, contentinjection, relaxedcheck
+orlimit. 100targetedPASS,tsc/lint/auditPASS; finalgate/targetedreview109 next.
+Counters108reviews/65fixcommitscarry underwaiver. No furthernativeattempt; remaining
+12font+16workflowscreenshots absent. ProductSCSS staysuncommitted; allproduction,
+sharedlocal249+, providerSurvey/planning, oldsocket81 androllout holds unchanged.

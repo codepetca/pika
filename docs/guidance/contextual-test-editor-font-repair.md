@@ -71,6 +71,30 @@ injection, longer timeouts, or exceptions to the existing empty/visible checks.
 CPU regressions cover both orderings and the fixed matrix action sequence.
 This runner correction does not itself establish browser or visual acceptance.
 
+### Matrix state reset (2026-10-16)
+
+The approved fresh run at `d2c3b7a6` collected 20 hash-verified font captures:
+all 16 teacher-actor cases and the four student desktop/light cases. Both real
+logins, all five captured empty states, cleanup and independent preservation
+passed. The run then timed out before the next screenshot; it remains failed.
+No network/body/request violation or page error was recorded. The exact timeout
+line was not retained, so do not present the source diagnosis as a browser trace.
+
+Student reference URLs differ only by fragment. That navigation preserves the
+closed preview from the previous case and does not rerun the mounted theme
+initializer. The next case waits for a preview button that does not reopen.
+A stateful matrix regression reproduces this failure. Reset each case with the
+existing runtime-owned reload after navigating to the history reference. This
+uses the existing request-drain, ownership, origin and deadline checks; it adds
+no direct browser bypass, retries, limits or capture exceptions.
+
+All 20 captures were visually inspected. Text is readable in the captured areas;
+mobile focused previews intentionally show the changed block in an inner scroller
+and do not prove visibility of the document heading or the start of Section 1.
+Editing/empty references are still shared student-editor surfaces authenticated
+as each actor. The remaining 12 font captures and all 16 workflow captures are
+unverified. Do not accept the full matrix or commit the product stylesheet yet.
+
 ## Failure and scope
 
 The failed isolated run completed both original login body reads and authenticated
