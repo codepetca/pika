@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Unpublication actual-writer contention fixtures
-
-69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
-Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
-wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
-Source mapping likely schedule11holderreceipt failure; direct availability and
-AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
-Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
-proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
-Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
-PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
-Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
-PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
-6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
-
 ## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
 
 Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
@@ -537,3 +522,18 @@ UI/design policies pass. Existing lint warnings retained. One independent
 full-diff review planned on frozen commit; review budget1initial,up to1targeted
 if necessary,5min target; token telemetry unknown. Capture-script navigation
 style injection caused artifact-only hydration warnings; product markup unchanged.
+
+## 2026-10-16 — Assignment/Test title edit cue
+
+Owner follow-up adds the More actions Pencil at the right of editable selected
+Assignment/Test titles on hover and keyboard focus. Reused existing title buttons,
+edit callbacks and permissions; reserved icon space prevents hover reflow. No cue
+for read-only or pending Assignment detail state. Student n/a (no definition-edit
+control). Risk:none.206affected tests pass;8teacher desktop/mobile×light/dark
+browser cases pass (hover,focus,keyboard editor opening),normal/reduced motion
+verification included. UI/design policies and four-file audit pass. Parent
+borderless coverage atd8ce0bc16 reused; delta-focused workflow/static checks and
+fixed-head independent follow-up review recorded in PR1605. No new abstraction,
+dependency, database, merge or deployment. Model recommendation:gpt-6-luna/medium
+for small independent delta review. No implementation delegation; review token
+and effective-model telemetry unknown. Evidence:output/playwright/title-hover/.

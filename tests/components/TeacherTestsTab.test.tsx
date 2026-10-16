@@ -982,6 +982,7 @@ describe('TeacherTestsTab', () => {
 
     const editTitle = screen.getByRole('button', { name: 'Edit Unit Test' })
     expect(editTitle).toBeDisabled()
+    expect(editTitle.querySelector('svg.lucide-pencil')).not.toBeInTheDocument()
     fireEvent.click(editTitle)
     expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
   })
@@ -1172,6 +1173,7 @@ describe('TeacherTestsTab', () => {
 
     const editTitle = screen.getByRole('button', { name: 'Edit Unit Test' })
     expect(editTitle).toHaveAttribute('title', 'Unit Test')
+    expect(editTitle.querySelector('svg.lucide-pencil')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(editTitle)
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'split')
