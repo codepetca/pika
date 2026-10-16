@@ -2939,6 +2939,10 @@ describe('StudentTestsTab exam mode', () => {
 
     vi.useFakeTimers()
     expect(window.dispatchEvent(findShortcut())).toBe(false)
+    const reference = document.createElement('iframe')
+    document.body.append(reference)
+    reference.dispatchEvent(new Event('load'))
+    expect(reference.contentWindow!.dispatchEvent(findShortcut())).toBe(false)
     expect(window.dispatchEvent(new KeyboardEvent('keydown', {
       key: 'F', ...modifier, bubbles: true, cancelable: true,
     }))).toBe(false)
@@ -2965,6 +2969,8 @@ describe('StudentTestsTab exam mode', () => {
 
     unmount()
     expect(window.dispatchEvent(findShortcut())).toBe(true)
+    expect(reference.contentWindow!.dispatchEvent(findShortcut())).toBe(true)
+    reference.remove()
   })
 
   it('ignores transient noise but captures sustained blur when its timer is throttled', async () => {

@@ -12,6 +12,7 @@ import {
   getTestExitCount,
   mergeTestFocusSummaries,
 } from '@/lib/tests'
+import { blockExamBrowserFind } from '@/lib/exam-mode-browser-find'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { StudentTestResults } from '@/components/StudentTestResults'
@@ -1338,22 +1339,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   useEffect(() => {
     if (!focusEnabled) return
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        !event.altKey &&
-        !event.shiftKey &&
-        event.key.toLowerCase() === 'f'
-      ) {
-        // Browser Find takes focus from the exam; block it without masking real exits.
-        event.preventDefault()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown, true)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true)
-    }
+    return blockExamBrowserFind(window)
   }, [focusEnabled])
 
   useEffect(() => {

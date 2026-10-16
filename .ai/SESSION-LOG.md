@@ -517,10 +517,13 @@ with capture-phase shortcut prevention during an active unsubmitted attempt.
 Normal browser handling resumes outside exam mode; real subsequent departures
 retain incident tracking. Translator behavior held at owner request; reported
 case was likely Chrome selection translation from its context menu.
-Component/incident64 pass; browser coverage checks both shortcuts, focused
+Component/incident67 pass; browser coverage checks both shortcuts, focused
 unsaved draft, no false exit/lock, real blur, and Find after submission across
 student desktop/mobile and light/dark. Teacher n/a (no changed owner). Existing
 workspace and Pattern Lab student-test-attempt are references; extend keyboard
 listener, reuse form/compliance owners; no new visual pattern or composite.
-First focused run hit CI-tool timing failures under default worker concurrency;
-rerun limits Vitest to2. Independent review and gate receipts belong to the PR.
+Independent review found a reference-frame gap; the corrected helper covers
+accessible frames, later loads and cleanup. Browser-owned PDF/external frames
+remain subject to browser access restrictions; sandbox/CSP unchanged. Focused
+runs at default/2/1 workers hit varying unchanged infrastructure timeouts.
+Independent review and gate receipts belong to the PR.

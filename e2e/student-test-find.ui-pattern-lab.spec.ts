@@ -4,11 +4,15 @@ import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-stude
 test.use({ storageState: { cookies: [], origins: [] } })
 
 test('blocks browser Find during the attempt without hiding real exits', async ({ page }, info) => {
+  test.setTimeout(90_000)
   const testId = '30000000-0000-4000-8000-000000000013'
   const assessment = {
     id: testId, classroom_id: TABLE_CLASSROOM_ID, title: 'Find shortcut check',
     assessment_type: 'test', status: 'active', effective_access: 'open',
-    student_status: 'not_started', show_results: false, documents: [], position: 0,
+    student_status: 'not_started', show_results: false, documents: [{
+      id: 'reference', title: 'Allowed HTML reference', source: 'link',
+      url: 'https://example.invalid/reference', snapshot_path: 'synthetic.html', snapshot_content_type: 'text/html',
+    }], position: 0,
   }
   const questions = [{
     id: '60000000-0000-4000-8000-000000000001', test_id: testId,
@@ -23,6 +27,7 @@ test('blocks browser Find during the attempt without hiding real exits', async (
   await mockTableShellReads(page, 'student')
   await page.route('**/api/student/tests**', async route => {
     const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/snapshot')) return route.fulfill({ contentType: 'text/html', body: '<button>Read reference</button>' })
     if (path.endsWith('/session-status')) return route.fulfill({ json: { can_continue: true } })
     if (path.endsWith('/focus-events')) {
       events.push(route.request().postDataJSON())
@@ -44,7 +49,7 @@ test('blocks browser Find during the attempt without hiding real exits', async (
     if (path === '/api/student/tests') return route.fulfill({ json: { tests: [current] } })
     return route.fulfill({ json: { test: current, questions, student_status: current.student_status, student_responses: responses } })
   })
-  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=tests')
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=tests', { timeout: 60_000 })
   await page.getByText(assessment.title, { exact: true }).first().click()
   const dispatchFind = () => page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', {
     key: 'f', ctrlKey: true, cancelable: true, bubbles: true,
@@ -85,6 +90,19 @@ test('blocks browser Find during the attempt without hiding real exits', async (
   await expect.poll(() => events.some(event => event.event_type === 'away_start')).toBe(true)
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(response).toHaveValue('My draft stays here.')
+  await page.getByRole('button', { name: 'Allowed HTML reference', exact: true }).click()
+  const frame = page.frameLocator('iframe[title="Allowed HTML reference"]')
+  await frame.getByRole('button', { name: 'Read reference' }).focus()
+  for (const key of ['Control+f', 'Meta+f']) {
+    await frame.locator('body').evaluate(body => {
+      body.ownerDocument.defaultView!.addEventListener('keydown', event => {
+        body.dataset.findPrevented = String(event.defaultPrevented)
+      }, true)
+    })
+    await page.keyboard.press(key)
+    await expect(frame.locator('body')).toHaveAttribute('data-find-prevented', 'true')
+  }
+  await page.screenshot({ path: info.outputPath('reference-find-blocked.png'), animations: 'disabled' })
   await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await page.getByRole('dialog', { name: 'Submit your answers?' }).getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.getByText('Response Submitted', { exact: true })).toBeVisible()
