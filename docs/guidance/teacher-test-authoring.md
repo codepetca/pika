@@ -88,16 +88,18 @@ with a language label for a multiline snippet in a prompt. Each answer option
 must occupy one Markdown list line; put longer shared code in the prompt and
 keep code options inline. Preserve the code's exact syntax and the correct
 option when revising an existing question. Check the student preview to confirm
-that code renders correctly in both the prompt and answer options. For Python multiple-choice options, wrap literal code in inline backticks,
+that code renders correctly in both the prompt and answer options.
+
+For Python multiple-choice options, wrap literal code in inline backticks,
 including comments, assignments, expressions, operators, and strings with
 Markdown-sensitive characters such as `#`, `*`, or `_`. Example:
 
 ```markdown
 Options:
-- \`# Set the price\`
-- \`print("Set the price")\`
-- \`price = 12\`
-- \`"#" + " Set the price"\`
+- `# Set the price`
+- `print("Set the price")`
+- `price = 12`
+- `"#" + " Set the price"`
 Correct Option: 1
 ```
 
