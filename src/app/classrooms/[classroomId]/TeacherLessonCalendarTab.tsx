@@ -1194,7 +1194,7 @@ export function TeacherLessonCalendarTab({
             failures={saveFailures}
             message="Some lesson plan changes could not be saved."
           />
-          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="overflow-hidden rounded-lg bg-surface">
             <LessonCalendar
               classroom={classroom}
               lessonPlans={visibleLessonPlans}

@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Unpublication interframe DDL-lock isolation
-
-Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
-and cumulative integration review255s clean. Twelfth disposable200839eb18f5 passes
-001–261/rollbackACL/genuine438871Btypes, then contracts guard55P03 at actions16:
-rejections completed, limits not dispatched. Source confirms DROP trigger retains
-public.tests exclusive lock across frames; actual guard dependency remains unproven.
-Recovery12 independently reviewed exacte939eac clean28s; positive closure/ACL/
-canonical verification then one disposal PASS6803ms/8synthetic removed. Shared183
-table/2cron/global741/ports/source preserved; original failed evidence archived,
-not converted into acceptance. Narrow late-fault probe exception rollback must
-retain unchanged CREATE/probe/DROP, fullgraph/catalog restoration and lock absence.
-Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product change.
-PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
-ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
-sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
-
 ## 2026-10-12 — Unpublication actual-writer contention fixtures
 
 69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
@@ -526,3 +509,31 @@ Review ledger retains3launches/2batches; final integration review/CI remain gate
 - Reused/extended the approved teacher Daily/Attendance composition, no shared component or new pattern. Teacher-only; desktop 1440x900/mobile 390x844, light/dark, hover and selected screenshots inspected. Supplemental samples cover rapid hover, selected enter/exit and reduced motion in all four combinations (`output/playwright/daily-hover/fade-results.json`).
 - Focused checks PASS (904 tests, architecture/UI/design policies, TypeScript/lint); updated Daily E2E scenario PASS 4/4 including frame equality, retained fade and reduced-motion checks. Audit still flags the same reviewed false positive for existing ARIA; semantics/keyboard untouched.
 - PR returned to draft before edits; targeted independent review next. No merge/production authorization inferred. Prior implementation review remains applicable to unchanged behavior; coordinator owns changes, no implementation delegation.
+
+## 2026-10-16 — Borderless content cards
+
+Owner requested removing Classwork/Test list and other decorative card outlines,
+and remembering this preference. Branch `codex/borderless-cards`; base59938479b.
+Updated shared Card and teacher work-item frame, student work actions, classroom,
+announcement, blueprint and calendar containers; preserved functional controls,
+focus, table rules, warning/error and drag indicators. Recorded the preference in
+DESIGN/stable guidance and the borderless-content-cards change brief. No behavior,
+database or dependency changes. Risk profile:none. Model recommendation: current
+coding model for implementation; gpt-6-luna/medium for bounded inventory and low-risk
+independent review. Inventory delivered read-only, verified against owners; no
+rework or integration conflicts. Effective worker settings/token usage unknown;
+weekly50% remaining at startup; storage healthy. Initial focused suite exposed
+four test files expecting decorative borders (updated),3441other tests passed.
+Resource-heavy concurrent rerun was terminated; final run uses four workers.
+Playwright role/viewport/theme capture checks cover border widths, hover, selected
+Test semantics, focus and overflow. Snapshot baseline refresh and final review/CI
+are recorded in the PR. Audit heuristic flags composite files based solely on
+existing aria/role markup; diff is className-only and preserves their semantics.
+Evidence: ignored output/playwright and /tmp/pika-borderless-*.log. No merge,
+production promotion or migration application authorized.
+Final local:24Playwright checks/captures and8Mac/Linux baselines pass;
+focused3443pass/3timing flakes, then isolated54/54pass; types/lint/architecture/
+UI/design policies pass. Existing lint warnings retained. One independent
+full-diff review planned on frozen commit; review budget1initial,up to1targeted
+if necessary,5min target; token telemetry unknown. Capture-script navigation
+style injection caused artifact-only hydration warnings; product markup unchanged.

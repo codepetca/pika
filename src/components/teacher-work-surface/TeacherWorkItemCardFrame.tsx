@@ -32,25 +32,25 @@ export const TeacherWorkItemCardFrame = forwardRef(function TeacherWorkItemCardF
     <div
       ref={ref}
       className={cn(
-        'w-full rounded-card border p-3.5 text-left shadow-elevated',
+        'w-full rounded-card p-3.5 text-left shadow-elevated',
         tone === 'selected'
-          ? 'border-primary bg-surface-selected shadow-panel'
+          ? 'bg-surface-selected shadow-panel'
           : tone === 'scheduled'
-            ? 'border-warning bg-warning-bg'
+            ? 'bg-warning-bg'
             : tone === 'muted'
-              ? 'border-border-strong bg-surface-2'
-              : 'border-border bg-surface-panel',
+              ? 'bg-surface-2'
+              : 'bg-surface-panel',
         dragging
           ? [
-              'z-50 scale-[1.02] opacity-95 shadow-panel',
+              'z-50 scale-[1.02] border opacity-95 shadow-panel',
               dragTone === 'neutral' ? 'border-border' : 'border-primary',
             ].join(' ')
           : interactive && tone === 'scheduled'
-            ? 'transition hover:border-warning hover:bg-warning-bg'
+            ? 'transition hover:bg-warning-bg'
             : interactive && tone === 'muted'
-              ? 'transition hover:border-border-strong hover:bg-surface-3'
+              ? 'transition hover:bg-surface-3'
               : interactive && tone === 'default'
-                ? 'transition hover:-translate-y-px hover:border-border-strong hover:bg-info-bg hover:shadow-panel'
+                ? 'transition hover:-translate-y-px hover:bg-info-bg hover:shadow-panel'
                 : '',
         className,
       )}

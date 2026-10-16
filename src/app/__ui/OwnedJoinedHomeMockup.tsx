@@ -124,7 +124,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
   ]
 
   return (
-    <div className="rounded-card border border-border bg-page p-3 sm:p-4" data-testid="owned-joined-home-screen" onKeyDown={(event) => {
+    <div className="rounded-card bg-page p-3 sm:p-4" data-testid="owned-joined-home-screen" onKeyDown={(event) => {
       if (event.key !== 'Escape' || event.defaultPrevented || (!archived && !editing)) return
       // Portalled dialogs and the shared menu own their Escape before the list does.
       if (dialog || preview || archiveTarget || !event.currentTarget.contains(document.activeElement)) return
@@ -171,7 +171,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
                         data-testid="home-classroom-card"
                         data-classroom-theme-color={theme.value}
                         style={getClassroomThemeStyle(theme.value)}
-                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive relative rounded-card border border-border bg-surface shadow-elevated focus-within:z-local-menu"
+                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive relative rounded-card bg-surface shadow-elevated focus-within:z-local-menu"
                       >
                         <div className="flex min-h-20 items-center gap-2.5 py-4 pr-4 sm:gap-4 sm:pr-5">
                           <div className="flex h-full items-center justify-center pl-1">

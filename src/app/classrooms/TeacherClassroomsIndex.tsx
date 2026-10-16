@@ -814,7 +814,7 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
                         key={c.id}
                         data-classroom-theme-color={theme.value}
                         style={getClassroomThemeStyle(theme.value)}
-                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive relative flex items-start gap-3 focus-within:z-local-menu rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive relative flex items-start gap-3 focus-within:z-local-menu rounded-card bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
                       >
                         <div className="min-w-0 flex-1 space-y-2">
                           <button

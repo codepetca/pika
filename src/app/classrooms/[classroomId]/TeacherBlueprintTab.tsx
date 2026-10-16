@@ -79,7 +79,7 @@ function MarkdownSection({ title, markdown, emptyText }: {
   const content = useMemo(() => markdownToTiptapContent(markdown), [markdown])
 
   return (
-    <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
+    <section className="rounded-card bg-surface p-4 sm:p-5">
       <h2 className="text-base font-semibold text-text-default">{title}</h2>
       {markdown.trim() ? (
         <div className="mt-3 min-w-0">
@@ -94,7 +94,7 @@ function MarkdownSection({ title, markdown, emptyText }: {
 
 function TitleList({ title, titles }: { title: string; titles: string[] }) {
   return (
-    <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
+    <section className="rounded-card bg-surface p-4 sm:p-5">
       <h2 className="text-base font-semibold text-text-default">{title}</h2>
       {titles.length ? (
         <ul className="mt-3 divide-y divide-border text-sm text-text-default">
@@ -226,13 +226,13 @@ export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSecti
           />
         ) : (
           <>
-            <p className="rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
+            <p className="rounded-card bg-surface-2 px-4 py-3 text-sm text-text-muted">
               Content keeps the Version saved with this classroom. Guidance changes only when you review and update it.
             </p>
             <div role="region" aria-label={`${SECTIONS.find((item) => item.value === section)?.label} Blueprint section`}>
               {section === 'overview' ? (
                 <div className="space-y-4">
-                  <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
+                  <section className="rounded-card bg-surface p-4 sm:p-5">
                     <h2 className="text-base font-semibold text-text-default">Course</h2>
                     <p className="mt-2 text-sm text-text-default">{course.title || classroom.title}</p>
                     {[course.subject, course.grade_level && `Grade ${course.grade_level}`]

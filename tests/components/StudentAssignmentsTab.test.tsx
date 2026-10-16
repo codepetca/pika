@@ -645,7 +645,7 @@ describe('StudentAssignmentsTab', () => {
 
     expect(cards[0]).toHaveTextContent('Opening Reading')
     expect(cards[1]).toHaveTextContent('Essay Assignment')
-    expect(cards[0]).toHaveClass('border-border')
+    expect(cards[0]).toHaveClass('border-0')
     expect(cards[0]).not.toHaveClass('border-primary/40')
     expect(cards[0].querySelector('.border-l-2')).not.toBeInTheDocument()
   })

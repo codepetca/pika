@@ -2353,7 +2353,7 @@ export function TeacherTestsTab({
         >
           <TeacherWorkSurfaceTableFrame
             ref={gradingStudentTableScrollRef}
-            className="min-h-0 rounded-md border border-border scrollbar-hover"
+            className="min-h-0 rounded-md scrollbar-hover"
             data-testid="test-grading-student-scroll-pane"
             onScroll={preserveGradingStudentTableScrollPosition}
           >

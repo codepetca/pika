@@ -169,7 +169,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
         return (
           <div
             key={announcement.id}
-            className="bg-surface rounded-lg border border-border p-4"
+            className="bg-surface rounded-lg p-4"
           >
             <p className="text-[11px] text-text-muted mb-2">
               {formatAnnouncementTimestamp(getAnnouncementPublicationTimestamp(announcement))}

@@ -29,7 +29,7 @@ export function ColdClassroomArchiveRow({
   return (
     <div
       data-testid="cold-classroom-archive"
-      className="flex flex-col gap-3 rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+      className="flex flex-col gap-3 rounded-card bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
     >
       <div className="min-w-0">
         <div className="truncate text-base font-semibold text-text-default">{archive.title}</div>
