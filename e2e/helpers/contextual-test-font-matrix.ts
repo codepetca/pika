@@ -38,7 +38,12 @@ export async function runContextualTestFontMatrix(r: ContextualTestRuntime): Pro
       const editor = page.locator('#student-image-upload[data-testid="student-image-upload-gallery"] .tiptap.ProseMirror[contenteditable="true"]')
       await editor.waitFor({ state: 'visible' }); await editor.fill(contextualTestFontEditingText)
       await r.captureFont(`font-${actor}-${view}-${theme}-editing`, page)
-      await editor.fill('')
+      // Use the editor's normal keyboard selection before deleting. fill('')
+      // selects only the DOM range, which can precede Tiptap's selection update
+      // and leave Delete acting on the old collapsed cursor. No retry/action
+      // after deletion: the capture must observe the actual empty placeholder.
+      await editor.press('ControlOrMeta+a')
+      await editor.press('Backspace')
       await r.captureFont(`font-${actor}-${view}-${theme}-empty`, page)
     }
   })

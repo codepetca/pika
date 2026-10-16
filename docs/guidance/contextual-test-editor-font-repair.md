@@ -52,6 +52,25 @@ combined font-removal plus placeholder-selector candidate through the explicit
 before/after-hashed isolated overlay. Original frozen application and all
 production/shared-local/provider/rollout holds remain unchanged.
 
+### Empty-state interaction follow-up
+
+The fresh 2026-10-16 isolated run at `49f77ce0` completed teacher login and
+cleanup, but empty readiness also reported nonempty text. It remains failed;
+three preceding screenshots do not verify the empty state or the full matrix.
+Independent source/dependency preservation and exact resource absence passed.
+
+A separate real-editor CPU reproduction demonstrates that Playwright 1.58's
+`fill('')` DOM-range selection can leave ProseMirror's model selection at the old
+cursor until `selectionchange`. A Delete key before that event is prevented at
+the paragraph end without deleting text. This is a proven possible ordering,
+not a retained browser trace proving that exact ordering in the failed run.
+The normal Select All keymap updates the model synchronously; Backspace then
+deletes the selection. Use that single user-like keyboard sequence in the
+rehearsal. Do not add post-deletion selection transactions, retries, content
+injection, longer timeouts, or exceptions to the existing empty/visible checks.
+CPU regressions cover both orderings and the fixed matrix action sequence.
+This runner correction does not itself establish browser or visual acceptance.
+
 ## Failure and scope
 
 The failed isolated run completed both original login body reads and authenticated

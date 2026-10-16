@@ -47542,3 +47542,23 @@ check approval consumed. Next requires separately authorized bounded cleanup of
 that verified test family and source diagnosis of snapshot rejection before any
 fresh run. Review46/fix35 carry; PR1581 draft/full gate failed, native/app exit
 absent. Production/shared-local/cutover/provider/account holds stay unchanged.
+
+<!-- pika-session-log-archive-batch:971e11a93b849d4dfbd21b250637805105aceaa680883bc29907e4c79d33db07 -->
+## 2026-10-13 Separate cf7 recovery closes only verified test family
+
+Human approved a separate12s cleanup and source-only diagnosis, not another run.
+Fresh exact daemon argv/cwd/kernel identities and reconciled family passed;
+unchanged reviewed PID-specific settlement completed in819ms with24 bounded
+queries and one SIGTERM to verified daemon21384. Positive recorded-family absence,
+no SIGKILL/group/unrelated signals; separate receipt0bd99a67 retained0600. Original
+failed7f24a0c1 receipt and all SPENT sources unchanged; no retroactive acceptance.
+Source/receipt comparison narrows cleanup rejection to reconciliation/retention
+after rows returned: caught query/parser failure would append a cleanup query
+entry, but only final ownership entry exists. This does not identify the exact
+guard or prove discovery's earlier cause. Untyped invariants/executable allowlist/
+publication failures remain source-compatible; rejected snapshot not retained.
+Private diagnosis recommends safe guard-step/cause diagnostics before any new
+run, with strict identity/ancestry/absence/deadline gates unchanged; no codefix
+implemented. Independent inference/continuity review48 next; original clock/
+fix35 carry. PR1581 draft/full gate failed, production/shared-local/cutover/
+provider/account holds unchanged; no files/evidence deleted or browser rerun.

@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Separate cf7 recovery closes only verified test family
-
-Human approved a separate12s cleanup and source-only diagnosis, not another run.
-Fresh exact daemon argv/cwd/kernel identities and reconciled family passed;
-unchanged reviewed PID-specific settlement completed in819ms with24 bounded
-queries and one SIGTERM to verified daemon21384. Positive recorded-family absence,
-no SIGKILL/group/unrelated signals; separate receipt0bd99a67 retained0600. Original
-failed7f24a0c1 receipt and all SPENT sources unchanged; no retroactive acceptance.
-Source/receipt comparison narrows cleanup rejection to reconciliation/retention
-after rows returned: caught query/parser failure would append a cleanup query
-entry, but only final ownership entry exists. This does not identify the exact
-guard or prove discovery's earlier cause. Untyped invariants/executable allowlist/
-publication failures remain source-compatible; rejected snapshot not retained.
-Private diagnosis recommends safe guard-step/cause diagnostics before any new
-run, with strict identity/ancestry/absence/deadline gates unchanged; no codefix
-implemented. Independent inference/continuity review48 next; original clock/
-fix35 carry. PR1581 draft/full gate failed, production/shared-local/cutover/
-provider/account holds unchanged; no files/evidence deleted or browser rerun.
-
 ## 2026-10-13 Source-only ownership guard diagnostics verified
 
 Human Go approved privacy-safe guard/cause labels, offline checks and review only.
@@ -953,3 +934,27 @@ weekly63%remaining, storagehealthy; effective worker config/tokens unknown.
 Production stylesheet remains unchanged until real visual acceptance. Frozen app
 21e755d3/migrations001–262,45min+6mincleanup, sharedlocal249+, provider-heldSurvey/
 planning, oldsocket81 and allproduction/account/plan/billing/cutover holds stay.
+
+Review105/106 CLEAN0, exact49f77ce0 focused3558PASS/8skip and static gates PASS.
+Doc budget corrected without removing required setup paths; prior failures kept.
+ONE fresh v8r0Sg attempt SPENT/FAILED160768ms: teacher login identity PASS; body/
+request failures null, page/console errors0. Empty readiness reports placeholder,
+positioned,text,deadline; only3 precedingPNG234349bytes hash-verified and visually
+inspected, readable but matrix incomplete. Cleanup allPASS, ownedSettledtrue,
+activeProbes/unsettledFamilies0. Independent49472 beforewrites:7649sources and
+49485 dependency entries unchanged; currentprocesscandidates0. Exactcontainers/
+volumes/network/tempapp absent/fourportsclear. Sourcefreeze released; no retry.
+
+## 2026-10-16 — Real keyboard clear fixes a second concrete ordering failure
+
+Bounded Sol6.1/high read-only worker reproduced installed real-editor DOMRange
+select-all then Delete before selectionchange: model caret remains at end and
+Delete is prevented without changing text. Exact failed browser ordering remains
+inference, not recorded fact. Actual Mod-a keymap then Backspace synchronously
+selects/deletes without selectionchange. Root adds real-keymap regression and
+matrix sequence regression (RED before correction); replaces fill-empty only
+with one normal keyboard sequence, no post-delete action/retry or weaker checks.
+83 focused tests PASS; final gate/review next. Shared SCSS untouched, existing
+placeholder overlay unchanged and pending visuals. No fresh native attempt.
+Counters106reviews/64fixcommits carry; all production/sharedlocal/provider/rollout
+holds unchanged. Prior spent failure/evidence preserved, no goal exit claimed.

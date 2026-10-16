@@ -16,9 +16,9 @@ describe('fixed font matrix CPU contract (not visual evidence)', () => {
     expect(() => contextualTestFontShot('font-ownerTeacher-desktop-light-survey')).toThrow()
   })
   it('runs all 32 screenshots through the runtime in two actual authenticated actor scopes', async () => {
-    const actors: string[] = [], captures: string[] = [], fills: string[] = [], urls: string[] = [], themes: string[] = []
+    const actors: string[] = [], captures: string[] = [], fills: string[] = [], keys: string[] = [], urls: string[] = [], themes: string[] = []
     let currentActor = '', currentUrl = '', viewport = { width: 0, height: 0 }, theme = ''
-    const control = { async waitFor() {}, async click() {}, async fill(value: string) { fills.push(value) } }
+    const control = { async waitFor() {}, async click() {}, async fill(value: string) { fills.push(value) }, async press(value: string) { keys.push(value) } }
     const page = { async setViewportSize(value: typeof viewport) { viewport = value }, async emulateMedia(value: { colorScheme: string }) { theme = value.colorScheme },
       async evaluate(_fn: unknown, value: string) { themes.push(value) }, async goto(value: string) { currentUrl = value; urls.push(value) },
       locator(selector: string) { expect(selector).toMatch(/^#(?:history-preview|student-image-upload)\[/); return { ...control, getByRole: () => control } } }
@@ -30,12 +30,16 @@ describe('fixed font matrix CPU contract (not visual evidence)', () => {
         expect(shot.actor).toBe(currentActor); expect(shot.theme).toBe(theme)
         expect(viewport.width).toBe(shot.view === 'desktop' ? 1440 : 390)
         expect(new URL(currentUrl).search).toBe(`?role=${shot.referenceRole}`); captures.push(label)
+        // Empty evidence follows one real keyboard selection/deletion sequence,
+        // not fill('')'s asynchronous DOM-only selection and not a retry loop.
+        expect(keys).toHaveLength((captures.filter(value => value.endsWith('-empty')).length) * 2)
       } }
     await runContextualTestFontMatrix(runtime as never)
     expect(actors).toEqual(['ownerTeacher', 'memberStudent'])
     expect(captures).toEqual(contextualTestFontShots.map(shot => shot.label))
     expect(urls).toHaveLength(16); expect(themes).toHaveLength(8)
-    expect(fills).toEqual(Array.from({ length: 8 }, () => [contextualTestFontEditingText, '']).flat())
+    expect(fills).toEqual(Array.from({ length: 8 }, () => contextualTestFontEditingText))
+    expect(keys).toEqual(Array.from({ length: 8 }, () => ['ControlOrMeta+a', 'Backspace']).flat())
     expect(urls.every(url => new URL(url).pathname === '/pattern-lab')).toBe(true)
   })
 })

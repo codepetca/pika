@@ -30,6 +30,7 @@ function createEditor(content: string, editable = true) {
     editable,
     extensions: [StarterKit, Placeholder.configure({ placeholder: 'Write your response here...', includeChildren: true })],
     content,
+    editorProps: { handleScrollToSelection: () => true },
   })
   editors.push(editor)
   return editor
@@ -48,6 +49,39 @@ function assertEmptyPlaceholder(editor: Editor) {
 afterEach(() => { for (const editor of editors.splice(0)) editor.destroy(); document.body.innerHTML = '' })
 
 describe('real Tiptap empty-placeholder candidate CSS (CPU contract, not visual evidence)', () => {
+  it('reproduces a DOM-only select-all followed by Delete before selectionchange leaving the old model caret intact', () => {
+    const editor = createEditor('<p>Existing response</p>')
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1)
+    const element = editor.view.dom
+    element.focus()
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    const selection = window.getSelection()!
+    selection.removeAllRanges()
+    selection.addRange(range)
+    element.focus()
+    expect(selection.toString()).toBe('Existing response')
+    expect(editor.state.selection.empty).toBe(true)
+    const deletion = new KeyboardEvent('keydown', { key: 'Delete', code: 'Delete', keyCode: 46, which: 46, bubbles: true, cancelable: true })
+    element.dispatchEvent(deletion)
+    expect(deletion.defaultPrevented).toBe(true)
+    expect(editor.getText()).toBe('Existing response')
+  })
+  it('clears through the real keyboard keymap without waiting for a DOM selectionchange or adding a post-delete action', () => {
+    const editor = createEditor('<p>Existing response</p>')
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1)
+    const element = editor.view.dom
+    element.focus()
+    // JSDOM reports a non-Mac platform; Control is Tiptap's Mod key here.
+    const selectAll = new KeyboardEvent('keydown', { key: 'a', code: 'KeyA', keyCode: 65, which: 65, ctrlKey: true, bubbles: true, cancelable: true })
+    element.dispatchEvent(selectAll)
+    expect(selectAll.defaultPrevented).toBe(true)
+    expect(editor.state.selection.empty).toBe(false)
+    const deletion = new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', keyCode: 8, which: 8, bubbles: true, cancelable: true })
+    element.dispatchEvent(deletion)
+    expect(deletion.defaultPrevented).toBe(true)
+    assertEmptyPlaceholder(editor)
+  })
   it('matches the sole empty paragraph immediately after deleting text, without another selection transaction', () => {
     const editor = createEditor('<p>Local font review: evidence, observations, and interpretation.</p>')
     editor.commands.selectAll()
