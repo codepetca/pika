@@ -1142,7 +1142,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(summaryStudentRow).toBeFocused()
   await expect(summary).toBeVisible()
   await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
-  const verifyRowHover = async () => {
+  const verifyRowHover = async (reducedMotion = false) => {
     await page.mouse.move(0, 0)
     await summaryStudentRow.getByRole('cell').first().hover()
     // Sample before the hover settles: sticky cells and the row must match on every frame.
@@ -1151,19 +1151,29 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       for (let frame = 0; frame < 3; frame += 1) {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
         const rowColor = getComputedStyle(row).backgroundColor
-        samples.push(Array.from(row.querySelectorAll('td.sticky')).every(
+        const stickyCells = Array.from(row.querySelectorAll('td.sticky'))
+        samples.push(stickyCells.length === 4 && stickyCells.every(
           (cell) => getComputedStyle(cell).backgroundColor === rowColor,
         ))
       }
       return samples
     })
     expect(frames).toEqual([true, true, true])
+    const hasFade = await summaryStudentRow.evaluate((row) => {
+      const style = getComputedStyle(row)
+      return style.transitionProperty.includes('background-color')
+        && style.transitionDuration.split(',').some((duration) => parseFloat(duration) > 0)
+    })
+    expect(hasFade).toBe(!reducedMotion)
   }
   await verifyRowHover()
   await page.keyboard.press('Escape')
   await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'false')
   await verifyRowHover()
   await page.screenshot({ path: testInfo.outputPath(`daily-attendance-${viewport}-hover.png`) })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await verifyRowHover(true)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
