@@ -2832,7 +2832,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.getByText('Submitted')).toBeInTheDocument()
   })
 
-  it('does not log exit telemetry for Cmd+F interruption bursts', async () => {
+  it.each([{ ctrlKey: true }, { metaKey: true }])('blocks browser Find only during an active test: %j', async (modifier) => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -2912,11 +2912,14 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} />)
+    const { unmount } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
     })
+
+    const findShortcut = () => new KeyboardEvent('keydown', { key: 'f', ...modifier, bubbles: true, cancelable: true })
+    expect(window.dispatchEvent(findShortcut())).toBe(true)
 
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
@@ -2935,17 +2938,33 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     vi.useFakeTimers()
-    fireEvent.keyDown(window, { key: 'f', metaKey: true })
-    fireEvent(window, new Event('blur'))
-    fullscreenElement = null
-    fireEvent(document, new Event('fullscreenchange'))
-    fireEvent(window, new Event('resize'))
+    expect(window.dispatchEvent(findShortcut())).toBe(false)
+    expect(window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'F', ...modifier, bubbles: true, cancelable: true,
+    }))).toBe(false)
+    expect(window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', bubbles: true, cancelable: true,
+    }))).toBe(true)
+    expect(window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', ...modifier, shiftKey: true, bubbles: true, cancelable: true,
+    }))).toBe(true)
 
     await act(async () => {
       vi.advanceTimersByTime(800)
     })
-
     expect(focusBodies).toEqual([])
+
+    // Blocking Find must not grant an exemption for a real departure afterward.
+    fireEvent(window, new Event('blur'))
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+    expect(focusBodies).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: 'away_start' }),
+    ]))
+
+    unmount()
+    expect(window.dispatchEvent(findShortcut())).toBe(true)
   })
 
   it('ignores transient noise but captures sustained blur when its timer is throttled', async () => {

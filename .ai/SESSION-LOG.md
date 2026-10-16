@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Unpublication interframe DDL-lock isolation
-
-Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
-and cumulative integration review255s clean. Twelfth disposable200839eb18f5 passes
-001–261/rollbackACL/genuine438871Btypes, then contracts guard55P03 at actions16:
-rejections completed, limits not dispatched. Source confirms DROP trigger retains
-public.tests exclusive lock across frames; actual guard dependency remains unproven.
-Recovery12 independently reviewed exacte939eac clean28s; positive closure/ACL/
-canonical verification then one disposal PASS6803ms/8synthetic removed. Shared183
-table/2cron/global741/ports/source preserved; original failed evidence archived,
-not converted into acceptance. Narrow late-fault probe exception rollback must
-retain unchanged CREATE/probe/DROP, fullgraph/catalog restoration and lock absence.
-Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product change.
-PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
-ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
-sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
-
 ## 2026-10-12 — Unpublication actual-writer contention fixtures
 
 69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
@@ -526,3 +509,18 @@ Review ledger retains3launches/2batches; final integration review/CI remain gate
 - Reused/extended the approved teacher Daily/Attendance composition, no shared component or new pattern. Teacher-only; desktop 1440x900/mobile 390x844, light/dark, hover and selected screenshots inspected. Supplemental samples cover rapid hover, selected enter/exit and reduced motion in all four combinations (`output/playwright/daily-hover/fade-results.json`).
 - Focused checks PASS (904 tests, architecture/UI/design policies, TypeScript/lint); updated Daily E2E scenario PASS 4/4 including frame equality, retained fade and reduced-motion checks. Audit still flags the same reviewed false positive for existing ARIA; semantics/keyboard untouched.
 - PR returned to draft before edits; targeted independent review next. No merge/production authorization inferred. Prior implementation review remains applicable to unchanged behavior; coordinator owns changes, no implementation delegation.
+
+## 2026-10-16 — Block browser Find during active student tests
+
+In `codex/block-test-browser-find`, replace the short Ctrl/Cmd+F exit exemption
+with capture-phase shortcut prevention during an active unsubmitted attempt.
+Normal browser handling resumes outside exam mode; real subsequent departures
+retain incident tracking. Translator behavior held at owner request; reported
+case was likely Chrome selection translation from its context menu.
+Component/incident64 pass; browser coverage checks both shortcuts, focused
+unsaved draft, no false exit/lock, real blur, and Find after submission across
+student desktop/mobile and light/dark. Teacher n/a (no changed owner). Existing
+workspace and Pattern Lab student-test-attempt are references; extend keyboard
+listener, reuse form/compliance owners; no new visual pattern or composite.
+First focused run hit CI-tool timing failures under default worker concurrency;
+rerun limits Vitest to2. Independent review and gate receipts belong to the PR.

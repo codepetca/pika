@@ -11,7 +11,6 @@ import { Spinner } from '@/components/Spinner'
 import {
   getTestExitCount,
   mergeTestFocusSummaries,
-  TEST_EXIT_BURST_WINDOW_MS,
 } from '@/lib/tests'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
@@ -323,8 +322,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const lastWindowSignalRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const lastExamFormInteractionAtRef = useRef(0)
-  const findIntentUntilRef = useRef(0)
-  const findSuppressionUntilRef = useRef(0)
   const docsInteractionSuppressionUntilRef = useRef(0)
   const sessionStatusInFlightRef = useRef(false)
   const listRequestIdRef = useRef(0)
@@ -427,8 +424,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
       lastWindowSignalRef.current = null
       nonCompliantWindowTelemetryLoggedRef.current = false
       lastExamFormInteractionAtRef.current = 0
-      findIntentUntilRef.current = 0
-      findSuppressionUntilRef.current = 0
       docsInteractionSuppressionUntilRef.current = 0
     }
   }, [clearPendingBlurTimeout, clearPendingNonCompliantTimeout, focusEnabled])
@@ -591,8 +586,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     clearPendingBlurTimeout()
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
-    findIntentUntilRef.current = 0
-    findSuppressionUntilRef.current = 0
     docsInteractionSuppressionUntilRef.current = 0
 
     try {
@@ -833,19 +826,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     return transition.effects
   }, [enqueueFocusEvent])
 
-  const shouldSuppressForBrowserFind = useCallback(() => {
-    const now = Date.now()
-    if (now <= findSuppressionUntilRef.current) {
-      return true
-    }
-    if (now <= findIntentUntilRef.current) {
-      findIntentUntilRef.current = 0
-      findSuppressionUntilRef.current = now + TEST_EXIT_BURST_WINDOW_MS
-      return true
-    }
-    return false
-  }, [])
-
   const markAllowedDocInteraction = useCallback(() => {
     if (!focusEnabledRef.current) return
     docsInteractionSuppressionUntilRef.current = Date.now() + DOCS_EXIT_SUPPRESSION_WINDOW_MS
@@ -914,7 +894,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     options?: {
       dedupe?: boolean
       dedupeWindowMs?: number
-      suppressDuringFind?: boolean
       updateSummary?: boolean
     }
   ) => {
@@ -922,9 +901,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
       return false
     }
     const now = Date.now()
-    if (options?.suppressDuringFind && shouldSuppressForBrowserFind()) {
-      return false
-    }
     const dedupeWindowMs = options?.dedupeWindowMs ?? 1200
     if (
       options?.dedupe &&
@@ -945,7 +921,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
       { metadata, updateSummary: options?.updateSummary }
     )
     return true
-  }, [applyExamIncidentEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
+  }, [applyExamIncidentEvent, shouldSuppressForDocInteraction])
 
   const applyWindowComplianceSnapshot = useCallback((snapshot: ExamWindowComplianceSnapshot) => {
     fullscreenActiveRef.current = snapshot.isFullscreen
@@ -977,7 +953,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
       const logged = logWindowUnmaximizeAttempt(
         'window_resize',
         baseMetadata,
-        { dedupe: true, dedupeWindowMs: 3000, suppressDuringFind: true, updateSummary: true }
+        { dedupe: true, dedupeWindowMs: 3000, updateSummary: true }
       )
       if (logged) nonCompliantWindowTelemetryLoggedRef.current = true
       return
@@ -989,7 +965,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
         trigger: 'fullscreenchange',
         ...baseMetadata,
       },
-      { dedupe: true, suppressDuringFind: true, updateSummary: true }
+      { dedupe: true, updateSummary: true }
     )
     if (logged) nonCompliantWindowTelemetryLoggedRef.current = true
   }, [logWindowUnmaximizeAttempt])
@@ -1132,8 +1108,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     clearPendingBlurTimeout()
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
-    findIntentUntilRef.current = 0
-    findSuppressionUntilRef.current = 0
     docsInteractionSuppressionUntilRef.current = 0
     loadTests({ forceRefresh: true }) // Refresh list to get updated status
   }, [applyWindowComplianceSnapshot, clearPendingBlurTimeout, clearPendingNonCompliantTimeout, loadTests])
@@ -1207,8 +1181,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     clearPendingBlurTimeout()
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
-    findIntentUntilRef.current = 0
-    findSuppressionUntilRef.current = 0
     docsInteractionSuppressionUntilRef.current = 0
     await fullscreenRequest
     const complianceSnapshot = getExamWindowComplianceSnapshot()
@@ -1367,9 +1339,14 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     if (!focusEnabled) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
-        findIntentUntilRef.current = Date.now() + TEST_EXIT_BURST_WINDOW_MS
-        findSuppressionUntilRef.current = 0
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === 'f'
+      ) {
+        // Browser Find takes focus from the exam; block it without masking real exits.
+        event.preventDefault()
       }
     }
 
@@ -1383,7 +1360,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     if (!focusEnabled) return
 
     const shouldSuppressBlur = () => {
-      if (shouldSuppressForBrowserFind()) return true
       if (shouldSuppressForDocInteraction()) return true
       return false
     }
@@ -1443,7 +1419,6 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     applyExamIncidentEvent,
     clearPendingBlurTimeout,
     focusEnabled,
-    shouldSuppressForBrowserFind,
     shouldSuppressForDocInteraction,
   ])
 
