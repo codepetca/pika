@@ -1,0 +1,56 @@
+/* Size against the roster pane, including when an inspector is open. */
+.frame {
+  container: test-grading / inline-size;
+}
+
+@container test-grading (max-width: 839px) {
+  .table {
+    min-width: 360px;
+  }
+
+  .table .secondaryColumn {
+    display: none;
+  }
+
+  .table .nameColumn {
+    width: calc((100% - 260px) / 2) !important;
+    max-width: none !important;
+  }
+
+  /* Selection, Access, Seen and Exits keep predictable space; names share the rest. */
+  .table col:nth-child(4) {
+    width: 80px !important;
+  }
+
+  .table col:nth-child(6) {
+    width: 76px !important;
+  }
+
+  .table col:nth-child(7) {
+    width: 60px !important;
+  }
+
+  .table td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .table th button {
+    position: relative;
+    padding-left: 4px !important;
+    padding-right: 16px !important;
+  }
+
+  .table th button > svg {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    width: 12px;
+    transform: translateY(-50%);
+  }
+
+  /* Compact names size automatically; preserve saved manual widths for the full table. */
+  .table [role='separator'] {
+    display: none;
+  }
+}

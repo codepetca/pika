@@ -188,7 +188,19 @@
         {
           "kind": "arbitrary-spacing",
           "count": 4,
-          "fingerprint": "aa605fd0e48f14fe",
+          "fingerprint": "f83f93b6e45a6cc2",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/test-grading-table.module.css",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 13,
+          "fingerprint": "bc1665e7bda9caa5",
           "reason": "layout-geometry"
         }
       ]
