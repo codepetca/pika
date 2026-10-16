@@ -38,7 +38,7 @@ describe('SortableClassroomRow', () => {
 
     expect(card).toHaveAttribute('data-classroom-theme-color', 'teal')
     expect(card).toHaveClass('classroom-theme-card')
-    expect(card).toHaveClass('border')
+    expect(card).not.toHaveClass('border')
     expect(card).not.toHaveClass('border-l-4')
   })
 

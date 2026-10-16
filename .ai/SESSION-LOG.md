@@ -11,58 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-12 — Unpublication interframe DDL-lock isolation
-
-Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
-and cumulative integration review255s clean. Twelfth disposable200839eb18f5 passes
-001–261/rollbackACL/genuine438871Btypes, then contracts guard55P03 at actions16:
-rejections completed, limits not dispatched. Source confirms DROP trigger retains
-public.tests exclusive lock across frames; actual guard dependency remains unproven.
-Recovery12 independently reviewed exacte939eac clean28s; positive closure/ACL/
-canonical verification then one disposal PASS6803ms/8synthetic removed. Shared183
-table/2cron/global741/ports/source preserved; original failed evidence archived,
-not converted into acceptance. Narrow late-fault probe exception rollback must
-retain unchanged CREATE/probe/DROP, fullgraph/catalog restoration and lock absence.
-Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product change.
-PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
-ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
-sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
-
-## 2026-10-12 — Unpublication actual-writer contention fixtures
-
-69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
-Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
-wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
-Source mapping likely schedule11holderreceipt failure; direct availability and
-AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
-Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
-proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
-Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
-PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
-Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
-PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
-6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
-
-## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
-
-Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
-targeted+cumulative review. Fresh14th06132387f727 fully PASS:001–261/rollbackACL/
-genuine438871B types, seven contracts/14heldraces/fullgraph equality, real SDK
-nonowner/fences/both owner roles/canonical/noop, cancellation503/one57014/8013ms/
-zeroRPC/restoration. Exact8synthetic cleanup/global741/canonical183tables2cron/
-ports/source preserved; prior failed evidence retained. No rollout or goal exit.
-Eligible CI38190378056 exactbacb fails Architecture DB at10000-question fixture
-INSERT in limitsDO (57014/blueprint per-row trigger); other7jobs cancelled by
-failfast and PR Gate fails. Returned1578 to draft before corrections, one watcher
-closed, no duplicateCI. Bounded source proposal keeps all10002rows/alltriggers/
-assertions: four fixed2500 INSERT statements under one savepoint, temporary graph
-baseline before savepoint and exact rollback equality. Eleven closed frames plus
-28races use39<=40dispatch;12s/180s/caps unchanged. Revised framing still needs
-checks/independent review/fresh native/eligibleCI, not acceptance from prior pass.
-PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
-Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
-production promotion/provider/account/admission/home/page/cohort/cutover holds.
-
 ## 2026-10-12 — Unpublication merged; next deletion boundary
 
 PR1578 actual normalmatchedsquashmergea37d03b3ac4943b25b76e8dd30412c6a7ff8da9d
@@ -526,3 +474,60 @@ Review ledger retains3launches/2batches; final integration review/CI remain gate
 - Reused/extended the approved teacher Daily/Attendance composition, no shared component or new pattern. Teacher-only; desktop 1440x900/mobile 390x844, light/dark, hover and selected screenshots inspected. Supplemental samples cover rapid hover, selected enter/exit and reduced motion in all four combinations (`output/playwright/daily-hover/fade-results.json`).
 - Focused checks PASS (904 tests, architecture/UI/design policies, TypeScript/lint); updated Daily E2E scenario PASS 4/4 including frame equality, retained fade and reduced-motion checks. Audit still flags the same reviewed false positive for existing ARIA; semantics/keyboard untouched.
 - PR returned to draft before edits; targeted independent review next. No merge/production authorization inferred. Prior implementation review remains applicable to unchanged behavior; coordinator owns changes, no implementation delegation.
+
+## 2026-10-16 — Borderless content cards
+
+Owner requested removing Classwork/Test list and other decorative card outlines,
+and remembering this preference. Branch `codex/borderless-cards`; base59938479b.
+Updated shared Card and teacher work-item frame, student work actions, classroom,
+announcement, blueprint and calendar containers; preserved functional controls,
+focus, table rules, warning/error and drag indicators. Recorded the preference in
+DESIGN/stable guidance and the borderless-content-cards change brief. No behavior,
+database or dependency changes. Risk profile:none. Model recommendation: current
+coding model for implementation; gpt-6-luna/medium for bounded inventory and low-risk
+independent review. Inventory delivered read-only, verified against owners; no
+rework or integration conflicts. Effective worker settings/token usage unknown;
+weekly50% remaining at startup; storage healthy. Initial focused suite exposed
+four test files expecting decorative borders (updated),3441other tests passed.
+Resource-heavy concurrent rerun was terminated; final run uses four workers.
+Playwright role/viewport/theme capture checks cover border widths, hover, selected
+Test semantics, focus and overflow. Snapshot baseline refresh and final review/CI
+are recorded in the PR. Audit heuristic flags composite files based solely on
+existing aria/role markup; diff is className-only and preserves their semantics.
+Evidence: ignored output/playwright and /tmp/pika-borderless-*.log. No merge,
+production promotion or migration application authorized.
+Final local:24Playwright checks/captures and8Mac/Linux baselines pass;
+focused3443pass/3timing flakes, then isolated54/54pass; types/lint/architecture/
+UI/design policies pass. Existing lint warnings retained. One independent
+full-diff review planned on frozen commit; review budget1initial,up to1targeted
+if necessary,5min target; token telemetry unknown. Capture-script navigation
+style injection caused artifact-only hydration warnings; product markup unchanged.
+
+## 2026-10-16 — Assignment/Test title edit cue
+
+Owner follow-up adds the More actions Pencil at the right of editable selected
+Assignment/Test titles on hover and keyboard focus. Reused existing title buttons,
+edit callbacks and permissions; reserved icon space prevents hover reflow. No cue
+for read-only or pending Assignment detail state. Student n/a (no definition-edit
+control). Risk:none.206affected tests pass;8teacher desktop/mobile×light/dark
+browser cases pass (hover,focus,keyboard editor opening),normal/reduced motion
+verification included. UI/design policies and four-file audit pass. Parent
+borderless coverage atd8ce0bc16 reused; delta-focused workflow/static checks and
+fixed-head independent follow-up review recorded in PR1605. No new abstraction,
+dependency, database, merge or deployment. Model recommendation:gpt-6-luna/medium
+for small independent delta review. No implementation delegation; review token
+and effective-model telemetry unknown. Evidence:output/playwright/title-hover/.
+
+## 2026-10-16 — PR1605 merge authorization and snapshot correction
+
+Owner explicitly authorized squash merge after CI.026a196e9 Test & Build and dark
+experience lane passed; Pattern Lab dark failed screenshot comparisons. Returned
+PR to draft before correction. Diagnosed omitted student headers plus Linux
+capture runtime resolving system-ui to WenQuanYi rather than GitHub's DejaVu.
+Regenerated baselines with fonts-dejavu-core in ephemeral capture container;
+application fonts/dependencies/thresholds unchanged.8Linux comparisons against
+GitHub actuals pass existing tolerances (desktop pixel-identical);8Linux and4Mac
+snapshot cases pass. Product source/review unchanged; one batched snapshot-only
+remediation and independent delta review follow. PR Gate on reviewed final SHA
+still required before authorized main merge. Source evidence and artifacts in
+change brief and ignored output/playwright; CI38922863858 cancelled after draft.

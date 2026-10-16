@@ -463,7 +463,7 @@ export function StudentLessonCalendarTab({
         <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
           {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
           <CalendarSourceErrors failures={failures} />
-          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="overflow-hidden rounded-lg bg-surface">
             <LessonCalendar
               classroom={classroom}
               lessonPlans={currentLessonPlans}

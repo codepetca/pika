@@ -2353,7 +2353,7 @@ export function TeacherTestsTab({
         >
           <TeacherWorkSurfaceTableFrame
             ref={gradingStudentTableScrollRef}
-            className="min-h-0 rounded-md border border-border scrollbar-hover"
+            className="min-h-0 rounded-md scrollbar-hover"
             data-testid="test-grading-student-scroll-pane"
             onScroll={preserveGradingStudentTableScrollPosition}
           >
@@ -2876,9 +2876,12 @@ export function TeacherTestsTab({
         title={getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
         disabled={isReadOnly}
         onClick={() => openSelectedTestEditor()}
-        className="h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default sm:text-xl"
+        className="group/title h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default sm:text-xl"
       >
         <span className="min-w-0 truncate">{getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}</span>
+        {!isReadOnly && (
+          <Pencil className="ml-auto h-4 w-4 shrink-0 text-text-muted opacity-0 transition-opacity duration-fast ease-standard group-hover/title:opacity-100 group-focus-visible/title:opacity-100 motion-reduce:transition-none" aria-hidden="true" />
+        )}
       </Button>
       {workspaceModeStatus}
     </div>

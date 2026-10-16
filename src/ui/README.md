@@ -172,6 +172,11 @@ code.
 
 ### Card
 
+Cards are borderless in every tone. Surface color, spacing, and the existing
+quiet elevation group content; interactive cards change surface color on hover.
+Feature-owned card actions retain visible keyboard focus. Do not add decorative
+border classes to card consumers. Owner preference recorded in `DESIGN.md`.
+
 ```typescript
 interface CardProps {
   children: ReactNode

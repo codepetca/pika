@@ -382,7 +382,7 @@ export function StudentAssignmentsTab({
                           type="button"
                           data-testid="material-card"
                           onClick={() => navigate({ materialId: material.id })}
-                          className="block w-full rounded-card border border-border bg-info-bg px-5 py-4 text-left transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-info-bg-hover hover:shadow-panel"
+                          className="block w-full rounded-card border-0 bg-info-bg px-5 py-4 text-left transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-info-bg-hover hover:shadow-panel"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
@@ -409,7 +409,7 @@ export function StudentAssignmentsTab({
                           type="button"
                           data-testid="survey-card"
                           onClick={() => navigate({ surveyId: survey.id })}
-                          className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
+                          className="block w-full rounded-card border-0 bg-surface-panel px-5 py-4 text-left transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-surface-accent hover:shadow-panel"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
@@ -441,7 +441,7 @@ export function StudentAssignmentsTab({
                         type="button"
                         data-testid="assignment-card"
                         onClick={() => navigate({ assignmentId: assignment.id })}
-                        className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
+                        className="block w-full rounded-card border-0 bg-surface-panel px-5 py-4 text-left transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-surface-accent hover:shadow-panel"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">

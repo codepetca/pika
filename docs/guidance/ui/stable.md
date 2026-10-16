@@ -69,6 +69,11 @@ Source grounding:
 
 - Classroom work stays inside the shared classroom shell rather than inventing standalone page layouts.
 - Keep app framing borderless: headers, sidebars, section boundaries, and workspace panels use surface tones and spacing. Preserve control borders, selection indicators, table rules, status treatments, focus rings, and interactive resize handles.
+- Content cards and list items are also borderless by default (owner-approved
+  2026-10-16). Classwork, Tests, classroom cards, announcements, and course
+  blueprints use surface tones and spacing for grouping, hover, and selection;
+  do not reintroduce decorative card outlines. Functional focus, control,
+  table, status, and active-drag indicators retain their meaning.
 - Keep left navigation for tab switching, main content for the active workflow, and right-side inspection/detail behavior where the route already supports it.
 - On desktop, the shell remains a three-panel grid. On mobile, side panels collapse into drawer behavior rather than creating a separate information architecture.
 

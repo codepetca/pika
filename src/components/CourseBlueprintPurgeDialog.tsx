@@ -248,7 +248,7 @@ export function CourseBlueprintPurgeDialog({
           ) : null}
 
           {operation ? (
-            <div className="rounded-card border border-border bg-surface-2 p-4" aria-live="polite">
+            <div className="rounded-card bg-surface-2 p-4" aria-live="polite">
               <p className="text-sm font-medium text-text-default">
                 {operation.status === 'completed'
                   ? 'Deletion complete'

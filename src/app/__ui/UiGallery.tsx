@@ -293,7 +293,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
 
         <nav
           aria-label="Pattern Lab sections"
-          className="sticky top-2 z-app-chrome -mx-1 rounded-card border border-border bg-surface p-2 shadow-sm"
+          className="sticky top-2 z-app-chrome -mx-1 rounded-card bg-surface p-2 shadow-sm"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1 sm:max-w-sm">
@@ -478,6 +478,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
 
               <Card tone="panel" padding="md">
                 <PatternHeading title="Content surfaces" owner="src/ui/Card.tsx" />
+                <p className="mt-2 text-sm text-text-muted">Borderless cards use surface tones and spacing to group content.</p>
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {(['default', 'muted', 'panel', 'accent', 'selected'] as const).map((tone) => (
                     <Card key={tone} tone={tone} padding="sm">
@@ -1005,7 +1006,7 @@ function StudentImageUploadGallery() {
     <div
       id="student-image-upload"
       data-testid="student-image-upload-gallery"
-      className="scroll-mt-28 rounded-lg border border-border bg-surface p-4"
+      className="scroll-mt-28 rounded-lg bg-surface p-4"
     >
       <h2 className="text-lg font-semibold text-text-default">Student image upload</h2>
       <p className="mt-1 text-sm text-text-muted">

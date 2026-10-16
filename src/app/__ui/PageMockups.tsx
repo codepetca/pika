@@ -326,7 +326,7 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
             getPanelId={(value) => `mockup-${value}-panel`}
           />
           {TEACHER_PAGE_ITEMS.map((item) => (
-            <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={teacherPage !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
+            <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={teacherPage !== item.value} className="scroll-mt-28 rounded-card bg-page p-2 sm:p-4">
               <StateBoundary state={item.value === 'gradebook' && state === 'empty' ? 'populated' : state} page={item.label} onRetry={() => setState('populated')}>
                 {item.value === 'daily' ? <DailyMockup key={dailyAttendanceMode} attendanceMode={dailyAttendanceMode} onPrototypeAction={explain} /> : null}
                 {item.value === 'classrooms' ? <ClassroomsMockup isActive={teacherPage === 'classrooms'} onPrototypeAction={explain} /> : null}
@@ -357,7 +357,7 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
             getPanelId={(value) => `mockup-student-${value}-panel`}
           />
           {STUDENT_PAGE_ITEMS.map((item) => (
-            <section key={item.value} id={`mockup-student-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-student-${item.value}-tab`} hidden={studentPage !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
+            <section key={item.value} id={`mockup-student-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-student-${item.value}-tab`} hidden={studentPage !== item.value} className="scroll-mt-28 rounded-card bg-page p-2 sm:p-4">
               <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
                 <StudentPageMockup page={item.value} onPrototypeAction={explain} />
               </StateBoundary>

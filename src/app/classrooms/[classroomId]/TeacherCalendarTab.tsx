@@ -233,7 +233,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
     <div>
 
       {!isInitialized && (
-        <div className="mb-4 space-y-4 rounded-lg border border-border bg-surface p-4">
+        <div className="mb-4 space-y-4 rounded-lg bg-surface p-4">
           <div>
             <h2 className="text-sm font-semibold text-text-default">Set up class days</h2>
             <p className="mt-1 text-sm text-text-muted">
@@ -288,7 +288,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
 
       {range ? (
         <div className="space-y-4">
-          <div className="bg-surface rounded-lg shadow-sm border border-border p-4">
+          <div className="bg-surface rounded-lg shadow-sm p-4">
             <div className="flex flex-wrap gap-6 text-sm text-text-muted">
               <div className="flex items-center space-x-2">
                 <div className="w-5 h-5 bg-success-bg rounded"></div>
@@ -330,7 +330,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
               const rangeEndStr = format(range.end, 'yyyy-MM-dd')
 
               return (
-                <div key={month.toString()} className="bg-surface rounded-lg shadow-sm border border-border p-4">
+                <div key={month.toString()} className="bg-surface rounded-lg shadow-sm p-4">
                   <h3 className="text-center font-bold text-text-default mb-3">
                     {format(month, 'MMMM yyyy')}
                   </h3>
@@ -393,7 +393,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
 
         </div>
       ) : (
-        <div className="bg-surface rounded-lg shadow-sm border border-border p-6 text-center text-text-muted">
+        <div className="bg-surface rounded-lg shadow-sm p-6 text-center text-text-muted">
           No class days defined yet. Generate a range above.
         </div>
       )}
