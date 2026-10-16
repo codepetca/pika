@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { types } from 'node:util'
+import { contextualTestInspectionDetails } from '../e2e/helpers/contextual-test-boundary'
 
 export const DIAGNOSTIC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 export const DIAGNOSTIC_VERSION = '155.0.8059.84'
@@ -18,6 +19,7 @@ export const diagnosticSourceFiles = Object.freeze([
   'e2e/helpers/contextual-browser-login-diagnostic.ts',
   'e2e/helpers/contextual-browser-redirect-diagnostic.ts',
   'e2e/helpers/contextual-browser-navigation-diagnostic.ts', 'e2e/helpers/contextual-test-boundary.ts',
+  'e2e/helpers/contextual-test-navigation.ts',
   'e2e/helpers/contextual-login-fetch-gate.ts',
   'playwright.contextual-browser-diagnostic.config.ts', 'scripts/contextual-test-rehearsal-native.ts',
   'scripts/contextual-test-route-readiness.ts',
@@ -158,16 +160,18 @@ export function navigationLifecyclePassed(raw: unknown) {
   assert(raw && typeof raw === 'object' && !Array.isArray(raw))
   const v = raw as Record<string, unknown>
   const flags = ['versionMatched','diagnosticOnly','preHeaderHeld','bodyHeld','bodyVerified','destinationAfterValidation',
-    'boundaryFailed','contextClosed','serverClosed'] as const
-  const counts = ['requests','jsonRequests','originalBodies','unexpectedRequests','pageErrors','pending','socketsRemaining'] as const
-  assert.deepEqual(Object.keys(v).sort(), ['version','mode','failure', ...flags, ...counts].sort())
+    'boundaryFailed','contextClosed','serverClosed','unsentCancelled'] as const
+  const counts = ['requests','jsonRequests','originalBodies','unexpectedRequests','pageErrors','pending','socketsRemaining','lateRoutes'] as const
+  assert.deepEqual(Object.keys(v).sort(), ['version','mode','failure','inspectionDetail', ...flags, ...counts].sort())
   assert(v.version === 1 && v.mode === 'navigation-lifecycle')
   for (const key of flags) assert(typeof v[key] === 'boolean')
   for (const key of counts) assert(Number.isSafeInteger(v[key]) && Number(v[key]) >= 0 && Number(v[key]) <= 8)
   assert(v.failure === null || typeof v.failure === 'string' && ['setup','pre-header','body','departure','cleanup'].includes(v.failure))
+  assert(v.inspectionDetail === null || contextualTestInspectionDetails.some(detail => detail === v.inspectionDetail))
   return flags.filter(key => key !== 'boundaryFailed').every(key => v[key] === true) && v.boundaryFailed === false
     && v.requests === 3 && v.jsonRequests === 1 && v.originalBodies === 1 && v.unexpectedRequests === 0
     && v.pageErrors === 0 && v.pending === 0 && v.socketsRemaining === 0 && v.failure === null
+    && v.lateRoutes === 1 && v.inspectionDetail === null
 }
 
 export function redirectInterceptionPassed(raw: unknown) {

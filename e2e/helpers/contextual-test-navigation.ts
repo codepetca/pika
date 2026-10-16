@@ -60,21 +60,31 @@ export class ContextualTestNavigation {
     this.check(departure)
     const request = route.request()
     let frame: Frame
-    try { frame = request.frame() } catch { return this.boundary.endpoint('route-inspection') }
-    if (frame.page() !== departure.page || departure.page.context() !== this.context
-      || !departure.page.frames().includes(frame)) this.boundary.endpoint('route-inspection')
+    try { frame = request.frame() } catch { return this.boundary.inspection('frame-unavailable') }
+    if (frame.page() !== departure.page) this.boundary.inspection('frame-page')
+    if (departure.page.context() !== this.context) this.boundary.inspection('frame-context')
+    if (!departure.page.frames().includes(frame)) this.boundary.inspection('frame-detached')
     const method = request.method()
-    if (!['GET', 'HEAD'].includes(method)) this.boundary.endpoint('route-inspection')
+    if (!['GET', 'HEAD'].includes(method)) this.boundary.inspection('read-method')
     if (request.isNavigationRequest()) {
       // Subframe documents are unrelated navigation, not incidental reads.
-      if (frame !== departure.frame || method !== 'GET' || departure.sameDocument || !departure.dispatched) this.boundary.endpoint('route-inspection')
+      if (frame !== departure.frame) this.boundary.inspection('navigation-frame')
+      if (method !== 'GET') this.boundary.inspection('navigation-method')
+      if (departure.sameDocument) this.boundary.inspection('navigation-fragment')
+      if (!departure.dispatched) this.boundary.inspection('navigation-before-dispatch')
       const previous = request.redirectedFrom()
-      if (departure.last ? previous !== departure.last || !departure.released
-        : previous !== null || withoutHash(request.url()) !== withoutHash(departure.target)) this.boundary.endpoint('route-inspection')
+      if (departure.last) {
+        if (previous !== departure.last) this.boundary.inspection('redirect-predecessor')
+        if (!departure.released) this.boundary.inspection('redirect-before-release')
+      } else {
+        if (previous !== null) this.boundary.inspection('navigation-first-redirect')
+        if (withoutHash(request.url()) !== withoutHash(departure.target)) this.boundary.inspection('navigation-target')
+      }
       departure.last = request; departure.released = false
       await this.boundary.waitForNavigation(this.context, request, departure.end)
       this.check(departure)
-      if (departure.last !== request || departure.committed) this.boundary.endpoint('route-inspection')
+      if (departure.last !== request) this.boundary.inspection('navigation-superseded')
+      if (departure.committed) this.boundary.inspection('navigation-already-committed')
       this.boundary.requestReleased(this.context, request)
       departure.released = true
       // Continuation acknowledgement is not a commit. Keep cancelling old
@@ -90,7 +100,8 @@ export class ContextualTestNavigation {
 
   async depart(page: Page, intendedUrl: string, operationEnd: number, action: (timeout: number) => Promise<unknown>, kind: 'navigate' | 'reload' = 'navigate') {
     this.boundary.check()
-    if (this.active || page.context() !== this.context) this.boundary.endpoint('route-inspection')
+    if (this.active) this.boundary.inspection('departure-active')
+    if (page.context() !== this.context) this.boundary.inspection('departure-context')
     const target = new URL(intendedUrl).href, current = new URL(page.url()).href
     const departure: Departure = {
       page, frame: page.mainFrame(), target, end: operationEnd,
@@ -110,15 +121,20 @@ export class ContextualTestNavigation {
           this.check(departure)
           if (departure.committed || !departure.dispatched || event.error) this.boundary.endpoint('navigation-pending')
           if (departure.sameDocument) {
-            if (event.newDocument !== undefined || event.url !== departure.target) this.boundary.endpoint('route-inspection')
-          } else if (!departure.last || !departure.released || event.newDocument?.request?._object !== departure.last
-            || withoutHash(event.url) !== withoutHash(departure.last.url())) this.boundary.endpoint('route-inspection')
+            if (event.newDocument !== undefined) this.boundary.inspection('fragment-document')
+            if (event.url !== departure.target) this.boundary.inspection('fragment-url')
+          } else {
+            if (!departure.last) this.boundary.inspection('commit-missing-navigation')
+            if (!departure.released) this.boundary.inspection('commit-before-release')
+            if (event.newDocument?.request?._object !== departure.last) this.boundary.inspection('commit-request')
+            if (withoutHash(event.url) !== withoutHash(departure.last.url())) this.boundary.inspection('commit-url')
+          }
           departure.committed = true
           unobserve?.()
         } catch {
           // Event listeners must not throw into Playwright. Latch the fixed
           // failure; the departing operation and all future admissions fail.
-          try { this.boundary.endpoint('route-inspection') } catch { /* latched */ }
+          try { this.boundary.inspection('commit-callback') } catch { /* latched */ }
         }
       })
       await this.boundary.depart(this.context, operationEnd, timeout => {

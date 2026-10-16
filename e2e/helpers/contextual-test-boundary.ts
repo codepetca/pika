@@ -18,7 +18,16 @@ type RequestLifetime = {
 const endpointReasons = ['prohibited-api', 'navigation-pending', 'navigation-before-login',
   'route-inspection', 'route-continue', 'websocket', 'unspecified'] as const
 type EndpointReason = typeof endpointReasons[number]
-type EndpointFailure = { reason: EndpointReason; transports: number; bodies: number }
+export const contextualTestInspectionDetails = ['unknown', 'interception-unknown', 'interception-context', 'interception-state',
+  'interception-terminal', 'interception-response', 'cancellation-eligibility', 'navigation-lifetime',
+  'frame-unavailable', 'frame-page', 'frame-context', 'frame-detached', 'read-method',
+  'navigation-frame', 'navigation-method', 'navigation-fragment', 'navigation-before-dispatch',
+  'redirect-predecessor', 'redirect-before-release', 'navigation-first-redirect', 'navigation-target',
+  'navigation-superseded', 'navigation-already-committed', 'departure-active', 'departure-context',
+  'fragment-document', 'fragment-url', 'commit-missing-navigation', 'commit-before-release',
+  'commit-request', 'commit-url', 'commit-callback', 'route-callback'] as const
+type InspectionDetail = typeof contextualTestInspectionDetails[number]
+type EndpointFailure = { reason: EndpointReason; transports: number; bodies: number; detail?: InspectionDetail }
 type RequestFailure = {
   reason: 'malformed-url' | 'credentials' | 'protocol' | 'origin';
   target: 'app' | 'storage' | 'google-font-stylesheet' | 'google-font-file' | 'other';
@@ -67,14 +76,18 @@ export class ContextualTestBoundary {
     return failure === 'endpoint' ? this.endpoint('unspecified') : this.reject(failure)
   }
   /** Only fixed call-site labels and bounded counts; no URL, payload or error. */
-  endpoint(reason: EndpointReason, pending: readonly Task[] = []): never {
+  endpoint(reason: EndpointReason, pending: readonly Task[] = [], detail?: InspectionDetail): never {
     if (!this.failed) this.endpointFailure = {
       reason: endpointReasons.includes(reason) ? reason : 'unspecified',
       transports: Math.min(971, pending.filter(task => task.kind === 'transport').length),
       bodies: Math.min(971, pending.filter(task => task.kind === 'body').length),
+      ...(reason === 'route-inspection' && detail !== undefined
+        ? { detail: contextualTestInspectionDetails.includes(detail) ? detail : 'unknown' as const } : {}),
     }
     return this.reject('endpoint')
   }
+  /** Diagnostic-only literal subconditions; never inspect/coerce caught values. */
+  inspection(detail: InspectionDetail): never { return this.endpoint('route-inspection', [], detail) }
   check() {
     if (this.now() >= this.deadline || [...this.tasks.values()].some(set => [...set].some(task => this.now() >= task.end))) this.reject('deadline')
     if (this.failed) this.reject('failed')
@@ -94,7 +107,11 @@ export class ContextualTestBoundary {
   requestIntercepted(context: object, request: object, method: string) {
     this.check()
     const lifetime = this.requests.get(request)
-    if (!lifetime || lifetime.context !== context || lifetime.state !== 'seen' || lifetime.terminal || lifetime.responseSeen) this.endpoint('route-inspection')
+    if (!lifetime) this.inspection('interception-unknown')
+    if (lifetime.context !== context) this.inspection('interception-context')
+    if (lifetime.state !== 'seen') this.inspection('interception-state')
+    if (lifetime.terminal) this.inspection('interception-terminal')
+    if (lifetime.responseSeen) this.inspection('interception-response')
     lifetime.state = 'held'; lifetime.method = method
   }
   requestReleased(context: object, request: object) {
@@ -117,7 +134,7 @@ export class ContextualTestBoundary {
     this.check()
     const lifetime = this.requests.get(request)
     if (!lifetime || lifetime.context !== context || lifetime.state !== 'held' || lifetime.terminal || lifetime.responseSeen
-      || !['GET', 'HEAD'].includes(lifetime.method ?? '')) this.endpoint('route-inspection')
+      || !['GET', 'HEAD'].includes(lifetime.method ?? '')) this.inspection('cancellation-eligibility')
     if (!Number.isSafeInteger(operationEnd) || operationEnd <= this.now() || operationEnd > this.deadline) this.reject('deadline')
     lifetime.task.end = Math.min(lifetime.task.end, operationEnd)
     lifetime.state = 'cancelling'
@@ -156,7 +173,7 @@ export class ContextualTestBoundary {
    * Released work and original bodies still fail closed at this stage. */
   async waitForNavigation(context: object, navigationRequest: object, operationEnd: number) {
     const navigation = this.requests.get(navigationRequest)
-    if (!navigation || navigation.context !== context || navigation.state !== 'held') this.endpoint('route-inspection')
+    if (!navigation || navigation.context !== context || navigation.state !== 'held') this.inspection('navigation-lifetime')
     for (;;) {
       this.check()
       const pending = [...(this.tasks.get(context) ?? [])].filter(task => task !== navigation.task)

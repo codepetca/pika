@@ -317,7 +317,8 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       c.emit('requestfailed', request)
     })).rejects.toThrow()
     await expect(s.close('failed')).rejects.toThrow()
-    expect(s.receipt().endpointFailure).toEqual({ reason: phase, transports: 0, bodies: 0 })
+    expect(s.receipt().endpointFailure).toEqual({ reason: phase, transports: 0, bodies: 0,
+      ...(phase === 'route-inspection' ? { detail: 'route-callback' } : {}) })
     expect(JSON.stringify(s.receipt())).not.toMatch(/PRIVATE-URL|PRIVATE-CONTINUATION/)
   })
   it('identifies premature login navigation without releasing it', async () => {

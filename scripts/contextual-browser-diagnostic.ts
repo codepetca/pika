@@ -142,7 +142,7 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
     nodeVersion: 'v24.12.0', playwrightVersion: '1.58.0', chromeVersion: DIAGNOSTIC_VERSION,
     sourceManifestSha256: diagnosticHash(JSON.stringify(input.sourceSha256)), dependencySha256: dependencies.sha256,
     networkScope: input.mode === 'redirect-interception' ? 'six-synthetic-loopback-redirect-cases;14-requests;5-blocked-hops;1-original-body;no-app-db-accounts;not-global-egress-isolation'
-      : input.mode === 'navigation-lifecycle' ? 'one-synthetic-loopback-navigation;3-requests;1-json;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
+      : input.mode === 'navigation-lifecycle' ? 'one-synthetic-loopback-navigation;3-server-requests;1-unsent-read-cancellation;1-json;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
       : input.mode === 'login-body' ? 'one-synthetic-loopback-login;3-requests;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
       : 'offline-context-and-all-route-abort; inherited-sandbox-is-not-global-egress-isolation' }
   diagnosticWrite(input.outputDir, 'controller.json', receipt)

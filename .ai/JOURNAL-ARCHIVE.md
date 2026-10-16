@@ -47739,3 +47739,58 @@ nonexistent fresh path; it failed before any start/write and dispatch is now
 mocked in CPU tests. No production/shared-local migration, provider/Survey probe,
 account/billing or rollout change; all serious holds and historical failures stay.
 Original Protocol clock/review54/fix38 and app/Survey counters are not reset.
+
+<!-- pika-session-log-archive-batch:ee109e1511c28cf9376f5a5b203f809c30e6804096c5e83296b4c3d0cba776fa -->
+## 2026-10-14 Playwright carrier first review remediation
+
+Independent fixed-head reviews55 (Astra/high security) and56 (Sol/high
+compatibility) completed at ef0df, with eight unique accepted blockers. Batched
+corrections bind immutable admission data structurally, track every fixture SQL
+child and durable uncertainty before disposal, pin Next commit metadata and its
+actual static-path worker protocol, bound original response/PDF reads, validate
+real managed-PDF identities without requiring a nonexistent database digest, and
+share one cleanup deadline capped at six minutes from cleanup start.
+
+Root inspected the delivered SQL/controller integration regression: an unclosed
+bootstrap child prevents app launch, exact disposal and workdir removal, keeps a
+0600 uncertainty marker and never receives unverified raw signals. Full repository
+TypeScript and affected checks passed; final combined checks and independent delta
+review remain required. Initial exact-head serial focused gate passed3052/8skip;
+its previous parallel offline-fixture timeout remains recorded, not erased.
+
+Only read-only machine availability checks: healthy storage ~310GB, memory and
+existing canonical Supabase containers; no replacement app/browser/disposable DB
+attempt admitted or started. Frozen app21e755d/001–262, all production/shared-local,
+Survey/provider, account/billing and rollout holds remain. Original Protocol clock,
+review55/56 and prior fix38 history carry; this is replacement remediation batch1,
+not a reset of historical review or runtime attempts.
+
+<!-- pika-session-log-archive-batch:7dcedf5cbc07fd6d89faa60824a92fe6aa2c2fd92b54dda2acff84a701c716df -->
+## 2026-10-14 Playwright rehearsal 7e00 and bounded compatibility corrections
+
+Reviewed carrier3394eebf5 passed195CPU, fullfocused3118/8skip and independent
+reviews57/58. Private invocation59/60 corrected a pre-allocation CJS import-shape
+failure, then prepared one fresh sealed project7e00c706982c using clean frozen
+app21e755d/001–262 and the installed pinned Go CLI, dependencies and binaries.
+Live readiness passed. The recorded attempt failed at browser bootstrap before
+Playwright global setup; it is spent, never retried or promoted to acceptance.
+Actual owned settlement passed; exclusive app workdir and project-labelled
+containers/volumes/network were removed and root independently verified absence.
+Failed receipts/evidence stay private; canonical comparison was not separately
+retained in this failed receipt, so no independent restoration claim is added.
+
+Source-only installed-Playwright compiler proof found the browser import graph
+reached a legacy import.meta CLI guard incompatible with its CommonJS loader.
+Moved the exact binding/fixed-SQL/marker code into an inert thin module, preserving
+platform reexports and SQL/control bytes; actual compiler now parses the complete
+repository-local config/spec/runtime closure. Separately proved installed Next
+spawns detached telemetry at shutdown despite telemetry being disabled. The
+carrier disables only that hash-pinned optional API in memory before dispatch;
+generic subprocess/network denial and failure latches stay unchanged. Its role
+in the historical denial flag remains unproved, not conflated with browser failure.
+
+Combined200CPU and full TypeScript pass; independent delta review and final gate
+remain required for this batch. No second native attempt, production/shared-local
+migration, provider/Survey probe/planning, account/billing or rollout operation.
+PR1581 remains draft; advancing-main/calendar263 conflicts still require separate
+reconciliation. All original Protocol clocks/review/fix and spent histories carry.

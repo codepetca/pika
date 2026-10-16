@@ -5,6 +5,7 @@ import { createServer, type ServerResponse } from 'node:http'
 import type { Socket } from 'node:net'
 import type { Browser, BrowserContext } from '@playwright/test'
 import { ContextualTestBoundary } from './contextual-test-boundary'
+import { ContextualTestNavigation } from './contextual-test-navigation'
 import { createContextualTestPlan } from './contextual-test-rehearsal'
 
 type Stage = 'setup' | 'pre-header' | 'body' | 'departure' | 'cleanup'
@@ -16,11 +17,13 @@ export async function runNavigationLifecycleDiagnostic(browser: Browser, end: nu
   const sockets = new Set<Socket>(), paths = new Set<string>()
   let requests = 0, jsonRequests = 0, originalBodies = 0, unexpectedRequests = 0, pageErrors = 0
   let preHeaderHeld = false, bodyHeld = false, bodyVerified = false, destinationAfterValidation = false
+  let unsentCancelled = false, lateRoutes = 0
   let contextClosed = false, serverClosed = false, departureStarted = false
   let context: BrowserContext | undefined, boundary: ContextualTestBoundary | undefined, data: ServerResponse | undefined
-  let seen!: () => void, headersSeen!: () => void
+  let seen!: () => void, headersSeen!: () => void, lateDone!: () => void
   const received = new Promise<void>(resolve => { seen = resolve })
   const headers = new Promise<void>(resolve => { headersSeen = resolve })
+  const cancelled = new Promise<void>(resolve => { lateDone = resolve })
   let verified: Promise<void> | undefined, departure: Promise<void> | undefined
   const remaining = () => { const ms = end - Date.now(); assert(ms > 0, 'Private navigation diagnostic deadline'); return ms }
   const within = async <T>(work: Promise<T>): Promise<T> => {
@@ -61,6 +64,7 @@ export async function runNavigationLifecycleDiagnostic(browser: Browser, end: nu
     const plan = createContextualTestPlan('pika_assignment_list_000000000000')
     boundary = new ContextualTestBoundary({ ...plan, appOrigin: origin as typeof plan.appOrigin }, end)
     context = await within(browser.newContext({ serviceWorkers: 'block', acceptDownloads: false }))
+    const navigation = new ContextualTestNavigation(boundary, context)
     context.on('close', () => { contextClosed = true })
     context.on('request', request => boundary!.requestStarted(context!, request))
     context.on('requestfinished', request => boundary!.requestFinished(context!, request))
@@ -77,13 +81,29 @@ export async function runNavigationLifecycleDiagnostic(browser: Browser, end: nu
       void verified.catch(() => {}); headersSeen()
     })
     await within(context.route('**/*', async route => {
+      let abortAttempted = false
       try {
         const request = route.request(), url = request.url()
-        assert(!stopping && request.method() === 'GET' && ['/source', '/data', '/destination'].some(path => url === origin + path))
+        assert(!stopping && request.method() === 'GET' && ['/source', '/data', '/destination', '/late'].some(path => url === origin + path))
         boundary!.admit(url, request.method(), undefined, request.resourceType())
+        boundary!.requestIntercepted(context!, request, request.method())
+        const late = url === origin + '/late'
+        if (late) assert(++lateRoutes === 1 && stage === 'body' && !bodyVerified && !departureStarted)
+        if (await navigation.route({ request: () => request, continue: options => route.continue(options),
+          abort: code => { abortAttempted = true; return route.abort(code) } })) {
+          if (late) { assert(abortAttempted); unsentCancelled = true; lateDone() }
+          return
+        }
+        // A late read may never fall through and reach the synthetic server.
+        assert(!late)
         if (request.isNavigationRequest()) boundary!.canNavigate(context!, request)
+        boundary!.requestReleased(context!, request)
         await route.continue()
-      } catch { fail(); unexpectedRequests = Math.min(4, unexpectedRequests + 1); await route.abort('blockedbyclient').catch(() => {}) }
+      } catch { fail(); unexpectedRequests = Math.min(4, unexpectedRequests + 1)
+        // Wake the observer on rejection as well; only the verified success flag
+        // permits releasing the original body or dispatching the destination.
+        lateDone()
+        if (!abortAttempted) await route.abort('blockedbyclient').catch(() => {}) }
     }))
     await within(context.routeWebSocket('**/*', socket => { fail(); unexpectedRequests = Math.min(4, unexpectedRequests + 1); socket.close() }))
     const page = await within(context.newPage()); page.on('pageerror', () => { pageErrors = Math.min(4, pageErrors + 1); fail() })
@@ -91,10 +111,11 @@ export async function runNavigationLifecycleDiagnostic(browser: Browser, end: nu
     stage = 'pre-header'
     await within(page.evaluate(() => { void fetch('/data').then(response => response.json()).catch(() => {}) }))
     await within(received); assert(data && boundary.pending(context) > 0)
-    departure = boundary.depart(context, end, async timeout => {
+    const destination = origin + '/destination#proof'
+    departure = navigation.depart(page, destination, end, async timeout => {
       assert(verified && bodyVerified); boundary!.check()
       departureStarted = true
-      await page.goto(origin + '/destination', { waitUntil: 'load', timeout })
+      await page.goto(destination, { waitUntil: 'load', timeout })
     })
     void departure.catch(() => {})
     // A browser roundtrip provides an event barrier, not an arbitrary delay or
@@ -107,13 +128,20 @@ export async function runNavigationLifecycleDiagnostic(browser: Browser, end: nu
     await within(headers); await within(page.evaluate(() => document.readyState))
     bodyHeld = !departureStarted && !bodyVerified && boundary.pending(context) > 0
     assert(bodyHeld)
+    boundary.check()
+    await within(page.evaluate(() => { void fetch('/late').catch(() => {}) }))
+    await within(cancelled)
+    assert(unsentCancelled && !departureStarted && !bodyVerified)
     data.end('true}')
     stage = 'departure'; await within(departure)
-    assert.equal(page.url(), origin + '/destination')
+    assert.equal(page.url(), destination)
     assert(requests === 3 && jsonRequests === 1 && originalBodies === 1 && destinationAfterValidation)
   } catch { fail() }
   finally {
     stage = 'cleanup'; stopping = true
+    // On failure, terminate only this diagnostic's held synthetic response so
+    // disposal can observe its terminal event under the unchanged deadline.
+    if (failure) data?.destroy()
     try { if (context && boundary) await within(boundary.beforeContextClose(context, () => context!.close())) }
     catch { fail() }
     // A late operation remains owned and observed even when its deadline failed.
@@ -125,6 +153,7 @@ export async function runNavigationLifecycleDiagnostic(browser: Browser, end: nu
     if (!contextClosed || !serverClosed || sockets.size || (context && boundary?.pending(context))) fail()
   }
   return { diagnosticOnly: true as const, preHeaderHeld, bodyHeld, bodyVerified, destinationAfterValidation,
+    unsentCancelled, lateRoutes, inspectionDetail: boundary?.receipt().endpointFailure?.detail ?? null,
     requests, jsonRequests, originalBodies, unexpectedRequests, pageErrors, pending: context ? boundary?.pending(context) ?? 0 : 0,
     boundaryFailed: boundary?.receipt().firstFailure !== null && boundary !== undefined,
     contextClosed, serverClosed, socketsRemaining: sockets.size, failure }

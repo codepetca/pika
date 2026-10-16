@@ -11,6 +11,24 @@ function response(body: () => Promise<Buffer>, status = 200, url = plan.appOrigi
 function boundary(now = () => 1_000) { return new ContextualTestBoundary(plan, 2_701_000, now) }
 
 describe('contextual Test browser boundary', () => {
+  it.each(['unknown', 'context', 'state', 'terminal', 'response'] as const)('identifies the exact interception %s guard without accepting it', async mode => {
+    const b = boundary(), c = {}, r = {}
+    if (mode !== 'unknown') b.requestStarted(c, r)
+    if (mode === 'state') b.requestIntercepted(c, r, 'GET')
+    if (mode === 'terminal') b.requestFinished(c, r)
+    if (mode === 'response') await b.observe(c, response(async () => Buffer.from('{}')), r)
+    expect(() => b.requestIntercepted(mode === 'context' ? {} : c, r, 'GET')).toThrow()
+    expect(b.receipt().endpointFailure).toMatchObject({ reason: 'route-inspection', detail: `interception-${mode}` })
+  })
+  it('retains only a fixed first inspection detail and never coerces an unknown value', () => {
+    const b = boundary(), secret = { toString() { throw Error('PRIVATE') } }
+    expect(() => b.inspection(secret as never)).toThrow()
+    expect(b.receipt().endpointFailure).toEqual({ reason: 'route-inspection', transports: 0, bodies: 0, detail: 'unknown' })
+    expect(() => b.inspection('interception-unknown')).toThrow()
+    const copy = b.receipt().endpointFailure!; copy.detail = 'interception-unknown'
+    expect(b.receipt().endpointFailure?.detail).toBe('unknown')
+    expect(JSON.stringify(b.receipt())).not.toContain('PRIVATE')
+  })
   it.each(['GET', 'HEAD'])('joins both signals for an intercepted unsent %s cancellation', async method => {
     for (const terminalFirst of [true, false]) {
       const b = boundary(), c = {}, r = {}, ack = deferred<void>()

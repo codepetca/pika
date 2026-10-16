@@ -134,6 +134,8 @@ describe('contextual Test departure navigation fence', () => {
       h.boundary.check()
     })).rejects.toThrow()
     expect(h.boundary.receipt().endpointFailure?.reason).toBe('route-inspection')
+    expect(h.boundary.receipt().endpointFailure?.detail).toBe(scenario === 'wrong-first-url' ? 'navigation-target'
+      : scenario === 'HEAD' ? 'navigation-method' : 'redirect-predecessor')
   })
 
   it.each(['wrong-request', 'missing-request', 'same-document-event', 'wrong-url', 'error'] as const)('does not release on a %s commit event', async scenario => {
@@ -149,6 +151,8 @@ describe('contextual Test departure navigation fence', () => {
       h.boundary.requestFinished(h.context, navigation)
     })).rejects.toThrow()
     expect(h.boundary.receipt().firstFailure).toBe('endpoint')
+    if (scenario !== 'error') expect(h.boundary.receipt().endpointFailure?.detail).toBe(
+      scenario === 'wrong-url' ? 'commit-url' : 'commit-request')
   })
 
   it('rejects command completion without a matching document commit', async () => {
@@ -180,6 +184,10 @@ describe('contextual Test departure navigation fence', () => {
       await h.fence.route(route)
     })).rejects.toThrow()
     expect(h.boundary.receipt().endpointFailure?.reason).toBe('route-inspection')
+    expect(h.boundary.receipt().endpointFailure?.detail).toBe({
+      'foreign-page': 'frame-page', 'detached-frame': 'frame-detached',
+      'unknown-frame': 'frame-unavailable', 'subframe-navigation': 'navigation-frame',
+    }[scenario])
   })
 
   it('cancels a held read in a live owned subframe', async () => {

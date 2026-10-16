@@ -11,59 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Playwright carrier first review remediation
-
-Independent fixed-head reviews55 (Astra/high security) and56 (Sol/high
-compatibility) completed at ef0df, with eight unique accepted blockers. Batched
-corrections bind immutable admission data structurally, track every fixture SQL
-child and durable uncertainty before disposal, pin Next commit metadata and its
-actual static-path worker protocol, bound original response/PDF reads, validate
-real managed-PDF identities without requiring a nonexistent database digest, and
-share one cleanup deadline capped at six minutes from cleanup start.
-
-Root inspected the delivered SQL/controller integration regression: an unclosed
-bootstrap child prevents app launch, exact disposal and workdir removal, keeps a
-0600 uncertainty marker and never receives unverified raw signals. Full repository
-TypeScript and affected checks passed; final combined checks and independent delta
-review remain required. Initial exact-head serial focused gate passed3052/8skip;
-its previous parallel offline-fixture timeout remains recorded, not erased.
-
-Only read-only machine availability checks: healthy storage ~310GB, memory and
-existing canonical Supabase containers; no replacement app/browser/disposable DB
-attempt admitted or started. Frozen app21e755d/001–262, all production/shared-local,
-Survey/provider, account/billing and rollout holds remain. Original Protocol clock,
-review55/56 and prior fix38 history carry; this is replacement remediation batch1,
-not a reset of historical review or runtime attempts.
-
-## 2026-10-14 Playwright rehearsal 7e00 and bounded compatibility corrections
-
-Reviewed carrier3394eebf5 passed195CPU, fullfocused3118/8skip and independent
-reviews57/58. Private invocation59/60 corrected a pre-allocation CJS import-shape
-failure, then prepared one fresh sealed project7e00c706982c using clean frozen
-app21e755d/001–262 and the installed pinned Go CLI, dependencies and binaries.
-Live readiness passed. The recorded attempt failed at browser bootstrap before
-Playwright global setup; it is spent, never retried or promoted to acceptance.
-Actual owned settlement passed; exclusive app workdir and project-labelled
-containers/volumes/network were removed and root independently verified absence.
-Failed receipts/evidence stay private; canonical comparison was not separately
-retained in this failed receipt, so no independent restoration claim is added.
-
-Source-only installed-Playwright compiler proof found the browser import graph
-reached a legacy import.meta CLI guard incompatible with its CommonJS loader.
-Moved the exact binding/fixed-SQL/marker code into an inert thin module, preserving
-platform reexports and SQL/control bytes; actual compiler now parses the complete
-repository-local config/spec/runtime closure. Separately proved installed Next
-spawns detached telemetry at shutdown despite telemetry being disabled. The
-carrier disables only that hash-pinned optional API in memory before dispatch;
-generic subprocess/network denial and failure latches stay unchanged. Its role
-in the historical denial flag remains unproved, not conflated with browser failure.
-
-Combined200CPU and full TypeScript pass; independent delta review and final gate
-remain required for this batch. No second native attempt, production/shared-local
-migration, provider/Survey probe/planning, account/billing or rollout operation.
-PR1581 remains draft; advancing-main/calendar263 conflicts still require separate
-reconciliation. All original Protocol clocks/review/fix and spent histories carry.
-
 ## 2026-10-14 Bounded browser-only diagnostic preparation
 
 Carrier64e passed review61 and3123 focused tests/8skip. Fresh app038480fc7ad7
@@ -960,3 +907,46 @@ Trimmed CURRENT and restored the original drain continuation (no test/timeout
 relaxation). Two targeted SDK/parser CPU timeouts passed serially. Final focused
 gate and targeted review pending; cumulative117reviews/71fixbatches, original
 clocks/task waiver retained. Production and all prior attempt holds unchanged.
+
+## 2026-10-16 — Unsent-read fence reviewed; fresh rehearsal stopped safely
+
+Reviews118/119 cleared final0b485 security/compatibility; PR1581 stays draft at
+that head. Prior canonical runs timed out under severe machine load. With load
+lower, unchanged full focused gate passed3658/8skip in94.9s plus architecture,
+UI/design, TypeScript and lint. Original test timeouts remained unchanged.
+
+Review120 Sol/high cleared name/token-only fresh invocation wrappers. Corrected
+the coordinator's ESM-only loader selection before preparation entered; no
+fixture or native attempt existed at that point. One admitted full-app attempt
+then ran with frozen21e755 and isolated001–262. Login completed identity; browser
+stopped at endpoint route-inspection, pending1, before screenshots. This differs
+from the prior navigation-pending label but does not identify its subcondition
+or prove navigation acceptance. Do not infer a request URL from the receipt.
+
+All owned cleanup and immediate independent preservation passed:7656 sourcefiles,
+49485 dependencyfiles unchanged, no matching live processes or remaining fixture
+resources. Private Cztsnp receipts retained; attempt permanently spent. Next:
+pinpoint the guarded subcondition with fixed privacy-safe labels and a small
+reproduction before another full rehearsal. No code fix, fresh retry, visual
+acceptance, merge or production action. Cumulative120reviewturns/71fixbatches;
+original clocks/task waiver and production/shared-local/provider holds remain.
+
+## 2026-10-16 — Pinpointing navigation guard rejection
+
+Split existing compound guard failures into fixed allowlisted subcondition
+labels without changing acceptance predicates, evaluation order or deadlines.
+Unknown metadata is never coerced or exposed; the first failure remains latched.
+Five new CPU tests use actual installed Playwright client objects and wire
+decoding: first navigation, redirect, fragment reload and wrong/missing commit
+identity. All pass; this is not proof of native event ordering or the historical
+cause. No dependency changes.
+
+Extended the existing browser-only synthetic navigation diagnostic to exercise
+the actual fence: one held original JSON body, one unsent read that must receive
+both abort acknowledgement and its matching failed terminal event, then one
+destination. The server still permits exactly three requests and rejects a sent
+late read. Failure disposal closes only its held synthetic response; sockets,
+ownership, strict receipts and original deadlines remain required. Combined236
+targeted tests and TypeScript pass. Independent review and final focused gate
+are next before one fresh browser-only run. No native attempt yet, no app/DB or
+production change. PR1581 stays draft; all holds and spent attempts carry.

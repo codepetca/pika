@@ -170,7 +170,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
               boundary.requestReleased(context, request)
               await route.continue()
             }
-            catch { try { boundary.endpoint(phase) } catch { /* retain fixed first failure */ }
+            catch { try { if (phase === 'route-inspection') boundary.inspection('route-callback'); else boundary.endpoint(phase) } catch { /* retain fixed first failure */ }
               if (!abortAttempted) await route.abort('blockedbyclient').catch(() => {}) }
           })
           await context.routeWebSocket('**/*', socket => {

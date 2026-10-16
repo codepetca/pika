@@ -111,14 +111,15 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     const good = { version: 1, mode: 'navigation-lifecycle', versionMatched: true, diagnosticOnly: true,
       preHeaderHeld: true, bodyHeld: true, bodyVerified: true, destinationAfterValidation: true, boundaryFailed: false,
       contextClosed: true, serverClosed: true, requests: 3, jsonRequests: 1, originalBodies: 1, unexpectedRequests: 0,
-      pageErrors: 0, pending: 0, socketsRemaining: 0, failure: null }
+      pageErrors: 0, pending: 0, socketsRemaining: 0, failure: null, unsentCancelled: true, lateRoutes: 1, inspectionDetail: null }
     expect(data.navigationLifecyclePassed(good)).toBe(true)
     for (const patch of [{ preHeaderHeld: false }, { bodyHeld: false }, { bodyVerified: false }, { destinationAfterValidation: false },
       { boundaryFailed: true }, { contextClosed: false }, { serverClosed: false }, { requests: 2 }, { requests: 4 },
-      { jsonRequests: 2 }, { originalBodies: 0 }, { pending: 1 }, { socketsRemaining: 1 }, { pageErrors: 1 }, { failure: 'body' }]) {
+      { jsonRequests: 2 }, { originalBodies: 0 }, { pending: 1 }, { socketsRemaining: 1 }, { pageErrors: 1 }, { failure: 'body' },
+      { unsentCancelled: false }, { lateRoutes: 0 }, { lateRoutes: 2 }, { inspectionDetail: 'commit-request' }]) {
       expect(data.navigationLifecyclePassed({ ...good, ...patch })).toBe(false)
     }
-    for (const patch of [{ mode: 'login-body' }, { requests: 9 }, { requests: NaN }, { bodyVerified: 1 }, { failure: 'PRIVATE' }, { url: 'PRIVATE' }]) {
+    for (const patch of [{ mode: 'login-body' }, { requests: 9 }, { requests: NaN }, { bodyVerified: 1 }, { failure: 'PRIVATE' }, { url: 'PRIVATE' }, { inspectionDetail: 'PRIVATE' }]) {
       expect(() => data.navigationLifecyclePassed({ ...good, ...patch })).toThrow()
     }
   })
@@ -166,7 +167,8 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     const browser = { version: () => data.DIAGNOSTIC_VERSION }, calls: string[] = [], records: unknown[] = []
     const result = { diagnosticOnly: true, preHeaderHeld: true, bodyHeld: true, bodyVerified: passed, destinationAfterValidation: passed,
       boundaryFailed: !passed, contextClosed: true, serverClosed: true, requests: passed ? 3 : 2, jsonRequests: 1, originalBodies: 1,
-      unexpectedRequests: 0, pageErrors: 0, pending: 0, socketsRemaining: 0, failure: passed ? null : 'body' }
+      unexpectedRequests: 0, pageErrors: 0, pending: 0, socketsRemaining: 0, failure: passed ? null : 'body',
+      unsentCancelled: passed, lateRoutes: passed ? 1 : 0, inspectionDetail: null }
     const test = Object.assign((_name: string, action: typeof body) => { body = action }, { skip() {} })
     new Script(compiled).runInNewContext({ exports: {}, Date, process: { env: { PIKA_BROWSER_DIAGNOSTIC: 'true' } }, require(specifier: string) {
       if (specifier === '@playwright/test') return { test, expect }
