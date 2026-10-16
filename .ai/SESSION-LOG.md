@@ -424,6 +424,10 @@ mode hides unavailable resize controls and full width restores them.
 repeat with `--max-workers 2` passed963/963. Visual evidence under ignored
 `output/playwright`, deterministic intercepted GETs and blocked writes; no DB
 persistence claim. Final checks/review/SHA recorded in PR and lifecycle metadata.
-Implementation handled directly; independent low-risk review planned with one
-Luna/medium reviewer. Weekly remaining44%; storage healthy320GB; attributable
+Implementation handled directly; one Luna/medium independent full-diff review
+clean at3c6dd36e7. Coordinator then found obsolete mobile Status-sort E2E
+expectations; returned1608 draft, cancelled first CI candidate, updated the
+existing browser scenario for compact columns/Seen sorting, retaining desktop
+Status sorting; all4 desktop/mobile light/dark cases pass (2.6m). One test-only remediation batch and final delta/cumulative
+review planned; final receipts in PR/lifecycle metadata. Weekly remaining44%; storage healthy320GB; attributable
 usage/time unknown. No database, production or merge operations authorized here.
