@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { diagnosticAdmissionFromEnvironment, diagnosticWrite, DIAGNOSTIC_VERSION, navigationLifecyclePassed } from '../scripts/contextual-browser-diagnostic-data'
+import { diagnosticAdmissionFromEnvironment, diagnosticWrite, DIAGNOSTIC_VERSION, navigationLifecyclePassed, redirectInterceptionPassed } from '../scripts/contextual-browser-diagnostic-data'
 import { runLoginBodyDiagnostic } from './helpers/contextual-browser-login-diagnostic'
 import { runNavigationLifecycleDiagnostic } from './helpers/contextual-browser-navigation-diagnostic'
+import { assertContextualRedirectInterception } from '../scripts/contextual-playwright-redirect-guard.cjs'
+import { runRedirectDiagnostic } from './helpers/contextual-browser-redirect-diagnostic'
 
 // The same standard browser fixture launches the same headed pinned Chrome.
 // The body-read mode is bound into the exclusive admission, never an env switch.
@@ -9,6 +11,16 @@ const optedIn = process.env.PIKA_BROWSER_DIAGNOSTIC === 'true'
 const admission = optedIn ? diagnosticAdmissionFromEnvironment() : undefined
 test.skip(!optedIn, 'Requires the explicitly admitted private browser diagnostic')
 test('private browser fixture diagnostic', async ({ browser }) => {
+  assertContextualRedirectInterception()
+  if (admission!.mode === 'redirect-interception') {
+    const versionMatched = browser.version() === DIAGNOSTIC_VERSION
+    expect(versionMatched).toBe(true)
+    const result = await runRedirectDiagnostic(browser, Math.min(admission!.deadline, Date.now() + 20000))
+    const receipt = { version: 1, mode: 'redirect-interception', versionMatched, ...result }
+    diagnosticWrite(admission!.outputDir, 'lifecycle.json', receipt)
+    expect(redirectInterceptionPassed(receipt)).toBe(true)
+    return
+  }
   if (admission!.mode === 'navigation-lifecycle') {
     const versionMatched = browser.version() === DIAGNOSTIC_VERSION
     expect(versionMatched).toBe(true)

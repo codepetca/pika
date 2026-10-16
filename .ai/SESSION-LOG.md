@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Source37 isolated check identifies metadata guard failure
-
-Targeted review50 completed source37/Chrome-pin and two-document scope PASS0,
-report352ff47d... root read/hash verified. Fresh03:01:30.514UTC source/CLI/Chrome/
-Google signature/kernel/port preflight PASS; exact source/readiness acceptance
-5f378233... admitted ONE plain pinned-Node check. Launcher22226 closed1/SPENT;
-03:01:57.313→03:02:11.546UTC (14.234s), HTTP0. Receipt83fffc34... first capture/
-ownership failure now records root-metadata/ERR_ASSERTION, no typed processCause.
-All browser/CLI/server/requests closed within the original budget; cleanup/query
-diagnostics and cleanup failures null/empty. No body/navigation test or app exit
-was exercised.17 capture records, no durable witness/run-code dispatch. This
-localizes the guard, not which metadata field differed: helper checks root state/
-identity, exact argv and exact cwd; rejected values were not retained. Source
-inspection alone cannot select one of those assertions. Failed attempt remains
-immutable; no retry, new criteria/source fix, signal outside owned cleanup,
-restart, migration, production/provider/account/cutover change. Next recommend
-source-only field-specific safe labels, preserving all existing validation, before
-any separately approved fresh run. Original clock/review50/fix37/waiver carry;
-PR1581 draft/full gate failed. Independent factual receipt review51 next.
-
 ## 2026-10-14 Metadata-field labels preserve original validation
 
 Human Go requests identifying the failed metadata field without weakening checks.
@@ -982,3 +962,23 @@ Review111 complete b4ced303: no new blocker, one inherited adjacent P2 deadline
 edge accepted. Fake clock reproduces action(0) when expiry falls between check
 and timeout calculation; capture/check positive remaining once before dispatch.
 Original clocks/caps remain, no renewed deadline. Targeted re-review112 follows.
+
+## 2026-10-16 — Redirect interception correction before full rehearsal
+
+Prior1a558233 review112 CLEAN,3573CPU PASS; one synthetic navigation run5cw7pq
+PASS with3requests/1originalbody and exact body-before-navigation proof. Native
+closure and immediate independent preservation PASS; sources/dependencies unchanged.
+Historical jfeIB9 rejection remains unattributed. Production holds unchanged.
+
+User requests redirect-gap fix/regression/review. Astra/high source investigation
+confirmed SDK1.58 bypass and downstream normal-route compatibility. Runner-only
+Node24.12 synchronous load hook binds full upstream source SHA; redirected hops
+now enter existing guards using Chromium's actual URL/method/body. No installed
+dependency rewrite, HTTP replay, new dependency or page-only CDP fence. Uncorrelated
+pauses fail closed; request overrides prohibited. CLI/worker preload CPU proof
+passes; seven actual-adapter regressions RED before fix, GREEN after. Existing
+body, login, navigation, reservation, cap and deadline guards remain unchanged.
+Added separately admitted six-case loopback native regression (14HTTP max,5denied
+hops,1original body); not dispatched before independent review. Full-app/provider/
+shared-local/account/migration/production/rollout holds remain. Original review112/
+fix68 counters and task waiver carry. Risk runtime-platform; final gate/review next.

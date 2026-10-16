@@ -47616,3 +47616,24 @@ pin literals updated with its21 assertions intact. Independent targeted review50
 next under same original clock/fix37/waiver; no counter reset. Acceptance/runtime
 absent. After clean review and fresh readiness root may run exactly ONE check;
 no automatic retry or production/shared-local/provider/account/cutover release.
+
+<!-- pika-session-log-archive-batch:589abb660110bd6d8f89470052281e4904feec0e3255db07200e9b5010bed818 -->
+## 2026-10-13 Source37 isolated check identifies metadata guard failure
+
+Targeted review50 completed source37/Chrome-pin and two-document scope PASS0,
+report352ff47d... root read/hash verified. Fresh03:01:30.514UTC source/CLI/Chrome/
+Google signature/kernel/port preflight PASS; exact source/readiness acceptance
+5f378233... admitted ONE plain pinned-Node check. Launcher22226 closed1/SPENT;
+03:01:57.313→03:02:11.546UTC (14.234s), HTTP0. Receipt83fffc34... first capture/
+ownership failure now records root-metadata/ERR_ASSERTION, no typed processCause.
+All browser/CLI/server/requests closed within the original budget; cleanup/query
+diagnostics and cleanup failures null/empty. No body/navigation test or app exit
+was exercised.17 capture records, no durable witness/run-code dispatch. This
+localizes the guard, not which metadata field differed: helper checks root state/
+identity, exact argv and exact cwd; rejected values were not retained. Source
+inspection alone cannot select one of those assertions. Failed attempt remains
+immutable; no retry, new criteria/source fix, signal outside owned cleanup,
+restart, migration, production/provider/account/cutover change. Next recommend
+source-only field-specific safe labels, preserving all existing validation, before
+any separately approved fresh run. Original clock/review50/fix37/waiver carry;
+PR1581 draft/full gate failed. Independent factual receipt review51 next.

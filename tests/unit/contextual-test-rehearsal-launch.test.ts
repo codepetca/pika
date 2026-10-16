@@ -79,7 +79,7 @@ describe('import-safe contextual Test launch contracts (CPU only)', () => {
   it('selects only fixed Next dev and the dedicated existing Playwright CLI/spec', () => {
     const commands = contextualTestLaunchCommands('/runner', '/deps', binding() as never)
     expect(commands.app).toEqual(['/deps/next/dist/bin/next','dev','--hostname','127.0.0.1','--port','3117'])
-    expect(commands.runner).toEqual(['/deps/@playwright/test/cli.js','test','--config=/runner/playwright.contextual-tests.config.ts','contextual-test-lifecycle.spec.ts'])
+    expect(commands.runner).toEqual(['--require','/runner/scripts/contextual-playwright-preload.cjs','/deps/@playwright/test/cli.js','test','--config=/runner/playwright.contextual-tests.config.ts','contextual-test-lifecycle.spec.ts'])
     expect(commands).not.toHaveProperty('shell')
   })
   it('rejects preload whitespace, binding relocation and invalid secrets before creating an environment', () => {

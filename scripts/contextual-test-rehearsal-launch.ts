@@ -95,7 +95,7 @@ export function contextualTestLaunchCommands(runnerRoot: string, dependencyRoot:
   absolute(runnerRoot); absolute(dependencyRoot)
   assert.equal(binding.appDir, join(assignmentListProofWorkdir(binding.projectId), 'app'))
   return Object.freeze({ app: Object.freeze([join(dependencyRoot, 'next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', '3117']),
-    runner: Object.freeze([join(dependencyRoot, '@playwright/test/cli.js'), 'test', `--config=${join(runnerRoot, 'playwright.contextual-tests.config.ts')}`, 'contextual-test-lifecycle.spec.ts']) })
+    runner: Object.freeze(['--require', join(runnerRoot, 'scripts/contextual-playwright-preload.cjs'), join(dependencyRoot, '@playwright/test/cli.js'), 'test', `--config=${join(runnerRoot, 'playwright.contextual-tests.config.ts')}`, 'contextual-test-lifecycle.spec.ts']) })
 }
 
 export type ContextualTestBinaryPin = Readonly<{ path: string; sha256: string }>

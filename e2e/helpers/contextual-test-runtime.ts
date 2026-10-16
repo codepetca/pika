@@ -14,6 +14,7 @@ import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWit
 import type { ContextualTestStartupStage } from './contextual-test-startup'
 import { contextualTestFontShot, contextualTestFontEditingText } from './contextual-test-font-matrix'
 import { observeContextualTestFont } from './contextual-test-font-observation'
+import { assertContextualRedirectInterception } from '../../scripts/contextual-playwright-redirect-guard.cjs'
 
 const witnessSchema = z.object({
   version: z.literal(1), work_graph_sha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -81,6 +82,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const path = process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE, digest = process.env.PIKA_CONTEXTUAL_TEST_BINDING_SHA256
   assert(path && digest, 'Missing admitted private binding')
   const binding = readContextualTestBinding(path, digest)
+  assertContextualRedirectInterception()
   stage('plan')
   const plan = createContextualTestPlan(binding.projectId)
   stage('boundary')
@@ -97,6 +99,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   let fontCapture: { label: string; stage: 'visible' | 'fonts' | 'readiness' | 'screenshot' | 'saved'; failedChecks: FontCheck[] } | null = null
   let screenshots = 0, fontShots = 0, pngBytes = 0, snapshots = 0, pageErrors = 0, consoleErrors = 0, closeStarted = false
   const requireOwned = (page: Page) => {
+    assertContextualRedirectInterception()
     const context = page.context(), state = contexts.get(context)
     assert(state && !state.closing && !state.closed, 'Private Page ownership'); return context
   }

@@ -7,6 +7,7 @@ import type { Browser, Page, Response, TestInfo } from '@playwright/test'
 
 const platform = vi.hoisted(() => ({ readContextualTestBinding: vi.fn(), executeContextualTestSql: vi.fn() }))
 vi.mock('../../scripts/contextual-test-rehearsal-binding', () => platform)
+vi.mock('../../scripts/contextual-playwright-redirect-guard.cjs', () => ({ assertContextualRedirectInterception: vi.fn() }))
 import { createContextualTestLoginProgress, createContextualTestRuntime } from '../../e2e/helpers/contextual-test-runtime'
 import { createContextualTestPlan, type ActorLabel } from '../../e2e/helpers/contextual-test-rehearsal'
 

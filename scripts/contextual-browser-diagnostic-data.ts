@@ -12,9 +12,11 @@ export const diagnosticHash = (value: Buffer | string) => createHash('sha256').u
 export const diagnosticSourceFiles = Object.freeze([
   'scripts/contextual-browser-diagnostic-data.ts', 'scripts/contextual-browser-diagnostic.ts',
   'scripts/contextual-browser-startup.ts',
+  'scripts/contextual-playwright-preload.cjs', 'scripts/contextual-playwright-redirect-guard.cjs',
   'e2e/helpers/contextual-browser-diagnostic-reporter.ts', 'e2e/contextual-browser-diagnostic.spec.ts',
   'e2e/helpers/contextual-browser-diagnostic-setup.ts',
   'e2e/helpers/contextual-browser-login-diagnostic.ts',
+  'e2e/helpers/contextual-browser-redirect-diagnostic.ts',
   'e2e/helpers/contextual-browser-navigation-diagnostic.ts', 'e2e/helpers/contextual-test-boundary.ts',
   'e2e/helpers/contextual-login-fetch-gate.ts',
   'playwright.contextual-browser-diagnostic.config.ts', 'scripts/contextual-test-rehearsal-native.ts',
@@ -24,7 +26,7 @@ export const diagnosticSourceFiles = Object.freeze([
   'e2e/helpers/contextual-test-rehearsal.ts', 'package.json', 'pnpm-lock.yaml',
   'e2e/helpers/contextual-test-font-overlay.ts',
 ])
-export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string; startedAt: number; deadline: number; cleanupDeadline: number; mode?: 'login-body' | 'navigation-lifecycle' }
+export type DiagnosticAdmission = { version: 1; nonce: string; outputDir: string; startedAt: number; deadline: number; cleanupDeadline: number; mode?: 'login-body' | 'navigation-lifecycle' | 'redirect-interception' }
 export function diagnosticDirectory(path: string) {
   assert.equal(realpathSync(path), path)
   const info = lstatSync(path); assert(info.isDirectory() && !info.isSymbolicLink() && (info.mode & 0o777) === 0o700 && info.uid === process.getuid?.())
@@ -67,7 +69,7 @@ export function validateDiagnosticAdmission(raw: unknown, now: number): Diagnost
   assert(raw && typeof raw === 'object' && !Array.isArray(raw))
   const v = raw as DiagnosticAdmission
   assert.deepEqual(Object.keys(v).sort(), ['cleanupDeadline','deadline','nonce','outputDir','startedAt','version', ...(Object.hasOwn(v, 'mode') ? ['mode'] : [])].sort())
-  assert(v.mode === undefined || v.mode === 'login-body' || v.mode === 'navigation-lifecycle')
+  assert(v.mode === undefined || v.mode === 'login-body' || v.mode === 'navigation-lifecycle' || v.mode === 'redirect-interception')
   assert(v.version === 1 && /^[a-f0-9]{32}$/.test(v.nonce) && typeof v.outputDir === 'string')
   assert([now,v.startedAt,v.deadline,v.cleanupDeadline].every(Number.isSafeInteger))
   assert(v.startedAt <= now && now < v.deadline && v.deadline === v.startedAt + 90000 && v.cleanupDeadline === v.deadline + 360000)
@@ -166,4 +168,18 @@ export function navigationLifecyclePassed(raw: unknown) {
   return flags.filter(key => key !== 'boundaryFailed').every(key => v[key] === true) && v.boundaryFailed === false
     && v.requests === 3 && v.jsonRequests === 1 && v.originalBodies === 1 && v.unexpectedRequests === 0
     && v.pageErrors === 0 && v.pending === 0 && v.socketsRemaining === 0 && v.failure === null
+}
+
+export function redirectInterceptionPassed(raw: unknown) {
+  assert(raw && typeof raw === 'object' && !Array.isArray(raw))
+  const v = raw as Record<string, unknown>
+  const flags = ['versionMatched', 'diagnosticOnly', 'serversClosed', 'failed']
+  const expected = { completed: 6, blocked: 5, appRequests: 13, sinkRequests: 1, forbiddenRequests: 0,
+    redirectRoutes: 6, originalBodies: 1, contextsClosed: 6, socketsRemaining: 0 }
+  assert.deepEqual(Object.keys(v).sort(), ['version', 'mode', ...flags, ...Object.keys(expected)].sort())
+  assert(v.version === 1 && v.mode === 'redirect-interception')
+  for (const key of flags) assert(typeof v[key] === 'boolean')
+  for (const key of Object.keys(expected)) assert(Number.isSafeInteger(v[key]) && Number(v[key]) >= 0 && Number(v[key]) <= 16)
+  return v.versionMatched === true && v.diagnosticOnly === true && v.serversClosed === true && v.failed === false
+    && Object.entries(expected).every(([key, count]) => v[key] === count)
 }

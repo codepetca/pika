@@ -104,6 +104,7 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     for (const patch of [{ startedAt: 2001 }, { deadline: 92000 }, { cleanupDeadline: 452000 }, { retries: 1 }]) expect(() => validateDiagnosticAdmission({ ...a, ...patch }, 2000)).toThrow()
     expect(() => validateDiagnosticAdmission(a, 91000)).toThrow()
     expect(validateDiagnosticAdmission({ ...a, mode: 'navigation-lifecycle' }, 2000).mode).toBe('navigation-lifecycle')
+    expect(validateDiagnosticAdmission({ ...a, mode: 'redirect-interception' }, 2000).mode).toBe('redirect-interception')
     expect(() => validateDiagnosticAdmission({ ...a, mode: 'arbitrary' }, 2000)).toThrow()
   })
   it('accepts only the complete exact navigation lifecycle receipt without weakened counters or extra data', () => {
@@ -132,6 +133,8 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
         if (specifier === '@playwright/test') return { test, expect: () => { throw Error('Fixture executed') } }
         if (specifier === './helpers/contextual-browser-login-diagnostic') return { runLoginBodyDiagnostic: () => { throw Error('Fixture executed') } }
         if (specifier === './helpers/contextual-browser-navigation-diagnostic') return { runNavigationLifecycleDiagnostic: () => { throw Error('Fixture executed') } }
+        if (specifier === './helpers/contextual-browser-redirect-diagnostic') return { runRedirectDiagnostic: () => { throw Error('Fixture executed') } }
+        if (specifier === '../scripts/contextual-playwright-redirect-guard.cjs') return { assertContextualRedirectInterception: () => { throw Error('Fixture executed') } }
         expect(specifier).toBe('../scripts/contextual-browser-diagnostic-data')
         return { diagnosticAdmissionFromEnvironment: () => { calls.push('read'); if (invalid) throw Error('Invalid admission'); return {} } }
       } }
@@ -140,6 +143,19 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     for (const env of [undefined, 'false']) { const ordinary = collect(env); ordinary.run(); expect(ordinary.calls).toEqual(['skip','declare']) }
     const invalid = collect('true', true); expect(invalid.run).toThrow('Invalid admission'); expect(invalid.calls).toEqual(['read'])
     const admitted = collect('true'); admitted.run(); expect(admitted.calls).toEqual(['read','admitted','declare'])
+  })
+  it('requires every redirect prevention, allowed delivery and cleanup observation', () => {
+    const good = { version: 1, mode: 'redirect-interception', versionMatched: true, diagnosticOnly: true, serversClosed: true, failed: false,
+      completed: 6, blocked: 5, appRequests: 13, sinkRequests: 1, forbiddenRequests: 0, redirectRoutes: 6,
+      originalBodies: 1, contextsClosed: 6, socketsRemaining: 0 }
+    expect(data.redirectInterceptionPassed(good)).toBe(true)
+    for (const [key, value] of Object.entries(good)) {
+      if (typeof value === 'number' && key !== 'version') expect(data.redirectInterceptionPassed({ ...good, [key]: value + 1 })).toBe(false)
+      if (typeof value === 'boolean') expect(data.redirectInterceptionPassed({ ...good, [key]: !value })).toBe(false)
+    }
+    for (const patch of [{ mode: 'navigation-lifecycle' }, { appRequests: 17 }, { failed: 'false' }, { url: 'PRIVATE' }]) {
+      expect(() => data.redirectInterceptionPassed({ ...good, ...patch })).toThrow()
+    }
   })
   it.each([true, false])('dispatches only the admitted navigation mode and records its strict result (passed=%s)', async passed => {
     const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
@@ -154,6 +170,8 @@ describe('private browser diagnostic CPU contracts; no native calls', () => {
     const test = Object.assign((_name: string, action: typeof body) => { body = action }, { skip() {} })
     new Script(compiled).runInNewContext({ exports: {}, Date, process: { env: { PIKA_BROWSER_DIAGNOSTIC: 'true' } }, require(specifier: string) {
       if (specifier === '@playwright/test') return { test, expect }
+      if (specifier === '../scripts/contextual-playwright-redirect-guard.cjs') return { assertContextualRedirectInterception() {} }
+      if (specifier === './helpers/contextual-browser-redirect-diagnostic') return { runRedirectDiagnostic: () => { throw Error('Wrong mode') } }
       if (specifier === '../scripts/contextual-browser-diagnostic-data') return { ...data,
         diagnosticAdmissionFromEnvironment: () => ({ mode: 'navigation-lifecycle', deadline: Date.now() + 90000, outputDir: '/CPU-private' }),
         diagnosticWrite: (_output: string, name: string, value: unknown) => { expect(name).toBe('lifecycle.json'); records.push(value) },

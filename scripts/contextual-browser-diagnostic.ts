@@ -9,7 +9,7 @@ import type { BrowserStartupJournal, BrowserStartupStage } from './contextual-br
 import { captureContextualTestDependencies, contextualTestReadOnlyDependencyProfile, immutableContextualTestData, verifyContextualTestBinary } from './contextual-test-rehearsal-launch'
 import { createContextualTestNativeControls, type ContextualTestNativePins, type ContextualTestOwnedChild } from './contextual-test-rehearsal-native'
 import { assertDiagnosticPrivateUmask, assertDiagnosticRunnerOutputModes, diagnosticDirectory, diagnosticHash, diagnosticRead, diagnosticReportPassed, diagnosticSourceFiles, diagnosticWrite, navigationLifecyclePassed,
-  DIAGNOSTIC_CHROME, DIAGNOSTIC_CHROME_SHA, DIAGNOSTIC_VERSION, type DiagnosticAdmission } from './contextual-browser-diagnostic-data'
+  DIAGNOSTIC_CHROME, DIAGNOSTIC_CHROME_SHA, DIAGNOSTIC_VERSION, redirectInterceptionPassed, type DiagnosticAdmission } from './contextual-browser-diagnostic-data'
 
 export type BrowserDiagnosticInput = {
   repository: string; outputDir: string; pins: ContextualTestNativePins
@@ -30,7 +30,7 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
   input = await step('runtime-input', () => {
     assertDiagnosticPrivateUmask(process.umask())
     const snapshot = immutableContextualTestData(input)
-    assert(snapshot.mode === undefined || snapshot.mode === 'login-body' || snapshot.mode === 'navigation-lifecycle')
+    assert(snapshot.mode === undefined || snapshot.mode === 'login-body' || snapshot.mode === 'navigation-lifecycle' || snapshot.mode === 'redirect-interception')
     diagnosticDirectory(snapshot.outputDir); assert.equal(readdirSync(snapshot.outputDir).length, 0)
     assert.equal(realpathSync(snapshot.repository), snapshot.repository)
     assert.equal(realpathSync(snapshot.dependencies.root), snapshot.dependencies.root)
@@ -95,7 +95,7 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
       PIKA_BROWSER_DIAGNOSTIC: 'true', PIKA_BROWSER_DIAGNOSTIC_FILE: file, PIKA_BROWSER_DIAGNOSTIC_SHA256: digest }
     stage = 'browser'
     owned = await native.spawnOwned({ role: 'browser', cwd: input.repository, profile, env,
-      args: [join(input.dependencies.root, '@playwright/test/cli.js'), 'test', `--config=${join(input.repository, 'playwright.contextual-browser-diagnostic.config.ts')}`, 'contextual-browser-diagnostic.spec.ts'],
+      args: ['--require', join(input.repository, 'scripts/contextual-playwright-preload.cjs'), join(input.dependencies.root, '@playwright/test/cli.js'), 'test', `--config=${join(input.repository, 'playwright.contextual-browser-diagnostic.config.ts')}`, 'contextual-browser-diagnostic.spec.ts'],
       deadline: Math.min(deadline, Date.now() + 30000) })
     diagnosticWrite(input.outputDir, 'owned-ready.json', { version: 1, nonce: admission.nonce })
     await owned.wait(); workCheck()
@@ -114,7 +114,9 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
       assertDiagnosticRunnerOutputModes(input.outputDir)
       reportPassed = diagnosticReportPassed(JSON.parse(diagnosticRead(join(input.outputDir, 'report.json'))))
       const lifecycle = JSON.parse(diagnosticRead(join(input.outputDir, 'lifecycle.json')))
-      if (input.mode === 'navigation-lifecycle') {
+      if (input.mode === 'redirect-interception') {
+        lifecyclePassed = redirectInterceptionPassed(lifecycle)
+      } else if (input.mode === 'navigation-lifecycle') {
         lifecyclePassed = navigationLifecyclePassed(lifecycle)
       } else if (input.mode === 'login-body') {
         assert.deepEqual(Object.keys(lifecycle).sort(), ['atCutoff','bodyDone','bodySettled','bodyVerified','contextClosed','diagnosticOnly','events','failure','fetchHeld','mode','navigationHeld',
@@ -139,7 +141,8 @@ export async function runContextualBrowserDiagnostic(input: BrowserDiagnosticInp
     nativeDiagnostics: native.diagnostics(), diagnosticOnly: true,
     nodeVersion: 'v24.12.0', playwrightVersion: '1.58.0', chromeVersion: DIAGNOSTIC_VERSION,
     sourceManifestSha256: diagnosticHash(JSON.stringify(input.sourceSha256)), dependencySha256: dependencies.sha256,
-    networkScope: input.mode === 'navigation-lifecycle' ? 'one-synthetic-loopback-navigation;3-requests;1-json;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
+    networkScope: input.mode === 'redirect-interception' ? 'six-synthetic-loopback-redirect-cases;14-requests;5-blocked-hops;1-original-body;no-app-db-accounts;not-global-egress-isolation'
+      : input.mode === 'navigation-lifecycle' ? 'one-synthetic-loopback-navigation;3-requests;1-json;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
       : input.mode === 'login-body' ? 'one-synthetic-loopback-login;3-requests;no-app-db-accounts;context-route-allowlist;not-global-egress-isolation'
       : 'offline-context-and-all-route-abort; inherited-sandbox-is-not-global-egress-isolation' }
   diagnosticWrite(input.outputDir, 'controller.json', receipt)
