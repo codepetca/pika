@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Announcement menu transition consistency
-
-Teacher Announcement More/new/draft/posted choosers reuse shared semantic-fast opacity and immediate logical command retirement. Extend real ClassroomPageClient→TeacherAnnouncementsTab activity forwarding; scope nested keys to classroom/editor/publication while retaining whole drafts and request generations. Schedule picker handoff uses immediate exit mode, preserving existing primary Post behavior. Governed reuse/extend brief precedes implementation; fixture and shared primitives unchanged. Native Sol6.1/high implementation405s plus parent bridge109s, red12expected failures, one mechanical green correction, final59 actual-owner+78primitive cases PASS and exact TypeScript PASS; coordinator verifies delivery. Actual parent activity bridge52 PASS adds meaningful real-classroom navigation/retained DOM coverage; audit5TS and focused917/65 plus all static gates PASS. Frozen19-source native teacher8/student4/current UiConsistency reference2 PASS,106PNGs/14videos;162API observations reconcile142syntheticGET/16teacher writes/4student acknowledgements,0unknown/console/pageerrors/overflow and no API passthrough. Four unchanged goldens PASS; coordinator inspected boards and representative originals/reference parity. Existing BODY focus/mobile navigation hover tooltip qualified; source owners unchanged during native. Failed browser-launch/invalid1243/selector attempts and diagnostic smokes retained; matching1208 restored without package/lock changes. One independent draft-first stable-SHA review/CI/main landing remains gate. Main60cad includes newer calendar263/fixture work, preserved unchanged outside the teacher activity line. Storage healthy322GB, weekly82%remaining; DeepSeek pause and task stop waiver/counters68 retained, task attribution/tokens unknown. No production, migration, dependency, privacypriority1 or calendarPR1217 operation; broad UI/UX goal open.
-
 ## 2026-10-14 — Create Classroom step focus consistency
 
 Extended only the actual wizard step focus owner: Blueprint source now focuses its visible native selector, with an open guard and focus restoration for parent reopen. Preserved name/Calendar behavior, title/date drafts, existing reopen selection reset policy, import/generation/idempotency logic and shared controls. Preimplementation reuse brief: `docs/guidance/ui/create-classroom-step-focus-consistency.md`.
@@ -431,3 +427,24 @@ existing browser scenario for compact columns/Seen sorting, retaining desktop
 Status sorting; all4 desktop/mobile light/dark cases pass (2.6m). One test-only remediation batch and final delta/cumulative
 review planned; final receipts in PR/lifecycle metadata. Weekly remaining44%; storage healthy320GB; attributable
 usage/time unknown. No database, production or merge operations authorized here.
+
+## 2026-10-16 — PR 1608 deterministic workflow tests
+
+Owner request: fix failing tests and make1608 ready to merge; leave unmerged.
+Branch `codex/test-student-table-compact`, continuation from54fcf280a.
+Test-only fixes: delayed-listener regression proves0.3s budget/startup race;
+fixture advances only the tested deadline clock after actual listener work.
+Retry-containment fixture shortens its reconnect wait, retaining real descendant
+and retry assertions. Orphan test waits for leader exit; real signal is delivered
+only after command owns its child, with child/group cleanup assertions retained.
+Python watchdog10s remains; Tart Vitest watchdog15s lets it report failures.
+Multi-worktree promotion fixture uses bounded Git commands and30s outer budget.
+No production runner limits, guards, source/UI, dependencies or SQL changed.
+Red2/3 delayed-start cases reproduced before deadline-clock correction; fixed
+Tart/promotion55/55 pass13s. Focused963/963 and architecture/UI/design/TS/lint
+pass on corrected tree; fixed-SHA delta review next. Original
+UI/browser evidence remains valid (unchanged product blobs, prior4-case pass).
+One Sol6.1/medium read-only diagnosis verified; no edits by worker. Automatic
+DeepSeek remains paused. Weekly41% remaining; storage healthy316GB. Attribution
+of coordinator/worker tokens and active time unknown. PR lifecycle carries final
+review/check/SHA receipts; prior2review turns/1test correction batch retained.

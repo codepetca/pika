@@ -46,12 +46,14 @@ describe('production promotion workflow', () => {
     ])).toThrow('Multiple open same-repository')
   })
 
+  // This fixture runs several complete Git/worktree lifecycles, each with a bounded command.
   it('prepares the exact main SHA regardless of prior production merge strategy', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'pika-production-strategy-'))
     const worktreeRoot = mkdtempSync(join(tmpdir(), 'pika-production-worktrees-'))
     const git = (...args: string[]) => execFileSync('git', args, {
       cwd: repoRoot,
       encoding: 'utf8',
+      timeout: 10_000,
     }).trim()
 
     try {
@@ -80,6 +82,7 @@ describe('production promotion workflow', () => {
         const prepared = execFileSync('git', ['rev-parse', 'HEAD'], {
           cwd: worktree,
           encoding: 'utf8',
+          timeout: 10_000,
         }).trim()
         expect(prepared).toBe(mainSha)
         git('worktree', 'remove', worktree)
@@ -93,13 +96,14 @@ describe('production promotion workflow', () => {
       expect(execFileSync('git', ['rev-parse', 'HEAD'], {
         cwd: nextWorktree,
         encoding: 'utf8',
+        timeout: 10_000,
       }).trim()).toBe(nextMainSha)
       git('worktree', 'remove', nextWorktree)
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
       rmSync(worktreeRoot, { recursive: true, force: true })
     }
-  })
+  }, 30_000)
 
   it('requires agents to batch and review production promotions', () => {
     for (const path of [

@@ -50,11 +50,14 @@ with tempfile.TemporaryDirectory() as tmp:
 
 function offline(code: string) {
   const result = spawnSync('python3', ['-c', harness + code], { encoding: 'utf8', timeout: 10_000 })
+  expect(result.error, result.stderr || result.stdout).toBeUndefined()
+  expect(result.signal, result.stderr || result.stdout).toBeNull()
   expect(result.status, result.stderr || result.stdout).toBe(0)
   return result.stdout
 }
 
-describe('serial Tart host admission (offline)', () => {
+// The Python harness has its own 10s watchdog; Vitest must allow it to report failures.
+describe('serial Tart host admission (offline)', { timeout: 15_000 }, () => {
   it.each(['lease', 'child', 'stop', 'delete', 'inventory'])('independently revokes registration after %s cleanup failure', fault => {
     offline(String.raw`
     original=fake.run_one
@@ -341,9 +344,14 @@ describe('serial Tart host admission (offline)', () => {
     listener=client/'bin/Runner.Listener'
     if kind=='update':
         body='p=pathlib.Path("attempts"); n=len(p.read_text()) if p.exists() else 0; p.write_text("x"*(n+1))\nif n==0: pathlib.Path("update.finished").write_text("ready"); sys.exit(4)\npathlib.Path("_diag/Worker_test.log").write_text("activity"); sys.exit(0)\n'
-    else: body='pathlib.Path("attempts").write_text("x"); sys.exit(2)\n'
-    listener.write_text('#!'+sys.executable+'\nimport pathlib,sys\n'+body); listener.chmod(0o700)
+    else: body='time.sleep(0.4); pathlib.Path("attempts").write_text("x"); sys.exit(2)\n'
+    listener.write_text('#!'+sys.executable+'\nimport pathlib,sys,time\n'+body); listener.chmod(0o700)
     code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    if kind!='update':
+        # Exercise the deadline boundary after real listener work, independent of startup speed.
+        clock_site='elapsed=time.monotonic()-start'
+        assert code.count(clock_site)==1
+        code=code.replace(clock_site, "elapsed=0.3 if (client/'attempts').exists() and runner.poll() is not None else 0.0")
     payload={'client':str(client),'name':'pika-ci-job-offline','idle':3 if kind=='lifetime' else 2 if kind=='update' else 0.3,'lifetime':0.3 if kind=='lifetime' else 3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
     if kind=='update': assert result.returncode==0 and (client/'attempts').read_text()=='xx'
@@ -377,13 +385,17 @@ describe('serial Tart host admission (offline)', () => {
     body='import pathlib,subprocess,sys,os\np=pathlib.Path("attempts"); n=len(p.read_text()) if p.exists() else 0; p.write_text("x"*(n+1))\nif n==0:\n pathlib.Path("old-group").write_text(str(os.getpgrp()))\n subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n sys.exit(2)\ngid=int(pathlib.Path("old-group").read_text()); rows=subprocess.check_output(["/bin/ps","-axo","pid=,pgid=,stat="],text=True)\nif any(int(p[1])==gid and not p[2].startswith("Z") for l in rows.splitlines() if len(p:=l.split())==3): sys.exit(1)\npathlib.Path("_diag/Worker_test.log").write_text("activity"); sys.exit(0)\n'
     listener.write_text('#!'+sys.executable+'\n'+body); listener.chmod(0o700)
     code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    # Keep real retry/group containment but omit the unrelated five-second reconnect delay.
+    backoff_site='deadline=time.monotonic()+5'
+    assert code.count(backoff_site)==1
+    code=code.replace(backoff_site,'deadline=time.monotonic()+0.1')
     payload={'client':str(client),'name':'pika-ci-job-offline','idle':8,'lifetime':9,'environment':dict(h.GUEST_ENV,HOME=str(root))}
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=9)
     gid=int((client/'old-group').read_text())
     if h.Backend.group_running(gid): os.killpg(gid,signal.SIGKILL); raise AssertionError('retry descendant survived')
     assert result.returncode==0 and (client/'attempts').read_text()=='xx', result.stdout+result.stderr
 `)
-  }, 10_000)
+  })
 
   it('prioritizes a finite guest containment failure and records owned host group recovery metadata', () => {
     offline(String.raw`
@@ -620,7 +632,13 @@ describe('serial Tart host admission (offline)', () => {
     backend=h.Backend(root)
     original=h.subprocess.Popen; children=[]
     def capture(*args,**kwargs):
-        proc=original(*args,**kwargs); children.append(proc); return proc
+        proc=original(*args,**kwargs); children.append(proc)
+        if len(children)==1:
+            try: assert proc.wait(timeout=5)==0
+            except BaseException:
+                h.Backend.terminate(proc)
+                raise
+        return proc
     h.subprocess.Popen=capture
     script='import subprocess,sys,os; subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"]); os._exit(0)'
     try:
@@ -632,12 +650,32 @@ describe('serial Tart host admission (offline)', () => {
     assert not h.Backend.group_running(children[0].pid), 'orphan descendant survived'
     def interrupted(*args): raise h.Refusal('signal')
     previous=signal.signal(signal.SIGTERM, interrupted)
-    timer=threading.Timer(0.1,lambda: os.kill(os.getpid(),signal.SIGTERM)); timer.start()
+    # Send the actual signal only after command() owns the child inside its communicate try.
+    ready=threading.Event(); cancelled=threading.Event(); delivered=[]; signaled_children=[]
+    def capture_signal(*args,**kwargs):
+        proc=original(*args,**kwargs)
+        if not signaled_children:
+            signaled_children.append(proc); communicate=proc.communicate
+            def started(*args,**kwargs):
+                ready.set()
+                return communicate(*args,**kwargs)
+            proc.communicate=started
+        return proc
+    def deliver_signal():
+        if ready.wait(timeout=5) and not cancelled.is_set():
+            delivered.append(True); os.kill(os.getpid(),signal.SIGTERM)
+    h.subprocess.Popen=capture_signal
+    timer=threading.Thread(target=deliver_signal); timer.start()
     try:
         backend.command([sys.executable,'-c','import time; time.sleep(60)'])
     except h.Refusal as error: assert str(error)=='signal'
     else: raise AssertionError('signal not handled')
-    finally: timer.join(); signal.signal(signal.SIGTERM,previous)
+    finally:
+        cancelled.set(); timer.join(timeout=5)
+        h.subprocess.Popen=original; signal.signal(signal.SIGTERM,previous)
+    assert not timer.is_alive() and delivered==[True]
+    assert signaled_children[0].poll() is not None
+    assert not h.Backend.group_running(signaled_children[0].pid), 'signaled child group survived'
 `)
   })
 })
