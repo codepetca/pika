@@ -977,3 +977,8 @@ calling the route handler. That pre-existing allowlist coverage gap is recorded
 for review before any full rehearsal; this slice does not widen redirect access.
 No native run yet. Final gates and targeted independent review next; original
 review110/fix66 counters carry. Production/sharedlocal/provider/rollout holds stay.
+
+Review111 complete b4ced303: no new blocker, one inherited adjacent P2 deadline
+edge accepted. Fake clock reproduces action(0) when expiry falls between check
+and timeout calculation; capture/check positive remaining once before dispatch.
+Original clocks/caps remain, no renewed deadline. Targeted re-review112 follows.

@@ -99,6 +99,13 @@ describe('contextual Test browser boundary', () => {
     })).rejects.toThrow()
     expect(b.receipt().endpointFailure?.reason).toBe('navigation-pending')
   })
+  it('never passes timeout zero when the operation expires between the final check and dispatch', async () => {
+    let armed = false, calls = 0
+    const b = boundary(() => armed ? (++calls >= 3 ? 2000 : 1999) : 1000), dispatch = vi.fn(async () => {})
+    armed = true
+    await expect(b.depart({}, 2000, dispatch)).rejects.toThrow()
+    expect(dispatch).not.toHaveBeenCalled(); expect(b.receipt().firstFailure).toBe('deadline')
+  })
   it('drains the original pre-header transport and original body once before departure', async () => {
     const b = boundary(), c = {}, request = { method: () => 'GET', postDataJSON: () => undefined }, body = deferred<Buffer>(), dispatch = vi.fn(async () => {})
     b.requestStarted(c, request)

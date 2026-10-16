@@ -255,7 +255,11 @@ export class ContextualTestBoundary {
     return this.drain(context, operationEnd, () => undefined)
   }
   async depart(context: object, operationEnd: number, action: (remainingMs: number) => Promise<unknown>) {
-    await this.drain(context, operationEnd, () => action(operationEnd - this.now()))
+    await this.drain(context, operationEnd, () => {
+      const remaining = operationEnd - this.now()
+      if (remaining <= 0) this.reject('deadline') // Playwright treats zero as unlimited.
+      return action(remaining)
+    })
     await this.settle(context, operationEnd)
     // This removes only the host-side gap. canNavigate still rejects requests
     // that race the native command before interception; never wait in its route.
