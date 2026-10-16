@@ -88,8 +88,25 @@ with a language label for a multiline snippet in a prompt. Each answer option
 must occupy one Markdown list line; put longer shared code in the prompt and
 keep code options inline. Preserve the code's exact syntax and the correct
 option when revising an existing question. Check the student preview to confirm
-that code renders correctly in both the prompt and answer options. Format answer
-options before students start. After an attempt begins, Pika permits corrections
+that code renders correctly in both the prompt and answer options. For Python multiple-choice options, wrap literal code in inline backticks,
+including comments, assignments, expressions, operators, and strings with
+Markdown-sensitive characters such as `#`, `*`, or `_`. Example:
+
+```markdown
+Options:
+- \`# Set the price\`
+- \`print("Set the price")\`
+- \`price = 12\`
+- \`"#" + " Set the price"\`
+Correct Option: 1
+```
+
+Before publishing, inspect the student-facing preview of every code-related
+multiple-choice question. Verify that punctuation and Markdown-sensitive
+characters display literally in all options and that the correct option is
+unchanged. Valid source Markdown alone does not prove correct rendered output.
+
+Format answer options before students start. After an attempt begins, Pika permits corrections
 to one existing choice per question at a time while keeping the choice count,
 positions and correct answer locked. Check that a correction does not change
 the intended answer.
