@@ -1,3 +1,4 @@
+import { getTodayInToronto } from '@/lib/timezone'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -285,7 +286,7 @@ function makeTest(overrides: Partial<TestAssessmentWithStats> = {}): TestAssessm
   return {
     ...base,
     assessment_type: 'test',
-    test_date: null,
+    test_date: getTodayInToronto(),
     stats: { total_students: 10, responded: 5, questions_count: 3 },
     ...overrides,
   } as TestAssessmentWithStats
@@ -642,6 +643,7 @@ describe('TeacherTestsTab', () => {
     renderTab({ testExperienceMode: 'shared', selectedTestId: test.id, selectedTestMode: 'grading' })
     await screen.findByText('Alice Zephyr')
     fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish today' }))
     expect(await screen.findByText('Could not verify the saved test. Refresh and try again.')).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Publish test?' })).not.toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method)).toHaveLength(0)
@@ -659,6 +661,7 @@ describe('TeacherTestsTab', () => {
     const view = renderTab({ testExperienceMode: mode, selectedTestId: first.id, selectedTestMode: 'grading' })
     await screen.findByText('Alice Zephyr')
     fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish today' }))
     const dialog = await screen.findByRole('dialog', { name: 'Publish test?' })
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish' }))
@@ -1629,6 +1632,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish today' }))
 
     expect(await screen.findByText('Publish test?')).toBeInTheDocument()
     expect(screen.getByText('Test will remain locked to students.')).toBeInTheDocument()
@@ -1666,8 +1670,8 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(await screen.findByText('Unit Test'))
     await screen.findByRole('button', { name: 'Open All' })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    fireEvent.click(screen.getByRole('button', { name: /Test date:/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unpublish' }))
 
     const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
     expect(dialog).toHaveTextContent('Students will no longer see this test.')
@@ -1691,11 +1695,11 @@ describe('TeacherTestsTab', () => {
     renderTab({ selectedTestId: 'test-1', selectedTestMode: 'grading' })
 
     await screen.findByRole('button', { name: `Edit ${title}` })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('button', { name: offered ? /Test date:/ : 'More actions' }))
     if (offered) {
-      expect(screen.getByRole('menuitem', { name: 'Return to draft' })).toBeDisabled()
+      expect(screen.getByRole('menuitem', { name: 'Unpublish' })).toBeDisabled()
     } else {
-      expect(screen.queryByRole('menuitem', { name: 'Return to draft' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: 'Unpublish' })).not.toBeInTheDocument()
     }
   })
 
@@ -1708,8 +1712,8 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(await screen.findByText('Unit Test'))
     await screen.findByRole('button', { name: 'Open All' })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    fireEvent.click(screen.getByRole('button', { name: /Test date:/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unpublish' }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Return test to draft?' })).getByRole('button', { name: 'Return to draft' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1/unpublish', expect.objectContaining({ method: 'POST', body: '{}' })))
@@ -1730,8 +1734,8 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(await screen.findByText('Unit Test'))
     await screen.findByRole('button', { name: 'Open All' })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    fireEvent.click(screen.getByRole('button', { name: /Test date:/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unpublish' }))
     await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
     const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
@@ -1761,8 +1765,8 @@ describe('TeacherTestsTab', () => {
 
       fireEvent.click(await screen.findByText('Unit Test'))
       await screen.findByRole('button', { name: 'Open All' })
-      fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+      fireEvent.click(screen.getByRole('button', { name: /Test date:/ }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Unpublish' }))
       await fetchJSONWithCache('teacher-test-detail:test-1', async () => ({ stamp: 'stale' }), 60_000)
       const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
@@ -1801,8 +1805,8 @@ describe('TeacherTestsTab', () => {
     const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'grading' })
 
     await screen.findByRole('button', { name: 'Edit First Test' })
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Return to draft' }))
+    fireEvent.click(screen.getByRole('button', { name: /Test date:/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unpublish' }))
     const dialog = screen.getByRole('dialog', { name: 'Return test to draft?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Return to draft' }))
     expect(within(dialog).getByRole('button', { name: 'Returning…' })).toBeDisabled()
@@ -1910,6 +1914,7 @@ describe('TeacherTestsTab', () => {
       }),
     )
 
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Publish today' }))
     expect(await screen.findByText('Add a title before publishing this Test')).toBeInTheDocument()
     expect(screen.queryByText('Publish test?')).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.anything())

@@ -30,7 +30,7 @@ import { Button, EmptyState, FormField, IconButton, Input, SaveStatus, SplitButt
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
-import { useTestCalendarDate } from '@/hooks/useTestCalendarDate'
+import { TestPublicationControl } from '@/components/test-workspace/TestPublicationControl'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
 import {
@@ -54,6 +54,7 @@ import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import type {
   AssessmentEditorSummaryUpdate,
+  TestAssessment,
   TestAssessmentQuestion,
   TestAssessmentWithStats,
   TestResultsAggregate,
@@ -78,7 +79,10 @@ interface Props {
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only' | 'split'
   initialSplitView?: 'edit' | 'markdown'
   onRequestClose?: () => void
-  onRequestPublish?: () => void
+  onRequestPublish?: () => Promise<boolean | void> | void
+  onTestDateSaved?: (test: TestAssessment) => void
+  onRequestUnpublish?: () => void
+  canUnpublish?: boolean
   publicationError?: string
   isClosing?: boolean
   isPreparingPublish?: boolean
@@ -188,6 +192,9 @@ export function TestDetailPanel({
   initialSplitView = 'edit',
   onRequestClose,
   onRequestPublish,
+  onTestDateSaved,
+  onRequestUnpublish,
+  canUnpublish = false,
   publicationError,
   isClosing = false,
   isPreparingPublish = false,
@@ -257,17 +264,7 @@ export function TestDetailPanel({
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
   const testUpdatedAtRef = useRef(testAssessment.updated_at)
-  const clearCalendarDateRef = useRef<HTMLButtonElement>(null)
-  const calendarDate = useTestCalendarDate({
-    test: testAssessment,
-    classroomId,
-    apiBasePath,
-    onSaved: (savedTest) => {
-      testUpdatedAtRef.current = savedTest.updated_at
-      notifyTestUpdate()
-    },
-  })
-  const { flush: flushCalendarDate } = calendarDate
+  const calendarDateFlushRef = useRef<(() => Promise<boolean>) | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
@@ -956,7 +953,7 @@ export function TestDetailPanel({
   )
 
   const flushPendingDraft = useCallback(async (): Promise<boolean> => {
-    if (!await flushCalendarDate()) return false
+    if (calendarDateFlushRef.current && !await calendarDateFlushRef.current()) return false
     if (splitEditorFlushRef.current && !splitEditorFlushRef.current()) return false
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -971,7 +968,7 @@ export function TestDetailPanel({
     const pendingDraft = pendingDraftRef.current
     if (!pendingDraft) return true
     return saveDraft(pendingDraft, { forceFull: true, documents })
-  }, [flushCalendarDate, conflictDraft, documents, saveDraft])
+  }, [conflictDraft, documents, saveDraft])
 
   useEffect(() => {
     onDraftFlushReady?.(flushPendingDraft)
@@ -992,12 +989,12 @@ export function TestDetailPanel({
         && (pendingDraft?.questions.length ?? 0) === 0
         && documentsRef.current.length === 0
         && !markdownDirtyRef.current
-        && !calendarDate.value
+        && !testAssessment.test_date
       ),
       draftVersion: draftVersionRef.current,
       testUpdatedAt: testUpdatedAtRef.current,
     }
-  }, [calendarDate.value, draftShowResults, editTitle, questions])
+  }, [testAssessment.test_date, draftShowResults, editTitle, questions])
 
   useEffect(() => {
     onDraftPristineCheckReady?.(getDraftPristineState)
@@ -2259,31 +2256,25 @@ export function TestDetailPanel({
     </div>
   )
 
-  const calendarDateField = (
-    <FormField
-      label="Test date"
-      error={calendarDate.error}
-      labelAccessory={(
-        <div className="flex items-center gap-1">
-          <SaveStatus status={calendarDate.saving ? 'saving' : calendarDate.error || calendarDate.dirty ? 'unsaved' : 'saved'} />
-          {calendarDate.error ? (
-            <Button variant="ghost" size="sm" disabled={calendarDate.saving} onClick={() => { void calendarDate.flush() }}>Retry</Button>
-          ) : calendarDate.value ? (
-            <Button ref={clearCalendarDateRef} variant="ghost" size="sm" disabled={calendarDate.saving || isClosing || isPreparingPublish} onPointerDown={(event) => event.preventDefault()} onClick={() => { void calendarDate.save('') }}>Clear</Button>
-          ) : null}
-        </div>
-      )}
-    >
-      <Input
-        type="date"
-        value={calendarDate.value}
-        disabled={calendarDate.saving || isClosing || isPreparingPublish}
-        onChange={(event) => calendarDate.edit(event.currentTarget.value, event.currentTarget.validity.valid)}
-        onBlur={(event) => {
-          if (!clearCalendarDateRef.current || event.relatedTarget !== clearCalendarDateRef.current) void calendarDate.flush()
-        }}
-      />
-    </FormField>
+  const publicationControl = (
+    <TestPublicationControl
+      test={testAssessment}
+      classroomId={classroomId}
+      apiBasePath={apiBasePath}
+      onPublish={onRequestPublish}
+      onSaved={(saved) => {
+        testUpdatedAtRef.current = saved.updated_at
+        if (onTestDateSaved) onTestDateSaved(saved)
+        else notifyTestUpdate()
+      }}
+      onUnpublish={onRequestUnpublish}
+      canUnpublish={canUnpublish}
+      allowFutureDate={testAssessment.status === 'draft' || canUnpublish}
+      disabled={hasPendingMarkdownImport || isClosing || isPreparingPublish || (testAssessment.status === 'draft' && questions.length < 1)}
+      fullWidth
+      menuPlacement="up"
+      onFlushReady={(flush) => { calendarDateFlushRef.current = flush }}
+    />
   )
 
   const testsSplitPanel = (
@@ -2345,8 +2336,6 @@ export function TestDetailPanel({
             onBlur={() => { void handleTitleSave(editTitle) }}
           />
         </FormField>
-
-        {calendarDateField}
 
         <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
           <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
@@ -2418,22 +2407,13 @@ export function TestDetailPanel({
               <Eye className="h-4 w-4" aria-hidden="true" />
               {openingTestPreview ? 'Opening...' : 'Preview'}
             </Button>
-            {testAssessment.status === 'draft' && onRequestPublish ? (
-              <Button
-                type="button"
-                size="sm"
-                fullWidth
-                disabled={hasPendingMarkdownImport || questions.length < 1 || isClosing || isPreparingPublish}
-                onClick={onRequestPublish}
-              >
-                {isPreparingPublish ? 'Preparing...' : 'Publish'}
-              </Button>
-            ) : (
-              <Button type="button" variant="secondary" size="sm" fullWidth disabled={isClosing} onClick={onRequestClose}>
-                {isClosing ? 'Saving...' : 'Close'}
-              </Button>
-            )}
+            {publicationControl}
           </div>
+          {testAssessment.status !== 'draft' ? (
+            <Button type="button" variant="ghost" size="sm" fullWidth disabled={isClosing} onClick={onRequestClose}>
+              {isClosing ? 'Saving...' : 'Close'}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -2674,7 +2654,7 @@ export function TestDetailPanel({
         ) : viewMode === 'questions' ? (
           <div className="space-y-3">
             {editableTitle}
-            {calendarDateField}
+            {publicationControl}
             <div className="text-xs text-text-muted">
               {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
             </div>

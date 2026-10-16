@@ -12,6 +12,7 @@ export function applyTestSummaryPatchToTest(
     title: typeof update.title === 'string' ? update.title : test.title,
     show_results: typeof update.show_results === 'boolean' ? update.show_results : test.show_results,
     status: update.status ?? test.status,
+    test_date: update.test_date !== undefined ? update.test_date : test.test_date,
     stats: {
       ...test.stats,
       questions_count:

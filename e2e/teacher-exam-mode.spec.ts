@@ -258,8 +258,9 @@ test.describe('teacher exam mode', () => {
       await page.getByRole('menuitem', { name: 'Edit Test' }).click()
       const authoringDialog = page.getByRole('dialog', { name: 'Edit test' })
       await authoringDialog.getByRole('button', { name: 'Publish' }).click()
+      await page.getByRole('menuitem', { name: 'Publish today', exact: true }).click()
       await expect(page.getByText('Publish test?')).toBeVisible()
-      await page.getByRole('button', { name: 'Publish' }).click()
+      await page.getByRole('dialog', { name: 'Publish test?' }).getByRole('button', { name: 'Publish', exact: true }).click()
 
       await expect.poll(async () => {
         const results = await loadJson<TestResultsRecord>(page, `/api/teacher/tests/${testRecord.id}/results`)

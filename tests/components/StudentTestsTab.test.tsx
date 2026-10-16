@@ -137,6 +137,43 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.queryByRole('button', { name: 'Start the Test' })).not.toBeInTheDocument()
   })
 
+  it('hides future closed Tests while retaining today, open, active and responded Tests', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-20T03:59:59Z'))
+    const base = { assessment_type: 'test', status: 'closed', show_results: false, position: 0, student_status: 'not_started', effective_access: 'closed' }
+    fetchMock.mockResolvedValueOnce(jsonResponse({ tests: [
+      { ...base, id: 'future', title: 'Scheduled Test', test_date: '2026-10-20' },
+      { ...base, id: 'today', title: 'Today Test', test_date: '2026-10-19' },
+      { ...base, id: 'open', title: 'Opened Test', test_date: '2026-10-20', effective_access: 'open' },
+      { ...base, id: 'active', title: 'Active Test', test_date: '2026-10-20', status: 'active' },
+      { ...base, id: 'responded', title: 'Saved Work Test', test_date: '2026-10-20', student_status: 'responded' },
+      { ...base, id: 'returned', title: 'Returned Test', test_date: '2026-10-20', student_status: 'can_view_results' },
+    ] }))
+    render(<StudentTestsTab classroom={classroom} />)
+    await act(async () => {})
+    expect(screen.queryByText('Scheduled Test')).not.toBeInTheDocument()
+    for (const title of ['Today Test', 'Opened Test', 'Active Test', 'Saved Work Test', 'Returned Test']) {
+      expect(screen.getByText(title)).toBeInTheDocument()
+    }
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(screen.getByText('Scheduled Test')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('explains a scheduled Calendar selection without fetching locked detail', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ tests: [{
+      id: 'future', title: 'Scheduled Test', assessment_type: 'test', status: 'closed',
+      test_date: '9999-10-20', show_results: false, position: 0,
+      student_status: 'not_started', effective_access: 'closed',
+    }] }))
+    render(<StudentTestsTab classroom={classroom} selectedTestId="future" />)
+    expect(await screen.findByText(/This test is scheduled for 9999-10-20/)).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Test unavailable')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tests' }))
+    expect(screen.getByText('No tests available.')).toBeInTheDocument()
+  })
+
   async function renderActiveTest() {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-10T12:00:00Z'))

@@ -20,6 +20,9 @@ import { Button, Card, ConfirmDialog, PageContent, PageHeading, PageLayout, Page
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import { getStudentTestPresentation } from '@/lib/student-test-presentation'
 import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
+import { isTestScheduledForFuture } from '@/lib/test-scheduling'
+import { getTodayInToronto, toTorontoStartOfDayIso } from '@/lib/timezone'
+import { addDaysToDateString } from '@/lib/date-string'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
@@ -334,9 +337,26 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   const apiBasePath = '/api/student/tests'
   const currentTestsScope = classroom.id
   const hasCurrentTestsSnapshot = loadedTestsScope === currentTestsScope
-  const visibleTests = hasCurrentTestsSnapshot ? tests : []
+  const [today, setToday] = useState(getTodayInToronto)
+  const [scheduledSelectionId, setScheduledSelectionId] = useState<string | null>(null)
+  const visibleTests = hasCurrentTestsSnapshot ? tests.filter(test => !isTestScheduledForFuture(test, today)) : []
+  const scheduledSelection = hasCurrentTestsSnapshot
+    ? tests.find(test => test.id === scheduledSelectionId && isTestScheduledForFuture(test, today))
+    : undefined
   const listError = listErrorState?.scope === currentTestsScope ? listErrorState.message : null
   currentScopeRef.current = { classroomId: classroom.id }
+  useEffect(() => {
+    const refreshDay = () => setToday(getTodayInToronto())
+    const nextDay = toTorontoStartOfDayIso(addDaysToDateString(today, 1))
+    const timeout = window.setTimeout(refreshDay, Math.max(1, Date.parse(nextDay) - Date.now()))
+    window.addEventListener('focus', refreshDay)
+    document.addEventListener('visibilitychange', refreshDay)
+    return () => {
+      window.clearTimeout(timeout)
+      window.removeEventListener('focus', refreshDay)
+      document.removeEventListener('visibilitychange', refreshDay)
+    }
+  }, [today])
   const focusEnabled = useMemo(() => {
     if (!selectedTest) return false
     const hasSubmitted = selectedTest.test.student_status !== 'not_started'
@@ -495,6 +515,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
 
   useEffect(() => {
     detailRequestIdRef.current += 1
+    setScheduledSelectionId(null)
     selectedTestIdRef.current = null
     setSelectedTestId(null)
     setSelectedTest(null)
@@ -541,6 +562,18 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [clearPendingBlurTimeout, clearPendingNonCompliantTimeout])
 
   async function handleSelectTest(testId: string) {
+    const scheduled = tests.find(test => test.id === testId && isTestScheduledForFuture(test, getTodayInToronto()))
+    if (scheduled) {
+      detailRequestIdRef.current += 1
+      selectedTestIdRef.current = null
+      setSelectedTestId(null)
+      setSelectedTest(null)
+      setLoadingTest(false)
+      setDetailError(false)
+      setScheduledSelectionId(testId)
+      return
+    }
+    setScheduledSelectionId(null)
     const classroomId = classroom.id
     const basePath = apiBasePath
     const requestId = detailRequestIdRef.current + 1
@@ -1705,6 +1738,13 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
                     />
                   ) : <PageState kind="loading" title="Loading test" />}
                 </div>
+            ) : scheduledSelection ? (
+                <PageState
+                  kind="empty"
+                  title={scheduledSelection.title}
+                  description={`This test is scheduled for ${scheduledSelection.test_date}. Your teacher will open access.`}
+                  action={<Button type="button" onClick={() => setScheduledSelectionId(null)}>Back to tests</Button>}
+                />
             ) : !hasSelectedTest ? (
                 !hasCurrentTestsSnapshot ? (
                   listError ? (

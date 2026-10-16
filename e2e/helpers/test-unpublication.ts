@@ -10,7 +10,7 @@ export async function verifyTestUnpublication(page: Page, info: TestInfo) {
   let release: (() => void) | undefined
   const currentTest = () => ({
     id: testId, classroom_id: classroomId, title: 'Functions and Graphs Test',
-    status, assessment_type: 'test', show_results: false, questions_locked_at: null, documents: [],
+    status, test_date: '2026-10-15', assessment_type: 'test', show_results: false, questions_locked_at: null, documents: [],
     position: 0, created_at: '2026-08-27T12:00:00.000Z', updated_at: '2026-08-27T12:00:00.000Z',
     stats: { total_students: 0, responded: 0, submitted: 0, open_access: 0, closed_access: 0, questions_count: 1 },
   })
@@ -39,18 +39,18 @@ export async function verifyTestUnpublication(page: Page, info: TestInfo) {
   await page.goto('/e2e-fixtures/teacher-test-grading', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Edit Functions and Graphs Test' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'No student rows yet' })).toBeVisible()
-  await page.getByRole('button', { name: 'More actions' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Return to draft' })).toBeEnabled()
-  await page.getByRole('menuitem', { name: 'Return to draft' }).click()
+  await page.getByRole('button', { name: /^Test date:/ }).click()
+  await expect(page.getByRole('menuitem', { name: 'Unpublish', exact: true })).toBeEnabled()
+  await page.getByRole('menuitem', { name: 'Unpublish', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Return test to draft?' })
   await expect(dialog).toContainText('Students will no longer see this test.')
   await page.screenshot({ path: info.outputPath('test-return-to-draft-confirmation.png'), animations: 'disabled' })
   await page.keyboard.press('Escape')
   await expect(dialog).not.toBeVisible()
   expect(calls).toBe(0)
-  await page.getByRole('button', { name: 'More actions' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Return to draft' })).toBeEnabled()
-  await page.getByRole('menuitem', { name: 'Return to draft' }).click()
+  await page.getByRole('button', { name: /^Test date:/ }).click()
+  await expect(page.getByRole('menuitem', { name: 'Unpublish', exact: true })).toBeEnabled()
+  await page.getByRole('menuitem', { name: 'Unpublish', exact: true }).click()
   await dialog.getByRole('button', { name: 'Return to draft' }).click()
   await expect(dialog).toContainText('Test cannot return to draft')
   await page.screenshot({ path: info.outputPath('test-return-to-draft-error.png'), animations: 'disabled' })
@@ -65,7 +65,7 @@ export async function verifyTestUnpublication(page: Page, info: TestInfo) {
   await expect(dialog).not.toBeVisible()
   await expect(page.getByText('Test returned to draft', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'More actions' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Return to draft' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: 'Unpublish', exact: true })).toHaveCount(0)
   await page.getByRole('menuitem', { name: 'Edit Test' }).click()
   const editor = page.getByRole('dialog', { name: 'Edit test' })
   await expect(editor.getByRole('button', { name: 'Publish' })).toBeVisible()

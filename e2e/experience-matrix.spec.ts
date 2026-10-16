@@ -25,6 +25,7 @@ import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } fr
 import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
 import { verifyGradebookRetryFocus } from './helpers/gradebook-retry-focus'
 import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
+import { getTodayInToronto } from '../src/lib/timezone'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -2628,6 +2629,8 @@ test('returns an unused published test to draft', async ({ page }, testInfo) => 
 
 test('shows publication language only at the publish transition', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
+  const today = getTodayInToronto()
+  let testDate: string | null = null
   await applyProjectTheme(page, testInfo)
 
   await page.route('**/api/teacher/tests**', async (route) => {
@@ -2684,6 +2687,10 @@ test('shows publication language only at the publish transition', async ({ page 
     }
 
     if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}`) {
+      if (route.request().method() === 'PATCH') {
+        expect(route.request().postDataJSON()).toEqual({ test_date: today })
+        testDate = today
+      }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -2695,6 +2702,7 @@ test('shows publication language only at the publish transition', async ({ page 
             description: null,
             instructions: null,
             status: 'draft',
+            test_date: testDate,
             show_results: false,
             position: 0,
             documents: [],
@@ -2768,9 +2776,11 @@ test('shows publication language only at the publish transition', async ({ page 
   await expect(authoringDialog.getByText('Ready to publish?', { exact: true })).toBeVisible()
   await expect(authoringDialog.getByText(/Failed to load assessment draft|Unhandled Test publication fixture route/)).toHaveCount(0)
   await authoringDialog.getByRole('button', { name: 'Publish' }).click()
+  await page.getByRole('menuitem', { name: 'Publish today', exact: true }).click()
 
   const publishDialog = page.getByRole('dialog', { name: 'Publish test?' })
   await expect(publishDialog).toBeVisible()
+  expect(testDate).toBe(today)
   await expect(publishDialog).toContainText('Test will remain locked to students.')
   await expect(publishDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
   await verifyProjectContract(page, testInfo)
