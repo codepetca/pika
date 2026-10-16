@@ -814,7 +814,7 @@ export async function loadTeacherGradebook(opts: {
       })
 
       testCellMap.set(cellKey(studentId, testId), earned == null || effectivePossible <= 0
-        ? blankAssessmentCell('test', testId, possible, undefined, testCellStatus)
+        ? { ...blankAssessmentCell('test', testId, possible, undefined, testCellStatus), returned_at: attempt?.returned_at ?? null }
         : {
             assessment_id: testId,
             assessment_type: 'test',
@@ -822,6 +822,7 @@ export async function loadTeacherGradebook(opts: {
             possible: hasAdjustedMaximum('test', testId) ? possible : round2(possible),
             percent: round2((earned / effectivePossible) * 100),
             is_graded: true,
+            returned_at: attempt?.returned_at ?? null,
             ...(testCellStatus ? { status: testCellStatus } : {}),
           }
       )
@@ -873,7 +874,7 @@ export async function loadTeacherGradebook(opts: {
     if (assignment.is_draft) {
       return {
         rawEarned: null,
-        cell: blankAssessmentCell('assignment', assignment.id, possible, undefined, status),
+        cell: { ...blankAssessmentCell('assignment', assignment.id, possible, undefined, status), returned_at: score?.returned_at ?? null },
       }
     }
     const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
@@ -889,6 +890,7 @@ export async function loadTeacherGradebook(opts: {
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
           is_graded: effectivePossible > 0,
           is_manual_override: true,
+          returned_at: score?.returned_at ?? null,
           calculated_earned: calculatedEarned == null ? null : adjustedMaximum ? calculatedEarned : round2(calculatedEarned),
           ...(status ? { status } : {}),
         },
@@ -897,7 +899,7 @@ export async function loadTeacherGradebook(opts: {
     if (sc == null || st == null || sw == null) {
       return {
         rawEarned: null,
-        cell: blankAssessmentCell('assignment', assignment.id, possible, undefined, status),
+        cell: { ...blankAssessmentCell('assignment', assignment.id, possible, undefined, status), returned_at: score?.returned_at ?? null },
       }
     }
 
@@ -913,6 +915,7 @@ export async function loadTeacherGradebook(opts: {
         possible: adjustedMaximum ? possible : round2(possible),
         percent: round2((earned / possible) * 100),
         is_graded: true,
+        returned_at: score?.returned_at ?? null,
         ...(status ? { status } : {}),
       },
     }

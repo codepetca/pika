@@ -94,6 +94,11 @@ summaries. Partially graded work without an override remains pending; draft work
 is excluded. Student Grades still requires each assignment document or Test
 attempt to have been returned to that student, including marks with overrides.
 Teacher and student totals can therefore differ until work is returned.
+Unreturned teacher marks have a faint diagonal hatch behind the score and a
+`Graded · Not returned to student` tooltip on hover or keyboard focus. The same
+cue appears in the student inspector, where tapping also opens the tooltip.
+Returned marks, blank cells, aggregate totals, and standalone Gradebook marks
+remain plain. The hatch never changes the numeric mark or its grade colour.
 Standalone Gradebook marks and explicit final-grade overrides retain their existing
 behavior.
 

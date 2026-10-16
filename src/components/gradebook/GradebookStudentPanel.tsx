@@ -2,9 +2,10 @@
 
 import { X } from 'lucide-react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
-import { Button, IconButton, cn } from '@/ui'
+import { Button, IconButton, Tooltip, cn } from '@/ui'
 import { AssessmentStatusIndicator, getGradebookAssessmentStatusDisplay } from '@/components/AssessmentStatusIndicator'
-import { getStudentName, getStudentDisplayId, formatPercent, getGradePercentTextClass, getAssessmentCell, formatCompactPercent, formatAssessmentRawScore, getAssessmentColumnKey, getAssessmentCellPercent, getAssessmentMeta, type ScoreDisplayMode } from '@/lib/gradebook-display'
+import markStyles from './GradebookMark.module.css'
+import { isUnreturnedGradebookMark, UNRETURNED_GRADEBOOK_MARK_LABEL, getStudentName, getStudentDisplayId, formatPercent, getGradePercentTextClass, getAssessmentCell, formatCompactPercent, formatAssessmentRawScore, getAssessmentColumnKey, getAssessmentCellPercent, getAssessmentMeta, type ScoreDisplayMode } from '@/lib/gradebook-display'
 
 export function GradebookStudentPanel({
   student,
@@ -66,9 +67,34 @@ export function GradebookStudentPanel({
               const secondaryScore = displayMode === 'raw' ? percentScore : rawScore
               const statusDisplay = getGradebookAssessmentStatusDisplay(cell?.status)
               const key = getAssessmentColumnKey(column)
+              const unreturned = isUnreturnedGradebookMark(cell)
               const scoreTextClass = cell?.is_graded && !(compactZero && (getAssessmentCellPercent(cell) ?? 0) <= 100)
                 ? getGradePercentTextClass(getAssessmentCellPercent(cell))
                 : 'text-text-muted'
+              const scoreContent = (
+                <div tabIndex={unreturned ? 0 : undefined} role={unreturned ? 'img' : undefined}
+                  aria-label={unreturned ? `${primaryScore}, ${secondaryScore}${compactZero ? ", 0 weight" : ""}, ${UNRETURNED_GRADEBOOK_MARK_LABEL}` : undefined}
+                  className={cn('shrink-0 rounded text-right focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface', compactZero && 'flex items-center gap-1')}
+                  title={!unreturned && compactZero ? `0 weight · ${secondaryScore}` : undefined}>
+                  {compactZero ? <span className="mr-1 text-xs text-text-muted">0 wt</span> : null}
+                  {column.assessment_type === 'item' && onItemScoreOpen ? (
+                    <Button
+                      type="button" variant="ghost" size="sm"
+                      className={`px-1 font-normal tabular-nums ${scoreTextClass}`}
+                      disabled={isReadOnly}
+                      aria-label={`Edit ${getStudentName(student)} item mark for ${column.title}: ${primaryScore}`}
+                      onClick={() => onItemScoreOpen(student, column)}
+                    >
+                      {primaryScore}
+                    </Button>
+                  ) : (
+                    <div className={`text-sm font-normal tabular-nums ${scoreTextClass}`}><span data-unreturned-mark={unreturned || undefined} className={cn(scoreTextClass, unreturned && 'rounded-sm px-1 py-0.5', unreturned && markStyles.unreturned)}>{primaryScore}</span></div>
+                  )}
+                  <div className={compactZero ? 'sr-only' : ['mt-1 text-xs tabular-nums', scoreTextClass].join(' ')}>
+                    {secondaryScore}
+                  </div>
+                </div>
+              )
               return (
                 <div key={key} data-compact-zero-weight={compactZero || undefined} className={cn('px-3', compactZero ? 'py-1' : 'py-2.5')}>
                   <div className={cn('flex justify-between gap-3', compactZero ? 'min-h-11 items-center' : 'items-start')}>
@@ -103,25 +129,7 @@ export function GradebookStudentPanel({
                         <span className="truncate">{getAssessmentMeta(column)}</span>
                       </div>
                     </div>
-                    <div className={cn('shrink-0 text-right', compactZero && 'flex items-center gap-1')} title={compactZero ? `0 weight · ${secondaryScore}` : undefined}>
-                      {compactZero ? <span className="mr-1 text-xs text-text-muted">0 wt</span> : null}
-                      {column.assessment_type === 'item' && onItemScoreOpen ? (
-                        <Button
-                          type="button" variant="ghost" size="sm"
-                          className={`px-1 font-normal tabular-nums ${scoreTextClass}`}
-                          disabled={isReadOnly}
-                          aria-label={`Edit ${getStudentName(student)} item mark for ${column.title}: ${primaryScore}`}
-                          onClick={() => onItemScoreOpen(student, column)}
-                        >
-                          {primaryScore}
-                        </Button>
-                      ) : (
-                        <div className={`text-sm font-normal tabular-nums ${scoreTextClass}`}>{primaryScore}</div>
-                      )}
-                      <div className={compactZero ? 'sr-only' : ['mt-1 text-xs tabular-nums', scoreTextClass].join(' ')}>
-                        {secondaryScore}
-                      </div>
-                    </div>
+                    {unreturned ? <Tooltip content={UNRETURNED_GRADEBOOK_MARK_LABEL} openOnClick>{scoreContent}</Tooltip> : scoreContent}
                   </div>
                 </div>
               )

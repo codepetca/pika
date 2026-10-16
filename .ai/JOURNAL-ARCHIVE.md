@@ -47293,6 +47293,7 @@ Owner approved production259–263 once from a7e033952611ab03f80c7bd8c0f776d7f23
 
 Strict base advancement initially rejected calendar promotion1583 at764b after compatibility rollout. Premature lifecycle merge event invalidated; PR returned draft, merged production ancestry into1f108de2 with ZERO file changes/tree4249bb19 identical to reviewed764b, narrow independent review and all10 exact-head CI38491978782 passed. Promotion1583 merged c1abdab7982d8261738b380936a8f7454602d5d8 at01:17:58UTC; full tree matches reviewed764b. Vercel dpl_5SxaPBwGZf6wLbxneNCsfmJuVfjs READY and production aliases verified; login200/me401/Pattern Lab404/snapshot API404 at01:22:57UTC (Oct13 Toronto). Week agenda and optional Test date now live; dates never stop submissions. Initial cumulative review found/fixed legacy unpublish response rejection before schema-first rollout. Source reviews complete before60-minute review limit;5 actual worker turns/2 native Sol6.1-high launches, effective models/tokens/active effort unknown; account weekly85% remaining at start. Local focused813(main)/759(backport), targeted16 each and direct21 probes per head passed; prior calendar visual evidence reused by identical UI blobs. Source/current artifact receipts retained outside retired compatibility/review worktrees. Local handoff retains deployment, migration, catalog, CI and lifecycle receipts. No additional apply permission remains.
 
+<!-- pika-session-log-archive-batch:2f781168351f73640f73416209ebbba8cb82bf5de7e3f4f36026e5de978541af -->
 <!-- pika-session-log-archive-batch:eddb592e88d2ce0492524cb508a5dc03704f63f82387d78534fcf8a9a35fd8e4 -->
 ## 2026-10-14 — Announcement menu transition consistency
 
@@ -47303,3 +47304,22 @@ Teacher Announcement More/new/draft/posted choosers reuse shared semantic-fast o
 Extended only the actual wizard step focus owner: Blueprint source now focuses its visible native selector, with an open guard and focus restoration for parent reopen. Preserved name/Calendar behavior, title/date drafts, existing reopen selection reset policy, import/generation/idempotency logic and shared controls. Preimplementation reuse brief: `docs/guidance/ui/create-classroom-step-focus-consistency.md`.
 
 Validation: wizard30, TypeScript/audit PASS; eight teacher viewport/theme/motion contexts plus two separate current references PASS,42PNG/10videos,25source/52mediahashes;64syntheticGET and zero mutation/unknown/error/overflow. Four goldens unchanged PASS. External receipts retain one prebrowser harness-resolution failure and a corrected new unit-test assumption. Student n/a: local teacher-only adopter/shared unchanged. Independent review, stableSHA CI/PR Gate and main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
+
+<!-- pika-session-log-archive-batch:7ceac22be016e5f4648b2043e9efbb9943816649eaf717d2d8a242293ae96336 -->
+## 2026-10-14 — Create Classroom step focus consistency
+
+Extended only the actual wizard step focus owner: Blueprint source now focuses its visible native selector, with an open guard and focus restoration for parent reopen. Preserved name/Calendar behavior, title/date drafts, existing reopen selection reset policy, import/generation/idempotency logic and shared controls. Preimplementation reuse brief: `docs/guidance/ui/create-classroom-step-focus-consistency.md`.
+
+Validation: wizard30, TypeScript/audit PASS; eight teacher viewport/theme/motion contexts plus two separate current references PASS,42PNG/10videos,25source/52mediahashes;64syntheticGET and zero mutation/unknown/error/overflow. Four goldens unchanged PASS. External receipts retain one prebrowser harness-resolution failure and a corrected new unit-test assumption. Student n/a: local teacher-only adopter/shared unchanged. Independent review, stableSHA CI/PR Gate and main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
+
+## 2026-10-14 — Announcement Schedule focus consistency
+
+Extended Announcement-only committed picker focus ownership via optional shared date-input ref. Entry focuses Date; Cancel/Done/Escape return to a surviving initiator/action, outside pointer/Tab destinations persist, and hidden/read-only/class/editor/unmount retirement blocks stale callbacks while retaining drafts and request ownership. Shared Assignment defaults remain unchanged. Brief: `docs/guidance/ui/announcement-schedule-focus-consistency.md`.
+
+Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. Native accepted eight teacher/four student/two actual Assignment/two reference contexts across unchanged-source scoped runs: 38bindings,164PNG/16videos,180mediahashes;194syntheticGET/four intercepted studentautoacks, zero teacherwrite/unknown/error/overflow. Browser-chrome Tab regression fixed; three new tests verify actual outside-focus retirement. Failed/partial native attempts, four diagnosed harness repairs and worker model-capacity failure retained externally; coordinator completed acceptance. Independent review/final stableSHA CI/PR Gate and authorized main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
+
+## 2026-10-14 — Calendar Week alignment
+
+- Owner: this chat, codex/calendar-week-alignment; move edit/no-class information to the date rail, align lesson bodies at top, full current-day outline without Today badge. Shared IconButton reused; current date remains semantic.
+- Verification: 47 calendar tests, types/lint/architecture/policies/audit pass; both roles × desktop/mobile × light/dark captured with production owner fixtures and intercepted reads. Editing/Escape focus and day presentation checked.
+- Initial focused check hit unchanged CI Tart-host timing failures; serial gate in progress. Independent low-risk review/PR lifecycle next. Storage healthy, weekly allowance initially 75% remaining; task tokens unknown.

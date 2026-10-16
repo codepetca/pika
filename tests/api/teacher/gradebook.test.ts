@@ -350,6 +350,7 @@ describe('GET /api/teacher/gradebook', () => {
       for (const cell of body.students[0].assessment_scores) {
         expect(cell.percent).toBe(visiblePercent)
         expect(cell.is_graded).toBe(true)
+        expect(cell.returned_at).toBe(returnedAt ?? null)
         if (overridden) expect(cell.calculated_earned).toBe(cell.assessment_type === 'assignment' ? 24 : 8)
       }
     }
@@ -364,7 +365,7 @@ describe('GET /api/teacher/gradebook', () => {
       scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9 }],
     })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
-    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 9, percent: 90, is_graded: true, calculated_earned: 10 })
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 9, percent: 90, is_graded: true, calculated_earned: 10, returned_at: null })
     expect(body.students[0].final_percent).toBe(90)
   })
 
@@ -380,7 +381,7 @@ describe('GET /api/teacher/gradebook', () => {
     })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))).json()
     for (const cell of body.students[0].assessment_scores) {
-      expect(cell).toMatchObject({ earned, percent: earned * 10, is_graded: true, is_manual_override: true, calculated_earned: null })
+      expect(cell).toMatchObject({ earned, percent: earned * 10, is_graded: true, is_manual_override: true, calculated_earned: null, returned_at: null })
     }
     expect(body.students[0].final_percent).toBe(earned * 10)
     expect(body.selected_student.assignments[0].percent).toBe(earned * 10)
@@ -406,7 +407,7 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].final_percent).toBeNull()
   })
 
-  it('includes returned and unreturned graded marks in class summaries', async () => {
+  it.each([false, true])('preserves each student return state and class summaries with manual overrides (%s)', async (overridden) => {
     mockSupabaseClient.from = buildMockFrom({
       enrollments: [
         { student_id: 'student-1', users: { email: 'one@example.invalid' } },
@@ -424,13 +425,27 @@ describe('GET /api/teacher/gradebook', () => {
         { test_id: 't1', question_id: 'q1', student_id: 'student-2', score: 10 },
       ],
       testAttempts: [
-        { test_id: 't1', student_id: 'student-1', is_submitted: true, returned_at: '2026-01-02T12:00:00.000Z' },
-        { test_id: 't1', student_id: 'student-2', is_submitted: true, returned_at: null },
+        { test_id: 't1', student_id: 'student-1', is_submitted: true, returned_at: null },
+        { test_id: 't1', student_id: 'student-2', is_submitted: true, returned_at: '2026-01-03T12:00:00.000Z' },
       ],
+      scoreOverrides: overridden ? [
+        { student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: 0 },
+        { student_id: 'student-2', assessment_type: 'assignment', assessment_id: 'a1', earned: 30 },
+        { student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 0 },
+        { student_id: 'student-2', assessment_type: 'test', assessment_id: 't1', earned: 10 },
+      ] : [],
     })
     const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
     expect(body.students.find((student: any) => student.student_id === 'student-1').final_percent).toBe(0)
     expect(body.students.find((student: any) => student.student_id === 'student-2').final_percent).toBe(100)
+    expect(body.students.find((student: any) => student.student_id === 'student-1').assessment_scores).toEqual([
+      expect.objectContaining({ assessment_type: 'assignment', returned_at: '2026-01-02T12:00:00.000Z', percent: 0 }),
+      expect.objectContaining({ assessment_type: 'test', returned_at: null, percent: 0 }),
+    ])
+    expect(body.students.find((student: any) => student.student_id === 'student-2').assessment_scores).toEqual([
+      expect.objectContaining({ assessment_type: 'assignment', returned_at: null, percent: 100 }),
+      expect.objectContaining({ assessment_type: 'test', returned_at: '2026-01-03T12:00:00.000Z', percent: 100 }),
+    ])
     expect(body.class_summary).toMatchObject({ students_with_final: 2, average_final_percent: 50 })
     expect(body.class_summary.assignments[0]).toMatchObject({ graded_count: 2, average_percent: 50, median_percent: 50 })
     expect(body.class_summary.tests[0]).toMatchObject({ scored_count: 2, average_percent: 50 })
@@ -531,6 +546,7 @@ describe('GET /api/teacher/gradebook', () => {
         possible: 30,
         percent: 80,
         is_graded: true,
+        returned_at: '2026-01-02T12:00:00.000Z',
       },
     ])
     expect(body.selected_student).toBeTruthy()
