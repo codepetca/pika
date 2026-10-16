@@ -17,7 +17,8 @@ CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
 Loader/cleanup proofs PASS; no app exit.
-First login/cleanup PASS; empty-font capture fails. Visuals incomplete; holds.
+First login/cleanup PASS; empty placeholder fails; Tiptap stale-class CPU repro.
+Visuals incomplete; exact placeholder-selector candidate prepared; holds unchanged.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.

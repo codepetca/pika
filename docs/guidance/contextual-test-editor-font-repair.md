@@ -21,6 +21,37 @@
 | Editor and viewer rendering | Existing production Tiptap owners | reuse | Both consumers share the stylesheet; no new component or duplicate styles are needed. |
 | Visual comparison | Pattern Lab history-preview production owners | reuse | Deterministic teacher/student examples cover the existing content surface. |
 
+## Empty-placeholder correction (2026-10-16)
+
+The owner requested a fix after the bounded rehearsal isolated the empty-state
+placeholder check. A real-editor CPU reproduction with installed Tiptap 3.31.4
+shows that `includeChildren: true` leaves `is-empty` but temporarily omits
+`is-editor-empty` after deleting all content. The incremental plugin reads the
+old editor-wide state while applying the new document. Waiting does not repair
+this stale marker; adding a selection transaction merely hides the defect.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Placeholder after clearing the editor | Shared `simple-editor.scss` placeholder rule | extend | Also match the correctly updated `is-empty` marker on the sole direct paragraph; do not depend only on the stale editor-wide marker. |
+| Empty/editing reference | Pattern Lab Student image upload shared editor | reuse | Real production editor with deterministic content; both authenticated roles exercise the same owner. |
+| Capture acceptance | Existing visible-placeholder and viewport checks | reuse | The fix must render the placeholder, not relax the test or add artificial user actions. |
+
+Keep the existing rule and all its visual declarations. Add only a selector for
+`.tiptap > p.is-empty:only-child`; it must not match an empty first paragraph
+when another content block exists, a nested empty paragraph in a nonempty
+document, or a paragraph containing text. No dependencies, content mutations,
+keyboard/focus changes, new controls, tokens, or permission changes. Composite
+interaction/ARIA review is not applicable because those contracts do not change.
+Stable guidance remains unchanged; no experimental pattern or promotion needed.
+
+The existing teacher/student, desktop/mobile, light/dark, preview/read-only/
+editing/empty matrix remains required. Add real-editor CPU regression coverage
+for deletion and the nonempty boundaries before the selector repair. Until visual
+verification passes, keep the production stylesheet uncommitted and bind the
+combined font-removal plus placeholder-selector candidate through the explicit
+before/after-hashed isolated overlay. Original frozen application and all
+production/shared-local/provider/rollout holds remain unchanged.
+
 ## Failure and scope
 
 The failed isolated run completed both original login body reads and authenticated
@@ -29,7 +60,7 @@ does not identify that request. Source tracing finds an unconditional Google
 Fonts stylesheet import reachable from the first classroom page. This is a
 concrete forbidden-network dependency, not proof of the exact historical request.
 
-Remove only that remote import. Keep the existing font-family declaration and all
+The initial repair removed only that remote import. Keep the existing font-family declaration and all
 network rejection predicates. Add fixed-label rejection diagnostics so another
 unexpected origin can be identified without retaining URLs, queries, credentials,
 bodies, hashes or arbitrary error text.
@@ -45,13 +76,14 @@ Visual verification is **pending**, not waived: compare the named production
 owners for both roles, both viewports and both themes, including the states above.
 The production stylesheet change must remain uncommitted until that evidence is
 collected. Its exact candidate bytes are preserved privately. For the approved
-rehearsal, the fixed overlay helper applies only that one known transformation
+rehearsal, the fixed overlay helper applies only the font transformation and the
+explicit empty-placeholder selector correction described above
 to the disposable app copy, requiring the exact before and after SHA-256. The
 manifest digest is explicit in the plan, execution seal, binding and receipts.
 The runner and original frozen source retain their clean committed-tree checks.
 
 The frozen application `21e755d36037214b32dc6ddd5af68f4247587ca8` remains unchanged.
-The newly authorized rehearsal binds this base plus the explicit font overlay;
+The newly authorized rehearsal binds this base plus the explicit combined overlay;
 it must not substitute the current runner branch for that frozen app or import
 unrelated/held application work.
 Do not edit historical failed attempts or treat recovery as a passing rehearsal.
@@ -70,4 +102,4 @@ the isolated development gallery enabled and fixture-auth bypass still disabled.
 Both actors use the existing shared student-editor reference for editing/empty
 states; record this as reference provenance, not as a teacher product screen.
 Do not interact with unrelated gallery sections or held feature probes. No new
-UI components, styling, auth changes or production settings are introduced.
+UI components, visual declarations, auth changes or production settings are introduced.

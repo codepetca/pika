@@ -9,10 +9,14 @@ import { captureContextualTestSource, prepareContextualTestAppSnapshot } from '.
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
 
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex')
+const placeholderBefore = '.tiptap p.is-editor-empty:first-child::before {'
+const placeholderAfter = '// Tiptap can leave its editor-wide empty marker stale after deletion.\n'
+  + '// The sole direct empty paragraph already has the correct node-level marker.\n'
+  + '.tiptap p.is-editor-empty:first-child::before,\n.tiptap > p.is-empty:only-child::before {'
 // Supports the owner's uncommitted candidate during visual review and the
 // committed original after restoration. Both full byte hashes remain fixed.
 function original() {
-  const bytes = readFileSync(overlay.path)
+  const bytes = Buffer.from(readFileSync(overlay.path, 'utf8').replace(placeholderAfter, placeholderBefore))
   const comment = '// Use locally available fonts and the existing fallback without a remote fetch.\n'
   return bytes.subarray(0, comment.length).toString() === comment
     ? Buffer.from(bytes.toString().replace(comment, '@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");\n\n'))
@@ -20,12 +24,13 @@ function original() {
 }
 
 describe('exact disposable editor font overlay (CPU/filesystem only)', () => {
-  it('binds the single deterministic candidate, preserving every byte after the import', () => {
+  it('binds the font and empty-placeholder candidate without other stylesheet changes', () => {
     const before = original(), after = applyContextualTestFontOverlay(overlay.path, before)
     expect(sha(before)).toBe(overlay.beforeSha256); expect(sha(after)).toBe(overlay.afterSha256)
     expect(after.toString()).not.toMatch(/@import\s+url\(|fonts\.(?:googleapis|gstatic)\.com/)
     expect(after.toString()).toContain('font-family: "DM Sans", sans-serif;')
-    expect(before.toString().slice(before.indexOf('// Scoped'))).toBe(after.toString().slice(after.indexOf('// Scoped')))
+    expect(after.toString()).toContain(placeholderAfter)
+    expect(before.toString().slice(before.indexOf('// Scoped'))).toBe(after.toString().slice(after.indexOf('// Scoped')).replace(placeholderAfter, placeholderBefore))
     expect(contextualTestFontOverlaySha256).toBe(sha(JSON.stringify(overlay)))
     expect(createContextualTestPlan('pika_assignment_list_123456abcdef').appOverlaySha256).toBe(contextualTestFontOverlaySha256)
     expect(() => applyContextualTestFontOverlay('another.scss', before)).toThrow()

@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Source35 isolated check stops before HTTP on ownership
-
-Human approved ONE exact reviewed cf7e896de992 native check. Source/import/
-compiled pins and current Chrome/CLI signature/kernel/port preflight PASS.
-Sole launcher21433 closed1/SPENT after4.565s, HTTP0: first failure capture/
-ownership. Receipt7f24a0c1... reports CLI/server/requests closed but browserfalse;
-cleanup unknown/untyped at initial-snapshot, deadlineExpiredfalse with11.7s
-window/85.455s original budget remaining, queryDiagnosticnull. No original-body
-or navigation acceptance was exercised. Later separate read-only observation
-23:10:27.270UTC matched recorded root21384 plus7live Chrome descendants and
-reconciled their identities; this is not historical cleanup success or proof of
-the initial rejection cause. Port3197free, signals0. Evidence retained privately;
-no retry, deadline renewal, blind kill, restart or source criteria change. New
-check approval consumed. Next requires separately authorized bounded cleanup of
-that verified test family and source diagnosis of snapshot rejection before any
-fresh run. Review46/fix35 carry; PR1581 draft/full gate failed, native/app exit
-absent. Production/shared-local/cutover/provider/account holds stay unchanged.
-
 ## 2026-10-13 Separate cf7 recovery closes only verified test family
 
 Human approved a separate12s cleanup and source-only diagnosis, not another run.
@@ -926,3 +908,48 @@ independent targeted review104 and final checks precede native dispatch. Existin
 103reviews/60batches/clocks retained under owner routine-stop waiver; weekly65%
 remaining, storagehealthy. Frozen21e755d3/001–262,45min+6mincleanup and all production,
 sharedlocal249+, provider-heldSurvey/planning, oldsocket81 and rollout holds stay.
+
+Review104 CLEAN0 at c25b5d82; 71 targeted CPU checks PASS. Exact focused default
+parallelism failed one unrelated ci-tart-host 100ms child-exit assumption; isolated
+test PASS, then supported max-workers2 exact gate PASS3551/8skip and all static
+checks without changing assertions. Preserve failure; contention is inference.
+ONE fresh kx0L9X full-app attempt SPENT/FAILED148388ms. First real owner login PASS;
+body/request failures null, pending/page/console errors0; only fixed empty capture
+placeholder/positioned/deadline checks failed. Other geometry/empty-text checks
+passed. Three PNG235043bytes hash-verified and root visually inspected; no full
+matrix or lifecycle acceptance. All cleanup gates PASS; independent17526 before
+postrun writes proves7648 source files/49485 dependency entries unchanged,
+current process candidates0. Exact fixture/tempapp gone and four ports clear.
+Freeze released; all evidence retained and no automatic retry.
+
+Bounded read-only Sol6.1/high worker identified a real installed Tiptap3.31.4
+defect, independently reproduced by root using real Editor/StarterKit/Placeholder
+in JSDOM: includeChildren:true + selectAll/deleteSelection leaves is-empty but
+omits is-editor-empty. Frozen placeholder CSS therefore does not match. Waiting
+or no-op transaction does not repair; a second selection does, with unchanged
+document JSON. Incremental plugin reads editor.isEmpty during new-state apply,
+before view.updateState. This explains a viable failure path, not proof of the
+unretained exact browser pseudo style. Do not weaken capture or add a synthetic
+selection workaround; next correct the shared-editor dependency interaction with
+real-editor regression coverage, then review the explicit isolated overlay delta.
+No product fix or further native run performed. PR1581 remains draft at c25b5d82;
+104reviews/61fixbatches and existing clocks/holds retained. UI verification skill
+keeps visual acceptance incomplete; no quota/auth/permission/production changes.
+
+## 2026-10-16 — Scoped placeholder correction candidate
+
+User Fix it authorizes the recommended shared-editor fix, regression/review and
+one fresh bounded isolated verification. Batch62 adds one selector to the exact
+font-overlay candidate: sole direct empty paragraph uses is-empty while existing
+styling and original selector remain. No extra selection, broader placeholder
+matching, library upgrade, auth/permission or capture acceptance change. UI-change
+brief records extend/reuse, same32font+16workflow screenshot matrix and holds.
+Sol6.1/high test author produced real Tiptap/compiled Sass+PostCSS regressions:
+2 deletion tests RED before fix,5 boundary tests PASS; all7 GREEN with candidate.
+Root integration avoids historical Git-object dependency for shallow CI. Combined
+79 focused CPU checks PASS; final focused gate and targeted independent review105
+pending. Existing104reviews/61batches/clocks carry under routine-stop waiver;
+weekly63%remaining, storagehealthy; effective worker config/tokens unknown.
+Production stylesheet remains unchanged until real visual acceptance. Frozen app
+21e755d3/migrations001–262,45min+6mincleanup, sharedlocal249+, provider-heldSurvey/
+planning, oldsocket81 and allproduction/account/plan/billing/cutover holds stay.
