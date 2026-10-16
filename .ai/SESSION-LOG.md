@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 — Week agenda and Test dates live in production
-
-Owner approved production259–263 once from a7e033952611ab03f80c7bd8c0f776d7f2302cdb/digest5b1577215b69a5e7d8361eec08c651dda3f0aace59393ceb6192b3ef22b4f79f. Preview38486242383/history258 and catalog preflight passed; compatibility1584(main)/1585(production) passed independent review and all10 CI jobs. Backport productioneeb66a4d6 deployed READY/dpl_FBzFiXRRiKnZQRwsGY5tQuPejKQ8 before one apply38491403501: applied-verified259–263/history263. Ten function bodies/owners/search paths/ACLs match reviewed source (private unpublish core intentionally invoker); tests.test_date nullable date/no default. No production test fixtures, data deletion or activation changes.
-
-Strict base advancement initially rejected calendar promotion1583 at764b after compatibility rollout. Premature lifecycle merge event invalidated; PR returned draft, merged production ancestry into1f108de2 with ZERO file changes/tree4249bb19 identical to reviewed764b, narrow independent review and all10 exact-head CI38491978782 passed. Promotion1583 merged c1abdab7982d8261738b380936a8f7454602d5d8 at01:17:58UTC; full tree matches reviewed764b. Vercel dpl_5SxaPBwGZf6wLbxneNCsfmJuVfjs READY and production aliases verified; login200/me401/Pattern Lab404/snapshot API404 at01:22:57UTC (Oct13 Toronto). Week agenda and optional Test date now live; dates never stop submissions. Initial cumulative review found/fixed legacy unpublish response rejection before schema-first rollout. Source reviews complete before60-minute review limit;5 actual worker turns/2 native Sol6.1-high launches, effective models/tokens/active effort unknown; account weekly85% remaining at start. Local focused813(main)/759(backport), targeted16 each and direct21 probes per head passed; prior calendar visual evidence reused by identical UI blobs. Source/current artifact receipts retained outside retired compatibility/review worktrees. Local handoff retains deployment, migration, catalog, CI and lifecycle receipts. No additional apply permission remains.
-
 ## 2026-10-14 — Announcement menu transition consistency
 
 Teacher Announcement More/new/draft/posted choosers reuse shared semantic-fast opacity and immediate logical command retirement. Extend real ClassroomPageClient→TeacherAnnouncementsTab activity forwarding; scope nested keys to classroom/editor/publication while retaining whole drafts and request generations. Schedule picker handoff uses immediate exit mode, preserving existing primary Post behavior. Governed reuse/extend brief precedes implementation; fixture and shared primitives unchanged. Native Sol6.1/high implementation405s plus parent bridge109s, red12expected failures, one mechanical green correction, final59 actual-owner+78primitive cases PASS and exact TypeScript PASS; coordinator verifies delivery. Actual parent activity bridge52 PASS adds meaningful real-classroom navigation/retained DOM coverage; audit5TS and focused917/65 plus all static gates PASS. Frozen19-source native teacher8/student4/current UiConsistency reference2 PASS,106PNGs/14videos;162API observations reconcile142syntheticGET/16teacher writes/4student acknowledgements,0unknown/console/pageerrors/overflow and no API passthrough. Four unchanged goldens PASS; coordinator inspected boards and representative originals/reference parity. Existing BODY focus/mobile navigation hover tooltip qualified; source owners unchanged during native. Failed browser-launch/invalid1243/selector attempts and diagnostic smokes retained; matching1208 restored without package/lock changes. One independent draft-first stable-SHA review/CI/main landing remains gate. Main60cad includes newer calendar263/fixture work, preserved unchanged outside the teacher activity line. Storage healthy322GB, weekly82%remaining; DeepSeek pause and task stop waiver/counters68 retained, task attribution/tokens unknown. No production, migration, dependency, privacypriority1 or calendarPR1217 operation; broad UI/UX goal open.
@@ -409,3 +403,27 @@ planned for standard behavioral delta, PR review turn5 (prior4), current user
 change1wave/0fix batches. Weekly46% remaining, storage healthy317GB; attributable
 worker/coordinator tokens unknown. Final reviewed SHA/checks in PR and local
 lifecycle records. No merge, deployment, database or in-app translation work.
+
+## 2026-10-16 — Compact selected-test student roster
+
+Task owner: current Codex chat; branch `codex/test-student-table-compact`.
+Teacher grading roster: Pending grading → Ungraded (recorded open response lacks
+score; no AI-job implication), Activity → Seen. Pane container queries prioritize
+selection, First, Last, Access, Seen and Exits below 840px; names truncate, while
+Score/Away/Status and saved resize widths return with space. Status resize moved
+to its left edge to keep the last target inside the table scroll bounds.
+UI brief: reference Attendance density + selected Test roster / Pattern Lab Daily;
+reuse shared table/sort/selection/access/tooltip owners; extend feature-local
+responsive rules. Teacher desktop/split/mobile, both themes; student n/a (teacher
+owner only). Default, long names, ungraded/numeric/empty scores, selected/sorted
+and open inspector covered. Primary signal remains table labels/status; no new
+shared primitive or experimental pattern. Nearby extraction/refactor: none.
+Composite checklist reviewed; existing keyboard/semantic tests retained; compact
+mode hides unavailable resize controls and full width restores them.
+124/124 component tests passed; first focused run hit concurrent-load timeouts;
+repeat with `--max-workers 2` passed963/963. Visual evidence under ignored
+`output/playwright`, deterministic intercepted GETs and blocked writes; no DB
+persistence claim. Final checks/review/SHA recorded in PR and lifecycle metadata.
+Implementation handled directly; independent low-risk review planned with one
+Luna/medium reviewer. Weekly remaining44%; storage healthy320GB; attributable
+usage/time unknown. No database, production or merge operations authorized here.

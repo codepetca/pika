@@ -2474,13 +2474,12 @@ describe('TeacherTestsTab', () => {
 
     const row = screen.getByTestId('test-grading-student-row-student-1')
     expect(within(row).getByText('Alice Zephyr').closest('td')).toHaveClass('max-w-0')
-    expect(within(row).getByLabelText(/Exits \d+\./).closest('td')).toHaveClass('hidden')
-    expect(within(row).getByLabelText(/Away time/).closest('td')).toHaveClass('hidden')
+    expect(within(row).getByLabelText(/Exits \d+\./).closest('td')).not.toHaveClass('hidden')
+    expect(within(row).getByLabelText(/Away time/)).toBeInTheDocument()
 
     expect(screen.getByRole('columnheader', { name: 'Last' })).not.toHaveClass('hidden')
-    expect(screen.getByRole('columnheader', { name: 'Activity' })).toHaveClass('hidden')
-    expect(screen.getByRole('columnheader', { name: 'Exits' })).toHaveClass('xl:table-cell')
-    expect(screen.getByRole('columnheader', { name: 'Away' })).toHaveClass('xl:table-cell')
+    expect(screen.getByRole('columnheader', { name: 'Seen' })).not.toHaveClass('hidden')
+    expect(screen.getByRole('columnheader', { name: 'Exits' })).not.toHaveClass('hidden')
   })
 
   it('formats sub-second away telemetry as whole seconds', async () => {
@@ -3037,7 +3036,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.getByText('Pending grading')).toBeInTheDocument()
+    expect(screen.getByText('Ungraded')).toBeInTheDocument()
     expect(within(screen.getByTestId('test-grading-student-row-student-1')).getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
     expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Access' })).toBeInTheDocument()
@@ -3049,7 +3048,7 @@ describe('TeacherTestsTab', () => {
     })
 
     expect(screen.getByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.getByText('Pending grading')).toBeInTheDocument()
+    expect(screen.getByText('Ungraded')).toBeInTheDocument()
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('Refreshing grades')
     })
@@ -3442,7 +3441,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
     fireEvent.click(await screen.findByText('Unit Test'))
     fireEvent.click(await screen.findByLabelText('Select Alice Zephyr'))
-    expect(screen.getByText('Pending grading')).toBeInTheDocument()
+    expect(screen.getByText('Ungraded')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Return' }))
     expect(await screen.findByText('Return saved work for students with closed access, including ungraded work. Returned work cannot be edited or submitted.')).toBeInTheDocument()
