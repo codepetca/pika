@@ -47504,3 +47504,22 @@ semantic full-graph TypeScript or native claim. Firstfreeze22:39:25UTC, entry
 review45 next; author handoff calls44, but actual44 already completed metadata
 scope, counters never reset. PR1581 remains draft with full gate still failed.
 Production/shared-local/cutover/provider holds remain; no app/auth/source rollout.
+
+<!-- pika-session-log-archive-batch:b667f8be88b82c92a408877968eaae5a10429b2a87545584dc89e2ca9d00c313 -->
+## 2026-10-13 Post-publication deadline gap corrected in verifier source
+
+Targeted review45 completed source34/continuity scope with one blocking P2:
+post-settled durable publication could consume the remaining budget before
+navigation initiation. Root validated and accepted it. Fresh privatecf7e896de992
+source35 adds only the existing deadline check after publication, immediately
+before positive navigation admission. Reviewed8ad and all SPENT artifacts remain
+unchanged. Direct and actual serialized clock-boundary tests reproduced old
+navigation1, then prove new0evaluation/initiation/continuation with no resume.
+Root independently replayed14direct/15serialized/36observability/21package/
+19privacy and exact compiler/inverse/import closure PASS; prior coverage retained.
+Same absolute budgets/caps, original body/task, strict validation and owner gates;
+no transport hook, semantic graph typecheck or native claim. Firstfreeze22:48:05,
+entry8f790940...; acceptance/runtime absent. Targeted review46 next under standing
+workflow waiver, original clock/review46/fix35 carry; no new run authorized.
+PR1581 remains draft, full gate failed; app/auth/production/shared-local/cutover/
+provider-held Survey scopes unchanged.

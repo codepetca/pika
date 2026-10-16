@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Post-publication deadline gap corrected in verifier source
-
-Targeted review45 completed source34/continuity scope with one blocking P2:
-post-settled durable publication could consume the remaining budget before
-navigation initiation. Root validated and accepted it. Fresh privatecf7e896de992
-source35 adds only the existing deadline check after publication, immediately
-before positive navigation admission. Reviewed8ad and all SPENT artifacts remain
-unchanged. Direct and actual serialized clock-boundary tests reproduced old
-navigation1, then prove new0evaluation/initiation/continuation with no resume.
-Root independently replayed14direct/15serialized/36observability/21package/
-19privacy and exact compiler/inverse/import closure PASS; prior coverage retained.
-Same absolute budgets/caps, original body/task, strict validation and owner gates;
-no transport hook, semantic graph typecheck or native claim. Firstfreeze22:48:05,
-entry8f790940...; acceptance/runtime absent. Targeted review46 next under standing
-workflow waiver, original clock/review46/fix35 carry; no new run authorized.
-PR1581 remains draft, full gate failed; app/auth/production/shared-local/cutover/
-provider-held Survey scopes unchanged.
-
 ## 2026-10-13 Source35 isolated check stops before HTTP on ownership
 
 Human approved ONE exact reviewed cf7e896de992 native check. Source/import/
@@ -918,3 +900,29 @@ review103 follows clean CPU checks; historical102reviews/59batches and clocks
 retained under owner routine-stop waiver. Weekly66%remaining; effective worker
 configuration/tokens unknown. Current production lines above are this branch's
 historical baseline, not an assertion against newer unrelated release work.
+
+Review103 CLEAN0 complete delta9be50234 plus3privatewrappers; fullfocused3536PASS/
+8skip, allstaticchecksPASS. Draft1581 exact9be50234 pushed. ONE realappCJrlCg run
+SPENT/FAILED115109ms: firstownerpasswordloginthroughidentityPASS, no body/request/
+identityguardfailure; empty-editorfontcaptureassertion stoppedafter3readable
+teacherdesktop/lightPNG. Fullvisual/fullworkflowexitNOTmet. CleanupallstagesPASS,
+ownedSettledtrue; independent57689 confirms7646sources/49485dependenciesunchanged
+and0currentprocesscandidates. Exactisolatedresources/tempappgone, fourportsclear;
+evidenceretained. Freeze released; no automaticretry. RootcorrectedinitialPNGcount
+(filesnestedunderplaywright/). Source-onlydiagnosis: fill('') doesnotwaitfor
+placeholderreadiness; canonicalTiptapemptyparagraphhastrailingBR. Exactfailed
+predicateunknown; pseudoheight0 alone isnotproof. Next boundedemptyreadiness/
+privacy-safefixedgeometrylabels, retaining visibilitychecks; no speculativefix.
+no product/production/sharedDB/provider/rolloutchanges. Counters103/60 unchanged.
+
+## 2026-10-16 — Bounded empty-font capture readiness
+
+User Continue authorizes the recommended correction/review and one fresh bounded
+full-app rehearsal; CJrlCg stays permanently failed. Batch61 adds canonical-empty
+placeholder observation and a single nonrenewing capture deadline with fixed-only
+failure labels. Historical exact predicate remains unknown. Root integration and
+Sol6.1/high helper/test ownership are disjoint; no UI/sourceapp/DB changes. Required
+independent targeted review104 and final checks precede native dispatch. Existing
+103reviews/60batches/clocks retained under owner routine-stop waiver; weekly65%
+remaining, storagehealthy. Frozen21e755d3/001–262,45min+6mincleanup and all production,
+sharedlocal249+, provider-heldSurvey/planning, oldsocket81 and rollout holds stay.

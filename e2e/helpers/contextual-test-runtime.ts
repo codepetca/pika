@@ -13,6 +13,7 @@ import { installLoginFetchGate } from './contextual-login-fetch-gate'
 import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWitness } from './contextual-test-rehearsal'
 import type { ContextualTestStartupStage } from './contextual-test-startup'
 import { contextualTestFontShot, contextualTestFontEditingText } from './contextual-test-font-matrix'
+import { observeContextualTestFont } from './contextual-test-font-observation'
 
 const witnessSchema = z.object({
   version: z.literal(1), work_graph_sha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -91,6 +92,9 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string; fontReference?: string }> = []
   const witnesses: Array<{ label: string; sha256: string }> = []
   const loginProgress = createContextualTestLoginProgress()
+  type FontCheck = 'fonts' | 'navigation' | 'viewport' | 'heading' | 'content' | 'placeholder' | 'fits' | 'positioned' | 'theme' | 'editable' | 'preview' | 'text' | 'deadline'
+  // Diagnostic-only fixed labels. Never retain DOM text, geometry, or exceptions.
+  let fontCapture: { label: string; stage: 'visible' | 'fonts' | 'readiness' | 'screenshot' | 'saved'; failedChecks: FontCheck[] } | null = null
   let screenshots = 0, fontShots = 0, pngBytes = 0, snapshots = 0, pageErrors = 0, consoleErrors = 0, closeStarted = false
   const requireOwned = (page: Page) => {
     const context = page.context(), state = contexts.get(context)
@@ -301,51 +305,50 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       assert.equal(url.hash, shot.state === 'editing' || shot.state === 'empty' ? '#student-image-upload' : '#history-preview')
       assert.deepEqual(page.viewportSize(), shot.view === 'desktop' ? { width: 1440, height: 900 } : { width: 390, height: 844 })
       assert(fontShots < 32)
-      const gallery = page.locator(shot.selector)
-      await gallery.waitFor({ state: 'visible', timeout: fixedTimeout() })
-      assert.equal(await gallery.count(), 1)
-      await page.waitForFunction(() => document.fonts.status === 'loaded', undefined, { timeout: fixedTimeout() })
-      const observed = await gallery.evaluate(element => {
-        // Preserve real sticky chrome and editor scrolling. Locator screenshots
-        // may scroll a tall gallery back under the mobile navigation; capture a
-        // viewport-bounded clip instead, after ordinary document scrolling.
-        const navs = document.querySelectorAll('nav[aria-label="Pattern Lab sections"]')
-        if (navs.length !== 1) throw new Error('Private font capture navigation')
-        const nav = navs[0], style = getComputedStyle(nav)
-        if (style.position !== 'sticky') throw new Error('Private font capture navigation')
-        const inset = Number.parseFloat(style.top), height = nav.getBoundingClientRect().height
-        if (!Number.isFinite(inset) || height <= 0) throw new Error('Private font capture navigation')
-        const original = element.getBoundingClientRect()
-        window.scrollTo({ top: window.scrollY + original.top - (inset + height + 8), behavior: 'instant' })
-        const editor = element.querySelector('.tiptap.ProseMirror')
-        const box = element.getBoundingClientRect(), heading = element.querySelector('h2')
-        const clip = { x: Math.ceil(box.left), y: Math.ceil(box.top),
-          width: Math.floor(box.right) - Math.ceil(box.left),
-          height: Math.floor(Math.min(box.bottom, window.innerHeight)) - Math.ceil(box.top) }
-        const inside = (node: Element) => {
-          const rect = node.getBoundingClientRect()
-          return rect.height > 0 && rect.top >= clip.y && rect.bottom <= clip.y + clip.height
-            && rect.left >= clip.x && rect.right <= clip.x + clip.width
+      const progress: NonNullable<typeof fontCapture> = { label: shot.label, stage: 'visible', failedChecks: [] }
+      fontCapture = progress
+      const end = Math.min(binding.deadline, Date.now() + plan.limits.operationMs)
+      const remaining = () => {
+        boundary.check()
+        const now = Date.now()
+        if (now >= end) {
+          if (!progress.failedChecks.includes('deadline')) progress.failedChecks.push('deadline')
+          throw safeError()
         }
-        // History fixtures intentionally contain 40 scrollable paragraphs. Their
-        // first two blocks prove representative heading/body typography; editing
-        // and empty fixtures have one paragraph, which must fit in full.
-        const blocks = editor ? Array.from(editor.querySelectorAll(':scope > *')).slice(0, 2) : []
-        return { dark: document.documentElement.classList.contains('dark'), ready: document.fonts.status === 'loaded',
-          clip, positioned: box.top >= nav.getBoundingClientRect().bottom + 1 && clip.x >= 0 && box.right <= window.innerWidth && clip.y >= 0
-            && clip.width > 0 && clip.height > 0 && !!heading && inside(heading) && blocks.length > 0 && blocks.every(inside),
-          fits: element.scrollWidth <= element.clientWidth + 1 && box.width <= window.innerWidth + 1
-            && !!editor && editor.scrollWidth <= editor.clientWidth + 1,
-          editable: editor?.getAttribute('contenteditable'), text: editor?.textContent?.trim(),
-          preview: !!element.querySelector('[data-history-preview-mode="focused"], [data-history-preview-mode="locked"]') }
-      })
-      assert.equal(observed.dark, shot.theme === 'dark'); assert(observed.ready && observed.fits && observed.positioned)
-      assert.equal(observed.editable, shot.state === 'editing' || shot.state === 'empty' ? 'true' : 'false')
-      assert.equal(observed.preview, shot.state === 'preview')
-      if (shot.state === 'editing') assert.equal(observed.text, contextualTestFontEditingText)
-      if (shot.state === 'empty') assert.equal(observed.text, '')
-      const bytes = await page.screenshot({ type: 'png', fullPage: false, clip: observed.clip, timeout: fixedTimeout() })
+        return end - now
+      }
+      const gallery = page.locator(shot.selector)
+      await gallery.waitFor({ state: 'visible', timeout: remaining() })
+      assert.equal(await gallery.count(), 1)
+      progress.stage = 'fonts'
+      await page.waitForFunction(() => document.fonts.status === 'loaded', undefined, { timeout: remaining() })
+      progress.stage = 'readiness'
+      let observed: ReturnType<typeof observeContextualTestFont>, previousClip: string | undefined
+      for (;;) {
+        observed = await gallery.evaluate(observeContextualTestFont, shot.state, { timeout: remaining() })
+        const checks: Array<[FontCheck, boolean]> = [
+          ['fonts', observed.ready], ...(['navigation', 'viewport', 'heading', 'content', 'placeholder'] as const).map(name => [name, observed.checks[name]] as [FontCheck, boolean]),
+          ['fits', observed.fits], ['positioned', observed.positioned], ['theme', observed.dark === (shot.theme === 'dark')],
+          ['editable', observed.editable === (shot.state === 'editing' || shot.state === 'empty' ? 'true' : 'false')],
+          ['preview', observed.preview === (shot.state === 'preview')],
+          ['text', shot.state === 'editing' ? observed.text === contextualTestFontEditingText : shot.state !== 'empty' || observed.text === ''],
+        ]
+        progress.failedChecks = checks.filter(([, passed]) => passed !== true).map(([name]) => name)
+        remaining()
+        const clip = JSON.stringify(observed.clip)
+        if (progress.failedChecks.length === 0 && (shot.state !== 'empty' || previousClip === clip)) break
+        // Filling an empty contenteditable may precede ProseMirror normalization
+        // and placeholder layout. Observe readiness; never repeat the fill/action
+        // or renew its deadline. Nonempty states keep their fail-fast contract.
+        if (shot.state !== 'empty') throw safeError()
+        previousClip = progress.failedChecks.length === 0 ? clip : undefined
+        await new Promise(resolve => setTimeout(resolve, Math.min(50, remaining())))
+      }
+      progress.stage = 'screenshot'
+      const bytes = await page.screenshot({ type: 'png', fullPage: false, clip: observed.clip, timeout: remaining() })
+      remaining()
       save(label, 'png', bytes, shot.fontReference); fontShots++
+      progress.stage = 'saved'
     },
   }
   stage('runtime-ready')
@@ -365,7 +368,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       && screenshots === 16 && fontShots === 32 && pageErrors === 0 && Date.now() < binding.deadline
     writeFileSync(join(binding.outputDir, 'playwright-receipt.json'), JSON.stringify({ version: 1, projectId: plan.projectId,
       sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256, outcome: complete ? 'passed' : 'failed',
-      contextsClosed: closed, ...boundaryReceipt, pageErrors, consoleErrors, artifacts, witnesses, login: loginProgress.snapshot(),
+      contextsClosed: closed, ...boundaryReceipt, pageErrors, consoleErrors, artifacts, witnesses, login: loginProgress.snapshot(), fontCapture,
       endedAt: Date.now(), deadline: binding.deadline }), { mode: 0o600, flag: 'wx' })
     if (!complete) throw safeError()
   } }

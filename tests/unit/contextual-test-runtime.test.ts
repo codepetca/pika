@@ -305,7 +305,8 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       await expect(s.runtime.captureFont(label, page)).rejects.toThrow()
       await page.goto(`${plan.appOrigin}/pattern-lab?role=teacher#history-preview`, { waitUntil: 'load' })
       const observation = { dark: false, ready: true, fits: true, positioned: true,
-        clip: { x: 16, y: 180, width: 358, height: 500 }, editable: 'false', text: 'Fixed preview', preview: true }
+        clip: { x: 16, y: 180, width: 358, height: 500 }, editable: 'false', text: 'Fixed preview', preview: true,
+        checks: { navigation: true, viewport: true, heading: true, content: true, placeholder: true } }
       const gallery = { waitFor: vi.fn(async () => {}), count: vi.fn(async () => 1), evaluate: vi.fn(async () => observation), screenshot }
       Object.assign(page, { screenshot, viewportSize: () => ({ width: 1440, height: 900 }), locator: (selector: string) => {
         expect(selector).toBe('#history-preview[data-testid="history-preview-gallery"]'); return gallery
@@ -320,6 +321,47 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     })
     await expect(s.close('passed')).rejects.toThrow()
     expect(s.receipt().artifacts).toEqual([expect.objectContaining({ label: 'font-ownerTeacher-desktop-light-preview', kind: 'png', fontReference: 'teacher-history-viewer' })])
+  })
+  it('waits for canonical empty font evidence and stable geometry without another fill or screenshot retry', async () => {
+    const s = await setup(), screenshot = vi.fn(async () => Buffer.from([137,80,78,71,13,10,26,10,0]))
+    await s.runtime.withActor('ownerTeacher', async page => {
+      await page.goto(`${plan.appOrigin}/pattern-lab?role=student#student-image-upload`, { waitUntil: 'load' })
+      const settled = { dark: false, ready: true, fits: true, positioned: true,
+        clip: { x: 16, y: 180, width: 358, height: 500 }, editable: 'true', text: '', preview: false,
+        checks: { navigation: true, viewport: true, heading: true, content: true, placeholder: true } }
+      const evaluate = vi.fn().mockResolvedValue(settled).mockResolvedValueOnce({ ...settled, positioned: false,
+        checks: { ...settled.checks, placeholder: false } })
+      const gallery = { waitFor: async () => {}, count: async () => 1, evaluate }
+      Object.assign(page, { screenshot, viewportSize: () => ({ width: 1440, height: 900 }), locator: () => gallery })
+      s.browser.contexts[0].page.waitForFunction.mockResolvedValue(undefined)
+      await s.runtime.captureFont('font-ownerTeacher-desktop-light-empty', page)
+      expect(evaluate).toHaveBeenCalledTimes(3)
+      expect(screenshot).toHaveBeenCalledOnce()
+    })
+    await expect(s.close('passed')).rejects.toThrow()
+    expect(s.receipt().fontCapture).toEqual({ label: 'font-ownerTeacher-desktop-light-empty', stage: 'saved', failedChecks: [] })
+  })
+  it('retains only fixed failed font predicates and does not renew the capture deadline', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const s = await setup(), screenshot = vi.fn()
+    await s.runtime.withActor('ownerTeacher', async page => {
+      await page.goto(`${plan.appOrigin}/pattern-lab?role=student#student-image-upload`, { waitUntil: 'load' })
+      const started = Date.now()
+      const gallery = { waitFor: async () => {}, count: async () => 1, evaluate: vi.fn(async () => {
+        vi.setSystemTime(started + plan.limits.operationMs)
+        return { dark: false, ready: true, fits: true, positioned: false,
+          clip: { x: 16, y: 180, width: 358, height: 500 }, editable: 'true', text: 'PRIVATE-SENTINEL', preview: false,
+          checks: { navigation: true, viewport: true, heading: true, content: false, placeholder: false } }
+      }) }
+      Object.assign(page, { screenshot, viewportSize: () => ({ width: 1440, height: 900 }), locator: () => gallery })
+      s.browser.contexts[0].page.waitForFunction.mockResolvedValue(undefined)
+      await expect(s.runtime.captureFont('font-ownerTeacher-desktop-light-empty', page)).rejects.toThrow()
+      expect(gallery.evaluate).toHaveBeenCalledOnce(); expect(screenshot).not.toHaveBeenCalled()
+    })
+    await expect(s.close('passed')).rejects.toThrow()
+    expect(s.receipt().fontCapture).toMatchObject({ label: 'font-ownerTeacher-desktop-light-empty', stage: 'readiness',
+      failedChecks: expect.arrayContaining(['content', 'placeholder', 'text', 'deadline']) })
+    expect(JSON.stringify(s.receipt().fontCapture)).not.toMatch(/PRIVATE-SENTINEL|clip|358|500/)
   })
   it.each([
     { height: 500, contentBottom: 300, blocked: false, passes: true },
@@ -343,9 +385,9 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
       const scrollTo = vi.fn((options: { top: number }) => { scrollY = options.top })
       vi.stubGlobal('window', { innerWidth: 390, innerHeight: 844, get scrollY() { return scrollY }, scrollTo })
       vi.stubGlobal('document', { fonts: { status: 'loaded' }, documentElement: { classList: { contains: () => false } }, querySelectorAll: () => [nav] })
-      vi.stubGlobal('getComputedStyle', () => ({ position: 'sticky', top: '8px', height: '164px' }))
+      vi.stubGlobal('getComputedStyle', () => ({ position: 'sticky', top: '8px', height: '164px', display: 'block', visibility: 'visible', opacity: '1', contentVisibility: 'visible' }))
       const gallery = { waitFor: async () => {}, count: async () => 1,
-        evaluate: async (callback: (value: unknown) => unknown) => callback(element), screenshot: vi.fn() }
+        evaluate: async (callback: (value: unknown, state: string) => unknown, state: string) => callback(element, state), screenshot: vi.fn() }
       Object.assign(page, { screenshot, viewportSize: () => ({ width: 390, height: 844 }), locator: () => gallery })
       s.browser.contexts[0].page.waitForFunction.mockResolvedValue(undefined)
       const capturing = s.runtime.captureFont('font-ownerTeacher-mobile-light-preview', page)
@@ -646,7 +688,8 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     const receipt = s.receipt()
     expect(receipt).toMatchObject({ version: 1, outcome: 'failed', contextsClosed: true, firstFailure: 'response-body', pending: 0 })
     expect(JSON.stringify(receipt)).not.toContain('DO-NOT-RECORD')
-    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','requestFailure','responseFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','appOverlaySha256','version','witnesses','login'].sort())
+    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','requestFailure','responseFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','appOverlaySha256','version','witnesses','login','fontCapture'].sort())
+    expect(receipt.fontCapture).toBeNull()
     expect(receipt.appOverlaySha256).toBe(plan.appOverlaySha256)
   })
   it('disposes the original API response when JSON verification fails and retains no response body', async () => {
