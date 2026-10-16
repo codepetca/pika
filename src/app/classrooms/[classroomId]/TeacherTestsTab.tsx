@@ -68,6 +68,7 @@ import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sor
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import { TestPublicationControl } from '@/components/test-workspace/TestPublicationControl'
 import { useTeacherTestList } from '@/hooks/useTeacherTestList'
 import {
   useTestWorkspaceNavigation,
@@ -2043,7 +2044,6 @@ export function TeacherTestsTab({
       latestUnpublishRequestIdRef.current === requestId &&
       currentClassroomIdRef.current === requestedClassroomId &&
       gradingSelectionRef.current.workspaceState === 'selected' &&
-      gradingSelectionRef.current.selectedWorkspaceTab === 'grading' &&
       gradingSelectionRef.current.selectedTestId === requestedTestId
     )
     setIsUnpublishing(true)
@@ -2086,7 +2086,7 @@ export function TeacherTestsTab({
       clearBatchSelection()
       setSelectedStudentId(null)
       setShowUnpublishConfirm(false)
-      setShowEditModal(false)
+      handleCloseTestEditor()
       setStatusActionError('')
       showMessage({ text: 'Test returned to draft', tone: 'success' })
     } catch (error) {
@@ -2249,6 +2249,7 @@ export function TeacherTestsTab({
   const canOfferUnpublish = selectedTestWorkspace?.status === 'closed'
   const isUnpublishUnavailable =
     isReadOnly ||
+    !!selectedTestWorkspace?.questions_locked_at ||
     isUnpublishing ||
     statusUpdating ||
     checkingPublication ||
@@ -2265,6 +2266,17 @@ export function TeacherTestsTab({
     sortedGradingStudents.some((student) => (
       student.status !== 'not_started' || getEffectiveStudentAccess(student) === 'open'
     ))
+
+  // Authoring intentionally clears the grading workspace. Its conservative
+  // preflight uses the list's irreversible first-attempt marker; the atomic
+  // unpublish operation still verifies every retained-work condition.
+  const isAuthoringUnpublishUnavailable =
+    isReadOnly || isUnpublishing || statusUpdating || checkingPublication ||
+    isCombinedTestActionsBusy || loading || !hasTestsSnapshot ||
+    selectedTestWorkspace?.status !== 'closed' ||
+    selectedTestWorkspace.questions_locked_at !== null ||
+    (selectedTestWorkspace.stats.responded ?? 0) > 0 ||
+    (selectedTestWorkspace.stats.open_access ?? 0) > 0
 
   const handleGradingTablePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -2716,13 +2728,6 @@ export function TeacherTestsTab({
       onSelect: () => openSelectedTestEditor('markdown'),
       disabled: isReadOnly,
     },
-    ...(canOfferUnpublish ? [{
-      id: 'return-test-to-draft',
-      label: 'Return to draft',
-      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => { setUnpublishError(''); setShowUnpublishConfirm(true) },
-      disabled: isUnpublishUnavailable,
-    }] : []),
     deleteTestAction,
   ] : []
 
@@ -2795,16 +2800,17 @@ export function TeacherTestsTab({
       data-testid="test-workspace-actionbar-center"
       className="flex min-w-0 flex-col items-center justify-center gap-2 sm:flex-row"
     >
-      {selectedTestWorkspace.status === 'draft' ? (
-        <Button
-          size="sm"
-          onClick={() => { void handleRequestSelectedTestPublish() }}
-          loading={checkingPublication || statusUpdating}
-          disabled={isReadOnly || hasPendingMarkdownImport || (selectedTestWorkspace.stats.questions_count || 0) < 1}
-        >
-          Publish
-        </Button>
-      ) : null}
+      <TestPublicationControl
+        test={selectedTestWorkspace}
+        classroomId={classroom.id}
+        apiBasePath={apiBasePath}
+        onPublish={handleRequestSelectedTestPublish}
+        onSaved={(saved) => applyTestSummaryPatch(saved.id, { test_date: saved.test_date })}
+        onUnpublish={canOfferUnpublish ? () => { setUnpublishError(''); setShowUnpublishConfirm(true) } : undefined}
+        canUnpublish={!isUnpublishUnavailable}
+        allowFutureDate={selectedTestWorkspace.status === 'draft' || !isUnpublishUnavailable}
+        disabled={isReadOnly || hasPendingMarkdownImport || checkingPublication || statusUpdating || isUnpublishing || isCombinedTestActionsBusy || (selectedTestWorkspace.status === 'draft' && (selectedTestWorkspace.stats.questions_count || 0) < 1)}
+      />
       <div role="toolbar" aria-label="Test grading actions" className="flex max-w-full items-center justify-center gap-2">
         <TeacherWorkSurfaceActionCluster className="gap-0 overflow-hidden p-0">
           <TeacherWorkSurfaceIconButton
@@ -3299,6 +3305,9 @@ export function TeacherTestsTab({
         onPendingMarkdownImportChange={setHasPendingMarkdownImport}
         onRequestPreview={handleOpenSavedTestPreview}
         onRequestPublish={handleRequestSelectedTestPublish}
+        onTestDateSaved={(saved) => applyTestSummaryPatch(saved.id, { test_date: saved.test_date })}
+        onRequestUnpublish={canOfferUnpublish ? () => { setUnpublishError(''); setShowUnpublishConfirm(true) } : undefined}
+        canUnpublish={!isAuthoringUnpublishUnavailable}
       />
 
       <ConfirmDialog

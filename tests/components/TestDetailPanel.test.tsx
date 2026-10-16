@@ -126,40 +126,15 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
-  it.each(['pointer', 'keyboard'])('clears a focused changed calendar date with %s without saving the edit first', async (activation) => {
-    const test = makeTestWithStats({ status: 'draft', test_date: '2026-11-01' })
-    const fetchMock = mockFetchForTest(sampleQuestions)
-    fetchMock.mockResolvedValueOnce(jsonResponse({ test: { ...test, test_date: null } }))
-    render(<TestDetailPanel test={test} classroomId={test.classroom_id} onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
-    const field = await screen.findByLabelText(/^Test date/)
-    await waitFor(() => expect(field).toBeEnabled())
-    field.focus()
-    fireEvent.change(field, { target: { value: '2026-11-08' } })
-    const clear = screen.getByRole('button', { name: 'Clear', exact: true })
-    if (activation === 'keyboard') {
-      fireEvent.blur(field, { relatedTarget: clear })
-      fireEvent.click(clear)
-    } else {
-      await userEvent.click(clear)
-    }
-    await waitFor(() => expect(field).toHaveValue(''))
-    const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')
-    expect(patches).toHaveLength(1)
-    expect(JSON.parse(patches[0][1].body)).toEqual({ test_date: null })
-  })
-
-  it('flushes a date cleared in the input when blur has no related focus target', async () => {
-    const test = makeTestWithStats({ status: 'draft', test_date: '2026-11-01' })
-    const fetchMock = mockFetchForTest(sampleQuestions)
-    fetchMock.mockResolvedValueOnce(jsonResponse({ test: { ...test, test_date: null } }))
-    render(<TestDetailPanel test={test} classroomId={test.classroom_id} onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
-    const field = await screen.findByLabelText(/^Test date/)
-    await waitFor(() => expect(field).toBeEnabled())
-    fireEvent.change(field, { target: { value: '' } })
-    fireEvent.blur(field, { relatedTarget: null })
-    await waitFor(() => expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1))
-    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
-    expect(JSON.parse(patch![1].body)).toEqual({ test_date: null })
+  it('replaces the standalone date field with the publication menu in the split editor', async () => {
+    const test = makeTestWithStats({ status: 'draft' })
+    mockFetchForTest(sampleQuestions)
+    render(<TestDetailPanel test={test} classroomId={test.classroom_id} onTestUpdate={vi.fn()} onRequestPublish={vi.fn()} testQuestionLayout="split" />, { wrapper: Wrapper })
+    await screen.findByRole('button', { name: 'Publish' })
+    expect(screen.queryByLabelText(/^Test date/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+    expect(screen.getByRole('menuitem', { name: 'Publish today' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Schedule test' })).toBeInTheDocument()
   })
 
   describe('actual split Question actions lifetime', () => {

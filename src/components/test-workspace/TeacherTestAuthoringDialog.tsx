@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { ClassroomBlueprintDraftSource } from '@/components/ClassroomBlueprintDraftSource'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import type {
   AssessmentEditorSummaryUpdate,
+  TestAssessment,
   TestAssessmentWithStats,
 } from '@/types'
 
@@ -27,6 +28,9 @@ interface TeacherTestAuthoringDialogProps {
   onPendingMarkdownImportChange: (pending: boolean) => void
   onRequestPreview: (preview: { testId: string; title: string }) => void
   onRequestPublish: () => Promise<boolean>
+  onTestDateSaved?: (test: TestAssessment) => void
+  onRequestUnpublish?: () => void
+  canUnpublish?: boolean
 }
 
 export function TeacherTestAuthoringDialog({
@@ -44,9 +48,20 @@ export function TeacherTestAuthoringDialog({
   onPendingMarkdownImportChange,
   onRequestPreview,
   onRequestPublish,
+  onTestDateSaved,
+  onRequestUnpublish,
+  canUnpublish,
 }: TeacherTestAuthoringDialogProps) {
   const [isClosing, setIsClosing] = useState(false)
   const [isPreparingPublish, setIsPreparingPublish] = useState(false)
+  const scopeKey = JSON.stringify([isOpen, test?.id, classroomId, apiBasePath])
+  const scopeRef = useRef({ key: scopeKey })
+  if (scopeRef.current.key !== scopeKey) scopeRef.current = { key: scopeKey }
+  useEffect(() => {
+    setIsPreparingPublish(false)
+    const owner = scopeRef.current
+    return () => { if (scopeRef.current === owner) scopeRef.current = { key: scopeKey } }
+  }, [scopeKey])
   const draftFlushRef = useRef<(() => Promise<boolean>) | null>(null)
   const draftPristineCheckRef = useRef<(
     () => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }
@@ -76,12 +91,22 @@ export function TeacherTestAuthoringDialog({
   }
 
   const handlePublish = async () => {
-    if (isClosing || isPreparingPublish) return
+    if (isClosing || isPreparingPublish) return false
     setIsPreparingPublish(true)
     const saved = await (draftFlushRef.current?.() ?? Promise.resolve(true))
-    if (saved && await onRequestPublish()) {
-      onClose()
-    }
+    const prepared = saved && await onRequestPublish()
+    if (prepared) onClose()
+    setIsPreparingPublish(false)
+    return prepared
+  }
+
+  const handleUnpublish = async () => {
+    if (isClosing || isPreparingPublish || !canUnpublish || !onRequestUnpublish) return
+    const owner = scopeRef.current
+    setIsPreparingPublish(true)
+    const saved = await (draftFlushRef.current?.() ?? Promise.resolve(true))
+    if (scopeRef.current !== owner) return
+    if (saved) onRequestUnpublish()
     setIsPreparingPublish(false)
   }
 
@@ -127,7 +152,10 @@ export function TeacherTestAuthoringDialog({
             testQuestionLayout="split"
             initialSplitView={initialView}
             onRequestClose={() => { void handleClose() }}
-            onRequestPublish={() => { void handlePublish() }}
+            onRequestPublish={handlePublish}
+            onTestDateSaved={onTestDateSaved}
+            onRequestUnpublish={onRequestUnpublish ? () => { void handleUnpublish() } : undefined}
+            canUnpublish={canUnpublish}
             publicationError={publicationError}
             isClosing={isClosing}
             isPreparingPublish={isPreparingPublish}

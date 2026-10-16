@@ -1,5 +1,7 @@
 # Test calendar date
 
+The 2026-10-15 [publication-date refinement](./test-publication-date.md) replaces the standalone field with Publish today / Schedule test and hides future closed Tests from the student Tests list while preserving Calendar visibility. The date remains independent of student access.
+
 Owner request, 2026-10-13: optionally set the date a Test will be written and show it in the classroom Calendar. Confirmed calendar reminder only; no submission deadline or automatic access change. Publication and per-student availability retain their existing behavior.
 
 Surface: Test authoring details and teacher/student Calendar Week, Month, Term, and day presentation. References: existing Test split authoring details, shared FormField/Input date controls, Calendar assignment/announcement links, and development Pattern Lab Calendar production owners. Roles: teacher and student. Matrix: 1440×900 and 390×844, light and dark. States: undated, dated, cleared, saving, failed save/retry, draft/published/closed, weekend, source failure/retry, classroom switch, navigation, keyboard focus, and date presentation. Primary signal: ordinary blue calendar item links with an explicit Test label. No new visual pattern, deadline enforcement, access gate, publish workflow, dependency, or calendar layout redesign. Composite review required for existing editor dialog focus and close/publish flush; date input keeps native semantics.

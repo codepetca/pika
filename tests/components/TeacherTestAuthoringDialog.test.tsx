@@ -24,6 +24,8 @@ vi.mock('@/components/TestDetailPanel', () => ({
     initialSplitView,
     onRequestClose,
     onRequestPublish,
+    onRequestUnpublish,
+    canUnpublish,
     publicationError,
     isClosing,
     test: assessment,
@@ -34,6 +36,8 @@ vi.mock('@/components/TestDetailPanel', () => ({
     initialSplitView?: string
     onRequestClose?: () => void
     onRequestPublish?: () => void
+    onRequestUnpublish?: () => void
+    canUnpublish?: boolean
     publicationError?: string
     isClosing?: boolean
     test: TestAssessmentWithStats
@@ -47,6 +51,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     return <div data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} data-editor-view={initialSplitView}>
       <button onClick={onRequestClose} disabled={isClosing}>{isClosing ? 'Saving...' : 'Close'}</button>
       {assessment.status === 'draft' && <button onClick={onRequestPublish}>Publish</button>}
+      {onRequestUnpublish && <button onClick={onRequestUnpublish} disabled={!canUnpublish}>Unpublish</button>}
       {publicationError && <div role="alert">{publicationError}</div>}
     </div>
   },
@@ -78,6 +83,8 @@ function renderDialog({
   initialView = 'edit',
   discardPristineOnClose = false,
   onDiscardPristine = vi.fn(async (_draftVersion: number, _testUpdatedAt: string) => true),
+  onRequestUnpublish,
+  canUnpublish,
 }: {
   hasPendingMarkdownImport?: boolean
   onRequestPreview?: (preview: { testId: string; title: string }) => void
@@ -87,6 +94,8 @@ function renderDialog({
   initialView?: 'edit' | 'markdown'
   discardPristineOnClose?: boolean
   onDiscardPristine?: (draftVersion: number, testUpdatedAt: string) => Promise<boolean>
+  onRequestUnpublish?: () => void
+  canUnpublish?: boolean
 } = {}) {
   render(
     <TooltipProvider>
@@ -105,6 +114,8 @@ function renderDialog({
         onPendingMarkdownImportChange={vi.fn()}
         onRequestPreview={onRequestPreview}
         onRequestPublish={onRequestPublish}
+        onRequestUnpublish={onRequestUnpublish}
+        canUnpublish={canUnpublish}
       />
     </TooltipProvider>,
   )
@@ -113,6 +124,41 @@ function renderDialog({
 }
 
 describe('TeacherTestAuthoringDialog', () => {
+  it('flushes the published editor before requesting a valid unpublish', async () => {
+    draftFlush.mockClear()
+    const onRequestUnpublish = vi.fn()
+    renderDialog({ testOverride: { ...test, status: 'closed' }, canUnpublish: true, onRequestUnpublish })
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }))
+    await waitFor(() => expect(onRequestUnpublish).toHaveBeenCalledOnce())
+    expect(draftFlush).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the editor open when saving before unpublish fails', async () => {
+    draftFlush.mockClear().mockResolvedValueOnce(false)
+    const onRequestUnpublish = vi.fn()
+    const onClose = vi.fn()
+    renderDialog({ testOverride: { ...test, status: 'closed' }, canUnpublish: true, onRequestUnpublish, onClose })
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }))
+    await waitFor(() => expect(draftFlush).toHaveBeenCalledOnce())
+    expect(onRequestUnpublish).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('ignores a late unpublish preparation after switching Tests', async () => {
+    let finish!: (saved: boolean) => void
+    draftFlush.mockReturnValueOnce(new Promise<boolean>(resolve => { finish = resolve }))
+    const onRequestUnpublish = vi.fn()
+    const props = { isOpen: true, test: { ...test, status: 'closed' as const }, classroomId: 'classroom-1',
+      apiBasePath: '/api/teacher/tests', hasPendingMarkdownImport: false, canUnpublish: true,
+      onClose: vi.fn(), onDraftSummaryChange: vi.fn(), onTestUpdate: vi.fn(), onPendingMarkdownImportChange: vi.fn(),
+      onRequestPreview: vi.fn(), onRequestPublish: vi.fn(async () => true), onRequestUnpublish }
+    const view = render(<TooltipProvider><TeacherTestAuthoringDialog {...props} /></TooltipProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Unpublish' }))
+    view.rerender(<TooltipProvider><TeacherTestAuthoringDialog {...props} test={{ ...props.test, id: 'other-test' }} /></TooltipProvider>)
+    await act(async () => { finish(true) })
+    expect(onRequestUnpublish).not.toHaveBeenCalled()
+  })
+
   it('shows private Blueprint provenance above the test editor', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,

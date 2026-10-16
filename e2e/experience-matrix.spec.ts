@@ -25,6 +25,7 @@ import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } fr
 import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
 import { verifyGradebookRetryFocus } from './helpers/gradebook-retry-focus'
 import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
+import { getTodayInToronto } from '../src/lib/timezone'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -1141,8 +1142,38 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(summaryStudentRow).toBeFocused()
   await expect(summary).toBeVisible()
   await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+  const verifyRowHover = async (reducedMotion = false) => {
+    await page.mouse.move(0, 0)
+    await summaryStudentRow.getByRole('cell').first().hover()
+    // Sample before the hover settles: sticky cells and the row must match on every frame.
+    const frames = await summaryStudentRow.evaluate(async (row) => {
+      const samples = []
+      for (let frame = 0; frame < 3; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const rowColor = getComputedStyle(row).backgroundColor
+        const stickyCells = Array.from(row.querySelectorAll('td.sticky'))
+        samples.push(stickyCells.length === 4 && stickyCells.every(
+          (cell) => getComputedStyle(cell).backgroundColor === rowColor,
+        ))
+      }
+      return samples
+    })
+    expect(frames).toEqual([true, true, true])
+    const hasFade = await summaryStudentRow.evaluate((row) => {
+      const style = getComputedStyle(row)
+      return style.transitionProperty.includes('background-color')
+        && style.transitionDuration.split(',').some((duration) => parseFloat(duration) > 0)
+    })
+    expect(hasFade).toBe(!reducedMotion)
+  }
+  await verifyRowHover()
   await page.keyboard.press('Escape')
   await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'false')
+  await verifyRowHover()
+  await page.screenshot({ path: testInfo.outputPath(`daily-attendance-${viewport}-hover.png`) })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await verifyRowHover(true)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
@@ -2628,6 +2659,8 @@ test('returns an unused published test to draft', async ({ page }, testInfo) => 
 
 test('shows publication language only at the publish transition', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
+  const today = getTodayInToronto()
+  let testDate: string | null = null
   await applyProjectTheme(page, testInfo)
 
   await page.route('**/api/teacher/tests**', async (route) => {
@@ -2684,6 +2717,10 @@ test('shows publication language only at the publish transition', async ({ page 
     }
 
     if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}`) {
+      if (route.request().method() === 'PATCH') {
+        expect(route.request().postDataJSON()).toEqual({ test_date: today })
+        testDate = today
+      }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -2695,6 +2732,7 @@ test('shows publication language only at the publish transition', async ({ page 
             description: null,
             instructions: null,
             status: 'draft',
+            test_date: testDate,
             show_results: false,
             position: 0,
             documents: [],
@@ -2768,9 +2806,11 @@ test('shows publication language only at the publish transition', async ({ page 
   await expect(authoringDialog.getByText('Ready to publish?', { exact: true })).toBeVisible()
   await expect(authoringDialog.getByText(/Failed to load assessment draft|Unhandled Test publication fixture route/)).toHaveCount(0)
   await authoringDialog.getByRole('button', { name: 'Publish' }).click()
+  await page.getByRole('menuitem', { name: 'Publish today', exact: true }).click()
 
   const publishDialog = page.getByRole('dialog', { name: 'Publish test?' })
   await expect(publishDialog).toBeVisible()
+  expect(testDate).toBe(today)
   await expect(publishDialog).toContainText('Test will remain locked to students.')
   await expect(publishDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
   await verifyProjectContract(page, testInfo)

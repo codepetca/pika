@@ -43,6 +43,16 @@ export function useTestCalendarDate({
     // Refreshes of the same Test must not replace an unsaved failed date.
   }, [scope])
 
+  useLayoutEffect(() => {
+    const next = test.test_date ?? ''
+    const owner = ownerRef.current
+    if (pendingRef.current || owner.value !== owner.saved || !owner.valid) return
+    owner.saved = next
+    owner.value = next
+    setValue(next)
+    setSavedValue(next)
+  }, [test.test_date])
+
   const edit = useCallback((next: string, complete = true) => {
     ownerRef.current.value = next
     ownerRef.current.valid = complete
@@ -106,5 +116,5 @@ export function useTestCalendarDate({
     }
     return pendingRef.current ?? save(ownerRef.current.value)
   }, [save])
-  return { value, error, saving, dirty: !valid || value !== savedValue, edit, save, flush }
+  return { value, savedValue, error, saving, dirty: !valid || value !== savedValue, edit, save, flush }
 }

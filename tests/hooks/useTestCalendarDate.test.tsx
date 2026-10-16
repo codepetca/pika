@@ -99,4 +99,15 @@ describe('Test calendar date saves', () => {
     await waitFor(() => expect(result.current.value).toBe('2026-12-01'))
     expect(options.onSaved).not.toHaveBeenCalled()
   })
+
+  it('accepts an authoritative date changed by the other publication control', () => {
+    const { result, rerender } = renderHook(props => useTestCalendarDate(props), { initialProps: options })
+    rerender({ ...options, test: { ...test, test_date: '2026-11-08' } })
+    expect(result.current.savedValue).toBe('2026-11-08')
+    expect(result.current.value).toBe('2026-11-08')
+    expect(fetch).not.toHaveBeenCalled()
+    act(() => result.current.edit('2026-11-09'))
+    rerender({ ...options, test: { ...test, test_date: '2026-11-10' } })
+    expect(result.current.value).toBe('2026-11-09')
+  })
 })

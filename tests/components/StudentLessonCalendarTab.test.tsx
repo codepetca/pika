@@ -470,14 +470,14 @@ describe('StudentLessonCalendarTab', () => {
       expect(calendar).toHaveAttribute('data-announcement-ids', 'classroom-2-announcement')
     })
   })
-  it('loads test reminders only when Tests is enabled and reports a retryable source failure', async () => {
+  it('retains future closed Test reminders on Calendar and reports a retryable source failure', async () => {
     let testReads = 0
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/tests?')) {
         testReads += 1
         return testReads === 1
           ? { ok: false, json: async () => ({ error: 'Unavailable' }) }
-          : { ok: true, json: async () => ({ tests: [{ id: 'dated-test', title: 'Dated', test_date: '2025-03-01' }] }) }
+          : { ok: true, json: async () => ({ tests: [{ id: 'dated-test', title: 'Dated', test_date: '9999-03-01', status: 'closed', student_status: 'not_started' }] }) }
       }
       return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
     })
