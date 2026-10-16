@@ -47582,3 +47582,37 @@ failed cf7 result stays failed/SPENT despite separately successful recovery.
 Independent targeted review49 next, original clock/review49/fix36 carry without
 reset under standing workflow waiver. PR1581 stays draft/full gate failed; no
 browser rerun, app/auth, production/shared-local/provider/account/cutover change.
+
+<!-- pika-session-log-archive-batch:7f0a50290bb0869ed102fa44f714caf56ad08382cb94387c973cf9a193a48c2c -->
+## 2026-10-13 Source36 native preflight blocked by Chrome update
+
+Human Go authorized one exact reviewed fresh isolated check. Startup08792b440
+clean/envPASS; storage322.002GB healthy,82%weekly remaining accountwide. Exact
+source36 package/inverse/compiler/import/compiled pins and review49 match; CLI
+closure verifies. Initial opaque preflight rejection was narrowed with staged
+read-only checks to Chrome pin, before process/port readiness or admission.
+Installed155.0.8059.79 SHAfbeec33e... differs from reviewed155.0.8059.40/428dccc1...;
+GoogleEQHXZ8M8AV and deep/strict signature verify. Signature is not compatibility
+acceptance. Private dated preflight receipt retained; acceptance/runtime absent,
+native dispatch0 and attempt unconsumed. No source repin, browser launch/restart,
+signal, migration, production, provider or cutover change. Original review49/
+fix36 counters and serious holds carry. Recommend separately approve review and
+pin of installed Chrome before any fresh check; do not weaken the hash gate.
+
+<!-- pika-session-log-archive-batch:c638e2796d9f2ad95023c213acbb500e47e4353d6d0850028afdaf8c973d1152 -->
+## 2026-10-13 Approved Chrome repin verified before isolated run
+
+Human approved review/pinning installed Chrome then ONE isolated check. Fresh
+private814e977d2893 source37 changes only driver SHA428d...→fbeec33e... for signed
+Google155.0.8059.79, plus nonce/induced pins. Source36 and all SPENT evidence remain
+immutable. Root read actual source/checker delta and independently replayed31
+guard/14direct/15serialized36observability/21package19privacy checks; exact37→36
+and retained historical inverses/compiler/import closure PASS. Five transpiles
+zero diagnostics, not semantic graph TypeScript/native compatibility proof.
+Firstfreeze02:56:39UTC, entryeb77326c..., metadata01950896..., handoff8cc804e4...
+and receiptfe2436c5... hash/mode0600 verified. Original bounds, ownership/cleanup,
+body/task/deadline and diagnostics unchanged; packaging's two induced expected
+pin literals updated with its21 assertions intact. Independent targeted review50
+next under same original clock/fix37/waiver; no counter reset. Acceptance/runtime
+absent. After clean review and fresh readiness root may run exactly ONE check;
+no automatic retry or production/shared-local/provider/account/cutover release.

@@ -79,6 +79,67 @@ describe('contextual Test browser boundary', () => {
     b.requestStarted(c, late); expect(() => b.canNavigate(c, navigation)).toThrow()
     b.requestFinished(c, navigation); b.requestFinished(c, late)
     await expect(b.settle(c)).rejects.toThrow()
+    expect(b.receipt().endpointFailure).toEqual({ reason: 'navigation-pending', transports: 1, bodies: 0 })
+  })
+  it('invokes departure in the same continuation as its final drain, not after a resolved-promise gap', async () => {
+    const b = boundary(), c = {}, late = {}, navigation = {}, events: string[] = []
+    queueMicrotask(() => { b.requestStarted(c, late); events.push('late'); b.requestFinished(c, late) })
+    await b.depart(c, 2000, async () => {
+      events.push('dispatch'); b.requestStarted(c, navigation); b.canNavigate(c, navigation); b.requestFinished(c, navigation)
+    })
+    expect(events).toEqual(['dispatch', 'late']); expect(b.receipt().firstFailure).toBeNull()
+  })
+  it('still rejects a late native request between command dispatch and navigation interception', async () => {
+    const b = boundary(), c = {}, late = {}, navigation = {}
+    await expect(b.depart(c, 2000, async () => {
+      // The command has been sent, but Chromium has not yet emitted navigation.
+      await Promise.resolve(); b.requestStarted(c, late); b.requestStarted(c, navigation)
+      try { b.canNavigate(c, navigation) }
+      finally { b.requestFinished(c, navigation); b.requestFinished(c, late) }
+    })).rejects.toThrow()
+    expect(b.receipt().endpointFailure?.reason).toBe('navigation-pending')
+  })
+  it('drains the original pre-header transport and original body once before departure', async () => {
+    const b = boundary(), c = {}, request = { method: () => 'GET', postDataJSON: () => undefined }, body = deferred<Buffer>(), dispatch = vi.fn(async () => {})
+    b.requestStarted(c, request)
+    const departing = b.depart(c, 2000, dispatch)
+    const r = response(() => body.promise)
+    const original = b.observe(c, r, request); b.requestFinished(c, request)
+    await Promise.resolve(); expect(dispatch).not.toHaveBeenCalled()
+    body.resolve(Buffer.from('{}')); await original; await departing
+    expect(r.body).toHaveBeenCalledOnce(); expect(dispatch).toHaveBeenCalledOnce(); expect(b.pending(c)).toBe(0)
+  })
+  it.each(['body', 'deadline'] as const)('does not dispatch after a %s failure while draining', async failure => {
+    let now = 1000
+    const b = boundary(() => now), c = {}, request = { method: () => 'GET', postDataJSON: () => undefined }, body = deferred<Buffer>(), dispatch = vi.fn(async () => {})
+    b.requestStarted(c, request)
+    const departing = b.depart(c, 2000, dispatch), rejected = expect(departing).rejects.toThrow()
+    b.observe(c, response(() => body.promise), request); b.requestFinished(c, request)
+    if (failure === 'deadline') { now = 2000; body.resolve(Buffer.from('{}')) }
+    else body.reject(Error('PRIVATE-BODY'))
+    await rejected; expect(dispatch).not.toHaveBeenCalled()
+  })
+  it('identifies prohibited endpoints without retaining their values or overwriting the first branch', () => {
+    const b = boundary()
+    expect(() => b.admit(plan.appOrigin + '/api/billing/PRIVATE?secret=PRIVATE', 'POST')).toThrow()
+    expect(() => b.endpoint('route-continue')).toThrow()
+    expect(b.receipt().endpointFailure).toEqual({ reason: 'prohibited-api', transports: 0, bodies: 0 })
+    expect(JSON.stringify(b.receipt())).not.toContain('PRIVATE')
+    const copy = b.receipt().endpointFailure!; copy.reason = 'route-inspection'
+    expect(b.receipt().endpointFailure?.reason).toBe('prohibited-api')
+    const unknown = boundary()
+    expect(() => unknown.endpoint('PRIVATE' as never)).toThrow()
+    expect(unknown.receipt().endpointFailure?.reason).toBe('unspecified')
+    expect(JSON.stringify(unknown.receipt())).not.toContain('PRIVATE')
+  })
+  it('identifies an original body blocker even after its transport has completed', async () => {
+    const b = boundary(), c = {}, navigation = {}, body = deferred<Buffer>()
+    const original = b.observe(c, response(() => body.promise))
+    b.requestStarted(c, navigation)
+    expect(() => b.canNavigate(c, navigation)).toThrow()
+    expect(b.receipt().endpointFailure).toEqual({ reason: 'navigation-pending', transports: 0, bodies: 1 })
+    body.resolve(Buffer.from('{}')); b.requestFinished(c, navigation); await original
+    expect(b.pending(c)).toBe(0); expect(() => b.check()).toThrow()
   })
   it('enforces the departure operation end even when a transport task finishes at that end', async () => {
     let now = 1000; const b = boundary(() => now), c = {}, request = {}

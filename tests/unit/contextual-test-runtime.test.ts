@@ -220,6 +220,55 @@ async function setup(browser = new FakeBrowser(), leaseMs = 120000, stage?: Para
 }
 
 describe('actual contextual Test runtime with CPU browser doubles', () => {
+  it.each(['navigate', 'reload'] as const)('does not insert a host microtask gap before %s command dispatch', async mode => {
+    const s = await setup(), events: string[] = []
+    await s.runtime.withActor('ownerTeacher', async page => {
+      const c = s.browser.contexts[0]
+      const command = async () => {
+        events.push('command')
+        // Unlike the default inert doubles, this emits request, route and finish.
+        if (!await c.navigate(c.page)) throw Error('CPU rejected navigation')
+      }
+      c.page.goto.mockImplementation(command); c.page.reload.mockImplementation(command)
+      queueMicrotask(() => {
+        events.push('late-host-event')
+        const request = new FakeRequest(plan.appOrigin + '/api/auth/me')
+        c.emit('request', request)
+        c.emit('response', new FakeResponse(c.page, request))
+        c.emit('requestfinished', request)
+      })
+      if (mode === 'reload') await s.runtime.reload(page)
+      else await s.runtime.navigate(page, plan.appOrigin + '/pattern-lab')
+      expect(events).toEqual(['command', 'late-host-event'])
+      // This asserts host dispatch ordering, NOT atomic native navigation.
+    })
+  })
+  it.each(['route-inspection', 'route-continue'] as const)('retains the actual %s rejection branch without private error data', async phase => {
+    const s = await setup()
+    await expect(s.runtime.withActor('ownerTeacher', async () => {
+      const c = s.browser.contexts[0], request = new FakeRequest(plan.appOrigin + '/allowed')
+      c.emit('request', request)
+      if (phase === 'route-inspection') request.url = () => { throw Error('PRIVATE-URL') }
+      await c.route.mock.calls[0][1]!({ request: () => request,
+        continue: async () => { throw Error('PRIVATE-CONTINUATION') }, abort: async () => {} })
+      c.emit('requestfailed', request)
+    })).rejects.toThrow()
+    await expect(s.close('failed')).rejects.toThrow()
+    expect(s.receipt().endpointFailure).toEqual({ reason: phase, transports: 0, bodies: 0 })
+    expect(JSON.stringify(s.receipt())).not.toMatch(/PRIVATE-URL|PRIVATE-CONTINUATION/)
+  })
+  it('identifies premature login navigation without releasing it', async () => {
+    const browser = new FakeBrowser()
+    browser.configure = c => { c.page.loginBody = async () => {
+      expect(await c.navigate(c.page)).toBe(false)
+      return Buffer.from('{"success":true}')
+    } }
+    const s = await setup(browser), callback = vi.fn()
+    await expect(s.runtime.withActor('ownerTeacher', callback)).rejects.toThrow()
+    await expect(s.close('failed')).rejects.toThrow()
+    expect(callback).not.toHaveBeenCalled()
+    expect(s.receipt().endpointFailure?.reason).toBe('navigation-before-login')
+  })
   it('keeps an explicit reload after draining rather than substituting same-document navigation', async () => {
     const s = await setup()
     await s.runtime.withActor('ownerTeacher', async page => {
@@ -688,7 +737,7 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     const receipt = s.receipt()
     expect(receipt).toMatchObject({ version: 1, outcome: 'failed', contextsClosed: true, firstFailure: 'response-body', pending: 0 })
     expect(JSON.stringify(receipt)).not.toContain('DO-NOT-RECORD')
-    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','requestFailure','responseFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','appOverlaySha256','version','witnesses','login','fontCapture'].sort())
+    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','requestFailure','responseFailure','endpointFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','appOverlaySha256','version','witnesses','login','fontCapture'].sort())
     expect(receipt.fontCapture).toBeNull()
     expect(receipt.appOverlaySha256).toBe(plan.appOverlaySha256)
   })

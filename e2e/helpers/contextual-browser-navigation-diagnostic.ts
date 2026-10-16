@@ -91,13 +91,11 @@ export async function runNavigationLifecycleDiagnostic(browser: Browser, end: nu
     stage = 'pre-header'
     await within(page.evaluate(() => { void fetch('/data').then(response => response.json()).catch(() => {}) }))
     await within(received); assert(data && boundary.pending(context) > 0)
-    departure = (async () => {
-      await boundary!.settle(context!, end)
-      assert(verified); await verified; boundary!.check(); assert(bodyVerified)
+    departure = boundary.depart(context, end, async timeout => {
+      assert(verified && bodyVerified); boundary!.check()
       departureStarted = true
-      await page.goto(origin + '/destination', { waitUntil: 'load', timeout: remaining() })
-      await boundary!.settle(context!, end)
-    })()
+      await page.goto(origin + '/destination', { waitUntil: 'load', timeout })
+    })
     void departure.catch(() => {})
     // A browser roundtrip provides an event barrier, not an arbitrary delay or
     // network-idle heuristic. The server still holds the first response header.

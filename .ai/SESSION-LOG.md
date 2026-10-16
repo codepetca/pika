@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-13 Source36 native preflight blocked by Chrome update
-
-Human Go authorized one exact reviewed fresh isolated check. Startup08792b440
-clean/envPASS; storage322.002GB healthy,82%weekly remaining accountwide. Exact
-source36 package/inverse/compiler/import/compiled pins and review49 match; CLI
-closure verifies. Initial opaque preflight rejection was narrowed with staged
-read-only checks to Chrome pin, before process/port readiness or admission.
-Installed155.0.8059.79 SHAfbeec33e... differs from reviewed155.0.8059.40/428dccc1...;
-GoogleEQHXZ8M8AV and deep/strict signature verify. Signature is not compatibility
-acceptance. Private dated preflight receipt retained; acceptance/runtime absent,
-native dispatch0 and attempt unconsumed. No source repin, browser launch/restart,
-signal, migration, production, provider or cutover change. Original review49/
-fix36 counters and serious holds carry. Recommend separately approve review and
-pin of installed Chrome before any fresh check; do not weaken the hash gate.
-
-## 2026-10-13 Approved Chrome repin verified before isolated run
-
-Human approved review/pinning installed Chrome then ONE isolated check. Fresh
-private814e977d2893 source37 changes only driver SHA428d...→fbeec33e... for signed
-Google155.0.8059.79, plus nonce/induced pins. Source36 and all SPENT evidence remain
-immutable. Root read actual source/checker delta and independently replayed31
-guard/14direct/15serialized36observability/21package19privacy checks; exact37→36
-and retained historical inverses/compiler/import closure PASS. Five transpiles
-zero diagnostics, not semantic graph TypeScript/native compatibility proof.
-Firstfreeze02:56:39UTC, entryeb77326c..., metadata01950896..., handoff8cc804e4...
-and receiptfe2436c5... hash/mode0600 verified. Original bounds, ownership/cleanup,
-body/task/deadline and diagnostics unchanged; packaging's two induced expected
-pin literals updated with its21 assertions intact. Independent targeted review50
-next under same original clock/fix37/waiver; no counter reset. Acceptance/runtime
-absent. After clean review and fresh readiness root may run exactly ONE check;
-no automatic retry or production/shared-local/provider/account/cutover release.
-
 ## 2026-10-13 Source37 isolated check identifies metadata guard failure
 
 Targeted review50 completed source37/Chrome-pin and two-document scope PASS0,
@@ -965,3 +933,47 @@ orlimit. 100targetedPASS,tsc/lint/auditPASS; finalgate/targetedreview109 next.
 Counters108reviews/65fixcommitscarry underwaiver. No furthernativeattempt; remaining
 12font+16workflowscreenshots absent. ProductSCSS staysuncommitted; allproduction,
 sharedlocal249+, providerSurvey/planning, oldsocket81 androllout holds unchanged.
+
+## 2026-10-16 — Fresh matrix-reset rehearsal stopped safely at network boundary
+
+Human approved ONE fresh bounded run of reviewed39e36ae8. Review110 CLEAN0 for
+constant-only private wrapper identifiers; review109/focused3560PASS reused.
+Fresh storage331.89GB healthy; source, frozen app21e755d3, migrations001–262,
+binary/signature pins and ports passed readiness. jfeIB9/71997 FAILED/SPENT:
+teacher login completed identity validation; 31 app requests, zero storage,
+zero screenshots. First failure endpoint, request/response diagnostics null,
+pending1. This overloaded label cannot identify which guard fired or prove the
+new reload was reached; a late-request/departure race remains an inference.
+Recommend fixed rejection-branch/phase labels and source-level race tests before
+another separately admitted run. No retry, boundary weakening or product edit.
+
+All native cleanup gates PASS; ownedSettledtrue, executionFailures empty,
+activeProbes/unsettledFamilies0, identityMismatchnull. Independent52786 CLOSED0
+before writes/tests:7649source files and49485dependencies602160554bytes unchanged,
+current process candidates0. Exact isolated containers/volumes/network/tempapp
+absent, four ports clear. Freeze released; evidence retained in private jfeIB9.
+No canonical database equality attestation or app acceptance. PR1581 stays draft;
+review110/fix66 counters and waiver carry; all production/sharedlocal/provider/
+oldsocket/rollout holds unchanged. Only continuity notes updated after the run.
+
+## 2026-10-16 — Reproduce and remove host-side navigation scheduling gap
+
+Human requests pinpointing rejection, a small reproduction, coordination fix and
+review before any full rehearsal. Read-only Astra/high diagnosis confirms an
+await gap after an empty settle; rejects wrapper-identity and stale-Set theories.
+Actual runtime CPU regressions for navigate/reload fail with old sequence and
+pass when the boundary invokes departure synchronously at its final drain check.
+Original transport/body ownership, post-action drain and deadlines remain. Native
+requests racing after command dispatch STILL reject; no atomic Chromium claim.
+149 focused checks PASS, including delayed original bodies, body/deadline failure,
+late native overlap and fixed diagnostic privacy. Existing three-request browser
+diagnostic now exercises this shared departure method; no new request/time caps.
+
+Fixed endpoint reasons distinguish policy, pending transport/body, premature login,
+inspection, continuation and WebSocket branches without URLs/errors. Historical
+jfeIB9 cannot be retroactively attributed; no claim of a fully resolved native
+fault. Separate source finding: pinned Chromium auto-follows redirects without
+calling the route handler. That pre-existing allowlist coverage gap is recorded
+for review before any full rehearsal; this slice does not widen redirect access.
+No native run yet. Final gates and targeted independent review next; original
+review110/fix66 counters carry. Production/sharedlocal/provider/rollout holds stay.

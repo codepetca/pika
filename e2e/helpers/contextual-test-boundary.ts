@@ -9,7 +9,11 @@ type Failure = 'deadline' | 'failed' | 'origin' | 'endpoint' | 'request-cap' | '
   | 'response-json' | 'response-acknowledgement' | 'response-original-incompatible' | 'context-close'
 type OriginalResponse = { url(): string; status(): number; headers(): Record<string, string>; body(): Promise<Buffer> }
 type Reservation = { testId: string; bytes: number; url: string | null; readPath: string | null; managedId: string | null; uploaded: boolean }
-type Task = { promise: Promise<unknown>; end: number }
+type Task = { promise: Promise<unknown>; end: number; kind: 'transport' | 'body' }
+const endpointReasons = ['prohibited-api', 'navigation-pending', 'navigation-before-login',
+  'route-inspection', 'route-continue', 'websocket', 'unspecified'] as const
+type EndpointReason = typeof endpointReasons[number]
+type EndpointFailure = { reason: EndpointReason; transports: number; bodies: number }
 type RequestFailure = {
   reason: 'malformed-url' | 'credentials' | 'protocol' | 'origin';
   target: 'app' | 'storage' | 'google-font-stylesheet' | 'google-font-file' | 'other';
@@ -37,6 +41,7 @@ export class ContextualTestBoundary {
   private failed: Failure | null = null
   private requestFailure: RequestFailure | null = null
   private responseFailure: ResponseFailure | null = null
+  private endpointFailure: EndpointFailure | null = null
   private readonly tasks = new Map<object, Set<Task>>()
   private readonly responses = new WeakMap<object, Promise<unknown>>()
   private readonly requests = new WeakMap<object, { context: object; task: Task; finish: () => void }>()
@@ -52,19 +57,30 @@ export class ContextualTestBoundary {
     this.failed ??= failure
     throw new Error('Private Test rehearsal boundary')
   }
-  violate(failure: 'origin' | 'endpoint' | 'context-close'): never { return this.reject(failure) }
+  violate(failure: 'origin' | 'endpoint' | 'context-close'): never {
+    return failure === 'endpoint' ? this.endpoint('unspecified') : this.reject(failure)
+  }
+  /** Only fixed call-site labels and bounded counts; no URL, payload or error. */
+  endpoint(reason: EndpointReason, pending: readonly Task[] = []): never {
+    if (!this.failed) this.endpointFailure = {
+      reason: endpointReasons.includes(reason) ? reason : 'unspecified',
+      transports: Math.min(971, pending.filter(task => task.kind === 'transport').length),
+      bodies: Math.min(971, pending.filter(task => task.kind === 'body').length),
+    }
+    return this.reject('endpoint')
+  }
   check() {
     if (this.now() >= this.deadline || [...this.tasks.values()].some(set => [...set].some(task => this.now() >= task.end))) this.reject('deadline')
     if (this.failed) this.reject('failed')
   }
-  receipt() { return { counts: { ...this.counts }, firstFailure: this.failed, requestFailure: this.requestFailure ? { ...this.requestFailure } : null, responseFailure: this.responseFailure ? { ...this.responseFailure } : null, pending: [...this.tasks.values()].reduce((n, set) => n + set.size, 0) } }
+  receipt() { return { counts: { ...this.counts }, firstFailure: this.failed, requestFailure: this.requestFailure ? { ...this.requestFailure } : null, responseFailure: this.responseFailure ? { ...this.responseFailure } : null, endpointFailure: this.endpointFailure ? { ...this.endpointFailure } : null, pending: [...this.tasks.values()].reduce((n, set) => n + set.size, 0) } }
   pending(context: object) { return this.tasks.get(context)?.size ?? 0 }
   requestStarted(context: object, request: object) {
     if (this.requests.has(request)) return
     const end = Math.min(this.deadline, this.now() + this.plan.limits.operationMs)
     let finish!: () => void
     const promise = new Promise<void>(resolve => { finish = resolve })
-    const task = { end, promise }
+    const task: Task = { end, promise, kind: 'transport' }
     const set = this.tasks.get(context) ?? new Set<Task>(); this.tasks.set(context, set); set.add(task)
     this.requests.set(request, { context, task, finish })
   }
@@ -81,7 +97,8 @@ export class ContextualTestBoundary {
   }
   canNavigate(context: object, navigationRequest: object) {
     const navigation = this.requests.get(navigationRequest)?.task
-    if ([...(this.tasks.get(context) ?? [])].some(task => task !== navigation)) this.reject('endpoint')
+    const pending = [...(this.tasks.get(context) ?? [])].filter(task => task !== navigation)
+    if (pending.length) this.endpoint('navigation-pending', pending)
     this.check()
   }
   private rejectOrigin(reason: RequestFailure['reason'], u: URL | null, method: string, resource: string): never {
@@ -109,7 +126,7 @@ export class ContextualTestBoundary {
     }
     if (app && (/\/api\/(?:cron|billing|workos)|\/ai-grade|\/ai-grading|\/api\/auth\/(?:signup|forgot-password|reset-password|workos)/.test(u.pathname)
       || (/^\/api\//.test(u.pathname) && !['GET', 'HEAD'].includes(method)
-        && !(method === 'POST' && u.pathname === '/api/auth/login') && !/^\/api\/(?:teacher|student)\/tests(?:\/|$)/.test(u.pathname)))) this.reject('endpoint')
+        && !(method === 'POST' && u.pathname === '/api/auth/login') && !/^\/api\/(?:teacher|student)\/tests(?:\/|$)/.test(u.pathname)))) this.endpoint('prohibited-api')
     const key = app ? 'appRequests' : 'storageRequests'
     if (this.counts[key] >= (app ? 950 : 20)) this.reject('request-cap')
     this.counts[key]++
@@ -169,7 +186,7 @@ export class ContextualTestBoundary {
       return value
     })()
     const set = this.tasks.get(context) ?? new Set<Task>(); this.tasks.set(context, set)
-    const task: Task = { end, promise: Promise.resolve() }
+    const task: Task = { end, promise: Promise.resolve(), kind: 'body' }
     const timer = setTimeout(() => { this.failed ??= 'deadline' }, Math.max(0, end - this.now())); timer.unref?.()
     const guarded = original.catch(error => {
       this.failed ??= phase
@@ -218,7 +235,7 @@ export class ContextualTestBoundary {
       }
     }
   }
-  async settle(context: object, operationEnd = this.deadline) {
+  private async drain<T>(context: object, operationEnd: number, next: () => T | Promise<T>): Promise<T> {
     while (this.pending(context)) {
       const tasks = [...this.tasks.get(context)!], end = Math.min(this.deadline, operationEnd, ...tasks.map(task => task.end))
       const remaining = end - this.now()
@@ -230,6 +247,18 @@ export class ContextualTestBoundary {
     }
     if (this.now() >= operationEnd) this.reject('deadline')
     this.check()
+    // Invoke in this continuation: returning a resolved settle() promise and
+    // awaiting it at the caller adds a host scheduling gap before dispatch.
+    return next()
+  }
+  settle(context: object, operationEnd = this.deadline) {
+    return this.drain(context, operationEnd, () => undefined)
+  }
+  async depart(context: object, operationEnd: number, action: (remainingMs: number) => Promise<unknown>) {
+    await this.drain(context, operationEnd, () => action(operationEnd - this.now()))
+    await this.settle(context, operationEnd)
+    // This removes only the host-side gap. canNavigate still rejects requests
+    // that race the native command before interception; never wait in its route.
   }
   async beforeContextClose(context: object, close: () => Promise<void>) {
     let failed = false

@@ -103,10 +103,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const fixedTimeout = () => { boundary.check(); return Math.min(plan.limits.operationMs, binding.deadline - Date.now()) }
   const depart = async (page: Page, action: (timeout: number) => Promise<unknown>) => {
     const context = requireOwned(page), end = Math.min(binding.deadline, Date.now() + plan.limits.operationMs)
-    await boundary.settle(context, end)
-    boundary.check(); assert(Date.now() < end, 'Private navigation deadline')
-    await action(end - Date.now())
-    await boundary.settle(context, end)
+    await boundary.depart(context, end, action)
   }
   const requestBody = (request: Request) => {
     if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method())) return undefined
@@ -148,24 +145,26 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
           })
           await context.route('**/*', async route => {
             if (state.closing) { await route.abort('aborted').catch(() => {}); return }
+            let phase: 'route-inspection' | 'route-continue' = 'route-inspection'
             try {
               const request = route.request(); boundary.admit(request.url(), request.method(), requestBody(request), request.resourceType())
               if (loginSubmitted && !loginVerified && request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
                 // The fetch gate prevents navigation from starting before the
                 // original bytes are verified. Any premature navigation fails
                 // closed immediately instead of pausing the browser protocol.
-                boundary.violate('endpoint')
+                boundary.endpoint('navigation-before-login')
               }
               // Fail closed if a request began between the departure drain and
               // dispatch. Never pause a navigation route waiting for its loader.
               if (request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) boundary.canNavigate(context, request)
+              phase = 'route-continue'
               await route.continue()
             }
-            catch { try { boundary.violate('endpoint') } catch { /* retain fixed first failure */ }
+            catch { try { boundary.endpoint(phase) } catch { /* retain fixed first failure */ }
               await route.abort('blockedbyclient').catch(() => {}) }
           })
           await context.routeWebSocket('**/*', socket => {
-            try { const u = new URL(socket.url()); if (u.origin !== 'ws://localhost:3117' || u.pathname !== '/_next/webpack-hmr') boundary.violate('endpoint') }
+            try { const u = new URL(socket.url()); if (u.origin !== 'ws://localhost:3117' || u.pathname !== '/_next/webpack-hmr') boundary.endpoint('websocket') }
             catch { /* boundary retains the fixed failure, not the socket URL */ }
             finally { socket.close({ code: 1008, reason: 'Private rehearsal blocks WebSockets' }) }
           })
