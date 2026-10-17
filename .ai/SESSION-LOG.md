@@ -11,43 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Full-app startup privacy-safe reporting
-
-Added thin fixed-schema startup reporter and exclusive private milestones for
-collection/fixture/runtime import/entry/binding/plan/boundary/output/workflow/
-teardown. Original errors are classified before public sanitization, never copied
-as raw messages/stacks/URLs/DOM/output. Fixed Node module/assertion codes improve
-diagnosis without arbitrary values. Default E2E skips before binding or fixtures.
-Controller retains validated immutable diagnostics only after proven settlement;
-reporter success, absent output or malformed data cannot replace existing workflow
-gates or mask its original failure. A reporting fault cannot prevent owned close.
-69 focused CPU checks and repository TypeScript pass; tests include privacy,
-actual Playwright CommonJS imports, failure injection and controller containment.
-Independent review/full gate pending. No new native/browser/app/DB execution,
-spent replay, production/shared-local/provider/account/billing or activation work.
-The known optional Next version lookup is unchanged; prior app cause still unknown.
-Original protocol/review63/fix/attempt histories and all holds carry forward.
-
-Review64 found one P2 console-reporter fallback; native stream disposal already
-prevented demonstrated retention. One batch makes both private reporters claim
-stdio ownership while staying silent; whole installed factory/wrapper/multiplexer
-CPU tests fail first, then pass for normal/CI composition. Initial full gate failed
-six existing startup-budget/compiled-spec-fixture checks; condensed context without
-changing holds and updated fixtures while retaining every safe-close/disabled case.
-168 combined checks passed, then31 affected checks pass after adding separate
-import-completed vs runtime-entry milestones. Corrected review/full gate pending.
-
-## 2026-10-14 Startup reporting verified
-
-Runtime bc47a133c5 passes3163 focused tests/8skip,164suites/2skip; architecture,
-UI/design policy, TypeScript and lint pass. Review65 complete/clean, resolves64P2
-and reuses unchanged64 coverage. Root verified private report hash/mode; one
-remediation batch and unique review events recorded without resetting history.
-No native attempt, admission, database or production operation. Known optional
-Next version lookup remains blocked; original app failure cause still unknown.
-PR1581 stays draft; all production/shared-local/provider-Survey/account/billing/
-activation holds and spent-attempt limits remain. Overall goal not complete.
-
 ## 2026-10-14 Offline optional framework version lookup
 
 Human authorized the narrow fix, review, and one fresh45-minute full-app rehearsal;
@@ -968,3 +931,43 @@ Review123 security/correctness and124 SDK compatibility completed clean at
 282f45f5; unchanged code needs no further implementation. Broad focused run
 passed3682 tests/8skip but failed only the startup-doc character budget by35.
 Compacted CURRENT without changing facts; final gate and doc-delta review next.
+
+## 2026-10-17 — Navigation fix advances full-app rehearsal to preview interaction
+
+Finald072 passed3683 tests/8skip and all policy/TypeScript/lint gates; reviews123–125
+clean. Fresh wrapper review126 clean, then one approved disposable full-app run
+WKPNOu atd072/frozen21e755/schema001–262. Both teacher/student logins completed;
+21 font screenshots saved,180app/0storage requests. No boundary, request-body or
+navigation rejection; pending0 and page/console errors0. The workflow later timed
+out after saving student desktop dark preview, before its read-only capture.
+The saved screenshot already lacks Exit preview and preview highlighting. Source
+has focused-preview mouseleave dismissal, and capture readiness scrolls the page:
+a likely pointer/scroll race, not yet a proven historical event sequence. Full
+visual matrix and lifecycle remain incomplete; do not accept partial shots as exit.
+
+All six cleanup gates passed; exact fixture containers/volumes/network/workdir
+are absent and ports free. Immediate independent preservation BEFORE any writes
+confirmed7658sourcefiles/49485dependencyfiles unchanged and no matching processes.
+181.069s total/17.545s cleanup. Evidence retained privately; attempt spent, no retry.
+Next: focused deterministic-preview/capture-state fix and review before a fresh
+rehearsal. No app/auth/schema change or production/shared-local/provider/Survey/
+account/rollout operation. PR1581 remains draftd072;126reviews/74fixbatches and
+original clocks/task waiver retained. Native acceptance and overall goal pending.
+
+## 2026-10-17 — Deterministic preview selection and capture verification
+
+Focused CPU reproduction fails the old matrix when mouseleave clears its
+temporary preview; five screenshot-drift cases also fail against the old runner.
+The real teacher/student gallery and graph confirm keyboard Home/Right/Right
+pins the same third save (23 blocks/14 changed), survives mouseleave, and exits
+normally. Only document renderers are mocked; no app/graph source changed.
+The runner now uses those controls with one bounded selection deadline and
+requires the locked third save. Capture rechecks state, theme, text and geometry
+after the screenshot without scrolling, repairing or retrying; drift is rejected
+before saving. Original capture deadline, privacy-safe labels and byte/count
+caps retained.120 targeted checks plus TypeScript/eslint pass; final focused gate
+and independent review follow. Batch75;126 previous review turns retained.
+No native attempt or visual acceptance: this proves the CPU failure and fix,
+not the historical event sequence or full-app recovery. PR1581 stays draft.
+All production/shared-local/provider/Survey/account/migration/cutover holds,
+spent attempts, original clocks and routine-approval waiver remain unchanged.

@@ -26,12 +26,24 @@ function fixture(empty = true) {
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 })
   // Execute the serialized callback, as Playwright does: module closures cannot help it.
   const observe = new Function(`return (${observeContextualTestFont.toString()})`)() as typeof observeContextualTestFont
-  return { gallery, editor, paragraph, nav, boxes, rect, pseudo, styles, base, observe: (state: Parameters<typeof observe>[1] = empty ? 'empty' : 'read-only') => observe(gallery, state) }
+  return { gallery, editor, paragraph, nav, boxes, rect, pseudo, styles, base, observe: (state: Parameters<typeof observe>[1]['state'] = empty ? 'empty' : 'read-only', position = true) => observe(gallery, { state, position }) }
 }
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.innerHTML = '' })
 
 describe('serialized font observation CPU geometry contract (not visual evidence)', () => {
+  it('does not reposition during post-capture verification and requires the locked third save', () => {
+    const f = fixture(false)
+    f.editor.setAttribute('data-history-preview-mode', 'focused')
+    const slider = document.createElement('div'); slider.setAttribute('role', 'slider'); slider.setAttribute('aria-label', 'Complete save history')
+    slider.setAttribute('aria-valuenow', '3'); f.gallery.append(slider)
+    expect(f.observe('preview', false)).toMatchObject({ preview: true, pinnedPreview: false })
+    f.editor.setAttribute('data-history-preview-mode', 'locked')
+    expect(f.observe('preview', false)).toMatchObject({ preview: true, pinnedPreview: true })
+    slider.setAttribute('aria-valuenow', '4')
+    expect(f.observe('preview', false).pinnedPreview).toBe(false)
+    expect(window.scrollTo).not.toHaveBeenCalled()
+  })
   it('accepts canonical empty markup with a positive paragraph line box and a visible zero-height pseudo-element', () => {
     const f = fixture(); expect(f.observe()).toMatchObject({ positioned: true, fits: true, text: '', checks: { navigation: true, viewport: true, heading: true, content: true, placeholder: true } })
     expect(window.scrollTo).toHaveBeenCalledWith({ top: window.scrollY, behavior: 'instant' })

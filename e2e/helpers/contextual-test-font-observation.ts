@@ -1,12 +1,12 @@
 /** Self-contained browser callback: Playwright serializes this function alone. */
-export function observeContextualTestFont(element: Element, state: 'preview' | 'read-only' | 'editing' | 'empty') {
+export function observeContextualTestFont(element: Element, { state, position }: { state: 'preview' | 'read-only' | 'editing' | 'empty'; position: boolean }) {
   const navs = document.querySelectorAll('nav[aria-label="Pattern Lab sections"]')
   const nav = navs.length === 1 ? navs[0] : null
   const navStyle = nav ? getComputedStyle(nav) : null
   const inset = navStyle ? Number.parseFloat(navStyle.top) : NaN
   const navHeight = nav?.getBoundingClientRect().height ?? 0
   const validNav = !!nav && navStyle?.position === 'sticky' && Number.isFinite(inset) && navHeight > 0
-  if (validNav) {
+  if (validNav && position) {
     const original = element.getBoundingClientRect()
     window.scrollTo({ top: window.scrollY + original.top - (inset + navHeight + 8), behavior: 'instant' })
   }
@@ -59,5 +59,7 @@ export function observeContextualTestFont(element: Element, state: 'preview' | '
       && !!editor && editor.scrollWidth <= editor.clientWidth + 1,
     positioned: Object.values(checks).every(Boolean), clip,
     editable: editor?.getAttribute('contenteditable') ?? null, text: editor?.textContent?.trim(),
-    preview: !!element.querySelector('[data-history-preview-mode="focused"], [data-history-preview-mode="locked"]'), checks }
+    preview: !!element.querySelector('[data-history-preview-mode="focused"], [data-history-preview-mode="locked"]'),
+    pinnedPreview: !!element.querySelector('[data-history-preview-mode="locked"]')
+      && element.querySelector('[role="slider"][aria-label="Complete save history"]')?.getAttribute('aria-valuenow') === '3', checks }
 }

@@ -47831,3 +47831,42 @@ basic launch success does not identify their cause or complete the Tests phase.
 Next recommendation is safe early reporting in the full-app path plus the known
 optional Next version-lookup issue; neither fix nor a new native run was performed.
 PR1581 remains draft, all holds and cumulative histories unchanged.
+
+<!-- pika-session-log-archive-batch:10331c55747bdc9be60ca356f4684cae14ce7186b2862761e1569e38ddff7661 -->
+## 2026-10-14 Full-app startup privacy-safe reporting
+
+Added thin fixed-schema startup reporter and exclusive private milestones for
+collection/fixture/runtime import/entry/binding/plan/boundary/output/workflow/
+teardown. Original errors are classified before public sanitization, never copied
+as raw messages/stacks/URLs/DOM/output. Fixed Node module/assertion codes improve
+diagnosis without arbitrary values. Default E2E skips before binding or fixtures.
+Controller retains validated immutable diagnostics only after proven settlement;
+reporter success, absent output or malformed data cannot replace existing workflow
+gates or mask its original failure. A reporting fault cannot prevent owned close.
+69 focused CPU checks and repository TypeScript pass; tests include privacy,
+actual Playwright CommonJS imports, failure injection and controller containment.
+Independent review/full gate pending. No new native/browser/app/DB execution,
+spent replay, production/shared-local/provider/account/billing or activation work.
+The known optional Next version lookup is unchanged; prior app cause still unknown.
+Original protocol/review63/fix/attempt histories and all holds carry forward.
+
+Review64 found one P2 console-reporter fallback; native stream disposal already
+prevented demonstrated retention. One batch makes both private reporters claim
+stdio ownership while staying silent; whole installed factory/wrapper/multiplexer
+CPU tests fail first, then pass for normal/CI composition. Initial full gate failed
+six existing startup-budget/compiled-spec-fixture checks; condensed context without
+changing holds and updated fixtures while retaining every safe-close/disabled case.
+168 combined checks passed, then31 affected checks pass after adding separate
+import-completed vs runtime-entry milestones. Corrected review/full gate pending.
+
+<!-- pika-session-log-archive-batch:9ab9b71e13e86ca73611ce77757c28dfc9cf8aeade4257cea9a695364aa27eb0 -->
+## 2026-10-14 Startup reporting verified
+
+Runtime bc47a133c5 passes3163 focused tests/8skip,164suites/2skip; architecture,
+UI/design policy, TypeScript and lint pass. Review65 complete/clean, resolves64P2
+and reuses unchanged64 coverage. Root verified private report hash/mode; one
+remediation batch and unique review events recorded without resetting history.
+No native attempt, admission, database or production operation. Known optional
+Next version lookup remains blocked; original app failure cause still unknown.
+PR1581 stays draft; all production/shared-local/provider-Survey/account/billing/
+activation holds and spent-attempt limits remain. Overall goal not complete.

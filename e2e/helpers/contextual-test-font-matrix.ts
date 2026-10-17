@@ -33,7 +33,17 @@ export async function runContextualTestFontMatrix(r: ContextualTestRuntime): Pro
       // path so both the preview and stored theme start from their real defaults.
       await r.reload(page)
       const history = page.locator('#history-preview[data-testid="history-preview-gallery"]')
-      await history.getByRole('button', { name: 'Exit preview', exact: true }).waitFor({ state: 'visible' })
+      // A focused/hover preview may close when positioning moves the graph away
+      // from the pointer. Pin the same third save via its real keyboard controls,
+      // independent of the current hover selection. Never force or mutate UI state.
+      const end = Math.min(r.deadline, Date.now() + r.plan.limits.operationMs)
+      const remaining = () => { r.check(); const left = end - Date.now(); assert(left > 0, 'Private preview selection deadline'); return left }
+      const slider = history.getByRole('slider', { name: 'Complete save history', exact: true })
+      for (const key of ['Home', 'ArrowRight', 'ArrowRight']) await slider.press(key, { timeout: remaining() })
+      await history.locator('[data-history-preview-mode="locked"]').waitFor({ state: 'visible', timeout: remaining() })
+      assert.equal(await slider.getAttribute('aria-valuenow', { timeout: remaining() }), '3')
+      await history.getByRole('button', { name: 'Exit preview', exact: true }).waitFor({ state: 'visible', timeout: remaining() })
+      remaining()
       await r.captureFont(`font-${actor}-${view}-${theme}-preview`, page)
       await history.getByRole('button', { name: 'Exit preview', exact: true }).click()
       await history.getByRole('button', { name: 'Exit preview', exact: true }).waitFor({ state: 'detached' })
