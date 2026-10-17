@@ -70,7 +70,7 @@ export function contextualTestAppEnvironment(binding: ContextualTestRunBinding, 
   preloadPath: string, file: string, sha256: string): Readonly<Record<string, string>> {
   bindingFile(binding, file, sha256); absolute(preloadPath)
   assert(sessionSecret.length >= 48 && sessionSecret.length <= 128 && !/[\x00-\x20\x7f]/.test(sessionSecret))
-  const status = validateContextualTestDemoStatus(rawStatus, binding.projectId), plan = createContextualTestPlan(binding.projectId)
+  const status = validateContextualTestDemoStatus(rawStatus, binding.projectId), plan = createContextualTestPlan(binding.projectId, binding.proofScope)
   const env: Record<string, string> = { ...basicEnvironment(), NODE_ENV: 'development', NEXT_DISABLE_MEM_OVERRIDE: '1',
     ENABLE_UI_GALLERY: 'true',
     VERCEL_GIT_COMMIT_SHA: binding.sourceSha,
@@ -249,11 +249,11 @@ export async function captureContextualTestSource(repository: string, expectedHe
 
 /** The default filesystem edge is intentionally explicit-call only. It never
  * follows source links or copies dotenv/build/auth state into the app. */
-export function prepareContextualTestAppSnapshot(source: Awaited<ReturnType<typeof captureContextualTestSource>>, binding: Pick<ContextualTestRunBinding, 'projectId' | 'workdir' | 'appDir'>,
+export function prepareContextualTestAppSnapshot(source: Awaited<ReturnType<typeof captureContextualTestSource>>, binding: Pick<ContextualTestRunBinding, 'projectId' | 'workdir' | 'appDir' | 'proofScope'>,
   dependencyRoot: string, dependencyRoots: readonly string[], deadline: number) {
   const check = () => assert(Date.now() < deadline)
   check(); absolute(dependencyRoot); assert.equal(binding.workdir, assignmentListProofWorkdir(binding.projectId)); assert.equal(binding.appDir, join(binding.workdir, 'app'))
-  const plan = createContextualTestPlan(binding.projectId)
+  const plan = createContextualTestPlan(binding.projectId, binding.proofScope)
   assert.equal(source.head, plan.sourceSha); assert.equal(source.tree, plan.sourceTree)
   assert.equal(source.entries.filter(entry => entry.path === contextualTestFontOverlay.path).length, 1)
   assert.equal(realpathSync(binding.workdir), binding.workdir)

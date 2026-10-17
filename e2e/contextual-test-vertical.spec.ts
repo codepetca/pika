@@ -9,9 +9,11 @@ test('one real mixed-role Test: create publish submit inspect and deny', async (
     startup.stage('spec-entry'); test.setTimeout(Math.max(1, binding!.deadline - Date.now()))
     const { createContextualTestVerticalRuntime } = require('./helpers/contextual-test-vertical-runtime') as typeof import('./helpers/contextual-test-vertical-runtime')
     const { runContextualTestVerticalWorkflow } = require('./helpers/contextual-test-vertical-workflow') as typeof import('./helpers/contextual-test-vertical-workflow')
+    const { runContextualTestGradeReturnWorkflow } = require('./helpers/contextual-test-grade-return-workflow') as typeof import('./helpers/contextual-test-grade-return-workflow')
     const owned = await createContextualTestVerticalRuntime(browser)
-    let result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow>> | null = null, failure: unknown
-    try { startup.stage('workflow'); result = await runContextualTestVerticalWorkflow(owned.runtime) }
+    let result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow>> | null = null, failure: unknown
+    try { startup.stage('workflow'); result = await (binding!.proofScope === 'vertical-grade-return-v1'
+      ? runContextualTestGradeReturnWorkflow(owned.runtime) : runContextualTestVerticalWorkflow(owned.runtime)) }
     catch (error) { failure = error; startup.failure(error) }
     finally { startup.stage('teardown'); await owned.close(result, failure) }
   } catch (error) { startup.failure(error); throw new Error('Narrow Test workflow failed; inspect fixed private receipt') }

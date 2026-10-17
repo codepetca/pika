@@ -8,7 +8,7 @@ import { createRequire } from 'node:module'
 import { constants, closeSync, fsyncSync, fstatSync, lstatSync, openSync, readFileSync, readSync, realpathSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, normalize } from 'node:path'
 import { isProxy } from 'node:util/types'
-import { createContextualTestPlan, type RehearsalWitness } from '../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, type RehearsalWitness, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
 import { contextualTestFontShots } from '../e2e/helpers/contextual-test-font-matrix'
 import { readFullStartupReport, validateFullStartupReport, type FullStartupReport } from '../e2e/helpers/contextual-test-startup'
 import { hashPassword } from '../src/lib/crypto'
@@ -19,6 +19,7 @@ import { contextualTestExecutableClasses, type ContextualTestIdentityMismatch } 
 import { createContextualTestGateways, type ContextualTestGatewayReceipt } from './contextual-test-rehearsal-gateway'
 import { contextualTestVerticalCommands, contextualTestVerticalProfile } from './contextual-test-vertical-environment'
 import { assertContextualTestVerticalDatabase, validateContextualTestVerticalReceipt } from './contextual-test-vertical-proof'
+import { assertContextualTestGradeReturnDatabase, validateContextualTestGradeReturnReceipt, type GradeReturnWitness } from './contextual-test-grade-return-proof'
 import { runContextualTestDisposableLifecycle, contextualTestSetupDiagnostic, readContextualTestBinding, validateContextualTestRunBinding, executeContextualTestSql, assertContextualTestSqlSettled,
   type ContextualTestRunBinding, type ContextualTestDisposableInput, type ContextualTestSetupDiagnostic } from './contextual-test-rehearsal-platform'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
@@ -32,7 +33,7 @@ type PinnedCommand = ReturnType<typeof createContextualTestPinnedCommand>
 type DisposableAdapters = Parameters<typeof runContextualTestDisposableLifecycle>[2]
 export type ContextualTestControllerAdmission = ContextualTestDisposableInput & Readonly<{
   version: 1; nonce: string; appDir: string; outputDir: string; password: string; sessionSecret: string
-  proofScope?: 'vertical-v1'
+  proofScope?: ContextualTestProofScope
   frozen: Source; runner: Source
   review: Readonly<{ manifestSha256: string; runnerHead: string; runnerTree: string }>
   dependencies: Readonly<{ root: string; sha256: string; roots: readonly string[] }>
@@ -72,7 +73,7 @@ type Receipt = Readonly<{ version: 1; projectId: string; sourceSha: string; sour
   outcome: 'passed' | 'failed'; firstFailureStage: Stage | null; lifecycleCompleted: boolean; ownedSettled: boolean;
   playwrightValidated: boolean; server: LedgerState | null; startup: FullStartupReport | null; nativeDiagnostics: ContextualTestNativeDiagnostics | null;
   setupDiagnostic: ContextualTestSetupDiagnostic | null }>
-  & Readonly<{ proofScope?: 'vertical-v1'; gateway?: ContextualTestGatewayReceipt | null; databaseValidated?: boolean }>
+  & Readonly<{ proofScope?: ContextualTestProofScope; gateway?: ContextualTestGatewayReceipt | null; databaseValidated?: boolean }>
 /** Test seams replace only I/O; no injected result is native acceptance proof. */
 export type ContextualTestControllerEdges = {
   openEvidence(admission: ContextualTestControllerAdmission): void
@@ -243,9 +244,9 @@ const defaults: ContextualTestControllerEdges = {
 }
 
 function validateAdmission(a: ContextualTestControllerAdmission, now: number) {
-  assert(a.proofScope === undefined || a.proofScope === 'vertical-v1')
+  assert(a.proofScope === undefined || a.proofScope === 'vertical-v1' || a.proofScope === 'vertical-grade-return-v1')
   assert(a.version === 1 && /^[a-f0-9]{32}$/.test(a.nonce) && a.nonce.endsWith(a.projectId.slice(-12)))
-  const plan = createContextualTestPlan(a.projectId)
+  const plan = createContextualTestPlan(a.projectId, a.proofScope)
   assert.equal(a.workdir, assignmentListProofWorkdir(a.projectId)); assert.equal(a.appDir, join(a.workdir, 'app'))
   path(a.outputDir); assert(a.outputDir !== a.workdir && !a.outputDir.startsWith(`${a.workdir}/`))
   assert.equal(a.assignmentMetadata.manifest.syntheticTag, `assignmentlist_${a.projectId.slice(-12)}`)
@@ -303,7 +304,8 @@ export function validateContextualTestPlaywrightReceipt(raw: unknown, binding: C
 
 /** Bind each fixed receipt label to the actual exclusive private PNG bytes. */
 export function verifyContextualTestArtifacts(binding: ContextualTestRunBinding, raw: unknown): void {
-  if (binding.proofScope === 'vertical-v1') validateContextualTestVerticalReceipt(raw, binding)
+  if (binding.proofScope === 'vertical-grade-return-v1') validateContextualTestGradeReturnReceipt(raw, binding)
+  else if (binding.proofScope === 'vertical-v1') validateContextualTestVerticalReceipt(raw, binding)
   else validateContextualTestPlaywrightReceipt(raw, binding)
   const root = directory(binding.outputDir), output = join(binding.outputDir, 'playwright'), parent = directory(output)
   const artifacts = (raw as { artifacts: Array<{ label: string; bytes: number; sha256: string }> }).artifacts
@@ -342,7 +344,8 @@ export async function runContextualTestRehearsalController(admission: Contextual
   // Keep the admitted target and original clocks stable across async callbacks.
   // Nested source/fixture inventories retain their existing reviewed identities.
   admission = immutableContextualTestData(admission)
-  const vertical = admission.proofScope === 'vertical-v1'
+  const vertical = admission.proofScope === 'vertical-v1' || admission.proofScope === 'vertical-grade-return-v1'
+  const gradeReturn = admission.proofScope === 'vertical-grade-return-v1'
   let stage: Stage = 'preflight', firstFailureStage: Stage | null = null, attempted = false, lifecycleStarted = false
   let ownedSettled = false, lifecycleCompleted = false, playwrightValidated = false, failure = false
   let binding: ContextualTestRunBinding | undefined, ledger: { snapshot(): unknown; reserveAppReadiness(): void } | undefined, server: LedgerState | null = null
@@ -407,7 +410,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
         sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256, migrationChainSha256: plan.migrationChainSha256, planSha256: sha(JSON.stringify(plan)),
         nonce: admission.nonce, startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, password: admission.password,
         workdir: admission.workdir, appDir: admission.appDir, outputDir: admission.outputDir, dependencyManifestSha256: admission.dependencies.sha256,
-        ...(vertical ? { proofScope: 'vertical-v1' as const } : controls.sqlControl ? { sqlControl: controls.sqlControl } : {}),
+        ...(vertical ? { proofScope: admission.proofScope } : controls.sqlControl ? { sqlControl: controls.sqlControl } : {}),
         docker: { path: admission.transportPins.docker.path, sha256: admission.transportPins.docker.sha256, host: admission.transportPins.dockerHost,
           socketIdentity: admission.transportPins.socketIdentity, containerId: db.id } }, controls.now())
       const file = edges.bind(candidate); binding = file.binding; assert.deepEqual(binding, candidate)
@@ -419,14 +422,14 @@ export async function runContextualTestRehearsalController(admission: Contextual
       }
       await verify()
       const witness = async (): Promise<RehearsalWitness> => {
-        const raw = await edges.sql(binding!, 'witness', undefined, controls.command)
+        const raw = await edges.sql(binding!, gradeReturn ? 'gradeReturnWitness' : 'witness', undefined, controls.command)
         assert(Buffer.byteLength(raw) <= 1048576); workCheck()
         return JSON.parse(raw) as RehearsalWitness
       }
       const before = vertical ? await witness() : undefined
       stage = 'ledger'
       if (vertical) {
-        gateways = (edges.createGateways ?? createContextualTestGateways)({ plan, deadline: admission.deadline })
+        gateways = (edges.createGateways ?? createContextualTestGateways)({ plan, deadline: admission.deadline, proofScope: admission.proofScope })
         await gateways.start(); gateways.check(); workCheck()
       } else ledger = edges.createLedger(binding)
       const commands = vertical ? contextualTestVerticalCommands(admission.runner.repository, admission.dependencies.root)
@@ -457,13 +460,17 @@ export async function runContextualTestRehearsalController(admission: Contextual
       stage = 'proof'; const receipt = edges.readPlaywrightReceipt(binding)
       if (vertical) {
         gateways!.check()
-        const validated = validateContextualTestVerticalReceipt(receipt, binding)
+        const validated = gradeReturn ? validateContextualTestGradeReturnReceipt(receipt, binding) : validateContextualTestVerticalReceipt(receipt, binding)
         // Finish already released upstream operations and close new admission
         // before taking the final transaction-consistent database witness.
         await gateways!.close(Math.min(admission.deadline, controls.now() + 30000)); workCheck()
         const drained = gateways!.receipt()
         assert(drained.started && drained.closed && drained.pending === 0 && drained.sockets === 0 && drained.firstFailure === null)
-        assertContextualTestVerticalDatabase(before!, await witness(), validated.result, binding); databaseValidated = true
+        const after = await witness()
+        if (gradeReturn) assertContextualTestGradeReturnDatabase(before! as GradeReturnWitness, after as GradeReturnWitness,
+          (validated as ReturnType<typeof validateContextualTestGradeReturnReceipt>).result, binding)
+        else assertContextualTestVerticalDatabase(before!, after, validated.result, binding)
+        databaseValidated = true
       } else validateContextualTestPlaywrightReceipt(receipt, binding)
       edges.verifyArtifacts(binding, receipt); playwrightValidated = true
       await verify()
@@ -496,7 +503,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
           if (Object.values(server.flags).some(Boolean)) { if (!failure) stage = 'proof'; failed() }
         } catch { if (!failure) stage = 'proof'; failed() }
       }
-      const plan = createContextualTestPlan(admission.projectId)
+      const plan = createContextualTestPlan(admission.projectId, admission.proofScope)
       let nativeDiagnostics: ContextualTestNativeDiagnostics | null = null
       try { if (controls.nativeDiagnostics) nativeDiagnostics = projectNativeDiagnostics(controls.nativeDiagnostics()) } catch { /* Never retain raw reporting failures. */ }
       const receipt: Receipt = Object.freeze({ version: 1, projectId: plan.projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree,
@@ -505,7 +512,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
         startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline, endedAt: controls.now(),
         cleanupStartedAt, cleanupEnd: cleanupEnd ?? null,
         cleanup: Object.freeze({ ...cleanup, executionFailures: Object.freeze([...cleanup.executionFailures]) }),
-        ...(vertical ? { proofScope: 'vertical-v1' as const, gateway, databaseValidated } : {}),
+        ...(vertical ? { proofScope: admission.proofScope, gateway, databaseValidated } : {}),
         outcome: !failure && ownedSettled && lifecycleCompleted && playwrightValidated && (vertical ? databaseValidated && gateway !== null : server !== null) ? 'passed' : 'failed', firstFailureStage,
         lifecycleCompleted, ownedSettled, playwrightValidated, server, startup, nativeDiagnostics, setupDiagnostic })
       try { edges.writeReceipt(receipt, admission) } catch { failure = true }

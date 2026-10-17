@@ -48000,3 +48000,27 @@ lint pass, including timeout-setter failure, hostile metadata and8192-byte cap.
 Independent targeted review and full focused gate pending. No new native admission
 or clock allocated; all prior attempts permanently spent, production and other
 holds unchanged. No UI, app, schema, control, provider or rollout change.
+
+<!-- pika-session-log-archive-batch:9bcdf456daedace7045937cdaa89fbdedb63e3477c9e3c7bbbfb67638eae61e1 -->
+## 2026-10-14 Fixed observation review clean; one attempt failed with useful labels
+
+Runtime2a41bfb96 passes3179focused/8skip and all policies/TSC/lint. Review68
+complete/clean208seconds; earlier unchanged control coverage reused. One fresh
+2caaaa312f1c/U7yrHv attempt FAILED/SPENT133.337s, cleanup17.530s; ownedSettledtrue,
+lifecycleCompleted/PWvalidatedfalse, server0/0/0/all flagsfalse. Two errors still
+classify unknown, but test-end observation now reports admission/full-app-config;
+global observationunknown. Only collection/fixture, no body-entry marker/failure.
+Root source inspection confirms a deterministic runner conflict: WorkerHost.start
+creates artifacts inside outputDir before workerMain deserializes/reloads config;
+our config binding rejects existing runner-output. Synthetic compiled-helper CPU
+proof reproduces initial-load success then own-output reload rejection; no real
+binding read, admission allocation or native dispatch. First mock omitted esModuleInterop; fixed
+that CPU harness only. This is a concrete path consistent with the new evidence,
+not recovery of raw historical errors. Recommend separating first-run admission
+from worker config validation while preserving identity/clock/exclusive-start and
+stale-output rejection. No admission/control implementation changed in this slice.
+BEFOREpost-run tests/docs, independent dependencies and all7626source hashes match
+preparation with stable reads; receipt0600 retained. Root confirms workdir absent,
+Docker containers/volumes/networks absent by name/both labels, four ports clear.
+No standalone canonical DB equality attestation or native acceptance. Evidence,
+permanent spent token and review retained; no retry/phase exit/production change.

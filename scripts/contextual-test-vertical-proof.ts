@@ -17,7 +17,7 @@ export type VerticalTestReceipt = Readonly<{ version: 1; proofScope: 'vertical-v
   artifacts: readonly Readonly<{ label: Label; kind: 'png'; bytes: number; sha256: string }>[] }>
 
 function must(condition: unknown): asserts condition { if (!condition) throw Error('Invalid vertical proof') }
-function data(value: unknown, keys?: readonly string[]): Record<string, unknown> {
+export function data(value: unknown, keys?: readonly string[]): Record<string, unknown> {
   must(value && typeof value === 'object' && !types.isProxy(value) && Object.getPrototypeOf(value) === Object.prototype)
   const ownKeys = Reflect.ownKeys(value)
   must(ownKeys.every(key => typeof key === 'string'))
@@ -30,7 +30,7 @@ function data(value: unknown, keys?: readonly string[]): Record<string, unknown>
   }
   return result
 }
-function denseArray(value: unknown, length: number): unknown[] {
+export function denseArray(value: unknown, length: number): unknown[] {
   must(value && typeof value === 'object' && !types.isProxy(value) && Array.isArray(value) && Object.getPrototypeOf(value) === Array.prototype)
   const descriptors = Object.getOwnPropertyDescriptors(value) as unknown as Record<string, PropertyDescriptor>
   must('value' in descriptors.length && descriptors.length.value === length)
@@ -41,7 +41,7 @@ function denseArray(value: unknown, length: number): unknown[] {
     return descriptor.value
   })
 }
-function resultData(raw: unknown): VerticalTestResult {
+export function resultData(raw: unknown): VerticalTestResult {
   const result = data(raw, ['testId','questionIds','ownerId','memberId','classroomId','submitted','ownerSawResponse','denials'])
   for (const key of ['testId','ownerId','memberId','classroomId']) must(typeof result[key] === 'string' && uuid.test(result[key]))
   const questions = denseArray(result.questionIds, 2)

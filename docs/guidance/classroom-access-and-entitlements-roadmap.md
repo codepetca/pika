@@ -522,6 +522,27 @@ Do not repeat this proof solely for recency or relabel older failed attempts.
 Production/shared-local/provider/Survey/account/billing/schema and rollout holds
 remain; neither current-main compatibility nor CI/main merge is claimed here.
 
+Superseding integration — 2026-10-17: PR1612 normally squash-merged
+`eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0` after exact reviewed14fcd269e
+passed all ten jobs/PR Gate in39063200124. Current-main UI/publication/Gradebook
+changes were retained. Independent review closed a further manual-save error
+race;171 targeted and1010 focused tests plus desktop/mobile/light/dark synthetic
+visual checks passed. Clean canonical main fast-forward and squash-tree equality
+were verified. This accepts source integration, not a new database rehearsal.
+
+Next bounded proof: extend the already-working narrow Playwright carrier through
+manual grading, closing learner access, the existing Return control and learner
+disclosure. Use a distinct `vertical-grade-return-v1` receipt, exact app eb4fa32b2
+and its committed schema001–267; do not reinterpret the historical vertical-v1
+receipt or use the Survey branch's conflicting263. Retain one Test/two questions,
+zero uploads/provider calls, finite budgets, process/network isolation and cleanup
+checks. New saved grade/revision/feedback, withheld-before-return and returned
+member observations must agree with fresh reads and the database witness. Review
+the source and fixed binding before one fresh isolated attempt. No new runner
+architecture, shared-local migration, production release or rollout is authorized
+by this checkpoint; the existing explicit task waiver handles routine approvals.
+The complete Tests/lifecycle/role matrix and other batch-2 groups remain open.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

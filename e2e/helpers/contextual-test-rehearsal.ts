@@ -10,13 +10,16 @@ import type { createContextualTestAuthoringProgress } from './contextual-test-au
 const uuid = (suffix: string) => `50000000-0000-4000-8000-0000000000${suffix}`
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
 
-export function createContextualTestPlan(projectId: string) {
+export type ContextualTestProofScope = 'vertical-v1' | 'vertical-grade-return-v1'
+export function createContextualTestPlan(projectId: string, proofScope?: ContextualTestProofScope) {
   assert.match(projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
+  assert(proofScope === undefined || proofScope === 'vertical-v1' || proofScope === 'vertical-grade-return-v1')
+  const successor = proofScope === 'vertical-grade-return-v1'
   const sourceBinding = Object.freeze({ projectId,
-    sourceSha: '050699bb0f889a533a349b6af415b821ac56d0e3',
-    sourceTree: 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
+    sourceSha: successor ? 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' : '050699bb0f889a533a349b6af415b821ac56d0e3',
+    sourceTree: successor ? 'ffec2cc82fd88e9819c147b2ab6246f95c28798e' : 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
     appOverlaySha256: contextualTestFontOverlaySha256,
-    migrationChainSha256: 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
+    migrationChainSha256: successor ? '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' : 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
     appOrigin: 'http://localhost:3117' as const, apiOrigin: 'http://127.0.0.1:54331' as const,
   })
   const actors = Object.freeze({

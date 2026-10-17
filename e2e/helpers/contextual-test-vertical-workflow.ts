@@ -5,6 +5,7 @@
 import { expect, type Locator, type Page, type Response } from '@playwright/test'
 import { types } from 'node:util'
 import type { RehearsalPlan } from './contextual-test-rehearsal'
+import { gradeReturnStages } from './contextual-test-grade-return-contract'
 
 export type VerticalTestRuntime = {
   plan: RehearsalPlan
@@ -25,12 +26,12 @@ export const contextualTestVerticalStages = Object.freeze(['admission', 'owner-c
 type VerticalStage = typeof contextualTestVerticalStages[number]
 const failurePrefix = 'Contextual Test vertical failed: '
 /** Never invoke user accessors or Proxy traps while reducing an error to a label. */
-export function verticalWorkflowFailureStage(error: unknown): VerticalStage | null {
+export function verticalWorkflowFailureStage(error: unknown): VerticalStage | typeof gradeReturnStages[number] | null {
   if (!error || typeof error !== 'object' || types.isProxy(error)) return null
   const message = Object.getOwnPropertyDescriptor(error, 'message')
   if (!message || !('value' in message) || typeof message.value !== 'string' || !message.value.startsWith(failurePrefix)) return null
   const suffix = message.value.slice(failurePrefix.length)
-  return contextualTestVerticalStages.find(stage => stage === suffix) ?? null
+  return contextualTestVerticalStages.find(stage => stage === suffix) ?? gradeReturnStages.find(stage => stage === suffix) ?? null
 }
 
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/

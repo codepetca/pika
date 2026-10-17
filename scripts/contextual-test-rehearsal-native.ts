@@ -367,6 +367,7 @@ export function contextualTestExecutionDigest(admission: ContextualTestControlle
 export function createContextualTestExecutionControls(admission: ContextualTestControllerAdmission,
   pins: ContextualTestNativePins, seal: ContextualTestExecutionSeal): ContextualTestControllerControls {
   admission = immutableContextualTestData(admission); pins = immutableContextualTestData(pins); seal = immutableContextualTestData(seal)
+  const vertical = admission.proofScope === 'vertical-v1' || admission.proofScope === 'vertical-grade-return-v1'
   const native = createContextualTestNativeControls(pins, admission.cleanupDeadline)
   const command = createContextualTestPinnedCommand(admission.transportPins, admission, { settle: native.settleCommand })
   let admitted = false, executionEnd = admission.cleanupDeadline
@@ -394,7 +395,7 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
       const profile = contextualTestReadOnlyDependencyProfile(admission.dependencies.roots)
       await unchanged()
       await verifyContextualTestNativeReadiness(pins, { deadline: admission.deadline, profile, requiredImages: seal.requiredImages,
-        ...(admission.proofScope === 'vertical-v1' ? { verticalProfiles: {
+        ...(vertical ? { verticalProfiles: {
           app: contextualTestVerticalProfile('app', admission.dependencies.roots, admission.workdir, admission.outputDir),
           browser: contextualTestVerticalProfile('browser', admission.dependencies.roots, admission.workdir, admission.outputDir),
         } } : {}),
@@ -404,8 +405,8 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
     async assertUnchanged() { assert(admitted); await unchanged(); command.assertClosed(); native.assertClosed() },
     async launchApp(input) {
       assert(admitted && input.binding.projectId === admission.projectId && input.cwd === admission.appDir)
-      if (admission.proofScope === 'vertical-v1') {
-        assert.equal(input.binding.proofScope, 'vertical-v1'); assert.equal(input.listenerPort, 3118)
+      if (vertical) {
+        assert.equal(input.binding.proofScope, admission.proofScope); assert.equal(input.listenerPort, 3118)
         assert.equal(input.dependencySandboxProfile, contextualTestVerticalProfile('app', admission.dependencies.roots, admission.workdir, admission.outputDir))
         assert.deepEqual(input.args, contextualTestVerticalCommands(admission.runner.repository, admission.dependencies.root).app)
         assert(!input.env.NODE_OPTIONS)
@@ -416,8 +417,8 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
     async launchPlaywright(input) {
       assert(admitted && input.binding.projectId === admission.projectId && input.cwd === admission.runner.repository)
       assert.equal(input.binding.outputDir, admission.outputDir)
-      if (admission.proofScope === 'vertical-v1') {
-        assert.equal(input.binding.proofScope, 'vertical-v1'); assert(!input.binding.sqlControl)
+      if (vertical) {
+        assert.equal(input.binding.proofScope, admission.proofScope); assert(!input.binding.sqlControl)
         assert.equal(input.dependencySandboxProfile, contextualTestVerticalProfile('browser', admission.dependencies.roots, admission.workdir, admission.outputDir))
         assert.deepEqual(input.args, contextualTestVerticalCommands(admission.runner.repository, admission.dependencies.root).runner)
         assert.equal(input.env.TMPDIR, join(admission.workdir, 'tmp'))

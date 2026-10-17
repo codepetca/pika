@@ -15,10 +15,10 @@ export type { ContextualTestRunBinding, ContextualTestSqlKind, ContextualTestSql
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
 
-/** Existing frozen migration loader and private project preparation; never263. */
+/** Exact scope binding selects only its frozen source chain, never runner SQL. */
 export function contextualTestProjectPreparation(binding: ContextualTestRunBinding, frozenRepository: string) {
   const migrations = loadAssignmentListReviewedMigrations(frozenRepository)
-  assert.equal(migrations.length, 262)
+  assert.equal(migrations.length, binding.proofScope === 'vertical-grade-return-v1' ? 267 : 262)
   validateAssignmentListMigrationChain(migrations)
   assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), binding.migrationChainSha256)
   return { plan: assignmentListEphemeralPlan(binding), migrations,
@@ -44,7 +44,7 @@ export function validateContextualTestClosure(projectId: string, before: Assignm
 }
 
 type DisposableAdapters = Pick<AssignmentListLifecycleAdapters, 'canonicalSnapshot' | 'inventory' | 'prepare' | 'command' | 'verifyEphemeral' | 'teardown' | 'removeWorkdir'>
-export type ContextualTestDisposableInput = Pick<ContextualTestRunBinding, 'projectId' | 'workdir' | 'startedAt' | 'deadline' | 'cleanupDeadline' | 'migrationChainSha256'>
+export type ContextualTestDisposableInput = Pick<ContextualTestRunBinding, 'projectId' | 'workdir' | 'startedAt' | 'deadline' | 'cleanupDeadline' | 'migrationChainSha256' | 'proofScope'>
 export type ContextualTestLocalStatus = Readonly<ReturnType<typeof validateAssignmentListProofTarget> & { ANON_KEY: string }>
 type SetupStep = 'canonical-before' | 'inventory' | 'prepare' | 'pre-start' | 'start' | 'capture' | 'status' | 'verify-ephemeral' | 'work'
 type CleanupStep = 'cleanup-clock' | 'owned-processes' | 'cleanup-inventory' | 'cleanup-closure' | 'resource-teardown' | 'resource-absence' | 'workdir-remove' | 'canonical-after'
@@ -74,14 +74,14 @@ function localStatus(value: unknown, projectId: string): ContextualTestLocalStat
 export async function runContextualTestDisposableLifecycle(binding: ContextualTestDisposableInput,
   migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>, adapters: DisposableAdapters,
   work: (target: ReturnType<typeof validateAssignmentListProofTarget>, resources: readonly AssignmentListResource[], status: ContextualTestLocalStatus) => Promise<void>, settleOwnedProcesses: () => Promise<void>, cleanupClock?: () => number) {
-  const plan = createContextualTestPlan(binding.projectId)
+  const plan = createContextualTestPlan(binding.projectId, binding.proofScope)
   const identity = assignmentListEphemeralPlan(binding)
   assert.equal(binding.workdir, assignmentListProofWorkdir(binding.projectId))
   assert.equal(binding.migrationChainSha256, plan.migrationChainSha256)
   assert(Number.isSafeInteger(binding.startedAt) && binding.startedAt <= Date.now())
   assert(Number.isSafeInteger(binding.deadline) && binding.deadline > binding.startedAt && binding.deadline - binding.startedAt <= 45 * 60_000)
   assert(Number.isSafeInteger(binding.cleanupDeadline) && binding.cleanupDeadline > binding.deadline && binding.cleanupDeadline - binding.deadline <= 6 * 60_000)
-  assert.equal(migrations.length, 262)
+  assert.equal(migrations.length, binding.proofScope === 'vertical-grade-return-v1' ? 267 : 262)
   validateAssignmentListMigrationChain(migrations)
   assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), binding.migrationChainSha256)
   let cleanupEnd: number | undefined

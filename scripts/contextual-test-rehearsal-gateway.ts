@@ -4,7 +4,7 @@
  */
 import { createServer, request, type IncomingMessage, type RequestListener, type RequestOptions, type Server } from 'node:http'
 import type { Socket } from 'node:net'
-import type { RehearsalPlan } from '../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, type RehearsalPlan, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
 
 type Kind = 'app' | 'api'
 const failureCategories = ['deadline', 'target', 'endpoint', 'request-cap', 'create-cap', 'protocol',
@@ -84,10 +84,23 @@ export class ContextualTestGatewayPolicy {
   private rejectedHmr = 0
   private rejectedDiagnostics = 0
   private readonly classIds: ReadonlySet<string>
-  constructor(plan: RehearsalPlan, readonly deadline: number, private readonly now = Date.now) {
+  private createdTestId: string | null = null
+  private gradeSaves = 0
+  private returns = 0
+  constructor(private readonly plan: RehearsalPlan, readonly deadline: number, private readonly now = Date.now, private readonly proofScope?: ContextualTestProofScope) {
+    if (![undefined, 'vertical-v1', 'vertical-grade-return-v1'].includes(proofScope)) this.reject('protocol')
+    if (proofScope === 'vertical-grade-return-v1' && plan.sourceSha !== createContextualTestPlan(plan.projectId, proofScope).sourceSha) this.reject('protocol')
     this.classIds = new Set(Object.values(plan.classrooms).map(c => c.id))
     if (plan.appOrigin !== origins.app || plan.apiOrigin !== 'http://127.0.0.1:54331' || plan.retiredTestIds.length !== 2
       || !Number.isSafeInteger(deadline) || deadline <= now() || deadline - now() > 2_700_000) this.reject('deadline')
+  }
+  /** Only a successful real create acknowledgement can name the successor parent. */
+  observeAppResponse(kind: Kind, target: string, method: string, status: number, body: unknown): void {
+    if (this.proofScope !== 'vertical-grade-return-v1' || kind !== 'app' || target !== '/api/teacher/tests' || method !== 'POST' || status !== 201) return
+    const test = (body as { test?: { id?: unknown; classroom_id?: unknown } })?.test
+    if (this.createdTestId || !test || typeof test.id !== 'string' || !new RegExp(`^${uuid}$`).test(test.id)
+      || test.classroom_id !== this.plan.classrooms.classB.id || this.plan.retiredTestIds.includes(test.id)) this.reject('protocol')
+    this.createdTestId = test.id
   }
   reject(category: ContextualTestGatewayFailure): never { this.latch(category); throw failure() }
   latch(category: ContextualTestGatewayFailure): void { this.firstFailure ??= failureCategories.includes(category) ? category : 'protocol' }
@@ -151,11 +164,15 @@ export class ContextualTestGatewayPolicy {
         || new RegExp(`^/classrooms/${uuid}$`).test(path) || path.startsWith('/_next/static/')
         || /^\/fonts\/[a-zA-Z0-9_./-]+$/.test(path) || teacherTest.test(path) || studentTest.test(path) || classRead.test(path)
     } else {
+      const successorWrite = this.proofScope === 'vertical-grade-return-v1' && this.createdTestId !== null
+        && (method === 'PATCH' && path === `/api/teacher/tests/${this.createdTestId}/students/${this.plan.actors.memberTeacher.id}/grades`
+          || method === 'POST' && path === `/api/teacher/tests/${this.createdTestId}/return`)
       allowed = method === 'POST' && ['/api/auth/login', '/api/teacher/tests'].includes(path)
         || method === 'PATCH' && new RegExp(`^/api/teacher/tests/${uuid}(?:/draft)?$`).test(path)
         || method === 'POST' && new RegExp(`^/api/teacher/tests/${uuid}/(?:publish|student-access)$`).test(path)
         || method === 'PATCH' && new RegExp(`^/api/student/tests/${uuid}/attempt$`).test(path)
         || method === 'POST' && new RegExp(`^/api/student/tests/${uuid}/(?:start|respond|focus-events)$`).test(path)
+        || successorWrite
     }
     if (!allowed) {
       this.firstEndpointFailure ??= Object.freeze({ kind, route: endpointLabel(path),
@@ -168,6 +185,24 @@ export class ContextualTestGatewayPolicy {
   validateBody(kind: Kind, target: string, method: string, body?: unknown): void {
     this.check()
     const path = target.split('?')[0]
+    if (this.proofScope === 'vertical-grade-return-v1' && kind === 'app') {
+      const exact = (value: unknown, keys: string[]): value is Record<string, unknown> => !!value && typeof value === 'object'
+        && !Array.isArray(value) && Object.keys(value).sort().join(',') === keys.sort().join(',')
+      if (method === 'PATCH' && path.endsWith('/grades')) {
+        if (!exact(body, ['grades']) || !Array.isArray(body.grades) || body.grades.length !== 1 || this.gradeSaves >= 1) this.reject('protocol')
+        const grade = body.grades[0]
+        if (!exact(grade, ['question_id','response_id','expected_response_revision','score','feedback'])
+          || ![grade.question_id, grade.response_id].every(v => typeof v === 'string' && new RegExp(`^${uuid}$`).test(v))
+          || !Number.isSafeInteger(grade.expected_response_revision) || Number(grade.expected_response_revision) <= 0
+          || grade.score !== 4 || grade.feedback !== 'Reviewed manually') this.reject('protocol')
+        this.gradeSaves++
+      }
+      if (method === 'POST' && path.endsWith('/return')) {
+        if (!exact(body, ['student_ids']) || !Array.isArray(body.student_ids) || body.student_ids.length !== 1
+          || body.student_ids[0] !== this.plan.actors.memberTeacher.id || this.returns >= 1 || this.gradeSaves !== 1) this.reject('protocol')
+        this.returns++
+      }
+    }
     if (kind === 'app' && method === 'POST' && path === '/api/teacher/tests') {
       const row = body && typeof body === 'object' ? body as Record<string, unknown> : null
       if (!row || typeof row.classroom_id !== 'string' || !this.classIds.has(row.classroom_id) || this.creates >= 1) this.reject('create-cap')
@@ -196,9 +231,9 @@ function headersWithoutHop(headers: IncomingMessage['headers']): Record<string, 
 }
 function parseJson(bytes: Buffer): unknown { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) }
 
-export function createContextualTestGateways(input: { plan: RehearsalPlan; deadline: number }, edges: ContextualTestGatewayEdges = defaultEdges) {
+export function createContextualTestGateways(input: { plan: RehearsalPlan; deadline: number; proofScope?: ContextualTestProofScope }, edges: ContextualTestGatewayEdges = defaultEdges) {
   const deadline = input.deadline
-  const policy = new ContextualTestGatewayPolicy(input.plan, deadline, edges.now)
+  const policy = new ContextualTestGatewayPolicy(input.plan, deadline, edges.now, input.proofScope)
   const sockets = new Set<Socket>(), pending = new Set<Promise<void>>()
   const active = new Map<Promise<void>, { end: number; abort(): void }>()
   const listeners = new Set<Server>()
@@ -319,6 +354,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
                     let parsed: unknown
                     try { parsed = parseJson(originalBytes) } catch { policy.reject('response-json') }
                     policy.observeOwnerRpc(kind, target, method, response.statusCode ?? 0, body, parsed)
+                    policy.observeAppResponse(kind, target, method, response.statusCode ?? 0, parsed)
                     jsonResponses++
                   }
                   responseBytes += size; responses++

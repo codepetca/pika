@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Fixed observation review clean; one attempt failed with useful labels
-
-Runtime2a41bfb96 passes3179focused/8skip and all policies/TSC/lint. Review68
-complete/clean208seconds; earlier unchanged control coverage reused. One fresh
-2caaaa312f1c/U7yrHv attempt FAILED/SPENT133.337s, cleanup17.530s; ownedSettledtrue,
-lifecycleCompleted/PWvalidatedfalse, server0/0/0/all flagsfalse. Two errors still
-classify unknown, but test-end observation now reports admission/full-app-config;
-global observationunknown. Only collection/fixture, no body-entry marker/failure.
-Root source inspection confirms a deterministic runner conflict: WorkerHost.start
-creates artifacts inside outputDir before workerMain deserializes/reloads config;
-our config binding rejects existing runner-output. Synthetic compiled-helper CPU
-proof reproduces initial-load success then own-output reload rejection; no real
-binding read, admission allocation or native dispatch. First mock omitted esModuleInterop; fixed
-that CPU harness only. This is a concrete path consistent with the new evidence,
-not recovery of raw historical errors. Recommend separating first-run admission
-from worker config validation while preserving identity/clock/exclusive-start and
-stale-output rejection. No admission/control implementation changed in this slice.
-BEFOREpost-run tests/docs, independent dependencies and all7626source hashes match
-preparation with stable reads; receipt0600 retained. Root confirms workdir absent,
-Docker containers/volumes/networks absent by name/both labels, four ports clear.
-No standalone canonical DB equality attestation or native acceptance. Evidence,
-permanent spent token and review retained; no retry/phase exit/production change.
-
 ## 2026-10-14 Admission/config reload split
 
 Human Go authorizes the recommended runner fix, review and ONE fresh bounded
@@ -1010,3 +987,22 @@ and6regressions. Final app160targeted/1033focused+static gates PASS.154completed
 reviews/96fixbatches, original clocks/waiver retained. Preserve app050699bb;
 next integrate the fix with currentmain, then remaining bounded phase evidence.
 No production/shared-local/provider/Survey/account/billing/schema/cutover change.
+
+## 2026-10-17 Main integration landed; next bounded grade-return proof
+
+PR1612 merged eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0 after exact reviewed
+14fcd269e passed all10CI jobs39063200124 includingPRGate. No blocking review or
+thread, unchanged main/head, normal squash; canonicalmain cleanFF and exacttree
+equality verified. Integration169→171 targeted/1008→1010 focused and4visual
+contexts pass. Review156 found a save-error/refresh autosave race;157 closed it.
+157actual reviewturns/98fixbatches, original clocks and task waiver retained.
+Finished integration checkout removed after preserving source/receipts; no secrets
+or dependency target deleted. Production and all other existing holds unchanged.
+
+Read-only bounded Sol/high investigation selects next useful milestone: extend
+the proven narrow carrier through manual grade→close→UI Return→learner disclosure,
+bound to exact main eb4/schema001–267 with a distinct successor receipt. Existing
+APIs and native component proofs are reused; no extra verification framework.
+PR1581 staysdraft: its Survey263 conflicts with main263 and must not merge wholesale.
+Runner implementation/CPU tests and private wrappers are being prepared; no new
+native attempt, acceptance, release or full-goal completion is claimed yet.

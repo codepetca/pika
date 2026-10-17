@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { setDefaultResultOrder } from 'node:dns'
 import { contextualTestConfigBinding, CONTEXTUAL_TEST_CHROME } from './e2e/helpers/contextual-test-admission'
 const binding = contextualTestConfigBinding()
-assert.equal(binding.proofScope, 'vertical-v1')
+assert(binding.proofScope === 'vertical-v1' || binding.proofScope === 'vertical-grade-return-v1')
 // The public cookie origin is localhost; the sole admitted socket is IPv4.
 setDefaultResultOrder('ipv4first')
 export default defineConfig({

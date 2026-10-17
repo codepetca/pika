@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createContextualTestPlan, type RehearsalWitness } from '../../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, type RehearsalWitness, type ContextualTestProofScope } from '../../e2e/helpers/contextual-test-rehearsal'
+import { gradeReturnActors, gradeReturnLabels } from '../../e2e/helpers/contextual-test-grade-return-contract'
+import type { GradeReturnWitness } from '../../scripts/contextual-test-grade-return-proof'
 import { runContextualTestRehearsalController, validateContextualTestPlaywrightReceipt,
   type ContextualTestControllerLaunch } from '../../scripts/contextual-test-rehearsal-controller'
 import type { ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
@@ -7,10 +9,11 @@ import type { ContextualTestGatewayReceipt } from '../../scripts/contextual-test
 
 const projectId = 'pika_assignment_list_123456abcdef', plan = createContextualTestPlan(projectId)
 const id = (n: number) => `60000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-function fixture() {
+function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
+  const plan = createContextualTestPlan(projectId, proofScope), successor = proofScope === 'vertical-grade-return-v1'
   const events: string[] = [], receipts: Record<string, unknown>[] = [], launches: ContextualTestControllerLaunch[] = []
   const source = { repository: '/frozen', head: plan.sourceSha, tree: plan.sourceTree, sha256: 'a'.repeat(64), entries: [], bytes: 0 }
-  const admission = { version: 1, proofScope: 'vertical-v1', projectId, nonce: '0'.repeat(20) + '123456abcdef',
+  const admission = { version: 1, proofScope, projectId, nonce: '0'.repeat(20) + '123456abcdef',
     migrationChainSha256: plan.migrationChainSha256, startedAt: 1000, deadline: 2341000, cleanupDeadline: 2701000,
     workdir: '/private/tmp/pika-assignment-list-123456abcdef', appDir: '/private/tmp/pika-assignment-list-123456abcdef/app', outputDir: '/private/tmp/vertical-output',
     password: 'synthetic-private-password', sessionSecret: 's'.repeat(64), frozen: source,
@@ -24,7 +27,10 @@ function fixture() {
   const status = { API_URL: plan.apiOrigin, DB_URL: 'postgresql://postgres:demo@127.0.0.1:54332/postgres', ANON_KEY: token('anon'), SERVICE_ROLE_KEY: token('service_role') }
   const result = { testId: id(1), questionIds: [id(2), id(3)], ownerId: plan.actors.ownerStudent.id,
     memberId: plan.actors.memberTeacher.id, classroomId: plan.classrooms.classB.id, submitted: true, ownerSawResponse: true,
-    denials: { ownerLearner: 403, memberTeacher: 403, nonmemberRead: 403 } }
+    denials: { ownerLearner: 403, memberTeacher: 403, nonmemberRead: 403 }, ...(successor ? { gradeReturn: {
+      testId: id(1), questionIds: [id(2),id(3)], ownerId: plan.actors.ownerStudent.id, memberId: plan.actors.memberTeacher.id,
+      mcResponseId: id(5), mcRevision: 1, responseId: id(6), initialRevision: 1, revision: 2, score: 4, feedback: 'Reviewed manually',
+      returnedAt: new Date(1800).toISOString(), hiddenBeforeReturn: true, memberSawReturned: true } } : {}) }
   const before: RehearsalWitness = { version: 1, work_graph_sha256: 'a'.repeat(64), tests: plan.retiredTestIds.map((testId, i) => ({ id: testId,
     classroom_id: i ? plan.classrooms.classB.id : plan.classrooms.classA.id, status: 'draft', position: 0, retired: true })),
     attempts: [], memberships: [], generations: [], question_counts: [],
@@ -35,11 +41,20 @@ function fixture() {
     attempts: [{ id: id(4), test_id: result.testId, student_id: result.memberId, draft_revision: 3, is_submitted: true, returned_at: null }],
     question_counts: [{ test_id: result.testId, count: 2 }], response_count: 2, history_count: 2 }
   after.classes[1].updated_at = new Date(1500).toISOString()
-  const raw = { version: 1, proofScope: 'vertical-v1', projectId, nonce: admission.nonce,
+  if (successor) {
+    (before as GradeReturnWitness).grade_return = { protected_graph_sha256: 'a'.repeat(64), responses: [], attempt_actors: [], access: [] }
+    after.attempts[0].returned_at = result.gradeReturn!.returnedAt
+    ;(after as GradeReturnWitness).grade_return = { protected_graph_sha256: 'a'.repeat(64),
+      responses: [0,1].map(i => ({ id: id(i ? 6 : 5), test_id: id(1), question_id: id(i ? 3 : 2), student_id: result.memberId,
+        revision: i ? 2 : 1, score: i ? 4 : 5, feedback: i ? 'Reviewed manually' : null, selected_option: i ? null : 1,
+        response_text: i ? 'Synthetic reasoning: Beta is the second option.' : null, graded_at: new Date(1600).toISOString(), graded_by: i ? result.ownerId : null })),
+      attempt_actors: [{ id: id(4), returned_by: result.ownerId }], access: [{ test_id: id(1), student_id: result.memberId, state: 'closed' }] }
+  }
+  const raw = { version: 1, proofScope, projectId, nonce: admission.nonce,
     sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256,
     deadline: admission.deadline, endedAt: 2000, outcome: 'passed', contextsClosed: true, pageErrors: 0,
-    actors: ['ownerStudent','memberTeacher','nonmember','ownerStudent'], result, failureStage: null,
-    artifacts: ['vertical-owner-author','vertical-member-submitted','vertical-owner-results'].map(label => ({ label, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })) }
+    actors: successor ? [...gradeReturnActors] : ['ownerStudent','memberTeacher','nonmember','ownerStudent'], result, failureStage: null,
+    artifacts: (successor ? [...gradeReturnLabels] : ['vertical-owner-author','vertical-member-submitted','vertical-owner-results']).map(label => ({ label, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })) }
   let bound: ContextualTestRunBinding | undefined, witnessReads = 0
   const gateway: ContextualTestGatewayReceipt = { version: 1, firstFailure: null, appRequests: 50, apiRequests: 100, creates: 1,
     rejectedHmr: 0, rejectedDiagnostics: 0, firstEndpointFailure: null, firstOwnerRpcRejection: null, started: true, closing: true, closed: true, pending: 0, sockets: 0,
@@ -68,7 +83,7 @@ function fixture() {
     async passwordHash() { return 'synthetic-bcrypt' },
     async sql(_binding: unknown, kind: string, _hash: unknown, transport: unknown) {
       expect(transport).toBe(control.command); events.push(`sql-${kind}`)
-      return kind === 'witness' ? JSON.stringify(witnessReads++ === 0 ? before : after) : '{}'
+      return kind === (successor ? 'gradeReturnWitness' : 'witness') ? JSON.stringify(witnessReads++ === 0 ? before : after) : '{}'
     },
     assertSqlSettled() {}, createLedger() { throw Error('Old egress ledger must not run') },
     createGateways: () => gateways, readPlaywrightReceipt: () => raw,
@@ -80,6 +95,25 @@ function fixture() {
 }
 
 describe('vertical controller integration (CPU seams only, no native proof)', () => {
+  it('uses successor source, root-only extended witnesses and the same sealed network/process cleanup path', async () => {
+    const f = fixture('vertical-grade-return-v1'), receipt = await f.run()
+    expect(receipt).toMatchObject({ outcome: 'passed', proofScope: 'vertical-grade-return-v1', databaseValidated: true,
+      sourceSha: 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0', server: null })
+    expect(f.bound()).toMatchObject({ proofScope: 'vertical-grade-return-v1', migrationChainSha256: '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' })
+    expect(f.bound()).not.toHaveProperty('sqlControl')
+    expect(f.events.filter(e => e === 'sql-gradeReturnWitness')).toHaveLength(2)
+    expect(f.events).not.toContain('sql-witness')
+    expect(f.events.indexOf('gateway-close')).toBeLessThan(f.events.lastIndexOf('sql-gradeReturnWitness'))
+    expect(f.launches[0].listenerPort).toBe(3118)
+    expect(f.launches[0].env.VERCEL_GIT_COMMIT_SHA).toBe(f.bound().sourceSha)
+    expect(f.launches[0].dependencySandboxProfile).toContain('(deny network*)')
+    expect(f.launches[1].dependencySandboxProfile).toContain('(remote tcp4 "localhost:3117")')
+  })
+  it('cannot accept successor browser success with an unreturned database attempt', async () => {
+    const f = fixture('vertical-grade-return-v1'); f.after.attempts[0].returned_at = null
+    await expect(f.run()).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', databaseValidated: false, proofScope: 'vertical-grade-return-v1', ownedSettled: true })
+  })
   it('binds one narrow proof, root-only witnesses, isolated launches and gateway-first cleanup', async () => {
     const f = fixture(), receipt = await f.run()
     expect(receipt).toMatchObject({ outcome: 'passed', proofScope: 'vertical-v1', databaseValidated: true, playwrightValidated: true,

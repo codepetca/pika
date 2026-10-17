@@ -31,6 +31,16 @@ describe('Tests rehearsal binding and fixed SQL', () => {
     expect(() => validateContextualTestRunBinding({ ...binding(), proofScope: 'full' }, now)).toThrow()
     expect(() => validateContextualTestRunBinding({ ...binding(), proofScope: 'vertical-v1', sqlControl: {} }, now)).toThrow()
   })
+  it('binds successor to its exact current-main source/plan/chain without accepting historical or Survey drift', () => {
+    const successor = createContextualTestPlan(projectId, 'vertical-grade-return-v1')
+    const candidate = { ...binding(), proofScope: 'vertical-grade-return-v1', sourceSha: successor.sourceSha, sourceTree: successor.sourceTree,
+      migrationChainSha256: successor.migrationChainSha256, planSha256: sha(JSON.stringify(successor)) }
+    expect(validateContextualTestRunBinding(candidate, now).proofScope).toBe('vertical-grade-return-v1')
+    for (const drift of [{ proofScope: 'vertical-v1' }, { sourceSha: plan.sourceSha }, { sourceTree: plan.sourceTree },
+      { migrationChainSha256: plan.migrationChainSha256 }, { migrationChainSha256: 'f'.repeat(64) }, { planSha256: sha(JSON.stringify(plan)) }, { sqlControl: {} }]) {
+      expect(() => validateContextualTestRunBinding({ ...candidate, ...drift }, now)).toThrow()
+    }
+  })
   it.each([
     { sourceSha: 'd'.repeat(40) }, { appOverlaySha256: '0'.repeat(64) }, { appOverlaySha256: undefined }, { migrationChainSha256: 'e'.repeat(64) }, { appOrigin: 'http://127.0.0.1:3117' },
     { deadline: now + 2700001 }, { cleanupDeadline: now + 500000 }, { planSha256: 'f'.repeat(64) },

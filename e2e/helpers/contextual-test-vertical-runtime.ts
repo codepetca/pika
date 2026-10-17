@@ -7,6 +7,8 @@ import type { Browser, BrowserContext, Page, Response } from '@playwright/test'
 import { contextualTestStartupBinding } from './contextual-test-startup'
 import { createContextualTestPlan } from './contextual-test-rehearsal'
 import { verticalWorkflowFailureStage, type VerticalTestRuntime, type runContextualTestVerticalWorkflow } from './contextual-test-vertical-workflow'
+import { gradeReturnActors, gradeReturnLabels } from './contextual-test-grade-return-contract'
+import type { runContextualTestGradeReturnWorkflow } from './contextual-test-grade-return-workflow'
 
 // Public DOM hydration check, without importing the former interception runtime.
 export function verticalLoginReady(): boolean {
@@ -21,8 +23,11 @@ export function verticalLoginReady(): boolean {
 
 export async function createContextualTestVerticalRuntime(browser: Browser) {
   const binding = contextualTestStartupBinding()
-  assert.equal(binding.proofScope, 'vertical-v1'); assert(!binding.sqlControl)
-  const plan = createContextualTestPlan(binding.projectId)
+  assert(binding.proofScope === 'vertical-v1' || binding.proofScope === 'vertical-grade-return-v1'); assert(!binding.sqlControl)
+  const successor = binding.proofScope === 'vertical-grade-return-v1'
+  const plan = createContextualTestPlan(binding.projectId, binding.proofScope)
+  const expectedActors = successor ? gradeReturnActors : ['ownerStudent','memberTeacher','nonmember','ownerStudent'] as const
+  const expectedLabels = successor ? gradeReturnLabels : ['vertical-owner-author','vertical-member-submitted','vertical-owner-results'] as const
   const contexts = new Set<BrowserContext>(), artifacts: Array<{ label: string; kind: 'png'; bytes: number; sha256: string }> = []
   const actors: string[] = []
   let pageErrors = 0, closed = false, step = 'startup'
@@ -53,7 +58,7 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
     },
     async withActor(actorLabel, callback) {
       step = 'login'; check(); assert(['ownerStudent','memberTeacher','nonmember'].includes(actorLabel))
-      assert(actors.length < 5)
+      assert(successor ? actorLabel === expectedActors[actors.length] : actors.length < 5)
       const actor = plan.actors[actorLabel]
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block', acceptDownloads: false })
       contexts.add(context)
@@ -79,7 +84,8 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
     },
     async snapshot(label, page) {
       step = 'screenshot'; owned(page)
-      assert(['vertical-owner-author','vertical-member-submitted','vertical-owner-results'].includes(label))
+      assert((expectedLabels as readonly string[]).includes(label))
+      if (successor) assert.equal(label, expectedLabels[artifacts.length])
       assert(!artifacts.some(row => row.label === label))
       const bytes = await page.screenshot({ fullPage: false, timeout: timeout() })
       check(); assert(bytes.length > 0 && bytes.length <= 4194304)
@@ -87,12 +93,12 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
       artifacts.push({ label, kind: 'png', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })
     },
   }
-  return { runtime, async close(result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow>> | null, error?: unknown) {
+  return { runtime, async close(result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow>> | null, error?: unknown) {
     const settled = await Promise.allSettled([...contexts].map(async context => { await context.close(); contexts.delete(context) }))
     const contextsClosed = contexts.size === 0 && settled.every(r => r.status === 'fulfilled')
     const outcome = result && !error && contextsClosed && pageErrors === 0 && Date.now() < binding.deadline ? 'passed' : 'failed'
     closed = true
-    const receipt = { version: 1, proofScope: 'vertical-v1', projectId: binding.projectId, nonce: binding.nonce,
+    const receipt = { version: 1, proofScope: binding.proofScope, projectId: binding.projectId, nonce: binding.nonce,
       sourceSha: binding.sourceSha, sourceTree: binding.sourceTree, appOverlaySha256: binding.appOverlaySha256,
       deadline: binding.deadline, endedAt: Date.now(), outcome, contextsClosed, pageErrors, actors, result,
       failureStage: outcome === 'passed' ? null : verticalWorkflowFailureStage(error) ?? step, artifacts }
