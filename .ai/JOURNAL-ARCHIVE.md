@@ -48024,3 +48024,22 @@ preparation with stable reads; receipt0600 retained. Root confirms workdir absen
 Docker containers/volumes/networks absent by name/both labels, four ports clear.
 No standalone canonical DB equality attestation or native acceptance. Evidence,
 permanent spent token and review retained; no retry/phase exit/production change.
+
+<!-- pika-session-log-archive-batch:6e0aaeb652fc978bb09c63d0de5c05f145f7245fb0d94fb0c44767acd2d1c9ab -->
+## 2026-10-14 Admission/config reload split
+
+Human Go authorizes the recommended runner fix, review and ONE fresh bounded
+rehearsal; production and all other holds remain. Config reads now only validate
+the original binding, including worker reloads. A shared private-parent/lstat
+freshness guard rejects runner-output or playwright-started.json before native
+Playwright spawn (before its output-clearing task), and again in global setup.
+Exclusive0600 wx start receipt and all identity/clock/pin/ownership/cleanup gates
+remain. Dangling links count as stale state; the guard never adopts or deletes.
+No worker-env flag, dependency, app/auth/schema or acceptance gate changes.
+New11CPU cases begin6RED, then60checks/5suitesPASS3.70s; TSC/defaultESLintpass.
+Coverage includes repeated binding reads after own output, stale-file retention,
+start-receipt reuse rejection, and native pre-spawn call ordering. Native wiring
+ordering is a source-contract assertion; filesystem/global-setup behavior is
+executed with CPU fixtures, not native proof. Full focused gate and targeted
+independent review next. New private token will be distinct; no admission/project
+clock allocated yet. All five prior attempts remain failed and permanently spent.

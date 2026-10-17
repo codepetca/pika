@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Admission/config reload split
-
-Human Go authorizes the recommended runner fix, review and ONE fresh bounded
-rehearsal; production and all other holds remain. Config reads now only validate
-the original binding, including worker reloads. A shared private-parent/lstat
-freshness guard rejects runner-output or playwright-started.json before native
-Playwright spawn (before its output-clearing task), and again in global setup.
-Exclusive0600 wx start receipt and all identity/clock/pin/ownership/cleanup gates
-remain. Dangling links count as stale state; the guard never adopts or deletes.
-No worker-env flag, dependency, app/auth/schema or acceptance gate changes.
-New11CPU cases begin6RED, then60checks/5suitesPASS3.70s; TSC/defaultESLintpass.
-Coverage includes repeated binding reads after own output, stale-file retention,
-start-receipt reuse rejection, and native pre-spawn call ordering. Native wiring
-ordering is a source-contract assertion; filesystem/global-setup behavior is
-executed with CPU fixtures, not native proof. Full focused gate and targeted
-independent review next. New private token will be distinct; no admission/project
-clock allocated yet. All five prior attempts remain failed and permanently spent.
-
 ## 2026-10-14 Admission split reviewed; fresh attempt reached body but cleanup unverified
 
 Runtime25fd84bea passes3190focused/8skip and all policies/TSC/lint. Review69
@@ -1006,3 +988,11 @@ APIs and native component proofs are reused; no extra verification framework.
 PR1581 staysdraft: its Survey263 conflicts with main263 and must not merge wholesale.
 Runner implementation/CPU tests and private wrappers are being prepared; no new
 native attempt, acceptance, release or full-goal completion is claimed yet.
+
+## 2026-10-17 — current-main manual Test grading/Return proof accepted
+
+- PR1612 merged normally after all10 CI checks; canonical main updated. No production changes.
+- Separate `vertical-grade-return-v1` proof passed at runner969002ac/app eb4fa32b2/schema001–267; one Test/two questions,8 actor sessions,6 visually verified desktop screenshots, exact saved grades/returned learner disclosure and independent committed-state witness.
+- Two obsolete UI expectations corrected with regression tests/review: Publish today menu and full-roster Return status. Failed attempts retained/spent, not relabeled.
+- Reviews158–162 clean;4058 focused checks/static gates passed. Native cleanup and immediate source/dependency preservation passed; disposable resources/workdir absent.
+- Full Tests lifecycle/role matrix and other groups remain open. Production/shared-local/provider/Survey/account/billing/cutover holds unchanged. Evidence stays private in coordinator restart-recovery `playwright-vertical-llZf49/ACCEPTANCE.md`.

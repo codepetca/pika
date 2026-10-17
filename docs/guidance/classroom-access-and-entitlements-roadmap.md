@@ -541,7 +541,27 @@ member observations must agree with fresh reads and the database witness. Review
 the source and fixed binding before one fresh isolated attempt. No new runner
 architecture, shared-local migration, production release or rollout is authorized
 by this checkpoint; the existing explicit task waiver handles routine approvals.
-The complete Tests/lifecycle/role matrix and other batch-2 groups remain open.
+Acceptance — 2026-10-17: runner `969002ac033b2f8cae05303a0f632bf6f1e42878`
+completed the distinct successor against app eb4fa32b2/schema001–267 on isolated
+`pika_assignment_list_5c0537a11022`. Create/publish/submit/inspect, real manual
+grade4/5 and feedback, selected-access closure, hidden pre-return results, UI
+Return and learner9/10 results all passed. Eight actor sessions and six fixed
+desktop screenshots agree with fresh reads and the committed database witness.
+Owner/member/nonmember denials passed. Native/controller/database/cleanup gates
+passed; immediate independent preservation confirmed7736 source files and49485
+dependency files unchanged and no matching processes. Disposable resources and
+workdir were independently absent. Full4058 CPU checks and static gates passed;
+independent reviews158–162 are complete. Private evidence: retained coordinator
+restart-recovery directory, `playwright-vertical-llZf49/ACCEPTANCE.md`.
+
+Two predecessor attempts remain failed/spent: G8Uaw9 used the obsolete direct
+Publish interaction;2V3kXv expected a Status column hidden by the open inspector.
+Focused runner fixes follow the current Publish today menu and keep the Return
+roster full-width. Both were regression-tested/reviewed; no application behavior,
+security controls or acceptance criteria changed. Do not repeat this accepted
+proof solely for recency. The complete Tests lifecycle/role/visual matrix and
+other batch-2 groups remain open, including clear/conflict/recovery/revocation
+cases. All production/shared-local/provider/Survey/rollout holds remain unchanged.
 
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
