@@ -271,6 +271,50 @@ describe('TestStudentGradingPanel save-all grading', () => {
     expect(JSON.parse(patch?.[1].body).grades[0]).toMatchObject({ score: 4, expected_response_revision: 4 })
   })
 
+  it.each([
+    { status: 'returned', edit: 'score' },
+    { status: 'returned', edit: 'comment' },
+    { status: 'returned', edit: 'both' },
+    { status: 'submitted', edit: 'score' },
+    { status: 'submitted', edit: 'comment' },
+    { status: 'submitted', edit: 'both' },
+  ] as const)('rebases only local $edit edits when $status work refreshes', async ({ status, edit }) => {
+    let reads = 0
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockImplementation((_url, init) => {
+      if (init?.method === 'PATCH') {
+        return Promise.resolve({ ok: true, json: async () => ({ responses: [{ id: 'response-1', revision: 3 }] }) })
+      }
+      reads += 1
+      const payload = makeResultsPayload(reads === 1 ? 5 : 3,
+        reads === 1 ? 'Original sent' : 'Newer sent elsewhere', reads)
+      return Promise.resolve({ ok: true, json: async () => ({
+        ...payload, students: payload.students.map((student) => ({ ...student, status })),
+      }) })
+    })
+    let save: (() => Promise<void>) | null = null
+    const register = (handler: (() => Promise<void>) | null) => { save = handler }
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(5)
+    if (edit !== 'comment') fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    if (edit !== 'score') fireEvent.change(screen.getByRole('textbox'), { target: { value: 'New local comment' } })
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} onRegisterSaveHandler={register} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(edit === 'comment' ? 3 : 4)
+    expect(screen.getByRole('textbox')).toHaveValue(edit === 'score'
+      ? status === 'returned' ? '' : 'Newer sent elsewhere'
+      : 'New local comment')
+    if (status === 'returned') expect(screen.getByText('Newer sent elsewhere')).toBeInTheDocument()
+    await act(async () => { await save?.() })
+    const patch = fetch.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patch?.[1]?.body)).grades[0]).toMatchObject({
+      expected_response_revision: 2,
+      score: edit === 'comment' ? 3 : 4,
+      feedback: edit === 'score' ? 'Newer sent elsewhere' : 'New local comment',
+    })
+    expect(screen.getByRole('textbox')).toHaveValue(status === 'returned' ? ''
+      : edit === 'score' ? 'Newer sent elsewhere' : 'New local comment')
+  })
+
   it('finishes a fresh reload when a manual save invalidates an overlapping refresh', async () => {
     const patch = deferred<any>()
     const oldRead = deferred<any>()

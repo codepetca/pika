@@ -119,14 +119,34 @@ function parseScore(raw: string | null | undefined): ParsedScore {
   return { kind: 'value', value: Math.round(parsed * 100) / 100 }
 }
 
-function areDraftsEqual(left: GradeDraft | undefined, right: GradeDraft | undefined): boolean {
-  const leftScore = parseScore(left?.score)
-  const rightScore = parseScore(right?.score)
-  const equalScores =
+function areScoresEqual(left: string | undefined, right: string | undefined): boolean {
+  const leftScore = parseScore(left)
+  const rightScore = parseScore(right)
+  return (
     leftScore.kind === rightScore.kind &&
     (leftScore.kind !== 'value' || leftScore.value === (rightScore as { value: number }).value)
+  )
+}
 
-  return equalScores && normalizeFeedback(left?.feedback) === normalizeFeedback(right?.feedback)
+function areDraftsEqual(left: GradeDraft | undefined, right: GradeDraft | undefined): boolean {
+  return areScoresEqual(left?.score, right?.score)
+    && normalizeFeedback(left?.feedback) === normalizeFeedback(right?.feedback)
+}
+
+function rebaseGradeDraft(current: GradeDraft, previous: GradeDraft | undefined, fresh: GradeDraft): GradeDraft {
+  const scoreChanged = !areScoresEqual(current.score, previous?.score)
+  // Returned work has an append composer: an empty composer never edits sent feedback.
+  const feedbackChanged = current.returnedFeedbackDraft !== undefined
+    ? current.returnedFeedbackDraft.trim().length > 0
+    : normalizeFeedback(current.feedback) !== normalizeFeedback(previous?.feedback)
+  return {
+    ...fresh,
+    score: scoreChanged ? current.score : fresh.score,
+    feedback: feedbackChanged ? current.feedback : fresh.feedback,
+    ...(fresh.returnedFeedbackDraft !== undefined
+      ? { returnedFeedbackDraft: feedbackChanged ? current.feedback : '' }
+      : {}),
+  }
 }
 
 function computeStudentGradingMetrics(
@@ -318,8 +338,8 @@ export function TestStudentGradingPanel({
         const previous = latestDraftsRef.current
         if (loadedScopeRef.current === scope) {
           for (const [id, draft] of Object.entries(previous.gradeDrafts)) {
-            if (nextDrafts[id] && !areDraftsEqual(draft, previous.persistedDrafts[id])) {
-              nextDrafts[id] = draft
+            if (nextDrafts[id]) {
+              nextDrafts[id] = rebaseGradeDraft(draft, previous.persistedDrafts[id], nextDrafts[id])
             }
           }
         }
