@@ -123,6 +123,19 @@ describe('fixed contextual Test HTTP gateway policy', () => {
   ])('still rejects unrelated or mutating shell path %s %s', (method, path) => {
     expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', path, 'localhost:3117', method, {})).toThrow()
   })
+  it('admits only the exact fixture Test provenance read without granting guided drafting', () => {
+    const path = `/api/teacher/classrooms/${plan.classrooms.classB.id}/authoring-drafts/provenance`
+    const query = `?target=tests&artifact_id=${testId}`
+    expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', path + query, 'localhost:3117', 'GET')).not.toThrow()
+    for (const target of [path, path + query + '&extra=1', path + query + '&target=tests',
+      path + query.replace('target=tests', 'target=assignments'), path + query.replace(testId, 'invalid'),
+      path.replace(plan.classrooms.classB.id, testId) + query, path.replace('provenance', 'suggest') + query]) {
+      expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', target, 'localhost:3117', 'GET')).toThrow()
+    }
+    for (const method of ['POST', 'PATCH', 'DELETE']) {
+      expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', path + query, 'localhost:3117', method, {})).toThrow()
+    }
+  })
 })
 
 describe('contextual Test gateway original-byte ownership with fake HTTP I/O', () => {

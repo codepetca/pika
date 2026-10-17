@@ -99,9 +99,16 @@ export class ContextualTestGatewayPolicy {
       // Frozen app RootLayout icons and the always-mounted ClassDaysProvider
       // are shell reads even when the only enabled feature is Tests.
       const classDays = new RegExp(`^/api/classrooms/(${uuid})/class-days$`).exec(path)
+      const provenance = new RegExp(`^/api/teacher/classrooms/(${uuid})/authoring-drafts/provenance$`).exec(path)
+      const query = new URLSearchParams(target.includes('?') ? target.slice(target.indexOf('?') + 1) : '')
+      // The editor mounts this optional metadata read; its existing role guard
+      // still applies. No guided-draft creation or provider request is admitted.
+      const testProvenance = !!provenance && this.classIds.has(provenance[1]) && query.size === 2
+        && query.getAll('target').length === 1 && query.get('target') === 'tests'
+        && query.getAll('artifact_id').length === 1 && new RegExp(`^${uuid}$`).test(query.get('artifact_id') ?? '')
       allowed = ['/login', '/classrooms', '/favicon.ico', '/pika-icon-light.svg', '/pika-icon-dark.svg',
         '/api/auth/me', '/api/classrooms/home', '/api/student/attendance/status', '/api/teacher/tests', '/api/student/tests'].includes(path)
-        || !!(classDays && this.classIds.has(classDays[1]))
+        || !!(classDays && this.classIds.has(classDays[1])) || testProvenance
         || new RegExp(`^/classrooms/${uuid}$`).test(path) || path.startsWith('/_next/static/')
         || /^\/fonts\/[a-zA-Z0-9_./-]+$/.test(path) || teacherTest.test(path) || studentTest.test(path) || classRead.test(path)
     } else {
