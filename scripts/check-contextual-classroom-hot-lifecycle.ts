@@ -36,10 +36,14 @@ export function hotLifecycleFailureShape(error:unknown) {
   if(cause instanceof ApiError)return {kind:'api',status:[400,403,404,409,503].includes(cause.statusCode)?cause.statusCode:0,sqlstate:'unknown'}
   if(cause instanceof assert.AssertionError)return {kind:'assertion',status:0,sqlstate:'unknown'}
   if(cause instanceof SyntaxError)return {kind:'syntax',status:0,sqlstate:'unknown'}
+  if(cause instanceof Error&&'code' in cause){
+    if(cause.code==='ENOBUFS'||cause.code==='ERR_CHILD_PROCESS_STDIO_MAXBUFFER')return {kind:'output-limit',status:0,sqlstate:'unknown'}
+    if(cause.code==='ETIMEDOUT')return {kind:'timeout',status:0,sqlstate:'unknown'}
+  }
   if(cause instanceof Error&&'stderr' in cause){
     const stderr=typeof cause.stderr==='string'?cause.stderr:Buffer.isBuffer(cause.stderr)?cause.stderr.toString('utf8'):''
     const code=/^ERROR:\s+([A-Z0-9]{5}):/m.exec(stderr)?.[1]
-    return {kind:'command',status:0,sqlstate:code&&['42702','42601','42883','42501','57014','25006','54000'].includes(code)?code:'unknown'}
+    return {kind:'command',status:0,sqlstate:code&&['42702','42703','42601','42883','42501','57014','25006','54000'].includes(code)?code:'unknown'}
   }
   return {kind:'unknown',status:0,sqlstate:'unknown'}
 }

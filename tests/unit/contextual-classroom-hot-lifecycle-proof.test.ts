@@ -21,6 +21,9 @@ describe('closed268 hot lifecycle proof; CPU evidence is not native acceptance',
     expect(hotGraphFunctions).toContain("string_agg(x.definition,'' order by x.definition)")
     expect(hotGraphFunctions).not.toContain("string_agg(v,'' order by v)")
     expect(hotGraphFunctions).not.toContain('#variable_conflict')
+    expect(hotGraphFunctions).toContain('declare relation_row record;')
+    expect(hotGraphFunctions).toContain('pg_get_triggerdef(trigger_row.oid)')
+    expect(hotGraphFunctions).not.toMatch(/\bt\./)
   })
   it('retains only closed error labels across outer cleanup wrapping',()=>{
     const command=Object.assign(new Error('secret query'),{stderr:'ERROR:  42702: private field\nDETAIL: secret value'})
@@ -29,6 +32,9 @@ describe('closed268 hot lifecycle proof; CPU evidence is not native acceptance',
     expect(hotLifecycleFailureShape(new ApiError(403,'private'))).toEqual({kind:'api',status:403,sqlstate:'unknown'})
     expect(hotLifecycleFailureShape(new SyntaxError('private'))).toEqual({kind:'syntax',status:0,sqlstate:'unknown'})
     expect(hotLifecycleFailureShape(new assert.AssertionError({message:'private',actual:'secret',expected:'hidden',operator:'strictEqual'}))).toEqual({kind:'assertion',status:0,sqlstate:'unknown'})
+    expect(hotLifecycleFailureShape(Object.assign(new Error('private'),{stderr:'ERROR:  42703: private column'}))).toEqual({kind:'command',status:0,sqlstate:'42703'})
+    for(const code of ['ENOBUFS','ERR_CHILD_PROCESS_STDIO_MAXBUFFER'])expect(hotLifecycleFailureShape(Object.assign(new Error('private'),{code}))).toEqual({kind:'output-limit',status:0,sqlstate:'unknown'})
+    expect(hotLifecycleFailureShape(Object.assign(new Error('private'),{code:'ETIMEDOUT'}))).toEqual({kind:'timeout',status:0,sqlstate:'unknown'})
   })
   it('runs learner inspect through the installed SDK and real application decoder offline',async()=>{
     const f=newClassroomHotLifecycleFixture(original),key='header.'+Buffer.from(JSON.stringify({iss:'supabase-demo',role:'service_role'})).toString('base64url')+'.signature'

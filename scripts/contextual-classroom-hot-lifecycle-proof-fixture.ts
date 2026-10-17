@@ -22,14 +22,14 @@ export function newClassroomHotLifecycleFixture(original:AssignmentListProofFixt
 }
 export type HotLifecycleFixture=ReturnType<typeof newClassroomHotLifecycleFixture>
 export const hotGraphFunctions=`create or replace function pg_temp.hot_graph() returns jsonb language plpgsql as $graph$
-declare t record;v jsonb;g jsonb:='{}';begin
-for t in select n.nspname,c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
+declare relation_row record;v jsonb;g jsonb:='{}';begin
+for relation_row in select n.nspname,c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
  where c.relkind in ('r','p') and n.nspname in ('public','private','storage') order by n.nspname,c.relname loop
- execute format('select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb) from %I.%I r',t.nspname,t.relname) into v;
- g:=g||jsonb_build_object(t.nspname||'.'||t.relname,v);end loop;
+ execute format('select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb) from %I.%I r',relation_row.nspname,relation_row.relname) into v;
+ g:=g||jsonb_build_object(relation_row.nspname||'.'||relation_row.relname,v);end loop;
 return g||jsonb_build_object('__catalog',(select md5(coalesce(string_agg(x.definition,'' order by x.definition),'')) from (
  select pg_get_functiondef(p.oid)||coalesce(p.proacl::text,'') definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prokind='f'
- union all select pg_get_triggerdef(t.oid)||t.tgenabled::text from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','storage') and not t.tgisinternal) x));end;$graph$;`
+ union all select pg_get_triggerdef(trigger_row.oid)||trigger_row.tgenabled::text from pg_trigger trigger_row join pg_class c on c.oid=trigger_row.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','storage') and not trigger_row.tgisinternal) x));end;$graph$;`
 export const hotSnapshotSelect=`select pg_temp.hot_graph() as result;`
 export function hotLifecycleSnapshotSql(){return `${hotGraphFunctions}begin read only;set local statement_timeout='8s';${hotSnapshotSelect}rollback;`}
 export function hotLifecycleSetupSql(f:HotLifecycleFixture) {
