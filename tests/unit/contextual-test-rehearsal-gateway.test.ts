@@ -109,11 +109,15 @@ describe('fixed contextual Test HTTP gateway policy', () => {
     p.latch(secret as never); expect(p.receipt().firstFailure).toBe('protocol')
     expect(JSON.stringify(p.receipt())).not.toContain('secret')
   })
-  it.each(['/pika-icon-light.svg', '/pika-icon-dark.svg', `/api/classrooms/${plan.classrooms.classB.id}/class-days`, '/api/auth/me'])('admits the exact frozen Tests shell read %s', path => {
+  // StudentClassroomsIndex mounts this read even with the attendance integration
+  // disabled. The frozen handler reads local state; it does not contact Bara.
+  it.each(['/pika-icon-light.svg', '/pika-icon-dark.svg', `/api/classrooms/${plan.classrooms.classB.id}/class-days`, '/api/auth/me', '/api/student/attendance/status'])('admits the exact frozen Tests shell read %s', path => {
     expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', path, 'localhost:3117', 'GET')).not.toThrow()
   })
   it.each([
     ['GET', `/api/classrooms/${testId}/class-days`], ['POST', `/api/classrooms/${plan.classrooms.classB.id}/class-days`],
+    ['POST', '/api/student/attendance/status'], ['POST', '/api/student/attendance/check-in'],
+    ['GET', '/api/student/attendance/status/extra'], ['GET', '/api/student/attendance'],
     ['GET', '/api/teacher/assignments'], ['POST', '/api/auth/workos/logout'], ['POST', '/api/feedback'],
     ['POST', `/api/teacher/tests/${testId}/documents/${testId}/sync`],
   ])('still rejects unrelated or mutating shell path %s %s', (method, path) => {

@@ -100,7 +100,7 @@ export class ContextualTestGatewayPolicy {
       // are shell reads even when the only enabled feature is Tests.
       const classDays = new RegExp(`^/api/classrooms/(${uuid})/class-days$`).exec(path)
       allowed = ['/login', '/classrooms', '/favicon.ico', '/pika-icon-light.svg', '/pika-icon-dark.svg',
-        '/api/auth/me', '/api/classrooms/home', '/api/teacher/tests', '/api/student/tests'].includes(path)
+        '/api/auth/me', '/api/classrooms/home', '/api/student/attendance/status', '/api/teacher/tests', '/api/student/tests'].includes(path)
         || !!(classDays && this.classIds.has(classDays[1]))
         || new RegExp(`^/classrooms/${uuid}$`).test(path) || path.startsWith('/_next/static/')
         || /^\/fonts\/[a-zA-Z0-9_./-]+$/.test(path) || teacherTest.test(path) || studentTest.test(path) || classRead.test(path)
