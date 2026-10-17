@@ -12,6 +12,7 @@ import {
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
 import { readTestFromPayload } from '@/lib/test-api-contract'
+import { createTestResultsReader, type TestResultsReader } from '@/lib/test-results-reader'
 import type { TestFocusSummary } from '@/types'
 
 interface TestQuestionInfo {
@@ -118,14 +119,34 @@ function parseScore(raw: string | null | undefined): ParsedScore {
   return { kind: 'value', value: Math.round(parsed * 100) / 100 }
 }
 
-function areDraftsEqual(left: GradeDraft | undefined, right: GradeDraft | undefined): boolean {
-  const leftScore = parseScore(left?.score)
-  const rightScore = parseScore(right?.score)
-  const equalScores =
+function areScoresEqual(left: string | undefined, right: string | undefined): boolean {
+  const leftScore = parseScore(left)
+  const rightScore = parseScore(right)
+  return (
     leftScore.kind === rightScore.kind &&
     (leftScore.kind !== 'value' || leftScore.value === (rightScore as { value: number }).value)
+  )
+}
 
-  return equalScores && normalizeFeedback(left?.feedback) === normalizeFeedback(right?.feedback)
+function areDraftsEqual(left: GradeDraft | undefined, right: GradeDraft | undefined): boolean {
+  return areScoresEqual(left?.score, right?.score)
+    && normalizeFeedback(left?.feedback) === normalizeFeedback(right?.feedback)
+}
+
+function rebaseGradeDraft(current: GradeDraft, previous: GradeDraft | undefined, fresh: GradeDraft): GradeDraft {
+  const scoreChanged = !areScoresEqual(current.score, previous?.score)
+  // Returned work has an append composer: an empty composer never edits sent feedback.
+  const feedbackChanged = current.returnedFeedbackDraft !== undefined
+    ? current.returnedFeedbackDraft.trim().length > 0
+    : normalizeFeedback(current.feedback) !== normalizeFeedback(previous?.feedback)
+  return {
+    ...fresh,
+    score: scoreChanged ? current.score : fresh.score,
+    feedback: feedbackChanged ? current.feedback : fresh.feedback,
+    ...(fresh.returnedFeedbackDraft !== undefined
+      ? { returnedFeedbackDraft: feedbackChanged ? current.feedback : '' }
+      : {}),
+  }
 }
 
 function computeStudentGradingMetrics(
@@ -182,6 +203,7 @@ interface Props {
   selectedStudentId: string | null
   apiBasePath?: string
   refreshToken?: number
+  resultsReader?: TestResultsReader
   onRegisterSaveHandler?: ((handler: (() => Promise<void>) | null) => void)
   onSaveStateChange?: ((state: SaveState) => void)
 }
@@ -246,6 +268,7 @@ export function TestStudentGradingPanel({
   selectedStudentId,
   apiBasePath = '/api/teacher/tests',
   refreshToken = 0,
+  resultsReader,
   onRegisterSaveHandler,
   onSaveStateChange,
 }: Props) {
@@ -259,42 +282,89 @@ export function TestStudentGradingPanel({
   const [savingStudentId, setSavingStudentId] = useState<string | null>(null)
   const [gradingError, setGradingError] = useState('')
   const [lastSavedStudentId, setLastSavedStudentId] = useState<string | null>(null)
+  const [mutationRefreshToken, setMutationRefreshToken] = useState(0)
   const feedbackTextareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
   const conflictRetryCountRef = useRef(0)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      // Bypass fetchJSONWithCache so every grading refresh includes the latest response revisions.
-      const res = await fetch(`${apiBasePath}/${testId}/results`, { cache: 'no-store' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to load test results')
-
-      const payload = normalizeTestResultsPayload(data as TestResultsResponsePayload)
-      setResults(payload)
-
-      const nextDrafts = buildGradeDrafts(payload)
-      setGradeDrafts(nextDrafts)
-      setPersistedDrafts(nextDrafts)
-      setLastSavedStudentId(null)
-      setGradingError('')
-      conflictRetryCountRef.current = 0
-    } catch (loadError: any) {
-      setError(loadError.message || 'Failed to load test results')
-    } finally {
-      setLoading(false)
-    }
-  }, [apiBasePath, testId])
+  const ownResultsReader = useMemo(() => createTestResultsReader(), [])
+  const reader = resultsReader ?? ownResultsReader
+  const scope = useMemo(() => ({ apiBasePath, reader, testId }), [apiBasePath, reader, testId])
+  const currentScopeRef = useRef(scope)
+  currentScopeRef.current = scope
+  const viewScope = useMemo(() => ({ scope, refreshToken, mutationRefreshToken }), [scope, refreshToken, mutationRefreshToken])
+  const currentViewScopeRef = useRef(viewScope)
+  currentViewScopeRef.current = viewScope
+  const loadingViewScopeRef = useRef(viewScope)
+  const loadRequestRef = useRef(0)
+  const loadedScopeRef = useRef<object | null>(null)
+  const latestDraftsRef = useRef({ gradeDrafts, persistedDrafts })
+  latestDraftsRef.current = { gradeDrafts, persistedDrafts }
+  const previousRefreshRef = useRef({ scope, refreshToken })
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+  useEffect(() => {
+    setSavingAll(false)
+    setSavingStudentId(null)
+  }, [scope])
 
   useEffect(() => {
+    const url = `${apiBasePath}/${testId}/results`
+    // The workspace owns shared-reader mutation barriers. A standalone panel
+    // owns its token boundary; StrictMode replay never advances it.
+    if (!resultsReader && previousRefreshRef.current.scope === scope && previousRefreshRef.current.refreshToken !== refreshToken) {
+      reader.invalidate(url)
+    }
+    previousRefreshRef.current = { scope, refreshToken }
+    const requestId = ++loadRequestRef.current
+    const generation = reader.generation(url)
+    let disposed = false
+    const isCurrent = (includeGeneration = true) => !disposed && currentViewScopeRef.current === viewScope
+      && loadRequestRef.current === requestId && (!includeGeneration || reader.generation(url) === generation)
+    loadingViewScopeRef.current = viewScope
+    setLoading(true)
+    setError('')
+    async function load() {
+      try {
+        const response = await reader.read(url)
+        if (!isCurrent()) return
+        const data = response.data as TestResultsResponsePayload & { error?: string }
+        if (!response.ok) throw new Error(data.error || 'Failed to load test results')
+        const payload = normalizeTestResultsPayload(data)
+        if (payload.test.id !== testId) throw new Error('Failed to load test results')
+        setResults(payload)
+        const nextDrafts = buildGradeDrafts(payload)
+        const previous = latestDraftsRef.current
+        if (loadedScopeRef.current === scope) {
+          for (const [id, draft] of Object.entries(previous.gradeDrafts)) {
+            if (nextDrafts[id]) {
+              nextDrafts[id] = rebaseGradeDraft(draft, previous.persistedDrafts[id], nextDrafts[id])
+            }
+          }
+        }
+        setGradeDrafts(nextDrafts)
+        setPersistedDrafts(buildGradeDrafts(payload))
+        loadedScopeRef.current = scope
+        setError('')
+        setLastSavedStudentId(null)
+        setGradingError('')
+        conflictRetryCountRef.current = 0
+      } catch (loadError: any) {
+        if (isCurrent()) setError(loadError.message || 'Failed to load test results')
+      } finally {
+        if (isCurrent(false)) setLoading(false)
+      }
+    }
     void load()
-  }, [load, refreshToken])
+    return () => { disposed = true }
+  }, [apiBasePath, reader, refreshToken, resultsReader, scope, testId, viewScope])
 
   const selectedStudent = useMemo(() => {
-    if (!results || !selectedStudentId) return null
+    if (!results || !selectedStudentId || loading || loadedScopeRef.current !== scope
+      || loadingViewScopeRef.current !== viewScope) return null
     return results.students.find((student) => student.student_id === selectedStudentId) || null
-  }, [results, selectedStudentId])
+  }, [loading, results, scope, selectedStudentId, viewScope])
 
   const selectedGradableResponses = useMemo(() => {
     if (!selectedStudent || !results) return [] as Array<{
@@ -387,6 +457,9 @@ export function TestStudentGradingPanel({
 
   const saveAllGrades = useCallback(async () => {
     if (!selectedStudent || dirtyResponses.length === 0) return
+    const isCurrentSave = () => mountedRef.current && currentScopeRef.current === scope
+    const saveViewScope = currentViewScopeRef.current
+    let invalidatedResults = false
     if (dirtyValidationError) {
       setGradingError(dirtyValidationError)
       return
@@ -471,18 +544,27 @@ export function TestStudentGradingPanel({
         body: JSON.stringify({ grades: gradesPayload }),
       })
       const data = await res.json()
+      if (!isCurrentSave()) return
       if (!res.ok && res.status === 409) {
         const shouldRetryAutomatically = conflictRetryCountRef.current === 0
         conflictRetryCountRef.current += 1
-        // Bypass fetchJSONWithCache so conflict recovery receives the latest response revisions.
-        const refreshResponse = await fetch(`${apiBasePath}/${testId}/results`, { cache: 'no-store' })
-        const refreshData = await refreshResponse.json()
+        const resultsUrl = `${apiBasePath}/${testId}/results`
+        reader.invalidate(resultsUrl)
+        invalidatedResults = true
+        const generation = reader.generation(resultsUrl)
+        loadRequestRef.current += 1
+        const refreshResponse = await reader.read(resultsUrl)
+        if (!isCurrentSave() || reader.generation(resultsUrl) !== generation) return
+        const refreshData = refreshResponse.data as TestResultsResponsePayload & { error?: string }
         if (!refreshResponse.ok) {
           throw new Error(refreshData.error || 'Failed to reload grades after a conflict')
         }
         const refreshedResults = normalizeTestResultsPayload(
           refreshData as TestResultsResponsePayload,
         )
+        if (refreshedResults.test.id !== testId) throw new Error('Failed to reload grades after a conflict')
+        setError('')
+        if (currentViewScopeRef.current === saveViewScope) setLoading(false)
         const refreshedDrafts = buildGradeDrafts(refreshedResults)
         setResults(refreshedResults)
         setPersistedDrafts(refreshedDrafts)
@@ -513,6 +595,10 @@ export function TestStudentGradingPanel({
         return
       }
       if (!res.ok) throw new Error(data.error || 'Failed to save grades')
+      reader.invalidate(`${apiBasePath}/${testId}/results`)
+      invalidatedResults = true
+      loadRequestRef.current += 1
+      if (currentViewScopeRef.current === saveViewScope) setLoading(false)
 
       const savedRevisionByResponseId = new Map<string, number>()
       if (Array.isArray(data.responses)) {
@@ -616,10 +702,14 @@ export function TestStudentGradingPanel({
       conflictRetryCountRef.current = 0
       setLastSavedStudentId(selectedStudent.student_id)
     } catch (saveError: any) {
-      setGradingError(saveError.message || 'Failed to save grades')
+      if (isCurrentSave()) setGradingError(saveError.message || 'Failed to save grades')
     } finally {
-      setSavingAll(false)
-      setSavingStudentId(null)
+      if (isCurrentSave()) {
+        setSavingAll(false)
+        setSavingStudentId(null)
+        if (currentViewScopeRef.current === saveViewScope) setLoading(false)
+        else if (invalidatedResults) setMutationRefreshToken((previous) => previous + 1)
+      }
     }
   }, [
     apiBasePath,
@@ -627,6 +717,8 @@ export function TestStudentGradingPanel({
     dirtyValidationError,
     gradeDrafts,
     persistedDrafts,
+    reader,
+    scope,
     results,
     selectedStudent,
     testId,
@@ -707,7 +799,7 @@ export function TestStudentGradingPanel({
     testId,
   ])
 
-  if (loading) {
+  if (loading || loadingViewScopeRef.current !== viewScope) {
     return (
       <div className="flex justify-center py-6">
         <Spinner />
