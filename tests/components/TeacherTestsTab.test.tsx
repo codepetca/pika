@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useEffect, useState, type ReactNode } from 'react'
+import { StrictMode, useEffect, useState, type ReactNode } from 'react'
+import type { TestResultsReader } from '@/lib/test-results-reader'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
@@ -25,8 +26,9 @@ vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
   ClassroomBlueprintDraftSource: () => null,
 }))
 
-const { setOpenMock, gradingSaveCallbacks } = vi.hoisted(() => ({
+const { setOpenMock, gradingSaveCallbacks, inspectorReads } = vi.hoisted(() => ({
   setOpenMock: vi.fn(),
+  inspectorReads: { enabled: false },
   gradingSaveCallbacks: new Map<string, ((state: {
     canSave: boolean
     isSaving: boolean
@@ -195,10 +197,14 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
   TestStudentGradingPanel: ({
     testId,
     selectedStudentId,
+    resultsReader,
+    refreshToken,
     onSaveStateChange,
   }: {
     testId: string
     selectedStudentId: string | null
+    resultsReader?: TestResultsReader
+    refreshToken?: number
     onSaveStateChange?: (state: {
       canSave: boolean
       isSaving: boolean
@@ -207,6 +213,17 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
       studentId: string | null
     }) => void
   }) => {
+    const [inspectorScore, setInspectorScore] = useState<number | null>(null)
+    useEffect(() => {
+      if (inspectorReads.enabled) {
+        if (!resultsReader) throw new Error('Missing workspace results reader')
+        let disposed = false
+        void resultsReader.read(`/api/teacher/tests/${testId}/results`).then(({ data }) => {
+          if (!disposed) setInspectorScore((data as { students: Array<{ points_earned: number }> }).students[0]?.points_earned ?? null)
+        })
+        return () => { disposed = true }
+      }
+    }, [refreshToken, resultsReader, testId])
     useEffect(() => {
       if (!selectedStudentId || !onSaveStateChange) return
       gradingSaveCallbacks.set(selectedStudentId, onSaveStateChange)
@@ -222,10 +239,11 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
           gradingSaveCallbacks.delete(selectedStudentId)
         }
       }
-    }, [onSaveStateChange, selectedStudentId])
+    }, [onSaveStateChange, selectedStudentId, testId])
 
     return (
       <div data-testid="mock-test-grading-panel">
+        {inspectorReads.enabled ? <span>Inspector points: {inspectorScore}</span> : null}
         Grading panel for {testId}:{selectedStudentId || 'none'}
         <button
           type="button"
@@ -377,6 +395,7 @@ describe('TeacherTestsTab', () => {
     setOpenMock.mockReset()
     mockInvalidateGradebookForClassroom.mockClear()
     gradingSaveCallbacks.clear()
+    inspectorReads.enabled = false
   })
 
   afterEach(() => {
@@ -494,6 +513,32 @@ describe('TeacherTestsTab', () => {
       { wrapper: Wrapper }
     )
   }
+
+  it('shares StrictMode roster reads and a focus poll overlapping inspector selection', async () => {
+    inspectorReads.enabled = true
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    let resolveInitial!: (response: ReturnType<typeof makeResultsResponse>) => void
+    let resolvePoll!: (response: ReturnType<typeof makeResultsResponse>) => void
+    const initial = new Promise<ReturnType<typeof makeResultsResponse>>((resolve) => { resolveInitial = resolve })
+    const poll = new Promise<ReturnType<typeof makeResultsResponse>>((resolve) => { resolvePoll = resolve })
+    let reads = 0
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      if (String(input).endsWith('/results')) return ++reads === 1 ? initial : poll
+      return Promise.resolve({ ok: true, json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }) })
+    })
+    render(<StrictMode><TeacherTestsTab classroom={classroom} selectedTestId="test-1" selectedTestMode="grading" /></StrictMode>, { wrapper: Wrapper })
+    await waitFor(() => expect(resultsFetchCalls(fetchMock)).toHaveLength(1))
+    await act(async () => { resolveInitial(makeResultsResponse()) })
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    await waitFor(() => expect(resultsFetchCalls(fetchMock)).toHaveLength(2))
+    fireEvent.click(screen.getByText('Alice Zephyr'))
+    expect(await screen.findByTestId('mock-test-grading-panel')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(2)
+    await act(async () => { resolvePoll(makeResultsResponse()) })
+    expect(screen.getByText('Alice Zephyr')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(2)
+  })
 
   async function openEditModalFromSelectedTest(title = 'Unit Test') {
     fireEvent.click(await screen.findByText(title))
@@ -3982,6 +4027,8 @@ describe('TeacherTestsTab', () => {
   })
 
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
+    inspectorReads.enabled = true
+    let completed = false
     const activeRun = {
       id: 'run-1',
       test_id: 'test-1',
@@ -4015,7 +4062,10 @@ describe('TeacherTestsTab', () => {
         }
 
         if (url === '/api/teacher/tests/test-1/results') {
-          return Promise.resolve(makeResultsResponse({ activeRun: null }))
+          return Promise.resolve(makeResultsResponse({ activeRun: null,
+            students: [makeGradingStudent({ points_earned: completed ? 5 : 3,
+              percent: completed ? 100 : 60, graded_open_responses: completed ? 1 : 0,
+              ungraded_open_responses: completed ? 0 : 1 })] }))
         }
 
         if (url === '/api/teacher/tests/test-1/auto-grade' && init?.method === 'POST') {
@@ -4039,6 +4089,7 @@ describe('TeacherTestsTab', () => {
         }
 
         if (url === '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick') {
+          completed = true
           return Promise.resolve({
             ok: true,
             json: async () => ({
@@ -4065,6 +4116,9 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Alice Zephyr'))
+    expect(await screen.findByText('Inspector points: 3')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
     fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
@@ -4099,6 +4153,9 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent('Graded 1')
     })
+    expect(await screen.findByText('Inspector points: 5')).toBeInTheDocument()
+    const gradedRow = screen.getByText('Alice Zephyr').closest('tr')!
+    expect(within(gradedRow).getByText('5/5')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick',
       expect.objectContaining({ method: 'POST' }),

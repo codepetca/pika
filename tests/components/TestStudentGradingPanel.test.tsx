@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
+import { StrictMode } from 'react'
+import { createTestResultsReader } from '@/lib/test-results-reader'
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div data-testid="spinner" />,
@@ -153,6 +155,146 @@ describe('TestStudentGradingPanel save-all grading', () => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('shares a pending roster read through StrictMode replay without cancelling it', async () => {
+    const pending = deferred<any>()
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockReturnValue(pending.promise)
+    const reader = createTestResultsReader()
+    const rosterRead = reader.read('/api/teacher/tests/test-1/results')
+    render(<StrictMode><TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" resultsReader={reader} /></StrictMode>)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    await act(async () => { pending.resolve({ ok: true, json: async () => makeResultsPayload(3, null, 7) }); await rosterRead })
+    expect(await screen.findByRole('spinbutton')).toHaveValue(3)
+    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('joins the workspace mutation barrier without invalidating its fresh roster read', async () => {
+    const next = deferred<any>()
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => makeResultsPayload(1, null, 3) })
+      .mockReturnValueOnce(next.promise)
+    const reader = createTestResultsReader()
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" resultsReader={reader} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(1)
+    const url = '/api/teacher/tests/test-1/results'
+    reader.invalidate(url)
+    const generation = reader.generation(url)
+    const roster = reader.read(url)
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" resultsReader={reader} refreshToken={1} />)
+    expect(reader.generation(url)).toBe(generation)
+    await act(async () => { next.resolve({ ok: true, json: async () => makeResultsPayload(4, null, 4) }); await roster })
+    expect(await screen.findByRole('spinbutton')).toHaveValue(4)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(reader.generation(url)).toBe(generation)
+  })
+
+  it.each(['success', 'failure'])('ignores a stale Test A %s after Test B loads', async (outcome) => {
+    const old = deferred<any>()
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockReturnValueOnce(old.promise).mockResolvedValue({
+      ok: true, json: async () => ({ ...makeResultsPayload(4, null), test: { id: 'test-2', title: 'Second Test' } }),
+    })
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" />)
+    rerender(<TestStudentGradingPanel testId="test-2" selectedStudentId="student-1" />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(4)
+    await act(async () => { old.resolve(outcome === 'success'
+      ? { ok: true, json: async () => makeResultsPayload(1, null) }
+      : { ok: false, json: async () => ({ error: 'Old Test A failed' }) }) })
+    expect(screen.getByRole('spinbutton')).toHaveValue(4)
+    expect(screen.queryByText('Old Test A failed')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument()
+  })
+
+  it('shows a current failure then clears it on a later explicit successful refresh', async () => {
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Current read failed' }) })
+      .mockResolvedValue({ ok: true, json: async () => makeResultsPayload(2, null, 9) })
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" />)
+    expect(await screen.findByText('Current read failed')).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(2)
+    expect(screen.queryByText('Current read failed')).not.toBeInTheDocument()
+  })
+
+  it('hides the previous Test immediately while a new Test is loading', async () => {
+    const next = deferred<any>()
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    const register = vi.fn()
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => makeResultsPayload(3, null) })
+      .mockReturnValueOnce(next.promise)
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(3)
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } })
+    rerender(<TestStudentGradingPanel testId="test-2" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+    expect(screen.getByTestId('spinner')).toBeInTheDocument()
+    expect(register).toHaveBeenLastCalledWith(null)
+    await act(async () => { next.resolve({ ok: true, json: async () => ({ ...makeResultsPayload(4, null), test: { id: 'test-2' } }) }) })
+    expect(await screen.findByRole('spinbutton')).toHaveValue(4)
+  })
+
+  it.each(['success', 'failure'])('ignores an obsolete same-Test %s and keeps the fresh read loading', async (outcome) => {
+    const old = deferred<any>()
+    const next = deferred<any>()
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockReturnValueOnce(old.promise).mockReturnValueOnce(next.promise)
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" />)
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} />)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    await act(async () => { old.resolve(outcome === 'success'
+      ? { ok: true, json: async () => makeResultsPayload(1, null, 3) }
+      : { ok: false, json: async () => ({ error: 'Obsolete failure' }) }) })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('spinner')).toBeInTheDocument()
+    expect(screen.queryByText('Obsolete failure')).not.toBeInTheDocument()
+    await act(async () => { next.resolve({ ok: true, json: async () => makeResultsPayload(4, null, 4) }) })
+    expect(await screen.findByRole('spinbutton')).toHaveValue(4)
+  })
+
+  it('preserves manual drafts while a refresh replaces the saved response revision', async () => {
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => makeResultsPayload(1, null, 3) })
+      .mockResolvedValueOnce({ ok: true, json: async () => makeResultsPayload(2, null, 4) })
+      .mockResolvedValue({ ok: true, json: async () => ({ responses: [{ id: 'response-1', revision: 5 }] }) })
+    let save: (() => Promise<void>) | null = null
+    const register = (handler: (() => Promise<void>) | null) => { save = handler }
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    fireEvent.change(await screen.findByRole('spinbutton'), { target: { value: '4' } })
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} onRegisterSaveHandler={register} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(4)
+    await act(async () => { await save?.() })
+    const patch = fetch.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(patch?.[1].body).grades[0]).toMatchObject({ score: 4, expected_response_revision: 4 })
+  })
+
+  it('finishes a fresh reload when a manual save invalidates an overlapping refresh', async () => {
+    const patch = deferred<any>()
+    const oldRead = deferred<any>()
+    let reads = 0
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockImplementation((_url, init) => {
+      if (init?.method === 'PATCH') return patch.promise
+      reads += 1
+      if (reads === 2) return oldRead.promise
+      return Promise.resolve({ ok: true, json: async () => makeResultsPayload(reads === 1 ? 1 : 4, null, reads === 1 ? 3 : 4) })
+    })
+    let save: (() => Promise<void>) | null = null
+    const register = (handler: (() => Promise<void>) | null) => { save = handler }
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    fireEvent.change(await screen.findByRole('spinbutton'), { target: { value: '4' } })
+    let saving!: Promise<void>
+    act(() => { saving = save!() })
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} onRegisterSaveHandler={register} />)
+    await act(async () => { patch.resolve({ ok: true, json: async () => ({ responses: [{ id: 'response-1', revision: 4 }] }) }); await saving })
+    expect(screen.getByTestId('spinner')).toBeInTheDocument()
+    await act(async () => { oldRead.resolve({ ok: true, json: async () => makeResultsPayload(1, null, 3) }) })
+    expect(await screen.findByRole('spinbutton')).toHaveValue(4)
+    expect(reads).toBe(3)
+    expect(screen.queryByTestId('spinner')).not.toBeInTheDocument()
   })
 
   it('renders coding answers with their source formatting in teacher results', async () => {
