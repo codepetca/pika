@@ -71,6 +71,14 @@ a stubbed fetch, exact errors and malformed/lost responses. The rollback SQL
 checks ACLs, transitions, ownership, entitlement denials, row/revision/content
 preservation and fault rollback. Authored SQL is not native evidence.
 
+The disposable witness retains complete classroom and archive-revision rows.
+Every other public/private/storage table is represented by its row count and
+SHA-256 of the same complete, deterministically ordered full-row JSON. Table-key
+inventory and the existing function/trigger catalog witness are compared too.
+This avoids repeatedly transmitting fixture content while preserving change
+detection across every table; native byte, action, session and time caps remain
+unchanged. Missing, extra, malformed or changed witnesses fail verification.
+
 Before readiness: replay 001–268 only in a newly bound disposable project; run
 the rollback contract and focused real-SDK/concurrency checks, generate genuine
 database types, verify preservation/cleanup, and complete independent review and

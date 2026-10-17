@@ -26,7 +26,11 @@ declare relation_row record;v jsonb;g jsonb:='{}';begin
 for relation_row in select n.nspname,c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
  where c.relkind in ('r','p') and n.nspname in ('public','private','storage') order by n.nspname,c.relname loop
  execute format('select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb) from %I.%I r',relation_row.nspname,relation_row.relname) into v;
- g:=g||jsonb_build_object(relation_row.nspname||'.'||relation_row.relname,v);end loop;
+ -- Retain full rows where a permitted transition needs field-level comparison.
+ -- Every other table still covers every row/column, without retransmitting it.
+ g:=g||jsonb_build_object(relation_row.nspname||'.'||relation_row.relname,
+ case when relation_row.nspname='public' and relation_row.relname in ('classrooms','classroom_archive_revisions') then v
+ else jsonb_build_object('count',jsonb_array_length(v),'sha256',encode(sha256(convert_to(v::text,'UTF8')),'hex')) end);end loop;
 return g||jsonb_build_object('__catalog',(select md5(coalesce(string_agg(x.definition,'' order by x.definition),'')) from (
  select pg_get_functiondef(p.oid)||coalesce(p.proacl::text,'') definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prokind='f'
  union all select pg_get_triggerdef(trigger_row.oid)||trigger_row.tgenabled::text from pg_trigger trigger_row join pg_class c on c.oid=trigger_row.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','storage') and not trigger_row.tgisinternal) x));end;$graph$;`
@@ -49,9 +53,29 @@ insert into public.test_questions(id,artifact_id,test_id,question_type,question_
  (${q(f.questionId)},${q(f.questionId)},${q(f.testId)},'multiple_choice','Synthetic hot lifecycle question','["A","B"]'::jsonb,1,5,0);
 commit;`
 }
-export type HotGraph=Record<string,Record<string,unknown>[]|string>
+type HotTableWitness={count:number;sha256:string}
+export type HotGraph=Record<string,Record<string,unknown>[]|HotTableWitness|string>
+export function parseHotLifecycleGraph(value:unknown):HotGraph {
+  assert(value&&typeof value==='object'&&!Array.isArray(value));const graph=value as HotGraph
+  assert(typeof graph.__catalog==='string');assert.match(graph.__catalog,/^[a-f0-9]{32}$/)
+  for(const key of ['public.classrooms','public.classroom_archive_revisions'])assert(Array.isArray(graph[key]))
+  for(const [key,witness] of Object.entries(graph)) {
+    if(key==='__catalog')continue
+    assert(/^(public|private|storage)\..+$/.test(key))
+    if(key==='public.classrooms'||key==='public.classroom_archive_revisions') {
+      assert(Array.isArray(witness)&&witness.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))
+    } else {
+      assert(witness&&typeof witness==='object'&&!Array.isArray(witness))
+      assert.deepEqual(Object.keys(witness).sort(),['count','sha256'])
+      assert(Number.isSafeInteger(witness.count)&&witness.count>=0)
+      assert(typeof witness.sha256==='string');assert.match(witness.sha256,/^[a-f0-9]{64}$/)
+    }
+  }
+  return graph
+}
 /** Preserve every non-target table/row and every non-lifecycle Classroom field. */
 export function assertHotLifecycleGraphChange(before:HotGraph,after:HotGraph,classroomId:string,archived:boolean) {
+  parseHotLifecycleGraph(before);parseHotLifecycleGraph(after)
   const copy=structuredClone(before),rows=after['public.classrooms'] as Record<string,unknown>[],old=(before['public.classrooms'] as Record<string,unknown>[]).find(r=>r.id===classroomId)!,fresh=rows.find(r=>r.id===classroomId)!
   assert(old&&fresh&&old.teacher_id===fresh.teacher_id)
   assert.equal(fresh.archived_at===null,!archived);assert(typeof fresh.updated_at==='string'&&Number.isFinite(Date.parse(fresh.updated_at)))

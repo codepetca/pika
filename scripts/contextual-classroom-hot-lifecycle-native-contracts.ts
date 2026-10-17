@@ -10,7 +10,7 @@ import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import type { DraftSaveDriver,DraftSaveTarget,DraftSaveSession } from './check-contextual-test-draft-save-db-contracts'
 import { newClassroomHotLifecycleFixture,hotLifecycleDigest as hash,freezeHot as freeze,hotQuote as q,
   HOT_LIFECYCLE_CAPS as caps,hotLifecycleSetupSql,hotLifecycleSnapshotSql,hotGraphFunctions,
-  assertHotLifecycleGraphChange,type HotGraph } from './contextual-classroom-hot-lifecycle-proof-fixture'
+  assertHotLifecycleGraphChange,parseHotLifecycleGraph,type HotGraph } from './contextual-classroom-hot-lifecycle-proof-fixture'
 
 const SOURCE='268_contextual_classroom_hot_lifecycle.sql'
 const SOURCE_HASH='f7990de91330bb951fd7c63784f9a324b19c16ff946c094797d187af02a76254'
@@ -81,7 +81,7 @@ export async function runClassroomHotLifecycleNativeContracts(m:ClassroomHotLife
 export async function runClassroomHotLifecycleRollbackRaces(m:ClassroomHotLifecycleNativePlan,t:DraftSaveTarget,d:DraftSaveDriver) {
   bind(m,t,'concurrency');assert.deepEqual(await d.verifyTarget(),t);return freeze({schedules:0,committedSchedulesSeparate:true})
 }
-function graph(value:unknown):HotGraph {assert(value&&typeof value==='object'&&!Array.isArray(value));const g=value as HotGraph;assert(Array.isArray(g['public.classrooms'])&&Array.isArray(g['public.classroom_archive_revisions'])&&typeof g.__catalog==='string');return g}
+const graph=parseHotLifecycleGraph
 function transfer(before:HotGraph,after:HotGraph,id:string,owner:string) {
   const copy=structuredClone(before),old=(copy['public.classrooms'] as Record<string,unknown>[]).find(r=>r.id===id)!,fresh=(after['public.classrooms'] as Record<string,unknown>[]).find(r=>r.id===id)!
   assert(old&&fresh);assert.equal(fresh.teacher_id,owner);assert(typeof fresh.updated_at==='string'&&Number.isFinite(Date.parse(fresh.updated_at)))

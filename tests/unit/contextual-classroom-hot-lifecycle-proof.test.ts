@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { ApiError } from '../../src/lib/api-error'
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
-import { newClassroomHotLifecycleFixture,hotLifecycleDigest,hotGraphFunctions,assertHotLifecycleGraphChange,type HotGraph } from '../../scripts/contextual-classroom-hot-lifecycle-proof-fixture'
+import { newClassroomHotLifecycleFixture,hotLifecycleDigest,hotGraphFunctions,assertHotLifecycleGraphChange,parseHotLifecycleGraph,type HotGraph } from '../../scripts/contextual-classroom-hot-lifecycle-proof-fixture'
 import { classroomHotLifecycleNativePlan,validateClassroomHotLifecycleNativeSql,runClassroomHotLifecycleNativeContracts,
   runClassroomHotLifecycleNativeRaces,validateHotLifecycleGeneratedTypes } from '../../scripts/contextual-classroom-hot-lifecycle-native-contracts'
 import { buildClassroomHotLifecycleNativeContractsManifest } from '../../scripts/contextual-test-draft-save-native-contracts'
@@ -35,6 +35,27 @@ describe('closed268 hot lifecycle proof; CPU evidence is not native acceptance',
     expect(hotLifecycleFailureShape(Object.assign(new Error('private'),{stderr:'ERROR:  42703: private column'}))).toEqual({kind:'command',status:0,sqlstate:'42703'})
     for(const code of ['ENOBUFS','ERR_CHILD_PROCESS_STDIO_MAXBUFFER'])expect(hotLifecycleFailureShape(Object.assign(new Error('private'),{code}))).toEqual({kind:'output-limit',status:0,sqlstate:'unknown'})
     expect(hotLifecycleFailureShape(Object.assign(new Error('private'),{code:'ETIMEDOUT'}))).toEqual({kind:'timeout',status:0,sqlstate:'unknown'})
+  })
+  it('compacts every non-target table without dropping row or column coverage',()=>{
+    expect(hotGraphFunctions).toContain("n.nspname in ('public','private','storage')")
+    expect(hotGraphFunctions).toContain('jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)')
+    expect(hotGraphFunctions).toContain("relation_row.relname in ('classrooms','classroom_archive_revisions')")
+    expect(hotGraphFunctions).toContain("jsonb_array_length(v),'sha256',encode(sha256(convert_to(v::text,'UTF8')),'hex')")
+    const m=plan(),before=initialGraph(m),after=change(before,m.fixture.classes[0].id,true)
+    expect(()=>assertHotLifecycleGraphChange(before,after,m.fixture.classes[0].id,true)).not.toThrow()
+    for(const key of ['public.announcements','private.synthetic_witness','storage.objects']) {
+      const baseline={...before,[key]:{count:1,sha256:'a'.repeat(64)}},valid={...after,[key]:{count:1,sha256:'a'.repeat(64)}}
+      for(const bad of [{count:2,sha256:'a'.repeat(64)},{count:1,sha256:'b'.repeat(64)}])
+        expect(()=>assertHotLifecycleGraphChange(baseline,{...valid,[key]:bad},m.fixture.classes[0].id,true)).toThrow()
+      const missing={...valid};delete missing[key]
+      expect(()=>assertHotLifecycleGraphChange(baseline,missing,m.fixture.classes[0].id,true)).toThrow()
+      expect(()=>assertHotLifecycleGraphChange(before,{...after,[key+'extra']:{count:0,sha256:'c'.repeat(64)}},m.fixture.classes[0].id,true)).toThrow()
+    }
+  })
+  it.each([null,[],{count:-1,sha256:'a'.repeat(64)},{count:1.5,sha256:'a'.repeat(64)},
+    {count:0,sha256:'bad'},{count:0,sha256:'a'.repeat(64),extra:true}])('rejects malformed compact witnesses %j',witness=>{
+    const graph={...initialGraph(plan()),'public.announcements':witness}
+    expect(()=>parseHotLifecycleGraph(graph)).toThrow()
   })
   it('runs learner inspect through the installed SDK and real application decoder offline',async()=>{
     const f=newClassroomHotLifecycleFixture(original),key='header.'+Buffer.from(JSON.stringify({iss:'supabase-demo',role:'service_role'})).toString('base64url')+'.signature'
@@ -151,7 +172,7 @@ describe('closed268 hot lifecycle proof; CPU evidence is not native acceptance',
 })
 function initialGraph(m:ReturnType<typeof plan>):HotGraph {
   return {'public.classrooms':m.fixture.classes.map(c=>({id:c.id,teacher_id:c.owner,archived_at:c.archived?m.fixture.now:null,updated_at:m.fixture.now,position:c.position,title:c.title,blueprint_source_revision:1})),
-    'public.classroom_archive_revisions':m.fixture.classes.map(c=>({classroom_id:c.id,revision:1,updated_at:m.fixture.now})),__catalog:'fixed','public.announcements':[{id:m.fixture.announcement,content:'unchanged'}]}
+    'public.classroom_archive_revisions':m.fixture.classes.map(c=>({classroom_id:c.id,revision:1,updated_at:m.fixture.now})),__catalog:'a'.repeat(32),'public.announcements':{count:1,sha256:'b'.repeat(64)}}
 }
 function change(before:HotGraph,id:string,archived:boolean,owner?:string):HotGraph {
   const after=structuredClone(before),rows=after['public.classrooms'] as Record<string,unknown>[],row=rows.find(r=>r.id===id)!,stamp=new Date(Date.parse(String(row.updated_at))+1000).toISOString()

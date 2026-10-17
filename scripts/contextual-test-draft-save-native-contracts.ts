@@ -63,6 +63,8 @@ const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503',
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
+type ProtocolReason = 'none' | 'stdout-type' | 'partial-cap' | 'unframed-output' | 'frame-cap' | 'exchange-cap' | 'decode' | 'stdin-error' | 'stderr-cap'
+type ProtocolObservation = Readonly<{ reason: ProtocolReason; frame: number; frameBytes: number; exchangeBytes: number; stderrBytes: number }>
 // Retain only one allowlisted code. Untrusted stderr lines are bounded and
 // discarded; neither their text nor an exception is part of the diagnostic.
 function captureSqlstate() {
@@ -871,6 +873,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let phase: Phase = 'idle'
   let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
   let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
+  let protocolObservation: ProtocolObservation | undefined
   let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number;
     progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified' }> | undefined
   function role(name: string): Role {
@@ -1005,7 +1008,14 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private cleaning = false
     progressObservation() { return { scope: this.progressScope, snapshot: this.progress.snapshot() } }
     diagnosticObservation() { return { enabled: this.diagnosticEnabled, snapshot: this.timing.snapshot() } }
-    private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
+    private fault(kind: Fault, reason: ProtocolReason = 'none', frameBytes = this.active?.bytes ?? 0) {
+      if (!this.cleaning) {
+        if (kind === 'protocol' && !firstFault) protocolObservation = Object.freeze({ reason,
+          frame: Math.min(this.frame, CAPS.actions + 1), frameBytes: Math.min(frameBytes, CAPS.outputBytes + 1),
+          exchangeBytes: Math.min(exchanged, CAPS.totalBytes + 1), stderrBytes: Math.min(this.stderr, CAPS.stderrBytes + 1) })
+        record(kind, role(this.name), this.sqlstate.code())
+      }
+    }
     constructor(name: string) {
       this.name = name
       this.child = spawn('docker', dockerArgs(name), { cwd: input.repository, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -1014,26 +1024,31 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         this.ended = true; this.reject(); resolveClose()
       }))
       this.child.on('error', () => { this.fault('child-exit'); this.reject(); void closeAll().catch(() => {}) })
-      this.child.stdin.on('error', () => { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) })
+      this.child.stdin.on('error', () => { this.fault('protocol', 'stdin-error'); this.reject(); void closeAll().catch(() => {}) })
       this.child.stdout.on('data', (chunk: Buffer) => {
+        let reason: ProtocolReason = 'stdout-type'
+        let observedBytes = this.active?.bytes ?? 0
         try {
-          assert(Buffer.isBuffer(chunk)); assert(chunk.length <= CAPS.outputBytes - Buffer.byteLength(this.partial))
+          assert(Buffer.isBuffer(chunk)); reason = 'partial-cap'
+          observedBytes += Buffer.byteLength(this.partial) + chunk.length
+          assert(chunk.length <= CAPS.outputBytes - Buffer.byteLength(this.partial))
           this.partial += this.decoder.write(chunk)
           for (;;) {
             const newline = this.partial.indexOf('\n'); if (newline < 0) break
             const line = this.partial.slice(0, newline).replace(/\r$/, ''); this.partial = this.partial.slice(newline + 1)
-            assert(this.active)
+            reason = 'unframed-output'; assert(this.active)
             if (line === this.active.end) { this.active.finish(); continue }
             this.active.bytes += Buffer.byteLength(line); exchanged += Buffer.byteLength(line)
-            assert(this.active.bytes <= CAPS.outputBytes && exchanged <= CAPS.totalBytes)
+            observedBytes = this.active.bytes; reason = 'frame-cap'; assert(this.active.bytes <= CAPS.outputBytes)
+            reason = 'exchange-cap'; assert(exchanged <= CAPS.totalBytes)
             if (line) this.active.lines.push(line)
           }
-        } catch { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        } catch { this.fault('protocol', reason, observedBytes); this.reject(); void closeAll().catch(() => {}) }
       })
       this.child.stderr.on('data', (chunk: Buffer) => {
         this.stderr += chunk.length
         if (profile.reorderDiagnosticSql) exchanged += chunk.length
-        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol', this.stderr > CAPS.stderrBytes ? 'stderr-cap' : 'exchange-cap'); this.reject(); void closeAll().catch(() => {}) }
         else {
           this.sqlstate.push(chunk)
           if (!this.cleaning && !firstFault && this.active) this.progress.push(chunk)
@@ -1066,7 +1081,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           try { resolveRows(active.lines.map(line => {
             try { return { result: JSON.parse(line) as unknown } }
             catch { assert(/^[a-f0-9-]{36}$/.test(line) || /^-?[0-9]+$/.test(line) || line === 'ok'); return { result: line } }
-          })) } catch { this.fault('protocol'); reject(failure()); void closeAll().catch(() => {}) }
+          })) } catch { this.fault('protocol', 'decode', active.bytes); reject(failure()); void closeAll().catch(() => {}) }
         } }
         this.child.stdin.write(`${sql}\n\\echo ${marker}\n`)
       })
@@ -1194,6 +1209,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1),
         progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
       return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
+        + (profile.label === 'classroom-hot-lifecycle' ? `DIAG classroom-hot-lifecycle protocol reason=${protocolObservation?.reason ?? 'none'} frame=${protocolObservation?.frame ?? 0} frameBytes=${protocolObservation?.frameBytes ?? 0} exchangeBytes=${protocolObservation?.exchangeBytes ?? Math.min(exchanged, CAPS.totalBytes + 1)} stderrBytes=${protocolObservation?.stderrBytes ?? 0}.\n` : '')
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
         + (profile.learnerCancellation ? `DIAG learner cancellationStage=${cancellationFirstFailure ?? cancellationStage} cancellationRestore=${cancellationRestoreFailure ?? 'none'}.\n` : '')
     },

@@ -20,7 +20,7 @@ import { parseAssignmentListLifecycleArgs } from './check-contextual-assignment-
 import { validateIntegratedGuardResources } from './check-contextual-assignment-learner-integrated-lifecycle'
 import { testOwnerListDockerInventory } from './contextual-test-owner-list-proof-inventory'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
-import { newClassroomHotLifecycleFixture,hotLifecycleDigest as hash,HOT_LIFECYCLE_CAPS as caps,assertHotLifecycleGraphChange,
+import { newClassroomHotLifecycleFixture,hotLifecycleDigest as hash,HOT_LIFECYCLE_CAPS as caps,assertHotLifecycleGraphChange,parseHotLifecycleGraph,
   type HotLifecycleFixture,type HotGraph } from './contextual-classroom-hot-lifecycle-proof-fixture'
 import { buildClassroomHotLifecycleNativeContractsManifest,createClassroomHotLifecycleNativeContracts } from './contextual-test-draft-save-native-contracts'
 import { validateHotLifecycleGeneratedTypes } from './contextual-classroom-hot-lifecycle-native-contracts'
@@ -105,6 +105,7 @@ export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
   let engine:ReturnType<typeof createClassroomHotLifecycleNativeContracts>|undefined,transport:ReturnType<typeof createHotLifecycleProofTransport>|undefined
   let client:ReturnType<typeof createClient<Database>>|undefined,complete=false,matrixComplete=false,stage='pending'
   let types:Awaited<ReturnType<typeof generateTestDraftSaveTypes>>|undefined
+  let nativeCounts:{controls:number;actions:number;exchangeBytes:number;remainingSessions:number}|undefined
   let step='pending'
   const previousPal=process.env.PAL_ENABLED;process.env.PAL_ENABLED='false'
   function sql(source:string) {
@@ -113,7 +114,7 @@ export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
       {input:source,encoding:'utf8',stdio:['pipe','pipe','pipe'],timeout:45000,maxBuffer:caps.responseBytes}).trim()
   }
   async function guard(){assert(target&&session);closure=validateIntegratedGuardResources(await testOwnerListDockerInventory(),projectId,session.containerId,closure);assert.equal(sql(testOwnerGuardSql(projectId)),'ok')}
-  async function snapshot():Promise<HotGraph>{step='snapshot-guard';await guard();step='snapshot-query';const value=sql(manifest.snapshot);step='snapshot-decode';return JSON.parse(value)}
+  async function snapshot():Promise<HotGraph>{step='snapshot-guard';await guard();step='snapshot-query';const value=sql(manifest.snapshot);step='snapshot-decode';return parseHotLifecycleGraph(JSON.parse(value))}
   async function hot(actor:number,klass:number,archived:boolean) {
     assert(client&&transport);transport.plan(hotPath,{p_actor_id:f.actors[actor].id,p_classroom_id:f.classes[klass].id,p_archived:archived})
     const before=await snapshot(),result=await setContextualClassroomHotArchive({supabase:client,actorId:f.actors[actor].id,classroomId:f.classes[klass].id,archived})
@@ -151,6 +152,7 @@ export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
     })
     assert.equal(transport.counts.rpc,13);stage='rollback';const rollback=await engine.run();assert(rollback.fixtureUnchanged)
     stage='committed';const committed=await engine.runCommittedTransitions();assert.equal(committed.transitions.schedules.length,4)
+    nativeCounts={controls:committed.controls,actions:committed.actions,exchangeBytes:committed.exchangeBytes,remainingSessions:committed.remainingSessions}
     if(input.generateTypes){stage='types';types=await generateTestDraftSaveTypes({repository,reviewedHead:input.head,projectId,guard});assert.equal(types.migrationManifestSha256,manifest.migrationManifestSha256);validateHotLifecycleGeneratedTypes(readFileSync(types.path,'utf8'))}
     matrixComplete=true;stage='complete'
   }
@@ -164,7 +166,8 @@ export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
         stage='setup';await engine.setup();transport=createHotLifecycleProofTransport(f,target,fetch,guard)
         client=createClient<Database>(target.API_URL,target.SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:transport.fetch}});complete=true}},
       async runCase(request){const result=await native.runCase(request);if(!matrixComplete)await matrix();return result}})
-    assert(complete&&matrixComplete);stage='accepted';process.stdout.write(`PASS isolated classroom-hot-lifecycle thirteen actual SDK RPCs, full rollback contracts, four observed committed races; ${types?'genuine268 types generated':'types unverified (not requested)'}.\n${cleanup}`)
+    assert(complete&&matrixComplete&&nativeCounts);stage='accepted';process.stdout.write(`PASS isolated classroom-hot-lifecycle thirteen actual SDK RPCs, full rollback contracts, four observed committed races; ${types?'genuine268 types generated':'types unverified (not requested)'}.\n${cleanup}`)
+    process.stdout.write(`RECEIPT classroom-hot-lifecycle native=${JSON.stringify(nativeCounts)} typesSha256=${types?.sha256??'none'}.\n`)
     return Object.freeze({types:types??null,nativeVerified:true,projectId,reviewedHead:input.head,manifestSha256:manifestHash,migrationManifestSha256:manifest.migrationManifestSha256})
   } catch(error) {
     if(input.mode!=='normal'&&complete&&error instanceof AssignmentListLifecycleError&&error.primary?.stage===input.mode&&error.primary.error instanceof Error&&error.primary.error.message==='Forced isolated lifecycle failure'&&error.cleanupFailures.length===0){process.stdout.write(cleanup);process.stderr.write(`FAIL forced isolated classroom-hot-lifecycle: ${input.mode}.\n`);process.exitCode=1;return}

@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Calendar uniform class-day backgrounds
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
-- Existing Calendar/DayCell regression and eight-context native visual/geometry checks are running; audit/policies/types/lint and targeted presentation review required before ready. PR remains draft while changing its head.
-
 ## 2026-10-14 — Calendar remove hatching
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
@@ -523,3 +518,20 @@ Added closed failure-shape, SQLSTATE, snapshot-step and transport-phase diagnost
 without logging raw errors or data. Actual installed-SDK/learner helper regression
 passes offline. One bounded reviewed fresh proof remains required; spent attempt
 retained, all production/shared-local/provider/activation holds unchanged.
+
+## 2026-10-17 — Bounded hot lifecycle witness transport
+
+Corrected snapshot executed in the fresh3196 proof:13 actual SDK calls,
+privilege restoration and rollback SQL passed. Three committed races completed;
+the fourth holder output failed protocol with45actions/605controls. Source
+accounting identifies the nineteenth full graph; cumulative64MiB exhaustion is
+strongly supported but the spent diagnostic lacked bytes, so not runtime-proven.
+Compact witnesses retain full classroom/revision rows and every other table's
+count plus SHA256 of its complete ordered row JSON, table inventory and catalog.
+No caps or data coverage removed. Fixed protocol labels/counters now distinguish
+overflow; fake-child cumulative-cap regression and187 transport tests pass.
+All spent attempts have exact cleanup/canonical/source/dependency preservation;
+one targeted independent correction review and fresh native proof remain required.
+Sol6.1/high bounded read-only diagnosis then two-file implementation verified by
+coordinator; per-worker usage unknown. Cumulative176reviews/113correction batches,
+existing clocks and routine-approval waiver retained; production holds unchanged.
