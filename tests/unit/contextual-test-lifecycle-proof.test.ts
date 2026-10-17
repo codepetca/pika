@@ -84,6 +84,13 @@ describe('remaining lifecycle scope CPU contracts; no execution or full Tests ex
     expect(bootstrapContextualTestFixtureSql(plan,hash)).toContain('INSERT INTO public.classroom_roster(')
     for(const scope of ['vertical-v1','vertical-grade-return-v1'] as const)expect(bootstrapContextualTestFixtureSql(createContextualTestPlan(plan.projectId,scope),hash)).not.toContain('INSERT INTO public.classroom_roster(')
   })
+  it('lets the real roster trigger create its binding and asserts the exact derived identity',()=>{
+    const sql=bootstrapContextualTestFixtureSql(plan,'$2b$10$'+'a'.repeat(53))
+    expect(sql).not.toMatch(/INSERT INTO public\.classroom_roster_student_bindings/i)
+    expect(sql).toContain(`WHERE roster_id='${plan.lifecycleRoster!.id}' AND classroom_id='${plan.classrooms.classA.id}' AND student_id='${plan.actors.memberStudent.id}'`)
+    expect(sql).toContain("RAISE EXCEPTION 'fixture_roster_binding_missing'")
+    expect(sql).not.toMatch(/ON CONFLICT|DISABLE TRIGGER|ALTER TABLE/i)
+  })
   it.each(['missing-event','false-matrix','empty-result','oldscope','unclosed','duplicate-actor','wrong-parent','cas-extra-retry','primitive-response','getter'])('rejects incomplete/forged receipt: %s',defect=>{
     const f=contextualTestLifecycleFixture(binding),r=f.receipt
     if(defect==='missing-event')r.result.exchanges.pop()

@@ -98,7 +98,10 @@ INSERT INTO public.tests(id,classroom_id,created_by,title,status,blueprint_archi
 ('${uuid('31')}','${classrooms.classA.id}','${actors.ownerTeacher.id}','Retired fixture A','draft',now()),
 ('${uuid('32')}','${classrooms.classB.id}','${actors.ownerStudent.id}','Retired fixture B','draft',now());
 ${plan.sourceSha === 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' && 'lifecycleRoster' in plan ? `INSERT INTO public.classroom_roster(id,classroom_id,email,first_name,last_name) VALUES ('${uuid('41')}','${classrooms.classA.id}',${quote(actors.memberStudent.email)},'Synthetic','Learner');
-INSERT INTO public.classroom_roster_student_bindings(roster_id,classroom_id,student_id) VALUES ('${uuid('41')}','${classrooms.classA.id}','${actors.memberStudent.id}');` : ''}
+-- The real AFTER INSERT roster trigger creates stable identity; never duplicate it.
+DO $fixture$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM public.classroom_roster_student_bindings WHERE roster_id='${uuid('41')}' AND classroom_id='${classrooms.classA.id}' AND student_id='${actors.memberStudent.id}') THEN RAISE EXCEPTION 'fixture_roster_binding_missing'; END IF;
+END $fixture$;` : ''}
 COMMIT;`
 }
 
