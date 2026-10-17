@@ -126,7 +126,7 @@ classroom is unarchived, and exact saved work is compared independently. Browser
 code gets no SQL capability. Existing network/process/source/dependency limits,
 canonical-state preservation and complete disposable cleanup remain mandatory.
 Preparation and CPU checks are not native acceptance. Production holds remain.
-The first seven attempts remain failed/spent with positive cleanup/preservation.
+The first eight attempts remain failed/spent with positive cleanup/preservation.
 The third failure occurred after publication/reference preview; its broad reorder
 label also covered subsequent access setup. Fixed substage labels now distinguish
 the gesture, acknowledgement and access steps. A separately observed owner-RPC
@@ -161,6 +161,13 @@ tree and chain pins; its roster bootstrap uses the lifecycle profile, not a stal
 app SHA. Fixture strict-false/no-audited-entitlement compatibility stays unchanged;
 explicit restore grants, expiry and limits were separately proved by the focused
 native foundation. No new grant, permission or network admission is added here.
+The eighth stopped at Publish without gateway rejection. The shared UI helper
+incorrectly used equality with the grade-return app SHA to decide whether to
+select Publish today, so the new lifecycle app pin skipped the unchanged menu.
+Only that behavior selector was found in a bounded runner-closure audit; other
+SHA comparisons are identity checks. Publication now uses exact recognized
+workflow-profile membership, with all historical/current paths tested. This is
+a runner correction, not an application or permission change.
 
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.

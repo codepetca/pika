@@ -3,7 +3,7 @@
  * CPU contracts validate these assertions, not the real UI or database outcome.
  */
 import { expect, type Locator, type Page, type Response } from '@playwright/test'
-import { types } from 'node:util'
+import { isDeepStrictEqual, types } from 'node:util'
 import { createContextualTestPlan, type RehearsalPlan } from './contextual-test-rehearsal'
 import { gradeReturnStages } from './contextual-test-grade-return-contract'
 
@@ -115,9 +115,14 @@ export async function selectVerticalMemberResponse(member: Locator): Promise<voi
 
 /** Follow the frozen app's publication UI; never substitute a direct write. */
 export async function publishVerticalTest(r: Pick<VerticalTestRuntime, 'plan'>, page: Page, editor: Locator, testId: string): Promise<void> {
+  const calendar = (['vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const)
+    .some(scope => isDeepStrictEqual(r.plan, createContextualTestPlan(r.plan.projectId, scope)))
+  // The two historical262 scopes share one exact plan and direct confirmation.
+  // Source pins bind the plan; calendar behavior belongs to its closed profile.
+  requireThat(calendar || isDeepStrictEqual(r.plan, createContextualTestPlan(r.plan.projectId)), 'owner-publish')
   const publishAck = waitFor(page, 'POST', `/api/teacher/tests/${testId}/publish`)
   await editor.getByRole('button', { name: 'Publish', exact: true }).click()
-  if (r.plan.sourceSha === createContextualTestPlan(r.plan.projectId, 'vertical-grade-return-v1').sourceSha) {
+  if (calendar) {
     await page.getByRole('menu', { name: 'Publish test', exact: true }).getByRole('menuitem', { name: 'Publish today', exact: true }).click()
   }
   await page.getByRole('dialog', { name: 'Publish test?', exact: true }).getByRole('button', { name: 'Publish', exact: true }).click()

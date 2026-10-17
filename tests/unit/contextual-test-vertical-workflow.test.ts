@@ -23,9 +23,9 @@ const submitted = () => ({ questions: published().questions, students: [{ studen
     [id(4)]: { response_id: id(7), response_revision: 1, selected_option: null, response_text: 'Synthetic reasoning.', is_draft: false } } }] })
 
 describe('narrow contextual Test graph assertions (CPU only)', () => {
-  it.each(['vertical-v1', 'vertical-grade-return-v1'] as const)('uses the pinned publication control before confirmation: %s', scope => {
+  it.each([undefined, 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const)('uses the pinned publication control before confirmation: %s', scope => {
     const events: string[] = []
-    const calendar = scope === 'vertical-grade-return-v1'
+    const calendar = scope === 'vertical-grade-return-v1' || scope === 'lifecycle-permissions-v1'
     let menuOpened = false, prepared = false
     const page = {
       waitForResponse: vi.fn(async () => { events.push('armed'); return { status: () => 200 } }),
@@ -54,6 +54,18 @@ describe('narrow contextual Test graph assertions (CPU only)', () => {
       expect(events).toEqual(calendar ? ['armed', 'publish', 'today', 'confirm'] : ['armed', 'publish', 'confirm'])
     })
   })
+  it.each(['source', 'tree', 'unknown-scope', 'roster', 'extra-field'] as const)(
+    'rejects a modified publication plan before arming a response or clicking: %s', async defect => {
+      const plan = structuredClone(createContextualTestPlan('pika_assignment_list_123456abcdef', 'lifecycle-permissions-v1'))
+      const changed = defect === 'source' ? { sourceSha: 'a'.repeat(40) } : defect === 'tree' ? { sourceTree: 'b'.repeat(40) }
+        : defect === 'unknown-scope' ? { proofScope: 'unknown' } : defect === 'roster' ? { lifecycleRoster: { ...plan.lifecycleRoster!, studentId: id(99) } }
+        : { publicationMode: 'calendar' }
+      const page = { waitForResponse: vi.fn(), getByRole: vi.fn() }, editor = { getByRole: vi.fn() }
+      await expect(publishVerticalTest({ plan: { ...plan, ...changed } } as never, page as never, editor as never, id(1)))
+        .rejects.toThrow('Contextual Test vertical failed: owner-publish')
+      expect(page.waitForResponse).not.toHaveBeenCalled(); expect(page.getByRole).not.toHaveBeenCalled()
+      expect(editor.getByRole).not.toHaveBeenCalled()
+    })
   it('orders final independent results corroboration before opening the grading UI', () => {
     const source = readFileSync(new URL('../../e2e/helpers/contextual-test-vertical-workflow.ts', import.meta.url), 'utf8')
     const finalOwner = source.slice(source.indexOf("stage = 'owner-response-inspector'"), source.indexOf('ownerSawResponse: true'))
