@@ -4,7 +4,7 @@
  */
 import { expect, type Locator, type Page, type Response } from '@playwright/test'
 import { types } from 'node:util'
-import type { RehearsalPlan } from './contextual-test-rehearsal'
+import { createContextualTestPlan, type RehearsalPlan } from './contextual-test-rehearsal'
 import { gradeReturnStages } from './contextual-test-grade-return-contract'
 
 export type VerticalTestRuntime = {
@@ -113,6 +113,17 @@ export async function selectVerticalMemberResponse(member: Locator): Promise<voi
   await member.getByRole('cell').nth(1).click()
 }
 
+/** Follow the frozen app's publication UI; never substitute a direct write. */
+export async function publishVerticalTest(r: Pick<VerticalTestRuntime, 'plan'>, page: Page, editor: Locator, testId: string): Promise<void> {
+  const publishAck = waitFor(page, 'POST', `/api/teacher/tests/${testId}/publish`)
+  await editor.getByRole('button', { name: 'Publish', exact: true }).click()
+  if (r.plan.sourceSha === createContextualTestPlan(r.plan.projectId, 'vertical-grade-return-v1').sourceSha) {
+    await page.getByRole('menu', { name: 'Publish test', exact: true }).getByRole('menuitem', { name: 'Publish today', exact: true }).click()
+  }
+  await page.getByRole('dialog', { name: 'Publish test?', exact: true }).getByRole('button', { name: 'Publish', exact: true }).click()
+  requireThat((await publishAck).status() === 200, 'owner-publish')
+}
+
 /** Reuse the final approved image slot on failure; never retry a capture. */
 export async function withVerticalFinalEvidence(r: VerticalTestRuntime, page: Page, verify: () => Promise<void>): Promise<void> {
   let captureStarted = false
@@ -174,10 +185,7 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
       assertVerticalDraftReadback(draft, savedDetail, testId, classroomId, title)
       await r.snapshot('vertical-owner-author', page)
       stage = 'owner-publish'; r.check()
-      const publishAck = waitFor(page, 'POST', `/api/teacher/tests/${testId}/publish`)
-      await editor.getByRole('button', { name: 'Publish', exact: true }).click()
-      await page.getByRole('dialog', { name: 'Publish test?', exact: true }).getByRole('button', { name: 'Publish', exact: true }).click()
-      requireThat((await publishAck).status() === 200, stage)
+      await publishVerticalTest(r, page, editor, testId)
       stage = 'published-readback'
       const detail = await r.api<TestDetail>(page, 'GET', `/api/teacher/tests/${testId}`)
       const results = await r.api<Results>(page, 'GET', `/api/teacher/tests/${testId}/results`)

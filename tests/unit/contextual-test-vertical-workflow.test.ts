@@ -8,6 +8,7 @@ import {
   contextualTestVerticalContract,
   contextualTestVerticalStages,
   openVerticalMemberAccess,
+  publishVerticalTest,
   selectVerticalMemberResponse,
   runContextualTestVerticalWorkflow,
   verticalWorkflowFailureStage,
@@ -22,6 +23,37 @@ const submitted = () => ({ questions: published().questions, students: [{ studen
     [id(4)]: { response_id: id(7), response_revision: 1, selected_option: null, response_text: 'Synthetic reasoning.', is_draft: false } } }] })
 
 describe('narrow contextual Test graph assertions (CPU only)', () => {
+  it.each(['vertical-v1', 'vertical-grade-return-v1'] as const)('uses the pinned publication control before confirmation: %s', scope => {
+    const events: string[] = []
+    const calendar = scope === 'vertical-grade-return-v1'
+    let menuOpened = false, prepared = false
+    const page = {
+      waitForResponse: vi.fn(async () => { events.push('armed'); return { status: () => 200 } }),
+      getByRole: vi.fn((role, options) => {
+        if (role === 'menu' && options.name === 'Publish test' && options.exact && calendar && menuOpened) {
+          return { getByRole: (itemRole: string, item: { name: string; exact: boolean }) => {
+            expect([itemRole, item]).toEqual(['menuitem', { name: 'Publish today', exact: true }])
+            return { click: async () => { events.push('today'); prepared = true } }
+          } }
+        }
+        if (role === 'dialog' && options.name === 'Publish test?' && options.exact && prepared) {
+          return { getByRole: (buttonRole: string, button: { name: string; exact: boolean }) => {
+            expect([buttonRole, button]).toEqual(['button', { name: 'Publish', exact: true }])
+            return { click: async () => { events.push('confirm') } }
+          } }
+        }
+        throw Error('Confirmation is unavailable until the pinned publication path completes')
+      }),
+    }
+    const editor = { getByRole: vi.fn((role, options) => {
+      expect([role, options]).toEqual(['button', { name: 'Publish', exact: true }])
+      return { click: async () => { events.push('publish'); menuOpened = calendar; prepared = !calendar } }
+    }) }
+    return publishVerticalTest({ plan: createContextualTestPlan('pika_assignment_list_123456abcdef', scope) } as never,
+      page as never, editor as never, id(1)).then(() => {
+      expect(events).toEqual(calendar ? ['armed', 'publish', 'today', 'confirm'] : ['armed', 'publish', 'confirm'])
+    })
+  })
   it('orders final independent results corroboration before opening the grading UI', () => {
     const source = readFileSync(new URL('../../e2e/helpers/contextual-test-vertical-workflow.ts', import.meta.url), 'utf8')
     const finalOwner = source.slice(source.indexOf("stage = 'owner-response-inspector'"), source.indexOf('ownerSawResponse: true'))
