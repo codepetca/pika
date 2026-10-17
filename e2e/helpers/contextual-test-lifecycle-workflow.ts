@@ -8,6 +8,29 @@ export type LifecycleRuntime = Omit<VerticalTestRuntime,'withActor'> & {
   withActor(actor: LifecycleActor, callback: (page: Page) => Promise<void>): Promise<void>
 }
 const mainTitle = 'Contextual lifecycle Test', scratchTitle = 'Contextual lifecycle scratch'
+/** Revisit a workspace through the app's existing Tests link, not another cold
+ * document boot. Explicit persistence/recovery proofs still force a real reload. */
+export async function openLifecycleOwnerWorkspace(r: Pick<LifecycleRuntime,'navigate'>, page: Page,
+  classUrl: string, title: string, freshDocument = false): Promise<void> {
+  const current = new URL(page.url()), target = new URL(classUrl)
+  if(freshDocument || current.origin!==target.origin || current.pathname!==target.pathname || current.searchParams.get('tab')!=='tests') {
+    await r.navigate(page,classUrl)
+  } else {
+    await page.getByRole('link',{name:'Tests',exact:true}).click()
+  }
+  await expect(page.getByRole('button',{name:'Create test',exact:true})).toBeVisible()
+  await page.getByRole('button',{name:title,exact:true}).click()
+}
+export async function prepareLifecycleCapture(page: Page, label: typeof lifecycleScreens[number]['label'], preferencePage: Page = page) {
+  const scene = lifecycleScreens.find(row=>row.label===label)!
+  // A new standalone page is about:blank. Its authenticated owner page may set
+  // the shared-origin preference before the single preview navigation.
+  assert.equal(preferencePage.context(),page.context())
+  await page.setViewportSize(scene.viewport==='mobile'?{width:390,height:844}:{width:1440,height:900})
+  await page.emulateMedia({colorScheme:scene.theme})
+  await preferencePage.evaluate(theme=>localStorage.setItem('theme',theme),scene.theme)
+  return scene
+}
 /** Capture rendered evidence, never an intermediate loading/transition frame. */
 export async function waitForLifecycleCaptureReady(page: Page, label: typeof lifecycleScreens[number]['label'], memberId: string): Promise<void> {
   if(label==='lifecycle-embedded-preview'||label==='lifecycle-standalone-preview') {
@@ -53,10 +76,8 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
   const actorPages = new WeakMap<Page,LifecycleActor>()
   const withActor = (actor: LifecycleActor,callback:(page:Page)=>Promise<void>) => r.withActor(actor,async page=>{actorPages.set(page,actor);await callback(page)})
   let recovery!: LifecycleResult['recovery'], retained!: LifecycleResult['retained'], archive!: LifecycleResult['archive'],disclosure!:LifecycleResult['disclosure']
-  async function capture(label: typeof lifecycleScreens[number]['label'],page: Page) {
-    const scene = lifecycleScreens.find(row=>row.label===label)!
-    await page.setViewportSize(scene.viewport==='mobile'?{width:390,height:844}:{width:1440,height:900})
-    await page.emulateMedia({colorScheme:scene.theme}); await page.evaluate(theme=>localStorage.setItem('theme',theme),scene.theme)
+  async function capture(label: typeof lifecycleScreens[number]['label'],page: Page, preferencePage: Page = page) {
+    const scene = await prepareLifecycleCapture(page,label,preferencePage)
     if(label==='lifecycle-standalone-preview') await r.navigate(page,`${r.plan.appOrigin}/classrooms/${c}/tests/${main}/preview`)
     else {
       await r.navigate(page,classUrl)
@@ -66,6 +87,7 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
     const maximize = page.getByRole('button',{name:'Maximize Window',exact:true})
     if(await maximize.isVisible())await maximize.click()
     if(label==='lifecycle-embedded-preview'||label==='lifecycle-standalone-preview') {
+      await expect(page.getByRole('region',{name:'Teacher test preview',exact:true})).toBeVisible()
       await page.getByRole('button',{name:'Synthetic reference',exact:true}).click()
       await expect(page.getByText(lifecycleReference,{exact:true})).toBeVisible()
     }
@@ -85,8 +107,8 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
   }
   const results = (page: Page, id = main) => r.api<LifecycleResults>(page,'GET',`/api/teacher/tests/${id}/results`)
   const attempt = async (page: Page, id = main) => (await r.api<{attempt:LifecycleAttempt}>(page,'GET',`/api/student/tests/${id}/attempt`)).attempt
-  async function workspace(page: Page, title = mainTitle) {
-    await r.navigate(page,classUrl); await page.getByRole('button',{name:title,exact:true}).click()
+  async function workspace(page: Page, title = mainTitle, freshDocument = false) {
+    await openLifecycleOwnerWorkspace(r,page,classUrl,title,freshDocument)
   }
   async function select(page: Page, ids: string[]) {
     for (const id of ids) await page.getByTestId(`test-grading-student-row-${id}`).getByRole('checkbox').check()
@@ -117,7 +139,7 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
     }
     await editor.getByRole('button',{name:'Close test editor',exact:true}).click()
     stage='owner-save-readback'
-    await workspace(page,title)
+    await workspace(page,title,true)
     await page.getByTestId('test-workspace-trailing-actions').getByRole('button',{name:'More actions',exact:true}).click()
     await page.getByRole('menuitem',{name:'Edit Markdown',exact:true}).click()
     const savedMarkdown = await editor.getByTestId('test-markdown-editor').inputValue()
@@ -182,19 +204,14 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
       await record(owner,'republish-scratch',initialAck)
       const graph = await results(owner), mc = graph.questions.find(q=>q.question_type==='multiple_choice')!, open = graph.questions.find(q=>q.question_type==='open_response')!
       questions = [mc.id,open.id]
-      stage = 'previews'; await r.navigate(owner,classUrl)
-      await owner.getByRole('button',{name:`Preview ${mainTitle}`,exact:true}).click()
-      await expect(owner.getByRole('region',{name:'Teacher test preview',exact:true})).toBeVisible()
+      stage = 'previews'
       // Persisted preference is applied on the next document mount; reopen the embedded preview afterwards.
       await capture('lifecycle-embedded-preview',owner)
       await owner.getByRole('button',{name:'Close Preview',exact:true}).click()
       const standalone = await owner.context().newPage()
       try {
-        await r.navigate(standalone,`${r.plan.appOrigin}/classrooms/${c}/tests/${main}/preview`)
-        const maximize = standalone.getByRole('button',{name:'Maximize Window',exact:true})
-        if (await maximize.isVisible()) await maximize.click()
-        await expect(standalone.getByRole('region',{name:'Teacher test preview',exact:true})).toBeVisible()
-        await capture('lifecycle-standalone-preview',standalone)
+        // capture() performs the single authenticated preview navigation.
+        await capture('lifecycle-standalone-preview',standalone,owner)
       } finally { await standalone.close() }
       stage = 'reorder'; await r.navigate(owner,classUrl)
       stage='reorder-open-menu'
@@ -333,7 +350,7 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
         })
         await probe(owner,'unarchive','PATCH',`/api/teacher/classrooms/${c}`,{archived:false},200,'permission-fixture')
         archive.after = await results(owner); assertLifecycleGraphEquality(archive.before,archive.after)
-        await workspace(owner); await capture('lifecycle-permissions',owner)
+        await capture('lifecycle-permissions',owner)
       }))
     })
     return {classroomId:c,ownerId,testIds:[main,scratch],questionIds:questions,recovery,retained,archive,disclosure,exchanges}

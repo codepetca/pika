@@ -124,7 +124,7 @@ classroom is unarchived, and exact saved work is compared independently. Browser
 code gets no SQL capability. Existing network/process/source/dependency limits,
 canonical-state preservation and complete disposable cleanup remain mandatory.
 Preparation and CPU checks are not native acceptance. Production holds remain.
-The first five attempts remain failed/spent with positive cleanup/preservation.
+The first six attempts remain failed/spent with positive cleanup/preservation.
 The third failure occurred after publication/reference preview; its broad reorder
 label also covered subsequent access setup. Fixed substage labels now distinguish
 the gesture, acknowledgement and access steps. A separately observed owner-RPC
@@ -143,6 +143,13 @@ reproduces the empty live region with visible Saved and correct recovered contro
 Recovery capture now checks those controls and the existing exact persisted
 attempt equality, without an extra write. The gateway's cancellation label may
 have arisen during teardown; it is not established as the primary failure.
+The sixth passed recovery, grading/Return/clear, resets and deletion, then hit the
+unchanged 950-app-request cap in final permissions. Reopening owner workspaces
+now uses the existing Tests navigation link; deliberate author save/readback and
+learner recovery reloads remain. Duplicate preview/final capture navigations are
+removed, not assertions. New standalone preferences use the authenticated page
+in the same context before navigation. The 40 exchanges, eight captures and all
+request/byte, identity, permission and cleanup protections remain unchanged.
 
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.
