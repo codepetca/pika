@@ -23,7 +23,7 @@ export type LifecycleAttempt = { id: string; test_id: string; student_id: string
   submitted_at: string | null; created_at: string; updated_at: string;
   responses: Record<string, { question_type: string; response_text?: string | null; selected_option?: number | null }> }
 export type LifecycleAnswer = { response_id: string; response_revision: number; score: number | null; feedback: string | null;
-  response_text: string | null; selected_option: number | null; is_draft?: boolean }
+  response_text: string | null; selected_option: number | null; graded_at: string | null; is_draft?: boolean }
 export type LifecycleResults = { test: { id: string }; questions: { id: string; question_type: string }[];
   students: { student_id: string; returned_at: string | null; returned_by: string | null; status: string; answers: Record<string,LifecycleAnswer> }[] }
 export type LifecycleExchange = { label: string; actor: LifecycleActor; via: 'screen' | 'conflict-perturbation' | 'permission-fixture' | 'denied-probe';

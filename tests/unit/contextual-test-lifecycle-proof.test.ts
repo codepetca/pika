@@ -5,6 +5,7 @@ import { validateContextualTestLifecycleReceipt,assertContextualTestLifecycleDat
 import { ContextualTestGatewayPolicy } from '../../scripts/contextual-test-rehearsal-gateway'
 import type { ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
 import { contextualTestLifecycleFixture } from '../helpers/contextual-test-lifecycle-fixture'
+import { reorderLifecycleTests } from '../../e2e/helpers/contextual-test-lifecycle-workflow'
 const plan=createContextualTestPlan('pika_assignment_list_123456abcdef',lifecycleScope)
 const binding={proofScope:lifecycleScope,projectId:plan.projectId,nonce:'0'.repeat(20)+'123456abcdef',sourceSha:plan.sourceSha,sourceTree:plan.sourceTree,
   migrationChainSha256:plan.migrationChainSha256,appOverlaySha256:plan.appOverlaySha256,startedAt:1000,deadline:10000} as ContextualTestRunBinding
@@ -18,6 +19,45 @@ function created(p:ContextualTestGatewayPolicy) {
   return f
 }
 describe('remaining lifecycle scope CPU contracts; no execution or full Tests exit',()=>{
+  it('moves the second visible Test up using the frozen descending-position order',async()=>{
+    const rows=[{title:'Retired fixture A',position:0},{title:'Contextual lifecycle Test',position:1},{title:'Contextual lifecycle scratch',position:2}]
+      .sort((a,b)=>b.position-a.position)
+    let index=-1,initial=-1,dragging=false,commits=0
+    const page={getByRole(role:string,options:{name:string;exact:boolean}){
+      expect(role).toBe('button');expect(options.exact).toBe(true)
+      index=rows.findIndex(row=>options.name===`Drag to reorder ${row.title}`);expect(index).toBeGreaterThanOrEqual(0)
+      return {async focus(){},async press(key:string){
+        if(key==='Space'&&!dragging){dragging=true;initial=index}
+        else if(key==='ArrowUp'&&dragging){index=Math.max(0,index-1)}
+        else if(key==='Space'&&dragging){if(initial!==index){const [row]=rows.splice(initial,1);rows.splice(index,0,row);commits++}dragging=false}
+        else throw Error('Unexpected keyboard gesture')
+      }}
+    }}
+    await reorderLifecycleTests(page as never)
+    expect(commits).toBe(1)
+    expect(rows.map(row=>row.title)).toEqual(['Contextual lifecycle Test','Contextual lifecycle scratch','Retired fixture A'])
+  })
+  it.each(['graded_at','graded_by','submitted_at','ai_grading_basis','ai_grading_provenance','ai_grading_review','ai_model','ai_reference_answers','ai_suggested_feedback','ai_suggested_score'])(
+    'rejects changed saved response metadata: %s',key=>{
+      const f=contextualTestLifecycleFixture(binding)
+      f.after.lifecycle.responses[1][key]=key==='graded_by'?plan.actors.nonmember.id:key==='ai_suggested_score'?3:'2000-01-01T00:00:00.000Z'
+      expect(()=>assertContextualTestLifecycleDatabase(f.before,f.after,f.result,binding)).toThrow('Lifecycle Test database proof rejected')
+    })
+  it('binds API grading timestamps to the final submission or cleared state',()=>{
+    for(const index of [0,1]) {
+      const f=contextualTestLifecycleFixture(binding)
+      f.result.retained.results.students[0].answers[f.result.questionIds[index]].graded_at='2000-01-01T00:00:00.000Z'
+      expect(()=>validateLifecycleResult(f.result,binding)).toThrow()
+    }
+  })
+  it('admits the actual descending-position reorder and rejects the reversed permutation',()=>{
+    const p=policy(),f=created(p),[main,scratch]=f.result.testIds
+    p.admit('app','/api/teacher/tests/reorder/atomic','localhost:3117','POST',
+      {classroom_id:plan.classrooms.classA.id,test_ids:[main,scratch,plan.retiredTestIds[0]]})
+    const wrong=policy();created(wrong)
+    expect(()=>wrong.admit('app','/api/teacher/tests/reorder/atomic','localhost:3117','POST',
+      {classroom_id:plan.classrooms.classA.id,test_ids:[plan.retiredTestIds[0],scratch,main]})).toThrow()
+  })
   it('accepts concrete typed receipt and retained-work/tombstone witness',()=>{
     const f=contextualTestLifecycleFixture(binding)
     validateLifecycleResult(f.result,binding)

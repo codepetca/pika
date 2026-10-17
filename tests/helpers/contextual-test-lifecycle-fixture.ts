@@ -10,8 +10,8 @@ export function contextualTestLifecycleFixture(binding: Pick<ContextualTestRunBi
     submitted_at:new Date(binding.startedAt+100).toISOString(),created_at:new Date(binding.startedAt).toISOString(),updated_at:new Date(binding.startedAt+100).toISOString(),
     responses:{[mc]:{question_type:'multiple_choice',selected_option:1},[open]:{question_type:'open_response',response_text:lifecycleText(i===0?'memberStudent':'memberTeacher')}}}))
   const results={test:{id:main},questions:[{id:mc,question_type:'multiple_choice'},{id:open,question_type:'open_response'}],students:[student,teacher].map((student_id,i)=>({student_id,status:'submitted',returned_at:null,returned_by:null,answers:{
-    [mc]:{response_id:uid(20+i*2),response_revision:1,score:5,feedback:null,selected_option:1,response_text:null,is_draft:false},
-    [open]:{response_id:uid(21+i*2),response_revision:i===0?4:1,score:null,feedback:null,selected_option:null,response_text:lifecycleText(i===0?'memberStudent':'memberTeacher'),is_draft:false}}}))}
+    [mc]:{response_id:uid(20+i*2),response_revision:1,score:5,feedback:null,selected_option:1,response_text:null,graded_at:attempts[i].submitted_at,is_draft:false},
+    [open]:{response_id:uid(21+i*2),response_revision:i===0?4:1,score:null,feedback:null,selected_option:null,response_text:lifecycleText(i===0?'memberStudent':'memberTeacher'),graded_at:null,is_draft:false}}}))}
   results.students.push({student_id:p.actors.ownerStudent.id,status:'not_started',returned_at:null,returned_by:null,answers:{}})
   const exchanges:LifecycleExchange[]=lifecycleExchangeLabels.map(label=>({label,actor:'ownerTeacher',via:'screen',method:'POST',path:`/api/teacher/tests/${main}/publish`,status:200,request:{},response:{}}))
   const e=(label:string)=>exchanges.find(e=>e.label===label)!
@@ -43,7 +43,7 @@ export function contextualTestLifecycleFixture(binding: Pick<ContextualTestRunBi
   }
   for(const [label,id,actor]of [['submit-memberStudent',main,'memberStudent'],['submit-memberTeacher',main,'memberTeacher'],['scratch-single-submit',scratch,'memberStudent'],['scratch-submit-memberStudent',scratch,'memberStudent'],['scratch-submit-memberTeacher',scratch,'memberTeacher']]as const)Object.assign(e(label),{
     actor,method:'POST',path:`/api/student/tests/${id}/respond`,request:{expected_revision:2,responses:attempts[actor==='memberStudent'?0:1].responses},response:{success:true,draft_revision:3}})
-  Object.assign(e('reorder'),{path:'/api/teacher/tests/reorder/atomic',request:{classroom_id:c,test_ids:[p.retiredTestIds[0],scratch,main]},response:{success:true}})
+  Object.assign(e('reorder'),{path:'/api/teacher/tests/reorder/atomic',request:{classroom_id:c,test_ids:[main,scratch,p.retiredTestIds[0]]},response:{success:true}})
   const deny=(label:string,actor:LifecycleExchange['actor'],method:string,path:string,request:unknown)=>Object.assign(e(label),{actor,via:'denied-probe',method,path,request})
   deny('unpublish-refused','ownerTeacher','POST',`/api/teacher/tests/${main}/unpublish`,{})
   deny('self-owner','ownerTeacher','POST',`/api/student/tests/${main}/start`,{})
@@ -74,7 +74,9 @@ export function contextualTestLifecycleFixture(binding: Pick<ContextualTestRunBi
   after.tests.push({id:main,classroom_id:c,status:'closed',position:2,retired:false});after.question_counts=[{test_id:main,count:2}];after.response_count=4
   after.attempts=attempts.map(a=>({id:a.id,test_id:a.test_id,student_id:a.student_id,draft_revision:a.draft_revision,is_submitted:a.is_submitted,returned_at:null}))
   after.lifecycle.attempts=attempts.map(a=>({...structuredClone(a),returned_at:null,returned_by:null}))
-  after.lifecycle.responses=results.students.flatMap(s=>Object.entries(s.answers).map(([question_id,a])=>({id:a.response_id,test_id:main,student_id:s.student_id,question_id,revision:a.response_revision,score:a.score,feedback:a.feedback,selected_option:a.selected_option,response_text:a.response_text})))
+  after.lifecycle.responses=results.students.flatMap(s=>Object.entries(s.answers).map(([question_id,a])=>({id:a.response_id,test_id:main,student_id:s.student_id,question_id,revision:a.response_revision,score:a.score,feedback:a.feedback,selected_option:a.selected_option,response_text:a.response_text,
+    graded_at:a.graded_at,graded_by:null,submitted_at:attempts.find(v=>v.student_id===s.student_id)!.submitted_at,
+    ai_grading_basis:null,ai_grading_provenance:null,ai_grading_review:null,ai_model:null,ai_reference_answers:null,ai_suggested_feedback:null,ai_suggested_score:null})))
   after.lifecycle.history=attempts.map((a,i)=>({id:uid(300+i),test_attempt_id:a.id}));after.history_count=2
   after.lifecycle.roster=[{...roster,removed_at:newTime,removed_student_id:student,removed_enrollment_id:removedMembership.generation_id,removed_enrolled_at:oldTime,retained_manual_attendance_marks:{}}]
   after.lifecycle.tests=[...structuredClone(before.tests),{id:main,classroom_id:c,title:'Contextual lifecycle Test',status:'closed',documents:[{id:uid(99),source:'text',title:'Synthetic reference',content:lifecycleReference}]}]

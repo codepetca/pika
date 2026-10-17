@@ -46,6 +46,7 @@ export function validateLifecycleResult(raw: unknown,binding: Pick<ContextualTes
       const a=row.answers[qid]; assert(uuid.test(a.response_id) && Number.isSafeInteger(a.response_revision)&&a.response_revision>0 && a.is_draft===false)
       assert(a.score===(qindex===0?5:null) && a.feedback===null && a.selected_option===(qindex===0?1:null)
         && a.response_text===(qindex===0?null:lifecycleText(actor)))
+      assert.equal(a.graded_at,qindex===0?value.retained.attempts[index].submitted_at:null)
     }
   }
   assert.equal(value.retained.results.test.id,main)
@@ -139,7 +140,7 @@ export function validateLifecycleResult(raw: unknown,binding: Pick<ContextualTes
     if(id===main)assert.deepEqual(request.responses,value.retained.attempts[actor==='memberStudent'?0:1].responses)
   }
   assert.equal(expectExchange('reorder','ownerTeacher','screen','POST','/api/teacher/tests/reorder/atomic',
-    {classroom_id:p.classrooms.classA.id,test_ids:[p.retiredTestIds[0],scratch,main]}).success,true)
+    {classroom_id:p.classrooms.classA.id,test_ids:[main,scratch,p.retiredTestIds[0]]}).success,true)
   for(const label of ['return','unsubmit','reset-one','reset-many','delete-scratch','unpublish-scratch'])assert.equal(at(label).actor,'ownerTeacher')
   const returnAck=expectExchange('return','ownerTeacher','screen','POST',`/api/teacher/tests/${main}/return`,single)
   assert(returnAck.returned_count===1&&returnAck.already_returned_count===0&&returnAck.skipped_count===0)
@@ -271,7 +272,11 @@ export function assertContextualTestLifecycleDatabase(before: LifecycleWitness,a
       for(const questionId of r.questionIds) {
         const answer=ownerRow.answers[questionId],response=after.lifecycle.responses.filter(v=>v.id===answer.response_id);assert.equal(response.length,1)
         const d=response[0]; assert(d.test_id===main&&d.student_id===saved.student_id&&d.question_id===questionId&&d.revision===answer.response_revision)
-        for(const key of ['score','feedback','selected_option','response_text'] as const)assert.equal(d[key],answer[key])
+        for(const key of ['score','feedback','selected_option','response_text','graded_at'] as const)assert.equal(d[key],answer[key])
+        assert.equal(d.submitted_at,saved.submitted_at)
+        // This scope only auto-scores MC answers and clears manual open-response grades.
+        // No provider grading or surviving manual grader attribution is permitted.
+        for(const key of ['graded_by','ai_grading_basis','ai_grading_provenance','ai_grading_review','ai_model','ai_reference_answers','ai_suggested_feedback','ai_suggested_score'])assert.equal(d[key],null)
       }
     }
     const order=(rows:Record<string,unknown>[])=>[...rows].sort((a,b)=>String(a.id).localeCompare(String(b.id)))

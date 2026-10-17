@@ -9,6 +9,10 @@ export type LifecycleRuntime = Omit<VerticalTestRuntime,'withActor'> & {
   withActor(actor: LifecycleActor, callback: (page: Page) => Promise<void>): Promise<void>
 }
 const mainTitle = 'Contextual lifecycle Test', scratchTitle = 'Contextual lifecycle scratch'
+export async function reorderLifecycleTests(page: Page): Promise<void> {
+  const handle = page.getByRole('button',{name:`Drag to reorder ${mainTitle}`,exact:true})
+  await handle.focus(); await handle.press('Space'); await handle.press('ArrowUp'); await handle.press('Space')
+}
 function waitFor(page: Page, method: string, path: string) {
   const pending = page.waitForResponse(r => new URL(r.url()).pathname === path && r.request().method() === method)
   void pending.catch(() => {}); return pending
@@ -164,8 +168,7 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
       await owner.getByRole('button',{name:'More actions',exact:true}).click()
       await owner.getByRole('menuitemcheckbox',{name:'Edit Tests',exact:true}).click()
       const reorder = waitFor(owner,'POST','/api/teacher/tests/reorder/atomic')
-      const handle = owner.getByRole('button',{name:`Drag to reorder ${scratchTitle}`,exact:true})
-      await handle.focus(); await handle.press('Space'); await handle.press('ArrowUp'); await handle.press('Space')
+      await reorderLifecycleTests(owner)
       await record(owner,'reorder',reorder)
       const members = [r.plan.actors.memberStudent.id,r.plan.actors.memberTeacher.id]
       await access(owner,main,mainTitle,'open',members)

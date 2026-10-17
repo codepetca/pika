@@ -248,7 +248,7 @@ export class ContextualTestGatewayPolicy {
     if(path==='/api/teacher/tests/reorder/atomic') {
       if(!exact(raw,['classroom_id','test_ids']) || raw.classroom_id!==c || !Array.isArray(raw.test_ids) || raw.test_ids.length<2 || raw.test_ids.length>3
         || new Set(raw.test_ids).size!==raw.test_ids.length || !raw.test_ids.every(id=>typeof id==='string' && (this.lifecycleTests.has(id)||this.plan.retiredTestIds.includes(id))))this.reject('protocol')
-      const index=count('reorder',2),expected=index===0?[this.plan.retiredTestIds[0],scratch,main]:[main,this.plan.retiredTestIds[1]]
+      const index=count('reorder',2),expected=index===0?[main,scratch,this.plan.retiredTestIds[0]]:[main,this.plan.retiredTestIds[1]]
       if(JSON.stringify(raw.test_ids)!==JSON.stringify(expected))this.reject('protocol'); return
     }
     if(path.endsWith('/grades')) {
