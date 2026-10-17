@@ -3,15 +3,18 @@ import assert from 'node:assert/strict'
 import { expect, type Page, type Response } from '@playwright/test'
 import { openVerticalMemberAccess, publishVerticalTest, selectVerticalMemberResponse, type VerticalTestRuntime } from './contextual-test-vertical-workflow'
 import { assertVerticalLearnerDisclosure } from './contextual-test-grade-return-workflow'
-import { assertLifecycleAttempt, assertLifecycleRecovery, assertLifecycleGraphEquality, lifecycleReference, lifecycleText, lifecycleScreens,
+import { assertLifecycleAttempt, assertLifecycleRecovery, assertLifecycleGraphEquality, lifecycleReference, lifecycleText, lifecycleScreens, lifecycleReorderStages,
   type LifecycleActor, type LifecycleAttempt, type LifecycleExchange, type LifecycleResult, type LifecycleResults } from './contextual-test-lifecycle-contract'
 export type LifecycleRuntime = Omit<VerticalTestRuntime,'withActor'> & {
   withActor(actor: LifecycleActor, callback: (page: Page) => Promise<void>): Promise<void>
 }
 const mainTitle = 'Contextual lifecycle Test', scratchTitle = 'Contextual lifecycle scratch'
-export async function reorderLifecycleTests(page: Page): Promise<void> {
+export async function reorderLifecycleTests(page: Page,onStage:(stage:typeof lifecycleReorderStages[number])=>void=()=>{}): Promise<void> {
   const handle = page.getByRole('button',{name:`Drag to reorder ${mainTitle}`,exact:true})
-  await handle.focus(); await handle.press('Space'); await handle.press('ArrowUp'); await handle.press('Space')
+  onStage('reorder-focus'); await handle.focus()
+  onStage('reorder-pickup'); await handle.press('Space')
+  onStage('reorder-move'); await handle.press('ArrowUp')
+  onStage('reorder-drop'); await handle.press('Space')
 }
 function waitFor(page: Page, method: string, path: string) {
   const pending = page.waitForResponse(r => new URL(r.url()).pathname === path && r.request().method() === method)
@@ -124,11 +127,16 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
     await record(page,label,ack,201)
   }
   async function access(owner: Page, id: string, title: string, state: 'open'|'closed', ids: string[]) {
+    stage='owner-access-workspace'
     await workspace(owner,title)
     for (const student of ids) {
       const row = owner.getByTestId(`test-grading-student-row-${student}`)
-      if (state === 'open') await openVerticalMemberAccess(r,owner,row,id)
+      if (state === 'open') {
+        stage=student===r.plan.actors.memberStudent.id?'owner-open-student':'owner-open-teacher'
+        await openVerticalMemberAccess(r,owner,row,id)
+      }
       else {
+        stage='owner-close-member'
         const ack = waitFor(owner,'POST',`/api/teacher/tests/${id}/student-access`)
         await row.getByRole('switch',{name:/Close access for/}).click(); assert.equal((await ack).status(),200)
       }
@@ -165,10 +173,13 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
         await capture('lifecycle-standalone-preview',standalone)
       } finally { await standalone.close() }
       stage = 'reorder'; await r.navigate(owner,classUrl)
+      stage='reorder-open-menu'
       await owner.getByRole('button',{name:'More actions',exact:true}).click()
+      stage='reorder-enable-edit'
       await owner.getByRole('menuitemcheckbox',{name:'Edit Tests',exact:true}).click()
       const reorder = waitFor(owner,'POST','/api/teacher/tests/reorder/atomic')
-      await reorderLifecycleTests(owner)
+      await reorderLifecycleTests(owner,next=>{stage=next})
+      stage='reorder-ack'
       await record(owner,'reorder',reorder)
       const members = [r.plan.actors.memberStudent.id,r.plan.actors.memberTeacher.id]
       await access(owner,main,mainTitle,'open',members)

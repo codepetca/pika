@@ -124,6 +124,12 @@ classroom is unarchived, and exact saved work is compared independently. Browser
 code gets no SQL capability. Existing network/process/source/dependency limits,
 canonical-state preservation and complete disposable cleanup remain mandatory.
 Preparation and CPU checks are not native acceptance. Production holds remain.
+The first three attempts remain failed/spent with positive cleanup/preservation.
+Latest failure occurred after publication/reference preview; its broad reorder
+label also covered subsequent access setup. Fixed substage labels now distinguish
+the gesture, acknowledgement and access steps. A separately observed owner-RPC
+deadline rejection has not been established as the causal blocker. Lifecycle
+screenshots finish finite animations so mid-crossfade frames cannot be accepted.
 
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.

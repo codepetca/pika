@@ -6,6 +6,7 @@ import { ContextualTestGatewayPolicy } from '../../scripts/contextual-test-rehea
 import type { ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
 import { contextualTestLifecycleFixture } from '../helpers/contextual-test-lifecycle-fixture'
 import { reorderLifecycleTests } from '../../e2e/helpers/contextual-test-lifecycle-workflow'
+import { verticalScreenshotOptions } from '../../e2e/helpers/contextual-test-vertical-runtime'
 const plan=createContextualTestPlan('pika_assignment_list_123456abcdef',lifecycleScope)
 const binding={proofScope:lifecycleScope,projectId:plan.projectId,nonce:'0'.repeat(20)+'123456abcdef',sourceSha:plan.sourceSha,sourceTree:plan.sourceTree,
   migrationChainSha256:plan.migrationChainSha256,appOverlaySha256:plan.appOverlaySha256,startedAt:1000,deadline:10000} as ContextualTestRunBinding
@@ -19,10 +20,15 @@ function created(p:ContextualTestGatewayPolicy) {
   return f
 }
 describe('remaining lifecycle scope CPU contracts; no execution or full Tests exit',()=>{
+  it('finishes lifecycle capture transitions without changing timeout, viewport or other scopes',()=>{
+    expect(verticalScreenshotOptions(true,1234)).toEqual({fullPage:false,timeout:1234,animations:'disabled'})
+    expect(verticalScreenshotOptions(false,1234)).toEqual({fullPage:false,timeout:1234})
+  })
   it('moves the second visible Test up using the frozen descending-position order',async()=>{
     const rows=[{title:'Retired fixture A',position:0},{title:'Contextual lifecycle Test',position:1},{title:'Contextual lifecycle scratch',position:2}]
       .sort((a,b)=>b.position-a.position)
     let index=-1,initial=-1,dragging=false,commits=0
+    const stages:string[]=[]
     const page={getByRole(role:string,options:{name:string;exact:boolean}){
       expect(role).toBe('button');expect(options.exact).toBe(true)
       index=rows.findIndex(row=>options.name===`Drag to reorder ${row.title}`);expect(index).toBeGreaterThanOrEqual(0)
@@ -33,7 +39,8 @@ describe('remaining lifecycle scope CPU contracts; no execution or full Tests ex
         else throw Error('Unexpected keyboard gesture')
       }}
     }}
-    await reorderLifecycleTests(page as never)
+    await reorderLifecycleTests(page as never,stage=>{stages.push(stage)})
+    expect(stages).toEqual(['reorder-focus','reorder-pickup','reorder-move','reorder-drop'])
     expect(commits).toBe(1)
     expect(rows.map(row=>row.title)).toEqual(['Contextual lifecycle Test','Contextual lifecycle scratch','Retired fixture A'])
   })

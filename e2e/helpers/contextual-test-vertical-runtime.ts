@@ -23,6 +23,11 @@ export function verticalLoginReady(): boolean {
     && submit?.textContent?.trim() === 'Login' && !submit.disabled
 }
 
+/** Finish finite UI transitions for lifecycle captures; preserve other scopes. */
+export function verticalScreenshotOptions(lifecycle: boolean, timeout: number) {
+  return { fullPage: false as const, timeout, ...(lifecycle ? { animations: 'disabled' as const } : {}) }
+}
+
 export async function createContextualTestVerticalRuntime(browser: Browser) {
   const binding = contextualTestStartupBinding()
   assert(binding.proofScope === 'vertical-v1' || binding.proofScope === 'vertical-grade-return-v1' || binding.proofScope === 'lifecycle-permissions-v1'); assert(!binding.sqlControl)
@@ -98,7 +103,7 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
         assert.deepEqual(page.viewportSize(),scene.viewport==='mobile'?{width:390,height:844}:{width:1440,height:900})
         assert.equal(await page.evaluate(()=>document.documentElement.classList.contains('dark')),scene.theme==='dark')
       }
-      const bytes = await page.screenshot({ fullPage: false, timeout: timeout() })
+      const bytes = await page.screenshot(verticalScreenshotOptions(lifecycle, timeout()))
       check(); assert(bytes.length > 0 && bytes.length <= 4194304)
       writeFileSync(join(output, `${label}.png`), bytes, { mode: 0o600, flag: 'wx' })
       artifacts.push({ label, kind: 'png', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),

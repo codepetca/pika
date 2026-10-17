@@ -10,7 +10,10 @@ export const lifecycleScreens = lifecycleLabels.map((label,index)=>({label,
   viewport: [2,4,6,7].includes(index) ? 'mobile' as const : 'desktop' as const,
   theme: [1,4,5,7].includes(index) ? 'dark' as const : 'light' as const }))
 export const lifecycleReference = 'Synthetic reference: Beta is the second option.'
-export const lifecycleStages = ['admission','owner-create','owner-author','owner-reference','owner-save-readback','owner-publish','previews','reorder','recovery','grade-conflict','return-and-clear','unpublish-refusal','resets','permissions'] as const
+export const lifecycleReorderStages = ['reorder-focus','reorder-pickup','reorder-move','reorder-drop'] as const
+export const lifecycleStages = ['admission','owner-create','owner-author','owner-reference','owner-save-readback','owner-publish','previews','reorder',
+  'reorder-open-menu','reorder-enable-edit',...lifecycleReorderStages,'reorder-ack','owner-access-workspace','owner-open-student','owner-open-teacher','owner-close-member',
+  'recovery','grade-conflict','return-and-clear','unpublish-refusal','resets','permissions'] as const
 export function lifecycleFailureStage(error:unknown):typeof lifecycleStages[number]|null {
   if(!error||typeof error!=='object'||types.isProxy(error))return null
   const message=Object.getOwnPropertyDescriptor(error,'message'),prefix='Contextual Test lifecycle failed: '
