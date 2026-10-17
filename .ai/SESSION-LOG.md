@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Login readiness and cleanup-stage diagnosis
-
-Failed full run reached workflow with nonempty fields but disabled Login; no
-known login error or server traffic was observed. Runner now verifies the
-existing public field-setter transition before replacing both defaults with
-fixture credentials and using normal login/session checks. One original30s end
-covers readiness and login. Actual frozen-component SSR/hydration CPU regression
-and both fixture roles pass; installed Next/Chrome timing remains unproved.
-No unconditional cleanup-engine bug was established. Fixed cleanup-stage
-receipts now distinguish settlement, closure and unchanged-state rejection;
-real-controls CPU regression preserves cleanup-clock/poison rules. Automatic raw
-Playwright DOM-error snapshots disabled, with installed-method regression.
-Integrated95 affected tests and audit pass; full gate and independent review
-precede ONE fresh human-authorized45-minute rehearsal. Prior attempts remain
-failed/spent; production/shared-local/provider/activation holds unchanged.
-
 ## 2026-10-14 Small-proof recovery and cleanup isolation
 
 Owner approved recovery then small loader/cleanup proofs before one fresh full
@@ -1015,3 +999,31 @@ remain pending. Three bounded implementation workers delivered isolated files;
 coordinator verified source contracts and caught compression/serializer hazards.
 Prior failed attempts remain spent. No production/shared-local/schema/account/
 billing/cutover change. Existing review counters and task waiver carry forward.
+
+## 2026-10-17 Narrow Test workflow reaches real submission; inspector remains blocked
+
+Ordinary Playwright now completes four real logins, owner author/save/reload/
+publish/access, member start/autosave/submit and all three403 denials. Latest
+isolated zgu5Ps attempt also passes fresh strict owner-results graph verification;
+the response inspector still shows "Test changed; reload and retry". Earlier
+FWbdaO showed PT400 instead. Neither run is an end-to-end pass or phase exit.
+All six cleanup gates pass, exact synthetic resources/temp dirs are absent,
+and immediate independent checks preserve both source trees and dependencies.
+Three screenshots are narrow proof/failure evidence, not the full visual matrix.
+
+Reviewed fixed-label gateway diagnostics preserve original response bytes and
+all guards; no PT400 occurred in the latest run. Deadline skew remains an
+unproven candidate, not an established historical cause. Source investigation
+confirms overlapping reads: the verifier requested results after selecting the
+member; the app itself also duplicates inspector effects under development
+StrictMode and independently polls the grading table. Owner reads use exclusive
+try-locks/NOWAIT. Failed panel reads can leave an error displayed after a sibling
+read succeeds. Verification corroboration now occurs before opening the grading
+UI, with an ordering regression; this does not repair the app-side race.
+
+Do not spend another identical frozen-app attempt hoping for success. Next is a
+bounded fix/review of response-read coordination and stale error handling in a
+new app candidate, then a fresh pinned proof. Frozen21e755d3 and schema001–262
+remain unchanged. PR1581 stays draft; production/shared-local/provider/Survey/
+account/billing/schema/cutover holds remain.150 completed review turns/93 fix
+batches including the sequencing correction; final targeted review pending.

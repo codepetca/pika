@@ -22,6 +22,16 @@ const submitted = () => ({ questions: published().questions, students: [{ studen
     [id(4)]: { response_id: id(7), response_revision: 1, selected_option: null, response_text: 'Synthetic reasoning.', is_draft: false } } }] })
 
 describe('narrow contextual Test graph assertions (CPU only)', () => {
+  it('orders final independent results corroboration before opening the grading UI', () => {
+    const source = readFileSync(new URL('../../e2e/helpers/contextual-test-vertical-workflow.ts', import.meta.url), 'utf8')
+    const finalOwner = source.slice(source.indexOf("stage = 'owner-response-inspector'"), source.indexOf('ownerSawResponse: true'))
+    const positions = ["stage = 'owner-results-readback'", 'assertVerticalSubmittedGraph(await r.api<Results>',
+      "stage = 'owner-open-results'", 'await selectVerticalMemberResponse(member)', "stage = 'owner-read-response'"]
+      .map(marker => finalOwner.indexOf(marker))
+    expect(positions.every(position => position >= 0)).toBe(true)
+    expect(positions.every((position, index) => index === 0 || position > positions[index - 1])).toBe(true)
+    expect(finalOwner.match(/r\.api</g)).toHaveLength(1)
+  })
   it.each(['pass', 'verification-failure', 'capture-failure', 'both-fail'] as const)('captures the final approved image slot once without masking failure: %s', async mode => {
     const original = Error('verification'), captureError = Error('capture'), page = {}
     const snapshot = vi.fn(async () => { if (mode === 'capture-failure' || mode === 'both-fail') throw captureError })

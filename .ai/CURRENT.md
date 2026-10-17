@@ -17,7 +17,9 @@ CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
 Old run:4 logins/32 font shots; guard denied; spent/no exit.
-Narrow Playwright/OS/gateway proof: review/run pending.
+Narrow Playwright/OS/gateway: author/publish/member submit/3 denials + fresh owner
+graph PASS; inspector race blocks full proof (StrictMode/polling vs NOWAIT reads).
+Failed attempts cleaned, source/deps preserved; no further same-app retries.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.

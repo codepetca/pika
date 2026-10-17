@@ -236,6 +236,10 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
 
     await r.withActor('ownerStudent', async page => {
       stage = 'owner-response-inspector'; r.check(); await r.navigate(page, classUrl)
+      // Corroborate before mounting the grading table/inspector. Their own
+      // results reads must not contend with a request introduced by this proof.
+      stage = 'owner-results-readback'; r.check()
+      assertVerticalSubmittedGraph(await r.api<Results>(page, 'GET', `/api/teacher/tests/${testId}/results`), memberId, questionIds, text)
       stage = 'owner-open-results'
       await page.getByRole('button', { name: title, exact: true }).click()
       stage = 'owner-select-member'
@@ -243,9 +247,6 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
       await selectVerticalMemberResponse(member)
       await expect(member).toHaveAttribute('aria-selected', 'true')
       await withVerticalFinalEvidence(r, page, async () => {
-        // Check actual owner data first, independently of the rendered panel.
-        stage = 'owner-results-readback'; r.check()
-        assertVerticalSubmittedGraph(await r.api<Results>(page, 'GET', `/api/teacher/tests/${testId}/results`), memberId, questionIds, text)
         stage = 'owner-read-response'
         await expect(page.getByTestId('test-grading-inspector-scroll-pane').getByText(text, { exact: true })).toBeVisible()
       })

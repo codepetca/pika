@@ -47932,3 +47932,20 @@ spent token and reviews preserved; temporary clean reviewer copy removed normall
 No retry, phase exit or production change. Next evidence should use fixed envelope
 shape/code-site labels and an earlier body marker, not further signature guessing.
 Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+<!-- pika-session-log-archive-batch:5e6a8d959a7fcb13fc639537cb386f8a1ac6fdcafa44c86918f247c1f5fe113c -->
+## 2026-10-14 Login readiness and cleanup-stage diagnosis
+
+Failed full run reached workflow with nonempty fields but disabled Login; no
+known login error or server traffic was observed. Runner now verifies the
+existing public field-setter transition before replacing both defaults with
+fixture credentials and using normal login/session checks. One original30s end
+covers readiness and login. Actual frozen-component SSR/hydration CPU regression
+and both fixture roles pass; installed Next/Chrome timing remains unproved.
+No unconditional cleanup-engine bug was established. Fixed cleanup-stage
+receipts now distinguish settlement, closure and unchanged-state rejection;
+real-controls CPU regression preserves cleanup-clock/poison rules. Automatic raw
+Playwright DOM-error snapshots disabled, with installed-method regression.
+Integrated95 affected tests and audit pass; full gate and independent review
+precede ONE fresh human-authorized45-minute rehearsal. Prior attempts remain
+failed/spent; production/shared-local/provider/activation holds unchanged.
