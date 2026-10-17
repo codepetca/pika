@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import {
+  assertVerticalDraftReadback,
   assertVerticalPublishedGraph,
   assertVerticalSubmittedGraph,
   contextualTestVerticalContract,
@@ -18,6 +19,25 @@ const submitted = () => ({ questions: published().questions, students: [{ studen
     [id(4)]: { response_id: id(7), response_revision: 1, selected_option: null, response_text: 'Synthetic reasoning.', is_draft: false } } }] })
 
 describe('narrow contextual Test graph assertions (CPU only)', () => {
+  it('reads documents from the Test while accepting the actual draft content shape', () => {
+    const detail = published(); detail.test.status = 'draft'
+    const draft = { draft: { version: 2, content: { title: 'Vertical Test', questions: detail.questions } } }
+    expect(Object.hasOwn(draft.draft.content, 'documents')).toBe(false)
+    expect(() => assertVerticalDraftReadback(draft, detail, id(1), id(2), 'Vertical Test')).not.toThrow()
+  })
+  it.each(['document', 'missing-documents', 'wrong-test', 'wrong-class', 'wrong-title', 'not-draft', 'zero-version', 'missing-question'])('rejects invalid saved readback: %s', defect => {
+    const detail = published(); detail.test.status = 'draft'
+    const draft = { draft: { version: 2, content: { title: 'Vertical Test', questions: [...detail.questions] } } }
+    if (defect === 'document') (detail.test.documents as unknown[]).push({ type: 'link' })
+    if (defect === 'missing-documents') delete (detail.test as { documents?: unknown[] }).documents
+    if (defect === 'wrong-test') detail.test.id = id(9)
+    if (defect === 'wrong-class') detail.test.classroom_id = id(9)
+    if (defect === 'wrong-title') draft.draft.content.title = 'Wrong title'
+    if (defect === 'not-draft') detail.test.status = 'closed'
+    if (defect === 'zero-version') draft.draft.version = 0
+    if (defect === 'missing-question') draft.draft.content.questions.pop()
+    expect(() => assertVerticalDraftReadback(draft, detail, id(1), id(2), 'Vertical Test')).toThrow('owner-reload-draft-proof')
+  })
   it('accepts exactly two distinct, published questions without documents', () => {
     expect(assertVerticalPublishedGraph(published(), id(1), id(2), 'Vertical Test')).toEqual({ mcId: id(3), openId: id(4) })
   })

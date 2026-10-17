@@ -19,7 +19,7 @@ export type VerticalTestRuntime = {
 export const contextualTestVerticalContract = Object.freeze({ createdTests: 1, questions: 2, uploadObjects: 0,
   screenshots: 3, automaticRetries: 0, actors: Object.freeze(['ownerStudent', 'memberTeacher', 'nonmember'] as const) })
 export const contextualTestVerticalStages = Object.freeze(['admission', 'owner-create', 'owner-author', 'owner-reload-readback',
-  'owner-publish', 'published-readback', 'owner-open-member', 'owner-self-enrollment-denial', 'member-owner-api-denial',
+  'owner-reload-draft-proof', 'owner-publish', 'published-readback', 'owner-open-member', 'owner-self-enrollment-denial', 'member-owner-api-denial',
   'member-start', 'member-answer', 'member-submit', 'nonmember-read-denial', 'owner-response-inspector', 'owner-results-readback'] as const)
 type VerticalStage = typeof contextualTestVerticalStages[number]
 const failurePrefix = 'Contextual Test vertical failed: '
@@ -38,11 +38,21 @@ function requireThat(condition: unknown, stage: string): asserts condition {
 }
 type Questions = { id: string; question_type: string }[]
 type TestDetail = { test: { id: string; classroom_id: string; title: string; status: string; documents: unknown[] }; questions: Questions }
+type SavedDraft = { draft: { version: number; content: { title: string; questions: unknown[] } } }
 type QuestionIds = { mcId: string; openId: string }
 type Answer = { response_id: string; response_revision: number; selected_option: number | null; response_text: string | null; is_draft?: boolean }
 type Results = { questions: Questions; students: { student_id: string; status: string; returned_at: string | null; answers: Record<string, Answer> }[] }
 type Attempt = { id: string; test_id: string; student_id: string; is_submitted: boolean; draft_revision: number;
   responses: Record<string, { question_type: string; selected_option?: number; response_text?: string }> }
+
+/** Documents are stored on the Test, not inside validated draft content. */
+export function assertVerticalDraftReadback(draft: SavedDraft, detail: TestDetail, testId: string, classroomId: string, title: string): void {
+  const stage = 'owner-reload-draft-proof'
+  requireThat(draft?.draft && Number.isSafeInteger(draft.draft.version) && draft.draft.version > 0
+    && draft.draft.content?.title === title && Array.isArray(draft.draft.content.questions) && draft.draft.content.questions.length === 2, stage)
+  requireThat(detail?.test?.id === testId && detail.test.classroom_id === classroomId && detail.test.title === title
+    && detail.test.status === 'draft' && Array.isArray(detail.test.documents) && detail.test.documents.length === 0, stage)
+}
 
 export function assertVerticalPublishedGraph(detail: TestDetail, testId: string, classroomId: string, title: string, resultQuestions: Questions = detail.questions): QuestionIds {
   const stage = 'published-readback'
@@ -125,8 +135,10 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
       await expect(editor).toBeVisible()
       const readback = await editor.getByTestId('test-markdown-editor').inputValue()
       requireThat(readback.includes(`Title: ${title}`) && readback.includes('A private solution') && readback.includes('Explain your reasoning.'), stage)
-      const draft = await r.api<{ draft: { version: number; content: { title: string; questions: unknown[]; documents: unknown[] } } }>(page, 'GET', `/api/teacher/tests/${testId}/draft`)
-      requireThat(draft.draft.version > 0 && draft.draft.content.title === title && draft.draft.content.questions.length === 2 && draft.draft.content.documents.length === 0, stage)
+      stage = 'owner-reload-draft-proof'
+      const draft = await r.api<SavedDraft>(page, 'GET', `/api/teacher/tests/${testId}/draft`)
+      const savedDetail = await r.api<TestDetail>(page, 'GET', `/api/teacher/tests/${testId}`)
+      assertVerticalDraftReadback(draft, savedDetail, testId, classroomId, title)
       await r.snapshot('vertical-owner-author', page)
       stage = 'owner-publish'; r.check()
       const publishAck = waitFor(page, 'POST', `/api/teacher/tests/${testId}/publish`)
