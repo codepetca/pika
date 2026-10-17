@@ -57,6 +57,7 @@ import { getTestExitCount } from '@/lib/tests'
 import { compareTestGradingStatusGroups, getTestGradingStatusGroup, type TestGradingStatusGroup, type TestGradingStatusSort } from '@/lib/test-grading-status-sort'
 import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { createTestResultsReader } from '@/lib/test-results-reader'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import {
   readTeacherTestResultsFromPayload,
@@ -440,6 +441,11 @@ export function TeacherTestsTab({
   onRequestDelete,
 }: Props) {
   const apiBasePath = '/api/teacher/tests'
+  const resultsReadScope = useMemo(() => ({ classroomId: classroom.id, mode: testExperienceMode,
+    reader: createTestResultsReader() }), [classroom.id, testExperienceMode])
+  const resultsReader = resultsReadScope.reader
+  const currentResultsReaderRef = useRef(resultsReader)
+  currentResultsReaderRef.current = resultsReader
   const isReadOnly = !!classroom.archived_at
   const previousTestsTabClickTokenRef = useRef(testsTabClickToken)
   const previousSelectedTestModeRef = useRef<WorkspaceTab | null | undefined>(selectedTestMode)
@@ -1031,7 +1037,7 @@ export function TeacherTestsTab({
     setSelectedTestDraftSummary(update)
   }, [applyTestSummaryPatch, selectedTestId])
 
-  const loadGradingRows = useCallback(async (options?: { preserveRows?: boolean }) => {
+  const loadGradingRows = useCallback(async (options?: { preserveRows?: boolean; fresh?: boolean }) => {
     if (!selectedTestId) {
       setGradingStudents([])
       setGradingQuestions([])
@@ -1047,11 +1053,21 @@ export function TeacherTestsTab({
 
     const preserveRows = options?.preserveRows ?? false
     const requestedTestId = selectedTestId
+    const selection = gradingSelectionRef.current
+    if (!unpublishMountedRef.current || currentResultsReaderRef.current !== resultsReader
+      || selection.workspaceState !== 'selected' || selection.selectedWorkspaceTab !== 'grading'
+      || selection.selectedTestId !== requestedTestId) return
+    const resultsUrl = `${apiBasePath}/${requestedTestId}/results`
+    if (options?.fresh) resultsReader.invalidate(resultsUrl)
+    const generation = resultsReader.generation(resultsUrl)
     const requestId = ++latestGradingRequestIdRef.current
-    const isStaleRequest = () => {
+    const isStaleRequest = (includeGeneration = true) => {
       const currentSelection = gradingSelectionRef.current
       return (
         latestGradingRequestIdRef.current !== requestId ||
+        !unpublishMountedRef.current ||
+        currentResultsReaderRef.current !== resultsReader ||
+        (includeGeneration && resultsReader.generation(resultsUrl) !== generation) ||
         currentSelection.workspaceState !== 'selected' ||
         currentSelection.selectedWorkspaceTab !== 'grading' ||
         currentSelection.selectedTestId !== requestedTestId
@@ -1065,18 +1081,16 @@ export function TeacherTestsTab({
     }
     setGradingError('')
     try {
-      // Each refresh must observe current grading state, including after a mutation.
-      const { data, ok } = await fetchJSONWithCache(
-        `teacher-test-results:${apiBasePath}:${requestedTestId}:${requestId}`,
-        async () => {
-          const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
-          return { data: await response.json() as TeacherTestResultsPayload, ok: response.ok }
-        },
-        0,
-      )
+      const response = await resultsReader.read(resultsUrl)
+      const data = response.data as TeacherTestResultsPayload
+      const ok = response.ok
       if (isStaleRequest()) return
       const results = readTeacherTestResultsFromPayload(data)
       if (!ok) throw new Error(results.error || 'Failed to load test results')
+      const responseTest = readTestFromPayload<{ id: string }>(data)
+      if (responseTest?.id !== requestedTestId) throw new Error('Failed to load test results')
+      // The read cleared its own error at entry. Do not erase a newer mutation
+      // or completed-run message that arrived while this refresh was pending.
 
       const nextStatus = results.testStatus
       setGradingServerTestStatus(nextStatus)
@@ -1102,23 +1116,19 @@ export function TeacherTestsTab({
         setTestAiGradingRun(null)
       }
     } finally {
-      if (isStaleRequest()) return
+      // A mutation may invalidate data without starting another roster load.
+      // Only the current caller may finish its own loading state.
+      if (isStaleRequest(false)) return
       setGradingLoading(false)
       setGradingRefreshing(false)
     }
-  }, [recordGradingExitCountChanges, selectedTestId, setTests])
+  }, [apiBasePath, recordGradingExitCountChanges, resultsReader, selectedTestId, setTests])
 
   useEffect(() => {
     onSelectTest?.(workspaceState === 'selected' ? selectedTestWorkspace : null)
   }, [onSelectTest, selectedTestWorkspace, workspaceState])
 
-  useEffect(() => {
-    gradingSelectionRef.current = {
-      workspaceState,
-      selectedWorkspaceTab,
-      selectedTestId,
-    }
-  }, [selectedTestId, selectedWorkspaceTab, workspaceState])
+  gradingSelectionRef.current = { workspaceState, selectedWorkspaceTab, selectedTestId }
 
   useEffect(() => {
     if (!selectedTestId || !hasTestsSnapshot) return
@@ -1228,6 +1238,7 @@ export function TeacherTestsTab({
     }
 
     void loadGradingRows()
+    return () => { latestGradingRequestIdRef.current += 1 }
   }, [clearBatchSelection, loadGradingRows, selectedWorkspaceTab, setSelectedStudentId, workspaceState])
 
   useEffect(() => {
@@ -1487,7 +1498,7 @@ export function TeacherTestsTab({
 
     const message = formatTestAiGradingRunMessage(activeTestAiRun)
     clearBatchSelection()
-    void loadGradingRows()
+    void loadGradingRows({ fresh: true })
     setTestGradingPanelRefreshToken((prev) => prev + 1)
     invalidateGradebookForClassroom(classroom.id)
     onTestGradingDataRefresh?.()
@@ -1734,7 +1745,7 @@ export function TeacherTestsTab({
       if (!options?.preserveSelection) {
         clearBatchSelection()
       }
-      await loadGradingRows()
+      await loadGradingRows({ fresh: true })
       setTestGradingPanelRefreshToken((prev) => prev + 1)
       invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
@@ -1773,7 +1784,7 @@ export function TeacherTestsTab({
       if (data.test_closed) {
         await loadTests()
       }
-      await loadGradingRows()
+      await loadGradingRows({ fresh: true })
       setTestGradingPanelRefreshToken((prev) => prev + 1)
       invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
@@ -1854,7 +1865,8 @@ export function TeacherTestsTab({
       setShowCloseAccessConfirm(false)
       setPendingOpenAccessStudentIds(null)
       setPendingCloseAccessStudentIds(null)
-      await loadGradingRows()
+      await loadGradingRows({ fresh: true })
+      setTestGradingPanelRefreshToken((prev) => prev + 1)
       onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Access update failed')
@@ -1893,7 +1905,7 @@ export function TeacherTestsTab({
       clearBatchSelection()
       setShowUnsubmitConfirm(false)
       setPendingUnsubmitStudent(null)
-      await loadGradingRows()
+      await loadGradingRows({ fresh: true })
       setTestGradingPanelRefreshToken((prev) => prev + 1)
       invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
@@ -1929,7 +1941,7 @@ export function TeacherTestsTab({
       }
       clearBatchSelection()
       setPendingDeleteStudentAttemptIds(null)
-      await loadGradingRows()
+      await loadGradingRows({ fresh: true })
       setTestGradingPanelRefreshToken((prev) => prev + 1)
       invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
@@ -3120,6 +3132,7 @@ export function TeacherTestsTab({
       selectedStudentId={selectedStudentId}
       apiBasePath={apiBasePath}
       refreshToken={testGradingPanelRefreshToken}
+      resultsReader={resultsReader}
       onSaveStateChange={handleTestGradingSaveStateChange}
     />
   ) : null

@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Calendar content editing follow-up
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested click-to-edit lesson content. Removed separate edit/add icons; native shared Button behind rich preview preserves keyboard entry/focus and separate links. Student/weekend/read-only permissions preserved.
-- 49 focused Calendar/DayCell tests pass, including content click, links, Enter/Space, Escape/blur/autosave. Eight real-owner role/viewport/theme captures refreshed; teacher content/empty clicks and focus return verified. UiGallery regression updated for the new content target.
-- PR returned to draft before changing source. Targeted general-tier medium independent review and final focused gate next; no merge/production authority inferred.
-
 ## 2026-10-14 — Calendar muted non-class cards and short-content centering
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested muted non-class cards without visible No class and centered short lesson content. Hidden status remains accessible; long reading and the editor remain top-aligned; permissions and click-to-edit are unchanged.
@@ -474,3 +468,30 @@ Storage healthy318GB and weekly allowance43% remaining at startup (account-wide)
 Owner approves adding faint diagonal hatch and hover/focus tooltip to PR1609. Same coordinator/branch codex/gradebook-immediate-marks; PR returned draft before edits. Per-student assignment/Test returned_at now projects explicit null/timestamp into cells, preserving all calculations. Table and inspector use a feature CSS module with semantic muted colour; accessible `Graded · Not returned to student` help supports keyboard/Escape and inspector tap. Returned/blank/standalone/final/average marks stay plain; unknown legacy metadata stays unasserted. Pattern Lab demonstrates both states with returned-only student examples. UI brief docs/guidance/ui/changes/gradebook-unreturned-hatch.md; both roles,1440x900/390x844,light/dark,return and help states. Risk none (existing read projection), standard behavioral review.
 
 GPT6.1-Sol/medium worker owned server metadata+API tests only:78 API tests PASS; coordinator inspected/integrated without corrections. Same-model visual worker owns ignored evidence only. Coordinator owns UI/tests; initial two provider-free plain inspector tests exposed unnecessary Tooltip mounting, fixed by creating help only for known unreturned marks;41 component tests then PASS. Final focused1246 tests/93files, architecture/UI/design policies,TypeScript,lint and audit PASS. Visual16cases+4focus refresh checks PASS,34captures; root inspected actual light/dark hatch and tooltip. Delta review and CI evidence follow in PR1609 and ~/.codex/artifacts/pika/pr-1609. Prior8ba review/CI retained for unchanged behavior; this user-approved follow-up starts one bounded delta-review session. Weekly39% remaining, storage healthy319GB; task-specific usage/effective worker configuration unknown. Main sync to fb268de6f resolved archive markers/history only; preserved both marker sets and session bodies, with all Gradebook source/test blobs identical to pre-sync53284ea60. No merge, deployment, dependency or database migration authority inferred.
+
+## 2026-10-17 — Integrate verified Test results coordination with main
+
+Coordinator owns codex/test-results-main-integration at main944c1735c. Ported only
+the two verified app-fix commits, preserving current publication/table/reporting
+work. Workspace-scoped in-flight reads, stale reply guards and field-level draft
+intent remain; no fulfilled cache, auth/SQL/lock changes or retries added.
+An integration regression caught a successful refresh clearing a newer grading
+failure summary; keep clearing at read entry only. All169 targeted tests pass.
+UI brief names reuse/extend decisions and separates prior real app050699bb proof
+from current-main fixture visuals. Focused gate, independent review and PR
+receipts follow. No merge or production operation in this preparation slice.
+
+Risk profile: workspace-state; standard interacting state management. One fresh
+Sol6.1/high reviewer is planned. Existing task waiver/counters carry (155 prior
+review turns/96 remediation batches); no provider pause bypass. Weekly12%
+remaining, ordinary usage allowed; DeepSeek paused through Dec31. Storage319GB
+healthy; dependency lock unchanged and existing node_modules reused. Effective
+reviewer configuration and per-task usage unavailable. Production/shared-local
+DB/provider/Survey/schema/billing/account/cutover holds unchanged.
+
+Independent complete review156 found one P2: a successful panel refresh could
+erase a newer save error and reset the conflict retry budget. Reproduced with
+two failing deferred500/409 regressions; move mutation-error/retry reset to the
+resource-scope transition, preserving explicit edit/save recovery. Remediation98
+adds no API, permission, styling or database change; targeted re-review and final
+checks/fixture captures follow on the new SHA. Original proof remains historical.
