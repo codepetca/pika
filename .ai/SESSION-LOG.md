@@ -963,3 +963,8 @@ TypeScript/eslint pass. Independent security/correctness and compatibility
 review and final focused gate follow before any new full rehearsal. No native
 attempt, app/auth/schema change, production/shared-local change or rollout.
 Prior spent attempts, holds, original clocks and task waiver remain; fix batch73.
+
+Review123 security/correctness and124 SDK compatibility completed clean at
+282f45f5; unchanged code needs no further implementation. Broad focused run
+passed3682 tests/8skip but failed only the startup-doc character budget by35.
+Compacted CURRENT without changing facts; final gate and doc-delta review next.
