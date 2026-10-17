@@ -18,7 +18,20 @@ describe('narrow Test environment boundary', () => {
     expect(p).toContain('(remote tcp4 "localhost:3117")')
     expect(p).not.toMatch(/\((?:remote|local) tcp /)
     expect(p).not.toContain('54340'); expect(p).not.toContain('3118')
-    expect(p).not.toContain('remote unix')
+    expect(p).toContain('(local unix-socket (subpath "/private/fixture/tmp"))')
+    expect(p).toContain('(remote unix-socket (subpath "/private/fixture/tmp"))')
+    expect(p).not.toContain('(remote unix-socket)')
+    expect(p).not.toContain('(local unix-socket)')
+    expect(p).not.toContain('(subpath "/private/tmp")')
+    expect(contextualTestVerticalProfile('app', ['/private/dependencies'], '/private/fixture', '/private/evidence')).not.toContain('unix-socket')
+  })
+  it('does not grant IPC outside this exact attempt or accept broad working directories', () => {
+    const p = contextualTestVerticalProfile('browser', ['/private/dependencies'], '/private/fixture', '/private/evidence')
+    expect(p.match(/unix-socket/g)).toHaveLength(2)
+    expect(p).not.toContain('/private/evidence/tmp')
+    for (const root of ['/', '/Users', '/private/tmp', '/private/../private/target', '/private/target\n']) {
+      expect(() => contextualTestVerticalProfile('browser', ['/private/dependencies'], root, '/private/evidence')).toThrow()
+    }
   })
   it('does not load framework interception into either ordinary process', () => {
     const commands = contextualTestVerticalCommands('/private/runner', '/private/dependencies')

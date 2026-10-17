@@ -16,7 +16,11 @@ export function contextualTestVerticalProfile(role: 'app' | 'browser', roots: re
   return `${inherited}(deny network*)\n(deny file-read-data ${sensitive})\n`
     + (role === 'app'
       ? '(allow network-outbound (remote tcp4 "localhost:54340"))\n(allow network-bind network-inbound (local tcp4 "localhost:3118"))\n'
-      : '(allow network-outbound (remote tcp4 "localhost:3117"))\n')
+      : '(allow network-outbound (remote tcp4 "localhost:3117"))\n'
+        // Chrome's ProcessSingleton binds inside its private TMPDIR. This is
+        // local browser IPC, not another app/DB/Docker network destination.
+        + `(allow network-bind network-inbound (local unix-socket (subpath ${checked(join(workdir, 'tmp'))})))\n`
+        + `(allow network-outbound (remote unix-socket (subpath ${checked(join(workdir, 'tmp'))})))\n`)
 }
 export function contextualTestVerticalCommands(runnerRoot: string, dependencyRoot: string) {
   checked(runnerRoot); checked(dependencyRoot)
