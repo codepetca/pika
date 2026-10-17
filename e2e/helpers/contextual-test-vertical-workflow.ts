@@ -2,7 +2,7 @@
  * The caller owns authentication, request limits, deadlines and browser disposal.
  * CPU contracts validate these assertions, not the real UI or database outcome.
  */
-import { expect, type Page, type Response } from '@playwright/test'
+import { expect, type Locator, type Page, type Response } from '@playwright/test'
 import { types } from 'node:util'
 import type { RehearsalPlan } from './contextual-test-rehearsal'
 
@@ -95,6 +95,16 @@ function waitFor(page: Page, method: string, path: string): Promise<Response> {
   return pending
 }
 
+/** Individual row switches save immediately; only the bulk action confirms. */
+export async function openVerticalMemberAccess(r: VerticalTestRuntime, page: Page, member: Locator, testId: string): Promise<void> {
+  const ack = waitFor(page, 'POST', `/api/teacher/tests/${testId}/student-access`)
+  await member.getByRole('switch', { name: /Open access for/ }).click()
+  const response = await ack
+  requireThat(response.status() === 200, 'owner-open-member')
+  const access = await r.response<{ updated_count: number; skipped_count: number; state: string }>(page, response)
+  requireThat(access.updated_count === 1 && access.skipped_count === 0 && access.state === 'open', 'owner-open-member')
+}
+
 /** Exactly one new Test; every successful mutation is an ordinary app UI action.
  * No grading, upload, provider, reorder, archive, purge, or recovery operations.
  * Errors expose a fixed stage, never response bodies or credentials.
@@ -155,13 +165,7 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
       await page.getByRole('button', { name: title, exact: true }).click()
       const member = page.getByTestId(`test-grading-student-row-${memberId}`)
       await expect(member).toBeVisible()
-      const accessAck = waitFor(page, 'POST', `/api/teacher/tests/${testId}/student-access`)
-      await member.getByRole('switch', { name: /Open access for/ }).click()
-      await page.getByRole('dialog', { name: 'Open access for 1 student(s)?', exact: true }).getByRole('button', { name: 'Open Access', exact: true }).click()
-      const accessResponse = await accessAck
-      requireThat(accessResponse.status() === 200, stage)
-      const access = await r.response<{ updated_count: number; skipped_count: number; state: string }>(page, accessResponse)
-      requireThat(access.updated_count === 1 && access.skipped_count === 0 && access.state === 'open', stage)
+      await openVerticalMemberAccess(r, page, member, testId)
       stage = 'owner-self-enrollment-denial'; r.check()
       await r.api(page, 'POST', `/api/student/tests/${testId}/start`, {}, 403)
     })

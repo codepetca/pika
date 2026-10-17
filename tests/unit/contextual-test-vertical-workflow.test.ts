@@ -7,6 +7,7 @@ import {
   assertVerticalSubmittedGraph,
   contextualTestVerticalContract,
   contextualTestVerticalStages,
+  openVerticalMemberAccess,
   runContextualTestVerticalWorkflow,
   verticalWorkflowFailureStage,
 } from '../../e2e/helpers/contextual-test-vertical-workflow'
@@ -19,6 +20,20 @@ const submitted = () => ({ questions: published().questions, students: [{ studen
     [id(4)]: { response_id: id(7), response_revision: 1, selected_option: null, response_text: 'Synthetic reasoning.', is_draft: false } } }] })
 
 describe('narrow contextual Test graph assertions (CPU only)', () => {
+  it.each(['valid', 'status', 'wrong-state', 'skipped', 'multiple'])('joins the immediate row-switch response without a bulk dialog: %s', async defect => {
+    const events: string[] = []
+    const ack = { status: () => defect === 'status' ? 500 : 200 }
+    const page = { waitForResponse: vi.fn(async () => { events.push('armed'); return ack }) }
+    const member = { getByRole: vi.fn(() => ({ click: async () => { events.push('clicked') } })) }
+    const runtime = { response: vi.fn(async () => ({ updated_count: defect === 'multiple' ? 2 : 1,
+      skipped_count: defect === 'skipped' ? 1 : 0, state: defect === 'wrong-state' ? 'closed' : 'open' })) }
+    const pending = openVerticalMemberAccess(runtime as never, page as never, member as never, id(1))
+    if (defect === 'valid') await expect(pending).resolves.toBeUndefined()
+    else await expect(pending).rejects.toThrow('owner-open-member')
+    expect(events).toEqual(['armed', 'clicked'])
+    expect(member.getByRole).toHaveBeenCalledExactlyOnceWith('switch', { name: /Open access for/ })
+    if (defect === 'status') expect(runtime.response).not.toHaveBeenCalled()
+  })
   it('reads documents from the Test while accepting the actual draft content shape', () => {
     const detail = published(); detail.test.status = 'draft'
     const draft = { draft: { version: 2, content: { title: 'Vertical Test', questions: detail.questions } } }
