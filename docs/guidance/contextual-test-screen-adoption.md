@@ -111,7 +111,7 @@ Playwright carrier on frozen main `eb4fa32b2`, schema001–267. It uses two synt
 Tests and the complementary ownerTeacher/memberStudent/memberTeacher pairing;
 accepted ownerStudent grading/Return evidence remains valid without replay.
 The workload covers saved references/previews, reload recovery, real stale-grade
-revision/retry, clear/retracted disclosure, Unsubmit, single/multiple work reset,
+revision/retry, grade clearing with explicit Return preserved, Unsubmit, single/multiple work reset,
 atomic reorder and deletion. Positive return-to-draft occurs before any attempts;
 the irreversible first-attempt lock is separately checked in the UI and API.
 Eight captures cover owner/learner desktop/mobile light/dark combinations.
@@ -124,12 +124,19 @@ classroom is unarchived, and exact saved work is compared independently. Browser
 code gets no SQL capability. Existing network/process/source/dependency limits,
 canonical-state preservation and complete disposable cleanup remain mandatory.
 Preparation and CPU checks are not native acceptance. Production holds remain.
-The first three attempts remain failed/spent with positive cleanup/preservation.
+The first four attempts remain failed/spent with positive cleanup/preservation.
 Latest failure occurred after publication/reference preview; its broad reorder
 label also covered subsequent access setup. Fixed substage labels now distinguish
 the gesture, acknowledgement and access steps. A separately observed owner-RPC
 deadline rejection has not been established as the causal blocker. Lifecycle
 screenshots finish finite animations so mid-crossfade frames cannot be accepted.
+The fourth reached both learner submissions, a real grading conflict/retry and
+Return. Source inspection then found an obsolete expectation: effective migration
+265 intentionally preserves explicit Return when scores are cleared. The proof
+must keep the exact Return timestamp/actor, retain results access and unchanged MC
+work, and verify the cleared open-response score/feedback and pending grading.
+It must not invent a results-access revocation or change the app to match an old
+test. Captures wait for the actual result/submission/roster state before saving.
 
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.

@@ -4,7 +4,7 @@ import { isDeepStrictEqual,types } from 'node:util'
 export const lifecycleScope = 'lifecycle-permissions-v1' as const
 export const lifecycleActors = ['ownerTeacher','memberStudent','memberTeacher','ownerTeacherPeer','nonmember','memberStudent','memberTeacher'] as const
 export const lifecycleLabels = ['lifecycle-embedded-preview','lifecycle-standalone-preview','lifecycle-learner-recovery',
-  'lifecycle-learner-submitted','lifecycle-learner-returned','lifecycle-learner-retracted','lifecycle-reset','lifecycle-permissions'] as const
+  'lifecycle-learner-submitted','lifecycle-learner-returned','lifecycle-learner-cleared','lifecycle-reset','lifecycle-permissions'] as const
 export const lifecycleScreens = lifecycleLabels.map((label,index)=>({label,
   actor: index===2||index===3||index===4||index===5 ? 'memberStudent' as const : 'ownerTeacher' as const,
   viewport: [2,4,6,7].includes(index) ? 'mobile' as const : 'desktop' as const,
@@ -13,7 +13,9 @@ export const lifecycleReference = 'Synthetic reference: Beta is the second optio
 export const lifecycleReorderStages = ['reorder-focus','reorder-pickup','reorder-move','reorder-drop'] as const
 export const lifecycleStages = ['admission','owner-create','owner-author','owner-reference','owner-save-readback','owner-publish','previews','reorder',
   'reorder-open-menu','reorder-enable-edit',...lifecycleReorderStages,'reorder-ack','owner-access-workspace','owner-open-student','owner-open-teacher','owner-close-member',
-  'recovery','grade-conflict','return-and-clear','unpublish-refusal','resets','permissions'] as const
+  'recovery','grade-conflict','return-and-clear','return-workspace','return-select','return-ack','returned-readback','returned-capture','returned-display',
+  'clear-workspace','clear-inspector','clear-ready','clear-edit','clear-ack','clear-saved','cleared-readback','cleared-disclosure','cleared-capture','cleared-display',
+  'unpublish-refusal','resets','permissions'] as const
 export function lifecycleFailureStage(error:unknown):typeof lifecycleStages[number]|null {
   if(!error||typeof error!=='object'||types.isProxy(error))return null
   const message=Object.getOwnPropertyDescriptor(error,'message'),prefix='Contextual Test lifecycle failed: '
@@ -33,7 +35,7 @@ export type LifecycleExchange = { label: string; actor: LifecycleActor; via: 'sc
   method: string; path: string; status: number; request: unknown; response: unknown }
 export type LifecycleResult = { classroomId: string; ownerId: string; testIds: [string,string]; questionIds: [string,string];
   recovery: { before: LifecycleAttempt; after: LifecycleAttempt }; retained: { attempts: LifecycleAttempt[]; results: LifecycleResults; history: {attemptId:string;history:Record<string,unknown>[]}[] };
-  disclosure: { returned: unknown; retracted: unknown }; archive: { before: LifecycleResults; after: LifecycleResults }; exchanges: LifecycleExchange[] }
+  disclosure: { returned: unknown; cleared: unknown }; archive: { before: LifecycleResults; after: LifecycleResults }; exchanges: LifecycleExchange[] }
 export const lifecycleExchangeLabels = ['publish-main','publish-scratch','unpublish-scratch','republish-scratch','reorder','submit-memberStudent','submit-memberTeacher',
   'grade-perturbation','grade-conflict','grade-retry','return','clear-grade','unpublish-refused',
   'scratch-single-submit','unsubmit','reset-one','scratch-submit-memberStudent','scratch-submit-memberTeacher','reset-many','delete-scratch',
@@ -56,3 +58,48 @@ export function assertLifecycleRecovery(before: LifecycleAttempt, after: Lifecyc
 }
 /** Preserve complete owner graph across archive and its rejected writes. */
 export function assertLifecycleGraphEquality(before: LifecycleResults, after: LifecycleResults) { assert.deepEqual(after, before) }
+
+/** DTO input cannot execute caller accessors, Proxy traps or serialization hooks. */
+function disclosureData(value:unknown,depth=0,budget={nodes:0}):unknown {
+  assert(depth<32&&++budget.nodes<=30000)
+  if(value===null||typeof value==='boolean')return value
+  if(typeof value==='number'){assert(Number.isFinite(value));return value}
+  if(typeof value==='string'){assert(value.length<=16384);return value}
+  assert(value&&typeof value==='object'&&!types.isProxy(value))
+  const descriptors=Object.getOwnPropertyDescriptors(value),keys=Reflect.ownKeys(value)
+  assert(keys.every(key=>typeof key==='string')&&Object.values(descriptors).every(d=>'value'in d))
+  if(Array.isArray(value)) {
+    assert(Object.getPrototypeOf(value)===Array.prototype)
+    const length=descriptors.length.value;assert(Number.isSafeInteger(length)&&length<=1000)
+    assert.deepEqual([...keys].sort(),[...Array.from({length},(_,i)=>String(i)),'length'].sort())
+    return Array.from({length},(_,i)=>disclosureData(descriptors[String(i)].value,depth+1,budget))
+  }
+  assert(Object.getPrototypeOf(value)===Object.prototype)
+  return Object.fromEntries((keys as string[]).map(key=>[key,disclosureData(descriptors[key].value,depth+1,budget)]))
+}
+type Disclosure = {test: {id:string;status:string;effective_access:string;returned_at:string};summary:unknown;question_results:Record<string,unknown>[]}
+/** Migration265 keeps explicit Return: clearing retracts the old grade/comment,
+ * while the original submitted response remains disclosed as pending grading.
+ * Learner DTOs identify that response by question/content; the host proof binds
+ * its persistent response ID and revision separately to owner results and SQL.
+ */
+export function assertLifecycleClearedDisclosure(before:unknown,after:unknown,testId:string,questions:readonly[string,string]):void {
+  const original=disclosureData(before) as Disclosure,cleared=disclosureData(after) as Disclosure
+  assert(original?.test?.id===testId&&cleared?.test?.id===testId&&questions.length===2&&questions[0]!==questions[1])
+  assert(original.test.status==='closed'&&original.test.effective_access==='closed')
+  assert(typeof original.test.returned_at==='string'&&Number.isFinite(Date.parse(original.test.returned_at))
+    &&cleared.test.returned_at===original.test.returned_at&&cleared.summary===null)
+  assert(Array.isArray(original.question_results)&&original.question_results.length===2&&Array.isArray(cleared.question_results)&&cleared.question_results.length===2)
+  const one=(rows:Record<string,unknown>[],id:string)=>{const selected=rows.filter(q=>q.question_id===id);assert.equal(selected.length,1);return selected[0]}
+  const mc=one(original.question_results,questions[0]),open=one(original.question_results,questions[1])
+  const nextMc=one(cleared.question_results,questions[0]),nextOpen=one(cleared.question_results,questions[1])
+  assert(mc.question_type==='multiple_choice'&&mc.points===5&&mc.score===5&&mc.correct_option===1&&mc.selected_option===1&&mc.response_text===null&&mc.feedback===null&&mc.is_correct===true)
+  assert(open.question_type==='open_response'&&open.score===4&&open.feedback==='Lifecycle manual feedback'
+    &&open.points===5&&open.correct_option===null&&open.selected_option===null&&open.is_correct===null&&open.response_text===lifecycleText('memberStudent')
+    &&typeof open.graded_at==='string'&&Number.isFinite(Date.parse(open.graded_at)))
+  assert.deepEqual(nextMc,mc)
+  assert(nextOpen.score===null&&nextOpen.feedback===null&&nextOpen.graded_at===null)
+  // Every other public field, question identity and original answer survives.
+  assert.deepEqual({...cleared,summary:original.summary,question_results:cleared.question_results.map(q=>q.question_id===questions[1]
+    ?{...q,score:open.score,feedback:open.feedback,graded_at:open.graded_at}:q)},original)
+}

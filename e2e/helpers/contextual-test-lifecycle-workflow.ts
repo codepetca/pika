@@ -2,13 +2,28 @@
 import assert from 'node:assert/strict'
 import { expect, type Page, type Response } from '@playwright/test'
 import { openVerticalMemberAccess, publishVerticalTest, selectVerticalMemberResponse, type VerticalTestRuntime } from './contextual-test-vertical-workflow'
-import { assertVerticalLearnerDisclosure } from './contextual-test-grade-return-workflow'
-import { assertLifecycleAttempt, assertLifecycleRecovery, assertLifecycleGraphEquality, lifecycleReference, lifecycleText, lifecycleScreens, lifecycleReorderStages,
+import { assertLifecycleAttempt, assertLifecycleRecovery, assertLifecycleGraphEquality, assertLifecycleClearedDisclosure, lifecycleReference, lifecycleText, lifecycleScreens, lifecycleReorderStages,
   type LifecycleActor, type LifecycleAttempt, type LifecycleExchange, type LifecycleResult, type LifecycleResults } from './contextual-test-lifecycle-contract'
 export type LifecycleRuntime = Omit<VerticalTestRuntime,'withActor'> & {
   withActor(actor: LifecycleActor, callback: (page: Page) => Promise<void>): Promise<void>
 }
 const mainTitle = 'Contextual lifecycle Test', scratchTitle = 'Contextual lifecycle scratch'
+/** Capture rendered evidence, never an intermediate loading/transition frame. */
+export async function waitForLifecycleCaptureReady(page: Page, label: typeof lifecycleScreens[number]['label'], memberId: string): Promise<void> {
+  if(label==='lifecycle-embedded-preview'||label==='lifecycle-standalone-preview') {
+    await expect(page.getByText(lifecycleReference,{exact:true})).toBeVisible()
+  } else if(label==='lifecycle-learner-recovery') {
+    await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved')
+  } else if(label==='lifecycle-learner-submitted') {
+    await expect(page.getByText('Response Submitted',{exact:true})).toBeVisible()
+  } else if(label==='lifecycle-learner-returned'||label==='lifecycle-learner-cleared') {
+    const evidence=page.getByText(label==='lifecycle-learner-returned'?'Lifecycle manual feedback':'Score: Pending grading',{exact:true})
+    await expect(evidence).toBeVisible(); await evidence.scrollIntoViewIfNeeded()
+    if(label==='lifecycle-learner-cleared')await expect(page.getByText('Lifecycle manual feedback',{exact:true})).toBeHidden()
+  } else {
+    await expect(page.getByTestId(`test-grading-student-row-${memberId}`)).toBeVisible()
+  }
+}
 export async function reorderLifecycleTests(page: Page,onStage:(stage:typeof lifecycleReorderStages[number])=>void=()=>{}): Promise<void> {
   const handle = page.getByRole('button',{name:`Drag to reorder ${mainTitle}`,exact:true})
   onStage('reorder-focus'); await handle.focus()
@@ -46,6 +61,7 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
       await page.getByRole('button',{name:'Synthetic reference',exact:true}).click()
       await expect(page.getByText(lifecycleReference,{exact:true})).toBeVisible()
     }
+    await waitForLifecycleCaptureReady(page,label,r.plan.actors.memberTeacher.id)
     await r.snapshot(label,page)
   }
   async function record(page: Page, label: string, pending: Promise<Response>, status = 200) {
@@ -190,7 +206,8 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
         await start(student,mainTitle)
         await expect(student.getByRole('textbox',{name:/Response for question/})).toHaveValue(lifecycleText('memberStudent'))
         const after = await attempt(student); assertLifecycleRecovery(before,after); recovery = {before,after}
-        await student.setViewportSize({width:390,height:844}); await r.snapshot('lifecycle-learner-recovery',student)
+        await student.setViewportSize({width:390,height:844})
+        await waitForLifecycleCaptureReady(student,'lifecycle-learner-recovery',members[0]); await r.snapshot('lifecycle-learner-recovery',student)
         await student.setViewportSize({width:1440,height:900})
         await submit(student,main,'submit-memberStudent')
         await capture('lifecycle-learner-submitted',student)
@@ -217,25 +234,31 @@ export async function runContextualTestLifecycleWorkflow(r: LifecycleRuntime): P
             assert.equal(responses[1].request().postDataJSON().grades[0].expected_response_revision,initial.response_revision+1)
           } finally { peer.off('response',listener) }
         })
-        stage = 'return-and-clear'; await workspace(owner); await select(owner,[members[0]])
+        stage = 'return-workspace'; await workspace(owner)
+        stage = 'return-select'; await select(owner,[members[0]])
         await owner.getByRole('menuitem',{name:'Return',exact:true}).click()
         let ack = waitFor(owner,'POST',`/api/teacher/tests/${main}/return`)
         await owner.getByRole('dialog',{name:'Return test work to 1 selected student(s)?',exact:true}).getByRole('button',{name:'Return',exact:true}).click()
-        await record(owner,'return',ack)
-        disclosure={returned:await r.api(student,'GET',`/api/student/tests/${main}/results`),retracted:null}
-        await capture('lifecycle-learner-returned',student)
+        stage='return-ack'; await record(owner,'return',ack)
+        stage='returned-readback'; disclosure={returned:await r.api(student,'GET',`/api/student/tests/${main}/results`),cleared:null}
+        stage='returned-capture'; await capture('lifecycle-learner-returned',student)
+        stage='returned-display'
         await expect(student.getByText('Lifecycle manual feedback',{exact:true})).toBeVisible()
-        await workspace(owner); await selectVerticalMemberResponse(owner.getByTestId(`test-grading-student-row-${members[0]}`))
+        stage='clear-workspace'; await workspace(owner)
+        stage='clear-inspector'; await selectVerticalMemberResponse(owner.getByTestId(`test-grading-student-row-${members[0]}`))
         const score = owner.getByRole('spinbutton',{name:'Q2 score',exact:true}), feedback = owner.getByPlaceholder('Leave a comment...',{exact:true})
-        await expect(score).toHaveValue('4')
+        stage='clear-ready'; await expect(score).toHaveValue('4'); await expect(feedback).toHaveValue('')
         ack = waitFor(owner,'PATCH',`/api/teacher/tests/${main}/students/${members[0]}/grades`)
-        await score.fill(''); await feedback.fill(''); await score.press('Tab')
-        await record(owner,'clear-grade',ack); await expect(owner.getByTestId('teacher-test-grading-save-status')).toHaveText('Grades saved')
-        disclosure.retracted=await r.api(student,'GET',`/api/student/tests/${main}`)
-        assertVerticalLearnerDisclosure(disclosure.retracted,false,main)
-        await capture('lifecycle-learner-retracted',student)
+        // Returned comments use an empty append composer; clearing the score
+        // through the supported UI emits clear_grade without editing that composer.
+        stage='clear-edit'; await score.fill(''); await score.press('Tab')
+        stage='clear-ack'; await record(owner,'clear-grade',ack)
+        stage='clear-saved'; await expect(owner.getByTestId('teacher-test-grading-save-status')).toHaveText('Grades saved')
+        stage='cleared-readback'; disclosure.cleared=await r.api(student,'GET',`/api/student/tests/${main}/results`)
+        stage='cleared-disclosure'; assertLifecycleClearedDisclosure(disclosure.returned,disclosure.cleared,main,questions)
+        stage='cleared-capture'; await capture('lifecycle-learner-cleared',student)
+        stage='cleared-display'
         await expect(student.getByText('Lifecycle manual feedback',{exact:true})).toBeHidden()
-        await r.api(student,'GET',`/api/student/tests/${main}/results`,undefined,403)
         stage = 'unpublish-refusal'; await workspace(owner)
         await owner.getByRole('button',{name:/^Test date:/}).click()
         await expect(owner.getByRole('menu',{name:'Test publication',exact:true}).getByRole('menuitem',{name:'Unpublish',exact:true})).toBeDisabled()

@@ -1,6 +1,6 @@
 import { describe,expect,it } from 'vitest'
 import { createContextualTestPlan,bootstrapContextualTestFixtureSql } from '../../e2e/helpers/contextual-test-rehearsal'
-import { lifecycleScope,lifecycleActors,lifecycleScreens,lifecycleStages,lifecycleFailureStage,lifecycleExchangeLabels,assertLifecycleRecovery } from '../../e2e/helpers/contextual-test-lifecycle-contract'
+import { lifecycleScope,lifecycleActors,lifecycleScreens,lifecycleStages,lifecycleFailureStage,lifecycleExchangeLabels,assertLifecycleRecovery,assertLifecycleClearedDisclosure } from '../../e2e/helpers/contextual-test-lifecycle-contract'
 import { validateContextualTestLifecycleReceipt,assertContextualTestLifecycleDatabase,contextualTestLifecycleWitnessSql,validateLifecycleResult } from '../../scripts/contextual-test-lifecycle-proof'
 import { ContextualTestGatewayPolicy } from '../../scripts/contextual-test-rehearsal-gateway'
 import type { ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
@@ -20,6 +20,70 @@ function created(p:ContextualTestGatewayPolicy) {
   return f
 }
 describe('remaining lifecycle scope CPU contracts; no execution or full Tests exit',()=>{
+  it('accepts migration 265 grade clearing with explicit Return preserved',()=>{
+    const f=contextualTestLifecycleFixture(binding)
+    expect(()=>validateLifecycleResult(f.result,binding)).not.toThrow()
+    expect(()=>assertLifecycleClearedDisclosure(f.result.disclosure.returned,f.result.disclosure.cleared,f.result.testIds[0],f.result.questionIds)).not.toThrow()
+  })
+  it.each(['reset-return','different-return','stale-score','stale-feedback','stale-grade-time','changed-mc-score','changed-mc-key','changed-mc-selection',
+    'changed-mc-metadata','wrong-test','wrong-question','changed-original-response','stale-summary','changed-access','extra-field'])(
+    'rejects altered cleared disclosure: %s',defect=>{
+      const f=contextualTestLifecycleFixture(binding),cleared=f.result.disclosure.cleared as {
+        test:Record<string,unknown>;summary:unknown;question_results:Record<string,unknown>[]}
+      if(defect==='reset-return')cleared.test.returned_at=null
+      if(defect==='different-return')cleared.test.returned_at=new Date(binding.startedAt+600).toISOString()
+      if(defect==='stale-score')cleared.question_results[1].score=4
+      if(defect==='stale-feedback')cleared.question_results[1].feedback='Lifecycle manual feedback'
+      if(defect==='stale-grade-time')cleared.question_results[1].graded_at=new Date(binding.startedAt+400).toISOString()
+      if(defect==='changed-mc-score')cleared.question_results[0].score=null
+      if(defect==='changed-mc-key')cleared.question_results[0].correct_option=0
+      if(defect==='changed-mc-selection')cleared.question_results[0].selected_option=0
+      if(defect==='changed-mc-metadata')cleared.question_results[0].response_monospace=true
+      if(defect==='wrong-test')cleared.test.id=f.result.testIds[1]
+      if(defect==='wrong-question')cleared.question_results[1].question_id=f.result.testIds[1]
+      if(defect==='changed-original-response')cleared.question_results[1].response_text='Changed response'
+      if(defect==='stale-summary')cleared.summary={earned_points:9,possible_points:10}
+      if(defect==='changed-access')cleared.test.effective_access='open'
+      if(defect==='extra-field')cleared.question_results[1].stale_feedback='Lifecycle manual feedback'
+      expect(()=>assertLifecycleClearedDisclosure(f.result.disclosure.returned,cleared,f.result.testIds[0],f.result.questionIds)).toThrow()
+      expect(()=>validateContextualTestLifecycleReceipt(f.receipt,binding)).toThrow('Lifecycle Test receipt rejected')
+    })
+  it('does not execute caller getters or Proxy traps while validating disclosure',()=>{
+    const f=contextualTestLifecycleFixture(binding);let calls=0
+    const getter={get test(){calls++;throw Error('must never execute')}}
+    const proxy=new Proxy({}, {ownKeys(){calls++;throw Error('must never execute')}})
+    for(const malformed of [getter,proxy])expect(()=>assertLifecycleClearedDisclosure(f.result.disclosure.returned,malformed,f.result.testIds[0],f.result.questionIds)).toThrow()
+    expect(calls).toBe(0)
+  })
+  it.each(['student-status','student-return-time','student-return-owner','teacher-return','old-disclosure-key','before-run-return','after-end-return'])(
+    'rejects forged retained Return evidence: %s',defect=>{
+      const f=contextualTestLifecycleFixture(binding),rows=f.result.retained.results.students,student=rows.find(s=>s.student_id===plan.actors.memberStudent.id)!
+      if(defect==='student-status')student.status='submitted'
+      if(defect==='student-return-time')student.returned_at=null
+      if(defect==='student-return-owner')student.returned_by=plan.actors.memberTeacher.id
+      if(defect==='teacher-return')Object.assign(rows.find(s=>s.student_id===plan.actors.memberTeacher.id)!,{status:'returned',returned_at:student.returned_at,returned_by:student.returned_by})
+      if(defect==='old-disclosure-key')f.result.disclosure={returned:f.result.disclosure.returned,retracted:f.result.disclosure.cleared} as never
+      if(defect==='before-run-return'||defect==='after-end-return') {
+        const timestamp=new Date(defect==='before-run-return'?binding.startedAt-1:f.receipt.endedAt+1).toISOString()
+        student.returned_at=timestamp
+        for(const disclosure of [f.result.disclosure.returned,f.result.disclosure.cleared]) (disclosure as {test:{returned_at:string}}).test.returned_at=timestamp
+      }
+      expect(()=>validateContextualTestLifecycleReceipt(f.receipt,binding)).toThrow('Lifecycle Test receipt rejected')
+    })
+  it.each(['full-return-time','full-return-owner','canonical-return-time','canonical-return-missing','teacher-native-return'])(
+    'rejects forged native Return evidence: %s',defect=>{
+      const f=contextualTestLifecycleFixture(binding)
+      if(defect==='full-return-time')f.after.lifecycle.attempts[0].returned_at=null
+      if(defect==='full-return-owner')f.after.lifecycle.attempts[0].returned_by=plan.actors.memberTeacher.id
+      if(defect==='canonical-return-time')f.after.attempts[0].returned_at=new Date(binding.startedAt+600).toISOString()
+      if(defect==='canonical-return-missing')delete (f.after.attempts[0] as {returned_at?:string|null}).returned_at
+      if(defect==='teacher-native-return')f.after.lifecycle.attempts[1].returned_at=f.after.lifecycle.attempts[0].returned_at
+      expect(()=>assertContextualTestLifecycleDatabase(f.before,f.after,f.result,binding)).toThrow('Lifecycle Test database proof rejected')
+    })
+  it('retains the cleared label in its original eight-slot actor/viewport/theme matrix',()=>{
+    expect(lifecycleScreens).toHaveLength(8)
+    expect(lifecycleScreens[5]).toEqual({label:'lifecycle-learner-cleared',actor:'memberStudent',viewport:'desktop',theme:'dark'})
+  })
   it('finishes lifecycle capture transitions without changing timeout, viewport or other scopes',()=>{
     expect(verticalScreenshotOptions(true,1234)).toEqual({fullPage:false,timeout:1234,animations:'disabled'})
     expect(verticalScreenshotOptions(false,1234)).toEqual({fullPage:false,timeout:1234})

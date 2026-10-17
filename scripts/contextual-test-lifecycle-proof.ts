@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { isDeepStrictEqual } from 'node:util'
 import { createContextualTestPlan, contextualTestWitnessSql, type RehearsalPlan, type RehearsalWitness } from '../e2e/helpers/contextual-test-rehearsal'
 import { lifecycleScope, lifecycleActors, lifecycleLabels, lifecycleScreens, lifecycleExchangeLabels, lifecycleText,lifecycleReference,
-  assertLifecycleAttempt, assertLifecycleRecovery, assertLifecycleGraphEquality, type LifecycleResult } from '../e2e/helpers/contextual-test-lifecycle-contract'
+  assertLifecycleAttempt, assertLifecycleRecovery, assertLifecycleGraphEquality,assertLifecycleClearedDisclosure, type LifecycleResult } from '../e2e/helpers/contextual-test-lifecycle-contract'
 import { data, denseArray } from './contextual-test-vertical-proof'
 import type { ContextualTestRunBinding } from './contextual-test-rehearsal-binding'
 export type { LifecycleResult } from '../e2e/helpers/contextual-test-lifecycle-contract'
@@ -31,6 +31,11 @@ export function validateLifecycleResult(raw: unknown,binding: Pick<ContextualTes
   data(value.recovery,['before','after']); assertLifecycleRecovery(value.recovery.before,value.recovery.after)
   assertLifecycleAttempt(value.recovery.before,main,p.actors.memberStudent.id,value.questionIds,lifecycleText('memberStudent'),false)
   assertLifecycleAttempt(value.recovery.after,main,p.actors.memberStudent.id,value.questionIds,lifecycleText('memberStudent'),false)
+  data(value.disclosure,['returned','cleared'])
+  assertLifecycleClearedDisclosure(value.disclosure.returned,value.disclosure.cleared,main,value.questionIds)
+  const returned=data(value.disclosure.returned),returnedTest=data(returned.test),summary=data(returned.summary)
+  const returnedAt=returnedTest.returned_at
+  assert(summary.earned_points===9&&summary.possible_points===10)
   data(value.retained,['attempts','results','history']); denseArray(value.retained.attempts,2);denseArray(value.retained.history,2)
   for(const [index,actor] of ['memberStudent','memberTeacher'].entries()) {
     const id=p.actors[actor as 'memberStudent'|'memberTeacher'].id
@@ -40,7 +45,8 @@ export function validateLifecycleResult(raw: unknown,binding: Pick<ContextualTes
     assert(Array.isArray(history.history)&&history.history.length>0&&history.history.length<=1000)
     assert(history.history.every(h=>h.test_attempt_id===history.attemptId&&uuid.test(String(h.id))))
     const rows=value.retained.results.students.filter(s=>s.student_id===id); assert.equal(rows.length,1)
-    const row=rows[0]; assert(row.returned_at===null && row.returned_by===null && row.status==='submitted')
+    const row=rows[0]; assert(row.returned_at===(index===0?returnedAt:null) && row.returned_by===(index===0?p.actors.ownerTeacher.id:null)
+      && row.status===(index===0?'returned':'submitted'))
     assert.deepEqual(Object.keys(row.answers).sort(),[...value.questionIds].sort())
     for(const [qindex,qid] of value.questionIds.entries()) {
       const a=row.answers[qid]; assert(uuid.test(a.response_id) && Number.isSafeInteger(a.response_revision)&&a.response_revision>0 && a.is_draft===false)
@@ -58,19 +64,6 @@ export function validateLifecycleResult(raw: unknown,binding: Pick<ContextualTes
   assert.deepEqual(value.archive.before.students.map(s=>s.student_id).sort(),[p.actors.memberTeacher.id,p.actors.ownerStudent.id].sort())
   assert.deepEqual(value.archive.before.questions,value.retained.results.questions)
   for(const row of value.archive.before.students)assert.deepEqual(row,value.retained.results.students.find(s=>s.student_id===row.student_id))
-  data(value.disclosure,['returned','retracted'])
-  const returned=data(value.disclosure.returned),returnedTest=data(returned.test),summary=data(returned.summary)
-  assert(returnedTest.id===main&&typeof returnedTest.returned_at==='string'&&Number.isFinite(Date.parse(returnedTest.returned_at))&&summary.earned_points===9&&summary.possible_points===10)
-  const disclosed=denseArray(returned.question_results,2).map(raw=>data(raw))
-  for(const [index,qid] of value.questionIds.entries()) {
-    const rows=disclosed.filter(q=>q.question_id===qid);assert.equal(rows.length,1)
-    assert(rows[0].score===(index===0?5:4)&&rows[0].feedback===(index===0?null:'Lifecycle manual feedback'))
-    if(index===1)assert.equal(rows[0].response_text,lifecycleText('memberStudent'))
-  }
-  const retracted=data(value.disclosure.retracted),retractedTest=data(retracted.test);assert(retractedTest.id===main&&retractedTest.returned_at===null)
-  const hidden=(v:unknown):void=>{if(v&&typeof v==='object')for(const [key,nested]of Object.entries(v)){
-    assert(!['score','feedback','correct_option','answer_key','sample_solution','question_results','summary'].includes(key)||nested===null);hidden(nested)}}
-  hidden(retracted)
   const exchanges=denseArray(value.exchanges,lifecycleExchangeLabels.length) as LifecycleResult['exchanges']
   const byLabel=new Map<string,LifecycleResult['exchanges'][number]>(exchanges.map((e,index)=>{
     data(e,['label','actor','via','method','path','status','request','response']); assert.equal(e.label,lifecycleExchangeLabels[index])
@@ -200,6 +193,8 @@ export function validateContextualTestLifecycleReceipt(raw: unknown,binding: Con
     assert(/^[a-f0-9]{32}$/.test(binding.nonce)&&binding.nonce.endsWith(p.projectId.slice(-12)))
     assert.deepEqual(denseArray(r.actors,lifecycleActors.length),[...lifecycleActors])
     const result=validateLifecycleResult(r.result,binding)
+    const returnedAt=Date.parse(String(data(data(result.disclosure.returned).test).returned_at))
+    assert(returnedAt>=binding.startedAt&&returnedAt<=Number(r.endedAt))
     const artifacts=denseArray(r.artifacts,lifecycleLabels.length).map((raw,index)=>{
       const a=data(raw,['label','kind','bytes','sha256','actor','viewport','theme']),scene=lifecycleScreens[index]
       for(const key of ['label','actor','viewport','theme'] as const)assert.equal(a[key],scene[key])
@@ -265,10 +260,13 @@ export function assertContextualTestLifecycleDatabase(before: LifecycleWitness,a
     assert(before.objects.length===0&&after.objects.length===0&&before.lifecycle.responses.length===0&&before.lifecycle.attempts.length===0&&before.lifecycle.history.length===0)
     for(const saved of r.retained.attempts) {
       const rows=after.lifecycle.attempts.filter(a=>a.id===saved.id); assert.equal(rows.length,1); const a=rows[0]
-      assert(a.test_id===main&&a.student_id===saved.student_id&&a.draft_revision===saved.draft_revision&&a.is_submitted===true&&a.returned_at===null&&a.returned_by===null)
+      const ownerRow=r.retained.results.students.find(s=>s.student_id===saved.student_id)!
+      assert(a.test_id===main&&a.student_id===saved.student_id&&a.draft_revision===saved.draft_revision&&a.is_submitted===true
+        &&a.returned_at===ownerRow.returned_at&&a.returned_by===ownerRow.returned_by)
+      const canonical=after.attempts.filter(a=>a.id===saved.id);assert.equal(canonical.length,1)
+      assert.deepEqual(canonical[0],{id:saved.id,test_id:main,student_id:saved.student_id,draft_revision:saved.draft_revision,is_submitted:true,returned_at:ownerRow.returned_at})
       assert.deepEqual(a.responses,saved.responses)
       for(const [key,value]of Object.entries(saved))assert.deepEqual(a[key],value)
-      const ownerRow=r.retained.results.students.find(s=>s.student_id===saved.student_id)!
       for(const questionId of r.questionIds) {
         const answer=ownerRow.answers[questionId],response=after.lifecycle.responses.filter(v=>v.id===answer.response_id);assert.equal(response.length,1)
         const d=response[0]; assert(d.test_id===main&&d.student_id===saved.student_id&&d.question_id===questionId&&d.revision===answer.response_revision)

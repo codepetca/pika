@@ -6,10 +6,11 @@ import type { LifecycleWitness } from '../../scripts/contextual-test-lifecycle-p
 export function contextualTestLifecycleFixture(binding: Pick<ContextualTestRunBinding,'projectId'|'startedAt'|'deadline'> & Partial<ContextualTestRunBinding>) {
   const p=createContextualTestPlan(binding.projectId,'lifecycle-permissions-v1'),uid=(n:number)=>`60000000-0000-4000-8000-${String(n).padStart(12,'0')}`
   const [main,scratch,mc,open]=[1,2,3,4].map(uid),student=p.actors.memberStudent.id,teacher=p.actors.memberTeacher.id,c=p.classrooms.classA.id
+  const returnedAt=new Date(binding.startedAt+500).toISOString()
   const attempts=[student,teacher].map((student_id,i)=>({id:uid(10+i),test_id:main,student_id,draft_revision:3,is_submitted:true,
     submitted_at:new Date(binding.startedAt+100).toISOString(),created_at:new Date(binding.startedAt).toISOString(),updated_at:new Date(binding.startedAt+100).toISOString(),
     responses:{[mc]:{question_type:'multiple_choice',selected_option:1},[open]:{question_type:'open_response',response_text:lifecycleText(i===0?'memberStudent':'memberTeacher')}}}))
-  const results={test:{id:main},questions:[{id:mc,question_type:'multiple_choice'},{id:open,question_type:'open_response'}],students:[student,teacher].map((student_id,i)=>({student_id,status:'submitted',returned_at:null,returned_by:null,answers:{
+  const results={test:{id:main},questions:[{id:mc,question_type:'multiple_choice'},{id:open,question_type:'open_response'}],students:[student,teacher].map((student_id,i)=>({student_id,status:i===0?'returned':'submitted',returned_at:i===0?returnedAt:null,returned_by:i===0?p.actors.ownerTeacher.id:null,answers:{
     [mc]:{response_id:uid(20+i*2),response_revision:1,score:5,feedback:null,selected_option:1,response_text:null,graded_at:attempts[i].submitted_at,is_draft:false},
     [open]:{response_id:uid(21+i*2),response_revision:i===0?4:1,score:null,feedback:null,selected_option:null,response_text:lifecycleText(i===0?'memberStudent':'memberTeacher'),graded_at:null,is_draft:false}}}))}
   results.students.push({student_id:p.actors.ownerStudent.id,status:'not_started',returned_at:null,returned_by:null,answers:{}})
@@ -62,9 +63,13 @@ export function contextualTestLifecycleFixture(binding: Pick<ContextualTestRunBi
   e('archive').response={classroom:{id:c,archived_at:new Date(binding.startedAt+1000).toISOString()}};e('unarchive').response={classroom:{id:c,archived_at:null}}
   const history=attempts.map((a,i)=>({attemptId:a.id,history:[{id:uid(300+i),test_attempt_id:a.id}]}))
   const beforeRecovery={...structuredClone(attempts[0]),is_submitted:false,submitted_at:null,draft_revision:2}
+  const returnedDisclosure={test:{id:main,status:'closed',effective_access:'closed',returned_at:returnedAt},summary:{earned_points:9,possible_points:10},question_results:[
+    {question_id:mc,question_type:'multiple_choice',question_text:'Choose the second option.',points:5,options:['Alpha','Beta'],response_max_chars:5000,response_monospace:false,sample_solution:null,correct_option:1,selected_option:1,response_text:null,score:5,feedback:null,graded_at:attempts[0].submitted_at,is_correct:true},
+    {question_id:open,question_type:'open_response',question_text:'Explain your reasoning.',points:5,options:[],response_max_chars:5000,response_monospace:false,sample_solution:null,correct_option:null,selected_option:null,response_text:lifecycleText('memberStudent'),score:4,feedback:'Lifecycle manual feedback',graded_at:new Date(binding.startedAt+400).toISOString(),is_correct:null}]}
+  const clearedDisclosure={...structuredClone(returnedDisclosure),summary:null,question_results:returnedDisclosure.question_results.map(q=>q.question_id===open?{...q,score:null,feedback:null,graded_at:null}:structuredClone(q))}
   const result:LifecycleResult={classroomId:c,ownerId:p.actors.ownerTeacher.id,testIds:[main,scratch],questionIds:[mc,open],recovery:{before:beforeRecovery,after:structuredClone(beforeRecovery)},
     retained:{attempts,results,history},archive:{before:{...structuredClone(results),students:structuredClone(results.students.filter(s=>s.student_id!==student))},after:{...structuredClone(results),students:structuredClone(results.students.filter(s=>s.student_id!==student))}},
-    disclosure:{returned:{test:{id:main,returned_at:new Date(binding.startedAt+500).toISOString()},summary:{earned_points:9,possible_points:10},question_results:[{question_id:mc,score:5,feedback:null},{question_id:open,score:4,feedback:'Lifecycle manual feedback',response_text:lifecycleText('memberStudent')}]},retracted:{test:{id:main,returned_at:null}}},exchanges}
+    disclosure:{returned:returnedDisclosure,cleared:clearedDisclosure},exchanges}
   const memberships=Object.values(p.classrooms).flatMap(cl=>['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].map((actor,i)=>({classroom_id:cl.id,student_id:p.actors[actor as keyof typeof p.actors].id,generation_id:uid(100+(cl.id===c?0:10)+i),ledger_state:'active'})))
   const oldTime=new Date(binding.startedAt-1000).toISOString(),newTime=new Date(binding.startedAt+1000).toISOString()
   const roster={id:p.lifecycleRoster!.id,classroom_id:c,email:p.actors.memberStudent.email,removed_at:null,removed_student_id:null}
@@ -72,8 +77,8 @@ export function contextualTestLifecycleFixture(binding: Pick<ContextualTestRunBi
   before.lifecycle.tests=structuredClone(before.tests)
   const after:LifecycleWitness=structuredClone(before),removedMembership=memberships.find(m=>m.student_id===student&&m.classroom_id===c)!
   after.tests.push({id:main,classroom_id:c,status:'closed',position:2,retired:false});after.question_counts=[{test_id:main,count:2}];after.response_count=4
-  after.attempts=attempts.map(a=>({id:a.id,test_id:a.test_id,student_id:a.student_id,draft_revision:a.draft_revision,is_submitted:a.is_submitted,returned_at:null}))
-  after.lifecycle.attempts=attempts.map(a=>({...structuredClone(a),returned_at:null,returned_by:null}))
+  after.attempts=attempts.map(a=>({id:a.id,test_id:a.test_id,student_id:a.student_id,draft_revision:a.draft_revision,is_submitted:a.is_submitted,returned_at:results.students.find(s=>s.student_id===a.student_id)!.returned_at}))
+  after.lifecycle.attempts=attempts.map(a=>({...structuredClone(a),returned_at:results.students.find(s=>s.student_id===a.student_id)!.returned_at,returned_by:results.students.find(s=>s.student_id===a.student_id)!.returned_by}))
   after.lifecycle.responses=results.students.flatMap(s=>Object.entries(s.answers).map(([question_id,a])=>({id:a.response_id,test_id:main,student_id:s.student_id,question_id,revision:a.response_revision,score:a.score,feedback:a.feedback,selected_option:a.selected_option,response_text:a.response_text,
     graded_at:a.graded_at,graded_by:null,submitted_at:attempts.find(v=>v.student_id===s.student_id)!.submitted_at,
     ai_grading_basis:null,ai_grading_provenance:null,ai_grading_review:null,ai_model:null,ai_reference_answers:null,ai_suggested_feedback:null,ai_suggested_score:null})))
