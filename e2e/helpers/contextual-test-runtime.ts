@@ -15,6 +15,7 @@ import { createContextualTestPlan, type ContextualTestRuntime, type RehearsalWit
 import type { ContextualTestStartupStage } from './contextual-test-startup'
 import { contextualTestFontShot, contextualTestFontEditingText } from './contextual-test-font-matrix'
 import { observeContextualTestFont } from './contextual-test-font-observation'
+import { createContextualTestAuthoringProgress } from './contextual-test-authoring-progress'
 import { assertContextualRedirectInterception } from '../../scripts/contextual-playwright-redirect-guard.cjs'
 
 const witnessSchema = z.object({
@@ -95,6 +96,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
   const artifacts: Array<{ label: string; kind: 'png' | 'aria'; bytes: number; sha256: string; fontReference?: string }> = []
   const witnesses: Array<{ label: string; sha256: string }> = []
   const loginProgress = createContextualTestLoginProgress()
+  const authoring = createContextualTestAuthoringProgress()
   type FontCheck = 'fonts' | 'navigation' | 'viewport' | 'heading' | 'content' | 'placeholder' | 'fits' | 'positioned' | 'theme' | 'editable' | 'preview' | 'text' | 'geometry' | 'deadline'
   // Diagnostic-only fixed labels. Never retain DOM text, geometry, or exceptions.
   let fontCapture: { label: string; stage: 'visible' | 'fonts' | 'readiness' | 'screenshot' | 'verification' | 'saved'; failedChecks: FontCheck[] } | null = null
@@ -122,7 +124,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
     artifacts.push({ label, kind, bytes: bytes.byteLength, sha256: sha(bytes), ...(fontReference ? { fontReference } : {}) })
   }
   const runtime: ContextualTestRuntime = {
-    plan, password: binding.password, deadline: binding.deadline, check: () => boundary.check(),
+    plan, password: binding.password, deadline: binding.deadline, check: () => boundary.check(), authoring,
     async withActor(label, callback) {
       boundary.check(); assert(Object.hasOwn(plan.actors, label) || ['ownerTeacherPeer', 'ownerStudentPeer'].includes(label))
       const login = loginProgress.begin()
@@ -393,7 +395,7 @@ export async function createContextualTestRuntime(browser: Browser, _testInfo: T
       && screenshots === 16 && fontShots === 32 && pageErrors === 0 && Date.now() < binding.deadline
     writeFileSync(join(binding.outputDir, 'playwright-receipt.json'), JSON.stringify({ version: 1, projectId: plan.projectId,
       sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256, outcome: complete ? 'passed' : 'failed',
-      contextsClosed: closed, ...boundaryReceipt, pageErrors, consoleErrors, artifacts, witnesses, login: loginProgress.snapshot(), fontCapture,
+      contextsClosed: closed, ...boundaryReceipt, pageErrors, consoleErrors, artifacts, witnesses, login: loginProgress.snapshot(), fontCapture, authoring: authoring.snapshot(),
       endedAt: Date.now(), deadline: binding.deadline }), { mode: 0o600, flag: 'wx' })
     if (!complete) throw safeError()
   } }

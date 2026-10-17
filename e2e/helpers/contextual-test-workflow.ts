@@ -6,6 +6,7 @@ import { expect, type Page, type Response } from '@playwright/test'
 import { createHash } from 'node:crypto'
 import type { ActorLabel, ContextualTestRuntime, RehearsalWitness } from './contextual-test-rehearsal'
 import { runContextualTestFontMatrix } from './contextual-test-font-matrix'
+import type { ContextualTestAuthoringStep } from './contextual-test-authoring-progress'
 
 const fail = (): never => { throw new Error('Contextual Tests workflow assertion failed') }
 const requireThat: (condition: unknown) => asserts condition = condition => { if (!condition) fail() }
@@ -136,9 +137,12 @@ export function assertContextualTestReferenceObjects(objects: ReadonlyArray<{ id
   }
 }
 
-export async function consumeCreatedTestAcknowledgement(r: Pick<ContextualTestRuntime, 'response'>, page: Page, response: Response, classroom: string): Promise<TestRow> {
-  requireThat(response.status() === 201)
+export async function consumeCreatedTestAcknowledgement(r: Pick<ContextualTestRuntime, 'response'>, page: Page, response: Response, classroom: string, progress?: ContextualTestAuthoringStep): Promise<TestRow> {
+  const status = response.status(); progress?.mark('create-status', status)
+  requireThat(status === 201)
+  progress?.mark('create-body')
   const created = await r.response<{ test: TestRow }>(page, response)
+  progress?.mark('create-identity')
   requireThat(created?.test && uuid.test(created.test.id) && created.test.classroom_id === classroom)
   return created.test
 }
@@ -167,39 +171,53 @@ async function ownerEdit(page: Page, title: string): Promise<void> {
   await expect(page.getByRole('dialog', { name: 'Edit test', exact: true })).toBeVisible()
 }
 async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, classroom: string, kind: 'main' | 'single' | 'bulk'): Promise<Exam> {
+  const progress = r.authoring.begin(owner, kind)
   await visit(r, page, classroom)
   const ack = page.waitForResponse(res => new URL(res.url()).pathname === '/api/teacher/tests' && res.request().method() === 'POST')
+  progress.mark('create-click')
   await page.getByRole('button', { name: 'Create test', exact: true }).click()
+  progress.mark('create-response')
   const createdResponse = await ack
   // Runtime validates the original response task; the cookie-bound read supplies
   // the acknowledged identity rather than inventing an ID or seeding work.
-  const created = await consumeCreatedTestAcknowledgement(r, page, createdResponse, classroom)
+  const created = await consumeCreatedTestAcknowledgement(r, page, createdResponse, classroom, progress)
   const id = created.id, title = `Contextual ${owner} ${kind}`
   let referenceProof: ReferenceProof | undefined
   const editor = page.getByRole('dialog', { name: 'Edit test', exact: true })
+  progress.mark('editor-open')
   await expect(editor).toBeVisible()
+  progress.mark('markdown-fill')
   await editor.getByRole('button', { name: 'Markdown', exact: true }).click()
   await editor.getByTestId('test-markdown-editor').fill(markdown(title))
+  progress.mark('markdown-apply')
   await editor.getByRole('button', { name: 'Apply Markdown', exact: true }).click()
+  progress.mark('save-confirmation')
   await expect(editor.getByTestId('teacher-test-authoring-save-status')).toHaveText('Test saved', { timeout: 30_000 })
+  progress.mark('editor-close')
   await editor.getByRole('button', { name: 'Close test editor', exact: true }).click()
   await r.settle(page)
+  progress.mark('reload')
   await r.reload(page); await visit(r, page, classroom); await ownerEdit(page, title)
+  progress.mark('markdown-readback')
   const reloadedMarkdown = await page.getByTestId('test-markdown-editor').inputValue()
   requireThat(reloadedMarkdown.includes(`Title: ${title}`) && reloadedMarkdown.includes('A private solution') && reloadedMarkdown.includes('Explain **your reasoning**.'))
+  progress.mark('draft-readback')
   const saved = await r.api<Draft>(page, 'GET', `/api/teacher/tests/${id}/draft`)
   requireThat(saved.draft.version > 0 && saved.draft.content.title === title)
   if (kind === 'main') {
+    progress.mark('upload-open')
     await page.getByRole('dialog', { name: 'Edit test', exact: true }).getByRole('button', { name: 'Markdown', exact: true }).click()
     await page.getByRole('button', { name: 'Add reference', exact: true }).click()
     await page.getByRole('menuitem', { name: 'Upload PDF or image', exact: true }).click()
     const upload = page.getByRole('dialog', { name: 'Add Document', exact: true })
     await upload.getByLabel('Document title', { exact: true }).fill('Uploaded reference')
     const bytes = tinyPdf(); requireThat(bytes.length <= r.plan.limits.uploadBytes)
+    progress.mark('upload-submit')
     await upload.locator('input[type=file]').setInputFiles({ name: 'reference.pdf', mimeType: 'application/pdf', buffer: bytes })
     await upload.getByRole('button', { name: 'Upload document', exact: true }).click()
     await expect(upload).toBeHidden()
     await r.settle(page)
+    progress.mark('upload-proof')
     const detail = await r.api<{ test: TestRow }>(page, 'GET', `/api/teacher/tests/${id}`)
     const document = detail.test.documents?.find(d => d.source === 'upload' && d.title === 'Uploaded reference')
     requireThat(document && uuid.test(document.id) && document.managed_object_id && uuid.test(document.managed_object_id)
@@ -210,20 +228,25 @@ async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, cl
       apiOrigin: r.plan.apiOrigin, expectedBytes: bytes.length, deadline })
     r.check(); referenceProof = createContextualTestReferenceProof(id, classroom, document, bytes, read)
   }
+  progress.mark('editor-close')
   await page.getByRole('dialog', { name: 'Edit test', exact: true }).getByRole('button', { name: 'Close test editor', exact: true }).click()
   await r.settle(page)
   // Embedded preview is the saved-row UI action, not an unsaved local editor.
+  progress.mark('preview-embedded')
   await page.getByRole('button', { name: 'Preview', exact: true }).click()
   await expect(page.getByTestId('teacher-test-split-container')).toBeVisible()
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Close Preview', exact: true }).click()
+  progress.mark('preview-route')
   await r.navigate(page, `${r.plan.appOrigin}/classrooms/${classroom}/tests/${id}/preview`)
   await expect(page.getByTestId('teacher-test-split-container')).toBeVisible(); await r.settle(page)
   await visit(r, page, classroom); await ownerEdit(page, title)
+  progress.mark('publish')
   const publishedResponse = page.waitForResponse(res => new URL(res.url()).pathname === `/api/teacher/tests/${id}/publish` && res.request().method() === 'POST')
   await page.getByRole('dialog', { name: 'Edit test', exact: true }).getByRole('button', { name: 'Publish', exact: true }).click()
   await page.getByRole('dialog', { name: 'Publish test?', exact: true }).getByRole('button', { name: 'Publish', exact: true }).click()
   requireThat((await publishedResponse).status() === 200); await r.settle(page)
+  progress.mark('published-readback')
   const detail = await r.api<{ test: TestRow }>(page, 'GET', `/api/teacher/tests/${id}`)
   requireThat(detail.test.status === 'closed' && detail.test.title === title)
   const results = await r.api<Results>(page, 'GET', `/api/teacher/tests/${id}/results`)
@@ -233,6 +256,7 @@ async function createExam(r: ContextualTestRuntime, page: Page, owner: Owner, cl
   if (referenceProof) requireThat(detail.test.documents?.some(document => document.source === 'upload' && document.id === referenceProof.documentId
     && document.managed_object_id === referenceProof.objectId
     && document.storage_path === `classrooms/${classroom}/tests/${id}/documents/${referenceProof.documentId}/${referenceProof.objectId}.pdf`))
+  progress.mark('complete')
   return { id, title, classroom, owner, openId: open.id, mcId: mc.id, documentId: detail.test.documents?.find(d => d.source === 'upload')?.id, referenceProof }
 }
 async function access(r: ContextualTestRuntime, page: Page, exam: Exam, state: 'open' | 'closed', labels: readonly Member[] = members): Promise<void> {

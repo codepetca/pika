@@ -47870,3 +47870,33 @@ No native attempt, admission, database or production operation. Known optional
 Next version lookup remains blocked; original app failure cause still unknown.
 PR1581 stays draft; all production/shared-local/provider-Survey/account/billing/
 activation holds and spent-attempt limits remain. Overall goal not complete.
+
+<!-- pika-session-log-archive-batch:30cf14ef3d4d69975ef186f63300e3c813aef66683a0455cd0ef4ee1b248e23b -->
+## 2026-10-14 Offline optional framework version lookup
+
+Human authorized the narrow fix, review, and one fresh45-minute full-app rehearsal;
+all production and other holds unchanged. Hash-pinned installed Next15.5.25 wrapper
+replaces only its exported/traced optional version lookup before first load,
+returning installed version/unknown staleness without network dispatch. Generic
+network/child guards, failure latches, caps and clocks remain unchanged; dependency
+or warm-cache drift fails closed. CPU regression reproduces the original request
+and proves offline paths plus retained denial latch. Native acceptance pending.
+Fresh private launcher adds inherited077 permissions and permanent one-use token;
+no target/admission/clock allocated or attempt dispatched yet. Old failed attempts
+remain spent; original protocol/review/fix histories and routine waiver carry.
+
+<!-- pika-session-log-archive-batch:ae30bfc87f4785c6ffd5bbfd1a1fd6fc5c114681643b4a5133a927c5cde92810 -->
+## 2026-10-14 Reviewed version fix; one fresh full-app attempt failed
+
+Runtimefb4296dac passes3167 focused tests/8skip and all policies/TypeScript/lint.
+Review66 complete/clean covers optional lookup, immediate guard/cache consumers,
+and private one-use launcher; unchanged earlier coverage reused. No guard weakened.
+Freshbe904b644403/YOtpAr failed during Playwright fixture setup, before spec entry;
+app readiness completed and server ledger counts0/0/0/all flagsfalse. Retained
+startup report discovers/starts/ends1, passes0, records2unknown sanitized errors;
+actual fixture cause remains unknown.196.494s from original start; cleanup28.687s.
+ControllerownedSettledtrue; root confirms workdir/SQL marker absent, no exact
+project Docker resources by both label schemes/name, four ports clear, frozen
+source clean. This failed receipt does not separately attest canonical equality.
+Private0700/0600 evidence and spent token kept; no retry or phase exit. Production,
+shared-local, provider-Survey, account/billing and activation holds unchanged.

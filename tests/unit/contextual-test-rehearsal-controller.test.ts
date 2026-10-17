@@ -49,7 +49,7 @@ function fixture() {
     async passwordHash() { events.push('password-hash'); return 'synthetic-bcrypt' },
     async sql(_binding: unknown, kind: string) { events.push(`sql-${kind}`); return '{}' },
     assertSqlSettled() { events.push('sql-closed') },
-    createLedger() { events.push('ledger-create'); return { reserveAppReadiness() { events.push('readiness-reserve') }, snapshot() { events.push('ledger-read'); return { version: 1, nonce: admission.nonce, deadline: admission.deadline, app: 1, storage: 2, api: 10, flags: { denied: false, capExceeded: false, expired: false, uncertain: false } } } } },
+    createLedger() { events.push('ledger-create'); return { reserveAppReadiness() { events.push('readiness-reserve') }, snapshot() { events.push('ledger-read'); return { version: 2, nonce: admission.nonce, deadline: admission.deadline, app: 1, storage: 2, api: 10, firstDenial: null, flags: { denied: false, capExceeded: false, expired: false, uncertain: false } } } } },
     readPlaywrightReceipt() { events.push('pw-receipt'); return { version: 1, projectId, sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256, outcome: 'passed', contextsClosed: true, counts: { appRequests: 30, storageRequests: 4, tests: 8, reservations: 2, uploads: 2 }, firstFailure: null, pending: 0, pageErrors: 0, consoleErrors: 0, artifacts: [
       ...['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].flatMap(actor => ['desktop','mobile'].flatMap(view => ['light','dark'].map(theme => ({ label: `${actor}-${view}-${theme}`, kind: 'png', bytes: 1, sha256: 'a'.repeat(64), fontReference: undefined as string | undefined })))),
       ...contextualTestFontShots.map(shot => ({ label: shot.label, kind: 'png', bytes: 1, sha256: 'a'.repeat(64), fontReference: shot.fontReference })),
@@ -371,9 +371,16 @@ describe('contextual Test controller CPU composition (no native proof)', () => {
   })
   it('retains bounded failed ledger flags after proven settlement but never accepts them', async () => {
     const f = fixture(), base = f.edges.createLedger
-    f.edges.createLedger = () => ({ ...base(), snapshot() { return { ...base().snapshot(), flags: { denied: true, capExceeded: false, expired: false, uncertain: false } } } })
+    f.edges.createLedger = () => ({ ...base(), snapshot() { return { ...base().snapshot(), firstDenial: 'url-destination', flags: { denied: true, capExceeded: false, expired: false, uncertain: false } } } }) as never
     await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
-    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'proof', ownedSettled: true, server: { flags: { denied: true } } })
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', firstFailureStage: 'proof', ownedSettled: true, server: { firstDenial: 'url-destination', flags: { denied: true } } })
+  })
+  it.each(['private-sentinel', null])('never projects an invalid denial label or inconsistent flag into the retained receipt', async label => {
+    const f = fixture(), base = f.edges.createLedger
+    f.edges.createLedger = () => ({ ...base(), snapshot() { return { ...base().snapshot(), firstDenial: label, flags: { denied: true, capExceeded: false, expired: false, uncertain: false } } } }) as never
+    await expect(runContextualTestRehearsalController(f.admission as never, f.control, f.edges as never)).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', server: null })
+    expect(JSON.stringify(f.receipts)).not.toContain('private-sentinel')
   })
   it('rejects failed/partial browser receipts even with positive CLI exit0', async () => {
     const f = fixture(), base = f.edges.readPlaywrightReceipt

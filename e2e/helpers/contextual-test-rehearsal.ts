@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import type { Page, Response } from '@playwright/test'
 import { contextualTestFontOverlaySha256 } from './contextual-test-font-overlay'
+import type { createContextualTestAuthoringProgress } from './contextual-test-authoring-progress'
 
 const uuid = (suffix: string) => `50000000-0000-4000-8000-0000000000${suffix}`
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
@@ -140,6 +141,7 @@ export type RehearsalWitness = {
 }
 export type ContextualTestRuntime = {
   plan: RehearsalPlan; password: string; deadline: number; check(): void
+  authoring: ReturnType<typeof createContextualTestAuthoringProgress>
   withActor(label: ContextualTestActor, callback: (page: Page) => Promise<void>): Promise<void>
   api<T>(page: Page, method: string, path: string, body?: unknown, expectedStatus?: number): Promise<T>
   response<T>(page: Page, response: Response): Promise<T>

@@ -6,6 +6,17 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { createHash, randomBytes } = require('node:crypto')
 
+// Closed diagnostic vocabulary only: no destination, request, exception or
+// environment value is ever persisted. These labels do not grant admission.
+const contextualTestDenialSites = Object.freeze([
+  'unspecified', 'url-parse', 'url-credentials-fragment', 'url-destination',
+  'socket-shape', 'socket-destination', 'native-normalizer', 'native-socket-shape',
+  'native-tls', 'native-http2', 'native-worker', 'native-process', 'native-https',
+  'static-worker-fork-shape', 'static-worker-fork-dispatch', 'static-worker-send-shape',
+  'static-worker-send-init', 'static-worker-send-work', 'static-worker-send-end',
+  'static-worker-message', 'static-worker-exit',
+])
+
 /** One private, append-monotonic counter state shared by the Next parent and
  * child. A lock is never adopted, expired, or removed by a competing process.
  * Interrupted writes/unknown lock ownership poison the attempt; no recovery. */
@@ -21,12 +32,14 @@ function createContextualTestSharedLedger({ outputDir, nonce, deadline }, { crea
   const flags = () => ({ denied: false, capExceeded: false, expired: false, uncertain: false })
   const decode = text => {
     const state = JSON.parse(text)
-    assert.deepEqual(Object.keys(state).sort(), ['api','app','deadline','flags','nonce','storage','version'])
-    assert.equal(state.version, 1); assert.equal(state.nonce, nonce); assert.equal(state.deadline, deadline)
+    assert.deepEqual(Object.keys(state).sort(), ['api','app','deadline','firstDenial','flags','nonce','storage','version'])
+    assert.equal(state.version, 2); assert.equal(state.nonce, nonce); assert.equal(state.deadline, deadline)
     for (const key of ['app','storage','api']) assert(Number.isSafeInteger(state[key]) && state[key] >= 0)
     assert(state.app <= 50 && state.storage <= 20)
     assert.deepEqual(Object.keys(state.flags).sort(), Object.keys(flags()).sort())
     assert(Object.values(state.flags).every(v => typeof v === 'boolean'))
+    assert(state.firstDenial === null || contextualTestDenialSites.includes(state.firstDenial))
+    assert.equal(state.flags.denied, state.firstDenial !== null)
     return state
   }
   const sleep = new Int32Array(new SharedArrayBuffer(4))
@@ -80,7 +93,7 @@ function createContextualTestSharedLedger({ outputDir, nonce, deadline }, { crea
     const owner = acquire()
     try {
       const fd = fs.openSync(names.ledger, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600)
-      try { fs.writeFileSync(fd, JSON.stringify({ version: 1, nonce, deadline, app: 0, storage: 0, api: 0, flags: flags() })); fs.fsyncSync(fd) } finally { fs.closeSync(fd) }
+      try { fs.writeFileSync(fd, JSON.stringify({ version: 2, nonce, deadline, app: 0, storage: 0, api: 0, flags: flags(), firstDenial: null })); fs.fsyncSync(fd) } finally { fs.closeSync(fd) }
     } finally { release(owner) }
   }
   // Establish this attempt before acquiring authority to write a poison marker.
@@ -124,7 +137,15 @@ function createContextualTestSharedLedger({ outputDir, nonce, deadline }, { crea
       })
       assert(!failed, 'Tests shared server allocation closed')
     },
-    note(flag) { assert(Object.hasOwn(flags(), flag)); transaction(state => { state.flags[flag] = true }) },
+    note(flag, denialSite = 'unspecified') {
+      assert(Object.hasOwn(flags(), flag))
+      assert(contextualTestDenialSites.includes(denialSite))
+      assert(flag === 'denied' || denialSite === 'unspecified')
+      transaction(state => {
+        state.flags[flag] = true
+        if (flag === 'denied' && state.firstDenial === null) state.firstDenial = denialSite
+      })
+    },
     snapshot() { return transaction(state => structuredClone(state)) },
   })
 }
@@ -137,12 +158,15 @@ function createContextualTestEgressPolicy({ deadline, ledger }) {
   }
   const url = value => {
     check()
+    let site = 'url-parse'
     try {
       const u = new URL(value)
+      site = 'url-credentials-fragment'
       assert(!u.username && !u.password && !u.hash)
+      site = 'url-destination'
       assert(u.origin === 'http://localhost:3117' || (u.origin === 'http://127.0.0.1:54331' && /^\/(?:rest|storage)\/v1(?:\/|$)/.test(u.pathname)), 'Tests server egress rejected')
       return u
-    } catch (error) { ledger?.note('denied'); throw error }
+    } catch (error) { ledger?.note('denied', site); throw error }
   }
   return Object.freeze({
     check,
@@ -157,11 +181,13 @@ function createContextualTestEgressPolicy({ deadline, ledger }) {
     },
     socket(options) {
       check()
+      let site = 'socket-shape'
       try {
         assert(options && !options.path && !options.socketPath)
         const host = options.hostname || options.host
+        site = 'socket-destination'
         assert((host === 'localhost' && Number(options.port) === 3117) || (host === '127.0.0.1' && Number(options.port) === 54331), 'Tests server socket rejected')
-      } catch (error) { ledger?.note('denied'); throw error }
+      } catch (error) { ledger?.note('denied', site); throw error }
     },
     counts: () => ledger ? ledger.snapshot() : Object.freeze({ app, storage }),
   })
@@ -201,8 +227,12 @@ function createContextualTestStaticWorkerFork(options) {
   })
   let launched = 0, failed = false
   const active = new Map()
-  const mark = (flag = 'denied') => { failed = true; options.ledger?.note(flag) }
-  const reject = () => { mark(); throw new Error('Tests static-path worker rejected') }
+  const mark = (flag = 'denied', site = 'unspecified') => {
+    failed = true
+    if (flag === 'denied') options.ledger?.note(flag, site)
+    else options.ledger?.note(flag)
+  }
+  const reject = site => { mark('denied', site); throw new Error('Tests static-path worker rejected') }
   const check = () => {
     if (Date.now() >= options.deadline) { mark('expired'); throw new Error('Tests static-path worker deadline') }
     assert(!failed, 'Tests static-path worker family failed')
@@ -228,21 +258,24 @@ function createContextualTestStaticWorkerFork(options) {
         assert.equal(createHash('sha256').update(fs.readFileSync(pin.file)).digest('hex'), pin.digest)
       }
       assert(launched < 1000, 'Existing app-request-derived static worker ceiling')
-    } catch { return reject() }
+    } catch { return reject('static-worker-fork-shape') }
     const ordinal = ++launched
     let child
-    try { child = options.fork(modulePath, args, settings) } catch { return reject() }
+    try { child = options.fork(modulePath, args, settings) } catch { return reject('static-worker-fork-dispatch') }
     const state = { ordinal, pid: child.pid ?? null, initialized: false, called: false, succeeded: false, ended: false, closed: false, workSha256: null }
     active.set(child, state)
     const send = child.send
     child.send = function (message, ...rest) {
       check()
+      let site = 'static-worker-send-shape'
       try {
         assert(Array.isArray(message) && rest.length <= 1 && (!rest.length || typeof rest[0] === 'function'))
         if (message[0] === 0) {
+          site = 'static-worker-send-init'
           assert(!state.initialized && message.length === 4 && message[1] === false && message[2] === options.staticPathsWorkerPath && Array.isArray(message[3]) && message[3].length === 0)
           state.initialized = true
         } else if (message[0] === 1) {
+          site = 'static-worker-send-work'
           assert(state.initialized && !state.called && message.length === 4 && message[1] === true && message[2] === 'loadStaticPaths' && Array.isArray(message[3]) && message[3].length === 1)
           const work = message[3][0]
           assert(work && work.dir === options.appDir && work.distDir === path.join(options.appDir, '.next') && work.isAppPath === true)
@@ -252,11 +285,12 @@ function createContextualTestStaticWorkerFork(options) {
           state.workSha256 = createHash('sha256').update(JSON.stringify({ ordinal, pathname: work.pathname, page: work.page })).digest('hex')
           state.called = true
         } else {
+          site = 'static-worker-send-end'
           assert(message[0] === 2 && message.length === 2 && message[1] === false && state.called && state.succeeded && !state.ended)
           state.ended = true
         }
         return Reflect.apply(send, this, [message, ...rest])
-      } catch { return reject() }
+      } catch { return reject(site) }
     }
     const timer = setTimeout(() => mark('uncertain'), Math.max(0, Math.min(options.deadline, Date.now() + 30000) - Date.now()))
     timer.unref?.()
@@ -264,10 +298,10 @@ function createContextualTestStaticWorkerFork(options) {
     // installed _onExit handler tries initialize() and resends the old work.
     child.on('message', message => {
       if (Array.isArray(message) && message.length === 2 && message[0] === 0 && state.called && !state.succeeded && !state.ended) state.succeeded = true
-      else mark()
+      else mark('denied', 'static-worker-message')
     })
     child.once('error', () => mark('uncertain'))
-    child.once('exit', (code, signal) => { if (code !== 0 || signal !== null || !state.succeeded || !state.ended) mark() })
+    child.once('exit', (code, signal) => { if (code !== 0 || signal !== null || !state.succeeded || !state.ended) mark('denied', 'static-worker-exit') })
     child.once('close', (code, signal) => {
       clearTimeout(timer)
       if (code === 0 && signal === null && state.succeeded && state.ended) { state.closed = true; active.delete(child) }
@@ -393,7 +427,7 @@ function installContextualTestEgress(options) {
   const policy = createContextualTestEgressPolicy(options)
   const net = require('node:net'), tls = require('node:tls'), http = require('node:http'), https = require('node:https')
   const child = require('node:child_process'), http2 = require('node:http2')
-  const deny = () => { options.ledger?.note('denied'); throw new Error('Tests server native escape rejected') }
+  const deny = site => { options.ledger?.note('denied', site); throw new Error('Tests server native escape rejected') }
   const originalFork = child.fork
   const originalConnect = net.Socket.prototype.connect
   const { isProxy } = require('node:util').types
@@ -407,7 +441,7 @@ function installContextualTestEgress(options) {
     assert(Object.getOwnPropertyDescriptor(sample, normalizedArgsSymbol)?.value === true)
     assert(sample[0] && typeof sample[0] === 'object' && !Array.isArray(sample[0]))
     optionsPrototype = Object.getPrototypeOf(sample[0])
-  } catch { return deny() }
+  } catch { return deny('native-normalizer') }
   net.Socket.prototype.connect = function (...args) {
     let normalized
     try {
@@ -445,13 +479,13 @@ function installContextualTestEgress(options) {
       assert(descriptors.lookup?.value === undefined)
       // Node uses host, not hostname. Both names may exist only when identical.
       assert(target.hostname === undefined || target.hostname === target.host)
-    } catch { return deny() }
+    } catch { return deny('native-socket-shape') }
     policy.socket(normalized[0])
     return Reflect.apply(originalConnect, this, args)
   }
-  tls.connect = deny; http2.connect = deny
-  require('node:worker_threads').Worker = deny
-  for (const key of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork']) child[key] = deny
+  tls.connect = () => deny('native-tls'); http2.connect = () => deny('native-http2')
+  require('node:worker_threads').Worker = function () { return deny('native-worker') }
+  for (const key of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork']) child[key] = () => deny('native-process')
   let staticFork
   const entry = process.argv[1] && fs.realpathSync(process.argv[1])
   if (options.processChildPath && options.staticPathsWorkerPath && entry === options.nextServerPath && process.env.NEXT_PRIVATE_WORKER === '1') {
@@ -483,7 +517,7 @@ function installContextualTestEgress(options) {
     return boundContextualTestHttpRequest(Reflect.apply(request, this, args), options)
   }
   http.get = function (...args) { const req = http.request(...args); req.end(); return req }
-  https.request = deny; https.get = deny
+  https.request = () => deny('native-https'); https.get = () => deny('native-https')
   globalThis.fetch = createContextualTestBoundedFetch(globalThis.fetch, options, policy)
   require('node:module').syncBuiltinESMExports()
   if (options.telemetryPath) disableContextualTestNextTelemetry(options.telemetryPath)
@@ -491,7 +525,7 @@ function installContextualTestEgress(options) {
   return Object.freeze({ ...policy, workers: () => staticFork?.snapshot() ?? { launched: 0, active: 0, failed: false, workers: [] } })
 }
 
-module.exports = { createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry, disableContextualTestNextVersionLookup }
+module.exports = { contextualTestDenialSites, createContextualTestEgressPolicy, installContextualTestEgress, validateContextualTestNextFork, createContextualTestSharedLedger, boundContextualTestHttpRequest, createContextualTestBoundedFetch, createContextualTestStaticWorkerFork, disableContextualTestNextTelemetry, disableContextualTestNextVersionLookup }
 
 // Native launch is possible only with the root's exact private binding digest.
 // The application never discovers this configuration from .env files.

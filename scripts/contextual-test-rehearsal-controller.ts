@@ -54,7 +54,7 @@ export type ContextualTestControllerControls = Readonly<{
   /** Diagnostic snapshot only; never authority for settlement or success. */
   nativeDiagnostics?(): unknown
 }>
-type LedgerState = { version: 1; nonce: string; deadline: number; app: number; storage: number; api: number;
+type LedgerState = { version: 2; nonce: string; deadline: number; app: number; storage: number; api: number; firstDenial: string | null;
   flags: { denied: boolean; capExceeded: boolean; expired: boolean; uncertain: boolean } }
 type Stage = 'preflight' | 'attempt' | 'lifecycle' | 'snapshot' | 'binding' | 'fixture' | 'ledger' | 'app-ready' | 'browser' | 'proof' | 'cleanup' | 'complete'
 type CleanupState = 'not-run' | 'passed' | 'failed'
@@ -256,12 +256,15 @@ function validateAdmission(a: ContextualTestControllerAdmission, now: number) {
 }
 function projectLedger(raw: unknown, binding: ContextualTestRunBinding): LedgerState {
   assert(raw && typeof raw === 'object'); const row = raw as LedgerState
-  assert.deepEqual(Object.keys(row).sort(), ['api','app','deadline','flags','nonce','storage','version'])
-  assert(row.version === 1 && row.nonce === binding.nonce && row.deadline === binding.deadline)
+  assert.deepEqual(Object.keys(row).sort(), ['api','app','deadline','firstDenial','flags','nonce','storage','version'])
+  assert(row.version === 2 && row.nonce === binding.nonce && row.deadline === binding.deadline)
   for (const key of ['app','storage','api'] as const) assert(Number.isSafeInteger(row[key]) && row[key] >= 0)
   assert(row.app <= 50 && row.storage <= 20)
   assert.deepEqual(Object.keys(row.flags).sort(), ['capExceeded','denied','expired','uncertain'])
   assert(Object.values(row.flags).every(value => typeof value === 'boolean'))
+  const { contextualTestDenialSites } = createRequire(import.meta.url)('./contextual-test-rehearsal-egress.cjs') as { contextualTestDenialSites: readonly string[] }
+  assert(row.firstDenial === null || contextualTestDenialSites.includes(row.firstDenial))
+  assert.equal(row.flags.denied, row.firstDenial !== null)
   return Object.freeze({ ...row, flags: Object.freeze({ ...row.flags }) })
 }
 export function validateContextualTestPlaywrightReceipt(raw: unknown, binding: ContextualTestRunBinding): void {

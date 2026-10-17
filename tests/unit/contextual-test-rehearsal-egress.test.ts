@@ -91,7 +91,7 @@ describe('installed socket guard matches native argument normalization without n
     for (const target of targets) {
       const h = harness(); h.install()
       expect(() => h.socket(form === 'marked' ? normalize([target]) : target)).toThrow()
-      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied', 'native-socket-shape')
       expect(lookup).not.toHaveBeenCalled(); expect(getter).not.toHaveBeenCalled()
     }
   })
@@ -119,7 +119,7 @@ describe('installed socket guard matches native argument normalization without n
         } finally { delete Object.prototype.lookup; }
       })()`)
       expect(result).toEqual({ rejected: true, lookups: 0, getters: 0 })
-      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied', 'native-socket-shape')
     }
     const ordinary = harness({ sameRealm: true }); ordinary.install()
     ordinary.evaluate("Socket.prototype.connect.call({}, normalizeSocketArgs([{ host: 'localhost', port: 3117 }]))")
@@ -138,7 +138,7 @@ describe('installed socket guard matches native argument normalization without n
       } finally { delete Object.prototype.value; }
     })()`)
     expect(result).toEqual({ rejected: true, reads: 0 })
-    expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+    expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied', 'native-socket-shape')
   })
   const marked = (options: unknown, callback: unknown = null, value: unknown = true) => Object.assign([options, callback], { [marker]: value })
   const cases: Array<[string, () => unknown[]]> = [
@@ -162,10 +162,11 @@ describe('installed socket guard matches native argument normalization without n
     ['coercible port', () => [{ host: '127.0.0.1', port: { valueOf() { throw Error('Coercion must not execute') } } }]],
     ['inherited hidden host', () => [Object.assign(Object.create({ host: 'example.invalid' }), { hostname: '127.0.0.1', port: 54331 })]],
   ]
-  it.each(cases)('rejects %s before original connector dispatch and latches denial', (_label, args) => {
+  it.each(cases)('rejects %s before original connector dispatch and latches denial', (label, args) => {
     const h = harness(); h.install()
     expect(() => h.socket(...args())).toThrow()
-    expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+    expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied',
+      ['foreign host', 'wrong port', 'marked foreign host'].includes(label) ? 'socket-destination' : 'native-socket-shape')
     expect(h.state.api).toBe(0)
   })
   it('never evaluates destination accessors, proxy traps or port coercion while rejecting them', () => {
@@ -178,14 +179,14 @@ describe('installed socket guard matches native argument normalization without n
     ]
     for (const target of targets) {
       const h = harness(); h.install(); expect(() => h.socket(target)).toThrow()
-      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+      expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied', 'native-socket-shape')
     }
     expect(read).not.toHaveBeenCalled(); expect(coerce).not.toHaveBeenCalled(); expect(trap).not.toHaveBeenCalled()
   })
   it('fails installation closed if the trusted normalizer marker shape drifts', () => {
     for (const normalize of [() => [], () => Object.assign([{}, null], { [Symbol('one')]: true, [Symbol('two')]: true }), () => Object.assign([{}, null], { [marker]: 1 })]) {
       const h = harness({ normalize })
-      expect(h.install).toThrow(); expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+      expect(h.install).toThrow(); expect(h.dispatch).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied', 'native-normalizer')
     }
   })
   it('retains deadline rejection and the bounded original-body cap', async () => {
@@ -420,13 +421,13 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
     const changes = kind === 'env' ? { env: { ...parentEnv, OPENAI_API_KEY: 'forbidden' } } : kind === 'preload' ? { env: { ...parentEnv, NODE_OPTIONS: '' } }
       : kind === 'execArgv' ? { execArgv: ['--inspect'] } : kind === 'cwd' ? { cwd: '/foreign' } : {}
     expect(() => h.call(changes, kind === 'module' ? staticPathsWorkerPath : processChildPath, kind === 'args' ? ['--other'] : [])).toThrow()
-    expect(h.fork).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied')
+    expect(h.fork).not.toHaveBeenCalled(); expect(h.note).toHaveBeenCalledWith('denied', 'static-worker-fork-shape')
   })
   it('rejects foreign work initialization and repeated work in the same child', () => {
     const foreign = harness(), c = foreign.call()
     expect(() => c.send([0, false, '/foreign/module.js', []])).toThrow()
     const repeat = harness(), second = repeat.call(); repeat.initialize(second); repeat.work(second)
-    expect(() => repeat.work(second)).toThrow(); expect(repeat.note).toHaveBeenCalledWith('denied')
+    expect(() => repeat.work(second)).toThrow(); expect(repeat.note).toHaveBeenCalledWith('denied', 'static-worker-send-work')
   })
   it('latches abnormal exit before jest can respawn and rejects extra workers', () => {
     const h = harness(), c = h.call(); h.initialize(c); h.work(c)
@@ -445,7 +446,7 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
     const h = harness(), c = h.call(); h.initialize(c)
     const work = { ...h.payload, [field]: field === 'isAppPath' ? false : '/foreign' }
     expect(() => c.send([1, true, field === 'method' ? 'otherMethod' : 'loadStaticPaths', [work]])).toThrow()
-    expect(h.note).toHaveBeenCalledWith('denied')
+    expect(h.note).toHaveBeenCalledWith('denied', 'static-worker-send-work')
   })
   it('closes worker admission at its original operation deadline', () => {
     vi.useFakeTimers()
@@ -474,7 +475,7 @@ describe('installed Next static-path workers with CPU-only fork doubles', () => 
       processChildPath, staticPathsWorkerPath, appDir: cwd, deadline: Date.now() + 10000, ledger: { note } })
     expect(() => (child as unknown as { fork(...args: unknown[]): unknown }).fork(processChildPath, [], {})).toThrow()
     expect(() => (child as unknown as { spawn(...args: unknown[]): unknown }).spawn('/unapproved', [])).toThrow()
-    expect(note).toHaveBeenCalledWith('denied')
+    expect(note).toHaveBeenCalledWith('denied', 'native-process')
     expect(nativeFork).not.toHaveBeenCalled()
   })
 })
@@ -560,6 +561,53 @@ describe('shared Next parent/child request ledger', () => {
     const ledger = createContextualTestSharedLedger(binding, { create: true })
     return { binding, ledger, close: () => rmSync(outputDir, { recursive: true }) }
   }
+  it('retains only the first fixed denial label across parent/child instances and keeps admission closed', () => {
+    const f = fixture()
+    try {
+      const other = createContextualTestSharedLedger(f.binding)
+      const policy = createContextualTestEgressPolicy({ ...f.binding, ledger: f.ledger })
+      expect(() => policy.admit('https://private-sentinel.example.test/secret?token=private-sentinel')).toThrow()
+      expect(other.snapshot()).toMatchObject({ version: 2, firstDenial: 'url-destination', flags: { denied: true, uncertain: false } })
+      other.note('denied', 'native-tls')
+      expect(f.ledger.snapshot().firstDenial).toBe('url-destination')
+      expect(JSON.stringify(other.snapshot())).not.toMatch(/private-sentinel|https:|secret|token/)
+      expect(() => policy.admit('http://127.0.0.1:54331/rest/v1/rpc/create_test_for_owner_v1')).toThrow()
+      expect(f.ledger.snapshot().api).toBe(0)
+    } finally { f.close() }
+  })
+  it.each([
+    ['not a url', 'url-parse'], ['http://user:private-sentinel@localhost:3117', 'url-credentials-fragment'],
+    [{ path: '/private-sentinel' }, 'socket-shape'], [{ host: 'private-sentinel', port: 80 }, 'socket-destination'],
+  ])('projects a fixed denial subcondition without retaining the rejected value', (input, label) => {
+    const f = fixture()
+    try {
+      const policy = createContextualTestEgressPolicy({ ...f.binding, ledger: f.ledger })
+      expect(() => typeof input === 'string' ? policy.admit(input) : policy.socket(input)).toThrow()
+      expect(f.ledger.snapshot().firstDenial).toBe(label)
+      expect(JSON.stringify(f.ledger.snapshot())).not.toContain('private-sentinel')
+    } finally { f.close() }
+  })
+  it('rejects unrecognized denial labels before writing any supplied value', () => {
+    const f = fixture()
+    try {
+      const before = readFileSync(f.ledger.paths.ledger, 'utf8')
+      expect(() => f.ledger.note('denied', 'private-sentinel')).toThrow()
+      expect(readFileSync(f.ledger.paths.ledger, 'utf8')).toBe(before)
+    } finally { f.close() }
+  })
+  it.each([
+    { version: 1 }, { firstDenial: 'private-sentinel' }, { firstDenial: 'native-tls' },
+    { flags: { denied: true, uncertain: false, capExceeded: false, expired: false } },
+  ])('fails closed on old or inconsistent diagnostic schema without adopting or overwriting it (%j)', patch => {
+    const f = fixture()
+    try {
+      const bad = JSON.stringify({ ...f.ledger.snapshot(), ...patch })
+      writeFileSync(f.ledger.paths.ledger, bad)
+      expect(() => f.ledger.snapshot()).toThrow()
+      expect(readFileSync(f.ledger.paths.ledger, 'utf8')).toBe(bad)
+      expect(() => createContextualTestSharedLedger(f.binding)).toThrow()
+    } finally { f.close() }
+  })
   it('shares app and Storage counters across two policy instances without charging REST/RPC as app', () => {
     const f = fixture()
     try {

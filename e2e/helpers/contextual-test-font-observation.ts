@@ -1,5 +1,18 @@
 /** Self-contained browser callback: Playwright serializes this function alone. */
 export function observeContextualTestFont(element: Element, { state, position }: { state: 'preview' | 'read-only' | 'editing' | 'empty'; position: boolean }) {
+  const editor = element.querySelector('.tiptap.ProseMirror')
+  if (position && state === 'preview' && editor) {
+    // The product deliberately focuses the changed block. For this font sample,
+    // manually read from the start of the same pinned save using its owned
+    // EditorContent viewport. Never alter preview mode, content, or layout.
+    for (let current = editor.parentElement; current && current !== element; current = current.parentElement) {
+      if (current.matches('.simple-editor-content[data-history-preview-mode="locked"], .simple-viewer-content[data-history-preview-mode="locked"]')) {
+        current.scrollTop = 0
+        current.scrollLeft = 0
+        break
+      }
+    }
+  }
   const navs = document.querySelectorAll('nav[aria-label="Pattern Lab sections"]')
   const nav = navs.length === 1 ? navs[0] : null
   const navStyle = nav ? getComputedStyle(nav) : null
@@ -10,7 +23,7 @@ export function observeContextualTestFont(element: Element, { state, position }:
     const original = element.getBoundingClientRect()
     window.scrollTo({ top: window.scrollY + original.top - (inset + navHeight + 8), behavior: 'instant' })
   }
-  const box = element.getBoundingClientRect(), editor = element.querySelector('.tiptap.ProseMirror')
+  const box = element.getBoundingClientRect()
   const heading = element.querySelector('h2')
   const clip = { x: Math.ceil(box.left), y: Math.ceil(box.top),
     width: Math.floor(box.right) - Math.ceil(box.left),
@@ -25,7 +38,21 @@ export function observeContextualTestFont(element: Element, { state, position }:
     }
     return true
   }
-  const inside = (node: Element) => visible(node) && contained(node.getBoundingClientRect(), clipBounds)
+  const inside = (node: Element) => {
+    const rect = node.getBoundingClientRect()
+    if (!visible(node) || !contained(rect, clipBounds)) return false
+    // Outer screenshot containment does not prove visibility through a nested
+    // scroll pane. Check the clipping client area of every ancestor per axis.
+    for (let current = node.parentElement; current; current = current.parentElement) {
+      const style = getComputedStyle(current), bounds = current.getBoundingClientRect()
+      const left = bounds.left + current.clientLeft, top = bounds.top + current.clientTop
+      if (/^(auto|scroll|hidden|clip|overlay)$/.test(style.overflowX)
+        && (rect.left < left || rect.right > left + current.clientWidth)) return false
+      if (/^(auto|scroll|hidden|clip|overlay)$/.test(style.overflowY)
+        && (rect.top < top || rect.bottom > top + current.clientHeight)) return false
+    }
+    return true
+  }
   const blocks = editor ? Array.from(editor.querySelectorAll(':scope > *')).slice(0, 2) : []
   let placeholder = state !== 'empty'
   if (state === 'empty' && editor && blocks.length === 1) {

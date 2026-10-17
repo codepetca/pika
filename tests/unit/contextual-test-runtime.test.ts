@@ -511,30 +511,49 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     expect(JSON.stringify(s.receipt().fontCapture)).not.toMatch(/PRIVATE-SENTINEL|clip|358|500/)
   })
   it.each([
-    { height: 500, contentBottom: 300, blocked: false, passes: true },
-    { height: 1200, contentBottom: 300, blocked: false, passes: true },
-    { height: 1200, contentBottom: 850, blocked: false, passes: false },
-    { height: 500, contentBottom: 300, blocked: true, passes: false },
-  ])('positions a mobile font capture below real sticky chrome and fails closed on clipped evidence (%j)', async ({ height, contentBottom, blocked, passes }) => {
-    const s = await setup(), screenshot = vi.fn(async () => Buffer.from([137,80,78,71,13,10,26,10,0]))
+    { height: 500, contentBottom: 300, blocked: false, drift: false, passes: true },
+    { height: 1200, contentBottom: 300, blocked: false, drift: false, passes: true },
+    { height: 1200, contentBottom: 850, blocked: false, drift: false, passes: false },
+    { height: 500, contentBottom: 300, blocked: true, drift: false, passes: false },
+    { height: 500, contentBottom: 300, blocked: false, drift: true, passes: false },
+  ])('positions mobile pinned content through its real scroll viewport and rejects clipping/drift (%j)', async ({ height, contentBottom, blocked, drift, passes }) => {
+    const s = await setup()
     await s.runtime.withActor('ownerTeacher', async page => {
       await page.goto(`${plan.appOrigin}/pattern-lab?role=teacher#history-preview`, { waitUntil: 'load' })
       let scrollY = 900
       const rect = (top: number, bottom: number) => ({ top, bottom, left: 16, right: 374, width: 358, height: bottom - top })
-      const heading = { getBoundingClientRect: () => rect(1000 - scrollY + 16, 1000 - scrollY + 44) }
-      const blocks = [{ getBoundingClientRect: () => rect(1000 - scrollY + 150, 1000 - scrollY + contentBottom) }]
-      const editor = { scrollWidth: 326, clientWidth: 326, getAttribute: () => 'false', textContent: 'Fixed preview', querySelectorAll: () => blocks }
+      const viewport = { scrollTop: 100, scrollLeft: 0, clientLeft: 0, clientTop: 0, clientWidth: 358, clientHeight: 220,
+        matches: () => true, parentElement: undefined as unknown,
+        getBoundingClientRect: () => rect(1000 - scrollY + 140, 1000 - scrollY + 360) }
+      const editor = { scrollWidth: 326, clientWidth: 326, getAttribute: () => 'false', textContent: 'Fixed preview',
+        parentElement: viewport, getBoundingClientRect: () => rect(1000 - scrollY + 140 - viewport.scrollTop, 1000 - scrollY + 1140 - viewport.scrollTop),
+        querySelectorAll: () => blocks }
+      const heading = { parentElement: undefined as unknown, getBoundingClientRect: () => rect(1000 - scrollY + 16, 1000 - scrollY + 44) }
+      const blocks = [
+        { parentElement: editor, getBoundingClientRect: () => rect(1000 - scrollY + 150 - viewport.scrollTop, 1000 - scrollY + 180 - viewport.scrollTop) },
+        { parentElement: editor, getBoundingClientRect: () => rect(1000 - scrollY + 200 - viewport.scrollTop, 1000 - scrollY + contentBottom - viewport.scrollTop) },
+      ]
       let navReads = 0
       const nav = { getBoundingClientRect: () => rect(8, blocked && navReads++ > 0 ? 240 : 172) }
       const element = { scrollWidth: 358, clientWidth: 358, getBoundingClientRect: () => rect(1000 - scrollY, 1000 - scrollY + height),
         querySelector: (selector: string) => selector === '.tiptap.ProseMirror' ? editor : selector === 'h2' ? heading : { getAttribute: () => '3' },
       }
+      viewport.parentElement = element; heading.parentElement = element
+      const screenshot = vi.fn(async () => {
+        expect(viewport.scrollTop).toBe(0)
+        if (drift) viewport.scrollTop = 100
+        return Buffer.from([137,80,78,71,13,10,26,10,0])
+      })
       const scrollTo = vi.fn((options: { top: number }) => { scrollY = options.top })
       vi.stubGlobal('window', { innerWidth: 390, innerHeight: 844, get scrollY() { return scrollY }, scrollTo })
       vi.stubGlobal('document', { fonts: { status: 'loaded' }, documentElement: { classList: { contains: () => false } }, querySelectorAll: () => [nav] })
-      vi.stubGlobal('getComputedStyle', () => ({ position: 'sticky', top: '8px', height: '164px', display: 'block', visibility: 'visible', opacity: '1', contentVisibility: 'visible' }))
+      vi.stubGlobal('getComputedStyle', (node: unknown) => ({ position: 'sticky', top: '8px', height: '164px', display: 'block', visibility: 'visible', opacity: '1', contentVisibility: 'visible',
+        overflowX: node === viewport ? 'auto' : 'visible', overflowY: node === viewport ? 'auto' : 'visible' }))
       const gallery = { waitFor: async () => {}, count: async () => 1,
-        evaluate: async (callback: (value: unknown, state: string) => unknown, state: string) => callback(element, state), screenshot: vi.fn() }
+        evaluate: vi.fn(async (callback: (value: unknown, state: unknown) => unknown, state: unknown) => {
+          const serialized = new Function(`return (${callback.toString()})`)() as typeof callback
+          return serialized(element, state)
+        }), screenshot: vi.fn() }
       Object.assign(page, { screenshot, viewportSize: () => ({ width: 390, height: 844 }), locator: () => gallery })
       s.browser.contexts[0].page.waitForFunction.mockResolvedValue(undefined)
       const capturing = s.runtime.captureFont('font-ownerTeacher-mobile-light-preview', page)
@@ -542,7 +561,13 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
         await capturing
         expect(screenshot).toHaveBeenCalledWith(expect.objectContaining({ fullPage: false,
           clip: { x: 16, y: 180, width: 358, height: Math.min(height, 664) } }))
-      } else { await expect(capturing).rejects.toThrow(); expect(screenshot).not.toHaveBeenCalled() }
+      } else {
+        await expect(capturing).rejects.toThrow()
+        if (drift) {
+          expect(screenshot).toHaveBeenCalledOnce(); expect(viewport.scrollTop).toBe(100)
+          expect(gallery.evaluate.mock.calls[1][1]).toEqual({ state: 'preview', position: false })
+        } else expect(screenshot).not.toHaveBeenCalled()
+      }
       expect(scrollTo).toHaveBeenCalledWith({ top: 820, behavior: 'instant' })
       expect(gallery.screenshot).not.toHaveBeenCalled()
     })
@@ -835,9 +860,20 @@ describe('actual contextual Test runtime with CPU browser doubles', () => {
     const receipt = s.receipt()
     expect(receipt).toMatchObject({ version: 1, outcome: 'failed', contextsClosed: true, firstFailure: 'response-body', pending: 0 })
     expect(JSON.stringify(receipt)).not.toContain('DO-NOT-RECORD')
-    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','requestFailure','responseFailure','endpointFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','appOverlaySha256','version','witnesses','login','fontCapture'].sort())
+    expect(Object.keys(receipt).sort()).toEqual(['artifacts','consoleErrors','contextsClosed','counts','deadline','endedAt','firstFailure','requestFailure','responseFailure','endpointFailure','outcome','pageErrors','pending','projectId','sourceSha','sourceTree','appOverlaySha256','version','witnesses','login','fontCapture','authoring'].sort())
     expect(receipt.fontCapture).toBeNull()
+    expect(receipt.authoring).toBeNull()
     expect(receipt.appOverlaySha256).toBe(plan.appOverlaySha256)
+  })
+  it('retains the fixed failed authoring step on actual runtime close without treating it as success', async () => {
+    const s = await setup()
+    const progress = s.runtime.authoring.begin('ownerTeacher', 'main')
+    progress.mark('create-status', 503)
+    await expect(s.close('failed')).rejects.toThrow('Private contextual Test rehearsal failed')
+    expect(s.receipt()).toMatchObject({ outcome: 'failed', authoring: {
+      owner: 'ownerTeacher', kind: 'main', stage: 'create-status', createStatus: 'unavailable',
+    } })
+    expect(Object.keys(s.receipt().authoring).sort()).toEqual(['owner', 'kind', 'stage', 'createStatus'].sort())
   })
   it('disposes the original API response when JSON verification fails and retains no response body', async () => {
     const s = await setup(); let response!: FakeResponse

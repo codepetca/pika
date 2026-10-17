@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Offline optional framework version lookup
-
-Human authorized the narrow fix, review, and one fresh45-minute full-app rehearsal;
-all production and other holds unchanged. Hash-pinned installed Next15.5.25 wrapper
-replaces only its exported/traced optional version lookup before first load,
-returning installed version/unknown staleness without network dispatch. Generic
-network/child guards, failure latches, caps and clocks remain unchanged; dependency
-or warm-cache drift fails closed. CPU regression reproduces the original request
-and proves offline paths plus retained denial latch. Native acceptance pending.
-Fresh private launcher adds inherited077 permissions and permanent one-use token;
-no target/admission/clock allocated or attempt dispatched yet. Old failed attempts
-remain spent; original protocol/review/fix histories and routine waiver carry.
-
-## 2026-10-14 Reviewed version fix; one fresh full-app attempt failed
-
-Runtimefb4296dac passes3167 focused tests/8skip and all policies/TypeScript/lint.
-Review66 complete/clean covers optional lookup, immediate guard/cache consumers,
-and private one-use launcher; unchanged earlier coverage reused. No guard weakened.
-Freshbe904b644403/YOtpAr failed during Playwright fixture setup, before spec entry;
-app readiness completed and server ledger counts0/0/0/all flagsfalse. Retained
-startup report discovers/starts/ends1, passes0, records2unknown sanitized errors;
-actual fixture cause remains unknown.196.494s from original start; cleanup28.687s.
-ControllerownedSettledtrue; root confirms workdir/SQL marker absent, no exact
-project Docker resources by both label schemes/name, four ports clear, frozen
-source clean. This failed receipt does not separately attest canonical equality.
-Private0700/0600 evidence and spent token kept; no retry or phase exit. Production,
-shared-local, provider-Survey, account/billing and activation holds unchanged.
-
 ## 2026-10-14 Privacy-safe serialized fixture errors
 
 Installed Playwright1.58 serializer proof identifies Error message/first-cause and
@@ -971,3 +943,52 @@ No native attempt or visual acceptance: this proves the CPU failure and fix,
 not the historical event sequence or full-app recovery. PR1581 stays draft.
 All production/shared-local/provider/Survey/account/migration/cutover holds,
 spent attempts, original clocks and routine-approval waiver remain unchanged.
+
+## 2026-10-17 — Preview fix clears prior failure; authoring denial remains
+
+685f6b passed3694 tests/8skip and all local gates; review127 clean. Review128
+approved only fresh wrapper token/scope/filter changes. One authorized full-app
+MUtaCZ run at685f6b/frozen21e755/schema001–262 failed later in first ownerTeacher
+main authoring. All four logins completed identity; all32 font captures saved
+and byte/hash verified. Browser boundary failures null, pending0/pageErrors0;
+consoleErrors5. Server ledger api77/app1/storage0, deniedtrue only. Browser tests3
+means one create POST admitted, not successful creation. No uploads/reservations;
+only baseline witness. Exact denied operation/failed assertion not retained.
+Read-only source check confirms REST RPCs are already allowed; do not broaden
+admission based on this failure. Next: bounded offline frozen-create/SDK request
+check and fixed first-denial/workflow labels, then review before another run.
+
+All32 screenshots visually inspected: root16teacher, delegated16student with root
+student spot checks.28 cases pass; four mobile previews show correct pinned state
+but inner scroll crops initial document text, leaving coverage partial. No full
+visual/native acceptance;16 workflow shots not reached. Preserve this gap.
+All6 cleanup gates passed, ownedSettledtrue; immediate independent preservation
+before writes/tests verified7659sourcefiles/49485dependencyfiles unchanged and
+zero matching processes. Exact project resources/workdir absent, ports free.
+219.170s total/20.121s cleanup. Evidence retained, attempt permanently spent.
+No retry, new code fix or production/shared-local/provider/Survey/account/billing/
+migration/cutover operation. PR1581 remains draft685f6b;128reviews/75fixes and
+original clocks/waiver retained. Source freeze released after preservation.
+
+## 2026-10-17 — Offline denial characterization and capture diagnostics
+
+Batch76, runtime-platform: installed SDK2.93.3 and real create helper pass the
+normal permitted RPC offline. Synthetic URL rejection reproduces denied-only
+flags and safe503; socket rejection within fetch adds uncertainty. Lost/malformed
+acknowledgement and PT403 are distinguished without retries or fallback writes.
+This does NOT identify the historical denied operation; no allowlist widened.
+Shared server ledger v2 retains only the first fixed denial-site label, with
+strict decode, first-write retention and unchanged flags/caps/locks/poisoning.
+Workflow receipt records only fixed authoring phase and create-status categories;
+existing201/body/identity/save checks remain authoritative. No raw diagnostics.
+
+Pinned preview capture resets only its owned inner viewport before capture and
+checks every clipping ancestor; post-capture observation remains read-only and
+rejects scroll drift. Nine old-code mobile regressions fail before the fix; six
+new ledger diagnostics regressions also fail before implementation. Delegated
+SDK and mobile work used Sol6.1/high, separate owned files, no conflicts; root
+inspected both and integrated focused tests. Native mobile/48-shot/lifecycle
+acceptance remains pending. No native attempt/token, app or frozen-source edit,
+DB/provider action or production/shared-local/Survey/account/billing/migration/
+cutover change. PR1581 stays draft. Independent review follows a stable candidate;
+128 prior review turns/75 prior batches, original clocks/task waiver retained.

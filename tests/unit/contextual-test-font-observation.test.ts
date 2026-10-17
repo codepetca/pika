@@ -16,7 +16,7 @@ function fixture(empty = true) {
     Object.defineProperty(node, 'scrollWidth', { configurable: true, value: boxes.get(node)!.width })
   }
   if (!empty) { paragraph.textContent = 'Existing history'; paragraph.removeAttribute('data-placeholder'); paragraph.className = '' }
-  const base = { display: 'block', visibility: 'visible', opacity: '1', contentVisibility: 'visible', position: 'static', top: 'auto', fontSize: '16px', color: 'rgb(100, 100, 100)' }
+  const base = { display: 'block', visibility: 'visible', opacity: '1', contentVisibility: 'visible', position: 'static', top: 'auto', fontSize: '16px', color: 'rgb(100, 100, 100)', overflowX: 'visible', overflowY: 'visible' }
   const pseudo = { ...base, content: '"Write your response here..."', height: '0px' }
   const styles = new Map<Element, Record<string, string>>([[nav, { ...base, position: 'sticky', top: '16px' }], [paragraph, { ...base, position: 'relative' }]])
   vi.stubGlobal('getComputedStyle', (node: Element, pseudoElement?: string) => pseudoElement ? pseudo : styles.get(node) ?? base)
@@ -32,6 +32,74 @@ function fixture(empty = true) {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.innerHTML = '' })
 
 describe('serialized font observation CPU geometry contract (not visual evidence)', () => {
+  function previewFixture(viewportClass = 'simple-editor-content') {
+    const f = fixture(false), viewport = document.createElement('div'), second = document.createElement('p')
+    viewport.className = viewportClass
+    viewport.setAttribute('data-history-preview-mode', 'locked')
+    f.editor.before(viewport); viewport.append(f.editor)
+    f.paragraph.outerHTML = '<h1>Document heading</h1>'
+    const first = f.editor.querySelector('h1')!
+    second.textContent = 'Opening body'; f.editor.append(second)
+    viewport.scrollTop = 100; viewport.scrollLeft = 12
+    viewport.getBoundingClientRect = () => f.rect(36, 200, 318, 140) as DOMRect
+    Object.defineProperties(viewport, {
+      clientWidth: { configurable: true, value: 318 }, clientHeight: { value: 140 },
+      scrollWidth: { value: 330 }, scrollHeight: { value: 1000 },
+    })
+    f.editor.getBoundingClientRect = () => f.rect(36 - viewport.scrollLeft, 200 - viewport.scrollTop, 318, 1000) as DOMRect
+    first.getBoundingClientRect = () => f.rect(48 - viewport.scrollLeft, 212 - viewport.scrollTop, 282, 30) as DOMRect
+    second.getBoundingClientRect = () => f.rect(48 - viewport.scrollLeft, 260 - viewport.scrollTop, 282, 30) as DOMRect
+    f.styles.set(viewport, { ...f.base, overflowX: 'auto', overflowY: 'auto' })
+    const slider = document.createElement('div'); slider.setAttribute('role', 'slider'); slider.setAttribute('aria-label', 'Complete save history')
+    slider.setAttribute('aria-valuenow', '3'); f.gallery.append(slider)
+    const exit = document.createElement('button'); exit.textContent = 'Exit preview'; f.gallery.append(exit)
+    return { ...f, viewport, first, second, slider, exit }
+  }
+  it.each(['simple-editor-content', 'simple-viewer-content'])('positions the owned pinned %s viewport before serialized observation without changing preview state', viewportClass => {
+    const f = previewFixture(viewportClass)
+    // Both opening blocks are in the outer screenshot but above the inner viewport.
+    expect(f.observe('preview', false)).toMatchObject({ positioned: false, checks: { content: false } })
+    expect(f.viewport.scrollTop).toBe(100)
+    expect(f.observe('preview', true)).toMatchObject({ positioned: true, preview: true, pinnedPreview: true, checks: { content: true } })
+    expect(f.viewport.scrollTop).toBe(0); expect(f.viewport.scrollLeft).toBe(0)
+    expect(f.viewport.getAttribute('data-history-preview-mode')).toBe('locked')
+    expect(f.slider.getAttribute('aria-valuenow')).toBe('3'); expect(f.exit.textContent).toBe('Exit preview')
+    expect(f.first.textContent).toBe('Document heading'); expect(f.second.textContent).toBe('Opening body')
+    vi.mocked(window.scrollTo).mockClear()
+    const top = vi.spyOn(f.viewport, 'scrollTop', 'set'), left = vi.spyOn(f.viewport, 'scrollLeft', 'set')
+    expect(f.observe('preview', false).positioned).toBe(true)
+    expect(top).not.toHaveBeenCalled(); expect(left).not.toHaveBeenCalled(); expect(window.scrollTo).not.toHaveBeenCalled()
+  })
+  it('does not repair an unpinned viewport or a post-screenshot scroll drift', () => {
+    const f = previewFixture()
+    f.viewport.setAttribute('data-history-preview-mode', 'focused')
+    expect(f.observe('preview', true)).toMatchObject({ positioned: false, pinnedPreview: false })
+    expect(f.viewport.scrollTop).toBe(100)
+    f.viewport.setAttribute('data-history-preview-mode', 'locked')
+    expect(f.observe('preview', false).checks.content).toBe(false)
+    expect(f.viewport.scrollTop).toBe(100)
+  })
+  it.each(['auto', 'scroll', 'hidden', 'clip', 'overlay'])('rejects opening content clipped by any nested overflow:%s ancestor', overflow => {
+    const f = previewFixture(), frame = document.createElement('div')
+    f.viewport.before(frame); frame.append(f.viewport)
+    f.viewport.scrollTop = 0; f.viewport.scrollLeft = 0
+    frame.getBoundingClientRect = () => f.rect(36, 200, 318, 75) as DOMRect
+    Object.defineProperties(frame, { clientWidth: { value: 318 }, clientHeight: { value: 75 } })
+    f.styles.set(frame, { ...f.base, overflowY: overflow })
+    expect(f.observe('preview', false)).toMatchObject({ positioned: false, checks: { content: false } })
+    // Do not scroll an arbitrary enclosing pane to make the sample pass.
+    expect(f.observe('preview', true).checks.content).toBe(false); expect(frame.scrollTop).toBe(0)
+  })
+  it('uses each clipping axis and the client area inside borders and scrollbars', () => {
+    const f = previewFixture()
+    f.viewport.scrollTop = 0; f.viewport.scrollLeft = 0
+    f.viewport.getBoundingClientRect = () => f.rect(36, 200, 318, 140) as DOMRect
+    Object.defineProperty(f.viewport, 'clientWidth', { configurable: true, value: 280 })
+    f.styles.set(f.viewport, { ...f.base, overflowX: 'hidden', overflowY: 'visible' })
+    expect(f.observe('preview', false).checks.content).toBe(false)
+    f.styles.set(f.viewport, { ...f.base, overflowX: 'visible', overflowY: 'hidden' })
+    expect(f.observe('preview', false).checks.content).toBe(true)
+  })
   it('does not reposition during post-capture verification and requires the locked third save', () => {
     const f = fixture(false)
     f.editor.setAttribute('data-history-preview-mode', 'focused')
