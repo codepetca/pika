@@ -7,14 +7,16 @@ describe('narrow Test environment boundary', () => {
   it('confines app egress to its API gateway and inbound to its private listener', () => {
     const p = contextualTestVerticalProfile('app', ['/private/dependencies'], '/private/fixture', '/private/evidence')
     expect(p).toContain('(deny network*)')
-    expect(p).toContain('(remote tcp "127.0.0.1:54340")')
-    expect(p).toContain('(local tcp "127.0.0.1:3118")')
+    expect(p).toContain('(remote tcp4 "localhost:54340")')
+    expect(p).toContain('(local tcp4 "localhost:3118")')
+    expect(p).not.toMatch(/\((?:remote|local) tcp /)
     expect(p).not.toContain('54331'); expect(p).not.toContain('54322')
     expect(p).toContain('(deny file-write* (subpath "/private/dependencies"))')
   })
   it('gives the browser only the public gateway, never database or Docker access', () => {
     const p = contextualTestVerticalProfile('browser', ['/private/dependencies'], '/private/fixture', '/private/evidence')
-    expect(p).toContain('(remote tcp "127.0.0.1:3117")')
+    expect(p).toContain('(remote tcp4 "localhost:3117")')
+    expect(p).not.toMatch(/\((?:remote|local) tcp /)
     expect(p).not.toContain('54340'); expect(p).not.toContain('3118')
     expect(p).not.toContain('remote unix')
   })
@@ -83,6 +85,10 @@ describe('generated network denial probe (fake I/O only)', () => {
       for (const host of ['127.0.0.1', '::1']) for (const port of [54321,54322,54331,54332,role === 'browser' ? 3118 : 3117]) {
         expect(targets).toContainEqual({ child, kind: 'tcp', target: { host, port } })
       }
+      for (const host of ['::1', '::ffff:127.0.0.1']) {
+        expect(targets).toContainEqual({ child, kind: 'tcp', target: { host, port: role === 'browser' ? 3117 : 54340 } })
+      }
+      expect(targets).toHaveLength(16)
       expect(targets).toContainEqual({ child, kind: 'tcp', target: { host: '192.0.2.1', port: 80 } })
       expect(targets).toContainEqual({ child, kind: 'tcp', target: { path: '/private/docker.sock' } })
       expect(targets.filter(row => row.kind === 'udp')).toHaveLength(2)

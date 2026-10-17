@@ -15,8 +15,8 @@ export function contextualTestVerticalProfile(role: 'app' | 'browser', roots: re
   const sensitive = ['Repos/.env', '.ssh', '.aws', '.config/gcloud', 'Library/Keychains'].map(p => `(subpath ${checked(join(homedir(), p))})`).join(' ')
   return `${inherited}(deny network*)\n(deny file-read-data ${sensitive})\n`
     + (role === 'app'
-      ? '(allow network-outbound (remote tcp "127.0.0.1:54340"))\n(allow network-bind network-inbound (local tcp "127.0.0.1:3118"))\n'
-      : '(allow network-outbound (remote tcp "127.0.0.1:3117"))\n')
+      ? '(allow network-outbound (remote tcp4 "localhost:54340"))\n(allow network-bind network-inbound (local tcp4 "localhost:3118"))\n'
+      : '(allow network-outbound (remote tcp4 "localhost:3117"))\n')
 }
 export function contextualTestVerticalCommands(runnerRoot: string, dependencyRoot: string) {
   checked(runnerRoot); checked(dependencyRoot)
@@ -61,6 +61,8 @@ const verticalNetworkProbeSource = String.raw`async function verticalNetworkProb
   // Every attempt sends zero payload bytes. A refused/missing service is no proof.
   const ports = [54321,54322,54331,54332,config.role === 'browser' ? 3118 : 3117]
   const jobs = ['127.0.0.1','::1'].flatMap(host => ports.map(port => attempt(false, { host, port })))
+  // The permitted port is IPv4-only, including when the peer is v4-mapped IPv6.
+  jobs.push(...['::1','::ffff:127.0.0.1'].map(host => attempt(false, { host, port: config.role === 'browser' ? 3117 : 54340 })))
   jobs.push(attempt(false, { host: '192.0.2.1', port: 80 }), attempt(false, { path: config.socketPath }),
     attempt(true, { host: '127.0.0.1', port: 54321 }), attempt(true, { host: '::1', port: 54321 }))
   let childResult = Promise.resolve(true)
