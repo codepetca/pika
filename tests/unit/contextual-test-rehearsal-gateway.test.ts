@@ -136,6 +136,17 @@ describe('fixed contextual Test HTTP gateway policy', () => {
       expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', path + query, 'localhost:3117', method, {})).toThrow()
     }
   })
+  it('admits the member shell notification read only for one exact fixture classroom', () => {
+    const path = `/api/student/notifications?classroom_id=${plan.classrooms.classB.id}`
+    expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', path, 'localhost:3117', 'GET')).not.toThrow()
+    for (const target of ['/api/student/notifications', path + '&extra=1', path + '&classroom_id=' + plan.classrooms.classA.id,
+      path.replace(plan.classrooms.classB.id, testId), path.replace('notifications?', 'notifications/read?')]) {
+      expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', target, 'localhost:3117', 'GET')).toThrow()
+    }
+    for (const method of ['POST', 'PATCH', 'DELETE']) {
+      expect(() => new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000).admit('app', path, 'localhost:3117', method, {})).toThrow()
+    }
+  })
 })
 
 describe('contextual Test gateway original-byte ownership with fake HTTP I/O', () => {

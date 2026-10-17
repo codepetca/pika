@@ -106,9 +106,11 @@ export class ContextualTestGatewayPolicy {
       const testProvenance = !!provenance && this.classIds.has(provenance[1]) && query.size === 2
         && query.getAll('target').length === 1 && query.get('target') === 'tests'
         && query.getAll('artifact_id').length === 1 && new RegExp(`^${uuid}$`).test(query.get('artifact_id') ?? '')
+      const notifications = path === '/api/student/notifications' && query.size === 1
+        && query.getAll('classroom_id').length === 1 && this.classIds.has(query.get('classroom_id') ?? '')
       allowed = ['/login', '/classrooms', '/favicon.ico', '/pika-icon-light.svg', '/pika-icon-dark.svg',
         '/api/auth/me', '/api/classrooms/home', '/api/student/attendance/status', '/api/teacher/tests', '/api/student/tests'].includes(path)
-        || !!(classDays && this.classIds.has(classDays[1])) || testProvenance
+        || !!(classDays && this.classIds.has(classDays[1])) || testProvenance || notifications
         || new RegExp(`^/classrooms/${uuid}$`).test(path) || path.startsWith('/_next/static/')
         || /^\/fonts\/[a-zA-Z0-9_./-]+$/.test(path) || teacherTest.test(path) || studentTest.test(path) || classRead.test(path)
     } else {
