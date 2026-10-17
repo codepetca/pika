@@ -307,6 +307,8 @@ export function TestStudentGradingPanel({
   useEffect(() => {
     setSavingAll(false)
     setSavingStudentId(null)
+    setGradingError('')
+    conflictRetryCountRef.current = 0
   }, [scope])
 
   useEffect(() => {
@@ -348,8 +350,8 @@ export function TestStudentGradingPanel({
         loadedScopeRef.current = scope
         setError('')
         setLastSavedStudentId(null)
-        setGradingError('')
-        conflictRetryCountRef.current = 0
+        // Refreshes update read state, not mutation recovery. Keep a newer save
+        // failure and its retry bound until an edit, save or scope change.
       } catch (loadError: any) {
         if (isCurrent()) setError(loadError.message || 'Failed to load test results')
       } finally {

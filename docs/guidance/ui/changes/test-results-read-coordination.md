@@ -50,8 +50,15 @@ access checks, cleanup and preservation. Local evidence is retained under
 Those desktop-light captures are historical for this main integration, not a
 claim that current main has passed another database-backed rehearsal.
 
-Integration verification: 169 reader/panel/roster tests pass, including main's
-partial-failure grading summary regression. Use the existing returned-feedback
+Integration review also found a same-scope refresh clearing a newer manual-save
+failure and resetting the consecutive conflict retry bound. Read completion now
+leaves mutation recovery state alone; a resource-scope change, deliberate edit
+or save owns recovery. Deferred 500/409 regressions preserve drafts and errors
+and prove no extra autosave after failure / no third automatic conflict attempt.
+
+Integration verification: reader/panel/roster tests include main's
+partial-failure grading summary regression and both save-failure overlaps.
+Use the existing returned-feedback
 Playwright fixture across teacher desktop/mobile and light/dark for current
 rendering, focus and local-draft evidence; intercepted API reads and blocked
 writes do not establish database persistence. Student rendering is unchanged

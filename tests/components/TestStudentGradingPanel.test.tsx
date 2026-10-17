@@ -341,6 +341,77 @@ describe('TestStudentGradingPanel save-all grading', () => {
     expect(screen.queryByTestId('spinner')).not.toBeInTheDocument()
   })
 
+  it('preserves a newer save failure across a pending refresh without resubmitting', async () => {
+    const patch = deferred<any>()
+    const refresh = deferred<any>()
+    let reads = 0
+    let writes = 0
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockImplementation((_url, init) => {
+      if (init?.method === 'PATCH') { writes += 1; return patch.promise }
+      return ++reads === 1
+        ? Promise.resolve({ ok: true, json: async () => makeResultsPayload(1, null, 1) })
+        : refresh.promise
+    })
+    let save: (() => Promise<void>) | null = null
+    const register = (handler: (() => Promise<void>) | null) => { save = handler }
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(1)
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    let saving!: Promise<void>
+    act(() => { saving = save!() })
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} onRegisterSaveHandler={register} />)
+    await act(async () => {
+      patch.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save failed; review before retry' }) })
+      await saving
+    })
+    await act(async () => { refresh.resolve({ ok: true, json: async () => makeResultsPayload(1, null, 2) }) })
+    expect(screen.getByRole('spinbutton')).toHaveValue(4)
+    expect(screen.getByText('Save failed; review before retry')).toBeInTheDocument()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(writes).toBe(1)
+  })
+
+  it('keeps the consecutive conflict retry bound through overlapping and later refreshes', async () => {
+    const firstPatch = deferred<any>()
+    const refresh = deferred<any>()
+    let reads = 0
+    let writes = 0
+    const conflict = { ok: false, status: 409, json: async () => ({ error: 'Grades changed' }) }
+    const fetch = global.fetch as ReturnType<typeof vi.fn>
+    fetch.mockImplementation((_url, init) => {
+      if (init?.method === 'PATCH') return ++writes === 1 ? firstPatch.promise : Promise.resolve(conflict)
+      reads += 1
+      return reads === 2 ? refresh.promise
+        : Promise.resolve({ ok: true, json: async () => makeResultsPayload(1, null, reads) })
+    })
+    let save: (() => Promise<void>) | null = null
+    const register = (handler: (() => Promise<void>) | null) => { save = handler }
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    expect(await screen.findByRole('spinbutton')).toHaveValue(1)
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    let saving!: Promise<void>
+    act(() => { saving = save!() })
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} onRegisterSaveHandler={register} />)
+    await act(async () => { firstPatch.resolve(conflict) })
+    await act(async () => {
+      refresh.resolve({ ok: true, json: async () => makeResultsPayload(1, null, 2) })
+      await saving
+    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1200) })
+    expect(writes).toBe(2)
+    expect(screen.getByText('Grades changed again. Your edits are preserved; review them and try saving again.')).toBeInTheDocument()
+    await act(async () => {
+      rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={2} onRegisterSaveHandler={register} />)
+    })
+    expect(screen.getByRole('spinbutton')).toHaveValue(4)
+    expect(screen.getByText('Grades changed again. Your edits are preserved; review them and try saving again.')).toBeInTheDocument()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(writes).toBe(2)
+  })
+
   it('renders coding answers with their source formatting in teacher results', async () => {
     const payload = makeResultsPayload(null, null)
     const responseText = 'function greet() {\n\treturn "hello"\n}'

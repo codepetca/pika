@@ -488,3 +488,10 @@ remaining, ordinary usage allowed; DeepSeek paused through Dec31. Storage319GB
 healthy; dependency lock unchanged and existing node_modules reused. Effective
 reviewer configuration and per-task usage unavailable. Production/shared-local
 DB/provider/Survey/schema/billing/account/cutover holds unchanged.
+
+Independent complete review156 found one P2: a successful panel refresh could
+erase a newer save error and reset the conflict retry budget. Reproduced with
+two failing deferred500/409 regressions; move mutation-error/retry reset to the
+resource-scope transition, preserving explicit edit/save recovery. Remediation98
+adds no API, permission, styling or database change; targeted re-review and final
+checks/fixture captures follow on the new SHA. Original proof remains historical.
