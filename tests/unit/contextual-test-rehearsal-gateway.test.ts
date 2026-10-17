@@ -49,6 +49,38 @@ function harness(now = () => 1000) {
 const flush = async () => { await new Promise<void>(resolve => setImmediate(resolve)) }
 
 describe('fixed contextual Test HTTP gateway policy', () => {
+  it.each([
+    ['inspect', 'test_owner_invalid_deadline', 'inspect', 'invalid-deadline'],
+    ['results', 'test_owner_invalid_input', 'results', 'invalid-input'],
+    ['private-operation', 'private-error', 'other', 'other'],
+  ])('records only fixed RPC rejection labels for %s', async (operation, message, expectedOperation, reason) => {
+    const h = harness(); await h.gateways.start()
+    const body = JSON.stringify({ p_operation: operation, p_payload: { secret: 'private-answer' } })
+    const incoming = h.incoming('api', '/rest/v1/rpc/test_owner_workflow_v1', 'POST', body, { 'content-type': 'application/json' })
+    await flush()
+    const error = JSON.stringify({ code: 'PT400', message, details: 'private-detail', hint: 'private-hint' })
+    h.respond(0, error, { 'content-type': 'application/json' }, 400); await incoming.done
+    expect(incoming.response.status).toBe(400); expect(incoming.response.bytes.toString()).toBe(error)
+    expect(h.gateways.receipt().firstOwnerRpcRejection).toEqual({ operation: expectedOperation, reason })
+    expect(Object.isFrozen(h.gateways.receipt().firstOwnerRpcRejection)).toBe(true)
+    expect(JSON.stringify(h.gateways.receipt())).not.toContain('private')
+    expect(h.gateways.receipt().firstFailure).toBeNull()
+    await h.gateways.close(2000)
+  })
+  it('ignores unrelated or successful responses and retains only the first matching rejection', () => {
+    const p = new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000)
+    const path = '/rest/v1/rpc/test_owner_workflow_v1', request = { p_operation: 'inspect' }, response = { code: 'PT400', message: 'test_owner_invalid_input' }
+    for (const [kind, target, method, status, reply] of [
+      ['app', path, 'POST', 400, response], ['api', path + '?x=1', 'POST', 400, response],
+      ['api', path, 'GET', 400, response], ['api', path, 'POST', 200, response],
+      ['api', path, 'POST', 403, response], ['api', path, 'POST', 400, { code: 'PT403' }],
+      ['api', path, 'POST', 400, null], ['api', path, 'POST', 400, []],
+    ] as const) p.observeOwnerRpc(kind, target, method, status, request, reply)
+    expect(p.receipt().firstOwnerRpcRejection).toBeNull()
+    p.observeOwnerRpc('api', path, 'POST', 400, request, response)
+    p.observeOwnerRpc('api', path, 'POST', 400, { p_operation: 'results' }, { code: 'PT400', message: 'test_owner_invalid_deadline' })
+    expect(p.receipt().firstOwnerRpcRejection).toEqual({ operation: 'inspect', reason: 'invalid-input' })
+  })
   it.each(['http://localhost:3117/api/auth/me', '//example.test/x', '/a/../api/auth/me', '/%2e%2e/api/auth/me', '/api%2fauth/me', '/api/%2561uth/me', '/api\\auth/me', '/api//auth/me', '/api/auth/me#x', '/api/auth/me?x=%00', '/api/auth/me?x=%zz'])('rejects ambiguous target %s', value => {
     expect(() => contextualTestGatewayTarget('app', value, 'localhost:3117')).toThrow('Private contextual Test gateway')
   })

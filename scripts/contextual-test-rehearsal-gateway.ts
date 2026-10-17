@@ -66,7 +66,8 @@ function endpointLabel(path: string) {
   return 'unknown'
 }
 type EndpointFailure = Readonly<{ kind: Kind; method: 'GET' | 'HEAD' | 'POST' | 'PATCH' | 'DELETE' | 'other'; route: ReturnType<typeof endpointLabel> }>
-type PolicyReceipt = { firstFailure: ContextualTestGatewayFailure | null; firstEndpointFailure: EndpointFailure | null; appRequests: number; apiRequests: number; creates: number; rejectedHmr: number; rejectedDiagnostics: number }
+type OwnerRpcRejection = Readonly<{ operation: 'inspect' | 'results' | 'other'; reason: 'invalid-deadline' | 'invalid-input' | 'other' }>
+type PolicyReceipt = { firstFailure: ContextualTestGatewayFailure | null; firstEndpointFailure: EndpointFailure | null; firstOwnerRpcRejection: OwnerRpcRejection | null; appRequests: number; apiRequests: number; creates: number; rejectedHmr: number; rejectedDiagnostics: number }
 export type ContextualTestGatewayReceipt = Readonly<PolicyReceipt & {
   version: 1; started: boolean; closing: boolean; closed: boolean; pending: number; sockets: number
   jsonResponses: number; responses: number; requestBytes: number; responseBytes: number
@@ -76,6 +77,7 @@ export type ContextualTestGatewayReceipt = Readonly<PolicyReceipt & {
 export class ContextualTestGatewayPolicy {
   private firstFailure: ContextualTestGatewayFailure | null = null
   private firstEndpointFailure: EndpointFailure | null = null
+  private firstOwnerRpcRejection: OwnerRpcRejection | null = null
   private appRequests = 0
   private apiRequests = 0
   private creates = 0
@@ -90,7 +92,19 @@ export class ContextualTestGatewayPolicy {
   reject(category: ContextualTestGatewayFailure): never { this.latch(category); throw failure() }
   latch(category: ContextualTestGatewayFailure): void { this.firstFailure ??= failureCategories.includes(category) ? category : 'protocol' }
   check(): void { if (this.now() >= this.deadline) this.reject('deadline'); if (this.firstFailure) throw failure() }
-  receipt(): PolicyReceipt { return { firstFailure: this.firstFailure, firstEndpointFailure: this.firstEndpointFailure, appRequests: this.appRequests, apiRequests: this.apiRequests, creates: this.creates, rejectedHmr: this.rejectedHmr, rejectedDiagnostics: this.rejectedDiagnostics } }
+  receipt(): PolicyReceipt { return { firstFailure: this.firstFailure, firstEndpointFailure: this.firstEndpointFailure, firstOwnerRpcRejection: this.firstOwnerRpcRejection, appRequests: this.appRequests, apiRequests: this.apiRequests, creates: this.creates, rejectedHmr: this.rejectedHmr, rejectedDiagnostics: this.rejectedDiagnostics } }
+  /** Observe only fixed labels from already bounded/parsed JSON; forwarding and
+   * acceptance are unchanged. Never retain identities, payloads or error text. */
+  observeOwnerRpc(kind: Kind, target: string, method: string, status: number, requestBody: unknown, responseBody: unknown): void {
+    if (this.firstOwnerRpcRejection || kind !== 'api' || target !== '/rest/v1/rpc/test_owner_workflow_v1' || method !== 'POST' || status !== 400) return
+    if (!responseBody || typeof responseBody !== 'object' || Array.isArray(responseBody)) return
+    const error = responseBody as Record<string, unknown>
+    if (error.code !== 'PT400') return
+    const operation = requestBody && typeof requestBody === 'object' && !Array.isArray(requestBody)
+      ? (requestBody as Record<string, unknown>).p_operation : undefined
+    this.firstOwnerRpcRejection = Object.freeze({ operation: operation === 'inspect' || operation === 'results' ? operation : 'other',
+      reason: error.message === 'test_owner_invalid_deadline' ? 'invalid-deadline' : error.message === 'test_owner_invalid_input' ? 'invalid-input' : 'other' })
+  }
   private charge(kind: Kind) {
     if (kind === 'app') { if (this.appRequests >= 950) this.reject('request-cap'); this.appRequests++ }
     else { if (this.apiRequests >= 4000) this.reject('request-cap'); this.apiRequests++ }
@@ -302,7 +316,9 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
                   if (method !== 'HEAD' && ![204, 304].includes(response.statusCode ?? 0)
                     && responseLength !== undefined && Number(responseLength) !== size) policy.reject('response-body')
                   if (method !== 'HEAD' && ![204, 304].includes(response.statusCode ?? 0) && json) {
-                    try { parseJson(originalBytes) } catch { policy.reject('response-json') }
+                    let parsed: unknown
+                    try { parsed = parseJson(originalBytes) } catch { policy.reject('response-json') }
+                    policy.observeOwnerRpc(kind, target, method, response.statusCode ?? 0, body, parsed)
                     jsonResponses++
                   }
                   responseBytes += size; responses++
