@@ -27,11 +27,14 @@ function fixture() {
     denials: { ownerLearner: 403, memberTeacher: 403, nonmemberRead: 403 } }
   const before: RehearsalWitness = { version: 1, work_graph_sha256: 'a'.repeat(64), tests: plan.retiredTestIds.map((testId, i) => ({ id: testId,
     classroom_id: i ? plan.classrooms.classB.id : plan.classrooms.classA.id, status: 'draft', position: 0, retired: true })),
-    attempts: [], memberships: [], generations: [], question_counts: [], classes: [], response_count: 0, history_count: 0, objects: [] }
+    attempts: [], memberships: [], generations: [], question_counts: [],
+    classes: [plan.classrooms.classA, plan.classrooms.classB].map(c => ({ id: c.id, archived_at: null, updated_at: new Date(1000).toISOString() })),
+    response_count: 0, history_count: 0, objects: [] }
   const after: RehearsalWitness = { ...structuredClone(before), tests: [...structuredClone(before.tests),
     { id: result.testId, classroom_id: result.classroomId, status: 'closed', position: 1, retired: false }],
     attempts: [{ id: id(4), test_id: result.testId, student_id: result.memberId, draft_revision: 3, is_submitted: true, returned_at: null }],
     question_counts: [{ test_id: result.testId, count: 2 }], response_count: 2, history_count: 2 }
+  after.classes[1].updated_at = new Date(1500).toISOString()
   const raw = { version: 1, proofScope: 'vertical-v1', projectId, nonce: admission.nonce,
     sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256,
     deadline: admission.deadline, endedAt: 2000, outcome: 'passed', contextsClosed: true, pageErrors: 0,

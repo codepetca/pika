@@ -460,7 +460,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
         await gateways!.close(Math.min(admission.deadline, controls.now() + 30000)); workCheck()
         const drained = gateways!.receipt()
         assert(drained.started && drained.closed && drained.pending === 0 && drained.sockets === 0 && drained.firstFailure === null)
-        assertContextualTestVerticalDatabase(before!, await witness(), validated.result); databaseValidated = true
+        assertContextualTestVerticalDatabase(before!, await witness(), validated.result, binding); databaseValidated = true
       } else validateContextualTestPlaywrightReceipt(receipt, binding)
       edges.verifyArtifacts(binding, receipt); playwrightValidated = true
       await verify()

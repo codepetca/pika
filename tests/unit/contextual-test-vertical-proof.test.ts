@@ -18,11 +18,14 @@ function fixture() {
     artifacts: ['vertical-owner-author','vertical-member-submitted','vertical-owner-results'].map(label => ({ label, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })) }
   const before: RehearsalWitness = { version: 1, work_graph_sha256: 'a'.repeat(64), tests: plan.retiredTestIds.map((testId, i) => ({ id: testId,
     classroom_id: i ? plan.classrooms.classB.id : plan.classrooms.classA.id, status: 'draft', position: 0, retired: true })),
-    attempts: [], memberships: [], generations: [], question_counts: [], classes: [], response_count: 0, history_count: 0, objects: [] }
+    attempts: [], memberships: [], generations: [], question_counts: [],
+    classes: [plan.classrooms.classA, plan.classrooms.classB].map(c => ({ id: c.id, archived_at: null, updated_at: new Date(1100).toISOString() })),
+    response_count: 0, history_count: 0, objects: [] }
   const after: RehearsalWitness = { ...structuredClone(before), work_graph_sha256: 'b'.repeat(64), tests: [...structuredClone(before.tests),
     { id: result.testId, classroom_id: result.classroomId, status: 'closed', position: 1, retired: false }],
     attempts: [{ id: id(4), test_id: result.testId, student_id: result.memberId, draft_revision: 3, is_submitted: true, returned_at: null }],
     question_counts: [{ test_id: result.testId, count: 2 }], response_count: 2, history_count: 2 }
+  after.classes[1].updated_at = new Date(1400).toISOString()
   return { binding, raw, result, before, after }
 }
 
@@ -88,7 +91,22 @@ describe('vertical receipt proof (CPU only)', () => {
 describe('vertical database logical readback proof (CPU only)', () => {
   it('accepts exactly one submitted member attempt and preserves the baseline graph', () => {
     const f = fixture()
-    expect(() => assertContextualTestVerticalDatabase(f.before, f.after, f.result)).not.toThrow()
+    expect(() => assertContextualTestVerticalDatabase(f.before, f.after, f.result, f.binding)).not.toThrow()
+  })
+  it.each(['missing','duplicate','foreign','archive-owner','archive-other','other-time','unchanged-owner-time','backward','invalid','before-run','after-run'])('rejects classroom drift: %s', defect => {
+    const f = fixture(), rows = f.after.classes
+    if (defect === 'missing') rows.pop()
+    if (defect === 'duplicate') rows[0] = { ...rows[1] }
+    if (defect === 'foreign') rows[0].id = id(99)
+    if (defect === 'archive-owner') rows[1].archived_at = new Date(1400).toISOString()
+    if (defect === 'archive-other') rows[0].archived_at = new Date(1400).toISOString()
+    if (defect === 'other-time') rows[0].updated_at = new Date(1400).toISOString()
+    if (defect === 'unchanged-owner-time') rows[1].updated_at = f.before.classes[1].updated_at
+    if (defect === 'backward') rows[1].updated_at = new Date(1050).toISOString()
+    if (defect === 'invalid') rows[1].updated_at = 'invalid'
+    if (defect === 'before-run') { f.before.classes[1].updated_at = new Date(0).toISOString(); rows[1].updated_at = new Date(500).toISOString() }
+    if (defect === 'after-run') rows[1].updated_at = new Date(f.binding.deadline).toISOString()
+    expect(() => assertContextualTestVerticalDatabase(f.before, f.after, f.result, f.binding)).toThrow()
   })
   it.each(['baseline-attempt','baseline-question','baseline-response','baseline-history','baseline-object','baseline-live-test','extra-test','baseline-changed',
     'draft-test','retired-new-test','wrong-class','second-attempt','wrong-member','unsubmitted','returned','zero-revision','wrong-question-count','wrong-question-test',
@@ -119,6 +137,6 @@ describe('vertical database logical readback proof (CPU only)', () => {
     if (defect === 'memberships') after.memberships = [{} as never]
     if (defect === 'generations') after.generations = [{} as never]
     if (defect === 'classes') after.classes = [{} as never]
-    expect(() => assertContextualTestVerticalDatabase(before, after, f.result)).toThrow('Vertical Test database proof rejected')
+    expect(() => assertContextualTestVerticalDatabase(before, after, f.result, f.binding)).toThrow('Vertical Test database proof rejected')
   })
 })

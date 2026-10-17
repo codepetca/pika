@@ -88,9 +88,13 @@ export function validateContextualTestVerticalReceipt(raw: unknown, binding: Con
 }
 
 /** Fixed read-only witness comparison. This proves only the bounded work graph. */
-export function assertContextualTestVerticalDatabase(before: RehearsalWitness, after: RehearsalWitness, rawResult: VerticalTestResult): void {
+export function assertContextualTestVerticalDatabase(before: RehearsalWitness, after: RehearsalWitness, rawResult: VerticalTestResult,
+  binding: Pick<ContextualTestRunBinding, 'projectId' | 'startedAt' | 'deadline'>): void {
   try {
     const result = resultData(rawResult)
+    const plan = createContextualTestPlan(binding.projectId)
+    must(result.classroomId === plan.classrooms.classB.id)
+    must(Number.isSafeInteger(binding.startedAt) && Number.isSafeInteger(binding.deadline) && binding.startedAt < binding.deadline)
     must(before.version === 1 && after.version === 1)
     must(before.tests.length === 2 && new Set(before.tests.map(test => test.id)).size === 2
       && before.tests.every(test => uuid.test(test.id) && test.retired === true && test.status === 'draft'))
@@ -106,6 +110,22 @@ export function assertContextualTestVerticalDatabase(before: RehearsalWitness, a
       && attempt.is_submitted === true && Number.isSafeInteger(attempt.draft_revision) && attempt.draft_revision > 0 && attempt.returned_at === null)
     must(after.question_counts.length === 1 && after.question_counts[0].test_id === result.testId && after.question_counts[0].count === 2)
     must(after.response_count === 2 && Number.isSafeInteger(after.history_count) && after.history_count > 0 && after.objects.length === 0)
-    for (const key of ['memberships','generations','classes'] as const) must(isDeepStrictEqual(before[key], after[key]))
+    for (const key of ['memberships','generations'] as const) must(isDeepStrictEqual(before[key], after[key]))
+    // Frozen migrations250/252 deliberately advance the owning classroom's
+    // source timestamp. No other classroom identity/archive/time change is allowed.
+    must(before.classes.length === 2 && after.classes.length === 2)
+    for (const classroomId of [plan.classrooms.classA.id, plan.classrooms.classB.id]) {
+      const oldRows = before.classes.filter(row => row.id === classroomId), newRows = after.classes.filter(row => row.id === classroomId)
+      must(oldRows.length === 1 && newRows.length === 1)
+      const oldRow = data(oldRows[0], ['id','archived_at','updated_at']), newRow = data(newRows[0], ['id','archived_at','updated_at'])
+      must(oldRow.archived_at === null && newRow.archived_at === null)
+      if (classroomId === plan.classrooms.classA.id) must(isDeepStrictEqual(oldRow, newRow))
+      else {
+        must(typeof oldRow.updated_at === 'string' && typeof newRow.updated_at === 'string')
+        const oldTime = Date.parse(oldRow.updated_at), newTime = Date.parse(newRow.updated_at)
+        must(Number.isFinite(oldTime) && Number.isFinite(newTime) && newTime > oldTime
+          && newTime >= binding.startedAt && newTime < binding.deadline)
+      }
+    }
   } catch { throw Error('Vertical Test database proof rejected') }
 }
