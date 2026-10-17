@@ -535,3 +535,10 @@ one targeted independent correction review and fresh native proof remain require
 Sol6.1/high bounded read-only diagnosis then two-file implementation verified by
 coordinator; per-worker usage unknown. Cumulative176reviews/113correction batches,
 existing clocks and routine-approval waiver retained; production holds unchanged.
+
+Fresh1678418b proof subsequently PASS:13 actualSDK calls, rollbackSQL, four
+observed committed races;655controls51actions842800bytes0sessions. Exact disposal,
+canonical equality and independent source/dependency equality PASS. Genuine268
+generated types installed byte-identically from private artifact1230d8e1…;
+temporary RPC signature removed. Targeted integration review and consolidated
+browser/CI gates remain. No shared-local/production migration or activation.

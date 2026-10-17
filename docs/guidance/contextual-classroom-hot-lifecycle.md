@@ -1,8 +1,9 @@
 # Contextual hot classroom archive and restore
 
-Status: source preparation; native verification, generated types, independent
-review and final-SHA CI are still required. No migration application or rollout
-activation follows from this document.
+Status: disposable native verification passed on1678418b; genuine268 types have
+been installed. Final type-integration review, consolidated browser verification
+and final-SHA CI remain required. No shared-local/production migration application
+or rollout activation follows from this document.
 
 ## Scope
 
@@ -84,6 +85,19 @@ the rollback contract and focused real-SDK/concurrency checks, generate genuine
 database types, verify preservation/cleanup, and complete independent review and
 CI. Then rerun the consolidated Test workflow on a newly reviewed app revision.
 Do not replay any previously spent rehearsal token.
+
+2026-10-17 native receipt: source1678418b0e7d20abc25f1c288c46a1a3cc5d5ad2,
+disposablepika_assignment_list_f5f76875a33c, exact001–268 chain
+16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0.
+All13 realSDK calls, rollbackSQL and four backend-observed committed schedules
+passed, using655controls/51actions/842800exchangedbytes and zero remaining
+sessions. Exact teardown, canonical equality and independent source/dependency
+preservation passed. CLI-generated artifact SHA256
+1230d8e1b789293fe754b5aedbbfd5711a5de82e3dfee179eb01363896414414 matches
+`src/types/database.generated.ts`; only the new RPC signature was added. The
+application now invokes that generated typed RPC directly, without a temporary
+signature cast. This receipt is component evidence, not the consolidated app
+workflow, a phase exit or rollout approval.
 
 Shared-local and production migration applications, production promotion,
 provider/account/plan changes and admission/home/page/cohort/cutover activation

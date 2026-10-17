@@ -9,13 +9,6 @@ import {
 
 const unavailable = () => new ApiError(503, 'Unable to verify classroom lifecycle update; refresh to reconcile its outcome')
 
-// Temporary source-preparation signature; genuine database generation remains a readiness gate.
-// Preserve the installed SDK receiver. There is no legacy fallback or automatic mutation retry.
-type HotLifecycleRpc = (
-  name: 'set_classroom_hot_archive_for_owner_v1',
-  args: { p_actor_id: string; p_classroom_id: string; p_archived: boolean },
-) => PromiseLike<unknown>
-
 type HotLifecycleOutcome =
   | { kind: 'updated'; classroom: ReturnType<typeof hydrateClassroomRecord> }
   | { kind: 'denied'; denial: ClassroomCreationDenial }
@@ -29,8 +22,7 @@ export async function setContextualClassroomHotArchive(input: {
   })
   let result: unknown
   try {
-    const rpc = (input.supabase.rpc as unknown as HotLifecycleRpc).bind(input.supabase)
-    result = await rpc('set_classroom_hot_archive_for_owner_v1', {
+    result = await input.supabase.rpc('set_classroom_hot_archive_for_owner_v1', {
       p_actor_id: actorId, p_classroom_id: classroomId, p_archived: archived,
     })
   } catch { throw unavailable() }
