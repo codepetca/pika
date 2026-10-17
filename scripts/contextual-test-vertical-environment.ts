@@ -24,7 +24,7 @@ export function contextualTestVerticalProfile(role: 'app' | 'browser', roots: re
 }
 export function contextualTestVerticalCommands(runnerRoot: string, dependencyRoot: string) {
   checked(runnerRoot); checked(dependencyRoot)
-  return { app: [join(dependencyRoot, 'next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', '3118'],
+  return { app: [join(runnerRoot, 'scripts/contextual-test-vertical-app.cjs'), join(dependencyRoot, 'next')],
     runner: [join(dependencyRoot, '@playwright/test/cli.js'), 'test', `--config=${join(runnerRoot, 'playwright.contextual-test-vertical.config.ts')}`, 'contextual-test-vertical.spec.ts'] }
 }
 

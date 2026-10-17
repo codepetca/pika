@@ -35,7 +35,7 @@ describe('narrow Test environment boundary', () => {
   })
   it('does not load framework interception into either ordinary process', () => {
     const commands = contextualTestVerticalCommands('/private/runner', '/private/dependencies')
-    expect(commands.app).toEqual(['/private/dependencies/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3118'])
+    expect(commands.app).toEqual(['/private/runner/scripts/contextual-test-vertical-app.cjs', '/private/dependencies/next'])
     expect(commands.runner.join(' ')).not.toMatch(/preload|redirect-guard|--require/)
     expect(commands.runner).toContain('contextual-test-vertical.spec.ts')
   })
