@@ -150,14 +150,18 @@ UI components, visual declarations, auth changes or production settings are intr
 ## 2026-10-17 New app candidate for the narrow proof
 
 The owner explicitly approved replacing the frozen app with a reviewed results-
-read coordination fix. Candidate `8633ca70a6da322f69e731065037546ddf5a06ec`
-(tree `f030ad424c2cec44634ecddbf234b0263049510f`) extends the historical
+read coordination fix. Candidate `050699bb0f889a533a349b6af415b821ac56d0e3`
+(tree `f44d726966f322e4e3eb0ef637c6f2c711544d77`) extends the historical
 `21e755d3` baseline without altering it. The new candidate coordinates roster and
 inspector in-flight reads, rejects stale completions and preserves fresh grading
 revisions. No schema, permissions, database lock or safety boundary changes.
 Schema001–262, migration chain, font overlay and all execution guards remain.
 
 This is the existing `vertical-v1` scope: one Test workflow and three screenshots,
-not the earlier full 48-image matrix above. App regressions pass154/154; source
+not the earlier full 48-image matrix above. App regressions pass160/160; source
 review and one fresh native attempt remain pending at this recorded checkpoint.
 All production/shared-local/provider/Survey/billing/account/cutover holds persist.
+Review153 found a normal-refresh draft merge could overwrite untouched fresh
+feedback. Candidate050699bb preserves field-level local intent; six regressions
+cover returned/submitted score-only, comment-only and combined edits. Targeted
+review must close that finding before the fresh proof.

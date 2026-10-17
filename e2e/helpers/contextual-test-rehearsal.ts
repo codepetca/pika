@@ -13,8 +13,8 @@ const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
 export function createContextualTestPlan(projectId: string) {
   assert.match(projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
   const sourceBinding = Object.freeze({ projectId,
-    sourceSha: '8633ca70a6da322f69e731065037546ddf5a06ec',
-    sourceTree: 'f030ad424c2cec44634ecddbf234b0263049510f',
+    sourceSha: '050699bb0f889a533a349b6af415b821ac56d0e3',
+    sourceTree: 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
     appOverlaySha256: contextualTestFontOverlaySha256,
     migrationChainSha256: 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
     appOrigin: 'http://localhost:3117' as const, apiOrigin: 'http://127.0.0.1:54331' as const,

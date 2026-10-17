@@ -4,8 +4,8 @@ import { createContextualTestPlan, bootstrapContextualTestFixtureSql, contextual
 describe('contextual Test rehearsal fixture contract', () => {
   it('binds the frozen app, five historical roles, both classrooms and finite limits', () => {
     const plan = createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f')
-    expect(plan.sourceSha).toBe('8633ca70a6da322f69e731065037546ddf5a06ec')
-    expect(plan.sourceTree).toBe('f030ad424c2cec44634ecddbf234b0263049510f')
+    expect(plan.sourceSha).toBe('050699bb0f889a533a349b6af415b821ac56d0e3')
+    expect(plan.sourceTree).toBe('f44d726966f322e4e3eb0ef637c6f2c711544d77')
     expect(plan.appOrigin).toBe('http://localhost:3117')
     expect(plan.apiOrigin).toBe('http://127.0.0.1:54331')
     expect(Object.values(plan.actors).map(actor => actor.role)).toEqual(['teacher', 'student', 'teacher', 'student', 'student'])

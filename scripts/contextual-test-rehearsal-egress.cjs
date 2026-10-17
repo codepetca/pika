@@ -543,8 +543,8 @@ if (process.env.PIKA_CONTEXTUAL_TEST_BINDING_FILE || process.env.PIKA_CONTEXTUAL
     binding = JSON.parse(text.toString('utf8'))
   } finally { fs.closeSync(fd) }
   assert.equal(binding.version, 1)
-  assert.equal(binding.sourceSha, '8633ca70a6da322f69e731065037546ddf5a06ec')
-  assert.equal(binding.sourceTree, 'f030ad424c2cec44634ecddbf234b0263049510f')
+  assert.equal(binding.sourceSha, '050699bb0f889a533a349b6af415b821ac56d0e3')
+  assert.equal(binding.sourceTree, 'f44d726966f322e4e3eb0ef637c6f2c711544d77')
   assert.equal(binding.appOrigin, 'http://localhost:3117'); assert.equal(binding.apiOrigin, 'http://127.0.0.1:54331')
   assert(Number.isSafeInteger(binding.startedAt) && binding.startedAt <= Date.now())
   assert(Number.isSafeInteger(binding.deadline) && binding.deadline - binding.startedAt <= 2700000)
