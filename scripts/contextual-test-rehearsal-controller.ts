@@ -441,6 +441,9 @@ export async function runContextualTestRehearsalController(admission: Contextual
         delete appEnv.NODE_OPTIONS; delete appEnv.PIKA_CONTEXTUAL_TEST_BINDING_FILE; delete appEnv.PIKA_CONTEXTUAL_TEST_BINDING_SHA256
         appEnv.NEXT_PUBLIC_SUPABASE_URL = 'http://127.0.0.1:54340'; appEnv.ENABLE_UI_GALLERY = 'false'
         runnerEnv.PIKA_CONTEXTUAL_TEST_VERTICAL = 'true'
+        // Chrome on macOS has its own temp override; TMPDIR alone is not its
+        // hermetic contract. Keep its singleton socket inside the OS allowlist.
+        runnerEnv.MAC_CHROMIUM_TMPDIR = join(admission.workdir, 'tmp')
       }
       stage = 'app-ready'
       const app = await controls.launchApp({ binding, args: commands.app, cwd: binding.appDir,

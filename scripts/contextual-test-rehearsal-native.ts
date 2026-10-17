@@ -420,6 +420,8 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
         assert.equal(input.binding.proofScope, 'vertical-v1'); assert(!input.binding.sqlControl)
         assert.equal(input.dependencySandboxProfile, contextualTestVerticalProfile('browser', admission.dependencies.roots, admission.workdir, admission.outputDir))
         assert.deepEqual(input.args, contextualTestVerticalCommands(admission.runner.repository, admission.dependencies.root).runner)
+        assert.equal(input.env.TMPDIR, join(admission.workdir, 'tmp'))
+        assert.equal(input.env.MAC_CHROMIUM_TMPDIR, join(admission.workdir, 'tmp'))
         assert(!input.env.NODE_OPTIONS)
       }
       assertContextualTestUnusedRunnerOutput(admission.outputDir)
