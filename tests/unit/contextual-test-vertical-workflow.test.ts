@@ -8,6 +8,7 @@ import {
   contextualTestVerticalContract,
   contextualTestVerticalStages,
   openVerticalMemberAccess,
+  selectVerticalMemberResponse,
   runContextualTestVerticalWorkflow,
   verticalWorkflowFailureStage,
 } from '../../e2e/helpers/contextual-test-vertical-workflow'
@@ -20,6 +21,21 @@ const submitted = () => ({ questions: published().questions, students: [{ studen
     [id(4)]: { response_id: id(7), response_revision: 1, selected_option: null, response_text: 'Synthetic reasoning.', is_draft: false } } }] })
 
 describe('narrow contextual Test graph assertions (CPU only)', () => {
+  it('selects the noninteractive name cell instead of clicking the row center', async () => {
+    const nameClick = vi.fn(async () => {}), rowClick = vi.fn(() => { throw Error('row center may activate access or unsubmit') })
+    const nth = vi.fn((index: number) => {
+      if (index !== 1) throw Error('interactive or unrelated cell')
+      return { click: nameClick }
+    })
+    const row = { click: rowClick, getByRole: vi.fn((role: string) => {
+      if (role !== 'cell') throw Error('wrong target')
+      return { nth }
+    }) }
+    await selectVerticalMemberResponse(row as never)
+    expect(row.getByRole).toHaveBeenCalledExactlyOnceWith('cell')
+    expect(nth).toHaveBeenCalledExactlyOnceWith(1)
+    expect(nameClick).toHaveBeenCalledOnce(); expect(rowClick).not.toHaveBeenCalled()
+  })
   it.each(['valid', 'status', 'wrong-state', 'skipped', 'multiple'])('joins the immediate row-switch response without a bulk dialog: %s', async defect => {
     const events: string[] = []
     const ack = { status: () => defect === 'status' ? 500 : 200 }

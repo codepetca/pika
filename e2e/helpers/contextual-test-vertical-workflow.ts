@@ -20,7 +20,8 @@ export const contextualTestVerticalContract = Object.freeze({ createdTests: 1, q
   screenshots: 3, automaticRetries: 0, actors: Object.freeze(['ownerStudent', 'memberTeacher', 'nonmember'] as const) })
 export const contextualTestVerticalStages = Object.freeze(['admission', 'owner-create', 'owner-author', 'owner-reload-readback',
   'owner-reload-draft-proof', 'owner-publish', 'published-readback', 'owner-open-member', 'owner-self-enrollment-denial', 'member-owner-api-denial',
-  'member-start', 'member-open-test', 'member-confirm-start', 'member-ready', 'member-answer', 'member-submit', 'nonmember-read-denial', 'owner-response-inspector', 'owner-results-readback'] as const)
+  'member-start', 'member-open-test', 'member-confirm-start', 'member-ready', 'member-answer', 'member-submit', 'nonmember-read-denial',
+  'owner-response-inspector', 'owner-open-results', 'owner-select-member', 'owner-read-response', 'owner-results-readback'] as const)
 type VerticalStage = typeof contextualTestVerticalStages[number]
 const failurePrefix = 'Contextual Test vertical failed: '
 /** Never invoke user accessors or Proxy traps while reducing an error to a label. */
@@ -103,6 +104,12 @@ export async function openVerticalMemberAccess(r: VerticalTestRuntime, page: Pag
   requireThat(response.status() === 200, 'owner-open-member')
   const access = await r.response<{ updated_count: number; skipped_count: number; state: string }>(page, response)
   requireThat(access.updated_count === 1 && access.skipped_count === 0 && access.state === 'open', 'owner-open-member')
+}
+
+/** A row-center click can hit its access/status controls instead of selecting it. */
+export async function selectVerticalMemberResponse(member: Locator): Promise<void> {
+  // Frozen table columns: batch checkbox, first name, last name, access, ...
+  await member.getByRole('cell').nth(1).click()
 }
 
 /** Exactly one new Test; every successful mutation is an ordinary app UI action.
@@ -214,8 +221,13 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
 
     await r.withActor('ownerStudent', async page => {
       stage = 'owner-response-inspector'; r.check(); await r.navigate(page, classUrl)
+      stage = 'owner-open-results'
       await page.getByRole('button', { name: title, exact: true }).click()
-      await page.getByTestId(`test-grading-student-row-${memberId}`).click()
+      stage = 'owner-select-member'
+      const member = page.getByTestId(`test-grading-student-row-${memberId}`)
+      await selectVerticalMemberResponse(member)
+      await expect(member).toHaveAttribute('aria-selected', 'true')
+      stage = 'owner-read-response'
       await expect(page.getByTestId('test-grading-inspector-scroll-pane').getByText(text, { exact: true })).toBeVisible()
       stage = 'owner-results-readback'; r.check()
       assertVerticalSubmittedGraph(await r.api<Results>(page, 'GET', `/api/teacher/tests/${testId}/results`), memberId, questionIds, text)
