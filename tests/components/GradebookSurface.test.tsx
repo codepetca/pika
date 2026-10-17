@@ -29,6 +29,57 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
+  it.each([0, 80])('hatches an unreturned mark and exposes its tooltip on keyboard focus (%s)', async (percent) => {
+    const onScoreOpen = vi.fn()
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ ...column, earned: percent, percent, is_graded: true, returned_at: null, is_manual_override: true }] }
+    const { container } = render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column], onScoreOpen })} /></TooltipProvider>)
+    const mark = screen.getByRole('button', { name: `Edit Demo Student mark for Essay: ${percent}%, overridden, graded, not returned to student` })
+    expect(container.querySelectorAll('[data-unreturned-mark]')).toHaveLength(1)
+    const user = userEvent.setup()
+    mark.focus()
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Graded · Not returned to student')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(mark).toHaveFocus()
+    await user.click(mark)
+    expect(onScoreOpen).toHaveBeenCalledWith(scored, column)
+  })
+
+  it.each([
+    { type: 'assignment' as const, returnedAt: '2026-10-16T12:00:00Z', graded: true },
+    { type: 'assignment' as const, returnedAt: undefined, graded: true },
+    { type: 'item' as const, returnedAt: null, graded: true },
+    { type: 'test' as const, returnedAt: null, graded: false },
+  ])('leaves returned, unknown, standalone and blank marks plain ($type, $returnedAt, $graded)', ({ type, returnedAt, graded }) => {
+    const column = { assessment_id: 'a1', assessment_type: type, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ ...column, earned: graded ? 80 : null, percent: graded ? 80 : null, is_graded: graded, returned_at: returnedAt }] }
+    const { container } = render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column] })} /></TooltipProvider>)
+    expect(container.querySelector('[data-unreturned-mark]')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/graded, not returned to student/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps read-only unreturned marks available to keyboard tooltip users', async () => {
+    const column = { assessment_id: 't1', assessment_type: 'test' as const, code: 'T1', title: 'Test', possible: 10, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ ...column, earned: 8, percent: 80, is_graded: true, returned_at: null }] }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column], isReadOnly: true })} /></TooltipProvider>)
+    const help = screen.getByRole('img', { name: '80%, Graded · Not returned to student' })
+    help.focus()
+    expect(help).toHaveFocus()
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Graded · Not returned to student')
+  })
+
+  it.each(['percent', 'raw'] as const)('shows the unreturned hint in the student inspector (%s)', async (displayMode) => {
+    const column = { assessment_id: 't1', assessment_type: 'test' as const, code: 'T1', title: 'Test', possible: 10, weight: 0, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ ...column, earned: 0, percent: 0, is_graded: true, returned_at: null }] }
+    const { container } = render(<TooltipProvider><GradebookStudentPanel student={scored} columns={[column]} displayMode={displayMode} /></TooltipProvider>)
+    expect(container.querySelectorAll('[data-unreturned-mark]')).toHaveLength(1)
+    const mark = screen.getByRole('img', { name: /Graded · Not returned to student/ })
+    mark.focus()
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Graded · Not returned to student')
+    expect(mark).toHaveTextContent('0')
+  })
+
   it('toggles gridlines on student cells without changing selection or metadata', async () => {
     const user = userEvent.setup()
     const { container } = render(<TooltipProvider><GradebookCompactPattern /></TooltipProvider>)

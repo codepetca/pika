@@ -6,16 +6,16 @@ import { cn } from './utils'
 
 const cardVariants = cva(
   [
-    'rounded-card border shadow-elevated',
+    'rounded-card shadow-elevated',
   ],
   {
     variants: {
       tone: {
-        default: 'bg-surface border-border',
-        muted: 'bg-surface-2 border-border',
-        panel: 'bg-surface-panel border-border',
-        accent: 'bg-info-bg border-primary/40',
-        selected: 'bg-surface-selected border-primary',
+        default: 'bg-surface',
+        muted: 'bg-surface-2',
+        panel: 'bg-surface-panel',
+        accent: 'bg-info-bg',
+        selected: 'bg-surface-selected',
       },
       padding: {
         none: '',
@@ -24,7 +24,7 @@ const cardVariants = cva(
         lg: 'p-card-cozy',
       },
       interactive: {
-        true: 'transition-colors duration-fast ease-standard motion-reduce:transition-none hover:border-border-strong hover:bg-surface-hover',
+        true: 'transition-colors duration-fast ease-standard motion-reduce:transition-none hover:bg-surface-hover',
         false: '',
       },
     },

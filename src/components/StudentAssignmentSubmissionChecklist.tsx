@@ -254,7 +254,7 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
   }
 
   return (
-    <div className="rounded-card border border-border bg-surface-panel shadow-sm">
+    <div className="rounded-card bg-surface-panel shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold text-text-default">Turn in</h3>

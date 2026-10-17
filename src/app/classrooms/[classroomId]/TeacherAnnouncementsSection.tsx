@@ -750,7 +750,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
 
       {/* New announcement form */}
       {isCreating ? (
-        <div className="bg-surface rounded-lg border border-border p-4">
+        <div className="bg-surface rounded-lg p-4">
           <FormField label="Title" className="mb-3" hideLabel>
             <Input
               value={newTitle}
@@ -891,7 +891,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
 
       {/* Empty state */}
       {currentAnnouncements.length === 0 && !isCreating && (
-        <div className="rounded-lg border border-border bg-surface-2 p-4">
+        <div className="rounded-lg bg-surface-2 p-4">
           <p className="text-sm text-text-muted">
             No announcements yet. Create one to share updates with your students.
           </p>
@@ -913,8 +913,8 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
             return (
               <div
                 key={announcement.id}
-                className={`bg-surface rounded-lg border p-4 ${
-                  scheduled ? 'border-amber-500/50 bg-amber-500/5' : 'border-border'
+                className={`bg-surface rounded-lg p-4 ${
+                  scheduled ? 'border border-amber-500/50 bg-amber-500/5' : ''
                 }`}
               >
                 {editingId === announcement.id ? (

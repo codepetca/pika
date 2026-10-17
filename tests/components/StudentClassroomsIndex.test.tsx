@@ -85,7 +85,7 @@ describe('StudentClassroomsIndex', () => {
     expect(openButton).toHaveAttribute('data-classroom-theme-color', 'rose')
     expect(openButton).toHaveClass('classroom-theme-card')
     expect(openButton).toHaveClass('classroom-theme-card-interactive')
-    expect(openButton).toHaveClass('border')
+    expect(openButton).toHaveClass('border-0')
     expect(openButton).not.toHaveClass('border-l-4')
   })
 

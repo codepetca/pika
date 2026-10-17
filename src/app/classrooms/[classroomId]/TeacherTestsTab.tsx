@@ -1,5 +1,7 @@
 'use client'
 
+import gradingTableStyles from './test-grading-table.module.css'
+
 import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
 
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
@@ -2353,21 +2355,21 @@ export function TeacherTestsTab({
         >
           <TeacherWorkSurfaceTableFrame
             ref={gradingStudentTableScrollRef}
-            className="min-h-0 rounded-md border border-border scrollbar-hover"
+            className={cn('min-h-0 rounded-md scrollbar-hover scrollbar-stable', gradingTableStyles.frame)}
             data-testid="test-grading-student-scroll-pane"
             onScroll={preserveGradingStudentTableScrollPosition}
           >
-          <DataTable density="tight" className="table-fixed text-sm">
+          <DataTable density="tight" className={cn('table-fixed text-sm', gradingTableStyles.table)}>
             <colgroup>
-              <col style={{ width: '40px' }} />
-              <col style={{ width: `${gradingColumnWidths.first}px` }} />
-              <col style={{ width: `${gradingColumnWidths.last}px` }} />
+              <col style={{ width: '44px' }} />
+              <col className={gradingTableStyles.nameColumn} style={{ width: `${gradingColumnWidths.first}px` }} />
+              <col className={gradingTableStyles.nameColumn} style={{ width: `${gradingColumnWidths.last}px` }} />
               <col style={{ width: `${gradingColumnWidths.access}px` }} />
-              <col className="hidden md:table-column" style={{ width: `${gradingColumnWidths.score}px` }} />
-              <col className="hidden xl:table-column" style={{ width: `${gradingColumnWidths.last_activity}px` }} />
-              <col className="hidden xl:table-column" style={{ width: '64px' }} />
-              <col className="hidden xl:table-column" style={{ width: '64px' }} />
-              <col style={{ width: `${gradingColumnWidths.status}px` }} />
+              <col className={gradingTableStyles.secondaryColumn} style={{ width: `${gradingColumnWidths.score}px` }} />
+              <col style={{ width: `${gradingColumnWidths.last_activity}px` }} />
+              <col style={{ width: '64px' }} />
+              <col className={gradingTableStyles.secondaryColumn} style={{ width: '64px' }} />
+              <col className={gradingTableStyles.secondaryColumn} style={{ width: `${gradingColumnWidths.status}px` }} />
             </colgroup>
             <DataTableHead dividers={showGridlines} sticky>
               <DataTableRow>
@@ -2381,6 +2383,7 @@ export function TeacherTestsTab({
                 />
                 <SortableHeaderCell
                   label="First"
+                  className={gradingTableStyles.nameColumn}
                   isActive={gradingSortState.column === 'first_name'}
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('first_name')}
@@ -2394,6 +2397,7 @@ export function TeacherTestsTab({
                 />
                 <SortableHeaderCell
                   label="Last"
+                  className={gradingTableStyles.nameColumn}
                   isActive={gradingSortState.column === 'last_name'}
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('last_name')}
@@ -2423,7 +2427,7 @@ export function TeacherTestsTab({
                   isActive={gradingSortState.column === 'score'}
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('score')}
-                  className="hidden md:table-cell"
+                  className={gradingTableStyles.secondaryColumn}
                   buttonClassName="!px-1.5 !pr-4 sm:!px-3 sm:!pr-4"
                   resize={{
                     value: gradingColumnWidths.score,
@@ -2433,11 +2437,10 @@ export function TeacherTestsTab({
                   }}
                 />
                 <SortableHeaderCell
-                  label="Activity"
+                  label="Seen"
                   isActive={gradingSortState.column === 'last_activity'}
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('last_activity')}
-                  className="hidden xl:table-cell"
                   buttonClassName="!pr-5"
                   resize={{
                     value: gradingColumnWidths.last_activity,
@@ -2452,7 +2455,6 @@ export function TeacherTestsTab({
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('exits')}
                   align="center"
-                  className="hidden xl:table-cell"
                   buttonClassName="!px-1"
                 />
                 <SortableHeaderCell
@@ -2461,11 +2463,11 @@ export function TeacherTestsTab({
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('away')}
                   align="center"
-                  className="hidden xl:table-cell"
+                  className={gradingTableStyles.secondaryColumn}
                   buttonClassName="!px-1"
                 />
                 <DataTableHeaderCell
-                  className="group relative !p-0"
+                  className={cn('group relative !p-0', gradingTableStyles.secondaryColumn)}
                   aria-label="Status"
                   aria-sort={isStatusGroupSortActive
                     ? statusSort === 'submitted' ? 'ascending' : 'other'
@@ -2483,6 +2485,7 @@ export function TeacherTestsTab({
                   </div>
                   <ColumnResizeHandle
                     label="Status"
+                    edge="left"
                     value={gradingColumnWidths.status}
                     min={TEST_GRADING_COLUMN_LIMITS.status.min}
                     max={TEST_GRADING_COLUMN_LIMITS.status.max}
@@ -2499,7 +2502,7 @@ export function TeacherTestsTab({
                   student.status === 'not_started'
                     ? '—'
                     : student.ungraded_open_responses > 0
-                      ? 'Pending grading'
+                      ? 'Ungraded'
                       : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                 const statusMeta = getTestGradingWorkStatusDisplay(student.status)
                 const awayCount = student.focus_summary?.away_count ?? 0
@@ -2602,10 +2605,16 @@ export function TeacherTestsTab({
                         onToggle={() => handleStudentAccessToggle(student, effectiveAccess)}
                       />
                     </DataTableCell>
-                    <DataTableCell className="hidden px-2 py-2 text-text-default sm:px-3 md:table-cell">{scoreLabel}</DataTableCell>
+                    <DataTableCell className={cn('px-2 py-2 text-text-default sm:px-3', gradingTableStyles.secondaryColumn)}>
+                      {scoreLabel === 'Ungraded' ? (
+                        <Tooltip content="Open responses still need grading.">
+                          <span className="cursor-help">{scoreLabel}</span>
+                        </Tooltip>
+                      ) : scoreLabel}
+                    </DataTableCell>
                     <DataTableCell
                       className={[
-                        'hidden px-3 py-2 tabular-nums xl:table-cell',
+                        'px-3 py-2 tabular-nums',
                         formattedLastActivity.isPm ? 'font-semibold text-text-default' : 'text-text-muted',
                       ].join(' ')}
                     >
@@ -2620,7 +2629,7 @@ export function TeacherTestsTab({
                         </span>
                       </Tooltip>
                     </DataTableCell>
-                    <DataTableCell className="hidden px-3 py-2 text-xs tabular-nums xl:table-cell">
+                    <DataTableCell className="px-3 py-2 text-xs tabular-nums">
                       <Tooltip
                         content={
                           <div className="space-y-0.5">
@@ -2639,7 +2648,7 @@ export function TeacherTestsTab({
                         </span>
                       </Tooltip>
                     </DataTableCell>
-                    <DataTableCell className="hidden px-3 py-2 text-xs text-text-muted tabular-nums xl:table-cell">
+                    <DataTableCell className={cn('px-3 py-2 text-xs text-text-muted tabular-nums', gradingTableStyles.secondaryColumn)}>
                       <Tooltip content={`Away from test route for ${awayLabel} total.`}>
                         <span
                           className="cursor-help"
@@ -2649,7 +2658,7 @@ export function TeacherTestsTab({
                         </span>
                       </Tooltip>
                     </DataTableCell>
-                    <DataTableCell className="px-2 py-2 sm:px-3">
+                    <DataTableCell className={cn('px-2 py-2 sm:px-3', gradingTableStyles.secondaryColumn)}>
                       {student.status === 'submitted' ? (
                         <Tooltip content={canUnsubmitStudent ? `${statusMeta.label}. Click to mark ${studentLabel} unsubmitted.` : statusMeta.label}>
                           <button
@@ -2876,9 +2885,12 @@ export function TeacherTestsTab({
         title={getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
         disabled={isReadOnly}
         onClick={() => openSelectedTestEditor()}
-        className="h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default sm:text-xl"
+        className="group/title h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default sm:text-xl"
       >
         <span className="min-w-0 truncate">{getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}</span>
+        {!isReadOnly && (
+          <Pencil className="ml-auto h-4 w-4 shrink-0 text-text-muted opacity-0 transition-opacity duration-fast ease-standard group-hover/title:opacity-100 group-focus-visible/title:opacity-100 motion-reduce:transition-none" aria-hidden="true" />
+        )}
       </Button>
       {workspaceModeStatus}
     </div>

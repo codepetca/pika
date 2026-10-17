@@ -122,7 +122,7 @@ function StudentClassworkMockup({ onPrototypeAction }: { onPrototypeAction: (act
           type="button"
           variant="surface"
           fullWidth
-          className="h-auto justify-start rounded-card bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
+          className="h-auto justify-start rounded-card border-0 bg-surface-panel px-5 py-4 text-left transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-surface-accent hover:shadow-panel"
           onClick={() => onPrototypeAction(`Open ${item.title}`)}
         >
           <span className="flex items-start justify-between gap-4">

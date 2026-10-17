@@ -1,0 +1,7 @@
+.unreturned {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 3px,
+    color-mix(in srgb, var(--color-text-muted) 12%, transparent) 3px 4px
+  );
+}

@@ -46970,3 +46970,356 @@ PR14completedreviews1615measureds/3resolved/13sourcefixbatches/6draftpushes befo
 next review; ancillary cleanup4turns219s/1resolved kept separate. Task-scoped
 routine-approval/review-budget waiver persists without counter resets. Tests phase,
 goal and existing local249+/prod259+/promotion/account/provider/cutover holds remain.
+
+<!-- pika-session-log-archive-batch:f03f0ff79402670fced6bbde4e7a101206d39c92d4856206a299953031b45b6f -->
+## 2026-10-12 — Unpublication interframe DDL-lock isolation
+
+Reviewed33eb passes2160focused/120files plus policies/tsc/lint; complete targeted
+and cumulative integration review255s clean. Twelfth disposable200839eb18f5 passes
+001–261/rollbackACL/genuine438871Btypes, then contracts guard55P03 at actions16:
+rejections completed, limits not dispatched. Source confirms DROP trigger retains
+public.tests exclusive lock across frames; actual guard dependency remains unproven.
+Recovery12 independently reviewed exacte939eac clean28s; positive closure/ACL/
+canonical verification then one disposal PASS6803ms/8synthetic removed. Shared183
+table/2cron/global741/ports/source preserved; original failed evidence archived,
+not converted into acceptance. Narrow late-fault probe exception rollback must
+retain unchanged CREATE/probe/DROP, fullgraph/catalog restoration and lock absence.
+Native/SDK/cancellation/CI acceptance remains pending; no guard/cap/product change.
+PR15completedreviews1870s/3resolved/13fixbatches/7draftpushes before next correction;
+ancillary5turns247s/1resolved separate. Standing routine/budget waiver and all
+sharedlocal249+/prod259+/promotion/provider/account/activation holds remain.
+
+<!-- pika-session-log-archive-batch:8272ade8c69c943ed2d0d23575698f74844457a89b097af6ab92adc851c74cc3 -->
+## 2026-10-12 — Unpublication actual-writer contention fixtures
+
+69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
+Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
+wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
+Source mapping likely schedule11holderreceipt failure; direct availability and
+AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
+Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
+proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
+Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
+PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
+Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
+PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
+6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
+
+<!-- pika-session-log-archive-batch:6a5a1794f9ea9b617835d7dd3bdb3408d3490d967071cd91844e372ee6b9de8d -->
+## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
+
+Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
+targeted+cumulative review. Fresh14th06132387f727 fully PASS:001–261/rollbackACL/
+genuine438871B types, seven contracts/14heldraces/fullgraph equality, real SDK
+nonowner/fences/both owner roles/canonical/noop, cancellation503/one57014/8013ms/
+zeroRPC/restoration. Exact8synthetic cleanup/global741/canonical183tables2cron/
+ports/source preserved; prior failed evidence retained. No rollout or goal exit.
+Eligible CI38190378056 exactbacb fails Architecture DB at10000-question fixture
+INSERT in limitsDO (57014/blueprint per-row trigger); other7jobs cancelled by
+failfast and PR Gate fails. Returned1578 to draft before corrections, one watcher
+closed, no duplicateCI. Bounded source proposal keeps all10002rows/alltriggers/
+assertions: four fixed2500 INSERT statements under one savepoint, temporary graph
+baseline before savepoint and exact rollback equality. Eleven closed frames plus
+28races use39<=40dispatch;12s/180s/caps unchanged. Revised framing still needs
+checks/independent review/fresh native/eligibleCI, not acceptance from prior pass.
+PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
+Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
+production promotion/provider/account/admission/home/page/cohort/cutover holds.
+
+<!-- pika-session-log-archive-batch:76a3ff01fcefc39afc03a8262143a381ddff55ab616f762b831069bb98364504 -->
+## 2026-10-12 — Unpublication actual-writer contention fixtures
+
+69133 narrowDDL rollback reviewedclean178measureds/2162focused120filesallchecksPASS.
+Fresh13th3c9b14f07060 passes001–261/rollbackACL/types/sevencontracts and postcontract
+wholegraph equality; new races unknown/actions66/sessions0 failure, not prior55P03.
+Source mapping likely schedule11holderreceipt failure; direct availability and
+AI inserts wrongly assert RPC-level Test advisory lock (220triggeronlyrowlocks).
+Replace holders with actual248access/094AIwriter; exact AI no-work acknowledgment
+proves lock path, not durable/provider grading. Preserve14schedules/graph/fences/caps.
+Recovery13 exactb9145 reviewedclean38s/positiveclosure verified then disposalonce
+PASS6775ms/8syntheticremoved/global741/canonical183tables2cron/ports/source preserved.
+Original failed evidence/typeartifact archived, no targetreuse/nativeacceptance.
+PR16reviews2048measureds/3resolved/14batches8pushes before next correction; ancillary
+6turns285s/1resolved separate. All shared/prod/promotion/activation holds persist.
+
+<!-- pika-session-log-archive-batch:6bb267e0c74188aae7376cbe4190a07973b1b66c8423fef8fc521e6b8d7bf74b -->
+## 2026-10-12 — Native unpublication acceptance and CI count-fixture correction
+
+Reviewed bacb593 passes2163focused/120files/all policies/tsc/lint and clean130s
+targeted+cumulative review. Fresh14th06132387f727 fully PASS:001–261/rollbackACL/
+genuine438871B types, seven contracts/14heldraces/fullgraph equality, real SDK
+nonowner/fences/both owner roles/canonical/noop, cancellation503/one57014/8013ms/
+zeroRPC/restoration. Exact8synthetic cleanup/global741/canonical183tables2cron/
+ports/source preserved; prior failed evidence retained. No rollout or goal exit.
+Eligible CI38190378056 exactbacb fails Architecture DB at10000-question fixture
+INSERT in limitsDO (57014/blueprint per-row trigger); other7jobs cancelled by
+failfast and PR Gate fails. Returned1578 to draft before corrections, one watcher
+closed, no duplicateCI. Bounded source proposal keeps all10002rows/alltriggers/
+assertions: four fixed2500 INSERT statements under one savepoint, temporary graph
+baseline before savepoint and exact rollback equality. Eleven closed frames plus
+28races use39<=40dispatch;12s/180s/caps unchanged. Revised framing still needs
+checks/independent review/fresh native/eligibleCI, not acceptance from prior pass.
+PR17completedreviews2178measureds/3resolved/15batches9pushes; ancillary6/285 separate.
+Standing task routine/review waiver retained, all sharedlocal249+/prod259+,
+production promotion/provider/account/admission/home/page/cohort/cutover holds.
+
+## 2026-10-12 — Unpublication merged; next deletion boundary
+
+PR1578 actual normalmatchedsquashmergea37d03b3ac4943b25b76e8dd30412c6a7ff8da9d
+at02:11:23Z fromreviewedab4a3d222. ExactCI38192450117 all10inclPRGatePASS;
+canonicalcleanmainff andfulltree9b3bcd92 parity verified. Corrected11frame/14race
+freshnativee034bc3b1f4c fullyPASS,503/one57014/8010ms/zeroRPC/restoration/types/
+exact8cleanup/global741/canonical183tables2cron preservation. Failedpriorreceipts
+retained; no migrationapplication/promotion/activation.18PRreviewturns2343s/
+3resolved/16batches10pushes; ancillary6/285separate, measuredCIqueue0/run2087s.
+NextTests-gapinventory318s read-only confirmed094 wholedeletepolicy, polymorphic
+Draftretention and deletion's needfor explicitabsentrow/pre-source acknowledgement.
+Newtest-owner-deleteworktreea37: startupmissingdepsfixed683cachedofflinefrozen/
+no lockdiff thenPASS. Compatibility-first dormantDELETE plan retainslegacypolicy,
+DTO/cascades/queueing/Draft/AI/formerwork; no retentionpolicy orchildCASclaim.
+Sol/high productwriter delivered254tests/13suites+tsc/diffPASS; rootverified78tests,
+literalnormal261 parity andactual262source c9f0991d. Rootremovedoneunreachable
+recoveryrestrictionaddition. Sourceworker486measureds excludingorientation; proof
+design393s accepted, effective/token/active telemetry unknown. Fixed262successor
+seal integrationTDDPASS166+273checks, CIstepRED→GREEN2, audit17TSPASS. Sameprivate
+enginecaps/executorunchanged; disjointpublicproof/privateSDKsources frozen.
+Public286tests/3suites+tsc/diffPASS; root actual4/7hashes verified, privateSDK
+15RPC22frames/operationalcontrols/privateTSc PASS.8frames/16heldschedules/40dispatch.
+Installed117 final cleanup-definition and221CASCADE corrections retained;
+root fixed164void-helper misuse before native; SDKboundaries useTest6, leaving
+materialraceTest5 intact. Source workers2168s/1179s measured, not review effort.
+First aggregate2280tests exposed CIinventory/startupbudget gaps and transient
+unchangedhost fixture misses under parallel load; fixedinventory/compactCURRENT
+without weakeninggates. Final2280tests/125suites, all architecture/UI/design/
+TypeScript/lint gates PASS; audit18TSPASS. DraftPR1579 head68382 initial independent
+security392s/compatibility531s reviews complete/clean; native/CI/merge outstanding.
+Rebased latestmain1aed8d190 (unrelated Week agenda) without code conflicts;
+complete histories retained and automatic log trim rerun. Product262/SQL/private
+sources unchanged, no migration renumbering. Reconciled head needs proportional
+base/log review and checks before any fresh exact disposable binding.
+Sharedlocal249+/prod259+,
+promotion/provider/account/admission/home/page/cohort/cutover holds remain.
+
+## 2026-10-12 Contextual Test deletion CI compatibility correction
+
+Fresh disposable262/38534 acceptance fully PASS: replay/types/rollbackACL,
+8contracts16heldraces/bothowner-role SDK closures/503one57014at8010ms/zeroRPC,
+restoration/exact8cleanup/global741/canonical183tables2cron/sourceports preserved.
+Runtimebinding consumed; failed prior attempt retained. Four clean review turns
+1471s. Exact-head CI38202975883 found2 compatibility tests failing while17050
+passed/8skipped: publication source seal missed the additive DELETE dispatcher;
+compacted CURRENT lost Controls unchanged wording. Draft restored before fixes;
+remaining CI jobs cancelled on that transition. Exact legacy hash stays unchanged,
+only attested dispatcher stripped; controls receipt restored. Targeted108checks
+PASS; focused/review/final-head CI remain. No source/SQL or held live-state change.
+
+## 2026-10-13 — Optional Test calendar date prepared; isolated replay approval pending
+
+Owner requested a Test publication/due date so written Tests appear in Calendar;
+confirmed calendar date only, no submission cutoff. This task owns
+codex/test-calendar-date in /Users/stew/.codex/worktrees/pika/test-calendar-date,
+base22efa4826. Optional tests.test_date (civil date) is separate metadata, with
+strict date-only PATCH, active/closed support, clear/retry/close flush, and dated
+pristine-draft retention. Teacher drafts remain teacher-only; student calendars
+use authorized Tests and safe detail navigation without Start. Week/Month/Term
+and day presentation show links; permitted future dates extend student calendar
+navigation without broadening lesson reads. Blueprint reuse omits the classroom
+date; archive full-row restore retains it. Migration263 preserves latest262 owner
+operations and strict create/reorder/learner witnesses; exact263 source seals keep
+native inventories fail-closed. No migration, hosted write, gate, or deployment
+change executed.
+
+Used orchestrate with two GPT-6.1-sol/medium bounded workers for backend contracts
+and calendar integration, then targeted fixture fixes. DeepSeek dated pause
+honored. Initial weekly remaining93%; storage healthy338GB. Worker elapsed/tokens
+and coordinator attributable usage unknown. Backend residual11 suites708PASS
+serial74.59s; initial/contextual844PASS, UI152PASS, editor/hooks69PASS, UI fixture
+remediation180PASS, Gallery/hook/schema48PASS then4 isolated Calendar reference testsPASS.
+Two broad parallel runs showed strict-fixture drift then timing contention; fixed
+real fixture drift, isolated affected suites passed. Final focused test union with --max-workers1 passed4371/4372; sole unchanged
+ci-tart-host idle-budget timing case failed, while standalone51 and final
+ci-tart-host/DayCell78PASS. Log /tmp/pika-test-date-focused-serial.log. Generated
+database test_date remains the known TypeScript dependency after approved replay.
+Independent review/PR lifecycle not started while that gate is pending. No savings
+claim; coordination included fixture remediation, active student-list projection
+correction, and one visual touch-target correction.
+
+Pika UI change brief: docs/guidance/ui/changes/test-calendar-date.md. Final real
+production-owner browser matrix teacher/student×1440/390×light/dark covers all
+views, keyboard/day navigation, draft exclusion, and direct Test navigation;
+every new grid Test link measured >=44×44 with reachable bounded scrolling.
+Four unchanged editor cases cover save/clear/failure/retry/close. Synthetic API
+interception only. Artifacts and provenance:
+/Users/stew/.codex/visualizations/2026/10/13/01a135ed-8089-7400-9777-01ed30245db2/test-calendar-date/receipt.json.
+Visual inspection accepted. Audit's missing Pattern Lab reference coverage fixed
+with two focused owner tests and four DayCell Test-link semantic cases. Final
+auditPASS; architecture/UI/design policiesPASS. Targeted ESLint0errors, two
+existing warnings; diff checkPASS. Native schema replay/type generation and
+independent review are still unexecuted and required.
+
+Required user input pending: direct one-time approval for migrations001–263 in a
+NEW disposable local Supabase project pika-test-calendar-date only; existing
+shared local and production databases excluded. Requested through async input;
+no reply yet. After approval: prepare empty isolated project, inspect exact
+migration list/dry-run, one approved apply, native rollback probe
+scripts/check-test-calendar-date.sql and relevant preserved owner/learner/create/
+reorder contracts, regenerate/check database.generated.ts through standard script
+against isolated project. Then finish focused checks, independent high-risk
+security/correctness + compatibility review, draft-first PR, stable-SHA ready CI.
+Merge and production promotion retain their separate authority gates.
+
+Approval follow-up: owner explicitly approved isolated-local replay001–263 in
+pika-test-calendar-date. New /tmp/pika-test-calendar-date-20261013 binds project
+id pika-test-calendar-date to DB55342/container supabase_db_pika-test-calendar-date;
+no hosted link, source startup empty, seed disabled. Exact manifest/dry-run263
+verified before one db push --local --yes; applyPASS, history001–263 and date|YES
+verified. Permission consumed, no shared/hosted apply. Rollback date probePASS
+(create null witness, date save/clear, dated draft retention, outsider denial,
+read witness, reorder, active/closed with unchanged submitted participation).
+Owner/learner/grading/recovery/deletion native SQLPASS. Unpublication's unchanged
+2500-row setup statement hit12s timeout; supplemental local-only setup rechunked
+the SAME10000 rows into20×500 statements, all original assertions/runtime caps
+preserved, entire fixturePASS. Repository fixture/source unchanged; not a claim
+that its original2500-row setup met the local12s budget. All fixture rows rolled
+back; users0 verified. Standard generated types generate/check against isolated
+projectPASS; exactly3 additive lines. TypeScriptPASS; lint0errors with existing
+warnings. Final focused check --max-workers1 is still running; native and visual
+outputs remain valid for unchanged source. Review ledger planned high risk,
+2 Sol/high fresh-context reviewers (security/correctness; compatibility), 0
+launches/0 waves/0 remediation, session budget60min, reviewer hard30min each.
+Current weekly remaining91%, account-wide; worker telemetry unknown.
+
+Final pre-review follow-up: generated contract3lines, tscPASS and full lint0errors.
+Focused union4371/4378PASS; 7 failures were existing host timing or test timeouts
+in3 suites. Residual suites rerun255/257PASS; remaining2 exact cases individually
+PASS. After stopping ONLY this task's preview3027 and disposable Supabase project
+(default backup retained), both timing-sensitive suites230/230PASS. PageMockups
+27/27PASS in residual run. No deadlines/assertions weakened and no baseline host
+implementation edits. Retain broad-run limitations honestly; no full-command
+PASS claimed. Aggregate local coverage includes all selected tests and serial
+supplements at unchanged source.
+
+Additional owned UI correction before review: native date typing now edits local
+metadata and saves on blur/close/publish; an incomplete native value blocks flush
+without erasing the saved date. Successful saves update saved React state even
+when batched, so SaveStatus settles correctly. Editor/hook/controller80PASS;
+4 final editor browser casesPASS (no intermediate typing request), final tscPASS
+and targeted lint0errors. Calendar8case evidence reused for unchanged owners;
+provenance receipt updated. No SQL/DTO changes after approved replay. Review
+starts only after this stable source checkpoint; scope/budget remain2 Sol/high,
+60minute session, 30minute hard per-reviewer, max4 remediation batches. Local
+stack/schema backup and all private artifacts retained. Main unchanged22efa4826;
+no competing branch writer or remote branch exists.
+
+Independent review follow-up: both Sol/high reviewers completed base22efa4826
+through3d17aad19. Accepted2 blockers: pre263 archive normalizer lacked test_date
+and date save refreshed Tests from calendar's still-valid shared cache. Root
+additionally reproduced dirty focused date→Clear saving the edit instead.
+Single remediation batch extends the archive normalizer chain with absent-only
+null, preserves ACLs, invalidates classroom Tests cache before notifications,
+and coordinates Clear pointer/keyboard focus with blur. New rollback probe
+stages old/current rows through actual v2 exact-column staging and checks ACLs.
+78 editor/hook/schema regressionsPASS; corrected editor4case browserPASS with
+direct dirty-field Clear. PoliciesPASS. Revised263 seal is
+aaf75c9de07d3933f196149b7198e4bd581a503d18a69697803ef27405cc6b08.
+Previous one-time local apply approval consumed; requested new001–263 replay
+in fresh pika-test-calendar-date-review. Awaiting owner approval; revised SQL
+not applied. Initial2 launches/1 full-diff wave, remediation1 batch in progress;
+no targeted launch yet. Initial review launch-to-observed completion timings
+are approximate coordinator intervals, not attributable active/token costs.
+
+Remediation checks follow-up: actual focused editor/hook/schema78PASS, seven
+native source-admission suites278PASS, architecture/UI/designPASS, lint0errors
+(existing panel hook warning), TypeScriptPASS. Browser4case revised editor
+matrixPASS including pointer Clear from dirty field, ShiftTab→Clear→Enter,
+native input clearing with null relatedTarget, failure/retry/close. No SQL apply
+yet: fresh review project started with empty migrations and no migration history
+or hosted link, awaiting exact replay approval. Initial calendar8case evidence
+reused only for unchanged Calendar owners; corrected editor evidence replaces
+prior subset receipts. No source/layout changes to calendars during remediation.
+
+Owner approved revised exact001–263 once in pika-test-calendar-date-review.
+Confirmed fresh empty local history/no hosted binding, all263 dry-run filenames,
+and approved263 digest before db push --local --yes; replayPASS. Migration list
+matched001–263 afterward. Updated rollback probePASS including real v2 staging
+of pre263 and dated Tests, exact values and wrapper ACL checks. Users0 verified;
+all test data rolled back. Generated types generate/checkPASS, exactly4 added
+lines for renamed pre263 normalizer signature; no manual generated edits.
+Targeted Sol/high review at46546a47e complete/no new finding; known runtime gap
+now closed. Own preview3027 and new disposable stack stopped (schema backup
+retained), unrelated services untouched. Final typed checkpoint will undergo
+required cumulative integration review and final focused check before ready.
+Ledger3 launches, initial1 wave, targeted1 wave, remediation1 correction batch
+plus expected generated-contract checkpoint. Main22efa4826 unchanged. No main
+merge or production/migration authority inferred from disposable-local approval.
+
+Final generated schema exposed existing broad RPC ReturnType TS2589 in dormant
+contextual-assignment-learner-open. Narrowed only its result assertion/import to
+already-existing ContextualAssignmentDocOpenClient RPC type. TypeScriptPASS;
+transpileModule verifies identical emitted JavaScript before/after. No runtime
+query, boundary, gate, response or error behavior changed; no generated editing.
+Existing learner-open regression suites running plus full focused requirement.
+AuditPASS. This type-only completion delta joins final cumulative review; no
+extra full-diff initial wave and no revised SQL beyond approved digest.
+
+CI follow-up: first eligible ready run38447949548 failed native reorder races;
+PR returned to draft, which cancelled sibling lanes through configured CI
+concurrency. One targeted rerun reproduced PT503 holder at controls1514/actions89.
+Read-only Sol/medium backend investigation identified action89 as publication252
+holder; root independently confirmed252 exact Tests catalog omits test_date.
+Only252 and254 contain current strict physical Tests catalog seals;254 was
+already updated. Correction preserves complete252 publication routine/ACLs in263,
+adding only test_date to sorted Tests column admission. Parent full-row expected
+postimage automatically retains date. Native rollback probe now publishes both
+non-null/null dated Tests, checking closed witness, retained Draft and no attempt.
+Source preservation, publication/reorder admission18testsPASS; auditPASS. Revised
+263 digest f01e1284139151436a034d929c6fa44b1aecf976a62d661cc760d7f7eff1bbe5.
+Asked one-time exact001–263 replay in fresh pika-test-calendar-date-publication;
+not applied yet. Last permitted default correction commit (4 total) includes
+this batch; targeted delta re-review follows before any ready event. Review
+session began18:10:36UTC;60min wall cap remains. No extra CI rerun is justified
+until this confirmed blocker is fixed and revalidated. No product/gate changes.
+
+<!-- pika-session-log-archive-batch:f6b1349c71653dab699e5225caa6e81b106d7d3f9d6282efd499edfd35ced620 -->
+## 2026-10-13 — Test date rollout compatibility
+
+Production release review reproduced a schema-first gap: legacy return-to-draft commits then rejects the full Test row after migration263 adds test_date. The legacy acknowledgement now accepts a missing, null or validated calendar date while preserving strict unknown-key/status/identity validation. Targeted 16-case regression passes before/after the column; no SQL or UI change. A minimal production compatibility slice must deploy before exact authorized259–263 application, then the cumulative main calendar release may follow. Owner requested production publication and required migration; exact complete pending-set permission remains separate.
+
+<!-- pika-session-log-archive-batch:008f9277064d8684d20e28773bc48a67c052ac1de5ca43010b2d18624d55a81c -->
+<!-- pika-session-log-archive-batch:db4788d1c46c0124faa91dd5613191702383639a029ab216aa4dbcbabe0bf085 -->
+## 2026-10-13 — Week agenda and Test dates live in production
+
+Owner approved production259–263 once from a7e033952611ab03f80c7bd8c0f776d7f2302cdb/digest5b1577215b69a5e7d8361eec08c651dda3f0aace59393ceb6192b3ef22b4f79f. Preview38486242383/history258 and catalog preflight passed; compatibility1584(main)/1585(production) passed independent review and all10 CI jobs. Backport productioneeb66a4d6 deployed READY/dpl_FBzFiXRRiKnZQRwsGY5tQuPejKQ8 before one apply38491403501: applied-verified259–263/history263. Ten function bodies/owners/search paths/ACLs match reviewed source (private unpublish core intentionally invoker); tests.test_date nullable date/no default. No production test fixtures, data deletion or activation changes.
+
+Strict base advancement initially rejected calendar promotion1583 at764b after compatibility rollout. Premature lifecycle merge event invalidated; PR returned draft, merged production ancestry into1f108de2 with ZERO file changes/tree4249bb19 identical to reviewed764b, narrow independent review and all10 exact-head CI38491978782 passed. Promotion1583 merged c1abdab7982d8261738b380936a8f7454602d5d8 at01:17:58UTC; full tree matches reviewed764b. Vercel dpl_5SxaPBwGZf6wLbxneNCsfmJuVfjs READY and production aliases verified; login200/me401/Pattern Lab404/snapshot API404 at01:22:57UTC (Oct13 Toronto). Week agenda and optional Test date now live; dates never stop submissions. Initial cumulative review found/fixed legacy unpublish response rejection before schema-first rollout. Source reviews complete before60-minute review limit;5 actual worker turns/2 native Sol6.1-high launches, effective models/tokens/active effort unknown; account weekly85% remaining at start. Local focused813(main)/759(backport), targeted16 each and direct21 probes per head passed; prior calendar visual evidence reused by identical UI blobs. Source/current artifact receipts retained outside retired compatibility/review worktrees. Local handoff retains deployment, migration, catalog, CI and lifecycle receipts. No additional apply permission remains.
+
+<!-- pika-session-log-archive-batch:2f781168351f73640f73416209ebbba8cb82bf5de7e3f4f36026e5de978541af -->
+<!-- pika-session-log-archive-batch:eddb592e88d2ce0492524cb508a5dc03704f63f82387d78534fcf8a9a35fd8e4 -->
+## 2026-10-14 — Announcement menu transition consistency
+
+Teacher Announcement More/new/draft/posted choosers reuse shared semantic-fast opacity and immediate logical command retirement. Extend real ClassroomPageClient→TeacherAnnouncementsTab activity forwarding; scope nested keys to classroom/editor/publication while retaining whole drafts and request generations. Schedule picker handoff uses immediate exit mode, preserving existing primary Post behavior. Governed reuse/extend brief precedes implementation; fixture and shared primitives unchanged. Native Sol6.1/high implementation405s plus parent bridge109s, red12expected failures, one mechanical green correction, final59 actual-owner+78primitive cases PASS and exact TypeScript PASS; coordinator verifies delivery. Actual parent activity bridge52 PASS adds meaningful real-classroom navigation/retained DOM coverage; audit5TS and focused917/65 plus all static gates PASS. Frozen19-source native teacher8/student4/current UiConsistency reference2 PASS,106PNGs/14videos;162API observations reconcile142syntheticGET/16teacher writes/4student acknowledgements,0unknown/console/pageerrors/overflow and no API passthrough. Four unchanged goldens PASS; coordinator inspected boards and representative originals/reference parity. Existing BODY focus/mobile navigation hover tooltip qualified; source owners unchanged during native. Failed browser-launch/invalid1243/selector attempts and diagnostic smokes retained; matching1208 restored without package/lock changes. One independent draft-first stable-SHA review/CI/main landing remains gate. Main60cad includes newer calendar263/fixture work, preserved unchanged outside the teacher activity line. Storage healthy322GB, weekly82%remaining; DeepSeek pause and task stop waiver/counters68 retained, task attribution/tokens unknown. No production, migration, dependency, privacypriority1 or calendarPR1217 operation; broad UI/UX goal open.
+
+## 2026-10-14 — Create Classroom step focus consistency
+
+Extended only the actual wizard step focus owner: Blueprint source now focuses its visible native selector, with an open guard and focus restoration for parent reopen. Preserved name/Calendar behavior, title/date drafts, existing reopen selection reset policy, import/generation/idempotency logic and shared controls. Preimplementation reuse brief: `docs/guidance/ui/create-classroom-step-focus-consistency.md`.
+
+Validation: wizard30, TypeScript/audit PASS; eight teacher viewport/theme/motion contexts plus two separate current references PASS,42PNG/10videos,25source/52mediahashes;64syntheticGET and zero mutation/unknown/error/overflow. Four goldens unchanged PASS. External receipts retain one prebrowser harness-resolution failure and a corrected new unit-test assumption. Student n/a: local teacher-only adopter/shared unchanged. Independent review, stableSHA CI/PR Gate and main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
+
+<!-- pika-session-log-archive-batch:7ceac22be016e5f4648b2043e9efbb9943816649eaf717d2d8a242293ae96336 -->
+## 2026-10-14 — Create Classroom step focus consistency
+
+Extended only the actual wizard step focus owner: Blueprint source now focuses its visible native selector, with an open guard and focus restoration for parent reopen. Preserved name/Calendar behavior, title/date drafts, existing reopen selection reset policy, import/generation/idempotency logic and shared controls. Preimplementation reuse brief: `docs/guidance/ui/create-classroom-step-focus-consistency.md`.
+
+Validation: wizard30, TypeScript/audit PASS; eight teacher viewport/theme/motion contexts plus two separate current references PASS,42PNG/10videos,25source/52mediahashes;64syntheticGET and zero mutation/unknown/error/overflow. Four goldens unchanged PASS. External receipts retain one prebrowser harness-resolution failure and a corrected new unit-test assumption. Student n/a: local teacher-only adopter/shared unchanged. Independent review, stableSHA CI/PR Gate and main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
+
+## 2026-10-14 — Announcement Schedule focus consistency
+
+Extended Announcement-only committed picker focus ownership via optional shared date-input ref. Entry focuses Date; Cancel/Done/Escape return to a surviving initiator/action, outside pointer/Tab destinations persist, and hidden/read-only/class/editor/unmount retirement blocks stale callbacks while retaining drafts and request ownership. Shared Assignment defaults remain unchanged. Brief: `docs/guidance/ui/announcement-schedule-focus-consistency.md`.
+
+Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. Native accepted eight teacher/four student/two actual Assignment/two reference contexts across unchanged-source scoped runs: 38bindings,164PNG/16videos,180mediahashes;194syntheticGET/four intercepted studentautoacks, zero teacherwrite/unknown/error/overflow. Browser-chrome Tab regression fixed; three new tests verify actual outside-focus retirement. Failed/partial native attempts, four diagnosed harness repairs and worker model-capacity failure retained externally; coordinator completed acceptance. Independent review/final stableSHA CI/PR Gate and authorized main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
+
+## 2026-10-14 — Calendar Week alignment
+
+- Owner: this chat, codex/calendar-week-alignment; move edit/no-class information to the date rail, align lesson bodies at top, full current-day outline without Today badge. Shared IconButton reused; current date remains semantic.
+- Verification: 47 calendar tests, types/lint/architecture/policies/audit pass; both roles × desktop/mobile × light/dark captured with production owner fixtures and intercepted reads. Editing/Escape focus and day presentation checked.
+- Initial focused check hit unchanged CI Tart-host timing failures; serial gate in progress. Independent low-risk review/PR lifecycle next. Storage healthy, weekly allowance initially 75% remaining; task tokens unknown.

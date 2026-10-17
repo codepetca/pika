@@ -61,26 +61,40 @@
     height: 0;
   }
 
+  /* Tables keep their available width when the hover/focus thumb appears. */
+  .scrollbar-hover.scrollbar-stable {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .scrollbar-hover.scrollbar-stable:hover,
+  .scrollbar-hover.scrollbar-stable:focus-within {
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+
   .scrollbar-hover:hover,
   .scrollbar-hover:focus-within {
     scrollbar-width: thin;
   }
 
+  .scrollbar-hover.scrollbar-stable::-webkit-scrollbar,
   .scrollbar-hover:hover::-webkit-scrollbar,
   .scrollbar-hover:focus-within::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
 
+  .scrollbar-hover.scrollbar-stable::-webkit-scrollbar-thumb,
+  .scrollbar-hover:hover::-webkit-scrollbar-track,
+  .scrollbar-hover:focus-within::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   .scrollbar-hover:hover::-webkit-scrollbar-thumb,
   .scrollbar-hover:focus-within::-webkit-scrollbar-thumb {
     border-radius: 9999px;
     background: var(--color-border-strong);
-  }
-
-  .scrollbar-hover:hover::-webkit-scrollbar-track,
-  .scrollbar-hover:focus-within::-webkit-scrollbar-track {
-    background: transparent;
   }
 
 }

@@ -6,6 +6,8 @@ import { AppMessageProvider, TooltipProvider } from '@/ui'
 it('demonstrates the default-on shared compact setting through GradebookToolbar, GradebookTable and StudentGradesView', () => {
   render(<AppMessageProvider><TooltipProvider><GradebookCompactPattern /></TooltipProvider></AppMessageProvider>)
   const student = screen.getByTestId('student-grades-view')
+  expect(within(student).queryByText('Unit test 1', { exact: true })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Edit Avery Chen mark for Unit test 1:.*not returned to student/ })).toBeInTheDocument()
   const header = screen.getByRole('button', { name: 'Edit A2: Research assignment 2', exact: true }).closest('th')!
   const title = within(student).getByText('Research assignment 2', { exact: true })
   const grade = within(student).getByText('Current grade').parentElement!.nextElementSibling!.textContent
