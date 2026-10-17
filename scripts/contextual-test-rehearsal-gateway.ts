@@ -20,6 +20,12 @@ const teacherTest = new RegExp(`^/api/teacher/tests/${uuid}(?:/(draft|markdown|r
 const studentTest = new RegExp(`^/api/student/tests/${uuid}(?:/(attempt|results|history|session-status))?$`)
 const classRead = new RegExp(`^/api/(?:teacher|student)/classrooms(?:/${uuid}(?:/(?:materials|roster|authoring-guidance))?)?$`)
 const isJson = (mime: string) => /(?:^|[\/;+])json(?:\s*;|$)/i.test(mime)
+// Optional Next development-overlay reads are rejected locally, like HMR. They
+// must not poison the Test workflow, and are never forwarded or given source data.
+function blockedDevelopmentRead(target: string, method: string): boolean {
+  return method === 'POST' && target === '/__nextjs_original-stack-frames'
+    || (method === 'GET' || method === 'HEAD') && /^\/__nextjs_font\/(?:geist|geist-mono)-(?:latin|latin-ext)\.woff2$/.test(target)
+}
 
 /** Reject before URL parsing can normalize traversal, authority or separators. */
 export function contextualTestGatewayTarget(kind: Kind, target: string, host: unknown): string {
@@ -47,7 +53,20 @@ export function contextualTestGatewayRedirect(kind: Kind, location: string): str
 }
 export function contextualTestGatewayBodyLimit(kind: Kind, mime: string): number { return kind === 'api' || isJson(mime) ? mib : 64 * mib }
 
-type PolicyReceipt = { firstFailure: ContextualTestGatewayFailure | null; appRequests: number; apiRequests: number; creates: number; rejectedHmr: number }
+/** Fixed labels only: never retain paths, query values, headers or bodies. */
+function endpointLabel(path: string) {
+  if (path === '/__nextjs_original-stack-frames' || path === '/__nextjs_original-stack-frame') return 'framework-stack-frames'
+  if (path.startsWith('/__nextjs_')) return 'framework-other'
+  if (path.startsWith('/api/student/tests')) return 'student-tests'
+  if (path.startsWith('/api/teacher/tests')) return 'teacher-tests'
+  if (path === '/api/student/notifications') return 'student-notifications'
+  if (path.startsWith('/api/student/pal/')) return 'student-pal'
+  if (path.startsWith('/api/classrooms/') || classRead.test(path)) return 'classroom'
+  if (path.startsWith('/rest/v1/')) return 'rest'
+  return 'unknown'
+}
+type EndpointFailure = Readonly<{ kind: Kind; method: 'GET' | 'HEAD' | 'POST' | 'PATCH' | 'DELETE' | 'other'; route: ReturnType<typeof endpointLabel> }>
+type PolicyReceipt = { firstFailure: ContextualTestGatewayFailure | null; firstEndpointFailure: EndpointFailure | null; appRequests: number; apiRequests: number; creates: number; rejectedHmr: number; rejectedDiagnostics: number }
 export type ContextualTestGatewayReceipt = Readonly<PolicyReceipt & {
   version: 1; started: boolean; closing: boolean; closed: boolean; pending: number; sockets: number
   jsonResponses: number; responses: number; requestBytes: number; responseBytes: number
@@ -56,10 +75,12 @@ export type ContextualTestGatewayReceipt = Readonly<PolicyReceipt & {
 /** Endpoint policy only: no framework, browser-navigation, or body-task state. */
 export class ContextualTestGatewayPolicy {
   private firstFailure: ContextualTestGatewayFailure | null = null
+  private firstEndpointFailure: EndpointFailure | null = null
   private appRequests = 0
   private apiRequests = 0
   private creates = 0
   private rejectedHmr = 0
+  private rejectedDiagnostics = 0
   private readonly classIds: ReadonlySet<string>
   constructor(plan: RehearsalPlan, readonly deadline: number, private readonly now = Date.now) {
     this.classIds = new Set(Object.values(plan.classrooms).map(c => c.id))
@@ -69,7 +90,7 @@ export class ContextualTestGatewayPolicy {
   reject(category: ContextualTestGatewayFailure): never { this.latch(category); throw failure() }
   latch(category: ContextualTestGatewayFailure): void { this.firstFailure ??= failureCategories.includes(category) ? category : 'protocol' }
   check(): void { if (this.now() >= this.deadline) this.reject('deadline'); if (this.firstFailure) throw failure() }
-  receipt(): PolicyReceipt { return { firstFailure: this.firstFailure, appRequests: this.appRequests, apiRequests: this.apiRequests, creates: this.creates, rejectedHmr: this.rejectedHmr } }
+  receipt(): PolicyReceipt { return { firstFailure: this.firstFailure, firstEndpointFailure: this.firstEndpointFailure, appRequests: this.appRequests, apiRequests: this.apiRequests, creates: this.creates, rejectedHmr: this.rejectedHmr, rejectedDiagnostics: this.rejectedDiagnostics } }
   private charge(kind: Kind) {
     if (kind === 'app') { if (this.appRequests >= 950) this.reject('request-cap'); this.appRequests++ }
     else { if (this.apiRequests >= 4000) this.reject('request-cap'); this.apiRequests++ }
@@ -95,6 +116,8 @@ export class ContextualTestGatewayPolicy {
       // and byte limits. Storage and all other Supabase services are excluded.
       allowed = /^\/rest\/v1\/(?:[a-z][a-z0-9_]*|rpc\/[a-z][a-z0-9_]*)$/.test(path)
         && ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(method)
+    } else if (blockedDevelopmentRead(target, method)) {
+      allowed = true
     } else if (read) {
       // Frozen app RootLayout icons and the always-mounted ClassDaysProvider
       // are shell reads even when the only enabled feature is Tests.
@@ -120,8 +143,13 @@ export class ContextualTestGatewayPolicy {
         || method === 'PATCH' && new RegExp(`^/api/student/tests/${uuid}/attempt$`).test(path)
         || method === 'POST' && new RegExp(`^/api/student/tests/${uuid}/(?:start|respond|focus-events)$`).test(path)
     }
-    if (!allowed) this.reject('endpoint')
+    if (!allowed) {
+      this.firstEndpointFailure ??= Object.freeze({ kind, route: endpointLabel(path),
+        method: method === 'GET' || method === 'HEAD' || method === 'POST' || method === 'PATCH' || method === 'DELETE' ? method : 'other' })
+      this.reject('endpoint')
+    }
     this.charge(kind)
+    if (kind === 'app' && blockedDevelopmentRead(target, method)) this.rejectedDiagnostics++
   }
   validateBody(kind: Kind, target: string, method: string, body?: unknown): void {
     this.check()
@@ -226,11 +254,18 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
           if (edges.now() >= end) policy.reject('deadline')
           if (closing) { if (!['GET', 'HEAD'].includes(method)) policy.latch('mutation-cancelled'); finish(); return }
           let body: unknown
+          const developmentRead = kind === 'app' && blockedDevelopmentRead(target, method)
           if (bytes.length) {
-            if (['GET', 'HEAD'].includes(method) || !isJson(String(incoming.headers['content-type'] ?? ''))) policy.reject('request-json')
+            if (['GET', 'HEAD'].includes(method) || (!developmentRead && !isJson(String(incoming.headers['content-type'] ?? '')))) policy.reject('request-json')
             try { body = parseJson(bytes) } catch { policy.reject('request-json') }
           }
           policy.validateBody(kind, target, method, body)
+          if (developmentRead) {
+            // A real empty denial, not a fabricated app/API success. Next falls
+            // back to its existing unmapped stack and local fallback fonts.
+            if (!detached && !outgoing.destroyed) { outgoing.writeHead(404, { 'content-length': '0' }); outgoing.end() }
+            finish(); return
+          }
           if (detached) { if (!['GET', 'HEAD'].includes(method)) policy.reject('mutation-cancelled'); finish(); return }
           const headers = headersWithoutHop(incoming.headers)
           headers.host = hosts[kind]; headers['accept-encoding'] = 'identity'; headers['content-length'] = String(bytes.length)

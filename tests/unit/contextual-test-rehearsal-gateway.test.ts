@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { createRequire } from 'node:module'
 import { PassThrough, Writable } from 'node:stream'
 import type * as http from 'node:http'
 import { describe, expect, it, vi } from 'vitest'
@@ -109,6 +110,22 @@ describe('fixed contextual Test HTTP gateway policy', () => {
     p.latch(secret as never); expect(p.receipt().firstFailure).toBe('protocol')
     expect(JSON.stringify(p.receipt())).not.toContain('secret')
   })
+  it('records fixed endpoint labels without changing rejection or retaining request data', () => {
+    const p = new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000)
+    expect(() => p.admit('app', '/__nextjs_original-stack-frames?secret=private-value', 'localhost:3117', 'POST', { secret: 'private-body' })).toThrow()
+    expect(p.receipt()).toMatchObject({ firstFailure: 'endpoint', appRequests: 0,
+      firstEndpointFailure: { kind: 'app', method: 'POST', route: 'framework-stack-frames' } })
+    expect(() => p.admit('app', '/api/student/notifications', 'localhost:3117', 'GET')).toThrow()
+    expect(p.receipt().firstEndpointFailure?.route).toBe('framework-stack-frames')
+    expect(Object.isFrozen(p.receipt().firstEndpointFailure)).toBe(true)
+    expect(JSON.stringify(p.receipt())).not.toMatch(/private|secret|__nextjs|notifications/)
+  })
+  it('maps unknown endpoint and method values to fixed labels', () => {
+    const p = new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000)
+    expect(() => p.admit('app', '/private-path?private-query=value', 'localhost:3117', 'private-method')).toThrow()
+    expect(p.receipt().firstEndpointFailure).toEqual({ kind: 'app', method: 'other', route: 'unknown' })
+    expect(JSON.stringify(p.receipt())).not.toContain('private')
+  })
   // StudentClassroomsIndex mounts this read even with the attendance integration
   // disabled. The frozen handler reads local state; it does not contact Bara.
   it.each(['/pika-icon-light.svg', '/pika-icon-dark.svg', `/api/classrooms/${plan.classrooms.classB.id}/class-days`, '/api/auth/me', '/api/student/attendance/status'])('admits the exact frozen Tests shell read %s', path => {
@@ -150,6 +167,57 @@ describe('fixed contextual Test HTTP gateway policy', () => {
 })
 
 describe('contextual Test gateway original-byte ownership with fake HTTP I/O', () => {
+  it('lets the installed Next overlay fall back after the real empty diagnostic denial', async () => {
+    const { getOriginalStackFrames } = createRequire(import.meta.url)('next/dist/next-devtools/shared/stack-frame.js')
+    const h = harness(); await h.gateways.start()
+    const fetch = vi.fn(async (target: string, options: { method: string; body: string }) => {
+      const call = h.incoming('app', target, options.method, options.body, { 'content-type': 'text/plain;charset=UTF-8' })
+      await call.done
+      return new Response('', { status: call.response.status })
+    })
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const frames = [{ file: 'webpack-internal:///(app-pages-browser)/./src/components/StudentNotificationsProvider.tsx', line1: 87, column1: 1, methodName: 'fetchNotifications' }]
+      const result = await getOriginalStackFrames(frames, 'client', true)
+      expect(fetch).toHaveBeenCalledOnce()
+      expect(result).toMatchObject([{ error: true, originalStackFrame: null, originalCodeFrame: null }])
+      expect(h.upstreams).toHaveLength(0)
+      expect(h.gateways.receipt()).toMatchObject({ firstFailure: null, rejectedDiagnostics: 1, pending: 0 })
+    } finally { vi.unstubAllGlobals(); await h.gateways.close(2000) }
+  })
+  it.each([
+    ['POST', '/__nextjs_original-stack-frames', '{"frames":[],"isServer":false,"isEdgeServer":false,"isAppDirectory":true}'],
+    ['GET', '/__nextjs_font/geist-latin.woff2', ''],
+    ['HEAD', '/__nextjs_font/geist-mono-latin-ext.woff2', ''],
+  ])('denies optional development metadata locally without upstream dispatch: %s %s', async (method, target, body) => {
+    const h = harness(); await h.gateways.start()
+    const call = h.incoming('app', target, method, body, { 'content-type': 'text/plain;charset=UTF-8' }); await call.done
+    expect(call.response.status).toBe(404); expect(call.response.bytes.length).toBe(0)
+    expect(h.upstreams).toHaveLength(0)
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: null, firstEndpointFailure: null,
+      appRequests: 1, rejectedDiagnostics: 1, pending: 0, creates: 0 })
+    const app = h.incoming('app', '/api/auth/me'); await flush(); h.respond(0, '{}'); await app.done
+    expect(app.response.status).toBe(200); await h.gateways.close(2000)
+  })
+  it.each([
+    ['POST', '/__nextjs_original-stack-frames?extra=1'], ['GET', '/__nextjs_original-stack-frames'],
+    ['POST', '/__nextjs_launch-editor'], ['GET', '/__nextjs_source-map'],
+    ['POST', '/__nextjs_font/geist-latin.woff2'], ['GET', '/__nextjs_font/other.woff2'],
+    ['GET', '/__nextjs_font/geist-latin.woff2?extra=1'],
+  ])('retains fail-closed handling for adjacent development endpoints: %s %s', async (method, target) => {
+    const h = harness(); await h.gateways.start(); const call = h.incoming('app', target, method)
+    await call.done; expect(h.upstreams).toHaveLength(0)
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'endpoint', rejectedDiagnostics: 0 })
+    await h.gateways.close(2000)
+  })
+  it.each(['malformed', 'oversize', 'foreign-origin'] as const)('retains body and origin checks on blocked development reads: %s', async mode => {
+    const h = harness(); await h.gateways.start()
+    const call = h.incoming('app', '/__nextjs_original-stack-frames', 'POST', mode === 'oversize' ? 'x'.repeat(1048577) : '{',
+      mode === 'foreign-origin' ? { origin: 'http://foreign.invalid' } : {})
+    await call.done; expect(h.upstreams).toHaveLength(0)
+    expect(h.gateways.receipt().firstFailure).toBe(mode === 'oversize' ? 'request-size' : mode === 'foreign-origin' ? 'target' : 'request-json')
+    await h.gateways.close(2000)
+  })
   it('sanitizes synchronous server-construction failures without creating a default native listener', async () => {
     const gateways = createContextualTestGateways({ plan, deadline: 2_701_000 }, {
       now: () => 1000, createServer() { throw Error('private-secret') }, request() { throw Error('must not dispatch') },

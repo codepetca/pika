@@ -42,7 +42,7 @@ function fixture() {
     artifacts: ['vertical-owner-author','vertical-member-submitted','vertical-owner-results'].map(label => ({ label, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })) }
   let bound: ContextualTestRunBinding | undefined, witnessReads = 0
   const gateway: ContextualTestGatewayReceipt = { version: 1, firstFailure: null, appRequests: 50, apiRequests: 100, creates: 1,
-    rejectedHmr: 0, started: true, closing: true, closed: true, pending: 0, sockets: 0,
+    rejectedHmr: 0, rejectedDiagnostics: 0, firstEndpointFailure: null, started: true, closing: true, closed: true, pending: 0, sockets: 0,
     jsonResponses: 50, responses: 50, requestBytes: 100, responseBytes: 100 }
   const gateways = { async start() { events.push('gateway-start') }, check() { events.push('gateway-check') },
     async close(end: number) { events.push('gateway-close'); expect(end).toBe(31001) }, receipt: () => gateway }

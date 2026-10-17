@@ -20,7 +20,7 @@ export const contextualTestVerticalContract = Object.freeze({ createdTests: 1, q
   screenshots: 3, automaticRetries: 0, actors: Object.freeze(['ownerStudent', 'memberTeacher', 'nonmember'] as const) })
 export const contextualTestVerticalStages = Object.freeze(['admission', 'owner-create', 'owner-author', 'owner-reload-readback',
   'owner-reload-draft-proof', 'owner-publish', 'published-readback', 'owner-open-member', 'owner-self-enrollment-denial', 'member-owner-api-denial',
-  'member-start', 'member-answer', 'member-submit', 'nonmember-read-denial', 'owner-response-inspector', 'owner-results-readback'] as const)
+  'member-start', 'member-open-test', 'member-confirm-start', 'member-ready', 'member-answer', 'member-submit', 'nonmember-read-denial', 'owner-response-inspector', 'owner-results-readback'] as const)
 type VerticalStage = typeof contextualTestVerticalStages[number]
 const failurePrefix = 'Contextual Test vertical failed: '
 /** Never invoke user accessors or Proxy traps while reducing an error to a label. */
@@ -174,9 +174,12 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
       stage = 'member-owner-api-denial'; r.check()
       await r.api(page, 'GET', `/api/teacher/tests/${testId}/results`, undefined, 403)
       stage = 'member-start'; await r.navigate(page, classUrl); r.check()
+      stage = 'member-open-test'
       await page.getByRole('button', { name: new RegExp(title) }).first().click()
       await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
+      stage = 'member-confirm-start'
       await page.getByRole('dialog', { name: 'Start this test?', exact: true }).getByRole('button', { name: 'Start test', exact: true }).click()
+      stage = 'member-ready'
       await expect(page.getByTestId('student-test-split-container')).toBeVisible()
       await expect(page.getByTestId('exam-interaction-blocker')).toBeHidden()
       stage = 'member-answer'; r.check()
