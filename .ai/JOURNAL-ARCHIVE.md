@@ -47794,3 +47794,40 @@ remain required for this batch. No second native attempt, production/shared-loca
 migration, provider/Survey probe/planning, account/billing or rollout operation.
 PR1581 remains draft; advancing-main/calendar263 conflicts still require separate
 reconciliation. All original Protocol clocks/review/fix and spent histories carry.
+
+<!-- pika-session-log-archive-batch:e914d82dfb2beed08a8a81c6c4c39e56afb54104ee9a4c12056c94c903ecc3a8 -->
+## 2026-10-14 Bounded browser-only diagnostic preparation
+
+Carrier64e passed review61 and3123 focused tests/8skip. Fresh app038480fc7ad7
+passed Playwright setup but failed before workflow entry; owned settlement and
+isolated resource absence verified. Both app attempts remain spent/failed.
+Human approved one separately reviewed browser-only diagnostic: standard pinned
+headed Chrome fixture, blank offline page,90s work/30s operations, unchanged native
+ownership and read-only dependencies, cleanup capped at six minutes from cleanup
+start within the original cap. Fixed-schema reporter covers pre-test fixture
+errors without retaining raw messages/stacks/URLs/output. No new dependencies,
+app/DB/provider/auth or product changes. Initial fullfocused3133/8skip passed.
+Review62 found ordinary-E2E opt-in and Playwright output-mode gaps. One batch
+adds collection-time admission/skip, inherited umask077 and actual output-mode
+verification; both new regressions failed first, then14 combined CPU checks pass.
+Corrected-source review/final gate and the single native dispatch remain pending.
+Production/shared-local/Survey including planning/account/billing/cutover holds
+and all original review/fix/attempt histories remain unchanged. PR1581 stays draft.
+
+<!-- pika-session-log-archive-batch:72bae0f0e24b749b985a6049222e15c1669d68992e59130decca39f38e3d19b3 -->
+## 2026-10-14 Browser-only diagnostic passed
+
+Reviewed6535dc129 passed3135 focused tests/8skip and all policies/TypeScript/lint.
+Review63 clean after the two accepted62 findings; unchanged62/control coverage
+reused. The single approved browser-only run passed: pinned headed Chrome,
+standard fixture, one offline initial blank page/context, zero controlled page
+requests, positive owned closure/fresh absence and exact source/dependency
+preservation.26.328s total/7.827s cleanup within original bounds. Root verified
+private0700 directories/0600 receipts and Playwright run metadata. Evidence kept
+in private coordinator handoff/browser-only-5GDg9t; permanent spent token retained.
+No Pika app/DB/Docker/auth/provider operation, production/shared-local change,
+activation or global Chrome-egress proof. Earlier full-app failures remain failed;
+basic launch success does not identify their cause or complete the Tests phase.
+Next recommendation is safe early reporting in the full-app path plus the known
+optional Next version-lookup issue; neither fix nor a new native run was performed.
+PR1581 remains draft, all holds and cumulative histories unchanged.

@@ -65,7 +65,7 @@ function fixture(resourceType = 'Fetch', worker = false) {
 describe('pinned Chromium redirect interception', () => {
   it('pins the exact commit-event and request-identity plumbing and rejects every source drift', () => {
     const root = dirname(require.resolve('playwright-core/package.json'))
-    const names = ['client/frame.js', 'client/channelOwner.js', 'client/connection.js', 'server/dispatchers/frameDispatcher.js', 'protocol/validator.js',
+    const names = ['server/frames.js', 'server/chromium/crPage.js', 'client/frame.js', 'client/channelOwner.js', 'client/connection.js', 'server/dispatchers/frameDispatcher.js', 'protocol/validator.js',
       'server/network.js', 'server/dispatchers/networkDispatchers.js']
     const sources = Object.fromEntries(names.map(name => [name, readFileSync(join(root, 'lib', name))]))
     expect(() => assertNavigationSources(sources)).not.toThrow()

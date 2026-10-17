@@ -133,7 +133,7 @@ describe('installed Playwright navigation identity compatibility', () => {
       h.boundary.requestFinished(h.context, request)
       expect(route.continue).toHaveBeenCalledOnce()
     })).rejects.toThrow('Private Test rehearsal boundary')
-    expect(h.boundary.receipt().endpointFailure).toMatchObject({ reason: 'route-inspection', detail: 'commit-request' })
+    expect(h.boundary.receipt().endpointFailure).toMatchObject({ reason: 'route-inspection', detail: kind === 'missing' ? 'commit-request-missing' : 'commit-request-mismatch' })
     h.assertSettled()
   })
 })

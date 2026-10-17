@@ -1,4 +1,4 @@
-# State — 2026-10-16 UTC
+# State — 2026-10-17 UTC
 
 `3b7ae978e`; audit27 accepted: docs/guidance/codebase-audit-remediation-2026-10.md.
 
@@ -16,7 +16,8 @@ Exits: docs/guidance/classroom-access-and-entitlements-roadmap.md.
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
-Login PASS; route-inspection failed; labeled small diagnostic pending. No exit.
+Login PASS; full-app commit-request failed; auxiliary-event CPU fix, review next.
+Synthetic navigation passed prior revision; no new native acceptance or exit.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.

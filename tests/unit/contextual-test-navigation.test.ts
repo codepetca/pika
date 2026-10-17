@@ -116,6 +116,34 @@ describe('contextual Test departure navigation fence', () => {
     expect(h.boundary.receipt().firstFailure).toBeNull()
   })
 
+  it.each(['draining', 'before-route', 'after-release'] as const)('keeps the document fence through an auxiliary history event while %s', async phase => {
+    const h = harness(), original = h.request(), action = vi.fn(async () => {
+      if (phase === 'before-route') h.emitter.emit('navigated', { url: origin + '/classrooms#history' })
+      const navigation = h.request({ navigation: true, url: target })
+      await h.fence.route(h.route(navigation))
+      if (phase === 'after-release') h.emitter.emit('navigated', { url: origin + '/classrooms#history' })
+      // An auxiliary event must neither commit nor disarm the old-document fence.
+      const late = h.route(h.request())
+      await h.fence.route(late)
+      expect(late.abort).toHaveBeenCalledExactlyOnceWith('aborted')
+      expect(late.continue).not.toHaveBeenCalled()
+      expect(h.emitter.listenerCount('navigated')).toBe(1)
+      h.commit(navigation)
+    })
+    if (phase === 'draining') { h.route(original); h.boundary.requestReleased(h.context, original) }
+    const departure = h.fence.depart(h.page, target, 2000, action)
+    if (phase === 'draining') {
+      h.emitter.emit('navigated', { url: origin + '/classrooms#history' })
+      expect(action).not.toHaveBeenCalled()
+      h.boundary.requestFinished(h.context, original)
+    }
+    await departure
+    expect(action).toHaveBeenCalledOnce()
+    expect(h.boundary.receipt().firstFailure).toBeNull()
+    expect(h.boundary.pending(h.context)).toBe(0)
+    expect(h.emitter.listenerCount('navigated')).toBe(0)
+  })
+
   it.each(['wrong-first-url', 'unrelated-second', 'wrong-predecessor', 'HEAD'] as const)('rejects %s navigation without continuing it', async scenario => {
     const h = harness()
     await expect(h.fence.depart(h.page, target, 2000, async () => {
@@ -151,8 +179,9 @@ describe('contextual Test departure navigation fence', () => {
       h.boundary.requestFinished(h.context, navigation)
     })).rejects.toThrow()
     expect(h.boundary.receipt().firstFailure).toBe('endpoint')
-    if (scenario !== 'error') expect(h.boundary.receipt().endpointFailure?.detail).toBe(
-      scenario === 'wrong-url' ? 'commit-url' : 'commit-request')
+    if (scenario === 'same-document-event') expect(h.boundary.receipt().endpointFailure?.reason).toBe('navigation-pending')
+    else if (scenario !== 'error') expect(h.boundary.receipt().endpointFailure?.detail).toBe(
+      scenario === 'wrong-url' ? 'commit-url' : scenario === 'missing-request' ? 'commit-request-missing' : 'commit-request-mismatch')
   })
 
   it('rejects command completion without a matching document commit', async () => {
@@ -161,6 +190,33 @@ describe('contextual Test departure navigation fence', () => {
       const request = h.request({ navigation: true, url: target })
       await h.fence.route(h.route(request)); h.boundary.requestFinished(h.context, request)
     })).rejects.toThrow()
+  })
+
+  it.each(['error', 'deadline', 'latched-failure'] as const)('does not hide %s behind an auxiliary event', async scenario => {
+    let now = 1000
+    const h = harness(() => now)
+    await expect(h.fence.depart(h.page, target, 2000, async () => {
+      const request = h.request({ navigation: true, url: target })
+      await h.fence.route(h.route(request))
+      if (scenario === 'deadline') now = 2000
+      if (scenario === 'latched-failure') expect(() => h.boundary.violate('origin')).toThrow()
+      h.emitter.emit('navigated', { url: target, ...(scenario === 'error' ? { error: 'failed' } : {}) })
+      // Even a subsequent positive commit cannot clear the original failure.
+      h.commit(request)
+    })).rejects.toThrow()
+    expect(h.boundary.receipt().firstFailure).toBe(scenario === 'latched-failure' ? 'origin' : 'endpoint')
+    expect(h.emitter.listenerCount('navigated')).toBe(0)
+  })
+
+  it('still rejects a positive document commit during pre-dispatch drain', async () => {
+    const h = harness(), original = h.request(), action = vi.fn(async () => {})
+    h.route(original); h.boundary.requestReleased(h.context, original)
+    const departure = h.fence.depart(h.page, target, 2000, action)
+    h.emitter.emit('navigated', { url: target, newDocument: { request: { _object: original } } })
+    h.boundary.requestFinished(h.context, original)
+    await expect(departure).rejects.toThrow()
+    expect(action).not.toHaveBeenCalled()
+    expect(h.boundary.receipt().endpointFailure?.reason).toBe('navigation-pending')
   })
 
   it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])('never cancels or continues %s during departure', async method => {

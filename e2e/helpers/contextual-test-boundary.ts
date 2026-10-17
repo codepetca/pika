@@ -25,7 +25,7 @@ export const contextualTestInspectionDetails = ['unknown', 'interception-unknown
   'redirect-predecessor', 'redirect-before-release', 'navigation-first-redirect', 'navigation-target',
   'navigation-superseded', 'navigation-already-committed', 'departure-active', 'departure-context',
   'fragment-document', 'fragment-url', 'commit-missing-navigation', 'commit-before-release',
-  'commit-request', 'commit-url', 'commit-callback', 'route-callback'] as const
+  'commit-request', 'commit-request-missing', 'commit-request-mismatch', 'commit-url', 'commit-callback', 'route-callback'] as const
 type InspectionDetail = typeof contextualTestInspectionDetails[number]
 type EndpointFailure = { reason: EndpointReason; transports: number; bodies: number; detail?: InspectionDetail }
 type RequestFailure = {

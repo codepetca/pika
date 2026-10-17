@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Bounded browser-only diagnostic preparation
-
-Carrier64e passed review61 and3123 focused tests/8skip. Fresh app038480fc7ad7
-passed Playwright setup but failed before workflow entry; owned settlement and
-isolated resource absence verified. Both app attempts remain spent/failed.
-Human approved one separately reviewed browser-only diagnostic: standard pinned
-headed Chrome fixture, blank offline page,90s work/30s operations, unchanged native
-ownership and read-only dependencies, cleanup capped at six minutes from cleanup
-start within the original cap. Fixed-schema reporter covers pre-test fixture
-errors without retaining raw messages/stacks/URLs/output. No new dependencies,
-app/DB/provider/auth or product changes. Initial fullfocused3133/8skip passed.
-Review62 found ordinary-E2E opt-in and Playwright output-mode gaps. One batch
-adds collection-time admission/skip, inherited umask077 and actual output-mode
-verification; both new regressions failed first, then14 combined CPU checks pass.
-Corrected-source review/final gate and the single native dispatch remain pending.
-Production/shared-local/Survey including planning/account/billing/cutover holds
-and all original review/fix/attempt histories remain unchanged. PR1581 stays draft.
-
-## 2026-10-14 Browser-only diagnostic passed
-
-Reviewed6535dc129 passed3135 focused tests/8skip and all policies/TypeScript/lint.
-Review63 clean after the two accepted62 findings; unchanged62/control coverage
-reused. The single approved browser-only run passed: pinned headed Chrome,
-standard fixture, one offline initial blank page/context, zero controlled page
-requests, positive owned closure/fresh absence and exact source/dependency
-preservation.26.328s total/7.827s cleanup within original bounds. Root verified
-private0700 directories/0600 receipts and Playwright run metadata. Evidence kept
-in private coordinator handoff/browser-only-5GDg9t; permanent spent token retained.
-No Pika app/DB/Docker/auth/provider operation, production/shared-local change,
-activation or global Chrome-egress proof. Earlier full-app failures remain failed;
-basic launch success does not identify their cause or complete the Tests phase.
-Next recommendation is safe early reporting in the full-app path plus the known
-optional Next version-lookup issue; neither fix nor a new native run was performed.
-PR1581 remains draft, all holds and cumulative histories unchanged.
-
 ## 2026-10-14 Full-app startup privacy-safe reporting
 
 Added thin fixed-schema startup reporter and exclusive private milestones for
@@ -950,3 +915,51 @@ ownership, strict receipts and original deadlines remain required. Combined236
 targeted tests and TypeScript pass. Independent review and final focused gate
 are next before one fresh browser-only run. No native attempt yet, no app/DB or
 production change. PR1581 stays draft; all holds and spent attempts carry.
+
+## 2026-10-17 — Full-app rehearsal pinpoints commit-request rejection
+
+Previous slice completed at59e4: review121 clean,3671 focused tests/8skip plus
+all policy/TypeScript/lint gates passed. Browser-only diagnostic6alG8b passed
+actual unsent-read cancellation, original body verification before departure,
+document commit and cleanup; independent source/dependency preservation passed.
+This synthetic success did not establish full-app recovery.
+
+Human approved one fresh full-app attempt with the new labels. Review122 cleared
+only fresh private launcher token/date/scope/filter changes, with unchanged
+preparation, pins,45-minute work and six-minute cleanup bounds. RehearsalvjDW6q
+used reviewed59e4, frozen21e755 and isolated001–262. Login completed identity;
+browser stopped at route-inspection detail commit-request, pending1,31app
+requests, no storage requests or captures. The expected document request existed
+and had been released, but the decoded commit request was not the same object.
+Receipt cannot yet distinguish missing document/request metadata from a different
+identity. No claim of root cause, native acceptance or visual verification.
+
+All six cleanup gates passed. Exact synthetic containers/volumes/network/workdir
+are absent; rehearsal ports are free. Immediate independent verification BEFORE
+post-run writes confirms7657 sourcefiles and49485 dependencyfiles unchanged,
+zero matching processes. Evidence retained; attempt permanently spent. No retry,
+source-code fix, production/shared-local/provider/Survey/account or rollout
+change. Next: isolate the commit-event/expected-request mismatch in a focused
+regression before another full-app attempt. Cumulative122reviews/72fixbatches;
+original clocks/task waiver retained. PR1581 remains draft at59e4.
+
+## 2026-10-17 — Separate auxiliary history events from document commits
+
+Reproduced a false commit-request failure with installed Playwright server
+FrameManager/dispatchers/wire/client objects: same-document history event then
+the exact expected document commit. Both navigate/reload regressions failed
+before the fix; three drain/route timing regressions also failed. The runner
+now keeps the departure fence active through auxiliary events, never counting
+them as success. The final document still needs the exact last released Request
+and URL; missing/wrong request, errors, deadlines and latched failures remain
+fatal. Separate fixed missing/mismatch labels retain privacy. Pinned the server
+event classification sources; dependency bytes are not modified.
+
+The prior native receipt cannot distinguish this reproduced path from actual
+missing/wrong metadata. Next history updates are a plausible source, not a
+proven historical cause. Added a real-SDK missing-request sequence that remains
+rejected; no fallback based on URL or request timing.212 focused tests plus
+TypeScript/eslint pass. Independent security/correctness and compatibility
+review and final focused gate follow before any new full rehearsal. No native
+attempt, app/auth/schema change, production/shared-local change or rollout.
+Prior spent attempts, holds, original clocks and task waiver remain; fix batch73.

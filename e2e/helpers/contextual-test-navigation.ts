@@ -119,14 +119,21 @@ export class ContextualTestNavigation {
       unobserve = observeContextualTestNavigation(departure.frame, event => {
         try {
           this.check(departure)
-          if (departure.committed || !departure.dispatched || event.error) this.boundary.endpoint('navigation-pending')
+          if (departure.committed || event.error) this.boundary.endpoint('navigation-pending')
+          // The pinned FrameManager also emits history/fragment updates here.
+          // They are not document commits, including while the old document is
+          // draining. Keep the fence, deadline and expected Request untouched;
+          // only a positive newDocument event below can finish this departure.
+          if (!departure.sameDocument && event.newDocument === undefined) return
+          if (!departure.dispatched) this.boundary.endpoint('navigation-pending')
           if (departure.sameDocument) {
             if (event.newDocument !== undefined) this.boundary.inspection('fragment-document')
             if (event.url !== departure.target) this.boundary.inspection('fragment-url')
           } else {
             if (!departure.last) this.boundary.inspection('commit-missing-navigation')
             if (!departure.released) this.boundary.inspection('commit-before-release')
-            if (event.newDocument?.request?._object !== departure.last) this.boundary.inspection('commit-request')
+            if (event.newDocument?.request?._object === undefined) this.boundary.inspection('commit-request-missing')
+            if (event.newDocument?.request?._object !== departure.last) this.boundary.inspection('commit-request-mismatch')
             if (withoutHash(event.url) !== withoutHash(departure.last.url())) this.boundary.inspection('commit-url')
           }
           departure.committed = true

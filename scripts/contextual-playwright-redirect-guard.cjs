@@ -12,6 +12,8 @@ const CLIENT_NETWORK_SHA256 = '385cd7a58fea3cf46d82533b7c041eee41c903cf9179a810d
 // The departure fence consumes the SDK's existing, request-correlated frame
 // commit event, not a URL-only public event or another CDP interception session.
 const NAVIGATION_SOURCES = Object.freeze({
+  'server/frames.js': 'fa67e7a3755a79cf0e0ac96b6930987ec2bcc643f60735c6ec748066f7c3e16b',
+  'server/chromium/crPage.js': '08f14f9abc4bde5b36a0679889de05e8c3c0ebbf7e15c3bafc3639830e01c174',
   'client/frame.js': 'f3eeec1734312b518d488763365f7b3f877284bf92c01edc267bdbb1648ef8c7',
   'client/channelOwner.js': '7052cae26b3fc156572494b9cf8a6cdddc8d3845aea7dec9ef7642f44f866c7e',
   'client/connection.js': 'e063a23c7fb0ed81e7a09baa0844851c660b3cba1c39176963f17b10a1bf1526',
