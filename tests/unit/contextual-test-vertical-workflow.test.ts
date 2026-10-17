@@ -11,6 +11,7 @@ import {
   selectVerticalMemberResponse,
   runContextualTestVerticalWorkflow,
   verticalWorkflowFailureStage,
+  withVerticalFinalEvidence,
 } from '../../e2e/helpers/contextual-test-vertical-workflow'
 
 const id = (n: number) => `60000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -21,6 +22,16 @@ const submitted = () => ({ questions: published().questions, students: [{ studen
     [id(4)]: { response_id: id(7), response_revision: 1, selected_option: null, response_text: 'Synthetic reasoning.', is_draft: false } } }] })
 
 describe('narrow contextual Test graph assertions (CPU only)', () => {
+  it.each(['pass', 'verification-failure', 'capture-failure', 'both-fail'] as const)('captures the final approved image slot once without masking failure: %s', async mode => {
+    const original = Error('verification'), captureError = Error('capture'), page = {}
+    const snapshot = vi.fn(async () => { if (mode === 'capture-failure' || mode === 'both-fail') throw captureError })
+    const verify = vi.fn(async () => { if (mode === 'verification-failure' || mode === 'both-fail') throw original })
+    const result = withVerticalFinalEvidence({ snapshot } as never, page as never, verify)
+    if (mode === 'pass') await expect(result).resolves.toBeUndefined()
+    else await expect(result).rejects.toBe(mode === 'capture-failure' ? captureError : original)
+    expect(verify).toHaveBeenCalledOnce()
+    expect(snapshot).toHaveBeenCalledExactlyOnceWith('vertical-owner-results', page)
+  })
   it('selects the noninteractive name cell instead of clicking the row center', async () => {
     const nameClick = vi.fn(async () => {}), rowClick = vi.fn(() => { throw Error('row center may activate access or unsubmit') })
     const nth = vi.fn((index: number) => {

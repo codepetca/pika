@@ -112,6 +112,21 @@ export async function selectVerticalMemberResponse(member: Locator): Promise<voi
   await member.getByRole('cell').nth(1).click()
 }
 
+/** Reuse the final approved image slot on failure; never retry a capture. */
+export async function withVerticalFinalEvidence(r: VerticalTestRuntime, page: Page, verify: () => Promise<void>): Promise<void> {
+  let captureStarted = false
+  try {
+    await verify()
+    captureStarted = true
+    await r.snapshot('vertical-owner-results', page)
+  } catch (error) {
+    if (!captureStarted) {
+      try { await r.snapshot('vertical-owner-results', page) } catch { /* Preserve the original verification failure. */ }
+    }
+    throw error
+  }
+}
+
 /** Exactly one new Test; every successful mutation is an ordinary app UI action.
  * No grading, upload, provider, reorder, archive, purge, or recovery operations.
  * Errors expose a fixed stage, never response bodies or credentials.
@@ -227,11 +242,13 @@ export async function runContextualTestVerticalWorkflow(r: VerticalTestRuntime) 
       const member = page.getByTestId(`test-grading-student-row-${memberId}`)
       await selectVerticalMemberResponse(member)
       await expect(member).toHaveAttribute('aria-selected', 'true')
-      stage = 'owner-read-response'
-      await expect(page.getByTestId('test-grading-inspector-scroll-pane').getByText(text, { exact: true })).toBeVisible()
-      stage = 'owner-results-readback'; r.check()
-      assertVerticalSubmittedGraph(await r.api<Results>(page, 'GET', `/api/teacher/tests/${testId}/results`), memberId, questionIds, text)
-      await r.snapshot('vertical-owner-results', page)
+      await withVerticalFinalEvidence(r, page, async () => {
+        // Check actual owner data first, independently of the rendered panel.
+        stage = 'owner-results-readback'; r.check()
+        assertVerticalSubmittedGraph(await r.api<Results>(page, 'GET', `/api/teacher/tests/${testId}/results`), memberId, questionIds, text)
+        stage = 'owner-read-response'
+        await expect(page.getByTestId('test-grading-inspector-scroll-pane').getByText(text, { exact: true })).toBeVisible()
+      })
     })
     r.check()
     return { testId, questionIds: [questionIds.mcId, questionIds.openId] as const, ownerId, memberId, classroomId,
