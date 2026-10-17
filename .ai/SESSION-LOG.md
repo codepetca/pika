@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Calendar muted non-class cards and short-content centering
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested muted non-class cards without visible No class and centered short lesson content. Hidden status remains accessible; long reading and the editor remain top-aligned; permissions and click-to-edit are unchanged.
-- 93 feature/gallery tests pass; types/lint/UI/design policies/audit pass. Latest eight-context Playwright captures include measured centering, long-content top alignment, hidden No class, editor entry/Escape focus and student read-only behavior. Final focused gate and independent presentation review next; PR held draft during changes.
-
 ## 2026-10-14 — Calendar non-class hatching
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner found muted days unclear; added a semantic-token diagonal hatch to Week non-class cards. Current-day outline, hidden accessible status, centered short content and interactions preserved.
@@ -495,3 +490,25 @@ two failing deferred500/409 regressions; move mutation-error/retry reset to the
 resource-scope transition, preserving explicit edit/save recovery. Remediation98
 adds no API, permission, styling or database change; targeted re-review and final
 checks/fixture captures follow on the new SHA. Original proof remains historical.
+
+## 2026-10-17 — Contextual hot classroom lifecycle foundation
+
+The consolidated Test proof reached an unimplemented dependency: admitted
+classroom PATCH deliberately rejected archive/restore through its metadata-only
+contract. Stopped full browser attempts; preserved failed receipts and verified
+cleanup. Coordinator owns codex/contextual-hot-archive from current main eb4fa32b2.
+Add strict lifecycle dispatch, service-only migration268 and restore entitlement
+checks without widening metadata, changing legacy behavior or activating admission.
+No UI component, plan, retention or Storage change. Risk: consequential classroom
+authorization/lifecycle boundary; risk profile none (no workspace/AI/exam/runtime
+platform behavior). Native verification and generated types remain prerequisites.
+
+Astra/high bounded architect plan accepted after source verification. Sol6.1/high
+workers own SQL/rollback tests and the existing disposable harness's closed268
+profile; coordinator owns API/service/tests/CI/docs/integration. Offline API and SQL
+contract checks pass; actual database/concurrency acceptance is not yet established.
+Independent security and compatibility review required on stable cumulative source.
+Standing routine-approval/review-budget waiver retained, prior172 review turns and
+110 correction batches not reset. All production/shared-local/provider/account/
+admission/home/cutover holds unchanged; no migration applied. Existing harness,
+source/dependency preservation and one-shot exact-target disposal gates retained.

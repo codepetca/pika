@@ -305,13 +305,13 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
     const a=f.assignments[index]; transport.readContext(a.id,actorId)
     // Register the actual application's fresh timestamp body; delegate unchanged
     // to the real SDK builder. This intercepts intent, never fabricates a result.
-    const originalRpc=client.rpc.bind(client)
+    const originalRpc=(values:Record<string,unknown>)=>client.rpc('open_assignment_doc_for_member_v1',values as never)
     const wrapped=Object.create(client) as typeof client
     wrapped.rpc=((name:string,values:Record<string,unknown>)=>{
       assert.equal(name,'open_assignment_doc_for_member_v1'); assert.deepEqual(Object.keys(values).sort(),['p_actor_id','p_assignment_id','p_pal_event','p_viewed_at'])
       assert.equal(values.p_actor_id,actorId); assert.equal(values.p_assignment_id,a.id); assert.equal(values.p_pal_event,null)
       assert(typeof values.p_viewed_at==='string'&&Number.isFinite(Date.parse(values.p_viewed_at)))
-      transport.planRpc(name,values); return originalRpc('open_assignment_doc_for_member_v1',values as never)
+      transport.planRpc(name,values); return originalRpc(values)
     }) as unknown as typeof client.rpc
     const body=await openSharedAssignmentLearnerDoc({supabase:wrapped,actorId,assignmentId:a.id})
     transport.assertNoPendingRpc(); assert.equal(body.doc.assignment_id,a.id); assert.equal(body.doc.student_id,actorId)

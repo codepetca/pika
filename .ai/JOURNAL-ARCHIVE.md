@@ -47330,3 +47330,9 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested click-to-edit lesson content. Removed separate edit/add icons; native shared Button behind rich preview preserves keyboard entry/focus and separate links. Student/weekend/read-only permissions preserved.
 - 49 focused Calendar/DayCell tests pass, including content click, links, Enter/Space, Escape/blur/autosave. Eight real-owner role/viewport/theme captures refreshed; teacher content/empty clicks and focus return verified. UiGallery regression updated for the new content target.
 - PR returned to draft before changing source. Targeted general-tier medium independent review and final focused gate next; no merge/production authority inferred.
+
+<!-- pika-session-log-archive-batch:688b15aa3a402c9093ada2eff50c916265f5f5a8e8d99db4e5781ee7bd0d38d6 -->
+## 2026-10-14 — Calendar muted non-class cards and short-content centering
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested muted non-class cards without visible No class and centered short lesson content. Hidden status remains accessible; long reading and the editor remain top-aligned; permissions and click-to-edit are unchanged.
+- 93 feature/gallery tests pass; types/lint/UI/design policies/audit pass. Latest eight-context Playwright captures include measured centering, long-content top alignment, hidden No class, editor entry/Escape focus and student read-only behavior. Final focused gate and independent presentation review next; PR held draft during changes.
