@@ -10,9 +10,11 @@ test('one real mixed-role Test: create publish submit inspect and deny', async (
     const { createContextualTestVerticalRuntime } = require('./helpers/contextual-test-vertical-runtime') as typeof import('./helpers/contextual-test-vertical-runtime')
     const { runContextualTestVerticalWorkflow } = require('./helpers/contextual-test-vertical-workflow') as typeof import('./helpers/contextual-test-vertical-workflow')
     const { runContextualTestGradeReturnWorkflow } = require('./helpers/contextual-test-grade-return-workflow') as typeof import('./helpers/contextual-test-grade-return-workflow')
+    const { runContextualTestLifecycleWorkflow } = require('./helpers/contextual-test-lifecycle-workflow') as typeof import('./helpers/contextual-test-lifecycle-workflow')
     const owned = await createContextualTestVerticalRuntime(browser)
-    let result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow>> | null = null, failure: unknown
-    try { startup.stage('workflow'); result = await (binding!.proofScope === 'vertical-grade-return-v1'
+    let result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow | typeof runContextualTestLifecycleWorkflow>> | null = null, failure: unknown
+    try { startup.stage('workflow'); result = await (binding!.proofScope === 'lifecycle-permissions-v1'
+      ? runContextualTestLifecycleWorkflow(owned.runtime) : binding!.proofScope === 'vertical-grade-return-v1'
       ? runContextualTestGradeReturnWorkflow(owned.runtime) : runContextualTestVerticalWorkflow(owned.runtime)) }
     catch (error) { failure = error; startup.failure(error) }
     finally { startup.stage('teardown'); await owned.close(result, failure) }

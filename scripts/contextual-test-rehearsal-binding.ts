@@ -8,6 +8,7 @@ import { closeSync, constants, fsyncSync, fstatSync, lstatSync, openSync, readFi
 import { dirname, isAbsolute, join, normalize } from 'node:path'
 import { createContextualTestPlan, bootstrapContextualTestFixtureSql, contextualTestWitnessSql, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
 import { contextualTestGradeReturnWitnessSql } from './contextual-test-grade-return-proof'
+import { contextualTestLifecycleWitnessSql } from './contextual-test-lifecycle-proof'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { createContextualTestPinnedCommand, type ContextualTestTransportPins } from './contextual-test-rehearsal-launch'
 import { createContextualTestNativeControls, type ContextualTestNativePins } from './contextual-test-rehearsal-native'
@@ -40,7 +41,7 @@ export function validateContextualTestRunBinding(value: unknown, now = Date.now(
   const hasScope = !!value && typeof value === 'object' && Object.hasOwn(value, 'proofScope')
   exactData(value, ['version','projectId','appOrigin','apiOrigin','sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','planSha256',
     'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : []), ...(hasScope ? ['proofScope'] : [])])
-  if (hasScope) { assert(value.proofScope === 'vertical-v1' || value.proofScope === 'vertical-grade-return-v1'); assert(!hasSqlControl, 'Narrow browser receives no SQL controls') }
+  if (hasScope) { assert(value.proofScope === 'vertical-v1' || value.proofScope === 'vertical-grade-return-v1' || value.proofScope === 'lifecycle-permissions-v1'); assert(!hasSqlControl, 'Narrow browser receives no SQL controls') }
   assert.equal(value.version, 1); assert(typeof value.projectId === 'string')
   const plan = createContextualTestPlan(value.projectId, value.proofScope as ContextualTestProofScope | undefined)
   for (const key of ['sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','appOrigin','apiOrigin'] as const) assert.equal(value[key], plan[key])
@@ -105,13 +106,15 @@ export function readContextualTestBinding(path: string, sha256: string): Context
   } finally { closeSync(fd) }
 }
 
-export type ContextualTestSqlKind = 'witness' | 'gradeReturnWitness' | 'bootstrap' | 'revokeMemberTeacherA' | 'restoreMemberTeacherA' | 'archiveA' | 'restoreArchiveA'
+export type ContextualTestSqlKind = 'witness' | 'gradeReturnWitness' | 'lifecycleWitness' | 'bootstrap' | 'revokeMemberTeacherA' | 'restoreMemberTeacherA' | 'archiveA' | 'restoreArchiveA'
 export function contextualTestSql(binding: ContextualTestRunBinding, kind: ContextualTestSqlKind, passwordHash?: string) {
   const plan = createContextualTestPlan(binding.projectId, binding.proofScope)
   if (kind === 'gradeReturnWitness') { assert.equal(binding.proofScope, 'vertical-grade-return-v1'); assert.equal(passwordHash, undefined); return contextualTestGradeReturnWitnessSql(plan) }
+  if (kind === 'lifecycleWitness') { assert.equal(binding.proofScope, 'lifecycle-permissions-v1'); assert.equal(passwordHash, undefined); return contextualTestLifecycleWitnessSql(plan) }
   if (kind === 'witness') { assert.equal(passwordHash, undefined); return contextualTestWitnessSql(plan) }
   if (kind === 'bootstrap') { assert(typeof passwordHash === 'string'); return bootstrapContextualTestFixtureSql(plan, passwordHash) }
   assert.notEqual(binding.proofScope, 'vertical-grade-return-v1', 'Successor admits no fixture recovery mutations')
+  assert.notEqual(binding.proofScope, 'lifecycle-permissions-v1', 'Lifecycle browser admits no fixture recovery mutations')
   assert.equal(passwordHash, undefined)
   assert(Object.hasOwn(plan.mutations, kind), 'Unknown fixed rehearsal SQL operation')
   return plan.mutations[kind as keyof typeof plan.mutations]

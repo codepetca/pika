@@ -104,6 +104,27 @@ Existing AI grading entrypoints/jobs and Blueprint compatibility are still
 separate open groups. The manual screen adopter does not prove provider readiness,
 Surveys/Gradebook completeness, Tests batch2 exit or full goal completion.
 
+### Consolidated remaining check — prepared 2026-10-17
+
+The separate `lifecycle-permissions-v1` scope reuses the accepted ordinary
+Playwright carrier on frozen main `eb4fa32b2`, schema001–267. It uses two synthetic
+Tests and the complementary ownerTeacher/memberStudent/memberTeacher pairing;
+accepted ownerStudent grading/Return evidence remains valid without replay.
+The workload covers saved references/previews, reload recovery, real stale-grade
+revision/retry, clear/retracted disclosure, Unsubmit, single/multiple work reset,
+atomic reorder and deletion. Positive return-to-draft occurs before any attempts;
+the irreversible first-attempt lock is separately checked in the UI and API.
+Eight captures cover owner/learner desktop/mobile light/dark combinations.
+
+Preserve-data learner removal intentionally retains the work and tombstone and
+refuses rejoin. The final isolated witness enumerates that expected removal;
+it must not claim full fixture restoration or purge retained work to force one.
+Cached/fresh removed-member and archived-classroom denials are checked, the
+classroom is unarchived, and exact saved work is compared independently. Browser
+code gets no SQL capability. Existing network/process/source/dependency limits,
+canonical-state preservation and complete disposable cleanup remain mandatory.
+Preparation and CPU checks are not native acceptance. Production holds remain.
+
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.
 This source-only document grants no execution authority and no new trial/retention

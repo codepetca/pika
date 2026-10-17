@@ -98,7 +98,7 @@ function waitFor(page: Page, method: string, path: string): Promise<Response> {
 }
 
 /** Individual row switches save immediately; only the bulk action confirms. */
-export async function openVerticalMemberAccess(r: VerticalTestRuntime, page: Page, member: Locator, testId: string): Promise<void> {
+export async function openVerticalMemberAccess(r: Pick<VerticalTestRuntime,'response'>, page: Page, member: Locator, testId: string): Promise<void> {
   const ack = waitFor(page, 'POST', `/api/teacher/tests/${testId}/student-access`)
   await member.getByRole('switch', { name: /Open access for/ }).click()
   const response = await ack

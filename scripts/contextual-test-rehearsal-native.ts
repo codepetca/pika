@@ -367,7 +367,7 @@ export function contextualTestExecutionDigest(admission: ContextualTestControlle
 export function createContextualTestExecutionControls(admission: ContextualTestControllerAdmission,
   pins: ContextualTestNativePins, seal: ContextualTestExecutionSeal): ContextualTestControllerControls {
   admission = immutableContextualTestData(admission); pins = immutableContextualTestData(pins); seal = immutableContextualTestData(seal)
-  const vertical = admission.proofScope === 'vertical-v1' || admission.proofScope === 'vertical-grade-return-v1'
+  const vertical = admission.proofScope === 'vertical-v1' || admission.proofScope === 'vertical-grade-return-v1' || admission.proofScope === 'lifecycle-permissions-v1'
   const native = createContextualTestNativeControls(pins, admission.cleanupDeadline)
   const command = createContextualTestPinnedCommand(admission.transportPins, admission, { settle: native.settleCommand })
   let admitted = false, executionEnd = admission.cleanupDeadline

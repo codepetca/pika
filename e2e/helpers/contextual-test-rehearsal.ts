@@ -10,11 +10,11 @@ import type { createContextualTestAuthoringProgress } from './contextual-test-au
 const uuid = (suffix: string) => `50000000-0000-4000-8000-0000000000${suffix}`
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
 
-export type ContextualTestProofScope = 'vertical-v1' | 'vertical-grade-return-v1'
+export type ContextualTestProofScope = 'vertical-v1' | 'vertical-grade-return-v1' | 'lifecycle-permissions-v1'
 export function createContextualTestPlan(projectId: string, proofScope?: ContextualTestProofScope) {
   assert.match(projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
-  assert(proofScope === undefined || proofScope === 'vertical-v1' || proofScope === 'vertical-grade-return-v1')
-  const successor = proofScope === 'vertical-grade-return-v1'
+  assert(proofScope === undefined || proofScope === 'vertical-v1' || proofScope === 'vertical-grade-return-v1' || proofScope === 'lifecycle-permissions-v1')
+  const successor = proofScope === 'vertical-grade-return-v1' || proofScope === 'lifecycle-permissions-v1'
   const sourceBinding = Object.freeze({ projectId,
     sourceSha: successor ? 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' : '050699bb0f889a533a349b6af415b821ac56d0e3',
     sourceTree: successor ? 'ffec2cc82fd88e9819c147b2ab6246f95c28798e' : 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
@@ -42,6 +42,7 @@ export function createContextualTestPlan(projectId: string, proofScope?: Context
     // self-enrollment rows retained, two nonowner members in each class; nonmember absent.
     const pairs = Object.values(actors).flatMap(actor => Object.values(classrooms).map(c => ({ userId: actor.id, classroomId: c.id })))
     return { ...sourceBinding, actors, classrooms, limits, retiredTestIds: [uuid('31'), uuid('32')],
+      ...(proofScope === 'lifecycle-permissions-v1' ? { lifecycleRoster: { id: uuid('41'), classroomId: classrooms.classA.id, studentId: actors.memberStudent.id } } : {}),
       admission: { version: 1, admittedUserIds: Object.values(actors).map(actor => actor.id) },
       pageAccessPairs: pairs,
       mutations: {
@@ -96,6 +97,8 @@ INSERT INTO public.classroom_enrollments(classroom_id,student_id) VALUES ${enrol
 INSERT INTO public.tests(id,classroom_id,created_by,title,status,blueprint_archived_at) VALUES
 ('${uuid('31')}','${classrooms.classA.id}','${actors.ownerTeacher.id}','Retired fixture A','draft',now()),
 ('${uuid('32')}','${classrooms.classB.id}','${actors.ownerStudent.id}','Retired fixture B','draft',now());
+${plan.sourceSha === 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' && 'lifecycleRoster' in plan ? `INSERT INTO public.classroom_roster(id,classroom_id,email,first_name,last_name) VALUES ('${uuid('41')}','${classrooms.classA.id}',${quote(actors.memberStudent.email)},'Synthetic','Learner');
+INSERT INTO public.classroom_roster_student_bindings(roster_id,classroom_id,student_id) VALUES ('${uuid('41')}','${classrooms.classA.id}','${actors.memberStudent.id}');` : ''}
 COMMIT;`
 }
 

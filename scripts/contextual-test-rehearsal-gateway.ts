@@ -87,15 +87,23 @@ export class ContextualTestGatewayPolicy {
   private createdTestId: string | null = null
   private gradeSaves = 0
   private returns = 0
+  private readonly lifecycleTests = new Set<string>()
+  private readonly lifecycleCounts = new Map<string,number>()
   constructor(private readonly plan: RehearsalPlan, readonly deadline: number, private readonly now = Date.now, private readonly proofScope?: ContextualTestProofScope) {
-    if (![undefined, 'vertical-v1', 'vertical-grade-return-v1'].includes(proofScope)) this.reject('protocol')
-    if (proofScope === 'vertical-grade-return-v1' && plan.sourceSha !== createContextualTestPlan(plan.projectId, proofScope).sourceSha) this.reject('protocol')
+    if (![undefined, 'vertical-v1', 'vertical-grade-return-v1','lifecycle-permissions-v1'].includes(proofScope)) this.reject('protocol')
+    if ((proofScope === 'vertical-grade-return-v1' || proofScope === 'lifecycle-permissions-v1') && plan.sourceSha !== createContextualTestPlan(plan.projectId, proofScope).sourceSha) this.reject('protocol')
     this.classIds = new Set(Object.values(plan.classrooms).map(c => c.id))
     if (plan.appOrigin !== origins.app || plan.apiOrigin !== 'http://127.0.0.1:54331' || plan.retiredTestIds.length !== 2
       || !Number.isSafeInteger(deadline) || deadline <= now() || deadline - now() > 2_700_000) this.reject('deadline')
   }
   /** Only a successful real create acknowledgement can name the successor parent. */
   observeAppResponse(kind: Kind, target: string, method: string, status: number, body: unknown): void {
+    if (this.proofScope === 'lifecycle-permissions-v1' && kind === 'app' && target === '/api/teacher/tests' && method === 'POST' && status === 201) {
+      const test = (body as {test?:{id?:unknown;classroom_id?:unknown}})?.test
+      if (!test || typeof test.id !== 'string' || !new RegExp(`^${uuid}$`).test(test.id) || test.classroom_id !== this.plan.classrooms.classA.id
+        || this.plan.retiredTestIds.includes(test.id) || this.lifecycleTests.has(test.id) || this.lifecycleTests.size >= 2) this.reject('protocol')
+      this.lifecycleTests.add(test.id); return
+    }
     if (this.proofScope !== 'vertical-grade-return-v1' || kind !== 'app' || target !== '/api/teacher/tests' || method !== 'POST' || status !== 201) return
     const test = (body as { test?: { id?: unknown; classroom_id?: unknown } })?.test
     if (this.createdTestId || !test || typeof test.id !== 'string' || !new RegExp(`^${uuid}$`).test(test.id)
@@ -158,21 +166,29 @@ export class ContextualTestGatewayPolicy {
         && query.getAll('artifact_id').length === 1 && new RegExp(`^${uuid}$`).test(query.get('artifact_id') ?? '')
       const notifications = path === '/api/student/notifications' && query.size === 1
         && query.getAll('classroom_id').length === 1 && this.classIds.has(query.get('classroom_id') ?? '')
+      const lifecyclePreview = this.proofScope==='lifecycle-permissions-v1' && query.size===0
+        && [...this.lifecycleTests].some(id=>path===`/classrooms/${this.plan.classrooms.classA.id}/tests/${id}/preview`)
       allowed = ['/login', '/classrooms', '/favicon.ico', '/pika-icon-light.svg', '/pika-icon-dark.svg',
         '/api/auth/me', '/api/classrooms/home', '/api/student/attendance/status', '/api/teacher/tests', '/api/student/tests'].includes(path)
-        || !!(classDays && this.classIds.has(classDays[1])) || testProvenance || notifications
+        || !!(classDays && this.classIds.has(classDays[1])) || testProvenance || notifications || lifecyclePreview
         || new RegExp(`^/classrooms/${uuid}$`).test(path) || path.startsWith('/_next/static/')
         || /^\/fonts\/[a-zA-Z0-9_./-]+$/.test(path) || teacherTest.test(path) || studentTest.test(path) || classRead.test(path)
     } else {
       const successorWrite = this.proofScope === 'vertical-grade-return-v1' && this.createdTestId !== null
         && (method === 'PATCH' && path === `/api/teacher/tests/${this.createdTestId}/students/${this.plan.actors.memberTeacher.id}/grades`
           || method === 'POST' && path === `/api/teacher/tests/${this.createdTestId}/return`)
+      const lifecycleWrite = this.proofScope === 'lifecycle-permissions-v1' && (
+        method === 'POST' && (path === '/api/teacher/tests/reorder/atomic' || path === `/api/teacher/classrooms/${this.plan.classrooms.classA.id}/roster/remove` || path === '/api/student/classrooms/join'
+          || [...this.lifecycleTests].some(id=>new RegExp(`^/api/teacher/tests/${id}/(?:return|unsubmit|unpublish|students/attempts/bulk-delete)$`).test(path)))
+        || method === 'PATCH' && (path === `/api/teacher/classrooms/${this.plan.classrooms.classA.id}`
+          || [...this.lifecycleTests].some(id=>new RegExp(`^/api/teacher/tests/${id}/students/${this.plan.actors.memberStudent.id}/grades$`).test(path)))
+        || method === 'DELETE' && [...this.lifecycleTests].some(id=>path===`/api/teacher/tests/${id}`))
       allowed = method === 'POST' && ['/api/auth/login', '/api/teacher/tests'].includes(path)
         || method === 'PATCH' && new RegExp(`^/api/teacher/tests/${uuid}(?:/draft)?$`).test(path)
         || method === 'POST' && new RegExp(`^/api/teacher/tests/${uuid}/(?:publish|student-access)$`).test(path)
         || method === 'PATCH' && new RegExp(`^/api/student/tests/${uuid}/attempt$`).test(path)
         || method === 'POST' && new RegExp(`^/api/student/tests/${uuid}/(?:start|respond|focus-events)$`).test(path)
-        || successorWrite
+        || successorWrite || lifecycleWrite
     }
     if (!allowed) {
       this.firstEndpointFailure ??= Object.freeze({ kind, route: endpointLabel(path),
@@ -185,6 +201,7 @@ export class ContextualTestGatewayPolicy {
   validateBody(kind: Kind, target: string, method: string, body?: unknown): void {
     this.check()
     const path = target.split('?')[0]
+    if (this.proofScope === 'lifecycle-permissions-v1' && kind === 'app' && !['GET','HEAD'].includes(method)) this.validateLifecycleBody(path,method,body)
     if (this.proofScope === 'vertical-grade-return-v1' && kind === 'app') {
       const exact = (value: unknown, keys: string[]): value is Record<string, unknown> => !!value && typeof value === 'object'
         && !Array.isArray(value) && Object.keys(value).sort().join(',') === keys.sort().join(',')
@@ -205,8 +222,60 @@ export class ContextualTestGatewayPolicy {
     }
     if (kind === 'app' && method === 'POST' && path === '/api/teacher/tests') {
       const row = body && typeof body === 'object' ? body as Record<string, unknown> : null
-      if (!row || typeof row.classroom_id !== 'string' || !this.classIds.has(row.classroom_id) || this.creates >= 1) this.reject('create-cap')
+      if (!row || typeof row.classroom_id !== 'string' || !this.classIds.has(row.classroom_id) || this.creates >= (this.proofScope === 'lifecycle-permissions-v1' ? 2 : 1)) this.reject('create-cap')
       this.creates++
+    }
+  }
+  private validateLifecycleBody(path: string, method: string, raw: unknown): void {
+    const exact = (value: unknown, keys: string[]): value is Record<string,unknown> => !!value && typeof value==='object' && !Array.isArray(value)
+      && Object.keys(value).sort().join(',')===[...keys].sort().join(',')
+    const count = (key: string, cap: number) => { const n=this.lifecycleCounts.get(key)??0; if(n>=cap)this.reject('protocol'); this.lifecycleCounts.set(key,n+1); return n }
+    const c=this.plan.classrooms.classA.id, student=this.plan.actors.memberStudent.id, teacher=this.plan.actors.memberTeacher.id
+    const [main,scratch]=[...this.lifecycleTests]
+    if (path==='/api/auth/login') return
+    if (path==='/api/teacher/tests') { if (!exact(raw,['classroom_id']) || raw.classroom_id!==c) this.reject('protocol'); return }
+    if(path===`/api/teacher/classrooms/${c}/roster/remove`) {
+      if(!exact(raw,['roster_ids']) || !Array.isArray(raw.roster_ids) || raw.roster_ids.length!==1 || raw.roster_ids[0]!==this.plan.lifecycleRoster?.id)this.reject('protocol')
+      count('remove',1); return
+    }
+    if(path==='/api/student/classrooms/join') {
+      if(!exact(raw,['classCode','firstName','lastName']) || raw.classCode!==this.plan.classrooms.classA.classCode || raw.firstName!=='Synthetic' || raw.lastName!=='Learner')this.reject('protocol')
+      if(this.lifecycleCounts.get('remove')!==1)this.reject('protocol');count('rejoin',1); return
+    }
+    if(path===`/api/teacher/classrooms/${c}`) {
+      if(!exact(raw,['archived']) || raw.archived!==(count('archive',2)===0))this.reject('protocol'); return
+    }
+    if(path==='/api/teacher/tests/reorder/atomic') {
+      if(!exact(raw,['classroom_id','test_ids']) || raw.classroom_id!==c || !Array.isArray(raw.test_ids) || raw.test_ids.length<2 || raw.test_ids.length>3
+        || new Set(raw.test_ids).size!==raw.test_ids.length || !raw.test_ids.every(id=>typeof id==='string' && (this.lifecycleTests.has(id)||this.plan.retiredTestIds.includes(id))))this.reject('protocol')
+      const index=count('reorder',2),expected=index===0?[this.plan.retiredTestIds[0],scratch,main]:[main,this.plan.retiredTestIds[1]]
+      if(JSON.stringify(raw.test_ids)!==JSON.stringify(expected))this.reject('protocol'); return
+    }
+    if(path.endsWith('/grades')) {
+      if(path!==`/api/teacher/tests/${main}/students/${student}/grades`)this.reject('protocol')
+      if(!exact(raw,['grades']) || !Array.isArray(raw.grades) || raw.grades.length!==1)this.reject('protocol')
+      const g=raw.grades[0], index=count('grades',4)
+      if(!exact(g,index===3?['question_id','response_id','expected_response_revision','clear_grade']:['question_id','response_id','expected_response_revision','score','feedback'])
+        || ![g.question_id,g.response_id].every(v=>typeof v==='string'&&new RegExp(`^${uuid}$`).test(v)) || !Number.isSafeInteger(g.expected_response_revision)||Number(g.expected_response_revision)<1
+        || (index===3?g.clear_grade!==true:g.score!==(index===0?2:4)||g.feedback!==(index===0?'Concurrent owner session':'Lifecycle manual feedback')))this.reject('protocol')
+      return
+    }
+    if(path.endsWith('/return') || path.endsWith('/unsubmit') || path.endsWith('/bulk-delete')) {
+      if(!exact(raw,['student_ids'])||!Array.isArray(raw.student_ids)||raw.student_ids.length<1||raw.student_ids.length>2||new Set(raw.student_ids).size!==raw.student_ids.length
+        ||!raw.student_ids.every(id=>id===student||id===teacher))this.reject('protocol')
+      const reset=path.endsWith('/bulk-delete'),unsubmit=path.endsWith('/unsubmit')
+      const index=count(reset?'reset':unsubmit?'unsubmit':'return',reset?2:1)
+      const parent=reset||unsubmit?scratch:main
+      if(!path.startsWith(`/api/teacher/tests/${parent}/`) || raw.student_ids.length!==(reset&&index===1?2:1)
+        || !raw.student_ids.includes(student))this.reject('protocol'); return
+    }
+    const parent = new RegExp(`^/api/(?:teacher|student)/tests/(${uuid})(?:/|$)`).exec(path)?.[1]
+    if (!parent || (!this.lifecycleTests.has(parent) && !(method==='PATCH' && path===`/api/teacher/tests/${this.plan.retiredTestIds[1]}`)))this.reject('protocol')
+    if (method==='DELETE') { if(path!==`/api/teacher/tests/${scratch}` || raw!==undefined && raw!==null)this.reject('protocol'); count('delete',1) }
+    if(path.endsWith('/unpublish')) { if(!exact(raw,[]))this.reject('protocol'); count('unpublish',2) }
+    if(path.endsWith('/publish')) {
+      if(!exact(raw,['status','draft_version']) || raw.status!=='closed'||!Number.isSafeInteger(raw.draft_version)||Number(raw.draft_version)<1)this.reject('protocol')
+      count('publish',3)
     }
   }
 }

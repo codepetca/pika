@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Admission split reviewed; fresh attempt reached body but cleanup unverified
-
-Runtime25fd84bea passes3190focused/8skip and all policies/TSC/lint. Review69
-complete/clean, earlier unchanged coverage reused. ONE88dfc3bb2a65/LZ5ioM attempt
-FAILED/SPENT; admission fix progresses through spec-entry/runtime-import, not
-runtime-imported/runtime-entry. Standalone fixed startup file records original
-unknown body error at runtime-import (message bounded, stack accessor); cause not
-identified. Controller startup/server are null because ownedSettledfalse;
-lifecycleCompleted/PWvalidatedfalse. This is not successful cleanup or acceptance.
-Controller ended107.272s from start after an unsuccessful5.641s cleanup path;
-invoker/app remained alive. Root verified current kernel births/parentage/Node
-executable, exact app argv/cwd and no foreign app-group members, then sent SIGTERM
-only to owned app group within the original cleanup reserve. Fresh kernel checks
-show app group, invoker and its esbuild gone;3117 clear. This proves current
-known-process absence, not historical browser-family closure; receipt unchanged.
-Current-only byte comparison BEFOREfurther tests/docs matches dependencies and
-all7627source files; explicit preservationCompletefalse/nativeAcceptancefalse.
-Original complete-preservation check correctly stopped at ownedSettledfalse.
-Five containers, two volumes, one network and isolated temp workdir remain;
-both project labels/creation times/network members checked, no resources deleted.
-Preserve them and evidence pending a separately bounded exact-project recovery
-decision; no original clock extension, old admission replay or fresh rehearsal.
-Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
-
 ## 2026-10-14 Reviewed login readiness; full rehearsal and positive cleanup
 
 Runtime a6ebcfb5 plus docs-only416f4a7 passes3221focused/8skip and all policies,
@@ -996,3 +972,10 @@ native attempt, acceptance, release or full-goal completion is claimed yet.
 - Two obsolete UI expectations corrected with regression tests/review: Publish today menu and full-roster Return status. Failed attempts retained/spent, not relabeled.
 - Reviews158–162 clean;4058 focused checks/static gates passed. Native cleanup and immediate source/dependency preservation passed; disposable resources/workdir absent.
 - Full Tests lifecycle/role matrix and other groups remain open. Production/shared-local/provider/Survey/account/billing/cutover holds unchanged. Evidence stays private in coordinator restart-recovery `playwright-vertical-llZf49/ACCEPTANCE.md`.
+
+## 2026-10-17 — consolidated Test lifecycle/permissions preparation
+
+- Preparing a distinct two-Test ordinary-screen proof on frozen main eb4fa32b2/schema001–267, reusing earlier accepted grading/Return evidence.
+- Covers complementary historical roles, reference/preview, recovery, grading conflict/clear/retraction, Unsubmit/reset/reorder/delete, removal/archive denials and eight visual combinations.
+- Source inspection corrected control/sequence assumptions before execution: post-attempt unpublish is intentionally unavailable; removed retained-work learners cannot simply rejoin.
+- Scope-specific host-only database witness and closed receipt contract preserve those actual semantics. No new native acceptance, production change or full-goal completion claimed; all existing serious holds remain.

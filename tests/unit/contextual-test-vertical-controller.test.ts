@@ -6,6 +6,7 @@ import { runContextualTestRehearsalController, validateContextualTestPlaywrightR
   type ContextualTestControllerLaunch } from '../../scripts/contextual-test-rehearsal-controller'
 import type { ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
 import type { ContextualTestGatewayReceipt } from '../../scripts/contextual-test-rehearsal-gateway'
+import { contextualTestLifecycleFixture } from '../helpers/contextual-test-lifecycle-fixture'
 
 const projectId = 'pika_assignment_list_123456abcdef', plan = createContextualTestPlan(projectId)
 const id = (n: number) => `60000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -55,8 +56,13 @@ function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
     deadline: admission.deadline, endedAt: 2000, outcome: 'passed', contextsClosed: true, pageErrors: 0,
     actors: successor ? [...gradeReturnActors] : ['ownerStudent','memberTeacher','nonmember','ownerStudent'], result, failureStage: null,
     artifacts: (successor ? [...gradeReturnLabels] : ['vertical-owner-author','vertical-member-submitted','vertical-owner-results']).map(label => ({ label, kind: 'png', bytes: 1, sha256: 'a'.repeat(64) })) }
+  const lifecycle = proofScope === 'lifecycle-permissions-v1'
+    ? contextualTestLifecycleFixture({ projectId, startedAt: admission.startedAt,
+      deadline: admission.deadline, nonce: admission.nonce }) : undefined
+  const acceptedBefore = lifecycle?.before ?? before, acceptedAfter = lifecycle?.after ?? after
+  const acceptedReceipt = lifecycle?.receipt ?? raw
   let bound: ContextualTestRunBinding | undefined, witnessReads = 0
-  const gateway: ContextualTestGatewayReceipt = { version: 1, firstFailure: null, appRequests: 50, apiRequests: 100, creates: 1,
+  const gateway: ContextualTestGatewayReceipt = { version: 1, firstFailure: null, appRequests: 50, apiRequests: 100, creates: lifecycle ? 2 : 1,
     rejectedHmr: 0, rejectedDiagnostics: 0, firstEndpointFailure: null, firstOwnerRpcRejection: null, started: true, closing: true, closed: true, pending: 0, sockets: 0,
     jsonResponses: 50, responses: 50, requestBytes: 100, responseBytes: 100 }
   const gateways = { async start() { events.push('gateway-start') }, check() { events.push('gateway-check') },
@@ -83,18 +89,49 @@ function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
     async passwordHash() { return 'synthetic-bcrypt' },
     async sql(_binding: unknown, kind: string, _hash: unknown, transport: unknown) {
       expect(transport).toBe(control.command); events.push(`sql-${kind}`)
-      return kind === (successor ? 'gradeReturnWitness' : 'witness') ? JSON.stringify(witnessReads++ === 0 ? before : after) : '{}'
+      return kind === (lifecycle ? 'lifecycleWitness' : successor ? 'gradeReturnWitness' : 'witness')
+        ? JSON.stringify(witnessReads++ === 0 ? acceptedBefore : acceptedAfter) : '{}'
     },
     assertSqlSettled() {}, createLedger() { throw Error('Old egress ledger must not run') },
-    createGateways: () => gateways, readPlaywrightReceipt: () => raw,
+    createGateways: () => gateways, readPlaywrightReceipt: () => acceptedReceipt,
     readStartupReport() { throw Error('Full startup evidence must not run') },
     verifyArtifacts() { events.push('artifacts') }, writeReceipt(receipt: Record<string, unknown>) { receipts.push(receipt) },
   }
   const run = () => runContextualTestRehearsalController(admission as never, control, edges as never)
-  return { run, events, receipts, launches, gateways, gateway, before, after, raw, admission, control, edges, bound: () => bound! }
+  return { run, events, receipts, launches, gateways, gateway, before: acceptedBefore, after: acceptedAfter,
+    raw: acceptedReceipt, admission, control, edges, bound: () => bound! }
 }
 
 describe('vertical controller integration (CPU seams only, no native proof)', () => {
+  it('uses the distinct lifecycle receipt and host-only witness with unchanged cleanup and sandbox controls', async () => {
+    const f = fixture('lifecycle-permissions-v1'), receipt = await f.run()
+    expect(receipt).toMatchObject({ outcome: 'passed', proofScope: 'lifecycle-permissions-v1',
+      databaseValidated: true, playwrightValidated: true, ownedSettled: true, server: null })
+    expect(f.bound()).toMatchObject({ proofScope: 'lifecycle-permissions-v1',
+      sourceSha: 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0',
+      migrationChainSha256: '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' })
+    expect(f.bound()).not.toHaveProperty('sqlControl')
+    expect(f.events.filter(e => e === 'sql-lifecycleWitness')).toHaveLength(2)
+    expect(f.events).not.toContain('sql-gradeReturnWitness')
+    expect(f.events).not.toContain('sql-witness')
+    expect(f.events.indexOf('gateway-close')).toBeLessThan(f.events.lastIndexOf('sql-lifecycleWitness'))
+    expect(f.events.indexOf('settle')).toBeLessThan(f.events.indexOf('disposal'))
+    expect(f.launches[0].dependencySandboxProfile).toContain('(deny network*)')
+    expect(f.launches[1].dependencySandboxProfile).toContain('(remote tcp4 "localhost:3117")')
+    expect(f.launches[1].dependencySandboxProfile).not.toContain('54340')
+  })
+  it('rejects lifecycle browser success when the retained committed graph does not match', async () => {
+    const f = fixture('lifecycle-permissions-v1'); f.after.response_count = 0
+    await expect(f.run()).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', proofScope: 'lifecycle-permissions-v1',
+      databaseValidated: false, ownedSettled: true })
+    expect(f.events).toContain('disposal')
+  })
+  it('rejects lifecycle claims without both gateway-observed Test creates', async () => {
+    const f = fixture('lifecycle-permissions-v1'); f.gateways.receipt = () => ({ ...f.gateway, creates: 1 })
+    await expect(f.run()).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', databaseValidated: false, ownedSettled: true })
+  })
   it('uses successor source, root-only extended witnesses and the same sealed network/process cleanup path', async () => {
     const f = fixture('vertical-grade-return-v1'), receipt = await f.run()
     expect(receipt).toMatchObject({ outcome: 'passed', proofScope: 'vertical-grade-return-v1', databaseValidated: true,

@@ -31,15 +31,24 @@ describe('Tests rehearsal binding and fixed SQL', () => {
     expect(() => validateContextualTestRunBinding({ ...binding(), proofScope: 'full' }, now)).toThrow()
     expect(() => validateContextualTestRunBinding({ ...binding(), proofScope: 'vertical-v1', sqlControl: {} }, now)).toThrow()
   })
-  it('binds successor to its exact current-main source/plan/chain without accepting historical or Survey drift', () => {
-    const successor = createContextualTestPlan(projectId, 'vertical-grade-return-v1')
-    const candidate = { ...binding(), proofScope: 'vertical-grade-return-v1', sourceSha: successor.sourceSha, sourceTree: successor.sourceTree,
+  it.each(['vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const)('binds successor to exact source/plan/chain without historical or Survey drift: %s', proofScope => {
+    const successor = createContextualTestPlan(projectId, proofScope)
+    const candidate = { ...binding(), proofScope, sourceSha: successor.sourceSha, sourceTree: successor.sourceTree,
       migrationChainSha256: successor.migrationChainSha256, planSha256: sha(JSON.stringify(successor)) }
-    expect(validateContextualTestRunBinding(candidate, now).proofScope).toBe('vertical-grade-return-v1')
+    expect(validateContextualTestRunBinding(candidate, now).proofScope).toBe(proofScope)
     for (const drift of [{ proofScope: 'vertical-v1' }, { sourceSha: plan.sourceSha }, { sourceTree: plan.sourceTree },
       { migrationChainSha256: plan.migrationChainSha256 }, { migrationChainSha256: 'f'.repeat(64) }, { planSha256: sha(JSON.stringify(plan)) }, { sqlControl: {} }]) {
       expect(() => validateContextualTestRunBinding({ ...candidate, ...drift }, now)).toThrow()
     }
+    const validated = validateContextualTestRunBinding(candidate, now)
+    for (const operation of ['revokeMemberTeacherA', 'restoreMemberTeacherA', 'archiveA', 'restoreArchiveA'] as const) {
+      expect(() => contextualTestSql(validated, operation)).toThrow()
+    }
+    if (proofScope === 'lifecycle-permissions-v1') {
+      expect(contextualTestSql(validated, 'lifecycleWitness')).toContain('READ ONLY')
+      expect(() => contextualTestSql(validated, 'gradeReturnWitness')).toThrow()
+      expect(() => contextualTestSql(validated, 'lifecycleWitness', 'extra')).toThrow()
+    } else expect(() => contextualTestSql(validated, 'lifecycleWitness')).toThrow()
   })
   it.each([
     { sourceSha: 'd'.repeat(40) }, { appOverlaySha256: '0'.repeat(64) }, { appOverlaySha256: undefined }, { migrationChainSha256: 'e'.repeat(64) }, { appOrigin: 'http://127.0.0.1:3117' },
