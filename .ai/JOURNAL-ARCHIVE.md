@@ -47985,3 +47985,18 @@ post-run source/cache edits, current byte comparison matches7627source files and
 49485dependency files; preservationCompletefalse/nativeAcceptancefalse, no shared
 DB equality attested. Full attempt spent; new full invocation needs authorization.
 Production/shared-local/provider-Survey/account/billing/activation holds remain.
+
+<!-- pika-session-log-archive-batch:c89880e3b9df4a9fc5724b3cd31ee1f80a1c4de4c4c6e5a97730f62c2f5693b8 -->
+## 2026-10-14 Fixed error-shape/code-site observation and earliest body marker
+
+Human authorizes this metadata improvement, review, then ONE new bounded full-app
+attempt. Pure helper emits fixed root/first-cause field buckets and at most three
+reported producer-site labels; no raw error data or arbitrary fingerprints. Full
+startup reporter carries bounded event observations; original body failure gets
+its own observation before sanitization. Legacy receipts remain valid. Body entry
+now records before the unchanged45-minute timeout setter. These labels are hints,
+not a claim of failure origin or native acceptance.61focused checks/TSC/default
+lint pass, including timeout-setter failure, hostile metadata and8192-byte cap.
+Independent targeted review and full focused gate pending. No new native admission
+or clock allocated; all prior attempts permanently spent, production and other
+holds unchanged. No UI, app, schema, control, provider or rollout change.

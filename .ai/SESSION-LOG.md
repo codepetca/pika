@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Fixed error-shape/code-site observation and earliest body marker
-
-Human authorizes this metadata improvement, review, then ONE new bounded full-app
-attempt. Pure helper emits fixed root/first-cause field buckets and at most three
-reported producer-site labels; no raw error data or arbitrary fingerprints. Full
-startup reporter carries bounded event observations; original body failure gets
-its own observation before sanitization. Legacy receipts remain valid. Body entry
-now records before the unchanged45-minute timeout setter. These labels are hints,
-not a claim of failure origin or native acceptance.61focused checks/TSC/default
-lint pass, including timeout-setter failure, hostile metadata and8192-byte cap.
-Independent targeted review and full focused gate pending. No new native admission
-or clock allocated; all prior attempts permanently spent, production and other
-holds unchanged. No UI, app, schema, control, provider or rollout change.
-
 ## 2026-10-14 Fixed observation review clean; one attempt failed with useful labels
 
 Runtime2a41bfb96 passes3179focused/8skip and all policies/TSC/lint. Review68
@@ -1004,3 +990,23 @@ name the new candidate; schema262/overlay/guards/limits/holds unchanged. Fresh
 private wrappers differ only in app checkout, one-shot token and process filter.
 Prior runner246b0ec5 full focused3984/8skip and all policy/TSC/lint gates PASS.
 No full workflow pass or rollout exit inferred; draft1581 retained.
+
+## 2026-10-17 Narrow real Test workflow passes
+
+Reviewed app050699bb/treef44d7269 with runner36685e858/tree23208bd3 completes
+fresh u04GxQ/pika_assignment_list_c9dbb92d423c vertical-v1 proof. Real owner
+author/save/reload/publish/access, member start/autosave/submit, fresh attempt/
+results graphs and actual owner response inspector PASS, plus all3 required403
+denials and4logins. Controller/PW/database/lifecycle/owned settlement PASS; all6
+cleanup gates PASS, no gateway failure, pending0/sockets0. Root visually inspected
+all3 desktop/light PNGs. This is not the full mobile/dark/lifecycle/Tests matrix.
+
+Prepare91053/invoke94668/immediatepreservation40771 all exit0. Before post-run
+writes/tests,7679sourcefiles and49485dependencyfiles unchanged,0matching processes.
+Exact project containers/volumes/networks andtmp absent. Private ACCEPTANCE.md
+records hashes/provenance. Prior failed attempts remain failed/spent. Review153
+found one dirty-draft feedback overwrite;154 closed it with field-level intent
+and6regressions. Final app160targeted/1033focused+static gates PASS.154completed
+reviews/96fixbatches, original clocks/waiver retained. Preserve app050699bb;
+next integrate the fix with currentmain, then remaining bounded phase evidence.
+No production/shared-local/provider/Survey/account/billing/schema/cutover change.

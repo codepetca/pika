@@ -502,6 +502,26 @@ lifecycle/service boundaries after these coherent groups, then connect batch 4
 and perform batch 5. Reuse valid unchanged evidence rather than repeating accepted
 proof solely for a newer timestamp. Full goal and batches 2–5 remain open.
 
+Narrow integrated Test checkpoint — 2026-10-17: real `vertical-v1` proof passes
+on reviewed app `050699bb0f889a533a349b6af415b821ac56d0e3`, runner
+`36685e85848877962761727c96f3df4c1cbf6a2e`, isolated schema001–262. The new app
+candidate fixes overlapping roster/inspector reads and stale UI completions;
+field-level draft rebasing preserves untouched newer feedback. Source review
+and160focused/1033broader app tests pass. Four actual logins cover a globally
+student-valued owner and teacher-valued member: create/author/reload/publish/
+open/start/autosave/submit/inspect plus fresh graphs and three403denials pass.
+Database witness validation, all six cleanup gates and immediate source/dependency
+preservation pass. Three1440×900/light screenshots were visually inspected.
+
+Evidence label `playwright-vertical-u04GxQ`; execution manifest
+`11e1a4cc7b189998e41637c3471630606da14c164aa8b3fc0e05ffbd49c77d3e`.
+This closes the narrow submission-to-inspection proof, not the complete Tests
+or batch-2 exit. Next integrate the candidate fix with current main, then address
+the remaining manual-grade/return/lifecycle and broader visual matrix gates.
+Do not repeat this proof solely for recency or relabel older failed attempts.
+Production/shared-local/provider/Survey/account/billing/schema and rollout holds
+remain; neither current-main compatibility nor CI/main merge is claimed here.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
