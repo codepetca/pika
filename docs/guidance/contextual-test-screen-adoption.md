@@ -124,8 +124,8 @@ classroom is unarchived, and exact saved work is compared independently. Browser
 code gets no SQL capability. Existing network/process/source/dependency limits,
 canonical-state preservation and complete disposable cleanup remain mandatory.
 Preparation and CPU checks are not native acceptance. Production holds remain.
-The first four attempts remain failed/spent with positive cleanup/preservation.
-Latest failure occurred after publication/reference preview; its broad reorder
+The first five attempts remain failed/spent with positive cleanup/preservation.
+The third failure occurred after publication/reference preview; its broad reorder
 label also covered subsequent access setup. Fixed substage labels now distinguish
 the gesture, acknowledgement and access steps. A separately observed owner-RPC
 deadline rejection has not been established as the causal blocker. Lifecycle
@@ -137,6 +137,12 @@ must keep the exact Return timestamp/actor, retain results access and unchanged 
 work, and verify the cleared open-response score/feedback and pending grading.
 It must not invent a results-access revocation or change the app to match an old
 test. Captures wait for the actual result/submission/roster state before saving.
+The fifth stopped at recovery: its new capture gate incorrectly required a fresh
+save announcement after loading existing answers. A real-form regression
+reproduces the empty live region with visible Saved and correct recovered controls.
+Recovery capture now checks those controls and the existing exact persisted
+attempt equality, without an extra write. The gateway's cancellation label may
+have arisen during teardown; it is not established as the primary failure.
 
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.

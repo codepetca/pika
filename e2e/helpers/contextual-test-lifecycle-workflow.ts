@@ -13,7 +13,15 @@ export async function waitForLifecycleCaptureReady(page: Page, label: typeof lif
   if(label==='lifecycle-embedded-preview'||label==='lifecycle-standalone-preview') {
     await expect(page.getByText(lifecycleReference,{exact:true})).toBeVisible()
   } else if(label==='lifecycle-learner-recovery') {
-    await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved')
+    // A fresh mount has recovered data but no new-save live announcement.
+    // Check the actual controls, without manufacturing an additional write.
+    await expect(page.getByTestId('student-test-split-container')).toBeVisible()
+    await expect(page.getByTestId('exam-interaction-blocker')).toBeHidden()
+    const answer = page.getByRole('textbox',{name:/Response for question/})
+    await expect(answer).toHaveValue(lifecycleText('memberStudent'))
+    await expect(page.getByRole('radio',{name:'Beta',exact:true})).toBeChecked()
+    await expect(page.getByTestId('student-test-action-footer').getByText('Saved',{exact:true})).toBeVisible()
+    await answer.scrollIntoViewIfNeeded()
   } else if(label==='lifecycle-learner-submitted') {
     await expect(page.getByText('Response Submitted',{exact:true})).toBeVisible()
   } else if(label==='lifecycle-learner-returned'||label==='lifecycle-learner-cleared') {
