@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
-import { assertVerticalGradeSave, assertVerticalGradeReadback, assertVerticalLearnerDisclosure } from '../../e2e/helpers/contextual-test-grade-return-workflow'
+import { assertVerticalGradeSave, assertVerticalGradeReadback, assertVerticalLearnerDisclosure, openVerticalOwnerWorkspace } from '../../e2e/helpers/contextual-test-grade-return-workflow'
 import { ContextualTestGatewayPolicy } from '../../scripts/contextual-test-rehearsal-gateway'
 import { validateContextualTestGradeReturnReceipt, assertContextualTestGradeReturnDatabase, contextualTestGradeReturnWitnessSql, type GradeReturnWitness } from '../../scripts/contextual-test-grade-return-proof'
 import { validateContextualTestVerticalReceipt } from '../../scripts/contextual-test-vertical-proof'
@@ -49,6 +49,24 @@ function proofFixture() {
 }
 
 describe('grade/return successor regression contracts (CPU only)', () => {
+  it.each([false, true])('opens the inspector only for response grading, not Return: %s', async inspect => {
+    const events: string[] = []
+    const select = vi.fn(async () => { events.push('inspect') })
+    const nth = vi.fn((index: number) => { expect(index).toBe(1); return { click: select } })
+    const member = { getByRole: vi.fn((role: string) => { expect(role).toBe('cell'); return { nth } }) }
+    const page = {
+      getByRole: vi.fn((role, options) => {
+        expect([role, options]).toEqual(['button', { name: 'Contextual vertical Test', exact: true }])
+        return { click: async () => { events.push('open') } }
+      }),
+      getByTestId: vi.fn((testId: string) => { expect(testId).toBe(`test-grading-student-row-${plan.actors.memberTeacher.id}`); return member }),
+    }
+    const r = { check: vi.fn(() => { events.push('check') }), navigate: vi.fn(async () => { events.push('navigate') }) }
+    expect(await openVerticalOwnerWorkspace(r as never, page as never, `${plan.appOrigin}/classrooms/${plan.classrooms.classB.id}?tab=tests`,
+      plan.actors.memberTeacher.id, inspect)).toBe(member)
+    expect(events).toEqual(inspect ? ['check', 'navigate', 'open', 'inspect'] : ['check', 'navigate', 'open'])
+    expect(select).toHaveBeenCalledTimes(inspect ? 1 : 0)
+  })
   it('binds current main without changing the historical scope', () => {
     expect(plan).toMatchObject({ sourceSha: 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0', sourceTree: 'ffec2cc82fd88e9819c147b2ab6246f95c28798e', migrationChainSha256: '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' })
     expect(createContextualTestPlan(plan.projectId).sourceSha).toBe('050699bb0f889a533a349b6af415b821ac56d0e3')

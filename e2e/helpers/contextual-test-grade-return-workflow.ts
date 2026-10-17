@@ -61,16 +61,24 @@ function waitFor(page: Page, method: string, path: string) {
   const pending = page.waitForResponse(res => new URL(res.url()).pathname === path && res.request().method() === method)
   void pending.catch(() => {}); return pending
 }
+
+/** Returning needs the full roster: its Status column is hidden in inspector layout. */
+export async function openVerticalOwnerWorkspace(r: VerticalTestRuntime, page: Page, classUrl: string,
+  memberId: string, inspectResponse: boolean) {
+  r.check(); await r.navigate(page, classUrl)
+  await page.getByRole('button', { name: 'Contextual vertical Test', exact: true }).click()
+  const member = page.getByTestId(`test-grading-student-row-${memberId}`)
+  if (inspectResponse) await selectVerticalMemberResponse(member)
+  return member
+}
 export async function runContextualTestGradeReturnWorkflow(r: VerticalTestRuntime) {
   const base = await runContextualTestVerticalWorkflow(r)
   let stage: typeof gradeReturnStages[number] = 'owner-grade'
   let identity: GradeReturnIdentity | undefined, returnedAt = ''
   const classUrl = `${r.plan.appOrigin}/classrooms/${base.classroomId}?tab=tests`
-  const openOwner = async (page: Page) => {
-    r.check(); await r.navigate(page, classUrl)
-    await page.getByRole('button', { name: 'Contextual vertical Test', exact: true }).click()
-    const member = page.getByTestId(`test-grading-student-row-${base.memberId}`)
-    await selectVerticalMemberResponse(member); await expect(member).toHaveAttribute('aria-selected', 'true')
+  const openOwner = async (page: Page, inspectResponse = true) => {
+    const member = await openVerticalOwnerWorkspace(r, page, classUrl, base.memberId, inspectResponse)
+    await expect(member).toHaveAttribute('aria-selected', inspectResponse ? 'true' : 'false')
     return member
   }
   try {
@@ -117,7 +125,7 @@ export async function runContextualTestGradeReturnWorkflow(r: VerticalTestRuntim
       await expect(page.getByText('Score: 4 / 5', { exact: true })).toBeHidden()
     })
     await r.withActor('ownerStudent', async page => {
-      stage = 'owner-return'; const member = await openOwner(page)
+      stage = 'owner-return'; const member = await openOwner(page, false)
       await member.getByRole('checkbox').check()
       await page.getByRole('button', { name: 'Student actions for 1 selected', exact: true }).click()
       await page.getByRole('menuitem', { name: 'Return', exact: true }).click()
@@ -132,6 +140,7 @@ export async function runContextualTestGradeReturnWorkflow(r: VerticalTestRuntim
       const fresh = await r.api<OwnerResults>(page, 'GET', `/api/teacher/tests/${base.testId}/results`)
       assertVerticalGradeReadback(fresh, identity!, true)
       returnedAt = fresh.students.find(s => s.student_id === base.memberId)!.returned_at!
+      stage = 'owner-return-display'
       await expect(member.getByLabel('Status Returned', { exact: true })).toBeVisible()
       await r.snapshot('vertical-owner-returned', page)
     })
