@@ -108,8 +108,9 @@ describe('vertical controller integration (CPU seams only, no native proof)', ()
     expect(receipt).toMatchObject({ outcome: 'passed', proofScope: 'lifecycle-permissions-v1',
       databaseValidated: true, playwrightValidated: true, ownedSettled: true, server: null })
     expect(f.bound()).toMatchObject({ proofScope: 'lifecycle-permissions-v1',
-      sourceSha: 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0',
-      migrationChainSha256: '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' })
+      sourceSha: '4e9c809d1c905a0482fb67880e056e5b8bc5f786',
+      sourceTree: '4d225a92b8d9dcfb8cc7118e989c63a46a3c5fbb',
+      migrationChainSha256: '16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0' })
     expect(f.bound()).not.toHaveProperty('sqlControl')
     expect(f.events.filter(e => e === 'sql-lifecycleWitness')).toHaveLength(2)
     expect(f.events).not.toContain('sql-gradeReturnWitness')

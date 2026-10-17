@@ -107,7 +107,9 @@ Surveys/Gradebook completeness, Tests batch2 exit or full goal completion.
 ### Consolidated remaining check — prepared 2026-10-17
 
 The separate `lifecycle-permissions-v1` scope reuses the accepted ordinary
-Playwright carrier on frozen main `eb4fa32b2`, schema001–267. It uses two synthetic
+Playwright carrier on reviewed hot-lifecycle app `4e9c809d1`, schema001–268. The
+separate accepted grade-return profile stays pinned to `eb4fa32b2`/001–267.
+It uses two synthetic
 Tests and the complementary ownerTeacher/memberStudent/memberTeacher pairing;
 accepted ownerStudent grading/Return evidence remains valid without replay.
 The workload covers saved references/previews, reload recovery, real stale-grade
@@ -124,7 +126,7 @@ classroom is unarchived, and exact saved work is compared independently. Browser
 code gets no SQL capability. Existing network/process/source/dependency limits,
 canonical-state preservation and complete disposable cleanup remain mandatory.
 Preparation and CPU checks are not native acceptance. Production holds remain.
-The first six attempts remain failed/spent with positive cleanup/preservation.
+The first seven attempts remain failed/spent with positive cleanup/preservation.
 The third failure occurred after publication/reference preview; its broad reorder
 label also covered subsequent access setup. Fixed substage labels now distinguish
 the gesture, acknowledgement and access steps. A separately observed owner-RPC
@@ -150,6 +152,15 @@ learner recovery reloads remain. Duplicate preview/final capture navigations are
 removed, not assertions. New standalone preferences use the authenticated page
 in the same context before navigation. The 40 exchanges, eight captures and all
 request/byte, identity, permission and cleanup protections remain unchanged.
+
+The seventh reached the missing contextual classroom archive API. The focused
+hot-lifecycle foundation now passed13 realSDK calls, rollback contracts and four
+observed committed races on disposable001–268, with preservation/teardown and
+genuine generated types. The consolidated profile alone advances its exact app,
+tree and chain pins; its roster bootstrap uses the lifecycle profile, not a stale
+app SHA. Fixture strict-false/no-audited-entitlement compatibility stays unchanged;
+explicit restore grants, expiry and limits were separately proved by the focused
+native foundation. No new grant, permission or network admission is added here.
 
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.

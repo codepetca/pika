@@ -14,11 +14,12 @@ export { validateContextualTestRunBinding, readContextualTestBinding, contextual
 export type { ContextualTestRunBinding, ContextualTestSqlKind, ContextualTestSqlTransport } from './contextual-test-rehearsal-binding'
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
+const migrationCount = (scope: ContextualTestRunBinding['proofScope']) => scope === 'lifecycle-permissions-v1' ? 268 : scope === 'vertical-grade-return-v1' ? 267 : 262
 
 /** Exact scope binding selects only its frozen source chain, never runner SQL. */
 export function contextualTestProjectPreparation(binding: ContextualTestRunBinding, frozenRepository: string) {
   const migrations = loadAssignmentListReviewedMigrations(frozenRepository)
-  assert.equal(migrations.length, binding.proofScope === 'vertical-grade-return-v1' || binding.proofScope === 'lifecycle-permissions-v1' ? 267 : 262)
+  assert.equal(migrations.length, migrationCount(binding.proofScope))
   validateAssignmentListMigrationChain(migrations)
   assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), binding.migrationChainSha256)
   return { plan: assignmentListEphemeralPlan(binding), migrations,
@@ -81,7 +82,7 @@ export async function runContextualTestDisposableLifecycle(binding: ContextualTe
   assert(Number.isSafeInteger(binding.startedAt) && binding.startedAt <= Date.now())
   assert(Number.isSafeInteger(binding.deadline) && binding.deadline > binding.startedAt && binding.deadline - binding.startedAt <= 45 * 60_000)
   assert(Number.isSafeInteger(binding.cleanupDeadline) && binding.cleanupDeadline > binding.deadline && binding.cleanupDeadline - binding.deadline <= 6 * 60_000)
-  assert.equal(migrations.length, binding.proofScope === 'vertical-grade-return-v1' || binding.proofScope === 'lifecycle-permissions-v1' ? 267 : 262)
+  assert.equal(migrations.length, migrationCount(binding.proofScope))
   validateAssignmentListMigrationChain(migrations)
   assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), binding.migrationChainSha256)
   let cleanupEnd: number | undefined

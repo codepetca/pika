@@ -50,6 +50,43 @@ describe('Tests rehearsal binding and fixed SQL', () => {
       expect(() => contextualTestSql(validated, 'lifecycleWitness', 'extra')).toThrow()
     } else expect(() => contextualTestSql(validated, 'lifecycleWitness')).toThrow()
   })
+  it('keeps lifecycle roster setup scoped to the new lifecycle plan without changing entitlement policy', () => {
+    const hash = '$2b$12$' + 'a'.repeat(53)
+    for (const proofScope of [undefined, 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const) {
+      const scoped = createContextualTestPlan(projectId, proofScope)
+      const validated = validateContextualTestRunBinding({ ...binding(), ...(proofScope ? { proofScope } : {}),
+        sourceSha: scoped.sourceSha, sourceTree: scoped.sourceTree, migrationChainSha256: scoped.migrationChainSha256,
+        planSha256: sha(JSON.stringify(scoped)) }, now)
+      const sql = contextualTestSql(validated, 'bootstrap', hash)
+      expect(sql.includes('INSERT INTO public.classroom_roster(')).toBe(proofScope === 'lifecycle-permissions-v1')
+      expect(sql.includes('fixture_roster_binding_missing')).toBe(proofScope === 'lifecycle-permissions-v1')
+      expect(sql).not.toMatch(/set_effective_feature_entitlement|set_account_plan|strict_enforcement_enabled\s*=/i)
+    }
+  })
+  it.each(['sourceSha', 'sourceTree', 'migrationChainSha256', 'complete-old-profile'] as const)(
+    'rejects the old267 grade-return %s substituted into the lifecycle binding', defect => {
+      const old = createContextualTestPlan(projectId, 'vertical-grade-return-v1')
+      const current = createContextualTestPlan(projectId, 'lifecycle-permissions-v1')
+      const candidate = { ...binding(), proofScope: 'lifecycle-permissions-v1', sourceSha: current.sourceSha,
+        sourceTree: current.sourceTree, migrationChainSha256: current.migrationChainSha256, planSha256: sha(JSON.stringify(current)) }
+      const changed = defect === 'complete-old-profile' ? { sourceSha: old.sourceSha, sourceTree: old.sourceTree,
+        migrationChainSha256: old.migrationChainSha256, planSha256: sha(JSON.stringify(old)) } : { [defect]: old[defect] }
+      expect(() => validateContextualTestRunBinding({ ...candidate, ...changed }, now)).toThrow()
+    })
+  it.each([undefined, 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const)(
+    'requires the exact migration count before any adapter operation for %s', async proofScope => {
+      const current = createContextualTestPlan(projectId, proofScope)
+      const validated = validateContextualTestRunBinding({ ...binding(), ...(proofScope ? { proofScope } : {}),
+        sourceSha: current.sourceSha, sourceTree: current.sourceTree, migrationChainSha256: current.migrationChainSha256,
+        planSha256: sha(JSON.stringify(current)) }, now)
+      const expected = proofScope === 'lifecycle-permissions-v1' ? 268 : proofScope === 'vertical-grade-return-v1' ? 267 : 262
+      const work = vi.fn(), settle = vi.fn()
+      // Count-only fixtures never reach SQL, source-chain validation or native
+      // adapters. Lifecycle explicitly refuses the previously admitted267.
+      await expect(runContextualTestDisposableLifecycle(validated, Array(expected - 1).fill(null), {} as never, work, settle))
+        .rejects.toMatchObject({ actual: expected - 1, expected })
+      expect(work).not.toHaveBeenCalled(); expect(settle).not.toHaveBeenCalled()
+    })
   it.each([
     { sourceSha: 'd'.repeat(40) }, { appOverlaySha256: '0'.repeat(64) }, { appOverlaySha256: undefined }, { migrationChainSha256: 'e'.repeat(64) }, { appOrigin: 'http://127.0.0.1:3117' },
     { deadline: now + 2700001 }, { cleanupDeadline: now + 500000 }, { planSha256: 'f'.repeat(64) },

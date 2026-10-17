@@ -20,6 +20,17 @@ function created(p:ContextualTestGatewayPolicy) {
   return f
 }
 describe('remaining lifecycle scope CPU contracts; no execution or full Tests exit',()=>{
+  it('binds only lifecycle to the accepted268 foundation while preserving the267 and262 profiles',()=>{
+    expect(plan).toMatchObject({proofScope:lifecycleScope,sourceSha:'4e9c809d1c905a0482fb67880e056e5b8bc5f786',
+      sourceTree:'4d225a92b8d9dcfb8cc7118e989c63a46a3c5fbb',migrationChainSha256:'16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0'})
+    const prior=createContextualTestPlan(plan.projectId,'vertical-grade-return-v1')
+    expect(prior).toMatchObject({sourceSha:'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0',sourceTree:'ffec2cc82fd88e9819c147b2ab6246f95c28798e',
+      migrationChainSha256:'9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd'})
+    for(const scope of [undefined,'vertical-v1']as const)expect(createContextualTestPlan(plan.projectId,scope)).toMatchObject({
+      sourceSha:'050699bb0f889a533a349b6af415b821ac56d0e3',sourceTree:'f44d726966f322e4e3eb0ef637c6f2c711544d77',
+      migrationChainSha256:'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac'})
+    expect(prior).not.toHaveProperty('proofScope');expect(prior).not.toHaveProperty('lifecycleRoster')
+  })
   it('accepts migration 265 grade clearing with explicit Return preserved',()=>{
     const f=contextualTestLifecycleFixture(binding)
     expect(()=>validateLifecycleResult(f.result,binding)).not.toThrow()
