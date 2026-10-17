@@ -9,12 +9,13 @@ import {
   TableSelectionHeaderCell, Tooltip, cn,
 } from '@/ui'
 import {
-  average, formatAboveMaximumDescription, getAssessmentMaximumPercent, formatAssessmentScore, formatColumnStat, formatCompactPercent,
+  isUnreturnedGradebookMark, UNRETURNED_GRADEBOOK_MARK_LABEL, average, formatAboveMaximumDescription, getAssessmentMaximumPercent, formatAssessmentScore, formatColumnStat, formatCompactPercent,
   formatPercent, formatPoints, formatWholePercent, getAssessmentCell, getAssessmentCellPercent, getAssessmentColumnKey,
   getColumnStats, getGradebookStudentRowId, getGradePercentTextClass, isGradeAboveMaximum, isAssessmentAboveMaximum,
   getStudentDisplayId, getStudentIdentityValue, getStudentName, GRADEBOOK_NUMBER_INPUT_CLASS,
   type GradebookIdentityColumn, type ScoreDisplayMode,
 } from '@/lib/gradebook-display'
+import markStyles from './GradebookMark.module.css'
 import { gradebookCourseWeightPreviews, isValidGradebookWeight } from '@/lib/gradebook-editor'
 
 export interface GradebookTableProps {
@@ -226,23 +227,37 @@ export function GradebookTable({
                   const score = displayMode === 'raw'
                     ? (cell?.is_graded && cell.earned != null ? formatPoints(cell.earned) : '—')
                     : ultraCompact ? formatWholePercent(getAssessmentCellPercent(cell)) : fullScore
+                  const unreturned = isUnreturnedGradebookMark(cell)
                   const overMaximum = isAssessmentAboveMaximum(cell)
                   const warning = formatAboveMaximumDescription(getAssessmentMaximumPercent(cell))
                   const scoreTone = overMaximum ? 'text-warning font-semibold' : isCompactZero(column) ? 'text-text-muted' : getGradePercentTextClass(getAssessmentCellPercent(cell))
-                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', scoreTone)}>
+                  const scoreDisabled = !canEdit || savingScoreKeys.has(scoreKey)
+                  const scoreButton = (
                     <Button
                       type="button"
                       variant="ghost"
                       size="xs"
-                      disabled={!canEdit || savingScoreKeys.has(scoreKey)}
-                      aria-label={`Edit ${getStudentName(student)} mark for ${column.title}: ${fullScore}${cell?.is_manual_override ? ', overridden' : ''}${overMaximum ? `, ${warning.toLowerCase()}` : ''}`}
-                      title={overMaximum ? `${warning}: ${formatAssessmentScore(cell, 'raw')}` : fullScore}
+                      disabled={scoreDisabled}
+                      aria-label={`Edit ${getStudentName(student)} mark for ${column.title}: ${fullScore}${cell?.is_manual_override ? ', overridden' : ''}${overMaximum ? `, ${warning.toLowerCase()}` : ''}${unreturned ? ', graded, not returned to student' : ''}`}
+                      title={unreturned ? undefined : overMaximum ? `${warning}: ${formatAssessmentScore(cell, 'raw')}` : fullScore}
                       data-above-maximum={overMaximum || undefined}
-                      className={cn('w-full min-w-0 gap-1 px-1 tabular-nums', (ultraCompact || isCompactZero(column)) && 'gap-0.5 px-0 text-xs', overMaximum && ABOVE_MAXIMUM_CLASS)}
+                      className={cn('w-full min-w-0 gap-1 px-1 tabular-nums', (ultraCompact || isCompactZero(column)) && 'gap-0.5 px-0 text-xs', overMaximum && ABOVE_MAXIMUM_CLASS, unreturned && 'disabled:pointer-events-none')}
                       onClick={() => onScoreOpen?.(student, column)}
                     >
-                      <span className={cn(scoreTone, 'min-w-0 truncate')}>{score}</span>
+                      <span data-unreturned-mark={unreturned || undefined} className={cn(scoreTone, 'min-w-0 truncate', unreturned && 'rounded-sm px-1 py-0.5', unreturned && markStyles.unreturned)}>{score}</span>
                     </Button>
+                  )
+                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', scoreTone)}>
+                    {unreturned ? (
+                      <Tooltip content={overMaximum ? `${UNRETURNED_GRADEBOOK_MARK_LABEL} · ${warning}` : UNRETURNED_GRADEBOOK_MARK_LABEL}>
+                      <span className="inline-flex w-full rounded focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
+                        tabIndex={scoreDisabled ? 0 : undefined}
+                        role={scoreDisabled ? 'img' : undefined}
+                        aria-label={scoreDisabled ? `${fullScore}, ${UNRETURNED_GRADEBOOK_MARK_LABEL}${overMaximum ? `, ${warning}` : ""}` : undefined}>
+                        {scoreButton}
+                      </span>
+                      </Tooltip>
+                    ) : scoreButton}
                   </DataTableCell>
                 })}
                 {filler ? <DataTableCell aria-label={columns.length ? undefined : 'No assessments'}>{null}</DataTableCell> : null}

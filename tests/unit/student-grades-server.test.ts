@@ -124,6 +124,10 @@ describe('student grades server projection', () => {
         { id: 'term', classroom_id: classroomId, name: 'Term', percentage: 70 },
         { id: 'final', classroom_id: classroomId, name: 'Final', percentage: 30 },
       ],
+      gradebook_score_overrides: [
+        { classroom_id: classroomId, student_id: studentId, assessment_type: 'assignment', assessment_id: 'unreturned-assignment', earned: 9 },
+        { classroom_id: classroomId, student_id: studentId, assessment_type: 'test', assessment_id: 'unreturned-test', earned: 9 },
+      ],
       assignment_docs: [
         assignment,
         { ...assignment, assignment_id: 'unreturned-assignment', returned_at: null, assignments: { ...assignment.assignments, id: 'unreturned-assignment' } },

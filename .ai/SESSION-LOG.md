@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Announcement Schedule focus consistency
-
-Extended Announcement-only committed picker focus ownership via optional shared date-input ref. Entry focuses Date; Cancel/Done/Escape return to a surviving initiator/action, outside pointer/Tab destinations persist, and hidden/read-only/class/editor/unmount retirement blocks stale callbacks while retaining drafts and request ownership. Shared Assignment defaults remain unchanged. Brief: `docs/guidance/ui/announcement-schedule-focus-consistency.md`.
-
-Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. Native accepted eight teacher/four student/two actual Assignment/two reference contexts across unchanged-source scoped runs: 38bindings,164PNG/16videos,180mediahashes;194syntheticGET/four intercepted studentautoacks, zero teacherwrite/unknown/error/overflow. Browser-chrome Tab regression fixed; three new tests verify actual outside-focus retirement. Failed/partial native attempts, four diagnosed harness repairs and worker model-capacity failure retained externally; coordinator completed acceptance. Independent review/final stableSHA CI/PR Gate and authorized main landing remain lifecycle gates. Broad fluidity goal open; production/migrations/dependencies/privacypriority1/calendarPR1217 holds retained.
-
-## 2026-10-14 — Calendar Week alignment
-
-- Owner: this chat, codex/calendar-week-alignment; move edit/no-class information to the date rail, align lesson bodies at top, full current-day outline without Today badge. Shared IconButton reused; current date remains semantic.
-- Verification: 47 calendar tests, types/lint/architecture/policies/audit pass; both roles × desktop/mobile × light/dark captured with production owner fixtures and intercepted reads. Editing/Escape focus and day presentation checked.
-- Initial focused check hit unchanged CI Tart-host timing failures; serial gate in progress. Independent low-risk review/PR lifecycle next. Storage healthy, weekly allowance initially 75% remaining; task tokens unknown.
-
 ## 2026-10-14 — Calendar content editing follow-up
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested click-to-edit lesson content. Removed separate edit/add icons; native shared Button behind rich preview preserves keyboard entry/focus and separate links. Student/weekend/read-only permissions preserved.
@@ -472,3 +460,17 @@ or experimental pattern; no adjacent refactor needed. Coordinator implementation
 one Luna/medium independent review planned (low-risk CSS), no implementation
 worker. Initial weekly43% remaining, storage316GB healthy; per-task tokens and
 effective reviewer configuration unknown. No merge/deployment/DB changes.
+
+## 2026-10-16 — Teacher Gradebook shows graded marks before Return
+
+Branch codex/gradebook-immediate-marks; coordinator owns implementation. User reverses PR1592 teacher-only Return restriction: fully graded assignment/Test marks and saved assessment overrides now appear immediately in cells, totals, class summaries and selected-student inspector. Student Grades keeps its per-document/attempt Return requirement, including overrides. Drafts stay blank and partially scored Tests stay pending without an override. No grading writes, migration, dependency, merge or production operation. Risk profile: none (existing read projection); standard behavioral review.
+
+UI brief: reuse production Gradebook table/inspector and Pattern Lab Gradebook composition; extend only server projection. Teacher+student,1440x900/390x844,light/dark,returned/unreturned and selected inspector; numeric marks are the signal. No new controls, treatments, shared components or experimental pattern; composite interaction changes n/a; no unrelated refactor candidate. Targeted teacher/student regression tests pass, including unreturned manual zero/nonzero overrides, drafts, partial question scores and student disclosure filters. Playwright16 role/viewport/theme/Return cases plus Pattern Lab reference PASS; receipt output/playwright/immediate-marks/receipt.json. Production owners use synthetic API fixtures (teacher payload from route regressions; student disclosure proven separately). Targeted97 tests PASS. Initial focused856 tests:851pass,3 Python3.14 timing failures and2 unchanged infrastructure timeouts; rerun uses installed Python3.13/max-workers1. Final focused gate and fixed-SHA independent review follow in PR/lifecycle evidence.
+
+Storage healthy318GB and weekly allowance43% remaining at startup (account-wide); DeepSeek paused through Dec31. One GPT6.1-Sol/medium visual-verification worker handles ignored screenshot artifacts while coordinator runs source checks. Worker effective configuration/tokens and coordinator task-specific usage unknown. Visual worker delivered in about6minutes including cold Next compile; coordinator inspected full desktop and contact sheets, no corrections or file conflicts. Final code review will use one fresh GPT6.1-Sol/medium reviewer for this bounded standard-risk diff; default7launch/4batch/60minute review caps apply.
+
+## 2026-10-16 — Unreturned Gradebook mark hatch follow-up
+
+Owner approves adding faint diagonal hatch and hover/focus tooltip to PR1609. Same coordinator/branch codex/gradebook-immediate-marks; PR returned draft before edits. Per-student assignment/Test returned_at now projects explicit null/timestamp into cells, preserving all calculations. Table and inspector use a feature CSS module with semantic muted colour; accessible `Graded · Not returned to student` help supports keyboard/Escape and inspector tap. Returned/blank/standalone/final/average marks stay plain; unknown legacy metadata stays unasserted. Pattern Lab demonstrates both states with returned-only student examples. UI brief docs/guidance/ui/changes/gradebook-unreturned-hatch.md; both roles,1440x900/390x844,light/dark,return and help states. Risk none (existing read projection), standard behavioral review.
+
+GPT6.1-Sol/medium worker owned server metadata+API tests only:78 API tests PASS; coordinator inspected/integrated without corrections. Same-model visual worker owns ignored evidence only. Coordinator owns UI/tests; initial two provider-free plain inspector tests exposed unnecessary Tooltip mounting, fixed by creating help only for known unreturned marks;41 component tests then PASS. Final focused1246 tests/93files, architecture/UI/design policies,TypeScript,lint and audit PASS. Visual16cases+4focus refresh checks PASS,34captures; root inspected actual light/dark hatch and tooltip. Delta review and CI evidence follow in PR1609 and ~/.codex/artifacts/pika/pr-1609. Prior8ba review/CI retained for unchanged behavior; this user-approved follow-up starts one bounded delta-review session. Weekly39% remaining, storage healthy319GB; task-specific usage/effective worker configuration unknown. Main sync to fb268de6f resolved archive markers/history only; preserved both marker sets and session bodies, with all Gradebook source/test blobs identical to pre-sync53284ea60. No merge, deployment, dependency or database migration authority inferred.

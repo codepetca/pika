@@ -125,6 +125,12 @@ export function median(values: number[]): number | null {
   return round2((sorted[middle - 1] + sorted[middle]) / 2)
 }
 
+export const UNRETURNED_GRADEBOOK_MARK_LABEL = 'Graded · Not returned to student'
+
+export function isUnreturnedGradebookMark(cell: GradebookAssessmentCell | null): boolean {
+  return Boolean(cell?.is_graded && cell.earned != null && cell.assessment_type !== 'item' && cell.returned_at === null)
+}
+
 export function formatAssessmentScore(cell: GradebookAssessmentCell | null, displayMode: ScoreDisplayMode): string {
   if (!cell?.is_graded) return '—'
   if (displayMode === 'raw') {

@@ -33,6 +33,7 @@ const students: GradebookStudentSummary[] = ['Avery', 'Grace', 'Lucas'].map((nam
     assessment_id: column.assessment_id, assessment_type: column.assessment_type,
     earned: i >= 10 ? null : i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, possible: 100,
     percent: i >= 10 ? null : i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, is_graded: i < 10,
+    returned_at: i % 2 === 0 ? '2026-10-15T12:00:00Z' : null,
     is_manual_override: i === 1,
   })),
 }))
@@ -88,11 +89,12 @@ export function GradebookCompactPattern() {
     <StudentGradesView showRoleLabel grades={buildStudentGradesResponse({
       categories: [{ id: 'term', percentage: 100 }],
       compactZeroWeightAssessments,
-      items: displayedColumns.filter(column => !column.is_draft && column.status !== 'draft').map(column => {
+      items: displayedColumns.flatMap(column => {
         const cell = displayedStudents[0].assessment_scores?.find(cell => getAssessmentColumnKey(cell) === getAssessmentColumnKey(column))
-        return { id: column.assessment_id, kind: column.assessment_type === 'assignment' ? 'Classwork' as const : 'Test' as const,
-          title: column.title, earned: cell?.earned ?? 0, possible: column.possible, percent: cell?.percent ?? 0,
-          included: column.weight > 0, href: null, categoryId: 'term', weight: column.weight, returnedAt: '2026-10-15T12:00:00Z' }
+        if (column.is_draft || column.status === 'draft' || !cell?.is_graded || !cell.returned_at) return []
+        return [{ id: column.assessment_id, kind: column.assessment_type === 'assignment' ? 'Classwork' as const : 'Test' as const,
+          title: column.title, earned: cell.earned ?? 0, possible: column.possible, percent: cell.percent ?? 0,
+          included: column.weight > 0, href: null, categoryId: 'term', weight: column.weight, returnedAt: cell.returned_at }]
       }),
     })} />
     <div data-testid="gradebook-compact-returned-marks">
