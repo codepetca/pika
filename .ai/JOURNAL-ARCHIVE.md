@@ -47949,3 +47949,39 @@ Playwright DOM-error snapshots disabled, with installed-method regression.
 Integrated95 affected tests and audit pass; full gate and independent review
 precede ONE fresh human-authorized45-minute rehearsal. Prior attempts remain
 failed/spent; production/shared-local/provider/activation holds unchanged.
+
+<!-- pika-session-log-archive-batch:d752f0ee60e978c0d7465d66ac5d88598f9bafeca925f2d31244fb5b4f8b27f6 -->
+## 2026-10-14 Small-proof recovery and cleanup isolation
+
+Owner approved recovery then small loader/cleanup proofs before one fresh full
+rehearsal. Fresh six-minute recovery completed in81.798s: exact isolated project
+88dfc3bb2a65 containers, synthetic fixture volumes and network removed; temp
+workdir moved into its private evidence directory. All four ports clear; original
+failed controller receipt immutable and historical closure not retroactively
+accepted. Runtime late loading now uses the installed Playwright CommonJS hook;
+actual inert runtime export loads in a separate sandboxed noDB/no-network/no-fork
+process. Cleanup attempts each captured family despite another failure, joins
+commands independently and preserves permanent failure, identity checks and
+original shortened deadlines. Two bounded authors delivered; root integration
+89tests/6files PASS. Independent review and real cleanup proof still pending;
+no app exit, fresh admission, production change or Survey-probe planning inferred.
+Reviews70/71 found three unique cleanup/proof blockers. One batch now isolates
+throwing cleanup entry at both callers, keeps only private verified command
+settlement available during cleanup, and rejects timer-expiry proof credit.
+Real-transport CPU regressions reproduce the old defects; restored implementation
+85checks/TSC/lint PASS. Targeted review and actual small/native proof remain gates.
+Review72 closed findings; review73 checked direct coordinator launch after an
+extra outer macOS sandbox made the first small check fail. Child guards remain.
+Actual cleanup proof442ms PASS with verified SIGTERM closure and sticky failure;
+final runtimefb2 focused3206/8skip and all policies/TSC/lint PASS. ONE fresh full
+58bf13c71114/VryaWK attempt FAILED after130.741s: actual runtime and workflow
+entered, baseline witness captured, then workflow timeout before test authoring.
+Contexts close/pending0/page+console errors0; native ownedSettledfalse still blocks
+acceptance. Exact cleanup rejection cause unproved. No full retry. Fresh current
+checks find no matching processes/open workdir/evidence handles or app listener.
+Within original cleanup end, stop only its five exact label-verified containers;
+preserve containers/volumes/network/workdir/evidence. All test ports clear. Before
+post-run source/cache edits, current byte comparison matches7627source files and
+49485dependency files; preservationCompletefalse/nativeAcceptancefalse, no shared
+DB equality attested. Full attempt spent; new full invocation needs authorization.
+Production/shared-local/provider-Survey/account/billing/activation holds remain.
