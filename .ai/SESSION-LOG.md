@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Calendar non-class hatching
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner found muted days unclear; added a semantic-token diagonal hatch to Week non-class cards. Current-day outline, hidden accessible status, centered short content and interactions preserved.
-- Eight-context real-owner Playwright matrix refreshed; date text contrast on stripe pixels calculated at 6.22:1 light/4.64:1 dark. Design policy passes without exceptions or new tokens. Final checks/presentation review next; PR kept draft during the change.
-
 ## 2026-10-14 — Calendar uniform class-day backgrounds
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
@@ -512,3 +507,15 @@ Standing routine-approval/review-budget waiver retained, prior172 review turns a
 110 correction batches not reset. All production/shared-local/provider/account/
 admission/home/cutover holds unchanged; no migration applied. Existing harness,
 source/dependency preservation and one-shot exact-target disposal gates retained.
+
+## 2026-10-17 — Hot lifecycle snapshot correction
+
+PR1613 remains draft after two independent source reviews. First fresh isolated
+proof stopped before the initial learner RPC; exact teardown, canonical equality
+and independent source/dependency preservation passed. No native acceptance.
+Offline investigation found the snapshot's PL/pgSQL variable/column `v` collision;
+qualified catalog aliases fix it without changing snapshot coverage or SQL settings.
+Added closed failure-shape, SQLSTATE, snapshot-step and transport-phase diagnostics
+without logging raw errors or data. Actual installed-SDK/learner helper regression
+passes offline. One bounded reviewed fresh proof remains required; spent attempt
+retained, all production/shared-local/provider/activation holds unchanged.

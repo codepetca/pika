@@ -30,6 +30,19 @@ type Session=Parameters<AssignmentListLifecycleAdapters['executeSql']>[0]
 type ProofTarget=ReturnType<typeof validateAssignmentListProofTarget>
 const origin='http://127.0.0.1:54331',hotPath='/rest/v1/rpc/set_classroom_hot_archive_for_owner_v1',learnerPath='/rest/v1/rpc/test_learner_workflow_v1'
 const cleanup='PASS isolated classroom-hot-lifecycle exact teardown and unchanged canonical baseline.\n'
+/** Closed labels only: never emit a caught message, stack, SQL, key or response. */
+export function hotLifecycleFailureShape(error:unknown) {
+  const cause=error instanceof AssignmentListLifecycleError?error.primary?.error:error
+  if(cause instanceof ApiError)return {kind:'api',status:[400,403,404,409,503].includes(cause.statusCode)?cause.statusCode:0,sqlstate:'unknown'}
+  if(cause instanceof assert.AssertionError)return {kind:'assertion',status:0,sqlstate:'unknown'}
+  if(cause instanceof SyntaxError)return {kind:'syntax',status:0,sqlstate:'unknown'}
+  if(cause instanceof Error&&'stderr' in cause){
+    const stderr=typeof cause.stderr==='string'?cause.stderr:Buffer.isBuffer(cause.stderr)?cause.stderr.toString('utf8'):''
+    const code=/^ERROR:\s+([A-Z0-9]{5}):/m.exec(stderr)?.[1]
+    return {kind:'command',status:0,sqlstate:code&&['42702','42601','42883','42501','57014','25006','54000'].includes(code)?code:'unknown'}
+  }
+  return {kind:'unknown',status:0,sqlstate:'unknown'}
+}
 export function parseClassroomHotLifecycleArgs(args:string[]) {
   const generateTypes=args.length===5&&args[4]==='--generate-types'
   const parsed=parseAssignmentListLifecycleArgs(generateTypes?args.slice(0,4):args)
@@ -39,6 +52,8 @@ export function parseClassroomHotLifecycleArgs(args:string[]) {
 export function createHotLifecycleProofTransport(f:HotLifecycleFixture,target:ProofTarget,raw:typeof fetch,guard:()=>Promise<void>) {
   validateAssignmentListProofTarget(target,f.projectId);assert.equal(target.API_URL,origin)
   let expected:{path:string;body:Record<string,unknown>}|undefined,inFlight=false
+  type TransportPhase='idle'|'request-validation'|'guard'|'request'|'response-validation'|'body'|'decode'|'complete'
+  let phase:TransportPhase='idle',failure:TransportPhase|undefined
   const counts={rpc:0,bytes:0,rawPrivilegeFailures:0}
   const allowed=new Set([[0,0,true],[0,0,false],[1,1,true],[1,1,false],[2,0,true],[3,0,true],[0,3,false],[0,3,true],[0,4,false]].map(([a,c,v])=>JSON.stringify({p_actor_id:f.actors[Number(a)].id,p_classroom_id:f.classes[Number(c)].id,p_archived:v})))
   function plan(path:typeof hotPath|typeof learnerPath,body:Record<string,unknown>) {
@@ -49,6 +64,8 @@ export function createHotLifecycleProofTransport(f:HotLifecycleFixture,target:Pr
   }
   function done(){assert(!expected&&!inFlight)}
   const safeFetch:typeof fetch=async(resource,init)=>{
+    phase='request-validation'
+    try {
     assert(expected&&!inFlight&&typeof resource==='string'&&init?.method==='POST'&&typeof init.body==='string')
     const url=new URL(resource);assert.equal(url.origin,origin);assert.equal(url.pathname,expected.path);assert.equal(url.search,'');assert.equal(url.hash,'');assert.equal(url.username,'');assert.equal(url.password,'')
     const headers=new Headers(init.headers);assert.equal(headers.get('apikey'),target.SERVICE_ROLE_KEY);assert.equal(headers.get('authorization'),`Bearer ${target.SERVICE_ROLE_KEY}`)
@@ -57,17 +74,19 @@ export function createHotLifecycleProofTransport(f:HotLifecycleFixture,target:Pr
     else assert.deepEqual(body,expected.body)
     assert(++counts.rpc<=20);expected=undefined;inFlight=true
     try {
-      await guard();const timeout=AbortSignal.timeout(caps.requestMs),signal=init.signal?AbortSignal.any([timeout,init.signal]):timeout
-      const response=await raw(resource,{...init,redirect:'error',signal});assert(!response.headers.has('location')&&(response.status<300||response.status>=400))
+      phase='guard';await guard();const timeout=AbortSignal.timeout(caps.requestMs),signal=init.signal?AbortSignal.any([timeout,init.signal]):timeout
+      phase='request';const response=await raw(resource,{...init,redirect:'error',signal});phase='response-validation';assert(!response.headers.has('location')&&(response.status<300||response.status>=400))
+      phase='body'
       const reader=response.body?.getReader(),chunks:Uint8Array[]=[];let bytes=0
       if(reader)for(;;){const part=await reader.read();if(part.done)break;bytes+=part.value.length
         if(bytes>caps.responseBytes||bytes+counts.bytes>64*1024*1024){await reader.cancel();throw new Error('Hot lifecycle reply cap')};chunks.push(part.value)}
-      counts.bytes+=bytes;const data=Buffer.concat(chunks);const decoded:unknown=JSON.parse(data.toString('utf8'))
+      counts.bytes+=bytes;const data=Buffer.concat(chunks);phase='decode';const decoded:unknown=JSON.parse(data.toString('utf8'))
       if(!response.ok&&decoded&&typeof decoded==='object'&&!Array.isArray(decoded)&&(decoded as Record<string,unknown>).code==='42501')counts.rawPrivilegeFailures++
-      return new Response(data,{status:response.status,statusText:response.statusText,headers:response.headers})
+      const reply=new Response(data,{status:response.status,statusText:response.statusText,headers:response.headers});phase='complete';return reply
     } finally {inFlight=false}
+    } catch(error){failure??=phase;throw error}
   }
-  return Object.freeze({fetch:safeFetch,plan,done,counts})
+  return Object.freeze({fetch:safeFetch,plan,done,counts,diagnostic:()=>({phase,failure:failure??'none',rpc:counts.rpc,bytes:counts.bytes})})
 }
 export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
   const input=parseClassroomHotLifecycleArgs(args)
@@ -82,14 +101,15 @@ export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
   let engine:ReturnType<typeof createClassroomHotLifecycleNativeContracts>|undefined,transport:ReturnType<typeof createHotLifecycleProofTransport>|undefined
   let client:ReturnType<typeof createClient<Database>>|undefined,complete=false,matrixComplete=false,stage='pending'
   let types:Awaited<ReturnType<typeof generateTestDraftSaveTypes>>|undefined
+  let step='pending'
   const previousPal=process.env.PAL_ENABLED;process.env.PAL_ENABLED='false'
   function sql(source:string) {
     assert(session&&[testOwnerGuardSql(projectId),manifest.snapshot].includes(source))
-    return execFileSync('docker',['exec','-i','-e',`PGAPPNAME=${projectId}_fixture`,session.containerId,'psql','-U','postgres','-d','postgres','-XqAt','-v','ON_ERROR_STOP=1'],
+    return execFileSync('docker',['exec','-i','-e',`PGAPPNAME=${projectId}_fixture`,session.containerId,'psql','-U','postgres','-d','postgres','-XqAt','-v','ON_ERROR_STOP=1','-v','VERBOSITY=verbose'],
       {input:source,encoding:'utf8',stdio:['pipe','pipe','pipe'],timeout:45000,maxBuffer:caps.responseBytes}).trim()
   }
   async function guard(){assert(target&&session);closure=validateIntegratedGuardResources(await testOwnerListDockerInventory(),projectId,session.containerId,closure);assert.equal(sql(testOwnerGuardSql(projectId)),'ok')}
-  async function snapshot():Promise<HotGraph>{await guard();return JSON.parse(sql(manifest.snapshot))}
+  async function snapshot():Promise<HotGraph>{step='snapshot-guard';await guard();step='snapshot-query';const value=sql(manifest.snapshot);step='snapshot-decode';return JSON.parse(value)}
   async function hot(actor:number,klass:number,archived:boolean) {
     assert(client&&transport);transport.plan(hotPath,{p_actor_id:f.actors[actor].id,p_classroom_id:f.classes[klass].id,p_archived:archived})
     const before=await snapshot(),result=await setContextualClassroomHotArchive({supabase:client,actorId:f.actors[actor].id,classroomId:f.classes[klass].id,archived})
@@ -101,10 +121,11 @@ export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
     return result
   }
   async function inspect(denied:boolean) {
-    assert(client&&transport);const before=await snapshot();transport.plan(learnerPath,{p_actor_id:f.actors[2].id,p_test_id:f.testId,p_classroom_id:null,p_operation:'inspect',p_payload:{}})
+    assert(client&&transport);const before=await snapshot();step='learner-plan';transport.plan(learnerPath,{p_actor_id:f.actors[2].id,p_test_id:f.testId,p_classroom_id:null,p_operation:'inspect',p_payload:{}})
     const flow=createContextualTestLearnerWorkflow({supabase:client! as unknown as TestLearnerRpcClient,actorId:f.actors[2].id,testId:f.testId,deadline:Date.now()+25000}),read=()=>flow.run('inspect')
+    step='learner-rpc'
     if(denied)await assert.rejects(read,e=>e instanceof ApiError&&e.statusCode===403);else {const row=await read();assert.deepEqual(row,{access_mode:'member'});assert.equal(flow.classroomId,f.classes[0].id)}
-    transport.done();assert.deepEqual(await snapshot(),before)
+    step='learner-completion';transport.done();const after=await snapshot();step='learner-preservation';assert.deepEqual(after,before)
   }
   async function matrix() {
     assert(complete&&!matrixComplete&&engine&&client&&transport)
@@ -143,7 +164,7 @@ export async function classroomHotLifecycleMain(args=process.argv.slice(2)) {
     return Object.freeze({types:types??null,nativeVerified:true,projectId,reviewedHead:input.head,manifestSha256:manifestHash,migrationManifestSha256:manifest.migrationManifestSha256})
   } catch(error) {
     if(input.mode!=='normal'&&complete&&error instanceof AssignmentListLifecycleError&&error.primary?.stage===input.mode&&error.primary.error instanceof Error&&error.primary.error.message==='Forced isolated lifecycle failure'&&error.cleanupFailures.length===0){process.stdout.write(cleanup);process.stderr.write(`FAIL forced isolated classroom-hot-lifecycle: ${input.mode}.\n`);process.exitCode=1;return}
-    process.stderr.write(`DIAG classroom-hot-lifecycle stage=${stage} cleanup=${error instanceof AssignmentListLifecycleError?error.cleanupFailures.map(f=>f.stage).join(',')||'none':'unknown'}.\n`)
+    process.stderr.write(`DIAG classroom-hot-lifecycle stage=${stage} step=${step} failure=${JSON.stringify(hotLifecycleFailureShape(error))} transport=${JSON.stringify(transport?.diagnostic()??null)} cleanup=${error instanceof AssignmentListLifecycleError?error.cleanupFailures.map(f=>f.stage).join(',')||'none':'unknown'}.\n`)
     if(engine)process.stderr.write(engine.diagnostic());throw new Error('Classroom hot lifecycle proof failed; private details withheld')
   } finally {if(previousPal===undefined)delete process.env.PAL_ENABLED;else process.env.PAL_ENABLED=previousPal}
 }

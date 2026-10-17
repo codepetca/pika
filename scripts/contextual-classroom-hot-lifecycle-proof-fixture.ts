@@ -27,8 +27,8 @@ for t in select n.nspname,c.relname from pg_class c join pg_namespace n on n.oid
  where c.relkind in ('r','p') and n.nspname in ('public','private','storage') order by n.nspname,c.relname loop
  execute format('select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb) from %I.%I r',t.nspname,t.relname) into v;
  g:=g||jsonb_build_object(t.nspname||'.'||t.relname,v);end loop;
-return g||jsonb_build_object('__catalog',(select md5(coalesce(string_agg(v,'' order by v),'')) from (
- select pg_get_functiondef(p.oid)||coalesce(p.proacl::text,'') v from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prokind='f'
+return g||jsonb_build_object('__catalog',(select md5(coalesce(string_agg(x.definition,'' order by x.definition),'')) from (
+ select pg_get_functiondef(p.oid)||coalesce(p.proacl::text,'') definition from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prokind='f'
  union all select pg_get_triggerdef(t.oid)||t.tgenabled::text from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','storage') and not t.tgisinternal) x));end;$graph$;`
 export const hotSnapshotSelect=`select pg_temp.hot_graph() as result;`
 export function hotLifecycleSnapshotSql(){return `${hotGraphFunctions}begin read only;set local statement_timeout='8s';${hotSnapshotSelect}rollback;`}
