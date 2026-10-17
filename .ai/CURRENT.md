@@ -16,7 +16,8 @@ Exits: docs/guidance/classroom-access-and-entitlements-roadmap.md.
 CI38204673501/38175680856/38192450117 PASS.
 #1580 dormant;1581 draft; Tests fail;Survey/archive pending; holds unchanged.
 Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
-SDK create passes offline; denial unknown. Diagnostics/capture review clean; native held.
+Old run:4 logins/32 font shots; static-worker denial; spent/no exit.
+Narrow ordinary-Playwright + OS/gateway proof in development; review/run pending.
 251/252 native/review/CI PASS.
 LegacyPATCH preserved; local249+ held.
 No exit: docs/guidance/contextual-test-publication.md.

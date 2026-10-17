@@ -47900,3 +47900,35 @@ project Docker resources by both label schemes/name, four ports clear, frozen
 source clean. This failed receipt does not separately attest canonical equality.
 Private0700/0600 evidence and spent token kept; no retry or phase exit. Production,
 shared-local, provider-Survey, account/billing and activation holds unchanged.
+
+<!-- pika-session-log-archive-batch:f3babda857dec448dd8900752e63181aff8b5f071746d51d77f8e40e3227f223 -->
+## 2026-10-14 Privacy-safe serialized fixture errors
+
+Installed Playwright1.58 serializer proof identifies Error message/first-cause and
+non-Error value envelopes. Reporting now inspects bounded own data only, rejects
+proxies before traps, and emits the same four fixed fields with finite launch,
+worker-exit, type and exact private-startup categories. No raw message/stack/cause/
+URL/DOM/output or arbitrary fingerprint retained; unknown remains nonacceptance.
+Author21CPU checks pass after3red; root58checks/4suites plus default audit pass,
+including full-app reporter retention and installed reporter composition. Review
+and full gate pending. One fresh bounded rehearsal authorized but not allocated;
+prior failures stay spent. Production and other holds remain unchanged. Preserve
+post-run dependency evidence before coordinator tests rewrite their local cache.
+
+<!-- pika-session-log-archive-batch:8d28c1b4c0ac2b2655c3dc33b6050d6dc34e35b51674c6fc246a39bf33ad1893 -->
+## 2026-10-14 Serialized fixture reporting reviewed; fresh attempt failed
+
+Runtimecceb99318 passes3171 focused tests/8skip and all policies/TypeScript/lint.
+Review67 complete/clean; installed serializer and private launcher covered, earlier
+unchanged coverage reused. One freshcc38348ac353/eCMyEm failed before first spec-
+entry marker; two errors still classify unknown. The initial timeout setter is
+before that marker, so body-never-entered/browser-launch claims are not proved.
+App ready; server0/0/0/all flagsfalse.239.666s from original start/30.848s cleanup.
+ControllerownedSettledtrue; root confirms project resources/workdir/SQL marker
+absent and four ports clear. BEFOREpost-run tests, independent dependency digest
+and all7624 source-file hashes/identities match preparation; private receipt kept.
+No separate canonical DB equality attestation or native acceptance. Private evidence,
+spent token and reviews preserved; temporary clean reviewer copy removed normally.
+No retry, phase exit or production change. Next evidence should use fixed envelope
+shape/code-site labels and an earlier body marker, not further signature guessing.
+Production/shared-local/provider-Survey/account/billing/activation holds unchanged.

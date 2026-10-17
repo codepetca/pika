@@ -14,6 +14,7 @@ import { contextualTestIdentityMismatch, parseKernelProcessRows, type Contextual
 import { createContextualTestRouteReadiness } from './contextual-test-route-readiness'
 import type { ContextualTestControllerAdmission, ContextualTestControllerControls } from './contextual-test-rehearsal-controller'
 import { contextualTestFontOverlaySha256 } from '../e2e/helpers/contextual-test-font-overlay'
+import { contextualTestVerticalProfile, contextualTestVerticalNetworkProbe, contextualTestVerticalCommands } from './contextual-test-vertical-environment'
 
 export type ContextualTestNativePins = Readonly<{
   node: ContextualTestBinaryPin; ps: ContextualTestBinaryPin; python: ContextualTestBinaryPin
@@ -31,7 +32,7 @@ export type ContextualTestOwnedChild = Readonly<{
 }>
 export type ContextualTestOwnedLaunch = {
   args: readonly string[]; cwd: string; env: Readonly<Record<string, string>>
-  role: 'app' | 'browser'; profile: string; deadline: number
+  role: 'app' | 'browser'; profile: string; deadline: number; listenerPort?: 3118
 }
 const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 const fixedError = () => new Error('Private contextual Test native control failed')
@@ -150,6 +151,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
     check(); verifyContextualTestBinary(pins.node); verifyContextualTestBinary(pins.sandbox)
     assert(input.deadline > Date.now() && input.deadline <= cleanupDeadline)
     assert(realpathSync(input.cwd) === input.cwd && input.profile.startsWith('(version 1)'))
+    assert(input.listenerPort === undefined || (input.role === 'app' && input.listenerPort === 3118))
     let child: ChildProcess
     try {
       child = spawn(pins.sandbox.path, ['-p', input.profile, pins.node.path, ...input.args], {
@@ -194,7 +196,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
           const ownedListener = async () => {
             const admitReady = () => { check(); assert(!closed && !uncertain && Date.now() < end) }
             admitReady()
-            const listeners = await probe(pins.lsof, ['-nP','-iTCP:3117','-sTCP:LISTEN','-Fp'], end)
+            const listeners = await probe(pins.lsof, ['-nP',`-iTCP:${input.listenerPort ?? 3117}`,'-sTCP:LISTEN','-Fp'], end)
             let observed = await family.observe(admitReady, () => observeRows(admitReady, end))
             while (observed.snapshot.pending?.length) {
               // No reset or extra lease: pending work shares the original ready end.
@@ -304,7 +306,7 @@ export function createContextualTestNativeControls(pins: ContextualTestNativePin
 }
 
 export async function contextualTestPortsAvailable(ports = [3117, 54331, 54332, 54340]) {
-  assert.deepEqual(ports, [3117,54331,54332,54340])
+  assert.deepEqual(ports, ports.length === 5 ? [3117,3118,54331,54332,54340] : [3117,54331,54332,54340])
   for (const port of ports) await new Promise<void>((resolve, reject) => {
     const server = createServer(); server.once('error', () => reject(fixedError()))
     server.listen({ host: '127.0.0.1', port, exclusive: true }, () => server.close(error => error ? reject(fixedError()) : resolve()))
@@ -316,6 +318,7 @@ export const CONTEXTUAL_TEST_REQUIRED_IMAGES = Object.freeze(['public.ecr.aws/su
   'public.ecr.aws/supabase/storage-api:v1.62.5','public.ecr.aws/supabase/kong:2.8.1'])
 export async function verifyContextualTestNativeReadiness(pins: ContextualTestNativePins, input: {
   deadline: number; dependencyProbeFile: string; profile: string; requiredImages: readonly { ref: string; id: string }[]
+  verticalProfiles?: Readonly<{ app: string; browser: string }>
 }, control: ReturnType<typeof createContextualTestNativeControls>) {
   assert.equal(process.platform, 'darwin')
   for (const key of ['node','ps','python','lsof','sandbox','codesign','chrome','docker'] as const) verifyContextualTestBinary(pins[key])
@@ -330,7 +333,12 @@ export async function verifyContextualTestNativeReadiness(pins: ContextualTestNa
   }
   const script = "const f=require('node:fs');try{const d=f.openSync(process.argv[1],f.constants.O_WRONLY);f.closeSync(d);process.exit(7)}catch(e){process.exit(e.code==='EPERM'||e.code==='EACCES'?0:8)}"
   await control.probe(pins.sandbox, ['-p',input.profile,pins.node.path,'-e',script,input.dependencyProbeFile], input.deadline)
-  await contextualTestPortsAvailable()
+  await contextualTestPortsAvailable(input.verticalProfiles ? [3117,3118,54331,54332,54340] : undefined)
+  if (input.verticalProfiles) for (const role of ['app','browser'] as const) {
+    const result = await control.probe(pins.sandbox, ['-p', input.verticalProfiles[role], pins.node.path, '-e',
+      contextualTestVerticalNetworkProbe(role, pins.dockerHost.slice(7))], input.deadline)
+    assert.equal(result, 'vertical-network-denied-v1')
+  }
 }
 
 export type ContextualTestExecutionSeal = Readonly<{
@@ -345,6 +353,7 @@ export type ContextualTestExecutionSeal = Readonly<{
 export function contextualTestExecutionDigest(admission: ContextualTestControllerAdmission, pins: ContextualTestNativePins,
   seal: Omit<ContextualTestExecutionSeal, 'manifestSha256'>) {
   return sha(Buffer.from(JSON.stringify({ version: 1, projectId: admission.projectId, nonce: admission.nonce,
+    ...(admission.proofScope ? { proofScope: admission.proofScope } : {}),
     startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline,
     frozen: admission.frozen, runner: admission.runner, dependencies: admission.dependencies,
     transportPins: admission.transportPins, nativePins: pins,
@@ -385,17 +394,34 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
       const profile = contextualTestReadOnlyDependencyProfile(admission.dependencies.roots)
       await unchanged()
       await verifyContextualTestNativeReadiness(pins, { deadline: admission.deadline, profile, requiredImages: seal.requiredImages,
+        ...(admission.proofScope === 'vertical-v1' ? { verticalProfiles: {
+          app: contextualTestVerticalProfile('app', admission.dependencies.roots, admission.workdir, admission.outputDir),
+          browser: contextualTestVerticalProfile('browser', admission.dependencies.roots, admission.workdir, admission.outputDir),
+        } } : {}),
         dependencyProbeFile: realpathSync(join(admission.dependencies.root, 'next/package.json')) }, native)
       command.assertClosed(); native.assertClosed(); admitted = true
     },
     async assertUnchanged() { assert(admitted); await unchanged(); command.assertClosed(); native.assertClosed() },
     async launchApp(input) {
       assert(admitted && input.binding.projectId === admission.projectId && input.cwd === admission.appDir)
-      return native.spawnOwned({ args: input.args, cwd: input.cwd, env: input.env, role: 'app', profile: input.dependencySandboxProfile, deadline: admission.deadline })
+      if (admission.proofScope === 'vertical-v1') {
+        assert.equal(input.binding.proofScope, 'vertical-v1'); assert.equal(input.listenerPort, 3118)
+        assert.equal(input.dependencySandboxProfile, contextualTestVerticalProfile('app', admission.dependencies.roots, admission.workdir, admission.outputDir))
+        assert.deepEqual(input.args, contextualTestVerticalCommands(admission.runner.repository, admission.dependencies.root).app)
+        assert(!input.env.NODE_OPTIONS)
+      }
+      return native.spawnOwned({ args: input.args, cwd: input.cwd, env: input.env, role: 'app', profile: input.dependencySandboxProfile, deadline: admission.deadline,
+        ...(input.listenerPort ? { listenerPort: input.listenerPort } : {}) })
     },
     async launchPlaywright(input) {
       assert(admitted && input.binding.projectId === admission.projectId && input.cwd === admission.runner.repository)
       assert.equal(input.binding.outputDir, admission.outputDir)
+      if (admission.proofScope === 'vertical-v1') {
+        assert.equal(input.binding.proofScope, 'vertical-v1'); assert(!input.binding.sqlControl)
+        assert.equal(input.dependencySandboxProfile, contextualTestVerticalProfile('browser', admission.dependencies.roots, admission.workdir, admission.outputDir))
+        assert.deepEqual(input.args, contextualTestVerticalCommands(admission.runner.repository, admission.dependencies.root).runner)
+        assert(!input.env.NODE_OPTIONS)
+      }
       assertContextualTestUnusedRunnerOutput(admission.outputDir)
       const child = await native.spawnOwned({ args: input.args, cwd: input.cwd, env: input.env, role: 'browser', profile: input.dependencySandboxProfile, deadline: admission.deadline })
       return { async wait() { await child.wait(); const state = child.state(); return { closed: state.closed, code: state.code, signal: null } } }

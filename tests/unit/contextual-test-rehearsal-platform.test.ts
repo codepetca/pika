@@ -26,6 +26,11 @@ describe('Tests rehearsal binding and fixed SQL', () => {
     expect(value.projectId).toBe(projectId)
     expect(Object.isFrozen(value.docker.socketIdentity)).toBe(true)
   })
+  it('separates narrow proof scope and withholds browser SQL authority', () => {
+    expect(validateContextualTestRunBinding({ ...binding(), proofScope: 'vertical-v1' }, now).proofScope).toBe('vertical-v1')
+    expect(() => validateContextualTestRunBinding({ ...binding(), proofScope: 'full' }, now)).toThrow()
+    expect(() => validateContextualTestRunBinding({ ...binding(), proofScope: 'vertical-v1', sqlControl: {} }, now)).toThrow()
+  })
   it.each([
     { sourceSha: 'd'.repeat(40) }, { appOverlaySha256: '0'.repeat(64) }, { appOverlaySha256: undefined }, { migrationChainSha256: 'e'.repeat(64) }, { appOrigin: 'http://127.0.0.1:3117' },
     { deadline: now + 2700001 }, { cleanupDeadline: now + 500000 }, { planSha256: 'f'.repeat(64) },

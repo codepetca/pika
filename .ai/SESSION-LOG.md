@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Privacy-safe serialized fixture errors
-
-Installed Playwright1.58 serializer proof identifies Error message/first-cause and
-non-Error value envelopes. Reporting now inspects bounded own data only, rejects
-proxies before traps, and emits the same four fixed fields with finite launch,
-worker-exit, type and exact private-startup categories. No raw message/stack/cause/
-URL/DOM/output or arbitrary fingerprint retained; unknown remains nonacceptance.
-Author21CPU checks pass after3red; root58checks/4suites plus default audit pass,
-including full-app reporter retention and installed reporter composition. Review
-and full gate pending. One fresh bounded rehearsal authorized but not allocated;
-prior failures stay spent. Production and other holds remain unchanged. Preserve
-post-run dependency evidence before coordinator tests rewrite their local cache.
-
-## 2026-10-14 Serialized fixture reporting reviewed; fresh attempt failed
-
-Runtimecceb99318 passes3171 focused tests/8skip and all policies/TypeScript/lint.
-Review67 complete/clean; installed serializer and private launcher covered, earlier
-unchanged coverage reused. One freshcc38348ac353/eCMyEm failed before first spec-
-entry marker; two errors still classify unknown. The initial timeout setter is
-before that marker, so body-never-entered/browser-launch claims are not proved.
-App ready; server0/0/0/all flagsfalse.239.666s from original start/30.848s cleanup.
-ControllerownedSettledtrue; root confirms project resources/workdir/SQL marker
-absent and four ports clear. BEFOREpost-run tests, independent dependency digest
-and all7624 source-file hashes/identities match preparation; private receipt kept.
-No separate canonical DB equality attestation or native acceptance. Private evidence,
-spent token and reviews preserved; temporary clean reviewer copy removed normally.
-No retry, phase exit or production change. Next evidence should use fixed envelope
-shape/code-site labels and an earlier body marker, not further signature guessing.
-Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
-
 ## 2026-10-14 Login readiness and cleanup-stage diagnosis
 
 Failed full run reached workflow with nonempty fields but disabled Login; no
@@ -992,3 +962,56 @@ acceptance remains pending. No native attempt/token, app or frozen-source edit,
 DB/provider action or production/shared-local/Survey/account/billing/migration/
 cutover change. PR1581 stays draft. Independent review follows a stable candidate;
 128 prior review turns/75 prior batches, original clocks/task waiver retained.
+
+## 2026-10-17 — Fresh rehearsal isolates static-worker denial stage
+
+Reviewed5480dd7b4 passed3734 focused tests/8skip and all local gates before this
+attempt; reviews129–131 clean after startup-budget doc fix. Wrapper132 clean.
+One authorized full-app I54uZz at frozen21e755/schema001–262 failed/spent in
+156.975s. Four logins completed identity,32font PNGs saved and byte/hash verified.
+First ownerTeacher/main create POST returned401; server firstDenial is
+static-worker-send-work, deniedtrue only, app1/api77/storage0. Browser app265,
+tests3 admitted not committed, no uploads/reservations; baseline witness only.
+No browser boundary failure, pending0/pageErrors0;16workflow screenshots unreached.
+
+Read-only source trace and root verification establish that the shared denial
+latch can block the next session lookup and cause401. The send-work label covers
+multiple predicates AND synchronous IPC-send failure, so exact cause remains
+unproved. Both classroom pathnames are already admitted. Current CPU proof uses
+real jest-worker but a hand-built work payload; next bounded offline slice should
+exercise the installed Next DevServer payload producer and separate predicate
+failure from original-send failure, without expanding admission. Review before
+another fresh native attempt; no retry or new implementation this turn.
+
+All32font images inspected across teacher/student, both themes/viewports/states.
+Mobile now shows heading and complete opening paragraph, matching the reviewed
+first-two-DOM-block contract. Content farther down the inner scroll viewport is
+not shown; preserve that coverage limitation. No credible typography/horizontal
+overflow defect; no full48-shot or native acceptance. Sol6.1/high source trace
+and Sol6.1/medium student visual delegation were verified, with no edits/conflicts.
+
+All6cleanup gates passed; ownedSettledtrue. Immediate independent preservation
+BEFORE writes/tests verifies7662sourcefiles/49485dependencyfiles unchanged and
+zero matching processes. Exact isolated project resources/tempapp absent, ports
+free;18.015s actual cleanup. Evidence/spent token retained, freeze released.
+Canonical DB equality not attested. No production/shared-local/provider/Survey/
+account/billing/migration/cutover change. PR1581 stays draft5480;132reviews/77fixes,
+original clocks and routine-approval waiver retained.
+
+## 2026-10-17 Narrow Test verification architecture
+
+User authorized replacing repeated framework/navigation interception work with
+one ordinary end-to-end workflow. New explicit vertical-v1 admission uses fixed
+root-owned HTTP gateways and inherited OS network denial; app and browser have
+no direct fixture database, Docker, canonical backend or provider access. Root
+owns bootstrap and before/after SQL witnesses. Original bytes are buffered and
+validated by gateways independently of browser navigation. Full proof validation
+remains separate: three narrow screenshots cannot satisfy the 48-shot matrix.
+The bounded path creates one two-question Test as a student-valued owner,
+publishes, opens a teacher-valued member, submits and inspects real responses,
+and checks three forbidden accesses. No grading, uploads or provider work.
+319 integrated CPU checks pass; independent review and ONE fresh native proof
+remain pending. Three bounded implementation workers delivered isolated files;
+coordinator verified source contracts and caught compression/serializer hazards.
+Prior failed attempts remain spent. No production/shared-local/schema/account/
+billing/cutover change. Existing review counters and task waiver carry forward.

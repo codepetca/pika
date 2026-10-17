@@ -368,6 +368,15 @@ describe('real native controller with CPU process doubles only', () => {
     await child.ready()
     await controls.settleAll(Date.now() + 5000)
   })
+  it('checks the private app listener for the gateway-backed narrow lane', async () => {
+    const controls = createContextualTestNativeControls(pins, Date.now() + 20000)
+    const child = await controls.spawnOwned({ ...launch(), listenerPort: 3118 })
+    app.stdout.emit('data', Buffer.from('✓ Ready in 100ms\n'))
+    try {
+      await child.ready()
+      expect(native.spawn.mock.calls.some(([, args]) => args.includes('-iTCP:3118'))).toBe(true)
+    } finally { await controls.settleAll(Date.now() + 5000) }
+  })
   it('rejects a foreign process in the owned group without adopting or signalling it', async () => {
     const controls = createContextualTestNativeControls(pins, Date.now() + 20000), child = await controls.spawnOwned(launch())
     rows.push({ pid: 9999, ppid: 1, pgid: 1000, started: '300:1', executable: '/foreign', state: 'alive' })
@@ -540,6 +549,7 @@ describe('fresh execution seal (CPU only, no admission)', () => {
     expect(first).toBe(createHash('sha256').update(JSON.stringify(projection)).digest('hex'))
     expect(first).not.toBe(createHash('sha256').update(JSON.stringify({ ...projection, appOverlaySha256: undefined })).digest('hex'))
     expect(contextualTestExecutionDigest(admission, pins, seal)).toBe(first)
+    expect(contextualTestExecutionDigest({ ...admission, proofScope: 'vertical-v1' }, pins, seal)).not.toBe(first)
     for (const changed of [{ ...admission, deadline: admission.deadline + 1 }, { ...admission, runner: { ...admission.runner, sha256: '1'.repeat(64) } },
       { ...admission, dependencies: { ...admission.dependencies, sha256: '2'.repeat(64) } }]) expect(contextualTestExecutionDigest(changed, pins, seal)).not.toBe(first)
     expect(contextualTestExecutionDigest(admission, { ...pins, dockerHost: 'unix:///cpu/other.sock' }, seal)).not.toBe(first)

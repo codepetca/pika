@@ -29,13 +29,17 @@ export type ContextualTestRunBinding = Readonly<{
   docker: Readonly<{ path: string; sha256: string; host: string; socketIdentity: readonly [number, number, number, number]; containerId: string }>
   /** Required by the actual worker SQL edge; optional only for pure data/CPU callers. */
   sqlControl?: Readonly<{ nativePins: ContextualTestNativePins; transportPins: ContextualTestTransportPins }>
+  /** Narrow success never satisfies the full lifecycle/matrix receipt. */
+  proofScope?: 'vertical-v1'
 }>
 
 /** Data validation preserves the original clock; it never manufactures an attempt. */
 export function validateContextualTestRunBinding(value: unknown, now = Date.now()): ContextualTestRunBinding {
   const hasSqlControl = !!value && typeof value === 'object' && Object.hasOwn(value, 'sqlControl')
+  const hasScope = !!value && typeof value === 'object' && Object.hasOwn(value, 'proofScope')
   exactData(value, ['version','projectId','appOrigin','apiOrigin','sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','planSha256',
-    'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : [])])
+    'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : []), ...(hasScope ? ['proofScope'] : [])])
+  if (hasScope) { assert.equal(value.proofScope, 'vertical-v1'); assert(!hasSqlControl, 'Narrow browser receives no SQL controls') }
   assert.equal(value.version, 1); assert(typeof value.projectId === 'string')
   const plan = createContextualTestPlan(value.projectId)
   for (const key of ['sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','appOrigin','apiOrigin'] as const) assert.equal(value[key], plan[key])
