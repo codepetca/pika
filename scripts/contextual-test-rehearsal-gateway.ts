@@ -201,7 +201,10 @@ export class ContextualTestGatewayPolicy {
   validateBody(kind: Kind, target: string, method: string, body?: unknown): void {
     this.check()
     const path = target.split('?')[0]
-    if (this.proofScope === 'lifecycle-permissions-v1' && kind === 'app' && !['GET','HEAD'].includes(method)) this.validateLifecycleBody(path,method,body)
+    // Fixed development reads terminate in a local empty404 after normal origin,
+    // body-size and JSON checks. They are not lifecycle writes or upstream access.
+    if (this.proofScope === 'lifecycle-permissions-v1' && kind === 'app' && !['GET','HEAD'].includes(method)
+      && !blockedDevelopmentRead(target,method)) this.validateLifecycleBody(path,method,body)
     if (this.proofScope === 'vertical-grade-return-v1' && kind === 'app') {
       const exact = (value: unknown, keys: string[]): value is Record<string, unknown> => !!value && typeof value === 'object'
         && !Array.isArray(value) && Object.keys(value).sort().join(',') === keys.sort().join(',')

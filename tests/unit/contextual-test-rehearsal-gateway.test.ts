@@ -3,14 +3,14 @@ import { createRequire } from 'node:module'
 import { PassThrough, Writable } from 'node:stream'
 import type * as http from 'node:http'
 import { describe, expect, it, vi } from 'vitest'
-import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, type ContextualTestProofScope } from '../../e2e/helpers/contextual-test-rehearsal'
 import { ContextualTestGatewayPolicy, createContextualTestGateways, contextualTestGatewayTarget,
   contextualTestGatewayRedirect, contextualTestGatewayBodyLimit, type ContextualTestGatewayEdges } from '../../scripts/contextual-test-rehearsal-gateway'
 
 const plan = createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f')
 const testId = '50000000-0000-4000-8000-000000000044'
 function deferred<T>() { let resolve!: (v: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
-function harness(now = () => 1000) {
+function harness(now = () => 1000, proofScope?: ContextualTestProofScope) {
   const servers: Array<EventEmitter & { handler: http.RequestListener; listen: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> }> = []
   const upstreams: Array<{ options: http.RequestOptions; callback: (response: http.IncomingMessage) => void; request: Writable; bytes: Buffer[] }> = []
   const edges: ContextualTestGatewayEdges = {
@@ -28,7 +28,7 @@ function harness(now = () => 1000) {
       upstreams.push({ options, callback, request, bytes }); return request as http.ClientRequest
     },
   }
-  const input = { plan, deadline: 2_701_000 }
+  const input = { plan: proofScope ? createContextualTestPlan(plan.projectId,proofScope) : plan, deadline: 2_701_000, proofScope }
   const gateways = createContextualTestGateways(input, edges)
   function incoming(kind: 'app' | 'api', path: string, method = 'GET', body = '', extra: http.IncomingHttpHeaders = {}) {
     const request = Object.assign(new PassThrough(), { method, url: path, headers: { host: kind === 'app' ? 'localhost:3117' : '127.0.0.1:54340', ...extra }, rawHeaders: [] })
@@ -199,12 +199,14 @@ describe('fixed contextual Test HTTP gateway policy', () => {
 })
 
 describe('contextual Test gateway original-byte ownership with fake HTTP I/O', () => {
-  it('lets the installed Next overlay fall back after the real empty diagnostic denial', async () => {
+  it.each([undefined,'vertical-v1','vertical-grade-return-v1','lifecycle-permissions-v1'] as const)('lets the installed Next overlay fall back after the real empty diagnostic denial for %s', async scope => {
     const { getOriginalStackFrames } = createRequire(import.meta.url)('next/dist/next-devtools/shared/stack-frame.js')
-    const h = harness(); await h.gateways.start()
+    const h = harness(undefined,scope); await h.gateways.start()
     const fetch = vi.fn(async (target: string, options: { method: string; body: string }) => {
       const call = h.incoming('app', target, options.method, options.body, { 'content-type': 'text/plain;charset=UTF-8' })
       await call.done
+      expect(call.response.status).toBe(404)
+      expect(call.response.bytes.length).toBe(0)
       return new Response('', { status: call.response.status })
     })
     vi.stubGlobal('fetch', fetch)
@@ -215,6 +217,8 @@ describe('contextual Test gateway original-byte ownership with fake HTTP I/O', (
       expect(result).toMatchObject([{ error: true, originalStackFrame: null, originalCodeFrame: null }])
       expect(h.upstreams).toHaveLength(0)
       expect(h.gateways.receipt()).toMatchObject({ firstFailure: null, rejectedDiagnostics: 1, pending: 0 })
+      const next = h.incoming('app','/api/auth/me'); await flush(); h.respond(0,'{}'); await next.done
+      expect(next.response.status).toBe(200)
     } finally { vi.unstubAllGlobals(); await h.gateways.close(2000) }
   })
   it.each([
@@ -230,6 +234,15 @@ describe('contextual Test gateway original-byte ownership with fake HTTP I/O', (
       appRequests: 1, rejectedDiagnostics: 1, pending: 0, creates: 0 })
     const app = h.incoming('app', '/api/auth/me'); await flush(); h.respond(0, '{}'); await app.done
     expect(app.response.status).toBe(200); await h.gateways.close(2000)
+  })
+  it.each(['malformed','oversize','foreign-origin','query','method','endpoint'] as const)('retains lifecycle diagnostic denials for %s',async mode=>{
+    const h=harness(undefined,'lifecycle-permissions-v1');await h.gateways.start()
+    const path=mode==='query'?'/__nextjs_original-stack-frames?extra=1':mode==='endpoint'?'/__nextjs_launch-editor':'/__nextjs_original-stack-frames'
+    const call=h.incoming('app',path,mode==='method'?'PATCH':'POST',mode==='oversize'?'x'.repeat(1048577):mode==='malformed'?'{':'{}',
+      mode==='foreign-origin'?{origin:'http://foreign.invalid'}:{})
+    await call.done;expect(h.upstreams).toHaveLength(0)
+    expect(h.gateways.receipt().firstFailure).toBe(mode==='oversize'?'request-size':mode==='foreign-origin'?'target':mode==='malformed'?'request-json':'endpoint')
+    await h.gateways.close(2000)
   })
   it.each([
     ['POST', '/__nextjs_original-stack-frames?extra=1'], ['GET', '/__nextjs_original-stack-frames'],
