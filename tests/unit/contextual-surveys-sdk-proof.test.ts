@@ -64,6 +64,8 @@ describe('finite installed-SDK Survey transport (offline only)', () => {
       const request=transport.fetch(firstUrl,firstRequest()).catch(error=>error)
       await vi.advanceTimersByTimeAsync(101)
       expect(await request).toBeInstanceOf(Error)
+      expect(transport.diagnostic()).toContain('firstReason=sdk-deadline')
+      expect(transport.diagnostic()).toContain('remainingMs=0 completedCalls=0')
       let settled=false
       const settlement=transport.settle().then(()=>undefined,error=>error).finally(()=>{settled=true})
       await Promise.resolve();expect(settled).toBe(false)
@@ -80,6 +82,42 @@ describe('finite installed-SDK Survey transport (offline only)', () => {
         await expect(transport.settle()).rejects.toBeInstanceOf(Survey263UnjoinedChildError)
       }
       expect(wire).toHaveBeenCalledOnce();expect(()=>transport.complete()).toThrow()
+    }finally{vi.useRealTimers()}
+  })
+  it('retains a non-deadline reply failure stage without exposing the reply or later failure',async()=>{
+    const transport=createSurveySdkProofTransport(f,target,async()=>reply({private:'must-not-retain'}),async()=>{},()=>{},{cleanupDeadline:Date.now()+1000})
+    transport.start(Date.now()+500)
+    await expect(transport.fetch(firstUrl,firstRequest())).rejects.toThrow()
+    await transport.settle()
+    expect(transport.diagnostic()).toContain('firstStage=reply firstReason=operation')
+    expect(transport.diagnostic()).not.toContain('must-not-retain')
+    const first=transport.diagnostic()
+    await expect(transport.fetch(firstUrl,firstRequest())).rejects.toThrow()
+    expect(transport.diagnostic()).toBe(first)
+  })
+  it('identifies actual completion-deadline refusal after14 completed calls without changing the clock',async()=>{
+    vi.useFakeTimers()
+    try{
+      const start=Date.now(),transport=createSurveySdkProofTransport(f,target,server(),async()=>{},()=>{},{cleanupDeadline:start+1000})
+      transport.start(start+100)
+      await runContextualSurveysSdkContracts(transport.client,{ownerId:owner,memberId:member,outsiderId:f.actors[2].id,classroomId:cid,surveyId:sid},async()=>{})
+      vi.setSystemTime(start+101)
+      expect(()=>transport.complete()).toThrow()
+      expect(transport.diagnostic()).toContain('firstStage=complete firstReason=sdk-deadline elapsedMs=101 remainingMs=0 completedCalls=14')
+    }finally{vi.useRealTimers()}
+  })
+  it('distinguishes caller cancellation before the SDK deadline and joins its owned guard',async()=>{
+    vi.useFakeTimers()
+    try{
+      let release:()=>void=()=>{}
+      const caller=new AbortController(),wire=vi.fn<typeof fetch>(),transport=createSurveySdkProofTransport(f,target,wire,()=>new Promise<void>(resolve=>{release=resolve}),()=>{},{cleanupDeadline:Date.now()+1000})
+      transport.start(Date.now()+100)
+      const request=transport.fetch(firstUrl,{...firstRequest(),signal:caller.signal}).catch(error=>error)
+      for(let n=0;n<10;n++)await Promise.resolve()
+      caller.abort();expect(await request).toBeInstanceOf(Error)
+      const settlement=transport.settle();release();await settlement
+      expect(transport.diagnostic()).toContain('firstStage=guard-before firstReason=caller-abort elapsedMs=0 remainingMs=100')
+      expect(wire).not.toHaveBeenCalled()
     }finally{vi.useRealTimers()}
   })
   it('charges every actual request and response byte into the component ledger and fails closed on overflow', async () => {

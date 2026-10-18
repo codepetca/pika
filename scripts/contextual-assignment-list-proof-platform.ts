@@ -351,29 +351,54 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBu
 const containerTemplate = '{"id":{{json .Id}},"name":{{json .Name}},"labels":{{json .Config.Labels}},"mounts":{{json .Mounts}},"networks":{{json .NetworkSettings.Networks}},"bindings":{{json .HostConfig.PortBindings}},"created":{{json .Created}}}'
 /** Fresh complete global discovery; batching reduces process overhead, not scope. */
 export async function assignmentListDockerInventory(run: (file: string, args: string[]) => Promise<string> = command): Promise<AssignmentListResource[]> {
+  return readAssignmentListDockerInventory(run, false)
+}
+/** Fixed component-only schedule. Same global parser and checks; three joined
+ * list→inspect branches, never three inspections before their own lists. */
+export async function survey269ComponentDockerInventory(run: (file: string, args: string[]) => Promise<string>): Promise<AssignmentListResource[]> {
+  return readAssignmentListDockerInventory(run, true)
+}
+async function readAssignmentListDockerInventory(run: (file: string, args: string[]) => Promise<string>, component: boolean): Promise<AssignmentListResource[]> {
+  let stopped = false
+  const dispatch = component ? async (file: string, args: string[]) => {
+    assert(!stopped, 'Component inventory admission stopped')
+    try { return await run(file, args) } catch (error) { stopped = true; throw error }
+  } : run
   const ids = async (args: string[]) => {
-    const values = (await run('docker', args)).split(/\s+/).filter(Boolean)
-    assert.equal(new Set(values).size, values.length)
-    assert(values.every(value => args[0] === 'volume' ? /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(value) : /^[a-f0-9]{64}$/.test(value)))
-    return values
+    try {
+      const values = (await dispatch('docker', args)).split(/\s+/).filter(Boolean)
+      assert.equal(new Set(values).size, values.length)
+      assert(values.every(value => args[0] === 'volume' ? /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(value) : /^[a-f0-9]{64}$/.test(value)))
+      return values
+    } catch (error) { stopped = true; throw error }
   }
   async function inspect<T>(values: string[], args: string[], decode: (output: string) => T[], identify: (row: T) => string) {
-    const rows: T[] = []
-    for (let start = 0; start < values.length; start += 128) {
-      const batch = values.slice(start, start + 128)
-      const inspected = decode(await run('docker', [...args, ...batch]))
-      assert(Array.isArray(inspected)); assert.equal(inspected.length, batch.length)
-      assert.deepEqual(inspected.map(identify).sort(), [...batch].sort())
-      rows.push(...inspected)
-    }
-    return rows
+    try {
+      const rows: T[] = []
+      for (let start = 0; start < values.length; start += 128) {
+        const batch = values.slice(start, start + 128)
+        const inspected = decode(await dispatch('docker', [...args, ...batch]))
+        assert(Array.isArray(inspected)); assert.equal(inspected.length, batch.length)
+        assert.deepEqual(inspected.map(identify).sort(), [...batch].sort())
+        rows.push(...inspected)
+      }
+      return rows
+    } catch (error) { stopped = true; throw error }
   }
   type Container = { id: string; name: string; labels: Record<string, string> | null; mounts: Array<{ Type: string; Name: string }>; networks: Record<string, { NetworkID: string }>; bindings: Record<string, Array<{ HostPort: string }> | null>; created: string }
   type Volume = { Name: string; CreatedAt: string; Labels: Record<string, string> | null }
   type Network = { Id: string; Name: string; Created: string; Labels: Record<string, string> | null; Containers: Record<string, unknown> }
-  const containers = await inspect<Container>(await ids(['ps', '-aq', '--no-trunc']), ['inspect', '--format', containerTemplate], output => output.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)), row => row.id)
-  const volumes = await inspect<Volume>(await ids(['volume', 'ls', '-q']), ['volume', 'inspect'], output => JSON.parse(output), row => row.Name)
-  const networks = await inspect<Network>(await ids(['network', 'ls', '-q', '--no-trunc']), ['network', 'inspect'], output => JSON.parse(output), row => row.Id)
+  const branch = async <T>(read: () => Promise<T>) => { try { return await read() } catch (error) { stopped = true; throw error } }
+  const readContainers = () => branch(() => ids(['ps', '-aq', '--no-trunc']).then(values => inspect<Container>(values, ['inspect', '--format', containerTemplate], output => output.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)), row => row.id)))
+  const readVolumes = () => branch(() => ids(['volume', 'ls', '-q']).then(values => inspect<Volume>(values, ['volume', 'inspect'], output => JSON.parse(output), row => row.Name)))
+  const readNetworks = () => branch(() => ids(['network', 'ls', '-q', '--no-trunc']).then(values => inspect<Network>(values, ['network', 'inspect'], output => JSON.parse(output), row => row.Id)))
+  let containers: Container[], volumes: Volume[], networks: Network[]
+  if (component) {
+    const results = await Promise.allSettled([readContainers(), readVolumes(), readNetworks()] as const)
+    for (const result of results) if (result.status === 'rejected') throw result.reason
+    assert(results[0].status === 'fulfilled' && results[1].status === 'fulfilled' && results[2].status === 'fulfilled')
+    containers = results[0].value; volumes = results[1].value; networks = results[2].value
+  } else { containers = await readContainers(); volumes = await readVolumes(); networks = await readNetworks() }
   const volumeId = (name: string) => { const volume = volumes.find(v => v.Name === name); assert(volume); return `volume:${name}:${volume.CreatedAt}` }
   const result: AssignmentListResource[] = containers.map(c => ({ kind: 'container', id: c.id, createdAt: c.created, name: c.name.replace(/^\//, ''), labels: c.labels ?? {},
     attachedIds: [...c.mounts.filter((m: { Type: string }) => m.Type === 'volume').map((m: { Name: string }) => volumeId(m.Name)),

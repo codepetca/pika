@@ -60,7 +60,7 @@ import { validateSurveyCommittedSql, surveyCommittedObservationSql, validateSurv
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
 import { decodeAssignmentListSnapshot, validateSurvey263Budget, verifySurvey263NativeCli, Survey263UnjoinedChildError,
-  chargeSurvey269ComponentExchange, chargeSurvey269ComponentControl, survey269ComponentExchangeReceipt, assignmentListDockerInventory,
+  chargeSurvey269ComponentExchange, chargeSurvey269ComponentControl, survey269ComponentExchangeReceipt, survey269ComponentDockerInventory,
   type Survey269ComponentExchange, type Survey263Budget, type Survey263NativeCli } from './contextual-assignment-list-proof-platform'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
 import { generateTestDraftSaveTypes, testDraftSaveTypeGenerationPlan } from './generate-contextual-test-draft-save-types'
@@ -77,6 +77,8 @@ const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503',
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
+type GuardCheckpoint = 'none' | 'sdk-deadline' | 'sdk-runner' | 'source-git' | 'source-files' | 'endpoint' | 'resources' | 'sql-ownership'
+class SurveySdkDeadlineError extends Error { constructor() { super('Survey SDK ordinary dispatch expired') } }
 // Retain only one allowlisted code. Untrusted stderr lines are bounded and
 // discarded; neither their text nor an exception is part of the diagnostic.
 function captureSqlstate() {
@@ -956,6 +958,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   const start = profile.survey263Budget?.startedAt ?? Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
   const component = profile.survey269Component !== undefined
   let surveySdkWorkDeadline: number | undefined
+  let surveySdkWorkStartedAt: number | undefined
   let surveySdkDiagnostic: (() => string) | undefined
   let surveySdkGuardUnjoined = false
   function chargeComponent(bytes: number, cleanup = false) {
@@ -1014,7 +1017,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
   let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
   let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number;
-    progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified' }> | undefined
+    progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified'; checkpoint: GuardCheckpoint; sdkElapsedMs: number | 'none'; sdkRemainingMs: number | 'none' }> | undefined
   function role(name: string): Role {
     if (name === `${project}_fixture`) return 'fixture'
     if (name === `${project}_draft_contracts`) return 'contracts'
@@ -1022,16 +1025,23 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     if (name === `${project}_draft_contender`) return 'contender'
     return 'none'
   }
-  function record(kind: Fault, ownedRole: Role = 'none', sqlstate = 'unknown') {
+  function record(kind: Fault, ownedRole: Role = 'none', sqlstate = 'unknown', checkpoint: GuardCheckpoint = 'none') {
     if (firstFault) return
     if (profile.reorderDiagnosticSql) diagnosticTimings = [...sessions].find(session => session.diagnosticObservation().enabled)?.diagnosticObservation().snapshot ?? diagnosticTimings
     const observations = [...sessions].map(session => session.progressObservation())
     const activeBulk = observations.find(value => value.scope === 'bulk')
     const activeCalibration = observations.find(value => value.scope === 'calibration')
-    firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) ? sqlstate : 'unknown',
+    firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) ? sqlstate : 'unknown', checkpoint,
+      sdkElapsedMs: surveySdkWorkStartedAt === undefined ? 'none' : Math.min(CAPS.totalMs, Math.max(0, Date.now() - surveySdkWorkStartedAt)),
+      sdkRemainingMs: surveySdkWorkDeadline === undefined ? 'none' : Math.min(20000, Math.max(0, surveySdkWorkDeadline - Date.now())),
       progress: activeBulk?.snapshot.checkpoint ?? bulkProgress,
       calibration: progressCalibrated || activeCalibration?.snapshot.calibrated ? 'verified' : 'unverified',
       controls: Math.min(controls, CAPS.controlCalls + 1), actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) })
+  }
+  function checkSurveySdkAdmission(cleanup = false) {
+    if (component && !cleanup && surveySdkWorkDeadline !== undefined && Date.now() >= surveySdkWorkDeadline) {
+      record('guard', 'none', 'unknown', 'sdk-deadline'); throw new SurveySdkDeadlineError()
+    }
   }
   let endpoint: { host: string; identity: number[] } | undefined
   function checkJoined() { if (surveyUnjoined) throw new Survey263UnjoinedChildError() }
@@ -1058,7 +1068,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   }
   function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role, cleanup = false): Promise<string> {
     checkJoined()
-    if (component && !cleanup && surveySdkWorkDeadline !== undefined) assert(Date.now() < surveySdkWorkDeadline, 'Survey SDK ordinary dispatch expired')
+    checkSurveySdkAdmission(cleanup)
     assert(++controls <= CAPS.controlCalls)
     if (file === 'supabase') assert((profile.label === 'survey263' || component) && endpoint)
     if (component && sql !== undefined) chargeComponent(Buffer.byteLength(sql), cleanup)
@@ -1089,7 +1099,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           if (diagnosticRole !== undefined) {
             const state = captureSqlstate()
             if (typeof stderr === 'string' && Buffer.byteLength(stderr) <= CAPS.stderrBytes) state.push(stderr)
-            record('guard', diagnosticRole, state.code())
+            record('guard', diagnosticRole, state.code(), component && sql === manifest.guard ? 'sql-ownership' : 'none')
           }
           reject(failure())
         }
@@ -1129,15 +1139,19 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     if (profile.survey263Endpoint) assert.deepEqual(observed, profile.survey263Endpoint)
     if (endpoint) assert.deepEqual(observed, endpoint); else endpoint = observed
   }
-  async function inventory(cleanup = false, observe = !cleanup) {
+  async function inventory(cleanup = false, observe = !cleanup, ownedRole: Role = 'none') {
     if (!cleanup) check(observe); else checkSettlement()
     // These fresh read-only children are independent. Settle all of them even
     // on rejection before resource discovery, SQL, or session work can begin.
+    const step = async <T>(checkpoint: GuardCheckpoint, run: () => Promise<T>) => { try { return await run() } catch (error) {
+      if (component && observe) record('guard', ownedRole, 'unknown', error instanceof SurveySdkDeadlineError ? 'sdk-deadline' : checkpoint)
+      throw error
+    } }
     const checks = await Promise.allSettled([
-      (async () => { assert.equal(await command('git', ['rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), input.reviewedHead) })(),
-      (async () => { assert.equal(await command('git', ['rev-parse', '--show-toplevel'], undefined, CAPS.controlMs, undefined, cleanup), input.repository) })(),
-      (async () => { assert.equal(await command('git', ['status', '--porcelain'], undefined, CAPS.controlMs, undefined, cleanup), '') })(),
-      verifyEndpoint(cleanup),
+      step('source-git', async () => { assert.equal(await command('git', ['rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), input.reviewedHead) }),
+      step('source-git', async () => { assert.equal(await command('git', ['rev-parse', '--show-toplevel'], undefined, CAPS.controlMs, undefined, cleanup), input.repository) }),
+      step('source-git', async () => { assert.equal(await command('git', ['status', '--porcelain'], undefined, CAPS.controlMs, undefined, cleanup), '') }),
+      step('endpoint', () => verifyEndpoint(cleanup)),
     ])
     checkJoined()
     for (const result of checks) if (result.status === 'rejected') throw result.reason
@@ -1145,18 +1159,24 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       const binding = profile.survey269Component
       for (const [key, repository] of Object.entries(SURVEY_269_COMPONENT_ROOTS)) {
         const source = binding[key as 'product' | 'carrier']
-        assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), source.head)
-        assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD^{tree}'], undefined, CAPS.controlMs, undefined, cleanup), source.tree)
-        assert.equal(await command('git', ['-C', repository, 'status', '--porcelain', '--untracked-files=all'], undefined, CAPS.controlMs, undefined, cleanup), '')
+        const wave = await Promise.allSettled([
+          step('source-git', async () => { assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), source.head) }),
+          step('source-git', async () => { assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD^{tree}'], undefined, CAPS.controlMs, undefined, cleanup), source.tree) }),
+          step('source-git', async () => { assert.equal(await command('git', ['-C', repository, 'status', '--porcelain', '--untracked-files=all'], undefined, CAPS.controlMs, undefined, cleanup), '') }),
+        ])
+        checkJoined(); for (const result of wave) if (result.status === 'rejected') throw result.reason
       }
-      verifySurvey269ComponentSources(binding)
     }
-    assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
-    assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations', profile.sourceFile), 'utf8')), manifest.sourceSha256)
-    if (profile.surveyCommitted) verifySurveyRemainingSources(input.repository)
-    const all = await dockerInventory(cleanup, observe)
-    validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
-    await verifyEndpoint(cleanup)
+    await step('source-files', async () => {
+      checkSurveySdkAdmission(cleanup)
+      if (profile.survey269Component) verifySurvey269ComponentSources(profile.survey269Component)
+      assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
+      assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations', profile.sourceFile), 'utf8')), manifest.sourceSha256)
+      if (profile.surveyCommitted) verifySurveyRemainingSources(input.repository)
+      checkSurveySdkAdmission(cleanup)
+    })
+    await step('resources', async () => { const all = await dockerInventory(cleanup, observe); validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[]) })
+    await step('endpoint', () => verifyEndpoint(cleanup))
     if (!cleanup) check(observe)
   }
   async function dockerInventory(cleanup = false, observe = !cleanup) {
@@ -1167,7 +1187,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     try {
       if (component) {
         assert(endpoint)
-        return await assignmentListDockerInventory((file, args) => {
+        return await survey269ComponentDockerInventory((file, args) => {
           assert.equal(file, 'docker')
           return command('docker', ['--host', endpoint!.host, ...args], undefined, CAPS.controlMs, undefined, cleanup)
         })
@@ -1184,10 +1204,10 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   }
   async function guard(cleanup = false, ownedRole: Role = 'none', observe = !cleanup) {
     try {
-    await inventory(cleanup, observe)
+    await inventory(cleanup, observe, ownedRole)
     assert.equal(await command('docker', dockerArgs(`${project}_fixture`), manifest.guard, CAPS.controlMs, observe ? ownedRole : undefined, cleanup), 'ok')
     if (!cleanup) check(observe)
-    } catch (error) { if (observe) record('guard', ownedRole); throw error }
+    } catch (error) { if (observe) record('guard', ownedRole, 'unknown', error instanceof SurveySdkDeadlineError ? 'sdk-deadline' : 'sql-ownership'); throw error }
   }
   // On any failed dispatch, all exact owned backends are terminated and both
   // local docker children are reaped. A failed remote confirmation fails closed.
@@ -1225,7 +1245,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
     constructor(name: string) {
       this.name = name
-      if (component && surveySdkWorkDeadline !== undefined) assert(Date.now() < surveySdkWorkDeadline, 'Survey SDK ordinary dispatch expired')
+      checkSurveySdkAdmission()
       if (component) chargeSurvey269ComponentControl(profile.survey269Exchange!)
       this.child = spawn('docker', dockerArgs(name), { cwd: input.repository, stdio: ['pipe', 'pipe', 'pipe'] })
       this.closed = new Promise(resolveClose => this.child.once('close', () => {
@@ -1264,7 +1284,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number, carrier?: SurveyCarrier): Promise<readonly { result?: unknown }[]> {
-      if (component && !this.cleaning && surveySdkWorkDeadline !== undefined) assert(Date.now() < surveySdkWorkDeadline, 'Survey SDK ordinary dispatch expired')
+      checkSurveySdkAdmission(this.cleaning)
       if (profile.survey263Budget) {
         timeoutMs = Math.min(timeoutMs, (this.cleaning ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
         assert(timeoutMs > 0)
@@ -1576,12 +1596,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         const decode = (rows: Awaited<ReturnType<typeof single>>) => decodeAssignmentListSnapshot(
           rows.map(row => JSON.stringify(row.result)).join('\n'), 'rows')
         const before = decode(await single(manifest.snapshot))
-        const sdkDeadline = Math.min(Date.now() + 20000, start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs)
-        if (component) surveySdkWorkDeadline = sdkDeadline
+        const sdkStartedAt = Date.now(), sdkDeadline = Math.min(sdkStartedAt + 20000, start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs)
+        if (component) { surveySdkWorkStartedAt = sdkStartedAt; surveySdkWorkDeadline = sdkDeadline }
         const sdkGuard = async () => {
-          if (component) assert(Date.now() < sdkDeadline, 'Survey SDK ordinary dispatch expired')
+          checkSurveySdkAdmission()
           try { await guard() } catch (error) { if (component && error instanceof Survey263UnjoinedChildError) surveySdkGuardUnjoined = true; throw error }
-          if (component) assert(Date.now() < sdkDeadline, 'Survey SDK ordinary dispatch expired')
+          checkSurveySdkAdmission()
         }
         const transport = createSurveySdkProofTransport(profile.surveySdk!.fixture, profile.surveySdk!.status, fetch, sdkGuard, component ? chargeComponent : undefined,
           component ? { cleanupDeadline: profile.survey263Budget!.cleanupDeadline } : undefined)
@@ -1598,7 +1618,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
             classroomId: fixture.classes[0].id, surveyId: fixture.surveys[0].id,
           }, sdkGuard)
           sdk = transport.complete(); endedAt = new Date().toISOString(); sdkComplete = true
-        } catch (error) { sdkFailure = error }
+        } catch (error) { sdkFailure = error; if (component) record('unknown', 'none', 'unknown', 'sdk-runner') }
         finally {
           if (component) {
             try { await transport.settle() }
@@ -1671,10 +1691,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     diagnostic() {
       const d = firstFault ?? { phase, failure: 'none', role: 'none', sqlstate: 'unknown', controls: Math.min(controls, CAPS.controlCalls + 1),
         actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1),
-        progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
+        progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified', checkpoint: 'none', sdkElapsedMs: 'none', sdkRemainingMs: 'none' }
       return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
         + (component ? `DIAG survey269-component settlement remainingSessions=${sessions.size} exchangeBytes=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).bytes} controlCalls=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).controls}.\n` : '')
+        + (component ? `DIAG survey269-component firstFailure checkpoint=${d.checkpoint} sdkElapsedMs=${d.sdkElapsedMs} sdkRemainingMs=${d.sdkRemainingMs}.\n` : '')
         + (component && surveySdkDiagnostic ? `${surveySdkDiagnostic()}\n` : '')
         + (component && surveySdkGuardUnjoined ? 'DIAG survey269-component sdkPending=guard.\n' : '')
         + (profile.learnerCancellation ? `DIAG learner cancellationStage=${cancellationFirstFailure ?? cancellationStage} cancellationRestore=${cancellationRestoreFailure ?? 'none'}.\n` : '')

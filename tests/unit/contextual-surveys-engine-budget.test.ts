@@ -10,6 +10,7 @@ const seam = vi.hoisted(() => ({ exec: vi.fn(), spawn: vi.fn(), collect: vi.fn()
   spawnCalls: [] as string[], metadataReplies: [] as Array<() => void>,
   afterBootstrap: undefined as (()=>void)|undefined, terminations: 0, closedSessions: 0,
   sdkTransportReady:false,holdSdkGuard:0,sdkGuardCount:0,
+  wrongSource:false,wrongGuard:false,failGuard:false,
   replies: [] as Array<() => void>, manifest: {} as Record<string, unknown>, writes: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ execFile: seam.exec, spawn: seam.spawn }))
 vi.mock('node:http', async original => ({ ...await original<typeof import('node:http')>(), request: seam.http }))
@@ -98,6 +99,7 @@ beforeEach(() => {
   seam.cliReply = 'held'; seam.poisonAfterBootstrap = false
   seam.afterBootstrap=undefined;seam.terminations=0;seam.closedSessions=0
   seam.sdkTransportReady=false;seam.holdSdkGuard=0;seam.sdkGuardCount=0
+  seam.wrongSource=false;seam.wrongGuard=false;seam.failGuard=false
   seam.children.length = 0; seam.readers.length = 0; seam.replies.length = 0; seam.writes.clear()
   seam.spawnCalls.length = 0; seam.metadataReplies.length = 0
   for (const key of Object.keys(process.env)) if (/DOCKER_|PROXY|SUPABASE_CLI_BINARY_OVERRIDE/.test(key)) vi.stubEnv(key, undefined)
@@ -115,10 +117,10 @@ beforeEach(() => {
         return
       }
       let value = ''
-      if (file === 'git') value = args.includes('HEAD') || args.includes('HEAD^{tree}') ? seam.head : args.includes('--show-toplevel') ? seam.component ? '/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main' : repository : ''
+      if (file === 'git') value = args.includes('HEAD^{tree}') && seam.wrongSource ? 'b'.repeat(40) : args.includes('HEAD') || args.includes('HEAD^{tree}') ? seam.head : args.includes('--show-toplevel') ? seam.component ? '/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main' : repository : ''
       else if (args[0] === 'context') value = JSON.stringify({ endpoints: { docker: { Host: seam.host } }, tlsMaterial: null })
-      else {if(input===manifest.termination)seam.terminations++;value = input === manifest.termination ? JSON.stringify({ present: false, terminated: false }) : 'ok'}
-      callback(seam.held && seam.brokenMetadata ? new Error('offline secondary metadata') : null, value, ''); child.emit('close', 0, null)
+      else {if(input===manifest.termination)seam.terminations++;value = input === manifest.termination ? JSON.stringify({ present: false, terminated: false }) : input===manifest.guard&&seam.wrongGuard?'wrong':'ok'}
+      callback(input===manifest.guard&&seam.failGuard ? new Error('private SQL child detail') : seam.held && seam.brokenMetadata ? new Error('offline secondary metadata') : null, value, ''); child.emit('close', 0, null)
     }; if (seam.holdMetadata) seam.metadataReplies.push(reply); else queueMicrotask(reply)
     return child
   })
@@ -175,7 +177,7 @@ describe('actual Survey engine budget composition (offline)', () => {
     vi.spyOn(surveyContracts,'survey269ComponentPlan').mockReturnValue(plan)
     vi.spyOn(surveyContracts,'validateSurvey269ComponentSql').mockImplementation((_plan,sql)=>[plan.setup,plan.snapshot,plan.contracts.sql,plan.concurrency.close].includes(sql))
     vi.spyOn(surveyContracts,'verifySurvey269ComponentSources').mockImplementation(()=>{})
-    vi.spyOn(platform,'assignmentListDockerInventory').mockImplementation(async run=>{await run!('docker',['ps','-aq','--no-trunc']);return resources})
+    vi.spyOn(platform,'survey269ComponentDockerInventory').mockImplementation(async run=>{await run!('docker',['ps','-aq','--no-trunc']);return resources})
     const adapters = platform.createAssignmentListNativeAdapters(original,{survey263Endpoint:{kind:'survey263',host:seam.host,identity:[1,2,3,4]},survey263Budget:budget(),survey263NativeCli:platform.SURVEY263_NATIVE_CLI,survey269Component:true})
     const componentManifest=buildSurvey269ComponentManifest(original,sourceBinding)
     seam.manifest=componentManifest
@@ -204,6 +206,37 @@ describe('actual Survey engine budget composition (offline)', () => {
     const token=platform.requireSurvey263AdapterEndpoint(adapters).componentExchange!
     platform.chargeSurvey269ComponentExchange(token,67108864)
     await expect(component.setup()).rejects.toThrow()
+    expect(seam.spawnCalls).toHaveLength(0)
+  })
+  it('component guard schedules4/3/3 joined metadata waves and joins every mismatched wave before stopping later work',async()=>{
+    const {engine:component}=componentEngine()
+    seam.holdMetadata=true
+    let finished=false
+    const operation=component.setup().catch(error=>error).finally(()=>{finished=true})
+    await flush();expect(seam.metadataReplies).toHaveLength(4);expect(seam.children).toHaveLength(4)
+    seam.metadataReplies.splice(0).forEach(reply=>reply());await flush()
+    expect(seam.metadataReplies).toHaveLength(3);expect(seam.children).toHaveLength(7)
+    seam.metadataReplies.splice(0).forEach(reply=>reply());await flush()
+    expect(seam.metadataReplies).toHaveLength(3);expect(seam.children).toHaveLength(10)
+    seam.wrongSource=true
+    const wave=seam.metadataReplies.splice(0);wave[1]();await flush()
+    expect(finished).toBe(false);expect(seam.children).toHaveLength(10);expect(seam.spawnCalls).toHaveLength(0)
+    wave[0]();wave[2]()
+    expect(await operation).toBeInstanceOf(Error)
+    expect(seam.children).toHaveLength(10);expect(seam.spawnCalls).toHaveLength(0)
+    expect(component.diagnostic()).toContain('checkpoint=source-git')
+    expect(component.diagnostic()).not.toContain('bbbbbbbb')
+  })
+  it.each(['resources','source-files','sql-ownership','sql-child'] as const)('retains a fixed non-deadline %s rejection without starting a session',async checkpoint=>{
+    const {engine:component}=componentEngine()
+    if(checkpoint==='resources')vi.mocked(platform.survey269ComponentDockerInventory).mockRejectedValueOnce(new Error('private resource detail'))
+    if(checkpoint==='source-files')vi.mocked(surveyContracts.verifySurvey269ComponentSources).mockImplementationOnce(()=>{throw new Error('private source detail')})
+    if(checkpoint==='sql-ownership')seam.wrongGuard=true
+    if(checkpoint==='sql-child')seam.failGuard=true
+    await expect(component.setup()).rejects.toThrow()
+    expect(component.diagnostic()).toContain(`checkpoint=${checkpoint==='sql-child'?'sql-ownership':checkpoint}`)
+    expect(component.diagnostic()).toContain('sdkElapsedMs=none sdkRemainingMs=none')
+    expect(component.diagnostic()).not.toContain('private')
     expect(seam.spawnCalls).toHaveLength(0)
   })
   it('overflow after owned bootstrap still terminates its exact backend and positively closes the child without acceptance',async()=>{
@@ -251,6 +284,9 @@ describe('actual Survey engine budget composition (offline)', () => {
       expect(await operation).toBeInstanceOf(Error)
       expect(finished).toBe(true)
       expect(wire).toHaveBeenCalledTimes(side==='post'?1:0)
+      expect(component.diagnostic()).toContain('checkpoint=sdk-runner')
+      expect(component.diagnostic()).toContain('firstReason=sdk-deadline')
+      expect(component.diagnostic()).toContain('sdkRemainingMs=0')
     }
   })
   it('preserves poison through the actual race wrapper cleanup assertion', async () => {

@@ -16,6 +16,9 @@ import { contextualSurveyDetailSchema, contextualSurveyListSchema, contextualSur
 const origin = 'http://127.0.0.1:54331'
 const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const fail = () => new Error('Survey SDK proof refused; private details withheld')
+class SurveySdkBoundaryError extends Error {
+  constructor(readonly reason: 'sdk-deadline' | 'caller-abort') { super('Survey SDK boundary refused') }
+}
 const uuid = z.string().uuid(), stamp = z.string().datetime({ offset: true })
 const question = contextualSurveyQuestionMutationSchema.shape.question.extend({ artifact_id: uuid,
   source_artifact_id: uuid.nullable(), source_blueprint_version_id: uuid.nullable() }).strict()
@@ -83,14 +86,21 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
   }
   const manifest = surveySdkProofManifest(f), manifestSha256 = hash(JSON.stringify(manifest))
   const target = validateAssignmentListProofTarget(rawTarget, f.projectId)
-  let deadline: number | undefined, failed = false, inFlight = false, calls = 0, bytes = 0, index = 0
+  let deadline: number | undefined, startedAt: number | undefined, failed = false, inFlight = false, calls = 0, bytes = 0, index = 0
   let memberQuestions: z.infer<typeof question>[] | undefined, created: z.infer<typeof question> | undefined
   const receipts: Array<{ index: number; requestSha256: string; responseSha256: string; responseBytes: number }> = []
-  let stage: 'idle' | 'request' | 'guard-before' | 'exchange' | 'reply' | 'guard-after' | 'complete' | 'failed' = 'idle'
+  type Stage = 'idle' | 'request' | 'guard-before' | 'exchange' | 'reply' | 'guard-after' | 'complete' | 'failed'
+  let stage: Stage = 'idle'
+  let firstFailure: Readonly<{ stage: Stage; reason: 'sdk-deadline' | 'caller-abort' | 'operation'; elapsedMs: number; remainingMs: number; completedCalls: number }> | undefined
+  function rememberFailure(error: unknown) {
+    if (cleanupDeadline !== undefined) firstFailure ??= Object.freeze({ stage, reason: error instanceof SurveySdkBoundaryError ? error.reason : 'operation',
+      elapsedMs: Math.min(900000, Math.max(0, Date.now() - (startedAt ?? Date.now()))), remainingMs: Math.min(20000, Math.max(0, (deadline ?? Date.now()) - Date.now())), completedCalls: index })
+  }
   const owner = f.actors[0].id, member = f.actors[1].id, sid = f.surveys[0].id, cid = f.classes[0].id
   function start(rootDeadline: number) {
     assert(deadline === undefined && !failed && Number.isSafeInteger(rootDeadline) && rootDeadline > Date.now())
     deadline = Math.min(rootDeadline, Date.now() + SURVEY_SDK_PROOF_CAPS.totalMs)
+    startedAt = Date.now()
   }
   function expected() {
     const identity = { p_actor_id: index === 3 ? f.actors[2].id : [4, 5, 6, 7].includes(index) ? member : owner, p_survey_id: sid }
@@ -151,8 +161,15 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
   const safeFetch: typeof fetch = async (resource, init) => {
     const controller = new AbortController(), caller = init?.signal
     let timer: ReturnType<typeof setTimeout> | undefined, reader: ReadableStreamDefaultReader<Uint8Array> | undefined, response: Response | undefined
-    const abort = () => controller.abort()
-    const check = () => assert(!failed && deadline !== undefined && Date.now() < deadline && !controller.signal.aborted && !caller?.aborted)
+    let abortReason: 'sdk-deadline' | 'caller-abort' | undefined
+    const abort = () => { abortReason ??= 'caller-abort'; controller.abort() }
+    const check = () => {
+      if (cleanupDeadline !== undefined) {
+        if (deadline !== undefined && Date.now() >= deadline) throw new SurveySdkBoundaryError('sdk-deadline')
+        if (controller.signal.aborted || caller?.aborted) throw new SurveySdkBoundaryError(abortReason ?? 'caller-abort')
+      }
+      assert(!failed && deadline !== undefined && Date.now() < deadline && !controller.signal.aborted && !caller?.aborted)
+    }
     try {
       check(); assert(!inFlight && index < names.length); inFlight = true; stage = 'request'
       assert(!(resource instanceof Request)); assert.equal(String(resource), `${origin}/rest/v1/rpc/${names[index]}`)
@@ -168,10 +185,11 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       for (const name of ['authorization', 'apikey', 'x-client-info', 'content-type']) assert.equal(headers.get(name), allowed[name])
       assert(Buffer.byteLength(init.body) <= SURVEY_SDK_PROOF_CAPS.requestBytes)
       assert.equal(init.body, JSON.stringify(expected()))
-      caller?.addEventListener('abort', abort, { once: true }); timer = setTimeout(abort, Math.max(0, deadline! - Date.now()))
+      caller?.addEventListener('abort', abort, { once: true }); timer = setTimeout(() => {abortReason ??= 'sdk-deadline';controller.abort()}, Math.max(0, deadline! - Date.now()))
       let rejectAbort: (error: Error) => void = () => {}
       const aborted = new Promise<never>((_, reject) => { rejectAbort = reject })
-      controller.signal.addEventListener('abort', () => rejectAbort(fail()), { once: true })
+      controller.signal.addEventListener('abort', () => rejectAbort(cleanupDeadline !== undefined && deadline !== undefined && Date.now() >= deadline
+        ? new SurveySdkBoundaryError('sdk-deadline') : cleanupDeadline !== undefined && abortReason ? new SurveySdkBoundaryError(abortReason) : fail()), { once: true })
       const bounded = async <T>(run: () => Promise<T>, kind: PendingKind) => { check(); const operation = owned(Promise.resolve().then(() => {if (cleanupDeadline !== undefined) check();return run()}), kind); const value = await Promise.race([operation, aborted]); check(); return value }
       stage = 'guard-before'; await bounded(guard, 'guard'); check(); assert(++calls <= SURVEY_SDK_PROOF_CAPS.calls)
       bytes += Buffer.byteLength(init.body); assert(bytes <= SURVEY_SDK_PROOF_CAPS.totalBytes)
@@ -198,7 +216,10 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       receipts.push({ index, requestSha256: hash(init.body), responseSha256: hash(body), responseBytes: count }); index++
       stage = index === names.length ? 'complete' : 'idle'
       return new Response(body, { status: response.status, headers: response.headers })
-    } catch (error) { failed = true; stage = 'failed'; controller.abort(); if (cleanupDeadline !== undefined && error instanceof Survey263UnjoinedChildError) {poison ??= error;throw poison} throw fail() }
+    } catch (error) {
+      rememberFailure(error)
+      failed = true; stage = 'failed'; controller.abort(); if (cleanupDeadline !== undefined && error instanceof Survey263UnjoinedChildError) {poison ??= error;throw poison} throw fail()
+    }
     finally { if (timer) clearTimeout(timer); caller?.removeEventListener('abort', abort)
       // Request cancellation without letting an untrusted stream's cancel hook
       // extend the fixed deadline. Root still owns exact SQL/backend settlement.
@@ -211,9 +232,14 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }, global: { fetch: safeFetch },
   })
   return Object.freeze({ manifest, manifestSha256, client, fetch: safeFetch, start, settle,
-    complete() { assert(!failed && !inFlight && index === 14 && calls === 14 && deadline !== undefined && Date.now() < deadline)
-      return freeze({ calls, bytes, receipts: structuredClone(receipts), nativeVerified: false as const }) },
-    diagnostic: () => `DIAG survey-sdk stage=${stage} calls=${Math.min(calls, 17)} bytes=${Math.min(bytes, SURVEY_SDK_PROOF_CAPS.totalBytes + 1)}${cleanupDeadline === undefined ? '' : ` settlement=${poisonKind}`}.`,
+    complete() {
+      try {
+        if (cleanupDeadline !== undefined && deadline !== undefined && Date.now() >= deadline) throw new SurveySdkBoundaryError('sdk-deadline')
+        assert(!failed && !inFlight && index === 14 && calls === 14 && deadline !== undefined && Date.now() < deadline)
+        return freeze({ calls, bytes, receipts: structuredClone(receipts), nativeVerified: false as const })
+      } catch (error) { rememberFailure(error); throw error }
+    },
+    diagnostic: () => `DIAG survey-sdk stage=${stage} calls=${Math.min(calls, 17)} bytes=${Math.min(bytes, SURVEY_SDK_PROOF_CAPS.totalBytes + 1)}${cleanupDeadline === undefined ? '' : ` settlement=${poisonKind} firstStage=${firstFailure?.stage ?? 'none'} firstReason=${firstFailure?.reason ?? 'none'} elapsedMs=${firstFailure?.elapsedMs ?? 0} remainingMs=${firstFailure?.remainingMs ?? 0} completedCalls=${firstFailure?.completedCalls ?? index}`}.`,
   })
 }
 

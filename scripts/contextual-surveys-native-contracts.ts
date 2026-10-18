@@ -19,7 +19,7 @@ export const SURVEY_NATIVE_SOURCES = freeze({
   contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: 'd0e71b2e598b179e2947f34ee7023da7dc9ce29582db1faffefb3cc0ef385ec0' },
   sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: 'f045c59fadd93a636bdaf8ec7fc447e54086e47c7ce7a6caae3817de37c54172' },
   races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
-  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'e7fe1d5e9f2bca60d25b0e71c0f062ae7cbd389233bab3da9f63248b4ec8eecb' },
+  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: '522947ce617c5953233e3319e9c56b383a99b4c85646ee5b24e2d08eb7737646' },
 })
 export const SURVEY_NATIVE_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   schedules: 30, sessions: 2, actionMs: 35000, closeMs: 12000, sdkRequests: 16, sdkMs: 20000 })
