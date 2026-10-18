@@ -7,13 +7,28 @@ import type { Database } from '../src/types/database'
 import { contextualSurveyDetailSchema, contextualSurveyListSchema, contextualSurveyMemberResultsSchema, contextualSurveyMutationSchema, contextualSurveyOwnerResultsSchema, contextualSurveyQuestionMutationSchema, contextualSurveyRespondSchema } from '../src/lib/validations/contextual-surveys'
 
 export type SurveySdkFixture = Readonly<{ ownerId: string; memberId: string; outsiderId: string; classroomId: string; surveyId: string }>
+/** Closed verification profiles; not caller-selected timeout configuration. */
+export const SURVEY_SDK_PHASE_MS = Object.freeze({ legacy: 20000, component269: 60000 })
 
 /** Requires an active synthetic Survey with exactly one short-text question.
  * Source does not create fixtures, read credentials, select targets or run on import. */
 export async function runContextualSurveysSdkContracts(client: SupabaseClient<Database>, fixture: SurveySdkFixture, guard: () => Promise<void>) {
+  return runSurveySdkContracts(client, fixture, guard, Date.now() + SURVEY_SDK_PHASE_MS.legacy)
+}
+/** Disposable269 prerequisite only. The original absolute work/phase cutoff
+ * can shorten this fixed allowance, never extend or renew it. */
+export async function runSurvey269ComponentSdkContracts(client: SupabaseClient<Database>, fixture: SurveySdkFixture, guard: () => Promise<void>, absoluteDeadline: number) {
+  assert(Number.isSafeInteger(absoluteDeadline) && absoluteDeadline > Date.now())
+  const deadline = Math.min(absoluteDeadline, Date.now() + SURVEY_SDK_PHASE_MS.component269)
+  const boundedGuard = async () => { assert(Date.now() < deadline); await guard(); assert(Date.now() < deadline) }
+  const receipt = await runSurveySdkContracts(client, fixture, boundedGuard, deadline)
+  assert(Date.now() < deadline)
+  return Object.freeze({ ...receipt, phaseMs: SURVEY_SDK_PHASE_MS.component269, absoluteDeadline: deadline })
+}
+async function runSurveySdkContracts(client: SupabaseClient<Database>, fixture: SurveySdkFixture, guard: () => Promise<void>, deadline: number) {
   const { ownerId, memberId, outsiderId, classroomId, surveyId } = fixture
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 20000)
+  const timeout = setTimeout(() => controller.abort(), Math.max(0, deadline - Date.now()))
   let requests = 0
   async function before() { assert(++requests <= 16, 'Survey SDK request limit'); assert(!controller.signal.aborted); await guard(); assert(!controller.signal.aborted) }
   try {

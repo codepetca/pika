@@ -563,3 +563,4 @@ TypeScript diagnostics. Source correction only: no DB/production/activation.
 The user lifted the disposable-local Survey verification hold only. A closed
 current-schema compatibility/types prerequisite runner is being prepared under
 the unchanged bounds; full remaining-proof acceptance is not implied.
+- The owner approved only the disposable269 SDK proof allowance20→60 seconds. Its inert shared SDK companion now has a closed component entrypoint with the same14 calls and the original absolute deadline; the legacy entrypoint remains20 seconds. Carrier regressions cover actual controller expiry, early root deadline and unchanged cleanup. No application, SQL, generated-type or production change; a newly pinned reviewed one-shot prerequisite remains required.
