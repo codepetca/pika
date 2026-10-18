@@ -19,6 +19,12 @@ export async function openContextualSurveyEditor(page: Page): Promise<Locator> {
   await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
   return page.getByRole('dialog', { name: 'Edit survey', exact: true })
 }
+/** Select through the real option surface, then independently assert its state. */
+export async function chooseContextualSurveyOption(page: Page): Promise<void> {
+  const group = page.getByRole('radiogroup', { name: surveyPrompt.mc, exact: true })
+  await group.getByText('Beta', { exact: true }).click()
+  await expect(group.getByRole('radio', { name: 'Beta', exact: true })).toBeChecked()
+}
 /** The frozen Classwork link retains surveyId and is hidden in the closed mobile
  * drawer. Only a controlled exact-summary navigation deselects a Survey. */
 export async function openContextualSurveyClasswork(r: Pick<SurveyRuntime, 'navigate'>, page: Page, classroomUrl: string, freshDocument = false): Promise<void> {
@@ -128,16 +134,23 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
     return identity
   }
   const respond = async (page: Page, actor: ActorLabel, identity: SurveyIdentity, label: string, scratch = false, updated = false) => {
-    stage = updated ? 'dynamic-update' : 'member-respond'
+    stage = 'response-select'
     await selectContextualSurveyForResponse(r, page, identity, updated)
+    stage = 'response-form'
     const respondAction = page.getByRole('button', { name: updated ? 'Edit response' : 'Respond', exact: true })
     await expect(respondAction).toBeVisible(); await respondAction.click()
+    stage = 'response-option'
     if (scratch) await page.getByRole('textbox', { name: `${surveyPrompt.link} response`, exact: true }).fill('https://example.invalid/learning')
-    else await page.getByRole('radio', { name: 'Beta', exact: true }).check()
+    else await chooseContextualSurveyOption(page)
+    stage = 'response-text'
     await page.getByRole('textbox', { name: `${surveyPrompt.text} response`, exact: true }).fill(surveyText(actor, updated))
     const ack = waitFor(page, 'POST', `/api/student/surveys/${identity.surveyId}/respond`)
+    stage = 'response-submit'
     await page.getByRole('button', { name: updated ? 'Update responses' : 'Submit', exact: true }).click()
-    const body = await record(label, actor, 'screen', 'POST', `/api/student/surveys/${identity.surveyId}/respond`, page, updated ? 200 : 201, null, await ack) as { success: boolean; updated: boolean }
+    stage = 'response-ack'; const acknowledged = await ack
+    stage = 'response-body'
+    const body = await record(label, actor, 'screen', 'POST', `/api/student/surveys/${identity.surveyId}/respond`, page, updated ? 200 : 201, null, acknowledged) as { success: boolean; updated: boolean }
+    stage = 'response-validate'
     assert(body.success === true && body.updated === updated)
     stage = 'member-results'
     const results = await r.api<SurveyResults>(page, 'GET', `/api/student/surveys/${identity.surveyId}/results`)

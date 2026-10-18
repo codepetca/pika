@@ -48600,3 +48600,31 @@ absent, four ports clear. Freeze released; evidence retained in private jfeIB9.
 No canonical database equality attestation or app acceptance. PR1581 stays draft;
 review110/fix66 counters and waiver carry; all production/sharedlocal/provider/
 oldsocket/rollout holds unchanged. Only continuity notes updated after the run.
+
+<!-- pika-session-log-archive-batch:eb3d62618d5dbe6039cd8b741ab4aa8bbfb41a6079b26a390ce498fd1b06915e -->
+## 2026-10-16 — Reproduce and remove host-side navigation scheduling gap
+
+Human requests pinpointing rejection, a small reproduction, coordination fix and
+review before any full rehearsal. Read-only Astra/high diagnosis confirms an
+await gap after an empty settle; rejects wrapper-identity and stale-Set theories.
+Actual runtime CPU regressions for navigate/reload fail with old sequence and
+pass when the boundary invokes departure synchronously at its final drain check.
+Original transport/body ownership, post-action drain and deadlines remain. Native
+requests racing after command dispatch STILL reject; no atomic Chromium claim.
+149 focused checks PASS, including delayed original bodies, body/deadline failure,
+late native overlap and fixed diagnostic privacy. Existing three-request browser
+diagnostic now exercises this shared departure method; no new request/time caps.
+
+Fixed endpoint reasons distinguish policy, pending transport/body, premature login,
+inspection, continuation and WebSocket branches without URLs/errors. Historical
+jfeIB9 cannot be retroactively attributed; no claim of a fully resolved native
+fault. Separate source finding: pinned Chromium auto-follows redirects without
+calling the route handler. That pre-existing allowlist coverage gap is recorded
+for review before any full rehearsal; this slice does not widen redirect access.
+No native run yet. Final gates and targeted independent review next; original
+review110/fix66 counters carry. Production/sharedlocal/provider/rollout holds stay.
+
+Review111 complete b4ced303: no new blocker, one inherited adjacent P2 deadline
+edge accepted. Fake clock reproduces action(0) when expiry falls between check
+and timeout calculation; capture/check positive remaining once before dispatch.
+Original clocks/caps remain, no renewed deadline. Targeted re-review112 follows.

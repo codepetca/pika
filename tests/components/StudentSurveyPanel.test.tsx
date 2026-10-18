@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { ReactNode } from 'react'
@@ -196,7 +196,7 @@ describe('StudentSurveyPanel', () => {
     expect(screen.getByRole('textbox', { name: 'What did you build? response' })).toBeInTheDocument()
   })
 
-  it('exposes multiple-choice answers as a named radio group', async () => {
+  it('selects multiple-choice answers through their visible labels in a named radio group', async () => {
     render(<StudentSurveyPanel surveyId="survey-1" />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Respond' }))
@@ -207,7 +207,7 @@ describe('StudentSurveyPanel', () => {
 
     expect(answerGroup).toContainElement(firstOption)
     expect(firstOption).not.toBeChecked()
-    fireEvent.click(secondOption)
+    fireEvent.click(within(answerGroup).getByText('B', { exact: true }))
     expect(secondOption).toBeChecked()
     expect(firstOption).not.toBeChecked()
   })

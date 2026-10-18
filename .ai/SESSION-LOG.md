@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Reproduce and remove host-side navigation scheduling gap
-
-Human requests pinpointing rejection, a small reproduction, coordination fix and
-review before any full rehearsal. Read-only Astra/high diagnosis confirms an
-await gap after an empty settle; rejects wrapper-identity and stale-Set theories.
-Actual runtime CPU regressions for navigate/reload fail with old sequence and
-pass when the boundary invokes departure synchronously at its final drain check.
-Original transport/body ownership, post-action drain and deadlines remain. Native
-requests racing after command dispatch STILL reject; no atomic Chromium claim.
-149 focused checks PASS, including delayed original bodies, body/deadline failure,
-late native overlap and fixed diagnostic privacy. Existing three-request browser
-diagnostic now exercises this shared departure method; no new request/time caps.
-
-Fixed endpoint reasons distinguish policy, pending transport/body, premature login,
-inspection, continuation and WebSocket branches without URLs/errors. Historical
-jfeIB9 cannot be retroactively attributed; no claim of a fully resolved native
-fault. Separate source finding: pinned Chromium auto-follows redirects without
-calling the route handler. That pre-existing allowlist coverage gap is recorded
-for review before any full rehearsal; this slice does not widen redirect access.
-No native run yet. Final gates and targeted independent review next; original
-review110/fix66 counters carry. Production/sharedlocal/provider/rollout holds stay.
-
-Review111 complete b4ced303: no new blocker, one inherited adjacent P2 deadline
-edge accepted. Fake clock reproduces action(0) when expiry falls between check
-and timeout calculation; capture/check positive remaining once before dispatch.
-Original clocks/caps remain, no renewed deadline. Targeted re-review112 follows.
-
 ## 2026-10-16 — Redirect interception correction before full rehearsal
 
 Prior1a558233 review112 CLEAN,3573CPU PASS; one synthetic navigation run5cw7pq
@@ -562,3 +535,9 @@ Review217 resolved prior navigation/companion fixes but caught missing Survey co
 ## 2026-10-18 — Bound the CPU-only engine matrix independently of rehearsal clocks
 
 Review218 is clean at3646f3e3. Fullfocused then had4569PASS/8skip and one different scenario24-blocker case hit the unchanged default5s Vitest watchdog; the former scenario24-long failure passed in that run. Correction142 changes only this offline mocked198-action matrix's outer Vitest timeout to15s. Root byte comparison confirms every callback/assertion/fake-clock deadline and all actual native budgets are unchanged; no retry or skipped assertion. The two previously timed-out cases pass together (2.89s test body). All failed full-run receipts remain failed. Independent targeted review219 and final cumulative gate follow; no private wrapper execution, browser/DB attempt, product/schema/provider/account change or production/shared-local/rollout activation.
+
+## 2026-10-18 — Diagnose Survey response pointer target without repeating the rehearsal
+
+Correction142 review219 and full4570PASS/8skip/allstatic PASS at e90cae37; published to existing draft1581. One fresh Survey screen attempt authenticated both cross-role owners and created/published four Surveys, then failed member-respond before any capture. It remains failed/spent. No gateway violation/page error; owned cleanup passed, exact resources/tempdir absent. Immediate independent preservation first matched pnpm/tsx launcher ancestors; unchanged direct-Node checker then passed before source edits/tests. A bounded process-only reproduction confirms launcher self-matching; no filter weakened or rehearsal replayed.
+
+Read-only diagnosis found a concrete pointer incompatibility: installed Playwright clicks the clipped sr-only radio input, not its visible label. Historical failure substep was not retained, so attribution remains unproved. Correction143 uses the named radiogroup's visible Beta label plus checked-state assertion, and closed response-selection/form/option/text/submit/ack/body/validation labels without raw errors. CPU selector regressions reproduce old behavior; actual component label activation and all62 focused checks pass, not native geometry proof. Product/schema/dependencies/caps remain unchanged. Final gate and proportional independent review next; no new runtime admission. All production/shared-local/provider/account/billing/cohort/home/cutover holds remain.

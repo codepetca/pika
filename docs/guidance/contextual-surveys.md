@@ -554,3 +554,17 @@ dynamic setting and before each actor's first capture/theme change. Only later
 viewport-only captures reuse that known-fresh mounted view. These are carrier
 corrections, not product realtime behavior or permission changes; actual runtime
 and visual acceptance remain required under unchanged limits and holds.
+
+The first existing-screen run authenticated both cross-role owners and created
+four Surveys, but failed at its broad member-response stage before any capture.
+It is failed/spent, not browser or database acceptance. Cleanup and unchanged
+source/dependency observations are recorded separately. A read-only source and
+installed-dependency diagnosis identifies pointer-checking a clipped `sr-only`
+radio as a concrete automation mismatch, but the original error does not prove
+that exact historical failing substep. The carrier therefore clicks the visible
+option text inside the named radiogroup, verifies its associated radio is checked,
+and reports only closed response substep labels. No force-click, DOM state
+injection, raw errors or relaxed actionability is added. CPU selector and real
+component label-activation checks do not substitute for native geometry or the
+still-required workflow and visual proof. No fresh attempt is implied by this
+source correction; all execution limits and production holds remain unchanged.

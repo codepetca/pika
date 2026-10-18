@@ -1,12 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { markdownToSurvey } from '../../src/lib/survey-markdown'
 import { surveyFailureStage, assertSurveySubmissionPreserved, surveyText, assertSurveyResults } from '../../e2e/helpers/contextual-survey-contract'
 import { surveyMarkdown, openContextualSurveyEditor, openContextualSurveyClasswork, selectContextualSurvey,
-  selectContextualSurveyForResponse, selectContextualSurveyForCapture } from '../../e2e/helpers/contextual-survey-workflow'
+  selectContextualSurveyForResponse, selectContextualSurveyForCapture, chooseContextualSurveyOption } from '../../e2e/helpers/contextual-survey-workflow'
 import { contextualSurveyWitnessSql, validateContextualSurveyReceipt, assertContextualSurveyDatabase } from '../../scripts/contextual-survey-workflow-proof'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { contextualSurveyFixture } from '../helpers/contextual-survey-fixture'
 import type { ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
+
+vi.mock('@playwright/test', () => ({
+  expect: (locator: { checked: () => boolean }) => ({ async toBeChecked() { expect(locator.checked()).toBe(true) } }),
+}))
 
 const plan = createContextualTestPlan('pika_assignment_list_123456abcdef', 'survey-workflow-v1')
 const binding = { proofScope: 'survey-workflow-v1', projectId: plan.projectId, nonce: '0'.repeat(20) + '123456abcdef',
@@ -62,6 +66,26 @@ function surveyMountedViews() {
 }
 
 describe('Survey successor source contracts (no browser/database execution)', () => {
+  it.each([true, false])('uses the visible named option surface and verifies actual checked state: labelActivates=%s', async labelActivates => {
+    let checked = false
+    const calls: string[] = []
+    const radio = { checked: () => checked, async check() { throw Error('Clipped input is not a pointer target') } }
+    const group = {
+      getByText(name: string, options: { exact: boolean }) {
+        calls.push(`text:${name}:${options.exact}`)
+        return { async click() { calls.push('label-click'); checked = labelActivates } }
+      },
+      getByRole(role: string, options: { name: string; exact: boolean }) {
+        calls.push(`${role}:${options.name}:${options.exact}`); return radio
+      },
+    }
+    const page = { getByRole(role: string, options: { name: string; exact: boolean }) {
+      calls.push(`${role}:${options.name}:${options.exact}`); return role === 'radiogroup' ? group : radio
+    } }
+    if (labelActivates) await chooseContextualSurveyOption(page as never)
+    else await expect(chooseContextualSurveyOption(page as never)).rejects.toThrow()
+    expect(calls).toEqual(['radiogroup:Which activity helped you learn?:true', 'text:Beta:true', 'label-click', 'radio:Beta:true'])
+  })
   it('uses the real Survey markdown parser for main and scratch question types', () => {
     const main = markdownToSurvey(surveyMarkdown('Contextual Survey A', false))
     expect(main.errors).toEqual([])
@@ -77,6 +101,11 @@ describe('Survey successor source contracts (no browser/database execution)', ()
     expect(surveyFailureStage(new Error('secret original diagnostics'))).toBe(null)
     expect(surveyFailureStage(Object.defineProperty({}, 'message', { get() { throw Error('must not invoke') } }))).toBe(null)
     expect(surveyFailureStage(new Proxy({}, { getOwnPropertyDescriptor() { throw Error('must not invoke') } }))).toBe(null)
+  })
+  it.each(['response-select', 'response-form', 'response-option', 'response-text', 'response-submit', 'response-ack', 'response-body', 'response-validate'])('reports only the exact closed response substep: %s', stage => {
+    expect(surveyFailureStage(new Error(`Contextual Survey failed: ${stage}`))).toBe(stage)
+    expect(surveyFailureStage(new Error(`Contextual Survey failed: ${stage}: private data`))).toBe(null)
+    expect(surveyFailureStage({ message: `Contextual Survey failed: ${stage}`, cause: 'private', stack: 'private' })).toBe(stage)
   })
   it('rejects timestamp-resetting dynamic updates and mismatched selected results', () => {
     const before = { response_id: '50000000-0000-4000-8000-000000000051', response_text: surveyText('memberStudent'), submitted_at: '2026-10-18T12:00:00Z', updated_at: '2026-10-18T12:00:00Z' }

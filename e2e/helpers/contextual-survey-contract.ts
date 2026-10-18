@@ -15,7 +15,8 @@ export const surveyScreens = (['owner-teacher', 'owner-student', 'member-student
 export const surveyLabels = surveyScreens.map(screen => screen.label)
 export const surveyStages = ['admission', 'owner-create', 'owner-author', 'owner-reload', 'owner-preview', 'owner-publish',
   'owner-scratch', 'owner-cross-class', 'member-respond', 'member-results', 'owner-results', 'static-duplicate',
-  'dynamic-update', 'visibility', 'future-opening', 'close-reopen', 'denials', 'archive', 'revocation', 'final-readback', 'captures'] as const
+  'dynamic-update', 'visibility', 'future-opening', 'close-reopen', 'denials', 'archive', 'revocation', 'final-readback', 'captures',
+  'response-select', 'response-form', 'response-option', 'response-text', 'response-submit', 'response-ack', 'response-body', 'response-validate'] as const
 export type SurveyStage = typeof surveyStages[number]
 export function surveyFailureStage(error: unknown): SurveyStage | null {
   if (!error || typeof error !== 'object' || types.isProxy(error)) return null
