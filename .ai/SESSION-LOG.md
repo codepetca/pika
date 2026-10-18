@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Reviewed login readiness; full rehearsal and positive cleanup
-
-Runtime a6ebcfb5 plus docs-only416f4a7 passes3221focused/8skip and all policies,
-TSC/lint/audit. Reviews74/75 complete;74 found one inherited-Proxy diagnostic
-trap. Root reproduced RED, fixed direct-prototype projection, and review76
-closed it with9 independent CPU cases/zero traps;64 related checks pass.
-ONE fresh967633e36713/HaumAK full rehearsal FAILED/SPENT114.785s. The earlier
-timeout is replaced by a workflow assertion after one server API allocation;
-denied/uncertain guard flags set. Exact rejection site remains unknown; no
-authenticated-session or workflow acceptance. Browser contexts/pending and all
-six cleanup stages pass, ownedSettled=true. No raw DOM error-context retained.
-BEFOREpost-run edits/tests, independent comparison matches7628 source files and
-49485 dependencies/602159341bytes; exact containers/volumes/networks absent by
-both labels/name, workdir absent, four ports clear. Private evidence retained;
-no canonical-database equality or native acceptance inferred. No retry or new
-full clock: next isolate the server guard rejection without widening egress.
-Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
-
 ## 2026-10-14 Native socket argument compatibility
 
 Confirmed Node24.12 net.connect passes an already-normalized tuple, while the
@@ -998,3 +980,7 @@ native attempt, acceptance, release or full-goal completion is claimed yet.
 - Review189 and the full serial4277-test/static gate passed atf06bc2f6. One fresh269 component reached SDK verification after cumulative replay/rollback checks, then failed in a guard after8 admitted calls. Exact cleanup, canonical/resource/source/dependency preservation passed; the attempt stays spent and genuine types were not reached. The receipt cannot distinguish deadline from another guard rejection. Correction122 keeps every fresh check and unchanged caps, but batches independent metadata/global-inventory reads with full joins and queued-work refusal; fixed first-cause labels/timings close that ambiguity. Native timing feasibility and full remaining acceptance stay unverified; production and all other serious holds remain.
 - Review190 and full serial4289-test/static gate passed at885cbb. The second disposable269 attempt confirmed SDK phase expiry at20 seconds after10 completed calls; exact cleanup and canonical/resource/source/dependency preservation passed. Owner approved only componentSDK60 seconds, retaining12+3-minute overall clocks and all other limits/holds. Correction123 aligns the actual SDK controller, engine/transport, manifests, diagnostics and effect-window checks to one closed component allowance/absolute deadline; legacy20 seconds remains. Tests-first reproductions and83 affected tests/strict target TypeScript pass. The inert shared SDK leaf is identical in the newly pinned product0c8a9217; no app/SQL/generated-type changes or full Survey acceptance. Review/full checks precede one fresh attempt; both earlier attempts stay spent.
 - Full serial4296/static checks passed at304b68b0. Review191 found one diagnostic-only P2: controller-owned expiry could lose its deadline cause. Correction124 reproduces and replaces only that component boundary with a fixed typed signal recognized by the engine; unrelated late errors and malformed inputs stay distinct, unjoined work remains sticky, and settlement still precedes terminal observations. Seven causal-boundary regressions cover pre/post-guard, own timer and final completion. No limit, application, SQL or production change; v3 remains unspent pending the corrected stable review/check gates.
+
+## 2026-10-17 — Remaining Survey proof source accounting
+
+Correction125 keeps fresh guard predicates/positive joins while batching built-in Git reads18→15 child commands. Counted offline candidate4039known controls/199actions/16requests/14observations is not complete admission: outer/failure/bytes and probe integration remain missing. Owner approved remaining-only6000controls/60sSDK; component/legacy and all other caps remain. Exact shared SQL now prepares49 payload/count/shape cases with full scoped rollback equality and compact receipts; native35s fit unproved. Passed prerequisite v3/type artifact retained separately; no replay, production/shared-local/provider/account/activation or broad1581 merge. Independent review/full gates precede further integration.

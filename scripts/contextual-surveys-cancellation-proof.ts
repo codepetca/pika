@@ -6,6 +6,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { newSurveyNativeFixture, SURVEY_NATIVE_SOURCES, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
+import { surveyCommittedProofManifest } from './contextual-surveys-committed-proof'
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
@@ -15,6 +16,10 @@ export const SURVEY_CANCELLATION_CAPS = Object.freeze({ sqlBytes: 262144, respon
   requestBytes: 4096, sleepSeconds: 9, minimumElapsedMs: 7500, maximumElapsedMs: 12000,
   observerPolls: 3, observationMs: 750, nativeActions: 200, nativeControls: 4000,
   nativeSessions: 2, totalBytes: 67108864, sdkRequests: 16, workMs: 720000, cleanupMs: 180000 })
+/** New human-approved remaining269 allowance, inert until full inventory/review.
+ * Existing cancellation/component/legacy execution profiles are not widened. */
+export const SURVEY_269_REMAINING_CANDIDATE_CAPS = Object.freeze({ ...SURVEY_CANCELLATION_CAPS,
+  nativeControls:6000,sdkMs:60000,observerFrames:14,cleanupReserve:32 })
 
 function fixture(f: SurveyNativeFixture) {
   assert(Object.isFrozen(f)); assert.match(f.tag, /^surveynative_[a-f0-9]{12}$/)
@@ -196,6 +201,60 @@ export function surveyCancellationProofDescriptor(f: SurveyNativeFixture) {
   issued.add(descriptor); return descriptor
 }
 export type SurveyCancellationProofDescriptor = ReturnType<typeof surveyCancellationProofDescriptor>
+/** Inert arithmetic for one fixed proposed remaining schedule, NOT a workload,
+ * executor, complete inventory or an allowance to dispatch missing frames.
+ * Counts describe the existing v3 predicates after fixed Git batching. Resource
+ * counts are statistics only; they cannot grant native target/provenance. */
+export function surveyRemainingScheduleLowerBound(f: SurveyNativeFixture, counts: Readonly<{containers:number;volumes:number;networks:number}>) {
+  fixture(f)
+  assert(counts && Object.getPrototypeOf(counts)===Object.prototype)
+  assert.deepEqual(Object.keys(counts).sort(),['containers','networks','volumes'])
+  assert(Object.values(Object.getOwnPropertyDescriptors(counts)).every(row=>'value' in row))
+  const outputBytes=8388608
+  // CLI ID lines require64 ASCII bytes plus a separator; volume names require
+  // at least one ASCII byte. These are loose physical stdout upper bounds,
+  // not a claim that all such unique inventories are realizable/admissible.
+  const listCountUpperBounds={containers:Math.floor((outputBytes+1)/65),volumes:Math.floor((outputBytes+1)/2),networks:Math.floor((outputBytes+1)/65)}
+  for(const key of ['containers','volumes','networks'] as const)assert(Number.isSafeInteger(counts[key])&&counts[key]>=0&&counts[key]<=listCountUpperBounds[key])
+  const batches=(values:typeof counts)=>Object.values(values).reduce((n,value)=>n+Math.ceil(value/128),0)
+  const inspectBatches=batches(counts),guardCommands=12+inspectBatches
+  // Every guard: initial batched Git/status/context3 + dual-root Git/status4,
+  // three fresh global lists + all128-item inspections + final context/SQL2.
+  const m=surveyCommittedProofManifest(f),c=surveyCancellationProofDescriptor(f)
+  assert.equal(m.inventory.minActions,185)
+  const committedGuards=m.inventory.minActions+4+2 // actions, two opens/initializations, two destruction guards
+  const auxiliaryGuards=4*5 // setup, contract, two SDK snapshots; open/init/execute/close/terminate
+  const sdkGuards=14*3,rollbackTargetGuards=1
+  const baseGuards=committedGuards+auxiliaryGuards+sdkGuards+rollbackTargetGuards
+  const baseControls=baseGuards*guardCommands+6+6 // positive termination commands and native process spawns
+  const typeControls=2*guardCommands+4+2*(3+inspectBatches)+2+1 // two guards, source Git, inventories, contexts, genuine CLI
+  const rootGitControls=18 // current private before/after source preservation; other outer commands remain uncounted
+  // Candidate reuses the existing pair before its final closes. Cancellation
+  // prepare/observe/restore3, wire fixture prepare/restore2, membership restore1.
+  // The two extra original HTTP probes retain pre/post guards (four in total).
+  // This is a stated candidate choice, not a lower bound on every possible
+  // semantics-preserving future integration or an implemented dispatch path.
+  const proposedSqlActions=3+2+1,probeGuards=2*2
+  const candidateControlLowerBound=baseControls+(proposedSqlActions+probeGuards)*guardCommands+typeControls+rootGitControls
+  return freeze({kind:'survey269-remaining-candidate-accounting-only' as const,caps:SURVEY_269_REMAINING_CANDIDATE_CAPS,guardCommands,inspectBatches,baseGuards,baseControls,typeControls,rootGitControls,
+    proposedActions:m.inventory.minActions+8+proposedSqlActions,proposedRequests:14+2,proposedObservers:13+1,
+    candidateControlLowerBound,controlDeficit:Math.max(0,candidateControlLowerBound-SURVEY_269_REMAINING_CANDIDATE_CAPS.nativeControls),
+    partialControlHeadroom:Math.max(0,SURVEY_269_REMAINING_CANDIDATE_CAPS.nativeControls-candidateControlLowerBound),
+    cleanupReserve:32,listCountUpperBounds,maximumListBatches:batches(listCountUpperBounds),maximumGuardCommands:12+batches(listCountUpperBounds),
+    frames:{cancellation:Object.fromEntries(Object.entries(c.frames).map(([key,sql])=>[key,{sha256:hash(sql),bytes:Buffer.byteLength(sql)}])),
+      wire:{implemented:false as const,sqlBytes:null},membership:{source:'surveyMembershipRestoreSql',bound:false as const,sqlBytes:null}},
+    failureCases:['ambiguous-cancellation-prepare','pending-observation','unjoined-original-http','cancellation-restore','wire-prepare','wire-overflow','wire-restore','membership-restore','type-command','final-preservation']
+      .map(stage=>({stage,completeControls:null,completeActions:null})),
+    completeControls:null,completeFailureControls:null,completeExchangeBytes:null,
+    unresolved:['Wire fixture/restore and private original-request probe carriers are not implemented.',
+      'Membership restoration requires captured exact source rows and a bound dispatch mechanism.',
+      'Other platform/canonical/global/helper/finally command counts and outputs are not sealed.',
+      'Failure-specific restoration/positive-close maxima are not sealed;32 reserved controls are not proof of fit.',
+      candidateControlLowerBound>SURVEY_269_REMAINING_CANDIDATE_CAPS.nativeControls
+        ? 'This candidate exceeds6000 before omitted outer controls; no complete success/failure or byte fit is claimed.'
+        : 'This partial lower bound is not a complete success/failure, resource-validity or byte-fit certificate.'],
+    sdkMs:SURVEY_269_REMAINING_CANDIDATE_CAPS.sdkMs,inventoryComplete:false as const,executionEnabled:false as const,nativeVerified:false as const})
+}
 export function validateSurveyCancellationSql(descriptor: SurveyCancellationProofDescriptor, frame: keyof SurveyCancellationProofDescriptor['frames'], sql: string) {
   return issued.has(descriptor) && Object.isFrozen(descriptor) && Object.hasOwn(descriptor.frames, frame)
     && typeof sql === 'string' && Buffer.byteLength(sql) <= descriptor.caps.sqlBytes && descriptor.frames[frame] === sql

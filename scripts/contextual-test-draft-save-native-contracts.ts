@@ -1066,7 +1066,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     return ['--host', endpoint.host, 'exec', '-i', '-e', `PGAPPNAME=${name}`, input.containerId, 'psql', '-U', 'postgres', '-d', 'postgres',
       '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', profile.reorderDiagnosticSql && role(name) === 'contracts' ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate', ...variables]
   }
-  function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role, cleanup = false): Promise<string> {
+  function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role, cleanup = false, gitFrame = false): Promise<string> {
+    assert(!gitFrame || (component && file === 'git' && sql === undefined))
     checkJoined()
     checkSurveySdkAdmission(cleanup)
     assert(++controls <= CAPS.controlCalls)
@@ -1103,7 +1104,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           }
           reject(failure())
         }
-        else { if (!component) exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes && !(component && cleanup) ? reject(failure()) : resolveResult(stdout.trim()) }
+        else { if (!component) exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes && !(component && cleanup) ? reject(failure()) : resolveResult(gitFrame ? stdout : stdout.trim()) }
       })
       if (profile.survey263Budget) {
         const closeDeadline = Math.min(profile.survey263Budget.cleanupDeadline, Date.now() + timeout + CAPS.closeMs)
@@ -1148,8 +1149,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       throw error
     } }
     const checks = await Promise.allSettled([
-      step('source-git', async () => { assert.equal(await command('git', ['rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), input.reviewedHead) }),
-      step('source-git', async () => { assert.equal(await command('git', ['rev-parse', '--show-toplevel'], undefined, CAPS.controlMs, undefined, cleanup), input.repository) }),
+      ...(component ? [step('source-git', async () => {
+        assert.equal(await command('git', ['rev-parse', 'HEAD', '--show-toplevel'], undefined, CAPS.controlMs, undefined, cleanup, true), `${input.reviewedHead}\n${input.repository}\n`)
+      })] : [
+        step('source-git', async () => { assert.equal(await command('git', ['rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), input.reviewedHead) }),
+        step('source-git', async () => { assert.equal(await command('git', ['rev-parse', '--show-toplevel'], undefined, CAPS.controlMs, undefined, cleanup), input.repository) }),
+      ]),
       step('source-git', async () => { assert.equal(await command('git', ['status', '--porcelain'], undefined, CAPS.controlMs, undefined, cleanup), '') }),
       step('endpoint', () => verifyEndpoint(cleanup)),
     ])
@@ -1160,8 +1165,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       for (const [key, repository] of Object.entries(SURVEY_269_COMPONENT_ROOTS)) {
         const source = binding[key as 'product' | 'carrier']
         const wave = await Promise.allSettled([
-          step('source-git', async () => { assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), source.head) }),
-          step('source-git', async () => { assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD^{tree}'], undefined, CAPS.controlMs, undefined, cleanup), source.tree) }),
+          step('source-git', async () => {
+            assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD', 'HEAD^{tree}'], undefined, CAPS.controlMs, undefined, cleanup, true), `${source.head}\n${source.tree}\n`)
+          }),
           step('source-git', async () => { assert.equal(await command('git', ['-C', repository, 'status', '--porcelain', '--untracked-files=all'], undefined, CAPS.controlMs, undefined, cleanup), '') }),
         ])
         checkJoined(); for (const result of wave) if (result.status === 'rejected') throw result.reason

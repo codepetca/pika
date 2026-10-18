@@ -16,7 +16,7 @@ import { surveyCommittedProofManifest } from './contextual-surveys-committed-pro
 
 export const SURVEY_NATIVE_SOURCES = freeze({
   migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9' },
-  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: 'd0e71b2e598b179e2947f34ee7023da7dc9ce29582db1faffefb3cc0ef385ec0' },
+  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: '723a7260c6e3a78d3c223d132292578688da7a7a2c5cc7e001b99b8773a8c3d7' },
   sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: '755a3c10c8e51b501b05c3e8ee71f15ea2c45a588205f4f2fff6179525a77491' },
   races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
   sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'fea6313bddbee03e26d33cdcf257015f8e05d0d04443f0bd2aeb0debaf7ac5c1' },

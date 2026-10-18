@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { newSurveyNativeFixture } from '../../scripts/contextual-surveys-native-contracts'
 import type { AssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
-import { surveyCancellationProofDescriptor, validateSurveyCancellationSql, inspectSurveyCancellationPendingShape,
+import { surveyCancellationProofDescriptor, surveyRemainingScheduleLowerBound, validateSurveyCancellationSql, inspectSurveyCancellationPendingShape,
   SURVEY_CANCELLATION_CAPS } from '../../scripts/contextual-surveys-cancellation-proof'
 
 // SQL generation and pure source-shape checks only; no native parsing/execution,
@@ -17,6 +17,29 @@ function pending(d: ReturnType<typeof make>) {
 }
 
 describe('inert source-owned Survey cancellation descriptor', () => {
+  it('counts the fixed remaining candidate without granting admission or inventing missing wire/restoration execution',()=>{
+    const r=surveyRemainingScheduleLowerBound(f,{containers:1,volumes:1,networks:1})
+    expect(r).toMatchObject({guardCommands:15,baseGuards:254,baseControls:3822,typeControls:49,rootGitControls:18,
+      proposedActions:199,proposedRequests:16,proposedObservers:14,candidateControlLowerBound:4039,controlDeficit:0,partialControlHeadroom:1961,
+      cleanupReserve:32,completeControls:null,completeFailureControls:null,completeExchangeBytes:null,inventoryComplete:false,executionEnabled:false,nativeVerified:false})
+    expect(r.frames.cancellation).toEqual(Object.fromEntries(Object.entries(make().frames).map(([key,sql])=>[key,{sha256:createHash('sha256').update(sql).digest('hex'),bytes:Buffer.byteLength(sql)}])))
+    expect(r.frames.wire).toEqual({implemented:false,sqlBytes:null})
+    expect(r.frames.membership).toEqual({source:'surveyMembershipRestoreSql',bound:false,sqlBytes:null})
+    expect(r.caps).toMatchObject({nativeControls:6000,sdkMs:60000,nativeActions:200,totalBytes:67108864,sdkRequests:16,nativeSessions:2,workMs:720000,cleanupMs:180000})
+    expect(make().caps.nativeControls).toBe(4000)
+    expect(r.failureCases.every(row=>row.completeControls===null && row.completeActions===null)).toBe(true)
+  })
+  it('counts every128-item inventory batch and exposes the unchanged frame-limited global upper bound',()=>{
+    const a=surveyRemainingScheduleLowerBound(f,{containers:128,volumes:128,networks:128})
+    const b=surveyRemainingScheduleLowerBound(f,{containers:129,volumes:128,networks:128})
+    expect(a.guardCommands).toBe(15);expect(b.guardCommands).toBe(16)
+    expect(b.candidateControlLowerBound-a.candidateControlLowerBound).toBe(268)
+    expect(a.listCountUpperBounds).toEqual({containers:129055,volumes:4194304,networks:129055})
+    expect(a.maximumListBatches).toBe(34786)
+    expect(a.maximumGuardCommands).toBe(34798)
+    for(const value of [-1,0.5,Infinity,129056])expect(()=>surveyRemainingScheduleLowerBound(f,{containers:value,volumes:1,networks:1})).toThrow()
+    expect(()=>surveyRemainingScheduleLowerBound(f,{containers:1,volumes:1,networks:1,extra:1} as never)).toThrow()
+  })
   it('is deterministic, deeply frozen and explicitly grants no execution/native acceptance', () => {
     const d = make(), same = make()
     expect(d).toEqual(same)

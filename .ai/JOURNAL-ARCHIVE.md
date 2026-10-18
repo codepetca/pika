@@ -48068,3 +48068,22 @@ both project labels/creation times/network members checked, no resources deleted
 Preserve them and evidence pending a separately bounded exact-project recovery
 decision; no original clock extension, old admission replay or fresh rehearsal.
 Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+<!-- pika-session-log-archive-batch:4f0cefcd142b534207607b9437126e65e6f5222b05ea7b8c112ae81866eff315 -->
+## 2026-10-14 Reviewed login readiness; full rehearsal and positive cleanup
+
+Runtime a6ebcfb5 plus docs-only416f4a7 passes3221focused/8skip and all policies,
+TSC/lint/audit. Reviews74/75 complete;74 found one inherited-Proxy diagnostic
+trap. Root reproduced RED, fixed direct-prototype projection, and review76
+closed it with9 independent CPU cases/zero traps;64 related checks pass.
+ONE fresh967633e36713/HaumAK full rehearsal FAILED/SPENT114.785s. The earlier
+timeout is replaced by a workflow assertion after one server API allocation;
+denied/uncertain guard flags set. Exact rejection site remains unknown; no
+authenticated-session or workflow acceptance. Browser contexts/pending and all
+six cleanup stages pass, ownedSettled=true. No raw DOM error-context retained.
+BEFOREpost-run edits/tests, independent comparison matches7628 source files and
+49485 dependencies/602159341bytes; exact containers/volumes/networks absent by
+both labels/name, workdir absent, four ports clear. Private evidence retained;
+no canonical-database equality or native acceptance inferred. No retry or new
+full clock: next isolate the server guard rejection without widening egress.
+Production/shared-local/provider-Survey/account/billing/activation holds unchanged.

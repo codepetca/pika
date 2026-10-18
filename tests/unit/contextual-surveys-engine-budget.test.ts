@@ -10,7 +10,7 @@ const seam = vi.hoisted(() => ({ exec: vi.fn(), spawn: vi.fn(), collect: vi.fn()
   spawnCalls: [] as string[], metadataReplies: [] as Array<() => void>,
   afterBootstrap: undefined as (()=>void)|undefined, terminations: 0, closedSessions: 0,
   sdkTransportReady:false,holdSdkGuard:0,sdkGuardCount:0,
-  wrongSource:false,wrongGuard:false,failGuard:false,
+  wrongSource:false,wrongGuard:false,failGuard:false,gitFrameDefect:'',
   replies: [] as Array<() => void>, manifest: {} as Record<string, unknown>, writes: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ execFile: seam.exec, spawn: seam.spawn }))
 vi.mock('node:http', async original => ({ ...await original<typeof import('node:http')>(), request: seam.http }))
@@ -102,12 +102,12 @@ beforeEach(() => {
   seam.cliReply = 'held'; seam.poisonAfterBootstrap = false
   seam.afterBootstrap=undefined;seam.terminations=0;seam.closedSessions=0
   seam.sdkTransportReady=false;seam.holdSdkGuard=0;seam.sdkGuardCount=0
-  seam.wrongSource=false;seam.wrongGuard=false;seam.failGuard=false
+  seam.wrongSource=false;seam.wrongGuard=false;seam.failGuard=false;seam.gitFrameDefect=''
   seam.children.length = 0; seam.readers.length = 0; seam.replies.length = 0; seam.writes.clear()
   seam.spawnCalls.length = 0; seam.metadataReplies.length = 0
   for (const key of Object.keys(process.env)) if (/DOCKER_|PROXY|SUPABASE_CLI_BINARY_OVERRIDE/.test(key)) vi.stubEnv(key, undefined)
   seam.exec.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
-    if(seam.sdkTransportReady && file==='git' && args.join(' ')==='rev-parse HEAD' && ++seam.sdkGuardCount===seam.holdSdkGuard)seam.holdMetadata=true
+    if(seam.sdkTransportReady && file==='git' && ['rev-parse HEAD','rev-parse HEAD --show-toplevel'].includes(args.join(' ')) && ++seam.sdkGuardCount===seam.holdSdkGuard)seam.holdMetadata=true
     seam.children.push(file); let input = ''
     const child = Object.assign(new EventEmitter(), { stdin: { on: vi.fn(), end: (value?: string) => { input = value ?? '' } }, kill: vi.fn() })
     const reply = () => {
@@ -120,7 +120,18 @@ beforeEach(() => {
         return
       }
       let value = ''
-      if (file === 'git') value = args.includes('HEAD^{tree}') && seam.wrongSource ? 'b'.repeat(40) : args.includes('HEAD') || args.includes('HEAD^{tree}') ? seam.head : args.includes('--show-toplevel') ? seam.component ? '/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main' : repository : ''
+      if (file === 'git') {
+        value = args.includes('HEAD^{tree}') && seam.wrongSource ? 'b'.repeat(40) : args.includes('HEAD') || args.includes('HEAD^{tree}') ? seam.head : args.includes('--show-toplevel') ? seam.component ? '/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main' : repository : ''
+        if(args.includes('HEAD') && (args.includes('--show-toplevel')||args.includes('HEAD^{tree}'))){
+          value=`${seam.head}\n${args.includes('--show-toplevel')?'/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main':seam.wrongSource?'b'.repeat(40):seam.head}\n`
+          if(seam.gitFrameDefect==='missing')value=value.split('\n')[0]+'\n'
+          if(seam.gitFrameDefect==='extra')value+='extra\n'
+          if(seam.gitFrameDefect==='crlf')value=value.replaceAll('\n','\r\n')
+          if(seam.gitFrameDefect==='whitespace')value=' '+value
+          if(seam.gitFrameDefect==='newline')value=value.slice(0,-1)
+          if(seam.gitFrameDefect==='reversed')value=value.trimEnd().split('\n').reverse().join('\n')+'\n'
+        }
+      }
       else if (args[0] === 'context') value = JSON.stringify({ endpoints: { docker: { Host: seam.host } }, tlsMaterial: null })
       else {if(input===manifest.termination)seam.terminations++;value = input === manifest.termination ? JSON.stringify({ present: false, terminated: false }) : input===manifest.guard&&seam.wrongGuard?'wrong':'ok'}
       callback(input===manifest.guard&&seam.failGuard ? new Error('private SQL child detail') : seam.held && seam.brokenMetadata ? new Error('offline secondary metadata') : null, value, ''); child.emit('close', 0, null)
@@ -181,7 +192,13 @@ describe('actual Survey engine budget composition (offline)', () => {
     vi.spyOn(surveyContracts,'survey269ComponentPlan').mockReturnValue(plan)
     vi.spyOn(surveyContracts,'validateSurvey269ComponentSql').mockImplementation((_plan,sql)=>[plan.setup,plan.snapshot,plan.contracts.sql,plan.concurrency.close].includes(sql))
     vi.spyOn(surveyContracts,'verifySurvey269ComponentSources').mockImplementation(()=>{})
-    vi.spyOn(platform,'survey269ComponentDockerInventory').mockImplementation(async run=>{await run!('docker',['ps','-aq','--no-trunc']);return resources})
+    vi.spyOn(platform,'survey269ComponentDockerInventory').mockImplementation(async run=>{
+      // Same one-batch child skeleton as the separately tested complete parser;
+      // only resource contents/phase oracles are synthetic here.
+      await Promise.all([['ps','-aq','--no-trunc'],['volume','ls','-q'],['network','ls','-q','--no-trunc']].map(args=>run!('docker',args)))
+      await Promise.all([['inspect','--format',template,ids[0]],['volume','inspect','fixture-volume'],['network','inspect',ids[1]]].map(args=>run!('docker',args)))
+      return resources
+    })
     const adapters = platform.createAssignmentListNativeAdapters(original,{survey263Endpoint:{kind:'survey263',host:seam.host,identity:[1,2,3,4]},survey263Budget:budget(),survey263NativeCli:platform.SURVEY263_NATIVE_CLI,survey269Component:true})
     const componentManifest=buildSurvey269ComponentManifest(original,sourceBinding)
     seam.manifest=componentManifest
@@ -212,24 +229,49 @@ describe('actual Survey engine budget composition (offline)', () => {
     await expect(component.setup()).rejects.toThrow()
     expect(seam.spawnCalls).toHaveLength(0)
   })
-  it('component guard schedules4/3/3 joined metadata waves and joins every mismatched wave before stopping later work',async()=>{
+  it('component guard batches identical Git predicates into3/2/2 joined waves before stopping on mismatch',async()=>{
     const {engine:component}=componentEngine()
     seam.holdMetadata=true
     let finished=false
     const operation=component.setup().catch(error=>error).finally(()=>{finished=true})
-    await flush();expect(seam.metadataReplies).toHaveLength(4);expect(seam.children).toHaveLength(4)
+    await flush();expect(seam.metadataReplies).toHaveLength(3);expect(seam.children).toHaveLength(3)
     seam.metadataReplies.splice(0).forEach(reply=>reply());await flush()
-    expect(seam.metadataReplies).toHaveLength(3);expect(seam.children).toHaveLength(7)
+    expect(seam.metadataReplies).toHaveLength(2);expect(seam.children).toHaveLength(5)
     seam.metadataReplies.splice(0).forEach(reply=>reply());await flush()
-    expect(seam.metadataReplies).toHaveLength(3);expect(seam.children).toHaveLength(10)
+    expect(seam.metadataReplies).toHaveLength(2);expect(seam.children).toHaveLength(7)
     seam.wrongSource=true
-    const wave=seam.metadataReplies.splice(0);wave[1]();await flush()
-    expect(finished).toBe(false);expect(seam.children).toHaveLength(10);expect(seam.spawnCalls).toHaveLength(0)
-    wave[0]();wave[2]()
+    const wave=seam.metadataReplies.splice(0);wave[0]();await flush()
+    expect(finished).toBe(false);expect(seam.children).toHaveLength(7);expect(seam.spawnCalls).toHaveLength(0)
+    wave[1]()
     expect(await operation).toBeInstanceOf(Error)
-    expect(seam.children).toHaveLength(10);expect(seam.spawnCalls).toHaveLength(0)
+    expect(seam.children).toHaveLength(7);expect(seam.spawnCalls).toHaveLength(0)
     expect(component.diagnostic()).toContain('checkpoint=source-git')
     expect(component.diagnostic()).not.toContain('bbbbbbbb')
+  })
+  it.each(['missing','extra','crlf','whitespace','newline','reversed'])('refuses malformed fixed Git batch framing: %s',async defect=>{
+    const {engine:component}=componentEngine();seam.gitFrameDefect=defect
+    await expect(component.setup()).rejects.toThrow()
+    expect(component.diagnostic()).toContain('checkpoint=source-git')
+    expect(seam.children).toHaveLength(3);expect(seam.spawnCalls).toHaveLength(0)
+  })
+  it('repeats every fresh batched predicate at each guard rather than retaining a previous success',async()=>{
+    const {engine:component}=componentEngine()
+    await component.verifyTarget()
+    const before=seam.children.length
+    seam.wrongSource=true
+    await expect(component.verifyTarget()).rejects.toThrow()
+    expect(seam.children.length).toBeGreaterThan(before+3)
+    expect(component.diagnostic()).toContain('checkpoint=source-git')
+    expect(seam.spawnCalls).toHaveLength(0)
+  })
+  it('charges the complete one-batch guard fifteen child controls, including all six inventory helpers',async()=>{
+    const {engine:component,adapters}=componentEngine()
+    const token=platform.requireSurvey263AdapterEndpoint(adapters).componentExchange!
+    const before=platform.survey269ComponentExchangeReceipt(token).controls
+    await component.verifyTarget()
+    expect(seam.children).toHaveLength(15)
+    expect(platform.survey269ComponentExchangeReceipt(token).controls-before).toBe(15)
+    expect(seam.spawnCalls).toHaveLength(0)
   })
   it.each(['resources','source-files','sql-ownership','sql-child'] as const)('retains a fixed non-deadline %s rejection without starting a session',async checkpoint=>{
     const {engine:component}=componentEngine()

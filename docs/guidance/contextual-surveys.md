@@ -210,3 +210,21 @@ accounting and independently verified restoration remain required. All-single
 dispatch accounting would reach199 known actions before the remaining wire and
 membership restoration work, so it is not a complete admitted inventory. No
 timeout, product RPC, ACL, RLS, cap or production hold is weakened.
+
+Current source preparation expands the same rollback dispatch to49 cases, with
+valid multi-answer vectors, list/results byte pairs, reachable count pairs and
+cardinality denials. The original19 cases passed a separate current-base269
+compatibility/types prerequisite; the new matrix's native acceptance/35s fit is
+not yet proved. Shared fixed fixtures and per-case success/denial changes roll
+back with scoped row/revision equality; compact receipts name their columns and
+version. The member response-count pair is joint with question count.
+
+Same-predicate fresh Git batching reduces the component guard from18 to15
+one-batch child commands without caching or dropping checks. A separate inert
+remaining269 candidate counts4039 known controls/199 actions/16 requests and14
+observations, but outer/failure/byte totals and actual probe integration remain
+incomplete. The owner approved remaining-only6000 controls and60s SDK; executable
+component/legacy budgets stay unchanged until a separately reviewed closed
+remaining integration. No admission/nativeVerified flag is raised, no spent
+attempt is replayed, and all production/shared-local/account/activation holds
+remain. The canonical roadmap still governs phase exit.
