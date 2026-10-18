@@ -207,9 +207,11 @@ function newComponentExchange(profile: 'component' | 'remaining', budget: Survey
   componentExchanges.set(token, { bytes: 0, controls: 0, profile, requests: 0, workDeadline: budget.workDeadline, cleaning: false })
   return token
 }
+// User-approved cumulative allowance for this closed remaining profile only.
+const survey269ExchangeByteLimit = (profile: 'component' | 'remaining') => (profile === 'remaining' ? 128 : 64) * 1024 * 1024
 export function survey269ComponentExchangeReceipt(token: Survey269ComponentExchange) {
   const ledger = componentExchanges.get(token); assert(ledger, 'Unbound Survey269 exchange ledger')
-  return Object.freeze({ bytes: ledger.bytes, limit: 64 * 1024 * 1024, controls: ledger.controls, controlLimit: ledger.profile === 'remaining' ? 6000 : 4000,
+  return Object.freeze({ bytes: ledger.bytes, limit: survey269ExchangeByteLimit(ledger.profile), controls: ledger.controls, controlLimit: ledger.profile === 'remaining' ? 6000 : 4000,
     ...(ledger.profile === 'remaining' ? { requests: ledger.requests, requestLimit: 16 } : {}),
     channels: ['platform-command-stdin-stdout-stderr', 'engine-command-stdin-stdout-stderr', 'engine-session-stdin-stdout-stderr', 'sdk-request-response-bodies'] as const })
 }
@@ -221,7 +223,7 @@ export function chargeSurvey269RemainingRequest(token: Survey269ComponentExchang
   assertSurvey269RemainingExchange(token)
   const ledger = componentExchanges.get(token)!
   assert(!ledger.cleaning && Date.now() < ledger.workDeadline, 'Survey269 remaining request deadline expired')
-  assert(ledger.bytes <= 64 * 1024 * 1024, 'Survey269 cumulative exchange limit exceeded')
+  assert(ledger.bytes <= survey269ExchangeByteLimit(ledger.profile), 'Survey269 cumulative exchange limit exceeded')
   ledger.requests++
   assert(ledger.requests <= 16, 'Survey269 remaining request limit exceeded')
   return ledger.requests
@@ -243,7 +245,7 @@ export function chargeSurvey269ComponentExchange(token: Survey269ComponentExchan
   assert(Number.isSafeInteger(bytes) && bytes >= 0 && Number.isSafeInteger(ledger.bytes + bytes))
   ledger.bytes += bytes
   // Cleanup remains authorized after overflow, but final acceptance never is.
-  assert(cleanup || ledger.bytes <= 64 * 1024 * 1024, 'Survey269 cumulative exchange limit exceeded')
+  assert(cleanup || ledger.bytes <= survey269ExchangeByteLimit(ledger.profile), 'Survey269 cumulative exchange limit exceeded')
   return ledger.bytes
 }
 export type Survey263Budget = Readonly<{ startedAt: number; workDeadline: number; cleanupDeadline: number }>

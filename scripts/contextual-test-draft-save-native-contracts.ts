@@ -677,6 +677,7 @@ function createSurvey269Contracts(input:Parameters<typeof createSurvey269Compone
   assert(input.survey263Endpoint && Object.keys(input.survey263Endpoint).every(key => ['kind','host','identity','budget','nativeCli','componentExchange'].includes(key)))
   assert(input.survey263Endpoint.componentExchange, 'Survey269 shared exchange ledger is absent')
   const exchangeReceipt=survey269ComponentExchangeReceipt(input.survey263Endpoint.componentExchange)
+  assert.equal(exchangeReceipt.limit,(remaining?128:64)*1024*1024,'Survey269 ledger byte profile differs')
   if(!remaining)assert(exchangeReceipt.controlLimit===4000&&!('requests' in exchangeReceipt),'Survey269 component ledger profile differs')
   if(remaining) assertSurvey269RemainingExchange(input.survey263Endpoint.componentExchange)
   const budget = validateSurvey263Budget(input.survey263Endpoint.budget)
@@ -986,6 +987,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   const start = profile.survey263Budget?.startedAt ?? Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
   const component = profile.survey269Component !== undefined
   const remaining=profile.survey269Remaining
+  const exchangeLimit=remaining?128*1024*1024:CAPS.totalBytes
   const controlLimit=remaining?6000:CAPS.controlCalls
   const cleanupControls=remaining?SURVEY269_REMAINING_CLEANUP_CONTROLS:32
   let surveySdkWorkDeadline: number | undefined
@@ -1128,7 +1130,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     assert(++controls <= controlLimit)
     if (file === 'supabase') assert((profile.label === 'survey263' || component) && endpoint)
     if (component && sql !== undefined) chargeComponent(Buffer.byteLength(sql), cleanup)
-    if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
+    if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= exchangeLimit) }
     const executable = file === 'supabase' ? verifySurvey263NativeCli(profile.survey263NativeCli!).path : file
     if (profile.survey263Budget) {
       timeout = Math.min(timeout, (cleanup ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
@@ -1149,7 +1151,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         }
         if (profile.reorderDiagnosticSql && typeof stderr === 'string') {
           exchanged += Buffer.byteLength(stderr)
-          if (Buffer.byteLength(stderr) > CAPS.stderrBytes || exchanged > CAPS.totalBytes) { reject(failure()); return }
+          if (Buffer.byteLength(stderr) > CAPS.stderrBytes || exchanged > exchangeLimit) { reject(failure()); return }
         }
         if (error || inputFailed || Buffer.byteLength(stdout) > CAPS.outputBytes) {
           if (diagnosticRole !== undefined) {
@@ -1159,7 +1161,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           }
           reject(failure())
         }
-        else { if (!component) exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes && !(component && cleanup) ? reject(failure()) : resolveResult(gitFrame ? stdout : stdout.trim()) }
+        else { if (!component) exchanged += Buffer.byteLength(stdout); exchanged > exchangeLimit && !(component && cleanup) ? reject(failure()) : resolveResult(gitFrame ? stdout : stdout.trim()) }
       })
       if (profile.survey263Budget) {
         const closeDeadline = Math.min(profile.survey263Budget.cleanupDeadline, Date.now() + timeout + CAPS.closeMs)
@@ -1333,7 +1335,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
             assert(this.active)
             if (line === this.active.end) { this.active.endSeen = true; this.active.finish(); continue }
             this.active.bytes += Buffer.byteLength(line); if (!component) exchanged += Buffer.byteLength(line)
-            assert(this.active.bytes <= CAPS.outputBytes && (exchanged <= CAPS.totalBytes || (component && this.cleaning)))
+            assert(this.active.bytes <= CAPS.outputBytes && (exchanged <= exchangeLimit || (component && this.cleaning)))
             if (line) this.active.lines.push(line)
           }
         } catch { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
@@ -1342,7 +1344,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         this.stderr += chunk.length
         if (component) {try {chargeComponent(chunk.length, this.cleaning)} catch {this.fault('budget');this.reject();void closeAll().catch(() => {});return}}
         if (profile.reorderDiagnosticSql) exchanged += chunk.length
-        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > exchangeLimit)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
         else {
           this.sqlstate.push(chunk)
           if (!this.cleaning && !firstFault && this.active && this.surveyProgressCapture.snapshot().enabled) {
@@ -1365,7 +1367,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         assert(timeoutMs > 0)
       }
       assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= CAPS.actionMs)
-      if (profile.reorderDiagnosticSql) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
+      if (profile.reorderDiagnosticSql) { exchanged += Buffer.byteLength(sql); assert(exchanged <= exchangeLimit) }
       this.progressScope = !this.cleaning && !firstFault && profile.label === 'test-owner-reorder' && phase === 'contracts'
         && role(this.name) === 'contracts' && profile.reorderProgressSql
         ? sql === profile.reorderProgressSql.bulk ? 'bulk' : sql === profile.reorderProgressSql.calibration ? 'calibration' : 'none'

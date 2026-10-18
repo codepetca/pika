@@ -711,10 +711,10 @@ describe('native persistent-session transport with offline child mocks', () => {
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
   })
-  it.each(['normal','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
+  it.each(['normal','normal-over64','over128','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
     vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
     if(mode==='wait-release'||mode==='wait-observer-late'||mode==='wait-pre-expired'||mode==='wait-post-expired'||mode==='wait-outer-cutoff'||mode==='wait-statement-timeout')waitTiming=mode
-    else remainingProbeFrameFault=mode==='normal'?undefined:mode
+    else remainingProbeFrameFault=mode==='normal'||mode==='normal-over64'||mode==='over128'?undefined:mode
     const started=Date.now(),legacy=surveyNative.surveyRemainingNativePlan(original,head,repository),f=legacy.fixture
     const binding={product:{head,tree:head},carrier:{head,tree:head},sharedSources:Object.fromEntries(surveyNative.SURVEY_269_SHARED_FILES.map(file=>[file,'a'.repeat(64)]))} as surveyNative.Survey269ComponentBinding
     const plan={...legacy,kind:'survey269-remaining-only' as const,binding,repository:surveyNative.SURVEY_269_COMPONENT_ROOTS.product,migrations:[],
@@ -785,6 +785,14 @@ describe('native persistent-session transport with offline child mocks', () => {
       remainingManifest=buildSurvey269RemainingManifest(original,binding);surveyManifest=remainingManifest as unknown as typeof surveyManifest
       const adapter=createSurvey269RemainingNativeContracts({original,binding,capturedResources:resources,containerId:resources.find(r=>r.name===`supabase_db_${project}`)!.id,acceptedManifestSha256:testOwnerDigest(JSON.stringify(remainingManifest)),absoluteDeadline:started+720000,
         statusTarget:{API_URL:'http://127.0.0.1:54331',DB_URL:'postgresql://postgres:offline@127.0.0.1:54332/postgres',SERVICE_ROLE_KEY:`header.${Buffer.from(JSON.stringify({iss:'supabase-demo',role:'service_role'})).toString('base64url')}.signature`},survey263Endpoint:surveyPlatform.requireSurvey263AdapterEndpoint(adapters)})
+      if(mode==='normal-over64')surveyPlatform.chargeSurvey269ComponentExchange(surveyPlatform.requireSurvey263AdapterEndpoint(adapters).componentExchange!,67108864)
+      if(mode==='over128'){
+        surveyPlatform.chargeSurvey269ComponentExchange(surveyPlatform.requireSurvey263AdapterEndpoint(adapters).componentExchange!,134217728)
+        await expect(adapter.setup()).rejects.toThrow()
+        expect(children).toHaveLength(0);expect(actualFetches).toBe(0)
+        expect(adapter.diagnostic()).toContain('failure=budget')
+        return
+      }
       await adapter.setup()
       if(mode==='contract-cutoff')vi.setSystemTime(started+680000)
       if(mode==='wait-outer-cutoff')vi.setSystemTime(started+719100)
@@ -829,7 +837,7 @@ describe('native persistent-session transport with offline child mocks', () => {
         expect(children).toHaveLength(spawned)
         return
       }
-      if(mode!=='normal'&&mode!=='wait-release'){
+      if(mode!=='normal'&&mode!=='normal-over64'&&mode!=='wait-release'){
         let settled=false;const failure=run.catch(e=>e).finally(()=>{settled=true})
         for(let n=0;n<30000&&!surveyEvents.includes(mode==='prepare-close'?'cancel-prepare':'cancel-observer');n++)await Promise.resolve()
         for(let n=0;n<100;n++)await Promise.resolve()
@@ -858,7 +866,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       expect(actualFetches).toBe(16);expect(ordinaryCalls).toBe(14);expect(children).toHaveLength(6)
       expect(surveyEvents.filter(e=>e.startsWith('holder:'))).toHaveLength(30)
       const token=surveyPlatform.requireSurvey263AdapterEndpoint(adapters).componentExchange!,ledger=surveyPlatform.survey269ComponentExchangeReceipt(token)
-      expect(ledger.requests).toBe(16);expect(ledger.controls).toBe(3959);expect(ledger.bytes).toBeLessThan(67108864)
+      expect(ledger.requests).toBe(16);expect(ledger.controls).toBe(3959);expect(ledger.bytes).toBeLessThan(134217728)
       const workdir='/private/tmp/pika-assignment-list-'+project.slice(-12)
       mocks.config=assignmentListEphemeralPlan({projectId:project,workdir}).config
       const jsonNames=new Set(['p_patch','p_question','p_expected_question','p_expected_questions','p_responses'])
@@ -866,7 +874,9 @@ describe('native persistent-session transport with offline child mocks', () => {
       const types=await adapter.generateTypes269();expect(types).toMatchObject({validatedRpcContracts:12,validatedFoundationHotArchiveRpc:true,migrationManifestSha256:plan.migrationManifestSha256,nativeVerified:false})
       expect(mocks.syntheticArtifacts.size).toBe(1)
       const finalLedger=surveyPlatform.survey269ComponentExchangeReceipt(token)
-      expect(finalLedger.controls).toBe(4008);expect(finalLedger.requests).toBe(16);expect(finalLedger.bytes).toBeLessThan(67108864)
+      expect(finalLedger.controls).toBe(4008);expect(finalLedger.requests).toBe(16);expect(finalLedger.bytes).toBeLessThan(134217728)
+      expect(finalLedger.limit).toBe(134217728)
+      if(mode==='normal-over64')expect(finalLedger.bytes).toBeGreaterThan(67108864)
       process.stdout.write(`DIAG offline remaining trace actions=198 controls=${finalLedger.controls} requests=${finalLedger.requests} bytes=${finalLedger.bytes} nativeVerified=false.\n`)
       expect(adapter.inventoryComplete).toBe(true);expect(adapter.nativeVerified).toBe(false)
     }finally{spies.forEach(s=>s.mockRestore());vi.unstubAllGlobals()}

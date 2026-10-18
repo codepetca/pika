@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Fresh guard rehearsal and font visuals authorized
-
-Human approved ONE new bounded full-app rehearsal and both fixes' visual checks.
-Original frozen app21e755 remains unchanged. The test runner binds an explicit
-fixed font overlay to its disposable copy: exact before/after bytes, manifest in
-plan/execution/binding/receipts, unchanged clean-source and dependency checks.
-Production stylesheet remains uncommitted until screenshots pass. Keep16 workflow
-PNGs and add32 fixed editor-reference shots across teacher/student sessions,
-desktop/mobile, light/dark and preview/read-only/editing/empty. The shared student
-editor reference is explicitly attributed even for teacher-session editing shots.
-All48 PNGs share64MiB with4MiB per-image; original45-minute/request/mutation and
-cleanup bounds unchanged. Real auth remains required; only disposable development
-gallery is enabled. Worker229 focused CPU checks and type PASS. Combined check and
-independent delta review precede preparation and the one exclusive invocation.
-Historical failures stay failed; PR1581 stays draft and all production/shared-local,
-rollout and provider holds remain. Existing review counters96 and clocks retained;
-preparation is fix batch56. No attempt has yet been spent for this authorization.
-
 ## 2026-10-15 — Fresh guard rehearsal failed; partial font visuals retained
 
 Reviewed runner bab32e815/tree700cf2d2 pushed to existing draft1581; original frozen
@@ -775,3 +757,7 @@ Review203/full4411 checks passed at503847f1. Remaining-v4 again completed49 SQL 
 Reviewed remaining-v5 passed49 SQL cases/all30 committed directions and actual cancellation, then failed restoration. Owner-approved recovery recovered the exact missing baseline-TOAST relation error; independent read-only184-table/catalog equality and settled backend checks passed before exact owned cleanup. Five containers/two synthetic volumes/network/tempdir and owned processes were removed; unrelated resources/evidence retained. Post-recovery full source/dependency preservation passed before edits. Attempt remains failed/spent.
 
 Correction133 materializes full captured JSONB before baseline DROP in cancellation/wire restoration, preserving all equalities/hashes/ownership/deadlines. Remaining-only compact full volume/network JSON retains global discovery, all fields/attachments and raw-byte accounting. Six CPU regressions fail old source;346 focused checks plus the final standalone-SQL source check and strict TypeScript pass. Forced-external-TOAST rollback regression is prepared but not executed. Normal198actions/4008nativecontrols/16HTTP remain;64MiB fit unresolved. Fullgate/independent review and separately approved real verification remain; no cap raise, product change, production/shared-local action or rollout.
+
+## 2026-10-18 — Approve remaining-only Survey cumulative verification allowance
+
+Owner explicitly approved128MiB for remaining269, independent review, the isolated PostgreSQL TOAST regression and one fresh bounded full rehearsal. Correction134 binds128MiB through the closed remaining ledger, complete manifest and native command/session checks; legacy263/component269/shared cancellation descriptors remain64MiB. Exact-limit/overflow/work/request/final-acceptance regressions preserve charged cleanup without allowing overflow success.391 focused tests, strict TypeScript and audit pass; actual offline engine completes above64MiB and rejects over128 before sessions/HTTP. All200action/6000control/16request/two-session/8MiB-frame/60s-SDK/12+3-minute limits and remaining49-case90s exception remain. Root owns stable pins, fullgate, independent review and the two authorized native checks. No native acceptance, product/schema changes, production/shared-local work or rollout is claimed; prior attempts stay spent and all serious holds remain.

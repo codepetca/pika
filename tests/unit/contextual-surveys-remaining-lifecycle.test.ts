@@ -32,7 +32,7 @@ function harness(failure?: 'committed' | 'sdk' | 'types' | 'unjoined' | 'uncerta
   vi.spyOn(platform, 'requireSurvey263AdapterEndpoint').mockReturnValue(endpoint)
   vi.spyOn(platform, 'assertSurvey269RemainingExchange').mockImplementation(() => {})
   let requests = 0, poisoned = false, started = false, prepared = false, snapshots = 0
-  vi.spyOn(platform, 'survey269ComponentExchangeReceipt').mockImplementation(() => ({ bytes: 100, limit: 67108864, controls: 100, controlLimit: 6000, requests, requestLimit: 16, channels: [] }) as never)
+  vi.spyOn(platform, 'survey269ComponentExchangeReceipt').mockImplementation(() => ({ bytes: 100, limit: 134217728, controls: 100, controlLimit: 6000, requests, requestLimit: 16, channels: [] }) as never)
   const cleanup = vi.spyOn(platform, 'beginSurvey263AdapterCleanup').mockImplementation((_adapters, unjoined) => { poisoned = Boolean(unjoined) })
   vi.spyOn(platform, 'checkSurvey263AdapterTotal').mockImplementation(() => { if (poisoned) throw new Error('Offline unjoined') })
   const check = () => { if (poisoned) throw new Error('Offline unjoined') }

@@ -48333,3 +48333,22 @@ visual verification pending; fixes remain uncommitted. Frozen app remains pinned
 future rebind must exclude unrelated held app changes. PR1581 verified OPEN/DRAFT
 860dcd unchanged. No new rehearsal, commit, push or rollout. Existing counters96
 reviews/55fix batches and human waiver retained; no review-clock reset.
+
+<!-- pika-session-log-archive-batch:7f654dea273daeed0d2de3a02c3da0903a6cb4eafbaecbea78860ea970187635 -->
+## 2026-10-15 — Fresh guard rehearsal and font visuals authorized
+
+Human approved ONE new bounded full-app rehearsal and both fixes' visual checks.
+Original frozen app21e755 remains unchanged. The test runner binds an explicit
+fixed font overlay to its disposable copy: exact before/after bytes, manifest in
+plan/execution/binding/receipts, unchanged clean-source and dependency checks.
+Production stylesheet remains uncommitted until screenshots pass. Keep16 workflow
+PNGs and add32 fixed editor-reference shots across teacher/student sessions,
+desktop/mobile, light/dark and preview/read-only/editing/empty. The shared student
+editor reference is explicitly attributed even for teacher-session editing shots.
+All48 PNGs share64MiB with4MiB per-image; original45-minute/request/mutation and
+cleanup bounds unchanged. Real auth remains required; only disposable development
+gallery is enabled. Worker229 focused CPU checks and type PASS. Combined check and
+independent delta review precede preparation and the one exclusive invocation.
+Historical failures stay failed; PR1581 stays draft and all production/shared-local,
+rollout and provider holds remain. Existing review counters96 and clocks retained;
+preparation is fix batch56. No attempt has yet been spent for this authorization.

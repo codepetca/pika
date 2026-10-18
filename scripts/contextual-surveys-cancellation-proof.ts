@@ -19,7 +19,7 @@ export const SURVEY_CANCELLATION_CAPS = Object.freeze({ sqlBytes: 262144, respon
 /** New human-approved remaining269 allowance, inert until full inventory/review.
  * Existing cancellation/component/legacy execution profiles are not widened. */
 export const SURVEY_269_REMAINING_CANDIDATE_CAPS = Object.freeze({ ...SURVEY_CANCELLATION_CAPS,
-  nativeControls:6000,sdkMs:60000,observerFrames:14,cleanupReserve:218 })
+  nativeControls:6000,totalBytes:128*1024*1024,sdkMs:60000,observerFrames:14,cleanupReserve:218 })
 
 function fixture(f: SurveyNativeFixture) {
   assert(Object.isFrozen(f)); assert.match(f.tag, /^surveynative_[a-f0-9]{12}$/)

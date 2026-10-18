@@ -292,7 +292,7 @@ export function survey269RemainingPlan(original: AssignmentListProofFixture, bin
       completeControls:4366,partialTeardownControls:4387,
       maximumOrdinaryControls:5782,maximumCountedRefusals:1,maximumMandatoryCleanupControls:217,
       cleanupReserve:218,completeFailureControlCeiling:6000,
-      allExchangeChannelsCounted:true,exchangeByteCeiling:67108864,actualExchangeBytes:null,
+      allExchangeChannelsCounted:true,exchangeByteCeiling:SURVEY_269_REMAINING_CANDIDATE_CAPS.totalBytes,actualExchangeBytes:null,
       countedChannels:['root-git-stdout-stderr','platform-command-stdin-stdout-stderr','engine-command-stdin-stdout-stderr',
         'engine-framed-session-stdin-stdout-stderr','all16-original-request-and-observed-response-body-bytes'],
       originalClock:{workMs:720000,cleanupMs:180000,sdkPhaseMs:60000,sqlContractMs:90000,rpcMs:8000}},

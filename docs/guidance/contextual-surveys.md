@@ -182,13 +182,15 @@ oracle, while every other public/private/storage table carries a deterministic
 full-row SHA256/count and exact id/artifact_id/generation_id projections. Complete
 table-key comparison, off-table content preservation and cross-table collision
 checks remain mandatory. This reuses the accepted hot-lifecycle witness approach;
-it does not raise the8MiB frame or64MiB cumulative transport limit.
+At that stage it did not raise the8MiB frame or64MiB cumulative transport limit;
+the later remaining-only cumulative exception is recorded under correction134.
 
 Source/CPU preparation does not establish native byte fit or acceptance. The
 closed remaining269 source integration now counts198 native actions,4008 native
 controls,4366 normal-completion controls or4387 partial-teardown controls,
-16 original HTTP requests and14 observer frames. Its6000-control allowance,
-64MiB exchange cap, two persistent sessions,8s RPC behavior and12-minute work
+16 original HTTP requests and14 observer frames. Its cumulative exchange cap is
+now128MiB for remaining269 only (correction134). The6000-control allowance,
+two persistent sessions,8s RPC behavior and12-minute work
 plus3-minute cleanup clocks remain unchanged. The isolated remaining rollback
 frame has the separately approved90s exception described below; all other
 35s frame limits remain unchanged. The complete
@@ -220,7 +222,8 @@ identifiers and client monotonic elapsed milliseconds, and freezes on first
 failure. It rejects malformed, duplicate, out-of-order and oversized markers.
 It joins stdout completion and stderr progress within the bound frame timer;
 telemetry is diagnostic only and never supplies native acceptance. SQL source
-and marker bytes remain subject to the existing64MiB total. Full remaining-run
+and marker bytes remain charged to the cumulative total (now128MiB only for
+remaining269; legacy263/component269 retain64MiB). Full remaining-run
 exchange fit remains unproved; partial-attempt totals do not establish completion.
 
 ## Remaining-only rollback timeout correction130
@@ -308,8 +311,30 @@ lists, IDs, labels, foreign attachments, guards, joins and actual raw-byte charg
 Legacy/component array output and the container template are unchanged. No field
 projection, cache, skipped inspection or control/action reduction is introduced.
 Normal198actions/4008nativecontrols/16HTTP and all existing caps remain unchanged.
-Measured representation savings do not establish complete64MiB budget fit; that
-remains a separate admission blocker, as do real TOAST and full remaining proof.
+Measured representation savings did not establish complete64MiB budget fit.
+The subsequent explicit allowance is recorded below; real TOAST and full remaining
+proof are still required, not inferred from CPU checks or recovery.
+
+## Remaining-only cumulative allowance correction134
+
+The user explicitly approved128MiB (134,217,728bytes) cumulative verification
+exchange for remaining269, review, the isolated PostgreSQL TOAST regression and
+one fresh bounded full rehearsal. The closed remaining ledger, request admission,
+complete plan inventory and native command/framed-session cumulative checks use
+that allowance. Legacy263, component269 and the shared standalone cancellation
+descriptor remain64MiB; only the remaining-specific caps override the cumulative
+value. No generic caller-configurable override is introduced.
+
+Every actual exchange channel stays charged. Ordinary work and final acceptance
+reject over128MiB; existing owned cleanup may still account bytes after overflow,
+but cannot turn that overflow into success. The8MiB frame/response ceiling,
+200actions/6000controls/16requests/two persistent sessions,60s SDK,720000ms work
+plus180000ms cleanup,8s RPC and remaining49-case90s SQL limit are unchanged.
+This is an explicit cap change, not a claim that all earlier caps were unchanged.
+Approval does not replay spent attempts or prove fit: root owns review, regression,
+stable-source binding and the one fresh admission. No native acceptance is claimed
+by this source correction; all production/shared-local/provider/account/rollout
+holds remain.
 
 The original cancellation and wire probes,30 committed directions, ordinary
 14 SDK calls, genuine269 types, restoration/preservation and screen proof remain

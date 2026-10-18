@@ -77,6 +77,27 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 describe('sealed Survey platform factory (offline actual seams)', () => {
+  it.each(['component','remaining'] as const)('binds only %s cumulative bytes to its approved ceiling and rejects overflow through work/request/final admission',profile=>{
+    const adapters=createAssignmentListNativeAdapters(fixture,{survey263Endpoint:endpoint(),survey263Budget:budget(),survey263NativeCli:SURVEY263_NATIVE_CLI,
+      ...(profile==='remaining'?{survey269Remaining:true}:{survey269Component:true})})
+    const token=requireSurvey263AdapterEndpoint(adapters).componentExchange!,limit=(profile==='remaining'?128:64)*1024*1024
+    expect(survey269ComponentExchangeReceipt(token).limit).toBe(limit)
+    expect(chargeSurvey269ComponentExchange(token,limit)).toBe(limit)
+    expect(()=>adapters.checkWork!()).not.toThrow()
+    if(profile==='remaining')expect(chargeSurvey269RemainingRequest(token)).toBe(1)
+    expect(()=>checkSurvey263AdapterTotal(adapters)).not.toThrow()
+    expect(()=>chargeSurvey269ComponentExchange(token,1)).toThrow('cumulative exchange limit')
+    expect(()=>adapters.checkWork!()).toThrow('cumulative exchange limit')
+    if(profile==='remaining'){
+      expect(()=>chargeSurvey269RemainingRequest(token)).toThrow('cumulative exchange limit')
+      expect(survey269ComponentExchangeReceipt(token).requests).toBe(1)
+    }
+    beginSurvey263AdapterCleanup(adapters)
+    expect(()=>chargeSurvey269ComponentExchange(token,1,true)).not.toThrow()
+    expect(survey269ComponentExchangeReceipt(token).bytes).toBe(limit+2)
+    expect(()=>checkSurvey263AdapterTotal(adapters)).toThrow('cumulative exchange limit')
+    expect(seam.calls).toHaveLength(0)
+  })
   it('binds remaining6000 and sixteen requests only to the separate opaque profile', () => {
     const options = { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI }
     const adapters = createAssignmentListNativeAdapters(fixture, { ...options, survey269Remaining: true })

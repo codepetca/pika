@@ -50,7 +50,7 @@ describe('inert source-owned Survey cancellation descriptor', () => {
     expect(r.frames.cancellation).toEqual(Object.fromEntries(Object.entries(make().frames).map(([key,sql])=>[key,{sha256:createHash('sha256').update(sql).digest('hex'),bytes:Buffer.byteLength(sql)}])))
     expect(r.frames.wire).toEqual({implemented:false,sqlBytes:null})
     expect(r.frames.membership).toEqual({source:'verifySurveyPrimaryMembership',bound:true,sqlBytes:0})
-    expect(r.caps).toMatchObject({nativeControls:6000,sdkMs:60000,nativeActions:200,totalBytes:67108864,sdkRequests:16,nativeSessions:2,workMs:720000,cleanupMs:180000})
+    expect(r.caps).toMatchObject({nativeControls:6000,sdkMs:60000,nativeActions:200,totalBytes:134217728,sdkRequests:16,nativeSessions:2,workMs:720000,cleanupMs:180000})
     expect(make().caps.nativeControls).toBe(4000)
     expect(r.failureCases.every(row=>row.completeControls===null && row.completeActions===null)).toBe(true)
   })
