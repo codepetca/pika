@@ -4,8 +4,9 @@ Prepared from completion-plan source `466c16abcb313e20defea1502162dd2108641de9`
 on main `f88b06a5e52da64f182fa31ec1e7ba2258438c02`, including reviewed hot
 Classroom archive/restore migration268. The additive Survey migration is now
 `269_contextual_surveys_workflow.sql`; its SQL bytes match the earlier reviewed
-Survey263 source. This is product preparation, not an accepted PR,
-native verification result, batch2 exit or activation receipt.
+Survey263 source. The current-base compatibility/types prerequisite passed on
+2026-10-17 as recorded below. Full remaining native and application acceptance,
+PR readiness, batch2 exit and activation remain incomplete.
 
 The existing teacher/student Survey URLs and legacy branches remain. The shared
 experience admission contract is the sole cohort selector. Admitted users use
@@ -93,15 +94,28 @@ are:
 | `delete_survey_question_for_owner_v1` | actor, Survey, question ID |
 | `respond_to_survey_for_member_v1` | actor, Survey, Classroom, expected questions, responses |
 
-The current-main generated artifact is retained during source preparation.
-Genuine full001–269 generation is held pending separately authorized disposable
-schema verification. The donor's old001–263 generated artifact must not replace
-it: that would remove newer Test date, saved-work and hot-lifecycle metadata.
-No manual generated entries, unknown-RPC casts or temporary stubs substitute for
-that generation. TypeScript completion remains blocked until the genuine new
-RPC metadata is available. No composed JSONB result refinement is planned.
+Genuine full001–269 types were generated from the reviewed disposable schema and
+integrated byte-for-byte. Artifact SHA256:
+`f565747930d26a2488899f2619c9f5c6ab6a2a9080a652f8520df97b45f36961`.
+Only the twelve Survey RPC contracts (60 lines) were added; newer Test date,
+saved-work and hot-lifecycle metadata are preserved. No manual generated entries,
+unknown-RPC casts or temporary stubs were used. TypeScript now passes. No composed
+JSONB result refinement is planned.
 
 ## Historical evidence and remaining acceptance
+
+2026-10-17 current-base prerequisite: one reviewed disposable001–269 run passed
+cumulative replay, rollback contracts with row equality, all14 ordinary SDK
+operations, terminal effects and genuine CLI types. The receipt binds product
+`83d7736bf8629371ee107b7a714f11e9a4736854` and migration manifest
+`8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf`.
+Exact cleanup, canonical/global-resource equality and immediate source/dependency
+preservation passed. Final accounting was1739 controls and22642136 bytes under
+the unchanged4000/64MiB limits. Private coordinator v3 receipts retain the full
+provenance; the spent attempt cannot be replayed. Its `nativeVerified=false` and
+`inventoryComplete=false` intentionally distinguish this prerequisite from the
+full remaining proof. The approved component-only SDK phase was60 seconds;
+legacy20 seconds, original12+3-minute clocks and all other caps were retained.
 
 An earlier disposable001–263 component accepted the same Survey SQL bytes and
 completed rollback/guarded real-SDK contracts and genuine type generation against
@@ -114,15 +128,15 @@ current001–269 base or be retried/rebound as a new acceptance attempt.
 
 The extracted inert rollback SQL, installed-SDK companion and fifteen SQL race
 definitions remain available to the coordinator's guarded verification workflow.
-The rollback SQL prepares nineteen exact/one-byte-over/input-shape payload cases;
-CPU/source checks do not establish native execution, actual 35-second fit or wire
-bytes. Valid 8 MiB response vectors, list/results byte limits and 10,000-row guards
+The rollback SQL's nineteen exact/one-byte-over/input-shape payload cases executed
+in the current-base prerequisite. This does not establish the separate wire
+limits. Valid 8 MiB response vectors, list/results byte limits and 10,000-row guards
 remain uncovered. Old runner seals tied to001–263 are excluded from this product
 extraction. The separate cancellation-proof worker owns its module and test.
 
-Remaining gates are current-base cumulative replay, genuine generated types,
-actual committed races in both directions with observed lock state, timeout and
-cancellation/finally restoration, size/count/wire boundaries, real SDK checks,
+Remaining gates are the complete accounted native proof: actual committed races
+in both directions with observed blocking, timeout and cancellation/finally
+restoration, remaining size/count/wire boundaries and the full proof's SDK scope;
 existing-screen mixed-role Survey rehearsal, independent cumulative review and
 stable reviewed-SHA CI/PR Gate. No new UI is included. No production/shared-local
 migration, provider/account/billing action, admission/home/page/cohort/cutover

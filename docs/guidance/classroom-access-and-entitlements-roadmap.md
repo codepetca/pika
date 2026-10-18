@@ -451,6 +451,16 @@ is next; its former001–263 component cannot substitute for new-base verificati
 or genuine generated types. Production/shared-local, provider/Survey execution,
 account and admission/home/page/cohort/cutover holds remain unchanged.
 
+2026-10-17 superseding Survey prerequisite: the owner released disposable-local
+Survey verification only. The current001–269 compatibility/types check passed
+rollback/row equality, all14 SDK operations, terminal effects and genuine types,
+with exact cleanup and canonical/global/source/dependency preservation. Generated
+metadata adds only12 RPC contracts; product TypeScript and937 focused checks pass.
+This is not complete Survey acceptance: the fully accounted remaining concurrency,
+cancellation/restoration and payload/count/wire proof, existing-screen mixed-role
+workflow, final review and CI remain. No production/shared-local writes, provider,
+account/billing or home/admission/page/cohort/cutover activation is authorized.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
