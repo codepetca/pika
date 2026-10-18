@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newSurveyNativeFixture } from '../../scripts/contextual-surveys-native-contracts'
-import { createSurveySdkProofTransport, SURVEY_SDK_PROOF_CAPS, verifySurveySdkTerminalEffects,
+import { createSurveySdkProofTransport, SURVEY_SDK_PROOF_CAPS, verifySurveySdkTerminalEffects, verifySurvey269ComponentSdkTerminalEffects,
   verifySurveyMembershipRestoration, surveyMembershipRestoreSql } from '../../scripts/contextual-surveys-sdk-proof'
-import { runContextualSurveysSdkContracts } from '../../scripts/contextual-surveys-sdk-contracts'
+import { runContextualSurveysSdkContracts, runSurvey269ComponentSdkContracts } from '../../scripts/contextual-surveys-sdk-contracts'
 import { Survey263UnjoinedChildError } from '../../scripts/contextual-assignment-list-proof-platform'
 
 const f = newSurveyNativeFixture(newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z')))
@@ -53,6 +53,50 @@ const firstRequest = () => ({ method: 'POST', headers, body: JSON.stringify({ p_
 const firstUrl = 'http://127.0.0.1:54331/rest/v1/rpc/get_survey_for_owner_v1'
 
 describe('finite installed-SDK Survey transport (offline only)', () => {
+  it('advertises the approved closed60s component cap while preserving legacy20s',()=>{
+    const legacy=createSurveySdkProofTransport(f,target,server(),async()=>{})
+    const component=createSurveySdkProofTransport(f,target,server(),async()=>{},()=>{},{cleanupDeadline:Date.now()+900000})
+    expect(legacy.manifest.caps.totalMs).toBe(20000)
+    expect(component.manifest.caps.totalMs).toBe(60000)
+    expect(component.manifest.caps.calls).toBe(16)
+  })
+  it('keeps closed component admission past20s but refuses at60s without renewing root or settlement clocks',async()=>{
+    vi.useFakeTimers()
+    let release:()=>void=()=>{}
+    try{
+      const start=Date.now(),wire=server(),transport=createSurveySdkProofTransport(f,target,wire,()=>new Promise<void>(resolve=>{release=resolve}),()=>{},{cleanupDeadline:start+900000})
+      transport.start(start+720000)
+      let finished=false
+      const request=transport.fetch(firstUrl,firstRequest()).catch(error=>error).finally(()=>{finished=true})
+      await vi.advanceTimersByTimeAsync(20001)
+      expect(finished).toBe(false);expect(wire).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(40000)
+      expect(await request).toBeInstanceOf(Error)
+      expect(transport.diagnostic()).toContain('firstReason=sdk-deadline elapsedMs=60000 remainingMs=0')
+      release();await transport.settle()
+      expect(wire).not.toHaveBeenCalled()
+    }finally{release();vi.useRealTimers()}
+  })
+  it.each(['legacy','component','root','component-expired','component-past'] as const)('runs actual %s SDK controller under its exact fixed/root phase boundary',async profile=>{
+    vi.useFakeTimers();let release:()=>void=()=>{}
+    try{
+      const start=Date.now(),component=profile!=='legacy',root=profile==='root'?start+100:start+720000,wire=server()
+      const transport=createSurveySdkProofTransport(f,target,wire,async()=>{},()=>{},component?{cleanupDeadline:start+900000}:undefined)
+      transport.start(root)
+      let first=true
+      const guard=async()=>{if(first){first=false;await new Promise<void>(resolve=>{release=resolve})}}
+      const fixture={ownerId:owner,memberId:member,outsiderId:f.actors[2].id,classroomId:cid,surveyId:sid}
+      const operation=(component?runSurvey269ComponentSdkContracts(transport.client,fixture,guard,Math.min(root,start+60000)):runContextualSurveysSdkContracts(transport.client,fixture,guard)).catch(error=>error)
+      await vi.advanceTimersByTimeAsync(profile==='root'?101:profile==='component-expired'?60000:profile==='component-past'?60001:21000)
+      release();const result=await operation
+      if(profile==='component'){
+        expect(result).toMatchObject({requests:14,phaseMs:60000,absoluteDeadline:start+60000})
+        expect(transport.complete()).toMatchObject({calls:14,phaseMs:60000,absoluteDeadline:start+60000})
+        expect(wire).toHaveBeenCalledTimes(14)
+      }else{expect(result).toBeInstanceOf(Error);expect(wire).not.toHaveBeenCalled()}
+      await transport.settle()
+    }finally{release();vi.useRealTimers()}
+  })
   it.each(['late-response','body','never-response','never-cancel'] as const)('joins actual %s cancellation by the original cleanup cutoff',async mode=>{
     vi.useFakeTimers()
     try{
@@ -216,6 +260,10 @@ describe('explicit committed Survey graph effects', () => {
     after['public.classrooms'][0].blueprint_source_revision += 5; after['public.classrooms'][0].updated_at = at
     after['public.classroom_archive_revisions'][0].revision += 11; after['public.classroom_archive_revisions'][0].updated_at = at
     expect(verifySurveySdkTerminalEffects(f, before, after, window).nativeVerified).toBe(false)
+    const thirty={startedAt:earlier,endedAt:new Date(Date.parse(earlier)+30000).toISOString()}
+    expect(()=>verifySurveySdkTerminalEffects(f,before,after,thirty)).toThrow()
+    expect(verifySurvey269ComponentSdkTerminalEffects(f,before,after,thirty).nativeVerified).toBe(false)
+    expect(()=>verifySurvey269ComponentSdkTerminalEffects(f,before,after,{...thirty,endedAt:new Date(Date.parse(earlier)+60001).toISOString()})).toThrow()
     for (const defect of ['settings', 'storage', 'extra-revision', 'owner', 'missing-table', 'leaked-child'] as const) {
       const bad = structuredClone(after)
       if (defect === 'settings') bad['private.pal_membership_settings'][0].enabled = true

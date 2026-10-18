@@ -57,8 +57,8 @@ import { survey269ComponentPlan, validateSurvey269ComponentSql, runSurvey269Comp
 import { validateSurveyCommittedSql, surveyCommittedObservationSql, validateSurveyCommittedObservationSql,
   parseSurveyCommittedGraph, verifySurveyCommittedSeed, verifySurveyCommittedWitness, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
   type SurveyCommittedProofManifest, type SurveyCommittedBootstrap, type SurveyCommittedTimes } from './contextual-surveys-committed-proof'
-import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
-import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
+import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects, verifySurvey269ComponentSdkTerminalEffects, SURVEY_269_COMPONENT_SDK_CAPS } from './contextual-surveys-sdk-proof'
+import { runContextualSurveysSdkContracts, runSurvey269ComponentSdkContracts } from './contextual-surveys-sdk-contracts'
 import { decodeAssignmentListSnapshot, validateSurvey263Budget, verifySurvey263NativeCli, Survey263UnjoinedChildError,
   chargeSurvey269ComponentExchange, chargeSurvey269ComponentControl, survey269ComponentExchangeReceipt, survey269ComponentDockerInventory,
   type Survey269ComponentExchange, type Survey263Budget, type Survey263NativeCli } from './contextual-assignment-list-proof-platform'
@@ -1033,7 +1033,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     const activeCalibration = observations.find(value => value.scope === 'calibration')
     firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) ? sqlstate : 'unknown', checkpoint,
       sdkElapsedMs: surveySdkWorkStartedAt === undefined ? 'none' : Math.min(CAPS.totalMs, Math.max(0, Date.now() - surveySdkWorkStartedAt)),
-      sdkRemainingMs: surveySdkWorkDeadline === undefined ? 'none' : Math.min(20000, Math.max(0, surveySdkWorkDeadline - Date.now())),
+      sdkRemainingMs: surveySdkWorkDeadline === undefined ? 'none' : Math.min(SURVEY_269_COMPONENT_SDK_CAPS.totalMs, Math.max(0, surveySdkWorkDeadline - Date.now())),
       progress: activeBulk?.snapshot.checkpoint ?? bulkProgress,
       calibration: progressCalibrated || activeCalibration?.snapshot.calibrated ? 'verified' : 'unverified',
       controls: Math.min(controls, CAPS.controlCalls + 1), actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) })
@@ -1596,7 +1596,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         const decode = (rows: Awaited<ReturnType<typeof single>>) => decodeAssignmentListSnapshot(
           rows.map(row => JSON.stringify(row.result)).join('\n'), 'rows')
         const before = decode(await single(manifest.snapshot))
-        const sdkStartedAt = Date.now(), sdkDeadline = Math.min(sdkStartedAt + 20000, start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs)
+        const sdkStartedAt = Date.now(), sdkDeadline = Math.min(sdkStartedAt + (component ? SURVEY_269_COMPONENT_SDK_CAPS.totalMs : 20000), start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs)
         if (component) { surveySdkWorkStartedAt = sdkStartedAt; surveySdkWorkDeadline = sdkDeadline }
         const sdkGuard = async () => {
           checkSurveySdkAdmission()
@@ -1613,10 +1613,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         let after: ReturnType<typeof decode> | undefined
         try {
           const fixture = profile.surveySdk!.fixture
-          await runContextualSurveysSdkContracts(transport.client, {
+          const sdkFixture = {
             ownerId: fixture.actors[0].id, memberId: fixture.actors[1].id, outsiderId: fixture.actors[2].id,
             classroomId: fixture.classes[0].id, surveyId: fixture.surveys[0].id,
-          }, sdkGuard)
+          }
+          if (component) await runSurvey269ComponentSdkContracts(transport.client, sdkFixture, sdkGuard, sdkDeadline)
+          else await runContextualSurveysSdkContracts(transport.client, sdkFixture, sdkGuard)
           sdk = transport.complete(); endedAt = new Date().toISOString(); sdkComplete = true
         } catch (error) { sdkFailure = error; if (component) record('unknown', 'none', 'unknown', 'sdk-runner') }
         finally {
@@ -1633,7 +1635,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         if (!sdkComplete) throw sdkFailure ?? failure()
         assert(after && sdk && endedAt); check(); assert.equal(sessions.size, 0)
         assert.equal(after.metadata, before.metadata); assert.equal(after.cron, before.cron)
-        const effects = verifySurveySdkTerminalEffects(profile.surveySdk!.fixture, before.tables, after.tables,
+        const effects = (component ? verifySurvey269ComponentSdkTerminalEffects : verifySurveySdkTerminalEffects)(profile.surveySdk!.fixture, before.tables, after.tables,
           { startedAt, endedAt })
         surveySdkDone = true
         phase = 'complete'

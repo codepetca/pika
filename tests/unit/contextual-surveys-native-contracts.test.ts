@@ -82,6 +82,8 @@ describe('source-only sealed Survey263 native reuse', () => {
   })
   it('pins actual SDK proof implementation bytes and rejects changed source before binding', () => {
     const m = plan(), source = m.sources.sdkProof
+    expect(m.caps.sdkMs).toBe(20000)
+    expect(m.sdkProofPreparation.caps.totalMs).toBe(20000)
     expect(createHash('sha256').update(readFileSync(`${repository}/${source.file}`)).digest('hex')).toBe(source.sha256)
     fsFaults.sdkProofDrift = true
     try { expect(() => plan()).toThrow('Survey reviewed source differs') }

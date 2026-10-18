@@ -45,11 +45,12 @@ vi.mock('../../scripts/contextual-surveys-native-contracts', async original => (
   ...await original<typeof import('../../scripts/contextual-surveys-native-contracts')>(),
   runSurveyNativeRollbackContracts: vi.fn(async () => ({})), runSurveyNativeRollbackRaces: vi.fn(async () => ({})), runSurvey269ComponentRollback: vi.fn(async () => ({})),
 }))
-vi.mock('../../scripts/contextual-surveys-sdk-contracts', () => ({ runContextualSurveysSdkContracts: vi.fn(async () => {}) }))
+vi.mock('../../scripts/contextual-surveys-sdk-contracts', () => ({ SURVEY_SDK_PHASE_MS:{legacy:20000,component269:60000},runContextualSurveysSdkContracts: vi.fn(async () => {}),runSurvey269ComponentSdkContracts:vi.fn(async()=>{}) }))
 vi.mock('../../scripts/contextual-surveys-sdk-proof', async original => ({
   ...await original<typeof import('../../scripts/contextual-surveys-sdk-proof')>(),
   createSurveySdkProofTransport: vi.fn(() => ({ client: {}, start: vi.fn(), settle:async()=>{}, complete: () => ({ calls: 14, nativeVerified: false }) })),
   verifySurveySdkTerminalEffects: vi.fn(() => ({ nativeVerified: false })),
+  verifySurvey269ComponentSdkTerminalEffects: vi.fn(() => ({ nativeVerified: false })),
 }))
 import { createContextualSurveysNativeContracts, buildSurveyNativeContractsManifest, buildSurvey269ComponentManifest, createSurvey269ComponentNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
@@ -62,6 +63,7 @@ import * as sdkProof from '../../scripts/contextual-surveys-sdk-proof'
 import * as sdkContracts from '../../scripts/contextual-surveys-sdk-contracts'
 const offlineRaceOracle = vi.mocked(surveyContracts.runSurveyNativeRollbackRaces).getMockImplementation()!
 const offlineSdkOracle=vi.mocked(sdkContracts.runContextualSurveysSdkContracts).getMockImplementation()!
+const offlineComponentSdkOracle=vi.mocked(sdkContracts.runSurvey269ComponentSdkContracts).getMockImplementation()!
 const offlineTransportFactory=vi.mocked(sdkProof.createSurveySdkProofTransport).getMockImplementation()!
 const original = newAssignmentListProofFixture(), repository = process.cwd()
 const manifest = buildSurveyNativeContractsManifest(original, seam.head, repository)
@@ -92,6 +94,7 @@ async function flush() { for (let n = 0; n < 100; n++) await Promise.resolve() }
 beforeEach(() => {
   vi.mocked(surveyContracts.runSurveyNativeRollbackRaces).mockImplementation(offlineRaceOracle)
   vi.mocked(sdkContracts.runContextualSurveysSdkContracts).mockImplementation(offlineSdkOracle)
+  vi.mocked(sdkContracts.runSurvey269ComponentSdkContracts).mockImplementation(offlineComponentSdkOracle)
   vi.mocked(sdkProof.createSurveySdkProofTransport).mockImplementation(offlineTransportFactory)
   vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] }); startedAt = Date.now()
   seam.repository = repository; seam.workdir = workdir; seam.config = assignmentListEphemeralPlan({ projectId, workdir }).config
@@ -171,6 +174,7 @@ describe('actual Survey engine budget composition (offline)', () => {
     const plan = {...legacy,kind:'survey269-source-compatibility-and-genuine-types' as const,binding:sourceBinding,repository:surveyContracts.SURVEY_269_COMPONENT_ROOTS.product,
       migrationManifestSha256:surveyContracts.SURVEY_269_COMPONENT_SCHEMA.manifestSha256,sourceSha256:surveyContracts.SURVEY_269_COMPONENT_SCHEMA.sourceSha256,
       sources:{...legacy.sources,migration:{file:'supabase/migrations/269_contextual_surveys_workflow.sql',sha256:surveyContracts.SURVEY_269_COMPONENT_SCHEMA.sourceSha256}},
+      caps:{...legacy.caps,sdkMs:60000 as const},sdkProofPreparation:{...legacy.sdkProofPreparation,caps:{...legacy.sdkProofPreparation.caps,totalMs:60000 as const}},
       migrations:[],concurrency:{...legacy.concurrency,schedules:[]},inventoryComplete:false as const}
     // Only source inventory/phase oracles are synthetic. The actual guarded
     // engine, native child join/framing, byte ledger and SDK admission run.
@@ -256,8 +260,13 @@ describe('actual Survey engine budget composition (offline)', () => {
     const actualSdk=await vi.importActual<typeof sdkContracts>('../../scripts/contextual-surveys-sdk-contracts')
     const {engine:component,fixture:f}=componentEngine()
     await component.setup();await component.runContractsOnly()
-    vi.mocked(sdkContracts.runContextualSurveysSdkContracts).mockImplementation(actualSdk.runContextualSurveysSdkContracts)
-    vi.mocked(sdkProof.createSurveySdkProofTransport).mockImplementation((...args)=>{seam.sdkTransportReady=true;return actualTransport.createSurveySdkProofTransport(...args)})
+    let shifted=false
+    let observedPhaseDeadline:number|undefined,transportPhaseDeadline:number|undefined
+    vi.mocked(sdkContracts.runSurvey269ComponentSdkContracts).mockImplementation((client,fixture,guard,deadline)=>actualSdk.runSurvey269ComponentSdkContracts(client,fixture,async()=>{
+      await guard();if(!shifted){shifted=true;vi.setSystemTime(Date.now()+30000)}
+    },observedPhaseDeadline=deadline))
+    vi.mocked(sdkProof.createSurveySdkProofTransport).mockImplementation((...args)=>{seam.sdkTransportReady=true;const transport=actualTransport.createSurveySdkProofTransport(...args)
+      return {...transport,start:(deadline:number)=>{transportPhaseDeadline=deadline;transport.start(deadline)}}})
     seam.holdSdkGuard=side==='before'?1:side==='pre'?2:3
     const wire=vi.fn<typeof fetch>(async()=>new Response(JSON.stringify({classroom:{id:f.classes[0].id,teacher_id:f.actors[0].id,archived_at:null},
       survey:{id:f.surveys[0].id,classroom_id:f.classes[0].id,created_by:f.actors[0].id,title:f.tag,status:'active',show_results:true,dynamic_responses:false,
@@ -268,12 +277,16 @@ describe('actual Survey engine budget composition (offline)', () => {
     const operation=component.runSdkCommitted().catch(error=>error).finally(()=>{finished=true})
     for(let n=0;n<2000 && !seam.metadataReplies.length;n++)await Promise.resolve()
     expect(seam.metadataReplies.length).toBeGreaterThan(0)
+    expect(observedPhaseDeadline).toBe(transportPhaseDeadline)
+    expect(component.manifest.caps.sdkMs).toBe(60000)
+    expect(component.manifest.sdkProofPreparation.caps.totalMs).toBe(60000)
     const dispatches=seam.children.length,spawns=seam.spawnCalls.length
     await vi.advanceTimersByTimeAsync(20001)
     expect(finished).toBe(false);expect(seam.children).toHaveLength(dispatches);expect(seam.spawnCalls).toHaveLength(spawns)
     expect(wire).toHaveBeenCalledTimes(side==='post'?1:0)
+    if(side!=='before'){await vi.advanceTimersByTimeAsync(10000);expect(finished).toBe(false);expect(seam.children).toHaveLength(dispatches)}
     if(neverClose){
-      await vi.advanceTimersByTimeAsync(37000)
+      await vi.advanceTimersByTimeAsync(side==='before'?37000:27000)
       expect(await operation).toBeInstanceOf(platform.Survey263UnjoinedChildError)
       expect(component.diagnostic()).toContain(side==='before'?'sdkPending=guard':'settlement=guard')
       expect(seam.children).toHaveLength(dispatches);expect(seam.spawnCalls).toHaveLength(spawns)

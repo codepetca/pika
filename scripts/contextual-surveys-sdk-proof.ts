@@ -9,6 +9,7 @@ import type { Database } from '../src/types/database'
 import type { SurveyNativeFixture } from './contextual-surveys-native-contracts'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
 import { Survey263UnjoinedChildError } from './contextual-assignment-list-proof-platform'
+import { SURVEY_SDK_PHASE_MS } from './contextual-surveys-sdk-contracts'
 import { contextualSurveyDetailSchema, contextualSurveyListSchema, contextualSurveyMemberResultsSchema,
   contextualSurveyOwnerResultsSchema, contextualSurveyMutationSchema, contextualSurveyQuestionMutationSchema,
   contextualSurveyRespondSchema, contextualSurveyDeleteSchema } from '../src/lib/validations/contextual-surveys'
@@ -30,8 +31,9 @@ const names = Object.freeze(['get_survey_for_owner_v1', 'get_surveys_for_owner_v
   'get_survey_for_member_v1', 'get_survey_for_member_v1', 'get_surveys_for_member_v1', 'respond_to_survey_for_member_v1',
   'get_survey_results_for_member_v1', 'get_survey_results_for_owner_v1', 'update_survey_for_owner_v1',
   'create_survey_question_for_owner_v1', 'update_survey_question_for_owner_v1', 'delete_survey_question_for_owner_v1', 'delete_survey_for_owner_v1'])
-export const SURVEY_SDK_PROOF_CAPS = Object.freeze({ calls: 16, expectedCalls: 14, totalMs: 20000,
+export const SURVEY_SDK_PROOF_CAPS = Object.freeze({ calls: 16, expectedCalls: 14, totalMs: SURVEY_SDK_PHASE_MS.legacy,
   requestBytes: 4096, responseBytes: 8 * 1024 * 1024, totalBytes: 14 * (4096 + 8 * 1024 * 1024) })
+export const SURVEY_269_COMPONENT_SDK_CAPS = Object.freeze({ ...SURVEY_SDK_PROOF_CAPS, totalMs: SURVEY_SDK_PHASE_MS.component269 })
 function freeze<T>(value: T): T { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) } return value }
 /** Duplicate JSON keys cannot hide substituted SDK metadata. */
 function parse(text: string): unknown {
@@ -51,9 +53,15 @@ function parse(text: string): unknown {
   return parsed
 }
 export function surveySdkProofManifest(f: SurveyNativeFixture) {
+  return sdkProofManifest(f, SURVEY_SDK_PROOF_CAPS)
+}
+export function survey269ComponentSdkProofManifest(f: SurveyNativeFixture) {
+  return sdkProofManifest(f, SURVEY_269_COMPONENT_SDK_CAPS)
+}
+function sdkProofManifest(f: SurveyNativeFixture, caps: typeof SURVEY_SDK_PROOF_CAPS | typeof SURVEY_269_COMPONENT_SDK_CAPS) {
   assert(Object.isFrozen(f) && Object.isFrozen(f.question))
   return freeze({ version: 1, projectId: f.projectId, origin, method: 'POST', rpcNames: names, fixtureSha256: hash(JSON.stringify(f)),
-    caps: SURVEY_SDK_PROOF_CAPS, executionEnabled: false as const, nativeVerified: false as const })
+    caps, executionEnabled: false as const, nativeVerified: false as const })
 }
 export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget: unknown, original: typeof fetch, guard: () => Promise<void>,
   chargeComponentBytes?: (bytes: number) => void, componentSettlement?: Readonly<{ cleanupDeadline: number }>) {
@@ -84,7 +92,8 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
     finally { if (timer) clearTimeout(timer) }
     if (poison) throw poison
   }
-  const manifest = surveySdkProofManifest(f), manifestSha256 = hash(JSON.stringify(manifest))
+  const manifest = cleanupDeadline === undefined ? surveySdkProofManifest(f) : survey269ComponentSdkProofManifest(f), manifestSha256 = hash(JSON.stringify(manifest))
+  const caps = manifest.caps
   const target = validateAssignmentListProofTarget(rawTarget, f.projectId)
   let deadline: number | undefined, startedAt: number | undefined, failed = false, inFlight = false, calls = 0, bytes = 0, index = 0
   let memberQuestions: z.infer<typeof question>[] | undefined, created: z.infer<typeof question> | undefined
@@ -94,12 +103,12 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
   let firstFailure: Readonly<{ stage: Stage; reason: 'sdk-deadline' | 'caller-abort' | 'operation'; elapsedMs: number; remainingMs: number; completedCalls: number }> | undefined
   function rememberFailure(error: unknown) {
     if (cleanupDeadline !== undefined) firstFailure ??= Object.freeze({ stage, reason: error instanceof SurveySdkBoundaryError ? error.reason : 'operation',
-      elapsedMs: Math.min(900000, Math.max(0, Date.now() - (startedAt ?? Date.now()))), remainingMs: Math.min(20000, Math.max(0, (deadline ?? Date.now()) - Date.now())), completedCalls: index })
+      elapsedMs: Math.min(900000, Math.max(0, Date.now() - (startedAt ?? Date.now()))), remainingMs: Math.min(caps.totalMs, Math.max(0, (deadline ?? Date.now()) - Date.now())), completedCalls: index })
   }
   const owner = f.actors[0].id, member = f.actors[1].id, sid = f.surveys[0].id, cid = f.classes[0].id
   function start(rootDeadline: number) {
     assert(deadline === undefined && !failed && Number.isSafeInteger(rootDeadline) && rootDeadline > Date.now())
-    deadline = Math.min(rootDeadline, Date.now() + SURVEY_SDK_PROOF_CAPS.totalMs)
+    deadline = Math.min(rootDeadline, Date.now() + caps.totalMs)
     startedAt = Date.now()
   }
   function expected() {
@@ -236,10 +245,11 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       try {
         if (cleanupDeadline !== undefined && deadline !== undefined && Date.now() >= deadline) throw new SurveySdkBoundaryError('sdk-deadline')
         assert(!failed && !inFlight && index === 14 && calls === 14 && deadline !== undefined && Date.now() < deadline)
-        return freeze({ calls, bytes, receipts: structuredClone(receipts), nativeVerified: false as const })
+        return freeze({ calls, bytes, receipts: structuredClone(receipts), nativeVerified: false as const,
+          ...(cleanupDeadline === undefined ? {} : { phaseMs: caps.totalMs, absoluteDeadline: deadline }) })
       } catch (error) { rememberFailure(error); throw error }
     },
-    diagnostic: () => `DIAG survey-sdk stage=${stage} calls=${Math.min(calls, 17)} bytes=${Math.min(bytes, SURVEY_SDK_PROOF_CAPS.totalBytes + 1)}${cleanupDeadline === undefined ? '' : ` settlement=${poisonKind} firstStage=${firstFailure?.stage ?? 'none'} firstReason=${firstFailure?.reason ?? 'none'} elapsedMs=${firstFailure?.elapsedMs ?? 0} remainingMs=${firstFailure?.remainingMs ?? 0} completedCalls=${firstFailure?.completedCalls ?? index}`}.`,
+    diagnostic: () => `DIAG survey-sdk stage=${stage} calls=${Math.min(calls, 17)} bytes=${Math.min(bytes, SURVEY_SDK_PROOF_CAPS.totalBytes + 1)}${cleanupDeadline === undefined ? '' : ` settlement=${poisonKind} firstStage=${firstFailure?.stage ?? 'none'} firstReason=${firstFailure?.reason ?? 'none'} elapsedMs=${firstFailure?.elapsedMs ?? 0} remainingMs=${firstFailure?.remainingMs ?? 0} completedCalls=${firstFailure?.completedCalls ?? index} phaseMs=${caps.totalMs}`}.`,
   })
 }
 
@@ -306,8 +316,8 @@ export function surveyMembershipRestoreSql(f: SurveyNativeFixture, rawBefore: un
 /** Fixed SDK terminal state: Survey, original question and all target responses
  * absent.095/112: six resource writes plus five Blueprint classroom updates =
  * eleven archive revisions; five Blueprint revisions. Native confirmation is pending. */
-function sdkTerminalEffects(f: SurveyNativeFixture, rawBefore: unknown, rawAfter: unknown, window: { startedAt: string; endedAt: string }) {
-  windowBounds(window); assert(Date.parse(window.endedAt) - Date.parse(window.startedAt) <= SURVEY_SDK_PROOF_CAPS.totalMs)
+function sdkTerminalEffects(f: SurveyNativeFixture, rawBefore: unknown, rawAfter: unknown, window: { startedAt: string; endedAt: string }, phaseMs: number) {
+  windowBounds(window); assert(Date.parse(window.endedAt) - Date.parse(window.startedAt) <= phaseMs)
   const before = graph(rawBefore), after = graph(rawAfter), sid = f.surveys[0].id, cid = f.classes[0].id
   const priorSurvey = survey.parse(exactOne(before, 'public.surveys', 'id', sid))
   assert.equal(priorSurvey.classroom_id, cid); assert.equal(priorSurvey.created_by, f.actors[0].id)
@@ -327,7 +337,10 @@ function sdkTerminalEffects(f: SurveyNativeFixture, rawBefore: unknown, rawAfter
   return freeze({ kind: 'sdk-terminal-effects', sourcePreserved: true, nativeVerified: false as const, archiveRevisionDelta: 11, blueprintRevisionDelta: 5 })
 }
 export function verifySurveySdkTerminalEffects(f: SurveyNativeFixture, rawBefore: unknown, rawAfter: unknown, window: { startedAt: string; endedAt: string }) {
-  try { return sdkTerminalEffects(f, rawBefore, rawAfter, window) } catch { throw new Error('Survey terminal effects proof refused; private details withheld') }
+  try { return sdkTerminalEffects(f, rawBefore, rawAfter, window, SURVEY_SDK_PROOF_CAPS.totalMs) } catch { throw new Error('Survey terminal effects proof refused; private details withheld') }
+}
+export function verifySurvey269ComponentSdkTerminalEffects(f: SurveyNativeFixture, rawBefore: unknown, rawAfter: unknown, window: { startedAt: string; endedAt: string }) {
+  try { return sdkTerminalEffects(f, rawBefore, rawAfter, window, SURVEY_269_COMPONENT_SDK_CAPS.totalMs) } catch { throw new Error('Survey terminal effects proof refused; private details withheld') }
 }
 /** A legitimate fresh enrollment INSERT invokes168; no UPDATE/DELETE of private
  * evidence is accepted. Only the fixed removed/current pair can differ. */

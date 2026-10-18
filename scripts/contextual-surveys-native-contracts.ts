@@ -11,15 +11,15 @@ import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import { contextualSurveysConcurrencyCases } from './contextual-surveys-concurrency-cases'
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 import type { Database } from '../src/types/database'
-import { surveySdkProofManifest } from './contextual-surveys-sdk-proof'
+import { surveySdkProofManifest, survey269ComponentSdkProofManifest, SURVEY_269_COMPONENT_SDK_CAPS } from './contextual-surveys-sdk-proof'
 import { surveyCommittedProofManifest } from './contextual-surveys-committed-proof'
 
 export const SURVEY_NATIVE_SOURCES = freeze({
   migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9' },
   contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: 'd0e71b2e598b179e2947f34ee7023da7dc9ce29582db1faffefb3cc0ef385ec0' },
-  sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: 'f045c59fadd93a636bdaf8ec7fc447e54086e47c7ce7a6caae3817de37c54172' },
+  sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: '653ff7e1e4aec166808a1406a862d3f45ef2e109b4cec24b355e0a6e56f28538' },
   races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
-  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: '522947ce617c5953233e3319e9c56b383a99b4c85646ee5b24e2d08eb7737646' },
+  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'fea6313bddbee03e26d33cdcf257015f8e05d0d04443f0bd2aeb0debaf7ac5c1' },
 })
 export const SURVEY_NATIVE_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   schedules: 30, sessions: 2, actionMs: 35000, closeMs: 12000, sdkRequests: 16, sdkMs: 20000 })
@@ -86,7 +86,7 @@ function checked(repository: string, source: { file: string; sha256: string }) {
   return bytes.toString('utf8')
 }
 const sourcePlans = new WeakMap<object, object>()
-function sealed(plan: SurveyNativePlan) {
+function sealed(plan: SurveyNativePlan | Survey269ComponentPlan) {
   const original = sourcePlans.get(plan.contracts)
   return original !== undefined && Object.isFrozen(plan) && Object.keys(original).every(key =>
     plan[key as keyof SurveyNativePlan] === (original as SurveyNativePlan)[key as keyof SurveyNativePlan])
@@ -257,6 +257,8 @@ export function survey269ComponentPlan(original: AssignmentListProofFixture, sou
     sourceSha256: SURVEY_269_COMPONENT_SCHEMA.sourceSha256,
     sources: {...legacy.sources, migration: {file: `supabase/migrations/${SURVEY_269_COMPONENT_SCHEMA.file}`, sha256: SURVEY_269_COMPONENT_SCHEMA.sourceSha256}},
     concurrency: { ...legacy.concurrency, schedules: [] },
+    caps: { ...legacy.caps, sdkMs: SURVEY_269_COMPONENT_SDK_CAPS.totalMs },
+    sdkProofPreparation: survey269ComponentSdkProofManifest(legacy.fixture),
     inventoryComplete: false as const, nativeVerified: false as const,
     requiredBeforeAcceptance: ['remaining-full-proof-is-separate-and-incomplete'] })
   sourcePlans.set(plan.contracts, plan);return plan
@@ -377,7 +379,7 @@ export function validateSurveyNativeSql(plan: SurveyNativePlan, sql: string) {
     && [plan.setup, plan.snapshot, plan.contracts.sql, plan.concurrency.close,
       ...plan.concurrency.schedules.flatMap(row => [row.holder, row.contender])].includes(sql)
 }
-async function validateTarget(plan: SurveyNativePlan, target: DraftSaveTarget, driver: DraftSaveDriver, phase: 'contracts' | 'concurrency') {
+async function validateTarget(plan: SurveyNativePlan | Survey269ComponentPlan, target: DraftSaveTarget, driver: DraftSaveDriver, phase: 'contracts' | 'concurrency') {
   assert(sealed(plan), 'Survey native plan is not source-sealed')
   assert.equal(target.projectId, plan.projectId)
   assert.equal(target.reviewedHead, plan.reviewedHead)
