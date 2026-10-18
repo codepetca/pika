@@ -25,8 +25,18 @@ $payload_state$;
 revoke all on function pg_temp.survey_payload_state(uuid) from public,anon,authenticated,service_role;
 create temporary table survey_payload_receipts(label text primary key,measured_bytes integer not null,measured_count integer,expected_code text,verified boolean not null) on commit drop;
 
+-- INFO SQLSTATE alone survives psql VERBOSITY=sqlstate; no payload is logged.
+create function pg_temp.survey_progress(p_step integer) returns void language plpgsql set search_path='' as $progress$
+begin
+  assert p_step between 1 and 211,'Survey progress bound differs';
+  raise info using errcode='PS'||lpad(p_step::text,3,'0'),message='';
+end;
+$progress$;
+revoke all on function pg_temp.survey_progress(integer) from public,anon,authenticated,service_role;
+
 do $contract$
 declare
+  v_progress integer:=0;v_family text;
   v_owner uuid:=gen_random_uuid(); v_member uuid:=gen_random_uuid(); v_other uuid:=gen_random_uuid();
   v_classroom uuid:=gen_random_uuid(); v_foreign_classroom uuid:=gen_random_uuid();
   v_survey uuid; v_foreign_survey uuid; v_question uuid; v_choice uuid; v_link uuid;
@@ -39,6 +49,7 @@ declare
   v_before text; v_call_before text; v_probe jsonb; v_result jsonb; v_question_patch jsonb;
   v_fixture_before text; v_fixture_verified boolean; v_saved_receipts jsonb; v_count integer; v_last_question uuid;
 begin
+  v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
   -- Verify actual catalog ACLs, not migration text.
   foreach v_function in array array[
     'public.get_survey_for_owner_v1(uuid,uuid)'::regprocedure,
@@ -211,6 +222,8 @@ begin
   assert (select revision>v_archive from public.classroom_archive_revisions where classroom_id=v_classroom);
   assert (select blueprint_source_revision>v_blueprint from public.classrooms where id=v_classroom);
 
+  execute 'reset role';
+  v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
   -- Payload subset, folded into this SAME rollback dispatch. All later large
   -- fixtures have fixed literal row bounds; source tests are preparation only.
   -- The unchanged 35s whole-statement and 8s RPC limits still require native proof.
@@ -233,6 +246,7 @@ begin
         when v_case in ('question-create','question-update') then 'survey_invalid_question'
         when v_case='expected-question' then 'survey_question_changed'
         when v_case='expected-questions' then 'survey_questions_changed' else 'survey_payload_limit' end;
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       v_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_verified:=false;v_measured:=0;
       begin
         if v_case='owner-patch' then
@@ -286,6 +300,7 @@ begin
         if v_delta<2 then assert v_measured=v_limit+v_delta,'Exact SQL payload measurement differs';end if;
         v_call_before:=pg_temp.survey_payload_state(v_foreign_classroom);
         v_code:=null;v_message:=null;
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         begin
           execute 'set local role service_role';
           case v_case
@@ -304,6 +319,7 @@ begin
           end case;
         exception when others then get stacked diagnostics v_code=returned_sqlstate,v_message=message_text;end;
         execute 'reset role';
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         if v_expected_code is null then
           assert v_code is null,'Exact positive SQL boundary was rejected';
           if v_case='owner-patch' then
@@ -334,6 +350,7 @@ begin
       exception when sqlstate 'ZP001' then null;end;
       assert v_verified,'Payload case did not reach its independent assertions';
       assert pg_temp.survey_payload_state(v_foreign_classroom)=v_before,'Payload subtransaction restoration differs';
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       insert into survey_payload_receipts values(v_case||case v_delta when 0 then ':exact' when 1 then ':plus-one' else ':shape' end,v_measured,null,v_expected_code,true);
       v_result:=null;v_probe:=null;v_payload:=null;
     end loop;
@@ -343,6 +360,7 @@ begin
   -- only the stored title changes exactly one string in each guard expression.
   foreach v_case in array array['list-owner','list-member','results-owner','results-member'] loop
     for v_delta in 0..1 loop
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       v_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_verified:=false;
       v_expected_code:=case when v_delta=0 then null else 'PT503' end;
       begin
@@ -367,6 +385,7 @@ begin
         update public.surveys set title=repeat('x',8388608+v_delta-v_base) where id=v_foreign_survey;
         assert v_measured=8388608+v_delta,'Exact read payload measurement differs';
         v_call_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_code:=null;v_message:=null;
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         begin
           execute 'set local role service_role';
           case v_case
@@ -377,6 +396,7 @@ begin
           end case;
         exception when others then get stacked diagnostics v_code=returned_sqlstate,v_message=message_text;end;
         execute 'reset role';
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         if v_delta=0 then
           assert v_code is null,'Exact read byte boundary was rejected';
           assert v_result=v_probe,'Exact read payload projection differs';
@@ -388,6 +408,7 @@ begin
         raise exception using errcode='ZP001',message='survey_payload_case_rollback';
       exception when sqlstate 'ZP001' then null;end;
       assert v_verified and pg_temp.survey_payload_state(v_foreign_classroom)=v_before,'Read byte restoration differs';
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       insert into survey_payload_receipts values(v_case||case v_delta when 0 then ':exact' else ':plus-one' end,v_measured,null,v_expected_code,true);
       v_probe:=null;v_result:=null;
     end loop;
@@ -398,6 +419,7 @@ begin
   assert (select count(*)=1 from public.surveys where classroom_id=v_foreign_classroom);
   assert (select count(*)=1 from public.survey_questions where survey_id=v_foreign_survey);
   assert not exists(select 1 from public.survey_responses where survey_id=v_foreign_survey);
+  v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
   v_fixture_before:=pg_temp.survey_payload_state(v_foreign_classroom);
   v_fixture_verified:=false;v_saved_receipts:='[]'::jsonb;
   begin
@@ -409,7 +431,9 @@ begin
     select jsonb_object_agg(id::text,jsonb_build_object('question_type','short_text','response_text','x'))
       into v_answers from public.survey_questions where survey_id=v_foreign_survey;
     v_base:=octet_length(v_answers::text);
+    v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
     for v_delta in 0..2 loop
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       v_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_verified:=false;
       v_expected_code:=case when v_delta=0 then null else 'PT400' end;
       begin
@@ -423,11 +447,13 @@ begin
           assert not exists(select 1 from jsonb_each(v_probe) where length(value->>'response_text') not between 1 and 5000);
         end if;
         v_measured:=octet_length(v_probe::text);v_call_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_code:=null;v_message:=null;
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         begin
           execute 'set local role service_role';
           v_result:=public.respond_to_survey_for_member_v1(v_other,v_foreign_survey,v_foreign_classroom,v_questions,v_probe);
         exception when others then get stacked diagnostics v_code=returned_sqlstate,v_message=message_text;end;
         execute 'reset role';
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         if v_delta=0 then
           assert v_code is null,'Exact response-vector boundary was rejected';
           assert v_result='{"success":true,"updated":false}'::jsonb;
@@ -441,6 +467,7 @@ begin
         raise exception using errcode='ZP001',message='survey_payload_case_rollback';
       exception when sqlstate 'ZP001' then null;end;
       assert v_verified and pg_temp.survey_payload_state(v_foreign_classroom)=v_before,'Response-vector subtransaction restoration differs';
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       v_saved_receipts:=v_saved_receipts||jsonb_build_array(jsonb_build_array('response-vector'||case v_delta when 0 then ':exact' when 1 then ':plus-one' else ':shape' end,v_measured,null,v_expected_code,true));
       v_probe:=null;v_result:=null;
     end loop;
@@ -448,34 +475,53 @@ begin
     raise exception using errcode='ZP002',message='survey_payload_fixture_rollback';
   exception when sqlstate 'ZP002' then null;end;
   assert v_fixture_verified and pg_temp.survey_payload_state(v_foreign_classroom)=v_fixture_before,'Response-vector fixture restoration differs';
+  v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
   insert into survey_payload_receipts select value->>0,(value->>1)::integer,(value->>2)::integer,value->>3,(value->>4)::boolean from jsonb_array_elements(v_saved_receipts);
   v_answers:=null;v_questions:=null;
 
-  -- Shared literal-bounded count fixture: 10001 Surveys, 10001 questions and
-  -- 10001 consistent answers. The member response count is joint with the question count:
+  -- Two rollback fixture families in this SAME DO/frame: list cases need many
+  -- Surveys but only one answered question; other counts need only one Survey.
+  -- The small answered list fixture adds exactly one real response insertion.
+  -- Literal bounds: list family has 10001 Surveys/one question/one answer;
+  -- question family has one Survey/10001 questions/10001 consistent answers.
+  -- The member response count is joint with the question count:
   -- unique(question_id,student_id) prevents an independent valid +1 answer.
   -- No triggers, constraints, ACLs or original function bodies are changed.
+  foreach v_family in array array['questions','lists'] loop
+  v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
   v_fixture_before:=pg_temp.survey_payload_state(v_foreign_classroom);
   v_fixture_verified:=false;v_saved_receipts:='[]'::jsonb;
   begin
+    if v_family='lists' then
     insert into public.surveys(classroom_id,title,status,show_results,dynamic_responses,position,created_by)
       select v_foreign_classroom,'S','active',true,false,n,v_owner from generate_series(1,10000) n;
+    else
     insert into public.survey_questions(survey_id,question_type,question_text,options,response_max_chars,position)
       select v_foreign_survey,'short_text','Q','[]'::jsonb,5000,n from generate_series(1,10000) n;
-    assert (select count(*)=10001 from public.surveys where classroom_id=v_foreign_classroom);
-    assert (select count(*)=10001 from public.survey_questions where survey_id=v_foreign_survey);
+    end if;
+    assert (select count(*)=(case when v_family='lists' then 10001 else 1 end) from public.surveys where classroom_id=v_foreign_classroom);
+    assert (select count(*)=(case when v_family='questions' then 10001 else 1 end) from public.survey_questions where survey_id=v_foreign_survey);
+    v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
+    if v_family='lists' then
+      insert into public.survey_responses(survey_id,question_id,student_id,response_text) values(v_foreign_survey,v_boundary_question,v_other,'x');
+      assert (select count(*)=1 from public.survey_responses where survey_id=v_foreign_survey and student_id=v_other);
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
+    end if;
     select id into v_last_question from public.survey_questions where survey_id=v_foreign_survey order by position desc,id desc limit 1;
     update public.surveys set dynamic_responses=true where id=v_foreign_survey;
     -- Results counts run first without answers, avoiding 10000 repeated scans
     -- of a large scoped aggregate. The later consistent-answer fixture is built
     -- once, outside each individual case and inside the outer rollback sentinel.
-    foreach v_case in array array['results-owner','results-member','detail-questions-owner','detail-questions-member','detail-responses-member-joint','list-owner','list-member','response-questions'] loop
+    foreach v_case in array (case when v_family='questions' then array['results-owner','results-member','detail-questions-owner','detail-questions-member','detail-responses-member-joint','response-questions'] else array['list-owner','list-member'] end) loop
       for v_delta in 0..1 loop
         if v_case='detail-questions-owner' and v_delta=0 then
+          v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
           insert into public.survey_responses(survey_id,question_id,student_id,response_text)
             select v_foreign_survey,id,v_other,'x' from public.survey_questions where survey_id=v_foreign_survey;
           assert (select count(*)=10001 from public.survey_responses where survey_id=v_foreign_survey and student_id=v_other);
+          v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         end if;
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         v_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_verified:=false;
         v_expected_code:=case when v_delta=0 then null when v_case='response-questions' then 'PT400' else 'PT503' end;
         begin
@@ -501,7 +547,7 @@ begin
           if v_case in ('list-owner','list-member') then
             select jsonb_agg(to_jsonb(survey)||case when v_case='list-member' then jsonb_build_object('has_submitted',survey.id=v_foreign_survey)
               else jsonb_build_object('stats',jsonb_build_object('total_students',1,
-                'questions_count',case when survey.id=v_foreign_survey then 10001 else 0 end,
+                'questions_count',case when survey.id=v_foreign_survey then 1 else 0 end,
                 'responded',case when survey.id=v_foreign_survey then 1 else 0 end)) end order by position,created_at,id)
               into v_payload from public.surveys survey where classroom_id=v_foreign_classroom;
             select jsonb_build_object('classroom',jsonb_build_object('id',id,'teacher_id',teacher_id,'archived_at',archived_at),'surveys',v_payload)
@@ -533,6 +579,7 @@ begin
           end if;
           assert v_measured<8388608 and octet_length(v_answers::text)<8388608 and octet_length(v_questions::text)<8388608,'Count fixture bytes would mask the count guard';
           v_call_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_code:=null;v_message:=null;
+          v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
           begin
             execute 'set local role service_role';
             case v_case
@@ -547,6 +594,7 @@ begin
             end case;
           exception when others then get stacked diagnostics v_code=returned_sqlstate,v_message=message_text;end;
           execute 'reset role';
+          v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
           if v_delta=0 then
             assert v_code is null,'Exact count boundary was rejected';
             if v_case in ('list-owner','list-member') then
@@ -580,6 +628,7 @@ begin
           raise exception using errcode='ZP001',message='survey_payload_case_rollback';
         exception when sqlstate 'ZP001' then null;end;
         assert v_verified and pg_temp.survey_payload_state(v_foreign_classroom)=v_before,'Count subtransaction restoration differs';
+        v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
         v_saved_receipts:=v_saved_receipts||jsonb_build_array(jsonb_build_array('count-'||v_case||case v_delta when 0 then ':exact' else ':plus-one' end,v_measured,v_count,v_expected_code,true));
         v_result:=null;v_questions:=null;v_answers:=null;v_probe:=null;v_payload:=null;
       end loop;
@@ -588,10 +637,14 @@ begin
     raise exception using errcode='ZP002',message='survey_payload_fixture_rollback';
   exception when sqlstate 'ZP002' then null;end;
   assert v_fixture_verified and pg_temp.survey_payload_state(v_foreign_classroom)=v_fixture_before,'Count fixture restoration differs';
+  v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
   insert into survey_payload_receipts select value->>0,(value->>1)::integer,(value->>2)::integer,value->>3,(value->>4)::boolean from jsonb_array_elements(v_saved_receipts);
+
+  end loop;
 
   -- Independent nonzero-question and exact response-key cardinality guards.
   foreach v_case in array array['response-empty','response-keys-short','response-keys-extra'] loop
+    v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
     v_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_verified:=false;
     begin
       if v_case='response-empty' then delete from public.survey_questions where survey_id=v_foreign_survey;end if;
@@ -599,20 +652,25 @@ begin
       v_answers:=case when v_case='response-keys-extra' then jsonb_build_object(v_boundary_question::text,jsonb_build_object('question_type','short_text','response_text','x'),v_question::text,jsonb_build_object('question_type','short_text','response_text','x')) else '{}'::jsonb end;
       select count(*) into v_count from jsonb_object_keys(v_answers);
       v_measured:=octet_length(v_answers::text);v_call_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_code:=null;v_message:=null;
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       begin
         execute 'set local role service_role';
         v_result:=public.respond_to_survey_for_member_v1(v_other,v_foreign_survey,v_foreign_classroom,v_questions,v_answers);
       exception when others then get stacked diagnostics v_code=returned_sqlstate,v_message=message_text;end;
       execute 'reset role';
+      v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
       assert v_code='PT400' and v_message='survey_invalid_responses','Response cardinality denial differs';
       assert pg_temp.survey_payload_state(v_foreign_classroom)=v_call_before,'Response cardinality denial changed data/revisions';
       v_verified:=true;
       raise exception using errcode='ZP001',message='survey_payload_case_rollback';
     exception when sqlstate 'ZP001' then null;end;
     assert v_verified and pg_temp.survey_payload_state(v_foreign_classroom)=v_before,'Response cardinality restoration differs';
+    v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
     insert into survey_payload_receipts values('count-'||v_case,v_measured,v_count,'PT400',true);
   end loop;
   assert (select count(*)=49 from survey_payload_receipts),'Payload matrix receipt count differs';
+  v_progress:=v_progress+1;perform pg_temp.survey_progress(v_progress);
+  assert v_progress=211,'Survey progress sequence differs';
 end;
 $contract$;
 -- Compact source-owned receipts only; never SELECT giant payloads/graphs.

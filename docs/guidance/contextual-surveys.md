@@ -126,29 +126,39 @@ Its genuine old-schema artifact SHA256 was
 That spent component retained `nativeVerified=false` and cannot certify the
 current001–269 base or be retried/rebound as a new acceptance attempt.
 
-The extracted inert rollback SQL, installed-SDK companion and fifteen SQL race
-definitions remain available to the coordinator's guarded verification workflow.
-The rollback SQL's original nineteen exact/one-byte-over/input-shape payload cases
-executed in the current-base prerequisite. Its next source-only revision prepares
-49 cases: valid multi-answer 8 MiB vectors, list/results byte pairs, reachable
-10,000/10,001 count pairs and cardinality denials. Shared bounded fixtures and
-every success/denial subtransaction must restore complete scoped rows/revisions;
-only a versioned compact receipt leaves SQL. The member response-count pair is
-joint with the question count, not independent OR-term attribution. The new
-matrix's native parsing, acceptance and unchanged 35-second fit remain unverified;
-CPU tests do not establish them or the separate wire limit. Old runner seals tied
-to001–263 are excluded from this product extraction.
+The rollback SQL's original nineteen payload cases passed the component
+prerequisite. Its expanded49-case matrix failed the first remaining attempt at
+the unchanged35-second frame deadline without case telemetry. That attempt is
+permanently spent; current49-case acceptance and deadline fit remain unproved.
+The matrix retains valid8MiB answer vectors, list/results byte pairs, all reachable
+10,000/10,001 count pairs, cardinality denials and complete row/revision equality.
+The member response-count pair remains joint with question count.
 
-The owner approved a separate remaining-proof ceiling of6000 control commands and
-60 seconds for its SDK phase, retaining200 native actions,64 MiB,16 HTTP requests,
-two sessions and the original12-minute work/3-minute cleanup clocks. This does not
-reopen a spent attempt or change the earlier component/legacy profiles. Complete
-success/failure accounting and independent review still precede native admission.
+Correction128 separates count fixture families within the same DO and outer
+rollback: twelve question/response cases use one Survey; four list cases use
+10,001 Surveys and one real answered question (submitted=true/responded=1,
+questioncount1). This adds one response insertion and a family restoration
+check. Every real trigger, threshold, byte-mask assertion, RPC projection and
+restored equality check remains. No product migration/helper/digest changes,
+fixture commits, extra SQL frames, native actions or controls are introduced.
+The shared SQL now emits211 bounded INFO SQLSTATE stage markers. The carrier
+stores only closed identifiers and monotonic elapsed time, freezes on first
+failure and joins both output pipes under the original deadline. Telemetry is
+not acceptance; its224-event/128-byte-line maximum is28,672 bytes charged to the
+existing exchange ledger.
 
-Remaining gates are the complete accounted native proof: actual committed races
-in both directions with observed blocking, timeout and cancellation/finally
-restoration, remaining size/count/wire boundaries and the full proof's SDK scope;
-existing-screen mixed-role Survey rehearsal, independent cumulative review and
-stable reviewed-SHA CI/PR Gate. No new UI is included. No production/shared-local
-migration, provider/account/billing action, admission/home/page/cohort/cutover
-activation or phase exit is authorized by this preparation.
+The integrated remaining269 source inventory counts198 native actions,4008
+native controls,4366 normal-completion or4387 partial-teardown controls,
+16 original HTTP requests and14 observer frames. The owner-approved6000 controls,
+60-second SDK phase,200-action ceiling,64MiB exchange cap, two persistent sessions,
+35-second SQL frame,8-second RPC behavior and original12-minute work plus3-minute
+cleanup clocks remain. Actual complete exchange bytes and native fit require a
+separately admitted new attempt. Earlier component/legacy profiles are unchanged.
+
+Remaining gates are the full native proof:30 committed directions with observed
+blocking, original HTTP cancellation/wire boundaries and finally restoration,
+ordinary14 SDK operations, genuine269 types, exact global/source/dependency
+preservation; existing-screen mixed-role Survey rehearsal; independent cumulative
+review and stable reviewed-SHA CI/PR Gate. No nativeVerified flag is raised.
+No production/shared-local migration, provider/account/billing action,
+admission/home/page/cohort/cutover activation or phase exit is authorized.
