@@ -284,6 +284,33 @@ Guard child APIs/joins and original cleanup remain unchanged. Normal198actions,
 4008nativecontrols,16HTTP and874,891 static SQL bytes remain unchanged; all user
 overall budgets, product RPC8s behavior and production holds remain in force.
 
+Correction133 addresses the fifth remaining attempt's restoration failure.
+Its49-case matrix completed211 valid markers in82,115ms and all30 committed
+directions reached their terminal checks. The original cancellation response and
+pending-backend proof passed, but restoration failed at action190. Authorized
+recovery identified the missing relation as the cancellation baseline's TOAST
+table: a table-sourced JSONB variable was reused after dropping its backing table.
+The failed restoration transaction retained its instrumentation. Root subsequently
+verified the full184-table/catalog baseline equality and settled the exact owned
+runtime/resources; that recovery does not turn the spent fifth attempt into a pass.
+
+Both cancellation restore variants and wire restore now select
+`(state::text)::jsonb` into their captured baseline before DROP. Complete state
+comparisons, receipt hashes, backend ownership, real triggers and revision checks
+are retained. A standalone rollback-contained forced-external-TOAST regression is
+prepared at `scripts/contextual-surveys-restoration-toast-regression.sql`; it is
+not part of any runner and still requires separately authorized isolated execution.
+CPU source checks alone do not prove PostgreSQL storage lifetime behavior.
+
+Only the remaining profile's volume/network inspections now request compact
+**full** JSON objects (`--format '{{json .}}'`), with the same complete global
+lists, IDs, labels, foreign attachments, guards, joins and actual raw-byte charges.
+Legacy/component array output and the container template are unchanged. No field
+projection, cache, skipped inspection or control/action reduction is introduced.
+Normal198actions/4008nativecontrols/16HTTP and all existing caps remain unchanged.
+Measured representation savings do not establish complete64MiB budget fit; that
+remains a separate admission blocker, as do real TOAST and full remaining proof.
+
 The original cancellation and wire probes,30 committed directions, ordinary
 14 SDK calls, genuine269 types, restoration/preservation and screen proof remain
 required. No nativeVerified flag is raised, no spent attempt is replayed, and

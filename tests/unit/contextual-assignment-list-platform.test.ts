@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs, assignmentListDockerInventory, survey269RemainingDockerInventory, assignmentListSnapshotSql, decodeAssignmentListSnapshot } from '../../scripts/contextual-assignment-list-proof-platform'
+import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs, assignmentListDockerInventory, survey269ComponentDockerInventory, survey269RemainingDockerInventory, assignmentListSnapshotSql, decodeAssignmentListSnapshot } from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { parseAssignmentListLifecycleArgs } from '../../scripts/check-contextual-assignment-list-lifecycle'
@@ -112,10 +112,60 @@ describe('assignment-list native platform proof contracts (offline)', () => {
   it('remaining inventory accepts exactly128 complete identities and fresh empty global lists', async () => {
     const volumes = Array.from({ length: 128 }, (_, index) => ({ Name: `offline_${index}`, CreatedAt: 'offline', Labels: {} }))
     const run = vi.fn(async (_file: string, args: string[]) => args[0] === 'volume'
-      ? args[1] === 'ls' ? volumes.map(row => row.Name).join('\n') : JSON.stringify(volumes) : '')
+      ? args[1] === 'ls' ? volumes.map(row => row.Name).join('\n') : volumes.map(row=>JSON.stringify(row)).join('\n') : '')
     expect(await survey269RemainingDockerInventory(run)).toHaveLength(128)
     expect(run).toHaveBeenCalledTimes(4)
     expect(await survey269RemainingDockerInventory(async () => '')).toEqual([])
+  })
+  function compactInventoryRunner(defect?: {kind:'volume'|'network';output:string}) {
+    const first='1'.repeat(64),foreign='2'.repeat(64),network='3'.repeat(64)
+    const containers=[first,foreign].map((id,index)=>({id,name:`/container_${index}`,labels:index?null:{'com.docker.compose.project':'owned',escaped:'line\n"漢'},
+      mounts:[{Type:'volume',Name:'shared_volume'},{Type:'bind',Source:'/unused',Destination:'/data'}],networks:{shared:{NetworkID:network}},
+      bindings:{'80/tcp':[{HostIp:'127.0.0.1',HostPort:'54331'}],'81/tcp':null},created:`2026-10-18T10:00:0${index}Z`}))
+    const volumes=[{Name:'shared_volume',CreatedAt:'2026-10-18T10:00:00Z',Labels:null,Driver:'local',Options:{opaque:'keep\nall'},Status:{unknown:[null,{nested:true}]}},
+      {Name:'empty_volume',CreatedAt:'2026-10-18T10:00:01Z',Labels:{foreign:'retain'},Mountpoint:'/full/metadata',Options:null}]
+    const networks=[{Id:network,Name:'shared_network',Created:'2026-10-18T10:00:00Z',Labels:{foreign:'keep'},Containers:{[first]:{Name:'owned',IPv4Address:'172.20.0.2/16'},[foreign]:{Name:'foreign',IPv6Address:''}},IPAM:{Config:[{Subnet:'172.20.0.0/16'}]},Options:null},
+      {Id:'4'.repeat(64),Name:'empty_network',Created:'2026-10-18T10:00:01Z',Labels:null,Containers:null,Internal:false}]
+    let bytes=0
+    const run=vi.fn(async (_file:string,args:string[])=>{
+      let output:string
+      if(args[0]==='ps')output=containers.map(row=>row.id).join('\n')
+      else if(args[0]==='inspect')output=containers.map(row=>JSON.stringify(row)).join('\n')
+      else {
+        const rows=args[0]==='volume'?volumes:networks
+        if(args[1]==='ls')output=args[0]==='volume'?volumes.map(row=>row.Name).join('\n'):networks.map(row=>row.Id).join('\n')
+        else if(defect?.kind===args[0])output=defect.output
+        else output=args.includes('--format')?rows.map(row=>JSON.stringify(row)).join('\r\n')+'\r\n':JSON.stringify(rows,null,4)
+      }
+      bytes+=Buffer.byteLength(output);return output
+    })
+    return {run,volumes,networks,first,foreign,network,bytes:()=>bytes}
+  }
+  it('remaining compacts full metadata only, preserving fresh global resources, foreign attachments and legacy/component arrays',async()=>{
+    const legacy=compactInventoryRunner(),component=compactInventoryRunner(),remaining=compactInventoryRunner()
+    const expected=await assignmentListDockerInventory(legacy.run)
+    expect(await survey269ComponentDockerInventory(component.run)).toEqual(expected)
+    expect(await survey269RemainingDockerInventory(remaining.run)).toEqual(expected)
+    for(const old of [legacy,component])expect(old.run.mock.calls.filter(([,args])=>args[1]==='inspect').every(([,args])=>!args.includes('--format'))).toBe(true)
+    for(const kind of ['volume','network']) {
+      const calls=remaining.run.mock.calls.filter(([,args])=>args[0]===kind&&args[1]==='inspect')
+      expect(calls).toHaveLength(1);expect(calls[0][1].slice(0,4)).toEqual([kind,'inspect','--format','{{json .}}'])
+    }
+    expect(expected.find(row=>row.name==='shared_volume')?.attachedIds).toEqual([remaining.first,remaining.foreign])
+    expect(expected.find(row=>row.id===remaining.network)?.attachedIds).toEqual([remaining.first,remaining.foreign])
+    expect(remaining.run).toHaveBeenCalledTimes(6);expect(remaining.bytes()).toBeLessThan(legacy.bytes())
+    expect(remaining.run.mock.calls.some(([,args])=>args.includes('--filter'))).toBe(false)
+    await survey269RemainingDockerInventory(remaining.run);expect(remaining.run).toHaveBeenCalledTimes(12)
+  })
+  it.each(['volume','network'] as const)('remaining rejects malformed, duplicate, missing and substituted %s identities',async kind=>{
+    const sample=compactInventoryRunner(),rows=kind==='volume'?sample.volumes:sample.networks
+    const lines=(values:unknown[])=>values.map(row=>JSON.stringify(row)).join('\n')
+    const identity=kind==='volume'?'Name':'Id'
+    const missing={...rows[0]};delete (missing as Record<string,unknown>)[identity]
+    for(const output of ['{',JSON.stringify(rows),lines([null,rows[1]]),lines(['wrong',rows[1]]),lines([missing,rows[1]]),
+      lines([{...rows[0],[identity]:'substituted'},rows[1]]),lines([rows[0],rows[0]]),lines([rows[0]]),lines(rows)+'\nmalformed']) {
+      await expect(survey269RemainingDockerInventory(compactInventoryRunner({kind,output}).run)).rejects.toThrow()
+    }
   })
   it('keeps startup error output in one private no-overwrite receipt, not the console', () => {
     const project = `pika_assignment_list_${randomUUID().replaceAll('-', '').slice(0, 12)}`

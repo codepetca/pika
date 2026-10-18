@@ -164,7 +164,8 @@ export function surveyCancellationProofDescriptor(f: SurveyNativeFixture) {
  if to_regprocedure(${q(fn + '()')}) is not null or exists(select 1 from pg_trigger where tgname=${q(name)}) or exists(select 1 from pg_stat_activity where application_name=${q(marker)}) then raise exception 'Survey cancellation orphan instrumentation';end if;
  insert into survey_cancel_restored values(jsonb_build_object('stage','absent-unverified','descriptorSha256',${q(descriptorSha256)},'nativeVerified',false));return;end if;
  ${tableCheck}
- select state,pending,installed into strict captured,pending_backend,saved_installed from ${baseline};
+ -- Own the full JSONB value independently of the baseline's TOAST relation before DROP.
+ select (state::text)::jsonb,pending,installed into strict captured,pending_backend,saved_installed from ${baseline};
  ${dispatched ? `if pending_backend is null then raise exception 'Survey cancellation dispatched backend ownership absent';end if;
  perform pg_stat_clear_snapshot();
  if exists(select 1 from pg_stat_activity where pid=(pending_backend->>'pid')::integer and backend_start=(pending_backend->>'started')::timestamptz

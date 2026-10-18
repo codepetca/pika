@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { newSurveyNativeFixture } from '../../scripts/contextual-surveys-native-contracts'
 import type { AssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { surveyCancellationProofDescriptor, surveyRemainingScheduleLowerBound, validateSurveyCancellationSql, inspectSurveyCancellationPendingShape,
@@ -17,6 +18,30 @@ function pending(d: ReturnType<typeof make>) {
 }
 
 describe('inert source-owned Survey cancellation descriptor', () => {
+  it('keeps the separately authorized TOAST regression rollback-contained with real external-storage and negative equality checks', () => {
+    const sql=readFileSync('scripts/contextual-surveys-restoration-toast-regression.sql','utf8')
+    expect(sql).toContain("set local statement_timeout='8s'")
+    expect(sql).toContain('alter column state set storage external')
+    expect(sql).toContain('reltoastrelid');expect(sql).toContain("assert chunks>1")
+    expect(sql).toContain("array['comparison','hash']")
+    expect(sql).toContain("sqlstate<>'XX000' or sqlerrm<>format('could not open relation with OID %s',toast_oid)")
+    expect(sql).toContain('select (state::text)::jsonb into strict captured')
+    expect(sql).toContain("assert negative_seen,'Full equality failed to reject changed catalog'")
+    expect(sql.trim().endsWith('rollback;')).toBe(true)
+    expect(sql).not.toMatch(/\bcommit\s*;|\b(?:public|private)\./i)
+  })
+  it('materializes complete baseline JSONB before DROP in both restoration variants', () => {
+    const d=make()
+    for(const sql of [d.frames.restoreBeforeDispatch,d.frames.restoreAfterDispatch]) {
+      const projection='select (state::text)::jsonb,pending,installed into strict captured,pending_backend,saved_installed'
+      expect(sql).toContain(projection)
+      expect(sql.indexOf(projection)).toBeLessThan(sql.indexOf(`drop table ${d.baselineTable}`))
+      expect(sql.match(/pg_temp\.survey_cancel_state\(\) is distinct from captured/g)).toHaveLength(2)
+      expect(sql).toContain("convert_to(captured::text,'UTF8')")
+      expect(sql).toContain("convert_to((captured->'catalog')::text,'UTF8')")
+      expect(validateSurveyCancellationSql(d,sql===d.frames.restoreAfterDispatch?'restoreAfterDispatch':'restoreBeforeDispatch',sql.replace('(state::text)::jsonb','state'))).toBe(false)
+    }
+  })
   it('counts the fixed remaining candidate without granting admission or inventing missing wire/restoration execution',()=>{
     const r=surveyRemainingScheduleLowerBound(f,{containers:1,volumes:1,networks:1})
     expect(r).toMatchObject({guardCommands:15,baseGuards:254,baseControls:3822,typeControls:49,rootGitControls:28,

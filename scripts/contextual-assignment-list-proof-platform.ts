@@ -432,10 +432,18 @@ async function readAssignmentListDockerInventory(run: (file: string, args: strin
   type Container = { id: string; name: string; labels: Record<string, string> | null; mounts: Array<{ Type: string; Name: string }>; networks: Record<string, { NetworkID: string }>; bindings: Record<string, Array<{ HostPort: string }> | null>; created: string }
   type Volume = { Name: string; CreatedAt: string; Labels: Record<string, string> | null }
   type Network = { Id: string; Name: string; Created: string; Labels: Record<string, string> | null; Containers: Record<string, unknown> }
+  // Remaining-only representation change: full objects, no field projection.
+  // The caller charges every raw byte before this decode; identity checks above
+  // still require the complete fresh batch, including all foreign attachments.
+  const fullJsonLines = <T>(output: string): T[] => output.split(/\r?\n/).filter(Boolean).map(line => {
+    const row: unknown = JSON.parse(line)
+    assert(row !== null && typeof row === 'object' && !Array.isArray(row))
+    return row as T
+  })
   const branch = async <T>(read: () => Promise<T>) => { try { return await read() } catch (error) { stopped = true; throw error } }
   const readContainers = () => branch(() => ids(['ps', '-aq', '--no-trunc']).then(values => inspect<Container>(values, ['inspect', '--format', containerTemplate], output => output.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)), row => row.id)))
-  const readVolumes = () => branch(() => ids(['volume', 'ls', '-q']).then(values => inspect<Volume>(values, ['volume', 'inspect'], output => JSON.parse(output), row => row.Name)))
-  const readNetworks = () => branch(() => ids(['network', 'ls', '-q', '--no-trunc']).then(values => inspect<Network>(values, ['network', 'inspect'], output => JSON.parse(output), row => row.Id)))
+  const readVolumes = () => branch(() => ids(['volume', 'ls', '-q']).then(values => inspect<Volume>(values, ['volume', 'inspect', ...(remaining ? ['--format', '{{json .}}'] : [])], output => remaining ? fullJsonLines<Volume>(output) : JSON.parse(output), row => row.Name)))
+  const readNetworks = () => branch(() => ids(['network', 'ls', '-q', '--no-trunc']).then(values => inspect<Network>(values, ['network', 'inspect', ...(remaining ? ['--format', '{{json .}}'] : [])], output => remaining ? fullJsonLines<Network>(output) : JSON.parse(output), row => row.Id)))
   let containers: Container[], volumes: Volume[], networks: Network[]
   if (component) {
     const results = await Promise.allSettled([readContainers(), readVolumes(), readNetworks()] as const)

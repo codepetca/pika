@@ -48308,3 +48308,28 @@ d0790e6ab PASS3411/8skip plus static/type/lint. Regression reproduces late posit
 closure flags with failure=false; correction latches original-end expiry without
 skipping cleanup. Targeted re-review/final checked SHA precede the unused browser
 attempt. No safety predicate weakened; existing counters/waiver retained.
+
+<!-- pika-session-log-archive-batch:e5713c2c8e98796c5c0ecd7b3c9aec3710f33d3ff0bee596cdbef03bbe0eadda -->
+## 2026-10-15 — Isolated fixture recovery and two guard repairs
+
+Latest full-app attempt completed real login twice, then failed origin and owned
+descendant executable guards. Human authorized exact fixture recovery and repair,
+not a new rehearsal. Recovery removed only its5 containers/2 synthetic volumes/
+1 network and retained the temporary app with evidence. Independent preservation
+confirmed7637 source files and49485 dependency entries unchanged; four isolated
+ports clear. Historical failed receipt stays failed; no production/shared-local
+or provider/rollout hold changed.
+
+Schema2 kernel helper now defers first descendant capture until P_EXEC is present
+before and after image sampling; pending children grant no signal/ready/wait/absent
+authority. Captured identity drift still fails; observations serialize. Worker187
+CPU checks/type PASS. First classroom has an unconditional external font import:
+remove only that import, retain existing local fallback and fatal origin guard,
+add fixed-label privacy-safe rejection metadata. Root84 CPU checks PASS after RED
+regressions. Full gate3446PASS/8skip plus architecture/UI/design/type/lint PASS;
+auditPASS. Independent Astra/high security and Sol6.1/high integration source
+reviews95/96 CLEAN on immutable prospective tree3363c744 (18files). Native/font
+visual verification pending; fixes remain uncommitted. Frozen app remains pinned;
+future rebind must exclude unrelated held app changes. PR1581 verified OPEN/DRAFT
+860dcd unchanged. No new rehearsal, commit, push or rollout. Existing counters96
+reviews/55fix batches and human waiver retained; no review-clock reset.

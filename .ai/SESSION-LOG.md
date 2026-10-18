@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Isolated fixture recovery and two guard repairs
-
-Latest full-app attempt completed real login twice, then failed origin and owned
-descendant executable guards. Human authorized exact fixture recovery and repair,
-not a new rehearsal. Recovery removed only its5 containers/2 synthetic volumes/
-1 network and retained the temporary app with evidence. Independent preservation
-confirmed7637 source files and49485 dependency entries unchanged; four isolated
-ports clear. Historical failed receipt stays failed; no production/shared-local
-or provider/rollout hold changed.
-
-Schema2 kernel helper now defers first descendant capture until P_EXEC is present
-before and after image sampling; pending children grant no signal/ready/wait/absent
-authority. Captured identity drift still fails; observations serialize. Worker187
-CPU checks/type PASS. First classroom has an unconditional external font import:
-remove only that import, retain existing local fallback and fatal origin guard,
-add fixed-label privacy-safe rejection metadata. Root84 CPU checks PASS after RED
-regressions. Full gate3446PASS/8skip plus architecture/UI/design/type/lint PASS;
-auditPASS. Independent Astra/high security and Sol6.1/high integration source
-reviews95/96 CLEAN on immutable prospective tree3363c744 (18files). Native/font
-visual verification pending; fixes remain uncommitted. Frozen app remains pinned;
-future rebind must exclude unrelated held app changes. PR1581 verified OPEN/DRAFT
-860dcd unchanged. No new rehearsal, commit, push or rollout. Existing counters96
-reviews/55fix batches and human waiver retained; no review-clock reset.
-
 ## 2026-10-15 — Fresh guard rehearsal and font visuals authorized
 
 Human approved ONE new bounded full-app rehearsal and both fixes' visual checks.
@@ -793,3 +769,9 @@ Review202/full4405 checks passed at372e07f8. Fresh remaining-v3 completed all49 
 ## 2026-10-18 — Bound successful Survey waits to their existing operation ceiling
 
 Review203/full4411 checks passed at503847f1. Remaining-v4 again completed49 SQL cases, then a contender lock timeout occurred while holder release was still passing fresh guards. Cleanup/immediate preservation passed; alias spent. Correction132 explicitly aligns only13 successful-WAIT legacy fixture lock deadlines1s→their existing8s statement ceiling. Product/holder/NOWAIT/negative/retry/terminal1s settings and≤750ms positive observation remain. Private original-contender dispatch+8s, clamped to global work end, now gates release before/after guards and immediately before write; expired ordinary COMMIT is refused and the frame timer cannot renew. Actual-engine offline700ms observation+400ms guard regression fails old source and passes corrected source; expiry/late-callback negatives and332 focused checks/strict TypeScript pass. All guards/joins, normal198actions/4008controls/16requests and SQL bytes unchanged. No product/migration/rawSQL/global-budget change. Independent review/fullgate and real runtime acceptance remain required; production holds retained.
+
+## 2026-10-18 — Recover Survey fixture and fix baseline storage lifetime
+
+Reviewed remaining-v5 passed49 SQL cases/all30 committed directions and actual cancellation, then failed restoration. Owner-approved recovery recovered the exact missing baseline-TOAST relation error; independent read-only184-table/catalog equality and settled backend checks passed before exact owned cleanup. Five containers/two synthetic volumes/network/tempdir and owned processes were removed; unrelated resources/evidence retained. Post-recovery full source/dependency preservation passed before edits. Attempt remains failed/spent.
+
+Correction133 materializes full captured JSONB before baseline DROP in cancellation/wire restoration, preserving all equalities/hashes/ownership/deadlines. Remaining-only compact full volume/network JSON retains global discovery, all fields/attachments and raw-byte accounting. Six CPU regressions fail old source;346 focused checks plus the final standalone-SQL source check and strict TypeScript pass. Forced-external-TOAST rollback regression is prepared but not executed. Normal198actions/4008nativecontrols/16HTTP remain;64MiB fit unresolved. Fullgate/independent review and separately approved real verification remain; no cap raise, product change, production/shared-local action or rollout.

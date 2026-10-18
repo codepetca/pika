@@ -57,7 +57,8 @@ export function surveyWireProofDescriptor(f:SurveyNativeFixture){
  do $restore$ declare captured jsonb;actual jsonb;normalized jsonb;record_row jsonb;rows jsonb;key text;seen integer;prepared timestamptz;begin
  if to_regclass(${q(table)}) is null then
  insert into survey_wire_receipt values(jsonb_build_object('stage','absent-unverified','descriptorSha256',${q(descriptorSha256)},'nativeVerified',false));return;end if;
- ${check} select state,prepared_at into strict captured,prepared from ${table};
+ -- Receipt hashing after DROP must not retain the baseline's external TOAST pointer.
+ ${check} select (state::text)::jsonb,prepared_at into strict captured,prepared from ${table};
  update public.surveys set title=(select r->>'title' from jsonb_array_elements(captured->'rows'->'public.surveys') r where r->>'id'=${q(sid)}) where id=${q(sid)};
  actual:=pg_temp.survey_cancel_state();normalized:=actual;
  foreach key in array array['public.surveys','public.classrooms','public.classroom_archive_revisions'] loop rows:='[]'::jsonb;seen:=0;

@@ -10,6 +10,16 @@ import {surveyWireProofDescriptor,validateSurveyWireSql,verifySurveyPrimaryMembe
 const f=newSurveyNativeFixture(newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z'))),m=surveyCommittedProofManifest(f)
 const h=(s:string)=>createHash('sha256').update(s).digest('hex')
 describe('closed wire fixture and primary membership source proof (no SQL/native)',()=>{
+  it('materializes full captured JSONB before baseline DROP and retains both full equalities and receipt hash',()=>{
+    const d=surveyWireProofDescriptor(f),sql=d.frames.restore
+    const projection='select (state::text)::jsonb,prepared_at into strict captured,prepared'
+    expect(sql).toContain(projection)
+    expect(sql.indexOf(projection)).toBeLessThan(sql.indexOf(`drop table ${d.baselineTable}`))
+    expect(sql).toContain("assert normalized=captured,'Wire full rows/catalog restoration differs'")
+    expect(sql).toContain("assert pg_temp.survey_cancel_state()=actual,'Wire final rows/catalog after DROP differ'")
+    expect(sql).toContain("convert_to(captured::text,'UTF8')")
+    expect(validateSurveyWireSql(d,'restore',sql.replace('(state::text)::jsonb','state'))).toBe(false)
+  })
   it('binds each complete generated guard to its one actual fixed holder or fixture dispatch identity',()=>{
     const c=surveyCancellationProofDescriptor(f),w=surveyWireProofDescriptor(f)
     for(const [sql,suffix]of [[c.frames.prepare,'draft_holder'],[c.frames.observer,'draft_holder'],[w.frames.prepare,'draft_holder'],[c.frames.restoreBeforeDispatch,'fixture'],[c.frames.restoreAfterDispatch,'fixture'],[w.frames.restore,'fixture']]){
