@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — AI grading submission investigation
-
-Read-only at main71f49d963. User redirected investigation to chat Investigate AI grading count (01a13acf-92db-7e82-9ec7-6addc22d14bc); reused its production evidence: seven teacher-closed/unsubmitted attempts,33 nonblank written responses skipped. Verified TS submitted-only admission and094 RPC admission against248 closure/return semantics. Teacher closure materializes saved responses and freezes attempts via closed_for_grading_at while retaining is_submitted=false; merely opening Grading does not close attempts. Fix should admit submitted OR teacher-closed work, preserving the distinction; automatic closure on AI action would be an additional behavior change. No product/schema/grade edits, provider calls or live DB mutation.
-
-Native GPT-6.1-sol/medium bounded contract worker interrupted after user redirect to avoid duplicate investigation; no findings accepted, worker usage unknown. Coordinator reused other chat evidence and verified focused source; elapsed/coordination tokens unknown. Startup orient-only PASS; storage315GB healthy; weekly77% remaining; automatic DeepSeek paused. Detached investigation worktree retained with this handoff; no PR.
-
 ## 2026-10-14 — Proposed unsubmitted Test AI grading fix
 
 User requests plan only and explicitly defers post-grading reopening behavior. Proposed contract: AI grade finalizes selected existing unsubmitted attempts from persisted draft answers using teacher-closure semantics before preflight, then accepts submitted OR closed_for_grading attempts. Preserve is_submitted and original student timestamps; skip never-started students; retain blank-answer zero and ungraded/all behavior. Check no-open-question and active-run resume/conflict before closure. Coordinate TS source preparation and new SQL migration for create_test_ai_grading_run_atomic plus save_test_unanswered_grades_atomic and relevant finalization/revision validation, preserving lifecycle locks and164/236 archive wrappers. Race guarantees must cover autosave/submit/closure/reopen/run resume; no provider call on empty answers or stale source. Update confirmation/summary only as needed to disclose selected-attempt closure and answer units; use governed UI workflow and visual QA if changed. Require focused app tests plus rollback DB contracts, reviewed draft-first PR, then separately authorized migration-first rollout. No implementation or schema/data changes performed. Existing reopen behavior is out of scope.
@@ -555,3 +549,17 @@ no hand-written metadata/casts/stubs were added. This is source preparation, not
 ready for PR/merge. Genuine cumulative001–269 types, remaining native/app proof,
 independent cumulative review and final CI remain. All existing serious holds
 unchanged; private extraction map and proof receipts retained by coordinator.
+
+## 2026-10-17 — Survey UUID compatibility correction
+
+Independent current-base security review184 completed with no findings;
+compatibility review185 found accepted uppercase UUIDs were compared against
+canonical database IDs as raw strings. Reproduced ten failures, then normalized
+validated actor/parent/child identifiers before RPC arguments and comparisons,
+including the question route's child lookup. Kept output validation, ownership,
+owner-precedence and foreign-parent checks strict.102 focused tests/11 suites,
+lint/audit/diff PASS; genuine001–269 metadata is still required for the same five
+TypeScript diagnostics. Source correction only: no DB/production/activation.
+The user lifted the disposable-local Survey verification hold only. A closed
+current-schema compatibility/types prerequisite runner is being prepared under
+the unchanged bounds; full remaining-proof acceptance is not implied.

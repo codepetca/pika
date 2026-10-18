@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   authorizeSharedSurveyActor, readContextualSurveyDetail, readContextualSurveyList,
   readContextualSurveyResults, readContextualSurveyOwnerForMutation, respondToContextualSurvey,
+  createContextualSurveyQuestion, patchContextualSurvey, patchContextualSurveyQuestion,
 } from '@/lib/server/contextual-surveys'
 import { validateSurveyResponses } from '@/lib/surveys'
 import type { SurveyQuestion } from '@/types'
@@ -43,6 +44,35 @@ describe('shared Survey admission', () => {
 })
 
 describe('atomic Survey payload decoding', () => {
+  it('canonicalizes validated actor IDs without bypassing owner precedence', async () => {
+    const uppercase = { ...context, actorId: actorId.toUpperCase(), surveyId: surveyId.toUpperCase() }
+    context.supabase.rpc.mockResolvedValue({ data: { survey, classroom: { id: classroomId, teacher_id: actorId, archived_at: null }, questions: [question], responses: [] }, error: null })
+    expect(await readContextualSurveyDetail({ ...uppercase, permission: 'owner' })).toMatchObject({ survey: { id: surveyId } })
+    await expect(readContextualSurveyDetail(uppercase)).rejects.toMatchObject({ statusCode: 503 })
+    expect(context.supabase.rpc).toHaveBeenLastCalledWith('get_survey_for_member_v1', { p_actor_id: actorId, p_survey_id: surveyId })
+  })
+  it('compares uppercase member identifiers with canonical own-response evidence', async () => {
+    context.supabase.rpc.mockResolvedValue({ data: { survey, classroom: { id: classroomId, teacher_id: memberId, archived_at: null }, questions: [question], responses: [{ id: memberId, survey_id: surveyId, question_id: questionId, student_id: actorId, selected_option: null, response_text: 'Fine', submitted_at: time, updated_at: time }] }, error: null })
+    expect(await readContextualSurveyDetail({ ...context, actorId: actorId.toUpperCase(), surveyId: surveyId.toUpperCase() })).toMatchObject({ has_submitted: true })
+  })
+  it('canonicalizes direct mutation-helper bindings before checking committed output', async () => {
+    const uppercase = { ...context, actorId: actorId.toUpperCase(), surveyId: surveyId.toUpperCase() }
+    context.supabase.rpc.mockResolvedValue({ data: { survey }, error: null })
+    expect(await patchContextualSurvey({ ...uppercase, patch: { title: survey.title } })).toEqual({ survey })
+    context.supabase.rpc.mockResolvedValue({ data: { question }, error: null })
+    expect(await createContextualSurveyQuestion({ ...uppercase, question: { question_type: 'short_text', question_text: 'Thoughts?' } })).toEqual({ question })
+    expect(await patchContextualSurveyQuestion({ ...uppercase, questionId: questionId.toUpperCase(), existing: question as SurveyQuestion, question: { position: 1 } })).toEqual({ question })
+    expect(context.supabase.rpc).toHaveBeenLastCalledWith('update_survey_question_for_owner_v1', expect.objectContaining({ p_actor_id: actorId, p_survey_id: surveyId, p_question_id: questionId, p_expected_question: question }))
+    context.supabase.rpc.mockClear()
+    await expect(patchContextualSurveyQuestion({ ...uppercase, questionId: memberId.toUpperCase(), existing: question as SurveyQuestion, question: { position: 1 } })).rejects.toMatchObject({ statusCode: 404 })
+    expect(context.supabase.rpc).not.toHaveBeenCalled()
+  })
+  it('still rejects malformed and genuinely different identifiers', async () => {
+    await expect(readContextualSurveyDetail({ ...context, surveyId: 'not-a-uuid' })).rejects.toMatchObject({ statusCode: 400 })
+    expect(context.supabase.rpc).not.toHaveBeenCalled()
+    context.supabase.rpc.mockResolvedValue({ data: { survey, classroom: { id: classroomId, teacher_id: memberId, archived_at: null }, questions: [question], responses: [] }, error: null })
+    await expect(readContextualSurveyDetail({ ...context, surveyId: memberId.toUpperCase() })).rejects.toMatchObject({ statusCode: 503 })
+  })
   it('retains owner mutation preflight with the fixed owner RPC and parent', async () => {
     const classroom = { id: classroomId, teacher_id: actorId, archived_at: null }
     context.supabase.rpc.mockResolvedValue({ data: { survey, classroom, questions: [question], responses: [] }, error: null })

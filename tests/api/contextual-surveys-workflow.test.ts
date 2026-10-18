@@ -61,6 +61,31 @@ beforeEach(() => {
 })
 
 describe('existing Survey transports under shared admission', () => {
+  it.each([ownerList, ownerDetail, ownerResults, memberList, memberDetail, memberResults])('preserves valid uppercase UUID read URLs', async handler => {
+    const response = await handler(new NextRequest(`http://localhost/api/surveys/${surveyId.toUpperCase()}?classroom_id=${classroomId.toUpperCase()}`),
+      { params: Promise.resolve({ id: surveyId.toUpperCase(), qid: questionId.toUpperCase() }) })
+    expect(response.status).toBe(200)
+    expect(mocks.rpc).toHaveBeenCalledOnce()
+    const args = mocks.rpc.mock.calls[0][1]
+    expect(args.p_actor_id).toBe(actorId)
+    expect(args.p_survey_id ?? args.p_classroom_id).toBe(args.p_survey_id ? surveyId : classroomId)
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+  it('canonicalizes uppercase mutation URLs before preflight and child matching', async () => {
+    const uppercase = { params: Promise.resolve({ id: surveyId.toUpperCase(), qid: questionId.toUpperCase() }) }
+    expect((await ownerPatch(request('PATCH', { title: 'Changed' }), uppercase)).status).toBe(200)
+    expect((await questionCreate(request('POST', { question_type: 'short_text', question_text: 'Thoughts?' }), uppercase)).status).toBe(201)
+    expect((await questionPatch(request('PATCH', { position: 4 }), uppercase)).status).toBe(200)
+    expect((await questionDelete(request('DELETE'), uppercase)).status).toBe(200)
+    expect((await memberRespond(request('POST', { responses: { [questionId]: 'Fine' } }), uppercase)).status).toBe(201)
+    expect((await ownerDelete(request('DELETE'), uppercase)).status).toBe(200)
+    for (const [, args] of mocks.rpc.mock.calls) {
+      expect(args.p_actor_id).toBe(actorId)
+      expect(args.p_survey_id).toBe(surveyId)
+      if ('p_question_id' in args) expect(args.p_question_id).toBe(questionId)
+    }
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
   it.each([ownerList, ownerDetail, memberList, memberDetail, memberResults])('lets either account role use the contextual read without the global role guard', async handler => {
     const response = await handler(request(), context)
     expect(response.status).toBe(200)

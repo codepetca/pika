@@ -17,7 +17,7 @@ export const PATCH = withErrorHandler('PatchTeacherSurveyQuestion', async (reque
   if (shared.mode === 'shared') {
     const { id: surveyId, qid: questionId } = await context.params
     const detail = await readContextualSurveyOwnerForMutation({ actorId: shared.user.id, surveyId })
-    const existing = detail.questions.find(question => question.id === questionId)
+    const existing = detail.questions.find(question => question.id === questionId.toLowerCase())
     if (!existing) throw new ApiError(404, 'Question not found')
     const question = surveyQuestionSchema.parse(await request.json())
     return NextResponse.json(await patchContextualSurveyQuestion({ actorId: shared.user.id, surveyId, questionId, question, existing: existing as SurveyQuestion }))

@@ -47354,3 +47354,10 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
 - Local/visual verification underway. PR is draft. Five prior review launches (one initial/four targeted); current 60-minute/four-targeted-wave review budget reached. No further reviewer launch without explicit extension under pr-review; finish authorized implementation and verification first.
+
+<!-- pika-session-log-archive-batch:2c341789f327daaadfeec2e5134c44e09ed88b20f1a3af5ba056a193b2284f0a -->
+## 2026-10-14 — AI grading submission investigation
+
+Read-only at main71f49d963. User redirected investigation to chat Investigate AI grading count (01a13acf-92db-7e82-9ec7-6addc22d14bc); reused its production evidence: seven teacher-closed/unsubmitted attempts,33 nonblank written responses skipped. Verified TS submitted-only admission and094 RPC admission against248 closure/return semantics. Teacher closure materializes saved responses and freezes attempts via closed_for_grading_at while retaining is_submitted=false; merely opening Grading does not close attempts. Fix should admit submitted OR teacher-closed work, preserving the distinction; automatic closure on AI action would be an additional behavior change. No product/schema/grade edits, provider calls or live DB mutation.
+
+Native GPT-6.1-sol/medium bounded contract worker interrupted after user redirect to avoid duplicate investigation; no findings accepted, worker usage unknown. Coordinator reused other chat evidence and verified focused source; elapsed/coordination tokens unknown. Startup orient-only PASS; storage315GB healthy; weekly77% remaining; automatic DeepSeek paused. Detached investigation worktree retained with this handoff; no PR.

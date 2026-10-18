@@ -52,7 +52,9 @@ async function invoke<Name extends SurveyRpcName, T extends z.ZodType>(client: S
 function identity(input: Context) {
   const parsed = contextualSurveyIdentitySchema.safeParse(input)
   if (!parsed.success) throw new ApiError(400, 'Invalid Survey identifiers')
-  return { p_actor_id: parsed.data.actorId, p_survey_id: parsed.data.surveyId }
+  // PostgreSQL returns canonical lowercase UUIDs; accepted URL spellings may
+  // differ in case. Compare the same validated identity we send to the RPC.
+  return { p_actor_id: parsed.data.actorId.toLowerCase(), p_survey_id: parsed.data.surveyId.toLowerCase() }
 }
 
 function verifyClassroom(classroom: { id: string; teacher_id: string; archived_at: string | null }, actorId: string, permission: Permission) {
@@ -62,14 +64,16 @@ function verifyClassroom(classroom: { id: string; teacher_id: string; archived_a
 export async function readContextualSurveyList(input: { actorId: string; classroomId: string; permission: Permission; supabase?: SurveyRpcClient }) {
   const parsed = contextualSurveyClassroomIdentitySchema.safeParse(input)
   if (!parsed.success) throw new ApiError(400, 'Invalid Survey identifiers')
+  const actorId = parsed.data.actorId.toLowerCase()
+  const classroomId = parsed.data.classroomId.toLowerCase()
   const data = await invoke(input.supabase, input.permission === 'owner' ? 'get_surveys_for_owner_v1' : 'get_surveys_for_member_v1', {
-    p_actor_id: parsed.data.actorId, p_classroom_id: parsed.data.classroomId,
+    p_actor_id: actorId, p_classroom_id: classroomId,
   }, contextualSurveyListSchema)
-  verifyClassroom(data.classroom, input.actorId, input.permission)
-  if (data.classroom.id !== input.classroomId) throw unavailable()
+  verifyClassroom(data.classroom, actorId, input.permission)
+  if (data.classroom.id !== classroomId) throw unavailable()
   const seen = new Set<string>()
   const surveys = data.surveys.map(row => {
-    if (row.classroom_id !== input.classroomId || seen.has(row.id)) throw unavailable()
+    if (row.classroom_id !== classroomId || seen.has(row.id)) throw unavailable()
     seen.add(row.id)
     if (input.permission === 'owner') {
       if (!row.stats || row.stats.responded > row.stats.total_students) throw unavailable()
@@ -84,15 +88,16 @@ export async function readContextualSurveyList(input: { actorId: string; classro
 }
 
 export async function readContextualSurveyDetail(input: Context & { permission: Permission }) {
-  const data = await invoke(input.supabase, input.permission === 'owner' ? 'get_survey_for_owner_v1' : 'get_survey_for_member_v1', identity(input), contextualSurveyDetailSchema)
-  verifyClassroom(data.classroom, input.actorId, input.permission)
-  if (data.survey.id !== input.surveyId || data.survey.classroom_id !== data.classroom.id) throw unavailable()
+  const ids = identity(input)
+  const data = await invoke(input.supabase, input.permission === 'owner' ? 'get_survey_for_owner_v1' : 'get_survey_for_member_v1', ids, contextualSurveyDetailSchema)
+  verifyClassroom(data.classroom, ids.p_actor_id, input.permission)
+  if (data.survey.id !== ids.p_survey_id || data.survey.classroom_id !== data.classroom.id) throw unavailable()
   const seen = new Set<string>()
   for (const question of data.questions) {
-    if (question.survey_id !== input.surveyId || seen.has(question.id)) throw unavailable()
+    if (question.survey_id !== ids.p_survey_id || seen.has(question.id)) throw unavailable()
     seen.add(question.id)
   }
-  if (data.responses.some(row => row.survey_id !== input.surveyId || row.student_id !== input.actorId || !seen.has(row.question_id))) throw unavailable()
+  if (data.responses.some(row => row.survey_id !== ids.p_survey_id || row.student_id !== ids.p_actor_id || !seen.has(row.question_id))) throw unavailable()
   if (input.permission === 'owner') return { survey: { ...data.survey, classrooms: data.classroom }, questions: data.questions, classroom: data.classroom }
   if (data.survey.status === 'draft') throw unavailable()
   const hasResponded = data.responses.length > 0
@@ -115,19 +120,21 @@ export async function readContextualSurveyOwnerForMutation(input: Context) {
 }
 
 export async function readContextualSurveyResults(input: Context & { permission: Permission }) {
+  const ids = identity(input)
   const data = input.permission === 'owner'
-    ? await invoke(input.supabase, 'get_survey_results_for_owner_v1', identity(input), contextualSurveyOwnerResultsSchema)
-    : await invoke(input.supabase, 'get_survey_results_for_member_v1', identity(input), contextualSurveyMemberResultsSchema)
-  verifyClassroom(data.classroom, input.actorId, input.permission)
-  if (data.survey.id !== input.surveyId) throw unavailable()
+    ? await invoke(input.supabase, 'get_survey_results_for_owner_v1', ids, contextualSurveyOwnerResultsSchema)
+    : await invoke(input.supabase, 'get_survey_results_for_member_v1', ids, contextualSurveyMemberResultsSchema)
+  verifyClassroom(data.classroom, ids.p_actor_id, input.permission)
+  if (data.survey.id !== ids.p_survey_id) throw unavailable()
   const { classroom: _classroom, ...payload } = data
   return payload
 }
 
 export async function patchContextualSurvey(input: Context & { patch: z.infer<typeof surveyPatchSchema> }) {
+  const ids = identity(input)
   const patch = { ...input.patch, ...(input.patch.opens_at ? { opens_at: new Date(input.patch.opens_at).toISOString() } : {}) }
-  const data = await invoke(input.supabase, 'update_survey_for_owner_v1', { ...identity(input), p_patch: patch }, contextualSurveyMutationSchema)
-  if (data.survey.id !== input.surveyId) throw unavailable()
+  const data = await invoke(input.supabase, 'update_survey_for_owner_v1', { ...ids, p_patch: patch }, contextualSurveyMutationSchema)
+  if (data.survey.id !== ids.p_survey_id) throw unavailable()
   return data
 }
 
@@ -136,26 +143,29 @@ export async function deleteContextualSurvey(input: Context) {
 }
 
 export async function createContextualSurveyQuestion(input: Context & { question: z.infer<typeof surveyQuestionSchema> }) {
+  const ids = identity(input)
   const normalized = normalizeSurveyQuestionInput(input.question)
   if (!normalized.valid) throw new ApiError(400, normalized.error)
   const position = input.question.position === undefined ? undefined : Math.max(0, Math.floor(input.question.position))
-  const data = await invoke(input.supabase, 'create_survey_question_for_owner_v1', { ...identity(input), p_question: { ...normalized.question, ...(position === undefined ? {} : { position }) } }, contextualSurveyQuestionMutationSchema)
-  if (data.question.survey_id !== input.surveyId) throw unavailable()
+  const data = await invoke(input.supabase, 'create_survey_question_for_owner_v1', { ...ids, p_question: { ...normalized.question, ...(position === undefined ? {} : { position }) } }, contextualSurveyQuestionMutationSchema)
+  if (data.question.survey_id !== ids.p_survey_id) throw unavailable()
   return data
 }
 
 export async function patchContextualSurveyQuestion(input: Context & { questionId: string; question: z.infer<typeof surveyQuestionSchema>; existing: SurveyQuestion }) {
-  if (input.existing.id !== input.questionId || input.existing.survey_id !== input.surveyId) throw new ApiError(404, 'Question not found')
+  const ids = identity(input)
+  const questionId = z.string().uuid().parse(input.questionId).toLowerCase()
+  if (input.existing.id !== questionId || input.existing.survey_id !== ids.p_survey_id) throw new ApiError(404, 'Question not found')
   const normalized = normalizeSurveyQuestionInput({ ...input.existing, ...input.question })
   if (!normalized.valid) throw new ApiError(400, normalized.error)
   const position = input.question.position === undefined ? input.existing.position : Math.max(0, Math.floor(input.question.position))
-  const data = await invoke(input.supabase, 'update_survey_question_for_owner_v1', { ...identity(input), p_question_id: z.string().uuid().parse(input.questionId), p_expected_question: z.json().parse(input.existing), p_question: { ...normalized.question, position } }, contextualSurveyQuestionMutationSchema)
-  if (data.question.id !== input.questionId || data.question.survey_id !== input.surveyId) throw unavailable()
+  const data = await invoke(input.supabase, 'update_survey_question_for_owner_v1', { ...ids, p_question_id: questionId, p_expected_question: z.json().parse(input.existing), p_question: { ...normalized.question, position } }, contextualSurveyQuestionMutationSchema)
+  if (data.question.id !== questionId || data.question.survey_id !== ids.p_survey_id) throw unavailable()
   return data
 }
 
 export async function deleteContextualSurveyQuestion(input: Context & { questionId: string }) {
-  return invoke(input.supabase, 'delete_survey_question_for_owner_v1', { ...identity(input), p_question_id: z.string().uuid().parse(input.questionId) }, contextualSurveyDeleteSchema)
+  return invoke(input.supabase, 'delete_survey_question_for_owner_v1', { ...identity(input), p_question_id: z.string().uuid().parse(input.questionId).toLowerCase() }, contextualSurveyDeleteSchema)
 }
 
 export async function respondToContextualSurvey(input: Context & { detail: { survey: { classroom_id: string }; questions: SurveyQuestion[] }; responses: Record<string, unknown> }) {
