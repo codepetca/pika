@@ -128,11 +128,22 @@ current001–269 base or be retried/rebound as a new acceptance attempt.
 
 The extracted inert rollback SQL, installed-SDK companion and fifteen SQL race
 definitions remain available to the coordinator's guarded verification workflow.
-The rollback SQL's nineteen exact/one-byte-over/input-shape payload cases executed
-in the current-base prerequisite. This does not establish the separate wire
-limits. Valid 8 MiB response vectors, list/results byte limits and 10,000-row guards
-remain uncovered. Old runner seals tied to001–263 are excluded from this product
-extraction. The separate cancellation-proof worker owns its module and test.
+The rollback SQL's original nineteen exact/one-byte-over/input-shape payload cases
+executed in the current-base prerequisite. Its next source-only revision prepares
+49 cases: valid multi-answer 8 MiB vectors, list/results byte pairs, reachable
+10,000/10,001 count pairs and cardinality denials. Shared bounded fixtures and
+every success/denial subtransaction must restore complete scoped rows/revisions;
+only a versioned compact receipt leaves SQL. The member response-count pair is
+joint with the question count, not independent OR-term attribution. The new
+matrix's native parsing, acceptance and unchanged 35-second fit remain unverified;
+CPU tests do not establish them or the separate wire limit. Old runner seals tied
+to001–263 are excluded from this product extraction.
+
+The owner approved a separate remaining-proof ceiling of6000 control commands and
+60 seconds for its SDK phase, retaining200 native actions,64 MiB,16 HTTP requests,
+two sessions and the original12-minute work/3-minute cleanup clocks. This does not
+reopen a spent attempt or change the earlier component/legacy profiles. Complete
+success/failure accounting and independent review still precede native admission.
 
 Remaining gates are the complete accounted native proof: actual committed races
 in both directions with observed blocking, timeout and cancellation/finally
