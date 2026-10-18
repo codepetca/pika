@@ -45,7 +45,7 @@ vi.mock('../../scripts/contextual-surveys-native-contracts', async original => (
   ...await original<typeof import('../../scripts/contextual-surveys-native-contracts')>(),
   runSurveyNativeRollbackContracts: vi.fn(async () => ({})), runSurveyNativeRollbackRaces: vi.fn(async () => ({})), runSurvey269ComponentRollback: vi.fn(async () => ({})),
 }))
-vi.mock('../../scripts/contextual-surveys-sdk-contracts', () => ({ SURVEY_SDK_PHASE_MS:{legacy:20000,component269:60000},runContextualSurveysSdkContracts: vi.fn(async () => {}),runSurvey269ComponentSdkContracts:vi.fn(async()=>{}) }))
+vi.mock('../../scripts/contextual-surveys-sdk-contracts', async original => ({ ...await original<typeof import('../../scripts/contextual-surveys-sdk-contracts')>(),runContextualSurveysSdkContracts: vi.fn(async () => {}),runSurvey269ComponentSdkContracts:vi.fn(async()=>{}) }))
 vi.mock('../../scripts/contextual-surveys-sdk-proof', async original => ({
   ...await original<typeof import('../../scripts/contextual-surveys-sdk-proof')>(),
   createSurveySdkProofTransport: vi.fn(() => ({ client: {}, start: vi.fn(), settle:async()=>{}, complete: () => ({ calls: 14, nativeVerified: false }) })),
@@ -254,6 +254,69 @@ describe('actual Survey engine budget composition (offline)', () => {
     expect(()=>platform.checkSurvey263AdapterTotal(adapters)).toThrow('cumulative exchange limit')
     await expect(component.runContractsOnly()).rejects.toThrow()
     expect(component.nativeVerified).toBe(false)
+  })
+  it.each(['before-guard','post-guard','own-timer','terminal','unrelated-late','unjoined-late','malformed'] as const)('retains actual component controller causal provenance for %s',async boundary=>{
+    const actual=await vi.importActual<typeof sdkContracts>('../../scripts/contextual-surveys-sdk-contracts')
+    const {engine:component,fixture:f}=componentEngine()
+    await component.setup();await component.runContractsOnly()
+    let calls=0,guards=0
+    let releaseSettlement:(()=>void)|undefined
+    let releaseTimerGuard:(()=>void)|undefined,phaseDeadline=0
+    vi.mocked(sdkProof.createSurveySdkProofTransport).mockImplementation((...args)=>({...offlineTransportFactory(...args),
+      settle:()=>new Promise<void>(resolve=>{releaseSettlement=resolve})}))
+    vi.mocked(sdkContracts.runSurvey269ComponentSdkContracts).mockImplementation(async(_client,fixture,_guard,deadline)=>{
+      phaseDeadline=deadline
+      const at=new Date().toISOString(),owner=f.actors[0].id,member=f.actors[1].id,cid=f.classes[0].id,sid=f.surveys[0].id
+      const id=(n:number)=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`
+      const survey={id:sid,classroom_id:cid,title:f.tag,status:'active',show_results:true,dynamic_responses:false,opens_at:at,created_by:owner,
+        created_at:at,updated_at:at,position:0,artifact_id:id(88),source_artifact_id:null,source_blueprint_version_id:null,blueprint_archived_at:null}
+      const classroom={id:cid,teacher_id:owner,archived_at:null},question={...f.question,id:id(91),artifact_id:id(92),question_text:'Added?',position:1,created_at:at,updated_at:at}
+      const response={response_id:id(93),response_text:'SDK response',submitted_at:at,updated_at:at}
+      const result={question_id:f.question.id,question_type:'short_text',question_text:f.question.question_text,options:[],counts:[],total_responses:1,responses:[response]}
+      const summary={id:sid,title:f.tag,status:'active',show_results:true,dynamic_responses:false}
+      const replies=[{classroom,survey,questions:[f.question],responses:[]},{classroom,surveys:[survey]},null,null,
+        {classroom,survey,questions:[f.question],responses:[]},{classroom,surveys:[survey]},{success:true,updated:false},
+        {classroom,survey:summary,results:[result]},{classroom,survey:summary,questions:[{id:f.question.id,question_type:'short_text',question_text:f.question.question_text,options:[],response_max_chars:500,position:0}],results:[{...result,responses:[{...response,student_id:member,name:null,email:f.actors[1].email}]}],responders:[{student_id:member,name:null,email:f.actors[1].email}],stats:{total_students:2,responded:1}},
+        {survey:{...survey,title:'SDK renamed'}},{question},{question:{...question,question_type:'link',question_text:'URL?',response_max_chars:2048}}, {success:true},{success:true}]
+      const client={rpc:()=>({abortSignal:async()=>{
+        const index=calls++
+        if(boundary==='unrelated-late'){vi.setSystemTime(deadline+1);throw new Error('unrelated synthetic failure')}
+        return {data:replies[index],get error(){if(index===13)vi.setSystemTime(deadline+1);return index===2||index===3?{code:'PT403'}:null}}
+      }})} as unknown as Parameters<typeof actual.runSurvey269ComponentSdkContracts>[0]
+      if(boundary==='before-guard'){
+        const now=Date.now.bind(Date);let reads=0
+        vi.spyOn(Date,'now').mockImplementation(()=>{if(++reads===3)vi.setSystemTime(deadline);return now()})
+      }
+      return actual.runSurvey269ComponentSdkContracts(client,fixture,async()=>{
+        guards++
+        if(boundary==='post-guard'||boundary==='unjoined-late')vi.setSystemTime(deadline)
+        if(boundary==='unjoined-late')throw new platform.Survey263UnjoinedChildError()
+        if(boundary==='own-timer')await new Promise<void>(resolve=>{releaseTimerGuard=resolve})
+      },boundary==='malformed'?-1:deadline)
+    })
+    let finished=false
+    const operation=component.runSdkCommitted().catch(error=>error).finally(()=>{finished=true})
+    if(boundary==='own-timer'){
+      for(let n=0;n<2000&&!releaseTimerGuard;n++)await Promise.resolve()
+      expect(releaseTimerGuard).toBeTypeOf('function')
+      await vi.advanceTimersByTimeAsync(60000);vi.setSystemTime(phaseDeadline-1);releaseTimerGuard!()
+    }
+    for(let n=0;n<2000&&!releaseSettlement;n++)await Promise.resolve()
+    expect(releaseSettlement).toBeTypeOf('function');expect(finished).toBe(false)
+    const pendingCommands=seam.children.length,pendingSessions=seam.spawnCalls.length
+    await flush();expect(seam.children).toHaveLength(pendingCommands);expect(seam.spawnCalls).toHaveLength(pendingSessions)
+    releaseSettlement!();const error=await operation
+    expect(error).toBeInstanceOf(boundary==='unjoined-late'?platform.Survey263UnjoinedChildError:Error)
+    if(boundary==='terminal'){expect(guards).toBe(14);expect(calls).toBe(14)}
+    expect(component.diagnostic()).toContain(['unrelated-late','unjoined-late','malformed'].includes(boundary)?'checkpoint=sdk-runner':'checkpoint=sdk-deadline')
+    expect(component.diagnostic()).not.toContain('unrelated synthetic failure')
+    if(boundary==='own-timer')expect(component.diagnostic()).toContain('sdkRemainingMs=1')
+    if(boundary==='before-guard'){expect(guards).toBe(0);expect(calls).toBe(0)}
+    if(boundary==='terminal'){expect(guards).toBe(14);expect(calls).toBe(14)}
+    if(boundary==='unrelated-late')expect(calls).toBe(1)
+    if(boundary==='post-guard'||boundary==='own-timer'||boundary==='unjoined-late'){expect(guards).toBe(1);expect(calls).toBe(0)}
+    if(boundary==='malformed'){expect(guards).toBe(0);expect(calls).toBe(0)}
+    if(boundary==='unjoined-late')await expect(component.generateTypes269()).rejects.toBeInstanceOf(platform.Survey263UnjoinedChildError)
   })
   it.each([['pre',false],['post',false],['pre',true],['post',true],['before',true]] as const)('actual transport joins %s native guard at SDK timeout (never-close=%s) before any secondary phase',async(side,neverClose)=>{
     const actualTransport=await vi.importActual<typeof sdkProof>('../../scripts/contextual-surveys-sdk-proof')

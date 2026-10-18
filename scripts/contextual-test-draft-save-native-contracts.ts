@@ -58,7 +58,7 @@ import { validateSurveyCommittedSql, surveyCommittedObservationSql, validateSurv
   parseSurveyCommittedGraph, verifySurveyCommittedSeed, verifySurveyCommittedWitness, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
   type SurveyCommittedProofManifest, type SurveyCommittedBootstrap, type SurveyCommittedTimes } from './contextual-surveys-committed-proof'
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects, verifySurvey269ComponentSdkTerminalEffects, SURVEY_269_COMPONENT_SDK_CAPS } from './contextual-surveys-sdk-proof'
-import { runContextualSurveysSdkContracts, runSurvey269ComponentSdkContracts } from './contextual-surveys-sdk-contracts'
+import { runContextualSurveysSdkContracts, runSurvey269ComponentSdkContracts, Survey269ComponentSdkDeadlineError } from './contextual-surveys-sdk-contracts'
 import { decodeAssignmentListSnapshot, validateSurvey263Budget, verifySurvey263NativeCli, Survey263UnjoinedChildError,
   chargeSurvey269ComponentExchange, chargeSurvey269ComponentControl, survey269ComponentExchangeReceipt, survey269ComponentDockerInventory,
   type Survey269ComponentExchange, type Survey263Budget, type Survey263NativeCli } from './contextual-assignment-list-proof-platform'
@@ -1620,7 +1620,10 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           if (component) await runSurvey269ComponentSdkContracts(transport.client, sdkFixture, sdkGuard, sdkDeadline)
           else await runContextualSurveysSdkContracts(transport.client, sdkFixture, sdkGuard)
           sdk = transport.complete(); endedAt = new Date().toISOString(); sdkComplete = true
-        } catch (error) { sdkFailure = error; if (component) record('unknown', 'none', 'unknown', 'sdk-runner') }
+        } catch (error) { sdkFailure = error; if (component) {
+          if (error instanceof Survey269ComponentSdkDeadlineError) record('guard', 'none', 'unknown', 'sdk-deadline')
+          else record('unknown', 'none', 'unknown', 'sdk-runner')
+        } }
         finally {
           if (component) {
             try { await transport.settle() }

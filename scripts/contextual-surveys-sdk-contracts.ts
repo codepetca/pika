@@ -9,6 +9,13 @@ import { contextualSurveyDetailSchema, contextualSurveyListSchema, contextualSur
 export type SurveySdkFixture = Readonly<{ ownerId: string; memberId: string; outsiderId: string; classroomId: string; surveyId: string }>
 /** Closed verification profiles; not caller-selected timeout configuration. */
 export const SURVEY_SDK_PHASE_MS = Object.freeze({ legacy: 20000, component269: 60000 })
+/** Fixed component-controller provenance, never inferred from a later clock. */
+export class Survey269ComponentSdkDeadlineError extends Error {
+  constructor() { super('Survey269 component SDK controller deadline expired') }
+}
+function componentDeadline(deadline: number) {
+  if (Date.now() >= deadline) throw new Survey269ComponentSdkDeadlineError()
+}
 
 /** Requires an active synthetic Survey with exactly one short-text question.
  * Source does not create fixtures, read credentials, select targets or run on import. */
@@ -18,19 +25,24 @@ export async function runContextualSurveysSdkContracts(client: SupabaseClient<Da
 /** Disposable269 prerequisite only. The original absolute work/phase cutoff
  * can shorten this fixed allowance, never extend or renew it. */
 export async function runSurvey269ComponentSdkContracts(client: SupabaseClient<Database>, fixture: SurveySdkFixture, guard: () => Promise<void>, absoluteDeadline: number) {
-  assert(Number.isSafeInteger(absoluteDeadline) && absoluteDeadline > Date.now())
+  assert(Number.isSafeInteger(absoluteDeadline) && absoluteDeadline > 0)
+  componentDeadline(absoluteDeadline)
   const deadline = Math.min(absoluteDeadline, Date.now() + SURVEY_SDK_PHASE_MS.component269)
-  const boundedGuard = async () => { assert(Date.now() < deadline); await guard(); assert(Date.now() < deadline) }
-  const receipt = await runSurveySdkContracts(client, fixture, boundedGuard, deadline)
-  assert(Date.now() < deadline)
+  const boundedGuard = async () => { componentDeadline(deadline); await guard(); componentDeadline(deadline) }
+  const receipt = await runSurveySdkContracts(client, fixture, boundedGuard, deadline, true)
+  componentDeadline(deadline)
   return Object.freeze({ ...receipt, phaseMs: SURVEY_SDK_PHASE_MS.component269, absoluteDeadline: deadline })
 }
-async function runSurveySdkContracts(client: SupabaseClient<Database>, fixture: SurveySdkFixture, guard: () => Promise<void>, deadline: number) {
+async function runSurveySdkContracts(client: SupabaseClient<Database>, fixture: SurveySdkFixture, guard: () => Promise<void>, deadline: number, component = false) {
   const { ownerId, memberId, outsiderId, classroomId, surveyId } = fixture
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), Math.max(0, deadline - Date.now()))
   let requests = 0
-  async function before() { assert(++requests <= 16, 'Survey SDK request limit'); assert(!controller.signal.aborted); await guard(); assert(!controller.signal.aborted) }
+  function admitted() {
+    if (component) { componentDeadline(deadline); if (controller.signal.aborted) throw new Survey269ComponentSdkDeadlineError() }
+    else assert(!controller.signal.aborted)
+  }
+  async function before() { assert(++requests <= 16, 'Survey SDK request limit'); admitted(); await guard(); admitted() }
   try {
     await before()
     const owner = await client.rpc('get_survey_for_owner_v1', { p_actor_id: ownerId, p_survey_id: surveyId }).abortSignal(controller.signal)

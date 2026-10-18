@@ -29,8 +29,9 @@ import { surveyNativePlan, validateSurveyNativeMigrationProfile, validateSurveyN
   SURVEY_269_SHARED_FILES, SURVEY_RPC_ARGUMENTS } from '../../scripts/contextual-surveys-native-contracts'
 import { surveyRemainingNativePlan } from '../../scripts/contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+const surveyStartedAt = Date.now()
 const surveyEndpoint = { kind: 'survey263' as const, host: 'unix:///offline-survey.sock', identity: [1, 2, 3, 4] as const,
-  budget: { startedAt: Date.now(), workDeadline: Date.now() + 720000, cleanupDeadline: Date.now() + 900000 }, nativeCli: platform.SURVEY263_NATIVE_CLI }
+  budget: { startedAt: surveyStartedAt, workDeadline: surveyStartedAt + 720000, cleanupDeadline: surveyStartedAt + 900000 }, nativeCli: platform.SURVEY263_NATIVE_CLI }
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 
 const original = newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z'))
