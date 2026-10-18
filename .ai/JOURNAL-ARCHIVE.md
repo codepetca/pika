@@ -47348,3 +47348,9 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
 - Existing Calendar/DayCell regression and eight-context native visual/geometry checks are running; audit/policies/types/lint and targeted presentation review required before ready. PR remains draft while changing its head.
+
+<!-- pika-session-log-archive-batch:33e0500243283f1fb49514455fa8c11a91762ebd268fb5d028e6337280586f75 -->
+## 2026-10-14 — Calendar remove hatching
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
+- Local/visual verification underway. PR is draft. Five prior review launches (one initial/four targeted); current 60-minute/four-targeted-wave review budget reached. No further reviewer launch without explicit extension under pr-review; finish authorized implementation and verification first.

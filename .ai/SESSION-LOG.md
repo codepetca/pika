@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Calendar remove hatching
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
-- Local/visual verification underway. PR is draft. Five prior review launches (one initial/four targeted); current 60-minute/four-targeted-wave review budget reached. No further reviewer launch without explicit extension under pr-review; finish authorized implementation and verification first.
-
 ## 2026-10-14 — AI grading submission investigation
 
 Read-only at main71f49d963. User redirected investigation to chat Investigate AI grading count (01a13acf-92db-7e82-9ec7-6addc22d14bc); reused its production evidence: seven teacher-closed/unsubmitted attempts,33 nonblank written responses skipped. Verified TS submitted-only admission and094 RPC admission against248 closure/return semantics. Teacher closure materializes saved responses and freezes attempts via closed_for_grading_at while retaining is_submitted=false; merely opening Grading does not close attempts. Fix should admit submitted OR teacher-closed work, preserving the distinction; automatic closure on AI action would be an additional behavior change. No product/schema/grade edits, provider calls or live DB mutation.
@@ -542,3 +537,21 @@ canonical equality and independent source/dependency equality PASS. Genuine268
 generated types installed byte-identically from private artifact1230d8e1…;
 temporary RPC signature removed. Targeted integration review and consolidated
 browser/CI gates remain. No shared-local/production migration or activation.
+
+## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
+
+PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
+passed. Consolidated manual Test lifecycle/permissions proof passed40exchanges and
+eight inspected captures, retained-work/canonical equality, exact cleanup and
+immediate independent source/dependency preservation. No production changes.
+
+Current-main Survey extraction carries the nine existing-route branches, current
+server/validation/SQL privacy fixes and focused tests, resequencing only filename
+263→269. Root verified17 donor files byte-identical, including SQL1db152f8…;
+package/CI/current generated types and legacy branches remain.119focused tests,
+lint/architecture/diff checks pass. Five TypeScript diagnostics are unresolved
+because the twelve new RPCs are not in the retained genuine generated artifact;
+no hand-written metadata/casts/stubs were added. This is source preparation, not
+ready for PR/merge. Genuine cumulative001–269 types, remaining native/app proof,
+independent cumulative review and final CI remain. All existing serious holds
+unchanged; private extraction map and proof receipts retained by coordinator.

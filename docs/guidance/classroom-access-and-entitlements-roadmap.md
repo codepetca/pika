@@ -438,6 +438,19 @@ Keep the strict metadata contract and legacy branch intact. Focused native
 verification precedes another full Test rehearsal. This moves only the concrete
 lifecycle dependency forward; production and activation holds remain unchanged.
 
+2026-10-17 superseding lifecycle checkpoint: PR1613 merged normally as
+`f88b06a5e52da64f182fa31ec1e7ba2258438c02` after all exact-head CI jobs and PR Gate
+`39080973530` passed. Its merge tree equals reviewed application `4e9c809d1`.
+The separate consolidated Test proof passed all40 exchanges and eight inspected
+owner/member desktop/mobile light/dark captures, including actual archive/restore,
+retained-work equality, cached/fresh revocation and archive denials. Exact cleanup,
+canonical equality and immediate independent source/dependency preservation passed.
+This closes that consolidated manual Test lifecycle/permissions check, not the
+full assessments/grades batch or rollout. Current-main Survey workflow extraction
+is next; its former001–263 component cannot substitute for new-base verification
+or genuine generated types. Production/shared-local, provider/Survey execution,
+account and admission/home/page/cohort/cutover holds remain unchanged.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
