@@ -198,7 +198,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   let surveyUnjoinedHolder = false
   let surveyOriginalBase:SurveyCpuGraph|undefined,surveySnapshot:(()=>SurveyCpuGraph)|undefined
   let remainingManifest:ReturnType<typeof buildSurvey269RemainingManifest>|undefined
-  let remainingProbeFrameFault:'prepare-close'|'observer-close'|'observer-timeout'|undefined
+  let remainingProbeFrameFault:'prepare-close'|'observer-close'|'observer-timeout'|'contract-timeout'|'contract-cutoff'|undefined
   function surveyAfter() {
     const state = surveyDirection!, s = state.schedule
     // Select the actual closed legacy-writer frame, independently of the
@@ -373,6 +373,10 @@ describe('native persistent-session transport with offline child mocks', () => {
           queueMicrotask(()=>child.stdout.write(rows.join('\n')+'\n'+end+'\n'));done();return
         }
         else if (remainingManifest && sql.trim() === remainingManifest.contracts.sql.trim()) {
+          if(remainingProbeFrameFault==='contract-timeout'||remainingProbeFrameFault==='contract-cutoff'){
+            queueMicrotask(()=>{for(let n=1;n<=171;n++)child.stderr.write(`INFO:  PS${String(n).padStart(3,'0')}\n`);surveyEvents.push('contract-hanging')})
+            done();return
+          }
           queueMicrotask(() => {
             for(let n=1;n<=211;n++) child.stderr.write(`INFO:  PS${String(n).padStart(3,'0')}\n`)
             child.stdout.write(end+'\n')
@@ -683,12 +687,13 @@ describe('native persistent-session transport with offline child mocks', () => {
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
   })
-  it.each(['normal','prepare-close','observer-close','observer-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
+  it.each(['normal','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
     vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
     remainingProbeFrameFault=mode==='normal'?undefined:mode
     const started=Date.now(),legacy=surveyNative.surveyRemainingNativePlan(original,head,repository),f=legacy.fixture
     const binding={product:{head,tree:head},carrier:{head,tree:head},sharedSources:Object.fromEntries(surveyNative.SURVEY_269_SHARED_FILES.map(file=>[file,'a'.repeat(64)]))} as surveyNative.Survey269ComponentBinding
     const plan={...legacy,kind:'survey269-remaining-only' as const,binding,repository:surveyNative.SURVEY_269_COMPONENT_ROOTS.product,migrations:[],
+      contracts:{...legacy.contracts,sql:legacy.contracts.sql.replace("set local statement_timeout = '35s';","set local statement_timeout = '90s';")},
       migrationManifestSha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.manifestSha256,sourceSha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.sourceSha256,
       sources:{...legacy.sources,migration:{file:'supabase/migrations/269_contextual_surveys_workflow.sql',sha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.sourceSha256}},
       concurrency:{...legacy.concurrency,schedules:[]},caps:{...legacy.caps,controls:6000,sdkMs:60000},
@@ -702,7 +707,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       // source-seal phase oracle is synthetic, not dispatch or settlement.
       vi.spyOn(surveyNative,'runSurvey269ComponentRollback').mockImplementation(async(p,t,d)=>{
         expect(await d.verifyTarget()).toEqual(t);const session=await d.openSession(`${p.projectId}_draft_contracts`)
-        try{await session.execute(p.contracts.sql,35000)}finally{await session.rollbackAndClose(12000)}
+        try{await session.execute(p.contracts.sql,p.kind==='survey269-remaining-only'?90000:35000)}finally{await session.rollbackAndClose(12000)}
         return{kind:'survey269-rollback-component-only',nativeVerified:false}
       }),
       vi.spyOn(surveyPlatform,'survey269RemainingDockerInventory').mockImplementation(async run=>{
@@ -755,7 +760,24 @@ describe('native persistent-session transport with offline child mocks', () => {
       remainingManifest=buildSurvey269RemainingManifest(original,binding);surveyManifest=remainingManifest as unknown as typeof surveyManifest
       const adapter=createSurvey269RemainingNativeContracts({original,binding,capturedResources:resources,containerId:resources.find(r=>r.name===`supabase_db_${project}`)!.id,acceptedManifestSha256:testOwnerDigest(JSON.stringify(remainingManifest)),absoluteDeadline:started+720000,
         statusTarget:{API_URL:'http://127.0.0.1:54331',DB_URL:'postgresql://postgres:offline@127.0.0.1:54332/postgres',SERVICE_ROLE_KEY:`header.${Buffer.from(JSON.stringify({iss:'supabase-demo',role:'service_role'})).toString('base64url')}.signature`},survey263Endpoint:surveyPlatform.requireSurvey263AdapterEndpoint(adapters)})
-      await adapter.setup();const run=adapter.runRemainingCommitted();void run.catch(()=>{})
+      await adapter.setup()
+      if(mode==='contract-cutoff')vi.setSystemTime(started+680000)
+      const run=adapter.runRemainingCommitted();void run.catch(()=>{})
+      if(mode==='contract-timeout'||mode==='contract-cutoff'){
+        let settled=false;const result=run.catch(e=>e).finally(()=>{settled=true})
+        for(let n=0;n<30000&&!surveyEvents.includes('contract-hanging');n++)await Promise.resolve()
+        expect(surveyEvents).toContain('contract-hanging')
+        const spawned=children.length
+        await vi.advanceTimersByTimeAsync(35000);expect(settled).toBe(false);expect(children).toHaveLength(spawned)
+        await vi.advanceTimersByTimeAsync(mode==='contract-timeout'?54999:4999);expect(settled).toBe(false)
+        await vi.advanceTimersByTimeAsync(1);expect(await result).toBeInstanceOf(Error)
+        expect(adapter.diagnostic()).toContain('failure=timeout role=contracts')
+        expect(adapter.diagnostic()).toContain('sequence=171')
+        expect(adapter.diagnostic()).toContain('remainingSessions=0')
+        expect(surveyEvents).not.toContain('cancel-prepare');expect(actualFetches).toBe(0)
+        expect(children).toHaveLength(spawned)
+        return
+      }
       if(mode!=='normal'){
         let settled=false;const failure=run.catch(e=>e).finally(()=>{settled=true})
         for(let n=0;n<30000&&!surveyEvents.includes(mode==='prepare-close'?'cancel-prepare':'cancel-observer');n++)await Promise.resolve()

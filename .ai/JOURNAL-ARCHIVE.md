@@ -48246,3 +48246,22 @@ Next requires distinguishing request completion/body wait/outer timer and the
 specific native identity mismatch; no more speculative full rehearsal. Auth/app/
 migrations/dependencies unchanged; all production/shared-local/provider holds
 remain. Overall goal and login fix NOT accepted; draft PR not ready or merged.
+
+<!-- pika-session-log-archive-batch:4cf35326ce13107f2684e6820e0ed9bb35a7a0b78602246554a8c391fbc57a5f -->
+## 2026-10-15 — Approved narrow browser/body and identity diagnostic
+
+Human authorizes one narrow browser diagnostic; no fresh full-app rehearsal.
+Existing Playwright browser-only carrier gains sealed login-body mode: one
+synthetic loopback POST/JSON/navigation exchange, at most3HTTP requests, original
+body read once, eight-second observation then hold release/abort within one20s
+operation and existing30s browser/90s diagnostic/6min cleanup bounds. Fixed event
+order/timing records request completion, body resolution and post-abort behavior;
+no Pika account/session/database/auth bypass, raw errors or network payloads saved.
+Root writes browser module/tests. Astra/high author89 separately adds private
+WeakMap-bound identity mismatch booleans, member/state through native/controller
+diagnostics. Rejection/poison/signaling/closure predicates unchanged;106 CPU PASS.
+Initial new helper missing-module RED then28browser CPU PASS; combined verification
+and one independent reviewed-source pass precede ONE new execution. Existing
+review/fix clocks retained under human waiver; no provider scope or retry change.
+Weekly90%remaining/ordinaryallowed; storage315.59GBhealthy. All production,
+shared-local, provider-refused and rollout holds unchanged. Not product acceptance.

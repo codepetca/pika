@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Approved narrow browser/body and identity diagnostic
-
-Human authorizes one narrow browser diagnostic; no fresh full-app rehearsal.
-Existing Playwright browser-only carrier gains sealed login-body mode: one
-synthetic loopback POST/JSON/navigation exchange, at most3HTTP requests, original
-body read once, eight-second observation then hold release/abort within one20s
-operation and existing30s browser/90s diagnostic/6min cleanup bounds. Fixed event
-order/timing records request completion, body resolution and post-abort behavior;
-no Pika account/session/database/auth bypass, raw errors or network payloads saved.
-Root writes browser module/tests. Astra/high author89 separately adds private
-WeakMap-bound identity mismatch booleans, member/state through native/controller
-diagnostics. Rejection/poison/signaling/closure predicates unchanged;106 CPU PASS.
-Initial new helper missing-module RED then28browser CPU PASS; combined verification
-and one independent reviewed-source pass precede ONE new execution. Existing
-review/fix clocks retained under human waiver; no provider scope or retry change.
-Weekly90%remaining/ordinaryallowed; storage315.59GBhealthy. All production,
-shared-local, provider-refused and rollout holds unchanged. Not product acceptance.
-
 ## 2026-10-15 — Durable browser diagnostic startup reporting
 
 Previous one-shot preparation exists but output is empty: no admission/browser/
@@ -840,3 +822,7 @@ Full4362-test/static gate passed at75ba44b5b, but independent reviews197/198 fou
 ## 2026-10-18 — Survey rollback timeout diagnosis and bounded progress
 
 Correction127 passed4377 focused/static checks and independent reviews199/200. One remaining-v1 attempt failed its35-second49-case SQL frame before committed/HTTP work; exact isolated cleanup and immediate source/dependency/global/canonical preservation passed. That alias remains spent. Correction128 separates the twelve question/response and four list count cases within the same frame, preserves all49 assertions/real triggers/full-state equality, and adds one answered list response plus two restoration witnesses.211 fixed INFO SQLSTATE markers now retain only a bounded stage and monotonic elapsed time; the two output streams join under the original timer.323 unique focused tests and targeted strict TypeScript pass. Counts remain198actions/4008nativecontrols/16requests; no cap, product function, migration or production hold changes. Independent review and full gates precede one fresh alias; native fit and overall goal acceptance remain unproved.
+
+## 2026-10-18 — Approved remaining-only Survey rollback deadline
+
+Review201 and4396 carrier/940 product checks passed. Remaining-v2 localized the35s failure to marker171: the10000-question response upsert began at28,081ms after40 restored cases. Exact cleanup and immediate preservation passed; the failed attempt remains spent. Owner explicitly approved90s only for this isolated49-case rollback block. Correction130 derives exactly one timeout-header replacement from hash-verified raw SQL and seals the new manifest; the actual remaining client deadline matches90s while component/native35s and the original overall clock remain.272 unique focused checks and targeted strict TypeScript pass, including actual engine90s/outer40s expiry and cross-profile rejection. Product/raw SQL and all other limits/production holds are unchanged. Independent review and the full carrier gate precede one fresh alias; no new native acceptance or goal completion is claimed.

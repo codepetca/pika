@@ -188,8 +188,10 @@ Source/CPU preparation does not establish native byte fit or acceptance. The
 closed remaining269 source integration now counts198 native actions,4008 native
 controls,4366 normal-completion controls or4387 partial-teardown controls,
 16 original HTTP requests and14 observer frames. Its6000-control allowance,
-64MiB exchange cap, two persistent sessions,35s SQL frame,8s RPC behavior and
-12-minute work plus3-minute cleanup clocks remain unchanged. The complete
+64MiB exchange cap, two persistent sessions,8s RPC behavior and12-minute work
+plus3-minute cleanup clocks remain unchanged. The isolated remaining rollback
+frame has the separately approved90s exception described below; all other
+35s frame limits remain unchanged. The complete
 source inventory is distinct from native acceptance and execution admission.
 
 The same rollback SQL frame contains49 cases: input/detail byte and shape
@@ -216,10 +218,32 @@ state. The parser bounds this to224 events and128 bytes per line (28,672 bytes
 maximum), charges the existing stderr exchange ledger, stores only fixed stage
 identifiers and client monotonic elapsed milliseconds, and freezes on first
 failure. It rejects malformed, duplicate, out-of-order and oversized markers.
-It joins stdout completion and stderr progress within the original35s timer;
+It joins stdout completion and stderr progress within the bound frame timer;
 telemetry is diagnostic only and never supplies native acceptance. SQL source
 and marker bytes remain subject to the existing64MiB total; actual remaining
 attempt exchange bytes are unproved until a separately admitted run.
+
+## Remaining-only rollback timeout correction130
+
+The second expanded49-case attempt also failed the35s deadline and is permanently
+spent. Its last valid marker was171, count-response-questions:exact:rpc-start,
+at28,081ms, after40 restored cases. The real10,000-question existing-response
+upsert had started but no RPC-end marker arrived. Cleanup and preservation
+checks passed; this is localization evidence, not a completed49-case proof.
+
+The owner approved raising only this isolated full49-case remaining rollback
+SQL frame to90s. The sealed remaining plan derives its SQL from the unchanged,
+hash-verified shared35s source, requires exactly one source-owned timeout header,
+and replaces only that header with90s. Its full manifest binds those derived
+bytes, and its actual client deadline is90,000ms. The original work cutoff still
+clamps that deadline. Component and legacy/native profiles, the product checkout,
+setup/snapshot/single-frame35s limits, committed/probe/SDK behavior, and every
+case, telemetry marker, trigger and restoration check remain unchanged.
+
+No90s native fit or49-case native acceptance has been established. Both failed
+attempts remain spent; source validation does not admit or replay an attempt.
+Actions, controls, HTTP, sessions, exchange bytes and work/cleanup allowances
+are unchanged; this exception grants no other cap increase or production action.
 
 The original cancellation and wire probes,30 committed directions, ordinary
 14 SDK calls, genuine269 types, restoration/preservation and screen proof remain
