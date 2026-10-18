@@ -745,6 +745,9 @@ describe('native persistent-session transport with offline child mocks', () => {
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
   })
+  // This CPU-only matrix replays thousands of mocked controls. Its real Vitest
+  // watchdog is separate from the fake-clock deadlines asserted below and from
+  // every unchanged native/rehearsal cap; slower hosts still run every assertion.
   it.each(['normal','normal-over64','over128','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','contract-wrong-sql','contract-wrong-sql-clamped','contract-wrong-session','contract-over120','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout',...scenario24Modes] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
     vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
     scenario24=scenario24Modes.find(value=>value===mode)
@@ -1007,7 +1010,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       process.stdout.write(`DIAG offline remaining trace actions=198 controls=${finalLedger.controls} requests=${finalLedger.requests} bytes=${finalLedger.bytes} nativeVerified=false.\n`)
       expect(adapter.inventoryComplete).toBe(true);expect(adapter.nativeVerified).toBe(false)
     }finally{spies.forEach(s=>s.mockRestore());vi.unstubAllGlobals()}
-  })
+  }, 15_000)
   it('measures8s wire separately from14s guarded cancellation action', async () => {
     const adapter = learnerFactory(); await adapter.setup()
     await adapter.probeLearnerPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))

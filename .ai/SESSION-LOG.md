@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Fresh matrix-reset rehearsal stopped safely at network boundary
-
-Human approved ONE fresh bounded run of reviewed39e36ae8. Review110 CLEAN0 for
-constant-only private wrapper identifiers; review109/focused3560PASS reused.
-Fresh storage331.89GB healthy; source, frozen app21e755d3, migrations001–262,
-binary/signature pins and ports passed readiness. jfeIB9/71997 FAILED/SPENT:
-teacher login completed identity validation; 31 app requests, zero storage,
-zero screenshots. First failure endpoint, request/response diagnostics null,
-pending1. This overloaded label cannot identify which guard fired or prove the
-new reload was reached; a late-request/departure race remains an inference.
-Recommend fixed rejection-branch/phase labels and source-level race tests before
-another separately admitted run. No retry, boundary weakening or product edit.
-
-All native cleanup gates PASS; ownedSettledtrue, executionFailures empty,
-activeProbes/unsettledFamilies0, identityMismatchnull. Independent52786 CLOSED0
-before writes/tests:7649source files and49485dependencies602160554bytes unchanged,
-current process candidates0. Exact isolated containers/volumes/network/tempapp
-absent, four ports clear. Freeze released; evidence retained in private jfeIB9.
-No canonical database equality attestation or app acceptance. PR1581 stays draft;
-review110/fix66 counters and waiver carry; all production/sharedlocal/provider/
-oldsocket/rollout holds unchanged. Only continuity notes updated after the run.
-
 ## 2026-10-16 — Reproduce and remove host-side navigation scheduling gap
 
 Human requests pinpointing rejection, a small reproduction, coordination fix and
@@ -580,3 +558,7 @@ Initial139 source0cc85e01 received clean security review215; compatibility revie
 ## 2026-10-18 — Close Survey runner recognition and mounted freshness gaps
 
 Review217 resolved prior navigation/companion fixes but caught missing Survey config/native recognition and stale mounted member settings/owner text. Correction141 consolidates the four narrow modes in the existing plan helper, preserves separate full mode and all native denial/profile/command/env controls, and refreshes after cross-context settings and before first/theme captures while retaining viewport-only reuse. Actual config/native CPU seams reproduce the omitted branches before correction; freshness regressions reproduce cached values, then46workflow tests pass. No product/schema/dependency/framework/cap change or native attempt. Prior full4550PASS/8skip plus one unchanged offline5s timeout stays failed; exact isolated case passes3.89s under the same limit. Root finalgate and targeted review218 follow stable source. The three unused private launch/preservation wrappers match their accepted derivation; runtime remains unadmitted and all production/shared-local/provider/account/billing/cohort/home/cutover holds remain.
+
+## 2026-10-18 — Bound the CPU-only engine matrix independently of rehearsal clocks
+
+Review218 is clean at3646f3e3. Fullfocused then had4569PASS/8skip and one different scenario24-blocker case hit the unchanged default5s Vitest watchdog; the former scenario24-long failure passed in that run. Correction142 changes only this offline mocked198-action matrix's outer Vitest timeout to15s. Root byte comparison confirms every callback/assertion/fake-clock deadline and all actual native budgets are unchanged; no retry or skipped assertion. The two previously timed-out cases pass together (2.89s test body). All failed full-run receipts remain failed. Independent targeted review219 and final cumulative gate follow; no private wrapper execution, browser/DB attempt, product/schema/provider/account change or production/shared-local/rollout activation.

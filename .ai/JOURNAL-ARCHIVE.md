@@ -48577,3 +48577,26 @@ orlimit. 100targetedPASS,tsc/lint/auditPASS; finalgate/targetedreview109 next.
 Counters108reviews/65fixcommitscarry underwaiver. No furthernativeattempt; remaining
 12font+16workflowscreenshots absent. ProductSCSS staysuncommitted; allproduction,
 sharedlocal249+, providerSurvey/planning, oldsocket81 androllout holds unchanged.
+
+<!-- pika-session-log-archive-batch:4053b201f0aa9ab1c6ba364ce812d95d6251860cf1923221e70c0387ae1efa14 -->
+## 2026-10-16 — Fresh matrix-reset rehearsal stopped safely at network boundary
+
+Human approved ONE fresh bounded run of reviewed39e36ae8. Review110 CLEAN0 for
+constant-only private wrapper identifiers; review109/focused3560PASS reused.
+Fresh storage331.89GB healthy; source, frozen app21e755d3, migrations001–262,
+binary/signature pins and ports passed readiness. jfeIB9/71997 FAILED/SPENT:
+teacher login completed identity validation; 31 app requests, zero storage,
+zero screenshots. First failure endpoint, request/response diagnostics null,
+pending1. This overloaded label cannot identify which guard fired or prove the
+new reload was reached; a late-request/departure race remains an inference.
+Recommend fixed rejection-branch/phase labels and source-level race tests before
+another separately admitted run. No retry, boundary weakening or product edit.
+
+All native cleanup gates PASS; ownedSettledtrue, executionFailures empty,
+activeProbes/unsettledFamilies0, identityMismatchnull. Independent52786 CLOSED0
+before writes/tests:7649source files and49485dependencies602160554bytes unchanged,
+current process candidates0. Exact isolated containers/volumes/network/tempapp
+absent, four ports clear. Freeze released; evidence retained in private jfeIB9.
+No canonical database equality attestation or app acceptance. PR1581 stays draft;
+review110/fix66 counters and waiver carry; all production/sharedlocal/provider/
+oldsocket/rollout holds unchanged. Only continuity notes updated after the run.
