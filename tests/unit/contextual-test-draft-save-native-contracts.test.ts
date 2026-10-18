@@ -201,6 +201,8 @@ describe('native persistent-session transport with offline child mocks', () => {
   let remainingProbeFrameFault:'prepare-close'|'observer-close'|'observer-timeout'|'contract-timeout'|'contract-cutoff'|undefined
   let waitTiming:'wait-release'|'wait-observer-late'|'wait-pre-expired'|'wait-post-expired'|'wait-outer-cutoff'|'wait-statement-timeout'|undefined
   let waitStarted=0,waitGuardDelayed=false,waitReleased=false,waitTimer:ReturnType<typeof setTimeout>|undefined
+  const scenario24Modes=['scenario24-750','scenario24-751','scenario24-receipt','scenario24-settled','scenario24-backend','scenario24-blocker','scenario24-waiter','scenario24-operation','scenario24-source','scenario24-timestamps','scenario24-invalid-clock','scenario24-overflow-clock'] as const
+  let scenario24:typeof scenario24Modes[number]|undefined,scenario24Dispatched=0,scenario24GuardDelayed=false
   function surveyAfter() {
     const state = surveyDirection!, s = state.schedule
     // Select the actual closed legacy-writer frame, independently of the
@@ -287,6 +289,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     surveyLateFrame = undefined; surveyWorkDeadline = 0; surveyUnjoinedHolder = false
     surveyOriginalBase=undefined;surveySnapshot=undefined;remainingManifest=undefined;remainingProbeFrameFault=undefined
     waitTiming=undefined;waitStarted=0;waitGuardDelayed=false;waitReleased=false;waitTimer=undefined
+    scenario24=undefined;scenario24Dispatched=0;scenario24GuardDelayed=false
     cancellationRestoreOutput = 'ok'
     cancellationCatalogChanged = false
     bulkDispatched = undefined
@@ -339,6 +342,12 @@ describe('native persistent-session transport with offline child mocks', () => {
         if(waitTiming&&waitTiming!=='wait-pre-expired'&&waitTiming!=='wait-observer-late'&&waitStarted&&surveyEvents.includes('observer:owner_replacement_after_snapshot:forward')&&!waitGuardDelayed&&input===surveyManifest?.guard){
           waitGuardDelayed=true;surveyEvents.push('wait-release-guard')
           setTimeout(deliver,waitTiming==='wait-post-expired'?7301:waitTiming==='wait-statement-timeout'?7400:400)
+        }else if(scenario24&&scenario24Dispatched&&!scenario24GuardDelayed&&input===surveyManifest?.guard){
+          // Delay the actual mandatory observer ownership child, not the SQL
+          // witness clock: dispatch→observation must include this guard time.
+          scenario24GuardDelayed=true;surveyEvents.push('scenario24-observer-guard')
+          const elapsed=scenario24==='scenario24-751'?751:scenario24==='scenario24-750'?750:500
+          setTimeout(deliver,elapsed-(Date.now()-scenario24Dispatched))
         }else queueMicrotask(deliver)
         done()
       } })
@@ -422,6 +431,7 @@ describe('native persistent-session transport with offline child mocks', () => {
           }
           if (s && sql === s.frames.contender) {
             if(waitTiming&&s.index===2&&s.direction==='forward')waitStarted=Date.now()
+            if(scenario24&&s.index===11&&s.direction==='reverse')scenario24Dispatched=Date.now()
             surveyDirection!.contenderAt = now
             const result = surveyAfter()
             const value = { label: s.label, operation: result.receipts.contender, writerTimestamp: now,
@@ -474,6 +484,21 @@ describe('native persistent-session transport with offline child mocks', () => {
             const pair = { holder: surveyBackends.get(`${project}_draft_holder`)!, contender: surveyBackends.get(`${project}_draft_contender`)! }
             const direction = surveyDirection.schedule
             if (sql === surveyCommittedProof.surveyCommittedObservationSql(m, direction.label, pair)) {
+              if(scenario24&&direction.index===11&&direction.direction==='reverse'){
+                surveyEvents.push(`observer:${direction.label}`)
+                const held=structuredClone(surveyDirection.held!.heldWitness) as Record<string,unknown>
+                const observation:Record<string,unknown>={label:direction.label,observedAt:now,poll:1,holder:pair.holder,contender:pair.contender,held,blockers:[pair.holder.pid],waiter:{wait_event_type:'Lock',wait_event:'transactionid',state:'active'}}
+                if(scenario24==='scenario24-settled'){pendingSurveyContender!();pendingSurveyContender=undefined}
+                if(scenario24==='scenario24-backend')observation.holder={...pair.holder,name:'private-payload-must-not-escape'}
+                if(scenario24==='scenario24-blocker')observation.blockers=[9999]
+                if(scenario24==='scenario24-waiter')observation.waiter={wait_event_type:'Lock',wait_event:'advisory',state:'active'}
+                if(scenario24==='scenario24-operation')held.operation={code:null,result:{private:'private-payload-must-not-escape'}}
+                if(scenario24==='scenario24-source')held.sourceSha256='private-payload-must-not-escape'
+                if(scenario24==='scenario24-timestamps')held.operationFinishedAt=new Date(Date.now()+1).toISOString()
+                if(scenario24==='scenario24-invalid-clock')observation.observedAt='private-payload-must-not-escape'
+                if(scenario24==='scenario24-overflow-clock')observation.observedAt=new Date(Date.now()+900000).toISOString()
+                emit(scenario24==='scenario24-receipt'?['private-payload-must-not-escape']:observation);done();return
+              }
               if(waitTiming&&direction.index===2&&direction.direction==='forward'){
                 const delay=waitTiming==='wait-observer-late'?751:700
                 setTimeout(()=>{
@@ -711,8 +736,9 @@ describe('native persistent-session transport with offline child mocks', () => {
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
   })
-  it.each(['normal','normal-over64','over128','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','contract-wrong-sql','contract-wrong-sql-clamped','contract-wrong-session','contract-over120','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
+  it.each(['normal','normal-over64','over128','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','contract-wrong-sql','contract-wrong-sql-clamped','contract-wrong-session','contract-over120','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout',...scenario24Modes] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
     vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
+    scenario24=scenario24Modes.find(value=>value===mode)
     if(mode==='wait-release'||mode==='wait-observer-late'||mode==='wait-pre-expired'||mode==='wait-post-expired'||mode==='wait-outer-cutoff'||mode==='wait-statement-timeout')waitTiming=mode
     else remainingProbeFrameFault=mode==='prepare-close'||mode==='observer-close'||mode==='observer-timeout'||mode==='contract-timeout'||mode==='contract-cutoff'?mode:undefined
     const deniedContract=['contract-wrong-sql','contract-wrong-sql-clamped','contract-wrong-session','contract-over120'].includes(mode)
@@ -805,6 +831,43 @@ describe('native persistent-session transport with offline child mocks', () => {
       if(mode==='contract-cutoff'||mode==='contract-wrong-sql-clamped')vi.setSystemTime(started+680000)
       if(mode==='wait-outer-cutoff')vi.setSystemTime(started+719100)
       const run=adapter.runRemainingCommitted();void run.catch(()=>{})
+      if(scenario24){
+        const result=run.catch(error=>error)
+        for(let n=0;n<30000&&!scenario24GuardDelayed;n++)await Promise.resolve()
+        expect(scenario24GuardDelayed).toBe(true)
+        expect(surveyEvents).toContain('contender:response_after_text_limit_change:reverse')
+        expect(surveyEvents).not.toContain('observer:response_after_text_limit_change:reverse')
+        await vi.advanceTimersByTimeAsync(751)
+        if(scenario24!=='scenario24-750'){
+          expect(await result).toBeInstanceOf(Error)
+          const diagnostic=adapter.diagnostic()
+          // This is the historical generic signature, reproduced offline;
+          // labels below must distinguish causes without claiming v7's cause.
+          expect(diagnostic).toContain('failure=unknown role=none sqlstate=unknown controls=2387 actions=148 sessions=2')
+          const predicate={
+            'scenario24-751':'observation-window','scenario24-receipt':'receipt','scenario24-settled':'pending',
+            'scenario24-backend':'backend','scenario24-blocker':'blocker','scenario24-waiter':'waiter','scenario24-operation':'holder-operation',
+            'scenario24-source':'holder-source','scenario24-timestamps':'holder-window',
+            'scenario24-invalid-clock':'clock-finite','scenario24-overflow-clock':'clock-order',
+          }[scenario24]
+          const delta=scenario24==='scenario24-receipt'||scenario24==='scenario24-invalid-clock'?'unknown':scenario24==='scenario24-751'?751:scenario24==='scenario24-overflow-clock'?720000:500
+          const label=`DIAG survey269-committed failure direction=24 frame=observer predicate=${predicate} observationMs=${delta}.`
+          expect(diagnostic).toContain(label);expect(diagnostic.split(label)).toHaveLength(2);expect(Buffer.byteLength(label+'\n')).toBeLessThanOrEqual(160)
+          expect(diagnostic).not.toMatch(/private-payload|response_after_text_limit_change|SELECT|UPDATE|2026-|aabbccdd/i)
+          expect(surveyEvents).not.toContain('release:response_after_text_limit_change:reverse')
+          expect(surveyEvents).not.toContain('holder:response_after_close:forward')
+          expect(surveyEvents).not.toContain('cancel-prepare');expect(actualFetches).toBe(0)
+          expect(diagnostic).toContain('remainingSessions=0')
+          const writes=surveyWrites.length,controls=mocks.execFile.mock.calls.length
+          await vi.advanceTimersByTimeAsync(10000)
+          expect(adapter.diagnostic()).toBe(diagnostic);expect(surveyWrites).toHaveLength(writes);expect(mocks.execFile).toHaveBeenCalledTimes(controls)
+          await expect(adapter.runSdkCommitted()).rejects.toThrow();expect(actualFetches).toBe(0)
+          expect(adapter.diagnostic()).toBe(diagnostic)
+          return
+        }
+        expect(surveyEvents).toContain('release:response_after_text_limit_change:reverse')
+        expect(adapter.diagnostic()).not.toContain('DIAG survey269-committed failure')
+      }
       if(deniedContract){
         await expect(run).rejects.toThrow();expect(timeoutDenied).toBe(true)
         expect(surveyWrites.some(w=>w.sql===plan.contracts.sql)).toBe(false)
@@ -826,6 +889,7 @@ describe('native persistent-session transport with offline child mocks', () => {
           if(waitTiming==='wait-pre-expired')expect(adapter.diagnostic()).toContain('actions=34')
           if(waitTiming==='wait-post-expired')expect(adapter.diagnostic()).toContain('actions=35')
           if(waitTiming==='wait-statement-timeout')expect(adapter.diagnostic()).toContain('role=contender sqlstate=57014')
+          if(waitTiming==='wait-statement-timeout'||waitTiming==='wait-post-expired')expect(adapter.diagnostic()).not.toContain('DIAG survey269-committed failure')
           const frozen=adapter.diagnostic(),writes=surveyWrites.length,controls=mocks.execFile.mock.calls.length
           await vi.advanceTimersByTimeAsync(10000)
           expect(adapter.diagnostic()).toBe(frozen);expect(surveyWrites).toHaveLength(writes);expect(mocks.execFile).toHaveBeenCalledTimes(controls)
@@ -851,7 +915,7 @@ describe('native persistent-session transport with offline child mocks', () => {
         expect(children).toHaveLength(spawned)
         return
       }
-      if(mode!=='normal'&&mode!=='normal-over64'&&mode!=='wait-release'){
+      if(mode!=='normal'&&mode!=='normal-over64'&&mode!=='wait-release'&&mode!=='scenario24-750'){
         let settled=false;const failure=run.catch(e=>e).finally(()=>{settled=true})
         for(let n=0;n<30000&&!surveyEvents.includes(mode==='prepare-close'?'cancel-prepare':'cancel-observer');n++)await Promise.resolve()
         for(let n=0;n<100;n++)await Promise.resolve()

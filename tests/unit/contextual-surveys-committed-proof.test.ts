@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import type { AssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newSurveyNativeFixture } from '../../scripts/contextual-surveys-native-contracts'
 import { surveyCommittedProofManifest, validateSurveyCommittedSql, validateSurveyCommittedSource, verifySurveyCommittedEffects,
-  surveyCommittedObservationSql, verifySurveyCommittedWitness, verifySurveyCommittedEnvelopes,
+  surveyCommittedObservationSql, verifySurveyCommittedWitness, surveyCommittedWitnessFailure, verifySurveyCommittedEnvelopes,
   verifySurveyCommittedSeed, parseSurveyCommittedGraph } from '../../scripts/contextual-surveys-committed-proof'
 
 // No entropy, native driver, filesystem target, provider or database is used.
@@ -26,6 +26,25 @@ function compact(g: Graph) {
   }])) )
 }
 describe('source-only Survey committed directions', () => {
+  it('classifies only actual witness failures without trusting error messages or caller labels', () => {
+    for (const forged of [null, 'holder-source', new Error('holder-source'), { predicate: 'holder-source' }])
+      expect(surveyCommittedWitnessFailure(forged)).toBeUndefined()
+    const m=manifest(),s=m.schedules[23],before=capturedSeed(m);admitSeed(m,before)
+    const {witness}=practicalFixture(m,s,before)
+    const bootstrap={holder:witness.holder,contender:witness.contender}
+    const now=Date.parse('2026-10-13T03:00:02Z')
+    const clock={startedAt:now-500,workDeadline:now+100,dispatchedAt:now-10,observedAt:now,contenderPending:true,poll:1}
+    expect(s.index).toBe(11);expect(s.direction).toBe('reverse')
+    expect(verifySurveyCommittedWitness(m,s.label,bootstrap,witness,clock).blockingEdgeVerified).toBe(true)
+    const rejected=(raw:unknown,time=clock)=>{try{verifySurveyCommittedWitness(m,s.label,bootstrap,raw,time);throw new Error('unexpected acceptance')}
+      catch(error){return surveyCommittedWitnessFailure(error)}}
+    expect(rejected({...witness,holder:{...witness.holder,started:'not-a-date'}})).toBe('backend')
+    expect(rejected({...witness,waiter:{...witness.waiter,wait_event:'advisory'}})).toBe('waiter')
+    expect(rejected({...witness,contenderDispatch:{...witness.contenderDispatch,sqlSha256:'private-data'}})).toBe('dispatch-source')
+    // Preserve check order: an invalid earlier clock wins over a bad backend.
+    expect(rejected({...witness,holder:{private:'not-a-backend'}},{...clock,startedAt:now-1000,dispatchedAt:now-751})).toBe('observation-window')
+    expect(rejected(witness,{...clock,observedAt:NaN})).toBe('clock-finite')
+  })
   it('aligns only13 successful WAIT contenders with the existing8s statement ceiling',()=>{
     const m=manifest()
     expect(m.schedules.filter(s=>s.mode==='wait')).toHaveLength(13)

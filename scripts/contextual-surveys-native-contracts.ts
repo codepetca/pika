@@ -370,7 +370,7 @@ export function validateSurvey269ComponentGeneratedTypes(source: string, sha256:
 }
 /** Fixed reviewed leaf; this is an external source pin, not a recomputed approval. */
 export const SURVEY_COMMITTED_SOURCE = Object.freeze({ file: 'scripts/contextual-surveys-committed-proof.ts',
-  sha256: 'e90526699d3d8e022658327dc4d12453344dc926f333283a0e1a76459d21f86c' })
+  sha256: 'e8ea8d34d15d10eddd64119026d36d40e200c18b145947465757e2f58c9903bc' })
 export function surveyRemainingNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   const plan = surveyNativePlan(original, reviewedHead, repository)
   checked(repository, SURVEY_COMMITTED_SOURCE)

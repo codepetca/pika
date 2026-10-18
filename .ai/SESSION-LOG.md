@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Underlying harness assumptions diagnosed without another run
-
-Human requested root-cause analysis instead of repeated rehearsals. Two bounded
-read-only Astra assignments (ultra process/high response; effective config and
-usage unknown) plus root verification found two invalid contracts: P_EXEC does
-not prove executable-vnode publication complete, and immediate Playwright body()
-invocation defers bytes until completion while full navigation can discard them.
-Tracked pre-header requests are omitted from settlement. Existing mocks assume
-fixed images and premature requestfinished ordering, missing both counterexamples.
-Both prior actor logins completed identity; saved other/inspector labels cannot
-identify the exact executable/request or prove historical trigger. Pinned Apple/
-Chrome sources and installed Playwright corroborate mechanisms, not shipped-kernel
-native reproduction. Recommend explicit lineage/image and request/departure
-contracts, deterministic regressions, then narrow confirmation before full app.
-Private underlying-harness-diagnosis-20261015.md in restart-recovery evidence has
-sources, uncertainty and delegation receipt. No implementation/test/browser/DB,
-fixture operation, signal, PR review or new attempt. Documentation only;99/57
-counters and all production/shared-local/provider/rollout holds unchanged.
-
 ## 2026-10-15 — Harness ownership contracts corrected before narrow confirmation
 
 Human approved the recommended source corrections and narrow confirmation, not
@@ -745,3 +726,7 @@ Owner explicitly approved128MiB for remaining269, independent review, the isolat
 ## 2026-10-18 — Approved exact Survey rollback-suite120-second exception
 
 Correction134 passed4428 full checks/review206; isolated PostgreSQL17.6 regression reproduced old TOAST comparison/hash failures and passed materialized equality/hashes/negative/rollback with exact cleanup. Fresh v6 then timed out in the separate49-case90s SQL suite at marker174/89,773ms; immediate source/dependency preservation and exact cleanup passed, alias spent. Owner explicitly approved120s only for that suite and one fresh bounded rehearsal. Correction135 binds the derived header/manifest/client120s while generic90s and raw/component35s remain. The exception requires active original rollback scope, exact sealed SQL/owned contracts session/phase, no committed carrier or cleanup/fault; requested limits are checked before original global clamping.331 focused checks, strict TypeScript and audit pass. Cases/markers/guards/actions/requests remain; header adds one byte. Fullgate and independent review precede admission. All other caps and production/shared-local/provider/account/rollout holds remain; no full acceptance claimed.
+
+## 2026-10-18 — Reproduce Survey scenario24 and classify witness failures
+
+Correction135 passed4435 full checks/review207. Fresh v7 passed49 SQL cases in106109ms, then failed at direction24 observer/action148/control2387; cleanup and immediate source/dependency preservation passed. The alias remains spent. Owner authorized offline reproduction and privacy-safe labels, not another admission. Correction136 reproduces the same generic signature with a751ms mandatory observer guard;750ms passes. Alternate invalid evidence reproduces that signature too, so historical cause remains unknown. Fixed predicate/direction/frame labels and bounded observation delta freeze the first eligible host failure without exposing SQL, rows, IDs, timestamps or error text. Original assertions/order/clock origins/guards and all limits remain unchanged.313 affected tests, strict TypeScript/audit pass; root fullgate and targeted independent review follow on the stable revision. No product/schema/native operation or production/shared-local/provider/account/rollout activation. Counters207 reviews/136 corrections; routine-stop waiver retained without resetting history.

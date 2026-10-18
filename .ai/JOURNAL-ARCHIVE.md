@@ -48373,3 +48373,23 @@ binding; removed only this fixture's5 containers/2 synthetic volumes/1 network,
 retained temporary app. Historical failed acceptance remains failed. Cumulative
 99review turns/57fix batches; original clocks/waiver retained. All production,
 shared-local, provider and rollout holds unchanged; source diagnosis remains.
+
+<!-- pika-session-log-archive-batch:ad01669ecf2763a1576e41a314c609a91ff971c3963918f03fc3a59560a34774 -->
+## 2026-10-15 — Underlying harness assumptions diagnosed without another run
+
+Human requested root-cause analysis instead of repeated rehearsals. Two bounded
+read-only Astra assignments (ultra process/high response; effective config and
+usage unknown) plus root verification found two invalid contracts: P_EXEC does
+not prove executable-vnode publication complete, and immediate Playwright body()
+invocation defers bytes until completion while full navigation can discard them.
+Tracked pre-header requests are omitted from settlement. Existing mocks assume
+fixed images and premature requestfinished ordering, missing both counterexamples.
+Both prior actor logins completed identity; saved other/inspector labels cannot
+identify the exact executable/request or prove historical trigger. Pinned Apple/
+Chrome sources and installed Playwright corroborate mechanisms, not shipped-kernel
+native reproduction. Recommend explicit lineage/image and request/departure
+contracts, deterministic regressions, then narrow confirmation before full app.
+Private underlying-harness-diagnosis-20261015.md in restart-recovery evidence has
+sources, uncertainty and delegation receipt. No implementation/test/browser/DB,
+fixture operation, signal, PR review or new attempt. Documentation only;99/57
+counters and all production/shared-local/provider/rollout holds unchanged.

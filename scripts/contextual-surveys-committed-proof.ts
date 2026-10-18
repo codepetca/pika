@@ -279,39 +279,76 @@ export function validateSurveyCommittedObservationSql(m: SurveyCommittedProofMan
   try { return sql === surveyCommittedObservationSql(m, label, b) } catch { return false }
 }
 export type SurveyCommittedClock = Readonly<{ startedAt: number; workDeadline: number; dispatchedAt: number; observedAt: number; contenderPending: boolean; poll: number }>
+type WitnessPredicate = 'schedule' | 'bootstrap' | 'clock-finite' | 'clock-order' | 'work-window' | 'observation-window'
+  | 'poll' | 'receipt' | 'backend' | 'dispatch-shape' | 'dispatch-backend' | 'dispatch-source'
+  | 'holder-shape' | 'holder-backend' | 'holder-source' | 'holder-window' | 'baseline' | 'holder-operation'
+  | 'pending' | 'blocker' | 'waiter' | 'nowait-result' | 'nowait-window'
+// Associate only fixed source-owned labels with the original thrown object.
+// No exception message, assertion operands or caller-provided label is exposed.
+const witnessFailures = new WeakMap<object, WitnessPredicate>()
+export function surveyCommittedWitnessFailure(error: unknown) {
+  return error !== null && typeof error === 'object' ? witnessFailures.get(error) : undefined
+}
 export function verifySurveyCommittedWitness(m: SurveyCommittedProofManifest, label: string, b: SurveyCommittedBootstrap, raw: unknown, clock: SurveyCommittedClock) {
-  const s = schedule(m, label); backend(m, b)
+  let predicate: WitnessPredicate = 'schedule'
+  try {
+  const s = schedule(m, label); predicate = 'bootstrap'; backend(m, b)
+  predicate = 'clock-finite'
   assert(Object.values(clock).every(v => typeof v === 'boolean' || Number.isFinite(v)))
+  predicate = 'clock-order'
   assert(clock.startedAt <= clock.dispatchedAt && clock.dispatchedAt <= clock.observedAt && clock.observedAt < clock.workDeadline)
-  assert(clock.workDeadline - clock.startedAt <= m.caps.workMs && clock.observedAt - clock.dispatchedAt <= m.caps.observationMs)
+  predicate = 'work-window'
+  assert(clock.workDeadline - clock.startedAt <= m.caps.workMs)
+  predicate = 'observation-window'
+  assert(clock.observedAt - clock.dispatchedAt <= m.caps.observationMs)
+  predicate = 'poll'
   assert(Number.isInteger(clock.poll) && clock.poll >= 1 && clock.poll <= m.caps.polls)
+  predicate = 'receipt'
   const r = raw as Record<string, unknown>; assert(r && r.label === label); assert.equal(r.poll, clock.poll); assert.equal(Date.parse(String(r.observedAt)), clock.observedAt)
   const normalize = (v: unknown) => { const a = v as Record<string, unknown>; return { ...a, started: new Date(String(a.started)).toISOString() } }
+  predicate = 'backend'
   assert(isDeepStrictEqual(normalize(r.holder), normalize(b.holder))); assert(isDeepStrictEqual(normalize(r.contender), normalize(b.contender)))
   // Private engine carriers must join this actual observer DTO with the sealed
   // original contender dispatch receipt. These shape/source checks never bind
   // that provenance or claim exact tuple/child-XID ownership.
+  predicate = 'dispatch-shape'
   const dispatch=r.contenderDispatch as Record<string,unknown>;assert(dispatch)
   assert.deepEqual(Object.keys(dispatch).sort(),['backend','operationSha256','sqlSha256'])
+  predicate = 'dispatch-backend'
   assert(isDeepStrictEqual(normalize(dispatch.backend),normalize(b.contender)))
+  predicate = 'dispatch-source'
   assert.equal(dispatch.sqlSha256,hash(s.frames.contender));assert.equal(dispatch.operationSha256,s.secondOperationSha256)
+  predicate = 'holder-shape'
   const held = r.held as Record<string, unknown>; assert(held)
   assert.deepEqual(Object.keys(held).sort(),['backend','criterion','operation','operationFinishedAt','operationStartedAt','sourceSha256','transactionStartedAt'])
+  predicate = 'holder-backend'
   assert.equal(held.criterion,'original-operation-and-owned-backend');assert(isDeepStrictEqual(normalize(held.backend),normalize(b.holder)))
+  predicate = 'holder-source'
   assert.equal(held.sourceSha256,s.firstOperationSha256)
+  predicate = 'holder-window'
   const transaction=Date.parse(String(held.transactionStartedAt)),operationStart=Date.parse(String(held.operationStartedAt)),operationEnd=Date.parse(String(held.operationFinishedAt))
   assert([transaction,operationStart,operationEnd].every(Number.isFinite))
   assert(Date.parse(b.holder.started)<=transaction&&transaction<=operationStart&&clock.startedAt<=operationStart&&operationStart<=operationEnd&&operationEnd<=clock.dispatchedAt,'Original holder transaction/operation window differs')
+  predicate = 'baseline'
   const before=acceptedEffects.get(m)?.get(label)?.before??seedGraphs.get(m);assert(before,'Missing authenticated committed baseline')
   const firstRead=s.index<=7&&([1,5,6].includes(s.index)?s.direction==='reverse':s.direction==='forward')
   const firstRespond=s.index>=13||s.index>=8&&s.direction==='reverse'
   const result=firstRead?(s.index===5?aggregate(before,s.cohort):detail(before,s.cohort,[3,4].includes(s.index),m.actors[1].id)):firstRespond?{success:true,updated:false}:null
+  predicate = 'holder-operation'
   assert(isDeepStrictEqual(held.operation,{code:null,result}),'Original successful holder operation differs')
-  if (s.mode === 'wait') { assert(clock.contenderPending); assert.deepEqual(r.blockers, [b.holder.pid]); const w = r.waiter as Record<string, unknown>;
+  if (s.mode === 'wait') { predicate = 'pending'; assert(clock.contenderPending);
+    predicate = 'blocker'; assert.deepEqual(r.blockers, [b.holder.pid]); const w = r.waiter as Record<string, unknown>;
+    predicate = 'waiter'
     assert(w && w.wait_event_type === 'Lock' && w.state === 'active'); assert.equal(w.wait_event, s.lock.kind === 'advisory' ? 'advisory' : 'transactionid') }
-  else { assert(!clock.contenderPending); assert.deepEqual(r.blockers, []); assert.equal(r.waiter, null); assert.equal(r.code, 'PT409'); assert(typeof r.immediateMs === 'number' && r.immediateMs >= 0 && r.immediateMs < m.caps.observationMs) }
+  else { predicate = 'pending'; assert(!clock.contenderPending); predicate = 'blocker'; assert.deepEqual(r.blockers, []);
+    predicate = 'waiter'; assert.equal(r.waiter, null); predicate = 'nowait-result'; assert.equal(r.code, 'PT409');
+    predicate = 'nowait-window'; assert(typeof r.immediateMs === 'number' && r.immediateMs >= 0 && r.immediateMs < m.caps.observationMs) }
   return freeze({ label, heldBackendVerified: true, holderOperationVerified: true, contenderSourceMatches: true,
     blockingEdgeVerified: s.mode === 'wait', exactTupleOwnershipClaimed: false as const, nativeVerified: false as const })
+  } catch (error) {
+    if (error !== null && typeof error === 'object' && !witnessFailures.has(error)) witnessFailures.set(error, predicate)
+    throw error
+  }
 }
 
 function row(g: Graph, table: string, column: string, value: string) { const source = g[table]; assert(Array.isArray(source)); const rows = source.filter(r => r[column] === value); assert.equal(rows.length, 1, 'Exact committed row differs'); return rows[0] }

@@ -56,7 +56,7 @@ import { survey269ComponentPlan, survey269RemainingPlan, validateSurvey269Compon
   validateSurvey269ComponentGeneratedTypes, verifySurvey269ComponentSources, SURVEY_269_COMPONENT_ROOTS,
   type Survey269ComponentBinding } from './contextual-surveys-native-contracts'
 import { validateSurveyCommittedSql, surveyCommittedObservationSql, validateSurveyCommittedObservationSql,
-  parseSurveyCommittedGraph, verifySurveyCommittedSeed, verifySurveyCommittedWitness, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
+  parseSurveyCommittedGraph, verifySurveyCommittedSeed, verifySurveyCommittedWitness, surveyCommittedWitnessFailure, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
   type SurveyCommittedProofManifest, type SurveyCommittedBootstrap, type SurveyCommittedTimes } from './contextual-surveys-committed-proof'
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects, verifySurvey269ComponentSdkTerminalEffects, SURVEY_269_COMPONENT_SDK_CAPS } from './contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts, runSurvey269ComponentSdkContracts, Survey269ComponentSdkDeadlineError } from './contextual-surveys-sdk-contracts'
@@ -1020,6 +1020,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     completion: Promise<readonly { result?: unknown }[]> }
   let surveyPair: SurveyCommittedBootstrap | undefined
   let surveyBaseline: { seed: SurveyCarrier; graph: SurveyGraph } | undefined
+  let surveyCommittedFailure: Readonly<{ direction: number; frame: 'observer' | 'contender';
+    predicate: NonNullable<ReturnType<typeof surveyCommittedWitnessFailure>> | 'witness'; observationMs: number | 'unknown' }> | undefined
   const surveyCarriers = new WeakSet<SurveyCarrier>()
   function validateSurveyCarrier(c: SurveyCarrier) {
     const m = profile.surveyCommitted
@@ -1741,15 +1743,21 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           const second = contender.surveyExecute('contender', 'contender', s.frames.contender, s.label, s.secondOperationSha256)
           await second.dispatched
           assert(second.backend && second.dispatchedAt !== undefined && second.marker)
-          let observation: Record<string, unknown>, observedAt: number
+          let observation: Record<string, unknown>, observedAt: number | undefined
+          let witnessPredicate: 'pending' | 'receipt' | 'nowait-result' | 'witness' = 'pending'
+          try {
           if (s.mode === 'wait') {
             assert(second.completedAt === undefined)
             const observer = await frame(holder, 'holder', 'observer', surveyCommittedObservationSql(m, s.label, surveyPair), s.label)
+            witnessPredicate = 'receipt'
             observation = surveyResult(observer); observedAt = Date.parse(String(observation.observedAt))
+            witnessPredicate = 'pending'
             assert(second.completedAt === undefined, 'Survey original contender settled before observation')
           } else {
             await second.completion
+            witnessPredicate = 'receipt'
             const rejected = surveyResult(second)
+            witnessPredicate = 'nowait-result'
             assert((rejected.operation as { code?: unknown })?.code === 'PT409')
             observedAt = second.completedAt!
             // NOWAIT evidence is the original completed response and local frame
@@ -1758,10 +1766,22 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
               holder: surveyPair.holder, contender: surveyPair.contender, held: held.heldWitness,
               blockers: [], waiter: null, code: 'PT409', immediateMs: observedAt - second.dispatchedAt }
           }
+          witnessPredicate = 'witness'
           verifySurveyCommittedWitness(m, s.label, surveyPair, { ...observation,
             contenderDispatch: { backend: second.backend, sqlSha256: testOwnerDigest(second.sql), operationSha256: second.operationSha256 } }, {
             startedAt: directionStarted, workDeadline: profile.survey263Budget!.workDeadline,
             dispatchedAt: second.dispatchedAt, observedAt, contenderPending: second.completedAt === undefined, poll: Number(observation.poll) })
+          } catch (error) {
+            // Supplemental diagnostics only for the remaining profile's host
+            // witness failure. Earlier transport/guard faults retain priority.
+            if (remaining && !firstFault && !surveyCommittedFailure) {
+              const delta = observedAt === undefined ? NaN : observedAt - second.dispatchedAt
+              surveyCommittedFailure = Object.freeze({ direction: s.index * 2 + (s.direction === 'forward' ? 1 : 2),
+                frame: s.mode === 'wait' ? 'observer' : 'contender', predicate: surveyCommittedWitnessFailure(error) ?? witnessPredicate,
+                observationMs: Number.isFinite(delta) ? Math.trunc(Math.max(-m.caps.workMs, Math.min(m.caps.workMs, delta))) : 'unknown' })
+            }
+            throw error
+          }
           await frame(holder, 'holder', 'release', s.frames.release, s.label, undefined, s.mode==='wait'?second:undefined)
           await second.completion
           const secondResult = surveyResult(second)
@@ -1950,6 +1970,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
         + (component ? `DIAG survey269-component settlement remainingSessions=${sessions.size} exchangeBytes=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).bytes} controlCalls=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).controls}.\n` : '')
         + (component ? `DIAG survey269-component firstFailure checkpoint=${d.checkpoint} sdkElapsedMs=${d.sdkElapsedMs} sdkRemainingMs=${d.sdkRemainingMs}.\n` : '')
+        + (remaining && surveyCommittedFailure ? `DIAG survey269-committed failure direction=${surveyCommittedFailure.direction} frame=${surveyCommittedFailure.frame} predicate=${surveyCommittedFailure.predicate} observationMs=${surveyCommittedFailure.observationMs}.\n` : '')
         + (component ? `DIAG survey269-contract progress=${surveyProgress.checkpoint} sequence=${surveyProgress.sequence} elapsedMs=${surveyProgress.elapsedMs ?? 'none'} valid=${surveyProgress.valid}.\n` : '')
         + (component && surveySdkDiagnostic ? `${surveySdkDiagnostic()}\n` : '')
         + (component && surveySdkGuardUnjoined ? 'DIAG survey269-component sdkPending=guard.\n' : '')

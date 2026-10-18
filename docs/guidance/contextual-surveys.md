@@ -369,3 +369,37 @@ The original cancellation and wire probes,30 committed directions, ordinary
 required. No nativeVerified flag is raised, no spent attempt is replayed, and
 all production/shared-local/account/activation holds remain. The canonical
 roadmap still governs phase exit.
+
+## Remaining witness diagnostics correction136
+
+The seventh remaining attempt is permanently spent. Its49-case suite completed
+all211 valid markers in106,109ms under the approved120s ceiling. It later failed
+at action148/control2387, the host observation validation for direction24,
+`response_after_text_limit_change:reverse`; release action149 was not counted.
+Cleanup settled with no failures and immediate source/dependency preservation
+passed. The old unknown/none diagnostic cannot identify the failing predicate.
+
+The existing actual-engine CPU seam now reproduces that signature at this exact
+direction. A delayed mandatory observer guard is included in the original
+contender-dispatch→observation interval:750ms passes and751ms refuses release.
+Receipt, prematurely settled contender, backend/blocker/waiter, holder operation,
+source and timestamp defects are separate counterexamples. These reproductions
+do not establish which condition caused v7.
+
+Only remaining-profile host witness failures add one fixed diagnostic line:
+direction ordinal1–30, observer/contender frame, closed predicate label and one
+integer observation delta clamped to±720000ms (unknown when unavailable/nonfinite).
+The first eligible failure is frozen; prior transport/guard faults retain their
+original diagnostic priority. No SQL, arbitrary exception message, graph, row,
+identifier or absolute timestamp is included. Classification is associated with
+the original thrown object privately; caller-supplied error text is not a label.
+
+Acceptance predicates/order and clock origins are unchanged, including the750ms
+inclusive WAIT observation, every fresh guard and positive original blocking edge.
+There is no additional SQL frame, action, control, HTTP request, timer or retry.
+Normal198actions/4008nativecontrols/16requests and all previously approved ceilings
+remain unchanged:120s only for the exact49-case suite,8s operation/RPC,60s SDK,
+200actions/6000controls/128MiB/two sessions and720000ms work+180000ms cleanup.
+Legacy/component behavior and all production/shared-local/provider/account/rollout
+holds remain. Independent source review is required before any separate rehearsal
+decision; this correction neither admits a new attempt nor claims native acceptance.
