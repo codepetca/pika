@@ -534,3 +534,13 @@ must be inspected before visual acceptance. The existing font-overlay limitation
 remains explicit, and no production visual equivalence or new UI change is claimed.
 Final cumulative product review and exact-head CI/PR Gate remain separate gates.
 All production/shared-local/provider/account/billing/cohort/home/cutover holds stay.
+
+The source review caught three carrier/app mismatches before execution: the
+current Classwork link retains Survey selection, that desktop link is hidden on
+mobile, and the member summary issues a Gradebook companion read. The successor
+therefore uses exact existing classroom summary URLs when deselection is needed,
+reuses the same selected Survey for viewport-only changes, and admits only the
+two fixture-scoped no-query Gradebook GETs. Historical teacher-members still see
+that route's legacy403; this is not contextual Gradebook acceptance. The actual
+Classwork selection/navigation issue remains part of the later product-entry
+group. No product fix, broader gateway capability or cap increase is implied.

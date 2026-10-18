@@ -48535,3 +48535,21 @@ inspected, readable but matrix incomplete. Cleanup allPASS, ownedSettledtrue,
 activeProbes/unsettledFamilies0. Independent49472 beforewrites:7649sources and
 49485 dependency entries unchanged; currentprocesscandidates0. Exactcontainers/
 volumes/network/tempapp absent/fourportsclear. Sourcefreeze released; no retry.
+
+<!-- pika-session-log-archive-batch:972a33d12d72a2dedda1f83bcec4efd5b9b3164a92eb91536785870cceb5ad5f -->
+## 2026-10-16 — Real keyboard clear fixes a second concrete ordering failure
+
+Bounded Sol6.1/high read-only worker reproduced installed real-editor DOMRange
+select-all then Delete before selectionchange: model caret remains at end and
+Delete is prevented without changing text. Exact failed browser ordering remains
+inference, not recorded fact. Actual Mod-a keymap then Backspace synchronously
+selects/deletes without selectionchange. Root adds real-keymap regression and
+matrix sequence regression (RED before correction); replaces fill-empty only
+with one normal keyboard sequence, no post-delete action/retry or weaker checks.
+83 focused tests PASS; final gate/review next. Shared SCSS untouched, existing
+placeholder overlay unchanged and pending visuals. No fresh native attempt.
+Counters106reviews/64fixcommits carry; all production/sharedlocal/provider/rollout
+holds unchanged. Prior spent failure/evidence preserved, no goal exit claimed.
+
+Review107 CLEAN0 at d2c3b7a6; focused3560PASS/8skip and static gates PASS; draft1581
+exacthead verified. No second native attempt in that turn.

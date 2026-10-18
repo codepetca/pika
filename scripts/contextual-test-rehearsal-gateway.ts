@@ -287,6 +287,8 @@ export class ContextualTestGatewayPolicy {
       if (read && [ `/api/classrooms/${classroomId}/class-days`,
         ...['teacher','student'].flatMap(role => [`/api/${role}/classrooms/${classroomId}`, `/api/${role}/classrooms/${classroomId}/materials`,
           `/api/${role}/classrooms/${classroomId}/roster`]) ].includes(path)) return query.size === 0
+      // Member Classwork always mounts returned marks; the app retains its legacy role guard.
+      if (path === `/api/student/classrooms/${classroomId}/gradebook-items`) return method === 'GET' && query.size === 0
       if (path === `/api/teacher/classrooms/${classroomId}/classwork/reorder`) return method === 'POST' && query.size === 0
     }
     if (path === `/api/teacher/classrooms/${this.plan.classrooms.classA.id}/roster/remove`) return method === 'POST' && query.size === 0

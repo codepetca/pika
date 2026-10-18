@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { markdownToSurvey } from '../../src/lib/survey-markdown'
 import { surveyFailureStage, assertSurveySubmissionPreserved, surveyText, assertSurveyResults } from '../../e2e/helpers/contextual-survey-contract'
-import { surveyMarkdown, openContextualSurveyEditor, openContextualSurveyClasswork } from '../../e2e/helpers/contextual-survey-workflow'
+import { surveyMarkdown, openContextualSurveyEditor, openContextualSurveyClasswork, selectContextualSurvey } from '../../e2e/helpers/contextual-survey-workflow'
 import { contextualSurveyWitnessSql, validateContextualSurveyReceipt, assertContextualSurveyDatabase } from '../../scripts/contextual-survey-workflow-proof'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { contextualSurveyFixture } from '../helpers/contextual-survey-fixture'
@@ -11,6 +11,35 @@ const plan = createContextualTestPlan('pika_assignment_list_123456abcdef', 'surv
 const binding = { proofScope: 'survey-workflow-v1', projectId: plan.projectId, nonce: '0'.repeat(20) + '123456abcdef',
   sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, migrationChainSha256: plan.migrationChainSha256,
   appOverlaySha256: plan.appOverlaySha256, startedAt: 1_000_000, deadline: 1_010_000 } as ContextualTestRunBinding
+const summary = `${plan.appOrigin}/classrooms/${plan.classrooms.classA.id}?tab=assignments`
+/** Model the frozen URL-controlled Survey selection and nav availability, not
+ * an imagined Back action: desktop Classwork retains surveyId; mobile is closed. */
+function surveyNavigation(initialUrl: string, mobile = false) {
+  let current = initialUrl
+  const documents: string[] = [], interactions: string[] = []
+  const page = {
+    url: () => current,
+    getByRole(role: string, options: { name: string | RegExp }) {
+      const locator = { first: () => locator, async click() {
+        interactions.push(`${role}:${options.name}`)
+        const next = new URL(current)
+        if (role === 'link') {
+          if (mobile) throw Error('Navigation drawer is closed')
+          next.searchParams.set('tab', 'assignments')
+          next.searchParams.delete('assignmentId'); next.searchParams.delete('assignmentStudentId')
+          // Frozen NavItems deliberately retains surveyId on the same tab.
+        } else {
+          if (next.searchParams.has('surveyId')) throw Error('Classwork summary card is absent')
+          next.searchParams.set('surveyId', '60000000-0000-4000-8000-000000000061')
+        }
+        current = next.href
+      } }
+      return locator
+    },
+  }
+  const runtime = { plan, async navigate(_page: unknown, url: string) { documents.push(url); current = url } }
+  return { page, runtime, documents, interactions, current: () => current }
+}
 
 describe('Survey successor source contracts (no browser/database execution)', () => {
   it('uses the real Survey markdown parser for main and scratch question types', () => {
@@ -43,15 +72,43 @@ describe('Survey successor source contracts (no browser/database execution)', ()
     await openContextualSurveyEditor(page as never)
     expect(calls).toEqual(['survey-workspace-actionbar-center', 'button:More survey actions', 'click', 'menuitem:Edit survey', 'click', 'dialog:Edit survey'])
   })
-  it('reuses Classwork within a classroom but preserves required reload and cross-class entry', async () => {
-    const calls: string[] = []
-    const current = 'http://localhost:3117/classrooms/one?tab=assignments&surveyId=selected'
-    const page = { url: () => current, getByRole: (role: string, options: { name: string }) => ({ click: async () => { calls.push(`${role}:${options.name}`) } }) }
-    const runtime = { navigate: async (_page: unknown, url: string) => { calls.push(url) } }
-    await openContextualSurveyClasswork(runtime as never, page as never, current)
-    await openContextualSurveyClasswork(runtime as never, page as never, current, true)
-    await openContextualSurveyClasswork(runtime as never, page as never, current.replace('/one?', '/two?'))
-    expect(calls).toEqual(['link:Classwork', current, current.replace('/one?', '/two?')])
+  it.each([false, true])('leaves cached selected Survey for exact summary without retained-id or mobile drawer dependency: mobile=%s', async mobile => {
+    const model = surveyNavigation(summary + '&surveyId=selected', mobile)
+    await openContextualSurveyClasswork(model.runtime as never, model.page as never, summary)
+    expect(model.current()).toBe(summary)
+    expect(model.documents).toEqual([summary])
+    expect(model.interactions).toEqual([])
+  })
+  it('does not reload an already unselected summary, but preserves forced persistence reload and cross-class entry', async () => {
+    const model = surveyNavigation(summary, true)
+    await openContextualSurveyClasswork(model.runtime as never, model.page as never, summary)
+    expect(model.documents).toEqual([])
+    expect(model.interactions).toEqual([])
+    await openContextualSurveyClasswork(model.runtime as never, model.page as never, summary, true)
+    const other = `${plan.appOrigin}/classrooms/${plan.classrooms.classB.id}?tab=assignments`
+    await openContextualSurveyClasswork(model.runtime as never, model.page as never, other)
+    expect(model.documents).toEqual([summary, other])
+    expect(model.current()).toBe(other)
+  })
+  it.each([false, true])('reuses actual same-Survey selection for viewport-only/settings actions: mobile=%s', async mobile => {
+    const identity = contextualSurveyFixture(binding).result.surveys[0]
+    const selected = summary + '&surveyId=' + identity.surveyId
+    const model = surveyNavigation(selected, mobile)
+    await selectContextualSurvey(model.runtime as never, model.page as never, identity, true)
+    expect(model.current()).toBe(selected)
+    expect(model.documents).toEqual([])
+    expect(model.interactions).toEqual([])
+  })
+  it('selects a replacement Survey through exact summary and real card, and force reloads even the same Survey', async () => {
+    const identity = contextualSurveyFixture(binding).result.surveys[0]
+    const model = surveyNavigation(summary + '&surveyId=other', true)
+    await selectContextualSurvey(model.runtime as never, model.page as never, identity, true)
+    expect(model.documents).toEqual([summary])
+    expect(model.current()).toBe(summary + '&surveyId=' + identity.surveyId)
+    expect(model.interactions).toEqual(['button:' + identity.title])
+    await selectContextualSurvey(model.runtime as never, model.page as never, identity, true, true)
+    expect(model.documents).toEqual([summary, summary])
+    expect(model.interactions).toEqual(['button:' + identity.title, 'button:' + identity.title])
   })
   it('witness SQL is fixed and includes all Survey work and membership/revision evidence', () => {
     const plan = createContextualTestPlan('pika_assignment_list_123456abcdef', 'survey-workflow-v1')

@@ -86,6 +86,24 @@ describe('Survey successor browser capability', () => {
     const other=policy()
     expect(() => other.gateway.admit('app',`/api/teacher/surveys?classroom_id=${other.p.classrooms.classA.id}`,host,'GET',undefined,`${cookie}; ${cookie}`)).toThrow()
   })
+  it.each(['classA','classB'] as const)('admits the unconditional member summary Gradebook GET for %s without interpreting legacy403 as failure', classroom => {
+    const h=policy(), path=`/api/student/classrooms/${h.p.classrooms[classroom].id}/gradebook-items`
+    expect(() => h.admit(path)).not.toThrow()
+    expect(() => h.gateway.observeAppResponse('app',path,'GET',403,{error:'Forbidden'})).not.toThrow()
+    expect(h.gateway.receipt()).toMatchObject({firstFailure:null,appRequests:2})
+  })
+  it.each(['foreign-class','query','teacher-path','HEAD','POST','PATCH','DELETE','unbound-session'])('keeps Gradebook companion %s closed', defect => {
+    const h=policy(), classroom=h.p.classrooms.classA.id
+    const path=defect==='foreign-class' ? `/api/student/classrooms/${id(99)}/gradebook-items`
+      : defect==='teacher-path' ? `/api/teacher/classrooms/${classroom}/gradebook-items`
+      : `/api/student/classrooms/${classroom}/gradebook-items${defect==='query'?'?classroom_id='+classroom:''}`
+    const method=['HEAD','POST','PATCH','DELETE'].includes(defect)?defect:'GET'
+    expect(() => h.gateway.admit('app',path,host,method,undefined,defect==='unbound-session'?undefined:cookie)).toThrow()
+  })
+  it.each([undefined,'vertical-v1','vertical-grade-return-v1','lifecycle-permissions-v1'] as const)('keeps Gradebook companion denied in historical profile %s', old => {
+    const legacy=new ContextualTestGatewayPolicy(createContextualTestPlan(plan.projectId,old),2_701_000,()=>1000,old)
+    expect(() => legacy.admit('app',`/api/student/classrooms/${plan.classrooms.classA.id}/gradebook-items`,host,'GET')).toThrow()
+  })
   it('admits known parents, companion reads, bounded reorder and both-fixture denial probes', () => {
     const h=policy(), first=h.create(1), second=h.create(2), q=h.question(first,11), foreign=h.question(second,12)
     h.admit(`/api/teacher/surveys?classroom_id=${h.p.classrooms.classB.id}`)

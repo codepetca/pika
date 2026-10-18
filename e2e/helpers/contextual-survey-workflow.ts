@@ -19,15 +19,28 @@ export async function openContextualSurveyEditor(page: Page): Promise<Locator> {
   await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
   return page.getByRole('dialog', { name: 'Edit survey', exact: true })
 }
-/** Reuse the existing Classwork tab between operations. Cold documents remain
- * explicit for initial/cross-class entry, persistence readback and theme changes. */
+/** The frozen Classwork link retains surveyId and is hidden in the closed mobile
+ * drawer. Only a controlled exact-summary navigation deselects a Survey. */
 export async function openContextualSurveyClasswork(r: Pick<SurveyRuntime, 'navigate'>, page: Page, classroomUrl: string, freshDocument = false): Promise<void> {
   const current = new URL(page.url()), target = new URL(classroomUrl)
-  if (freshDocument || current.origin !== target.origin || current.pathname !== target.pathname || current.searchParams.get('tab') !== 'assignments') {
+  assert(target.search === '?tab=assignments' && target.hash === '')
+  if (freshDocument || current.href !== target.href) {
     await r.navigate(page, classroomUrl)
-  } else {
-    await page.getByRole('link', { name: 'Classwork', exact: true }).click()
   }
+}
+/** Viewport-only/settings actions can retain the actual selected surface. Every
+ * other selection passes through the real summary card; no URL/history injection. */
+export async function selectContextualSurvey(r: Pick<SurveyRuntime, 'plan' | 'navigate'>, page: Page, identity: SurveyIdentity,
+  owner: boolean, freshDocument = false): Promise<void> {
+  assert([r.plan.classrooms.classA.id, r.plan.classrooms.classB.id].includes(identity.classroomId))
+  const classroomUrl = `${r.plan.appOrigin}/classrooms/${identity.classroomId}?tab=assignments`
+  const current = new URL(page.url()), target = new URL(classroomUrl)
+  const sameSelection = current.origin === target.origin && current.pathname === target.pathname && current.hash === ''
+    && current.searchParams.size === 2 && current.searchParams.get('tab') === 'assignments'
+    && current.searchParams.getAll('surveyId').length === 1 && current.searchParams.get('surveyId') === identity.surveyId
+  if (sameSelection && !freshDocument) return
+  await openContextualSurveyClasswork(r, page, classroomUrl, freshDocument)
+  await page.getByRole('button', { name: owner ? identity.title : new RegExp(identity.title), exact: owner }).first().click()
 }
 function waitFor(page: Page, method: string, path: string): Promise<Response> {
   const pending = page.waitForResponse(response => response.request().method() === method && new URL(response.url()).pathname === path)
@@ -56,8 +69,7 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
     return body
   }
   const selected = async (page: Page, identity: SurveyIdentity, owner: boolean, freshDocument = false) => {
-    await openContextualSurveyClasswork(r, page, url(identity.classroomId), freshDocument)
-    await page.getByRole('button', { name: owner ? identity.title : new RegExp(identity.title) , exact: owner }).first().click()
+    await selectContextualSurvey(r, page, identity, owner, freshDocument)
   }
   const ownerResults = async (page: Page, identity: SurveyIdentity) => {
     const results = await r.api<SurveyResults>(page, 'GET', `/api/teacher/surveys/${identity.surveyId}/results`)

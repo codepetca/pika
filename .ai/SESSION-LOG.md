@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Real keyboard clear fixes a second concrete ordering failure
-
-Bounded Sol6.1/high read-only worker reproduced installed real-editor DOMRange
-select-all then Delete before selectionchange: model caret remains at end and
-Delete is prevented without changing text. Exact failed browser ordering remains
-inference, not recorded fact. Actual Mod-a keymap then Backspace synchronously
-selects/deletes without selectionchange. Root adds real-keymap regression and
-matrix sequence regression (RED before correction); replaces fill-empty only
-with one normal keyboard sequence, no post-delete action/retry or weaker checks.
-83 focused tests PASS; final gate/review next. Shared SCSS untouched, existing
-placeholder overlay unchanged and pending visuals. No fresh native attempt.
-Counters106reviews/64fixcommits carry; all production/sharedlocal/provider/rollout
-holds unchanged. Prior spent failure/evidence preserved, no goal exit claimed.
-
-Review107 CLEAN0 at d2c3b7a6; focused3560PASS/8skip and static gates PASS; draft1581
-exacthead verified. No second native attempt in that turn.
-
 ## 2026-10-16 — Placeholder verified in partial matrix; reset retained gallery state
 
 Human approved ONEfreshboundedrehearsal. Startup/pins PASS, storage335.46GBhealthy,
@@ -612,3 +595,7 @@ Correction138 passed4472full tests/static gates and review212; fresh launcher re
 ## 2026-10-18 — Prepare the existing-screen Survey workflow
 
 Correction139 reuses the narrow Playwright carrier with a fixed Survey profile on productdb1fb/schema001–269. Two bounded writers split existing profile/controller/gateway integration from new workflow/receipt/database witnesses; no product, schema, dependency or native changes. Existing-screen author/save/reload/preview/publish/respond/results, mixed historical roles, dynamic timestamp preservation, disclosure/foreign-resource/archive/removal denials and16role/viewport/theme cells are prepared under unchanged caps. Existing fixed-disposable REST capability is reused, not expanded into a new RPC-query framework; browser SQL remains absent. Root independently confirms byte-identical plans/bootstrap SQL for all4older profiles. Focused CPU checks pass; stable cumulative source review/fullgate follow before any fresh runtime admission. PR1614 remains draft with corrected v10 database evidence. Full application/batch2/goal acceptance is not claimed; production/shared-local/provider/account/billing/home/cohort/cutover holds remain. Counters214reviews/138completedcorrections carry;139inprogress, no reset.
+
+## 2026-10-18 — Batch Survey screen compatibility corrections before execution
+
+Initial139 source0cc85e01 received clean security review215; compatibility review216 found three concrete setup blockers before native execution: Classwork link retains surveyId, mobile navigation is hidden, and member summary's Gradebook companion GET was absent. Fullfocused had4531PASS/8skip with only startupdocs17259>17000; root compacts CURRENT to16985 without raising its limit and79startup checks pass. Correction140 uses controlled exact-summary navigation only when needed/forced, reuses the already-selected Survey for viewport/settings, and admits only no-query GET on the two known student Gradebook paths under all original guards. Test-first navigation RED6→GREEN43, gateway RED2→GREEN153; strict sourceTS passes. Historical teacher-member Gradebook403 stays an explicit separate batch2 limitation, not Survey/Gradebook acceptance. All52exchanges/7logins/4Surveys/8questions/16scenes, caps and production/shared-local/provider/account/billing/rollout holds stay. No product edit or native attempt; root finalgate and one targeted review217 precede any admission.
