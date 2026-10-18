@@ -48393,3 +48393,48 @@ Private underlying-harness-diagnosis-20261015.md in restart-recovery evidence ha
 sources, uncertainty and delegation receipt. No implementation/test/browser/DB,
 fixture operation, signal, PR review or new attempt. Documentation only;99/57
 counters and all production/shared-local/provider/rollout holds unchanged.
+
+<!-- pika-session-log-archive-batch:d26673bd6607eba5bee06e7beb5029a676307c3f33d46846eefbd82f12010e91 -->
+## 2026-10-15 — Harness ownership contracts corrected before narrow confirmation
+
+Human approved the recommended source corrections and narrow confirmation, not
+another full-app rehearsal. Batch58 splits process birth/lineage from pathname:
+private macOS flavor18 exact192-byte ABI supplies unique IDs, UUID and pidversion;
+descendant pathname publication may change only within the same image generation.
+Roots, unknown groups, later exec and fresh signal-time checks remain strict.
+Browser requests are owned from start through transport/body completion; all
+workflow departure/reload/close paths drain within the original deadline.
+Pinned Playwright adapter tests expose its empty-body refetch fallback: browser
+JSON with positive/malformed Content-Length now fails before body() (temporary
+carrier restriction); APIResponse remains independent. No product auth/UI edit.
+Deterministic process/request tests and TypeScript pass; startup note compacted
+without dropping required setup paths. Full gate/browser review remain required.
+Process commitbdc7f2bc independently reviewed100 CLEAN; exact self/child native
+ABI/exec check PASS64ms, child reaped, no parent signals. Synthetic3-request
+navigation mode prepared using existing Playwright controls; browser not run.
+Chrome auto-updated155.0.8059.84; signature verified, diagnostic-only pin updated
+for review. Full-app admission remains unchanged and no full rehearsal authorized.
+Orchestrate workers Astra ultra/process and Astra high/request; effective config
+and token usage unknown. Prior99review turns/57batches carry forward; review100/batch58 now
+active, routine-stop waiver retained. PR1581 stays draft; production/shared-local,
+provider-held Survey/socket scope and rollout holds unchanged. Private evidence
+under restart-recovery/underlying-harness-diagnosis-20261015.md retains details.
+
+Review101 found one P2: task retirement could erase an expired request/body
+deadline before delayed timer callbacks. Batch59 latches expiry before both
+removal paths without throwing in event handlers/finalizers. Six deterministic
+before/exact/after-end regressions reproduced4fail/2pass then allpass; affected
+131tests PASS. Targeted review102 and final gate follow before the one synthetic
+browser attempt. Prior full gate3526PASS/8skip and allstaticchecks passed; Chrome
+diagnostic pin only is155.0.8059.84, signatureverified. All holds unchanged.
+
+Review102 CLEAN targeted deadline correction/privateinvoker; finalgate3532PASS/
+8skip plus allstatic/type/lint PASS. Code0890ac28 pushed to draft1581. ONE synthetic
+browser attempt55881 PASS (s9iNPr):3HTTP/1JSON/1originalbody, bothholds+validated
+departure, zero unexpectedrequests/pending/sockets, context/server/ownedprocess
+closure PASS; no nativefailure. Independent43385 confirms21sources/dependencies
+unchanged; freeze released. Kernel64ms and browser13.441s checks prove narrow
+contracts, not realPika/fullapp/visual acceptance. Both attempts spent/pass;
+historical failures unchanged. Full-app pin still.79; needs reviewedbinding and
+separateboundedrun. No DB/production changes. Cumulative102reviews/59batches,
+originalclocks/waiver and allholds retained. Final receipts in private handoff.

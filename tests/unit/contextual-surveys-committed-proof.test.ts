@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import type { AssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newSurveyNativeFixture } from '../../scripts/contextual-surveys-native-contracts'
 import { surveyCommittedProofManifest, validateSurveyCommittedSql, validateSurveyCommittedSource, verifySurveyCommittedEffects,
-  surveyCommittedObservationSql, verifySurveyCommittedWitness, surveyCommittedWitnessFailure, verifySurveyCommittedEnvelopes,
+  surveyCommittedObservationSql, verifySurveyCommittedWitness, surveyCommittedWitnessFailure, survey269RemainingCommittedProofManifest, verifySurveyCommittedEnvelopes,
   verifySurveyCommittedSeed, parseSurveyCommittedGraph } from '../../scripts/contextual-surveys-committed-proof'
 
 // No entropy, native driver, filesystem target, provider or database is used.
@@ -26,6 +26,32 @@ function compact(g: Graph) {
   }])) )
 }
 describe('source-only Survey committed directions', () => {
+  it('separates only remaining WAIT database750 from orchestration and checks after the final actual read', () => {
+    const m=survey269RemainingCommittedProofManifest(f),legacy=manifest(),before=capturedSeed(m);admitSeed(m,before)
+    for(const [n,s] of m.schedules.entries()){
+      const {witness}=practicalFixture(m,s,before),bootstrap={holder:witness.holder,contender:witness.contender}
+      const sql=surveyCommittedObservationSql(m,s.label,bootstrap),old=surveyCommittedObservationSql(legacy,s.label,bootstrap)
+      if(s.mode==='nowait'){expect(sql).toBe(old);continue}
+      expect(sql).toContain('for poll in 1..3 loop')
+      expect(sql.indexOf('elapsed:=clock_timestamp()-started;')).toBeGreaterThan(sql.indexOf('perform pg_stat_clear_snapshot();r:='))
+      expect(sql.indexOf("if elapsed<interval '0' or elapsed>interval '750 milliseconds'")).toBeLessThan(sql.indexOf('exit when'))
+      expect(sql).toContain("'dbObservationMs',extract(epoch from elapsed)*1000")
+      expect(sql).not.toMatch(/round\(|trunc\(|::integer/);expect(old).not.toContain('dbObservationMs')
+      if(n!==4&&n!==23)continue
+      const now=Date.parse('2026-10-13T03:00:02Z'),clock={startedAt:now-500,workDeadline:now+10000,dispatchedAt:now-10,observedAt:now+2000,contenderPending:true,poll:3}
+      const raw={...witness,poll:3,observedAt:new Date(clock.observedAt).toISOString(),dbObservationMs:750}
+      expect(verifySurveyCommittedWitness(m,s.label,bootstrap,raw,clock).blockingEdgeVerified).toBe(true)
+      for(const elapsed of [750.001,-0.001,NaN,Infinity,'750',undefined]){
+        let fault:unknown;try{verifySurveyCommittedWitness(m,s.label,bootstrap,{...raw,dbObservationMs:elapsed},clock)}catch(error){fault=error}
+        expect(surveyCommittedWitnessFailure(fault)).toBe('db-observation-window')
+      }
+      expect(()=>verifySurveyCommittedWitness(legacy,s.label,bootstrap,raw,clock)).toThrow()
+      expect(()=>verifySurveyCommittedWitness({...m},s.label,bootstrap,raw,clock)).toThrow()
+    }
+    const s=m.schedules.find(s=>s.mode==='nowait')!
+    const {witness}=practicalFixture(m,s,before),now=Date.parse('2026-10-13T03:00:02Z')
+    expect(()=>verifySurveyCommittedWitness(m,s.label,{holder:witness.holder,contender:witness.contender},{...witness,dbObservationMs:0},{startedAt:now-1000,dispatchedAt:now-751,observedAt:now,workDeadline:now+100,contenderPending:false,poll:1})).toThrow()
+  })
   it('classifies only actual witness failures without trusting error messages or caller labels', () => {
     for (const forged of [null, 'holder-source', new Error('holder-source'), { predicate: 'holder-source' }])
       expect(surveyCommittedWitnessFailure(forged)).toBeUndefined()

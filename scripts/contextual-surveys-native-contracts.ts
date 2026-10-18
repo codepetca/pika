@@ -12,7 +12,7 @@ import { contextualSurveysConcurrencyCases } from './contextual-surveys-concurre
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 import type { Database } from '../src/types/database'
 import { surveySdkProofManifest, survey269ComponentSdkProofManifest, SURVEY_269_COMPONENT_SDK_CAPS } from './contextual-surveys-sdk-proof'
-import { surveyCommittedProofManifest } from './contextual-surveys-committed-proof'
+import { surveyCommittedProofManifest, survey269RemainingCommittedProofManifest } from './contextual-surveys-committed-proof'
 import { surveyCancellationProofDescriptor, SURVEY_269_REMAINING_CANDIDATE_CAPS } from './contextual-surveys-cancellation-proof'
 import { surveyWireProofDescriptor } from './contextual-surveys-wire-proof'
 
@@ -282,7 +282,7 @@ export function survey269RemainingPlan(original: AssignmentListProofFixture, bin
     && (component.contracts.sql.match(/statement_timeout/gi)??[]).length===1
     && component.contracts.sql.includes(`\nbegin;\n${header}\nset local lock_timeout = '1s';\n`),'Survey rollback timeout header differs')
   const contracts=freeze({...component.contracts,sql:component.contracts.sql.replace(header,"set local statement_timeout = '120s';")})
-  const committed=surveyCommittedProofManifest(component.fixture),cancellation=surveyCancellationProofDescriptor(component.fixture),wire=surveyWireProofDescriptor(component.fixture)
+  const committed=survey269RemainingCommittedProofManifest(component.fixture),cancellation=surveyCancellationProofDescriptor(component.fixture),wire=surveyWireProofDescriptor(component.fixture)
   const plan=freeze({...component,contracts,kind:'survey269-remaining-only' as const,committed,cancellation,wire,
     caps:{...component.caps,controls:6000,sdkMs:60000},
     remainingCaps:SURVEY_269_REMAINING_CANDIDATE_CAPS,
@@ -370,7 +370,7 @@ export function validateSurvey269ComponentGeneratedTypes(source: string, sha256:
 }
 /** Fixed reviewed leaf; this is an external source pin, not a recomputed approval. */
 export const SURVEY_COMMITTED_SOURCE = Object.freeze({ file: 'scripts/contextual-surveys-committed-proof.ts',
-  sha256: 'e8ea8d34d15d10eddd64119026d36d40e200c18b145947465757e2f58c9903bc' })
+  sha256: '21112b7657d407e01ae2dd921fcc769082ebd3381d0c6134745824742dd3e886' })
 export function surveyRemainingNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   const plan = surveyNativePlan(original, reviewedHead, repository)
   checked(repository, SURVEY_COMMITTED_SOURCE)

@@ -86,12 +86,12 @@ type GuardCheckpoint = 'none' | 'sdk-deadline' | 'sdk-runner' | 'source-git' | '
 class SurveySdkDeadlineError extends Error { constructor() { super('Survey SDK ordinary dispatch expired') } }
 // Retain only one allowlisted code. Untrusted stderr lines are bounded and
 // discarded; neither their text nor an exception is part of the diagnostic.
-function captureSqlstate() {
+function captureSqlstate(surveyObserver = false) {
   let line = ''; let discard = false; let observed: string | undefined
   function consume() {
     if (!discard && observed === undefined) {
       const match = line.match(/^(?:psql:<stdin>:[1-9]\d{0,6}: )?(?:ERROR|FATAL):[ \t]+([A-Z0-9]{5})[ \t\r]*$/)
-      if (match) observed = sqlstates.has(match[1]) ? match[1] : 'unknown'
+      if (match) observed = sqlstates.has(match[1]) || surveyObserver && match[1] === 'P7501' ? match[1] : 'unknown'
     }
     line = ''; discard = false
   }
@@ -987,6 +987,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   const start = profile.survey263Budget?.startedAt ?? Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
   const component = profile.survey269Component !== undefined
   const remaining=profile.survey269Remaining
+  if (profile.surveyCommitted) assert.equal(profile.surveyCommitted.waitObservation, remaining ? 'database750-original8000' : undefined)
   const exchangeLimit=remaining?128*1024*1024:CAPS.totalBytes
   const controlLimit=remaining?6000:CAPS.controlCalls
   const cleanupControls=remaining?SURVEY269_REMAINING_CLEANUP_CONTROLS:32
@@ -1014,14 +1015,14 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   type SurveyFrame = 'seed' | 'bootstrap' | 'observer' | 'holder' | 'contender' | 'release' | 'settle' | 'retry' | 'terminal'|'cancel-prepare'|'cancel-observer'|'wire-prepare'
   // Neither these carriers nor the baseline marker escape this engine instance.
   type SurveyCarrier = { session: NativeSession; label: string; side: 'holder' | 'contender'; frame: SurveyFrame; sql: string;
-    releaseContender?: SurveyCarrier;
+    originalContender?: SurveyCarrier;
     operationSha256?: string; backend?: Readonly<Backend>; marker?: string; dispatchedAt?: number; completedAt?: number;
     rows?: readonly { result?: unknown }[]; dispatched: Promise<void>; didDispatch(): void; rejectDispatch(error: unknown): void;
     completion: Promise<readonly { result?: unknown }[]> }
   let surveyPair: SurveyCommittedBootstrap | undefined
   let surveyBaseline: { seed: SurveyCarrier; graph: SurveyGraph } | undefined
-  let surveyCommittedFailure: Readonly<{ direction: number; frame: 'observer' | 'contender';
-    predicate: NonNullable<ReturnType<typeof surveyCommittedWitnessFailure>> | 'witness'; observationMs: number | 'unknown' }> | undefined
+  let surveyCommittedFailure: Readonly<{ direction: number; frame: 'observer' | 'contender' | 'release';
+    predicate: NonNullable<ReturnType<typeof surveyCommittedWitnessFailure>> | 'witness' | 'original-expiry'; observationMs: number | 'unknown' }> | undefined
   const surveyCarriers = new WeakSet<SurveyCarrier>()
   function validateSurveyCarrier(c: SurveyCarrier) {
     const m = profile.surveyCommitted
@@ -1046,18 +1047,25 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       if (c.frame === 'contender' || c.frame === 'retry') assert.equal(c.operationSha256, s.secondOperationSha256)
     }
     assert(Buffer.byteLength(c.sql) <= m.caps.sqlBytes)
-    if(c.frame==='release'&&m.schedules.find(s=>s.label===c.label)?.mode==='wait'){
-      const original=c.releaseContender
+    if((c.frame==='release'||remaining&&c.frame==='observer')&&m.schedules.find(s=>s.label===c.label)?.mode==='wait'){
+      const original=c.originalContender
       assert(original&&surveyCarriers.has(original)&&original.frame==='contender'&&original.side==='contender'&&original.label===c.label)
       assert(original.backend&&original.marker&&original.dispatchedAt!==undefined&&original.completedAt===undefined)
       assert(surveyPair&&original.session.surveyOwned().pid===surveyPair.contender.pid)
-    }else assert(c.releaseContender===undefined)
+    }else assert(c.originalContender===undefined)
   }
-  function surveyReleaseDeadline(c?:SurveyCarrier){
-    if(!c?.releaseContender)return undefined
-    validateSurveyCarrier(c)
-    const deadline=Math.min(c.releaseContender.dispatchedAt!+profile.surveyCommitted!.caps.waitContenderMs,profile.survey263Budget!.workDeadline)
-    if(Date.now()>=deadline){record('timeout','holder');throw failure()}
+  function surveyWaitDeadline(c?:SurveyCarrier, receipt = false){
+    const original=c?.originalContender ?? (remaining&&c?.frame==='contender'&&profile.surveyCommitted!.schedules.find(s=>s.label===c.label)?.mode==='wait'?c:undefined)
+    if(!c||original?.dispatchedAt===undefined)return undefined
+    if(!receipt)validateSurveyCarrier(c)
+    const deadline=Math.min(original.dispatchedAt+profile.surveyCommitted!.caps.waitContenderMs,profile.survey263Budget!.workDeadline)
+    if(Date.now()>=deadline){
+      if(remaining&&!firstFault&&!surveyCommittedFailure){
+        const s=profile.surveyCommitted!.schedules.find(s=>s.label===c.label)!
+        surveyCommittedFailure=Object.freeze({direction:s.index*2+(s.direction==='forward'?1:2),frame:c.frame==='observer'?'observer':c.frame==='release'?'release':'contender',predicate:'original-expiry',observationMs:'unknown'})
+      }
+      record('timeout',role(c.session.name));throw failure()
+    }
     return deadline
   }
   function surveyResult(c: SurveyCarrier) {
@@ -1091,7 +1099,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     const observations = [...sessions].map(session => session.progressObservation())
     const activeBulk = observations.find(value => value.scope === 'bulk')
     const activeCalibration = observations.find(value => value.scope === 'calibration')
-    firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) ? sqlstate : 'unknown', checkpoint,
+    firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) || remaining && surveyCommittedFailure?.predicate==='db-observation-window' && sqlstate==='P7501' ? sqlstate : 'unknown', checkpoint,
       sdkElapsedMs: surveySdkWorkStartedAt === undefined ? 'none' : Math.min(CAPS.totalMs, Math.max(0, Date.now() - surveySdkWorkStartedAt)),
       sdkRemainingMs: surveySdkWorkDeadline === undefined ? 'none' : Math.min(SURVEY_269_COMPONENT_SDK_CAPS.totalMs, Math.max(0, surveySdkWorkDeadline - Date.now())),
       progress: activeBulk?.snapshot.checkpoint ?? bulkProgress,
@@ -1305,6 +1313,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private partial = ''; private stderr = 0; private frame = 0; private closing?: Promise<void>
     private decoder = new StringDecoder('utf8')
     private sqlstate = captureSqlstate()
+    private surveyObserver?: SurveyCarrier
     private progressScope: TestOwnerReorderProgressScope = 'none'
     private progress = captureTestOwnerReorderProgress('none')
     private surveyProgressCapture = captureSurveyProgress(false)
@@ -1315,7 +1324,14 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private cleaning = false
     progressObservation() { return { scope: this.progressScope, snapshot: this.progress.snapshot() } }
     diagnosticObservation() { return { enabled: this.diagnosticEnabled, snapshot: this.timing.snapshot() } }
-    private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
+    private fault(kind: Fault) { if (!this.cleaning) {
+      const code=this.sqlstate.code(),observer=this.surveyObserver
+      if(remaining&&this.active&&observer?.backend&&observer.marker&&code==='P7501'&&!firstFault&&!surveyCommittedFailure){
+        const s=profile.surveyCommitted!.schedules.find(s=>s.label===observer.label)!
+        surveyCommittedFailure=Object.freeze({direction:s.index*2+(s.direction==='forward'?1:2),frame:'observer',predicate:'db-observation-window',observationMs:'unknown'})
+      }
+      record(kind, role(this.name), code)
+    } }
     constructor(name: string) {
       this.name = name
       checkSurveySdkAdmission()
@@ -1371,8 +1387,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         && carrier === undefined && sql === profile.surveyProgressSql
       const frameLimit = remainingSuite ? 120000 : CAPS.actionMs
       assert(timeoutMs > 0 && timeoutMs <= frameLimit)
-      const releaseDeadline=surveyReleaseDeadline(carrier)
+      const releaseDeadline=surveyWaitDeadline(carrier)
       if(releaseDeadline!==undefined)timeoutMs=Math.min(timeoutMs,releaseDeadline-Date.now())
+      if(remaining&&carrier?.frame==='contender'&&profile.surveyCommitted!.schedules.find(s=>s.label===carrier.label)?.mode==='wait')timeoutMs=Math.min(timeoutMs,profile.surveyCommitted!.caps.waitContenderMs)
       if (profile.survey263Budget) {
         timeoutMs = Math.min(timeoutMs, (this.cleaning ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
         assert(timeoutMs > 0)
@@ -1388,6 +1405,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         && profile.reorderDiagnosticSql === sql
       this.timing = captureTestOwnerReorderTimings(this.diagnosticEnabled)
       const marker = `__draft_save_end_${++this.frame}__`
+      this.surveyObserver=remaining&&carrier?.frame==='observer'?carrier:undefined
+      if(remaining)this.sqlstate=captureSqlstate(this.surveyObserver!==undefined)
       this.surveyProgressCapture = captureSurveyProgress(!this.cleaning && !firstFault && component
         && role(this.name) === 'contracts' && (phase === 'contracts' || phase === 'transitions') && sql === profile.surveyProgressSql)
       return new Promise((resolveRows, reject) => {
@@ -1406,7 +1425,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
             if (this.progressScope === 'bulk') bulkProgress = this.progress.snapshot().checkpoint
             if (this.progressScope === 'calibration') progressCalibrated = this.progress.snapshot().calibrated
           }
-          try { const rows = active.lines.map(line => {
+          try { if(remaining&&carrier)surveyWaitDeadline(carrier,true)
+            const rows = active.lines.map(line => {
             try { return { result: JSON.parse(line) as unknown } }
             catch { assert(/^[a-f0-9-]{36}$/.test(line) || /^-?[0-9]+$/.test(line) || line === 'ok'); return { result: line } }
           })
@@ -1419,7 +1439,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           validateSurveyCarrier(carrier); check(); assert(this.owned && carrier.session === this)
           verifySurveyRemainingSources(component?SURVEY_269_COMPONENT_ROOTS.carrier:input.repository)
           assert(surveyPair); assert.deepEqual(this.owned, surveyPair[carrier.side])
-          surveyReleaseDeadline(carrier)
+          surveyWaitDeadline(carrier)
           // Issue only at the actual guarded write, not at execute invocation.
           carrier.backend = Object.freeze({ ...this.owned }); carrier.marker = marker; carrier.dispatchedAt = Date.now()
         }
@@ -1439,20 +1459,20 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     }
     private async executeNative(sql: string, timeoutMs: number, carrier?: SurveyCarrier) {
       try { check(!this.cleaning); if (carrier) validateSurveyCarrier(carrier); else assert(profile.validateSql(sql))
-        surveyReleaseDeadline(carrier)
+        surveyWaitDeadline(carrier)
         assert(++actions <= CAPS.actions); await guard(false, role(this.name), !this.cleaning); check(!this.cleaning)
-        surveyReleaseDeadline(carrier)
+        surveyWaitDeadline(carrier)
         return await this.raw(sql, timeoutMs, carrier) }
       catch { this.fault('unknown'); if(!remainingProbeOwned)await closeAll(); throw failure() }
     }
     surveyOwned() { assert(profile.surveyCommitted && this.owned && sessions.has(this)); return Object.freeze({ ...this.owned }) }
-    surveyExecute(side: 'holder' | 'contender', frame: SurveyFrame, sql: string, label = '', operationSha256?: string, releaseContender?:SurveyCarrier): SurveyCarrier {
+    surveyExecute(side: 'holder' | 'contender', frame: SurveyFrame, sql: string, label = '', operationSha256?: string, originalContender?:SurveyCarrier): SurveyCarrier {
       assert(profile.surveyCommitted)
       let didDispatch!: () => void, rejectDispatch!: (error: unknown) => void
       const dispatched = new Promise<void>((resolveDispatch, reject) => { didDispatch = resolveDispatch; rejectDispatch = reject })
       // Install both rejection handlers before beginning asynchronous guards.
       void dispatched.catch(() => {})
-      const carrier: SurveyCarrier = { session: this, side, frame, sql, label, operationSha256, releaseContender, dispatched, didDispatch, rejectDispatch,
+      const carrier: SurveyCarrier = { session: this, side, frame, sql, label, operationSha256, originalContender, dispatched, didDispatch, rejectDispatch,
         completion: Promise.resolve([]) }
       surveyCarriers.add(carrier)
       carrier.completion = this.executeNative(sql, profile.singleMs ?? CAPS.actionMs, carrier).catch(error => { rejectDispatch(error); throw error })
@@ -1718,8 +1738,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         contender = await d.openSession(`${project}_draft_contender`) as NativeSession
         assert(holder instanceof NativeSession && contender instanceof NativeSession)
         surveyPair = Object.freeze({ holder: holder.surveyOwned(), contender: contender.surveyOwned() })
-        const frame = async (session: NativeSession, side: 'holder' | 'contender', kind: SurveyFrame, sql: string, label = '', operationSha256?: string, releaseContender?:SurveyCarrier) => {
-          const c = session.surveyExecute(side, kind, sql, label, operationSha256, releaseContender)
+        const frame = async (session: NativeSession, side: 'holder' | 'contender', kind: SurveyFrame, sql: string, label = '', operationSha256?: string, originalContender?:SurveyCarrier) => {
+          const c = session.surveyExecute(side, kind, sql, label, operationSha256, originalContender)
           await c.completion; return c
         }
         const seed = await frame(holder, 'holder', 'seed', m.seed)
@@ -1743,12 +1763,13 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           const second = contender.surveyExecute('contender', 'contender', s.frames.contender, s.label, s.secondOperationSha256)
           await second.dispatched
           assert(second.backend && second.dispatchedAt !== undefined && second.marker)
-          let observation: Record<string, unknown>, observedAt: number | undefined
+          let observation: Record<string, unknown>, observedAt: number | undefined, observationCarrier = second
           let witnessPredicate: 'pending' | 'receipt' | 'nowait-result' | 'witness' = 'pending'
           try {
           if (s.mode === 'wait') {
             assert(second.completedAt === undefined)
-            const observer = await frame(holder, 'holder', 'observer', surveyCommittedObservationSql(m, s.label, surveyPair), s.label)
+            const observer = await frame(holder, 'holder', 'observer', surveyCommittedObservationSql(m, s.label, surveyPair), s.label, undefined, remaining?second:undefined)
+            observationCarrier = observer
             witnessPredicate = 'receipt'
             observation = surveyResult(observer); observedAt = Date.parse(String(observation.observedAt))
             witnessPredicate = 'pending'
@@ -1771,6 +1792,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
             contenderDispatch: { backend: second.backend, sqlSha256: testOwnerDigest(second.sql), operationSha256: second.operationSha256 } }, {
             startedAt: directionStarted, workDeadline: profile.survey263Budget!.workDeadline,
             dispatchedAt: second.dispatchedAt, observedAt, contenderPending: second.completedAt === undefined, poll: Number(observation.poll) })
+          if(remaining&&s.mode==='wait')surveyWaitDeadline(observationCarrier,true)
           } catch (error) {
             // Supplemental diagnostics only for the remaining profile's host
             // witness failure. Earlier transport/guard faults retain priority.
@@ -1784,6 +1806,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           }
           await frame(holder, 'holder', 'release', s.frames.release, s.label, undefined, s.mode==='wait'?second:undefined)
           await second.completion
+          if(remaining&&s.mode==='wait')surveyWaitDeadline(second,true)
           const secondResult = surveyResult(second)
           await frame(contender, 'contender', 'settle', s.frames.settle, s.label)
           const retry = s.mode === 'nowait' ? await frame(contender, 'contender', 'retry', s.frames.retry, s.label, s.secondOperationSha256) : undefined

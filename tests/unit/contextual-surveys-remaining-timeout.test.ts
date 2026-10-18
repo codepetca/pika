@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { SURVEY_269_COMPONENT_ROOTS, SURVEY_269_SHARED_FILES, SURVEY_NATIVE_CAPS, surveyNativePlan,
-  survey269ComponentPlan, survey269RemainingPlan, runSurvey269ComponentRollback, runSurveyNativeRollbackContracts,
+  survey269ComponentPlan, survey269RemainingPlan, surveyRemainingNativePlan, runSurvey269ComponentRollback, runSurveyNativeRollbackContracts,
   validateSurvey269ComponentSql, validateSurveyNativeSql, type Survey269ComponentBinding } from '../../scripts/contextual-surveys-native-contracts'
 import { buildSurvey269RemainingManifest } from '../../scripts/contextual-test-draft-save-native-contracts'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
@@ -50,6 +50,11 @@ describe('approved remaining-only49-case120-second frame',()=>{
     expect(full.capabilities.totalBytes).toBe(64*1024*1024)
     expect(full.capabilities.actionMs).toBe(90000)
     expect(full.contracts.sql).toBe(remaining.contracts.sql)
+    expect(full.committed.waitObservation).toBe('database750-original8000')
+    expect(remaining.committed.waitObservation).toBe(full.committed.waitObservation)
+    expect(remaining.committed.schedules.filter(s=>s.mode==='wait')).toHaveLength(13)
+    expect(surveyRemainingNativePlan(original,head,process.cwd()).committed.waitObservation).toBeUndefined()
+    expect(sha(JSON.stringify(full))).not.toBe(sha(JSON.stringify({...full,committed:{...full.committed,waitObservation:undefined}})))
     expect(validateSurvey269ComponentSql(full,full.contracts.sql)).toBe(true)
     expect(validateSurvey269ComponentSql(component,remaining.contracts.sql)).toBe(false)
     expect(validateSurvey269ComponentSql(remaining,raw)).toBe(false)

@@ -129,6 +129,13 @@ function effects(index: number, direction: 'forward' | 'reverse'): Effects {
 }
 
 export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
+  return committedProofManifest(f, false)
+}
+/** Fixed remaining-only timing contract; no caller-supplied duration override. */
+export function survey269RemainingCommittedProofManifest(f: SurveyNativeFixture) {
+  return committedProofManifest(f, true)
+}
+function committedProofManifest(f: SurveyNativeFixture, remainingWait: boolean) {
   fixture(f)
   const allocatedIds: string[] = []
   const schedules: Schedule[] = []
@@ -223,6 +230,7 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
     actors: f.actors, originalFixtureSha256: hash(JSON.stringify(f)), allocatedIds, seed, bootstrap, schedules,
     verificationCriterion: 'practical-original-operation-backend-edge-and-committed-effects' as const,
     exactTupleOwnershipClaimed: false as const,
+    ...(remainingWait ? { waitObservation: 'database750-original8000' as const } : {}),
     caps: SURVEY_COMMITTED_CAPS, inventory: { directions: 30, wait, nowait, sessions: 2, opens: 2, closes: 2,
       seedFrames: 1, bootstrapFrames: 2, holderWitnessFrames: 0, observerFrames: wait, minObserverPolls: wait, maxObserverPolls: wait * 3,
       minActions, maxActions, staticSqlBytes: sqlFrames.reduce((n, sql) => n + Buffer.byteLength(sql), 0),
@@ -258,6 +266,8 @@ function backend(m: SurveyCommittedProofManifest, b: SurveyCommittedBootstrap) {
 }
 export function surveyCommittedObservationSql(m: SurveyCommittedProofManifest, label: string, b: SurveyCommittedBootstrap) {
   const s = schedule(m, label); backend(m, b)
+  const twoWindows = m.waitObservation === 'database750-original8000' && s.mode === 'wait'
+  const deadlineError = twoWindows ? "raise exception using errcode='P7501',message='Survey finite observer deadline'" : "raise exception 'Survey finite observer deadline'"
   const activity = (side: Side) => `(select jsonb_build_object('pid',pid,'started',backend_start,'name',application_name,'database',datname,'user',usename) from pg_stat_activity where pid=${b[side].pid})`
   const observation = `jsonb_build_object('label',${q(label)},'observedAt',clock_timestamp(),'holder',${activity('holder')},'contender',${activity('contender')},
  'held',${heldWitnessSql()},'blockers',to_jsonb(pg_blocking_pids(${b.contender.pid})),
@@ -267,11 +277,14 @@ export function surveyCommittedObservationSql(m: SurveyCommittedProofManifest, l
  and backend_start=${q(b.holder.started)}::timestamptz and application_name=${q(b.holder.name)} and datname='postgres' and usename='postgres')
  then raise exception 'Actual committed holder bootstrap differs';end if;end;$backend$;
  create temporary table survey_committed_observation(result jsonb) on commit drop;
- do $observe$ declare r jsonb;poll integer;started timestamptz:=clock_timestamp();begin
+ do $observe$ declare r jsonb;poll integer;${twoWindows ? 'elapsed interval;' : ''}started timestamptz:=clock_timestamp();begin
  for poll in 1..${m.caps.polls} loop
- if clock_timestamp()-started>interval '750 milliseconds' then raise exception 'Survey finite observer deadline';end if;
+ if clock_timestamp()-started>interval '750 milliseconds' then ${deadlineError};end if;
  perform pg_stat_clear_snapshot();r:=${observation}||jsonb_build_object('poll',poll);
- exit when ${s.mode === 'nowait' ? 'true' : `r->'blockers'=jsonb_build_array(${b.holder.pid}) and r->'waiter'<>'null'::jsonb`};end loop;
+${twoWindows ? ` elapsed:=clock_timestamp()-started;
+ if elapsed<interval '0' or elapsed>interval '750 milliseconds' then ${deadlineError};end if;
+ r:=r||jsonb_build_object('dbObservationMs',extract(epoch from elapsed)*1000);
+` : ''} exit when ${s.mode === 'nowait' ? 'true' : `r->'blockers'=jsonb_build_array(${b.holder.pid}) and r->'waiter'<>'null'::jsonb`};end loop;
  insert into survey_committed_observation values(r);end;$observe$;select result from survey_committed_observation;`
   assert(Buffer.byteLength(sql) <= m.caps.sqlBytes); return sql
 }
@@ -280,6 +293,7 @@ export function validateSurveyCommittedObservationSql(m: SurveyCommittedProofMan
 }
 export type SurveyCommittedClock = Readonly<{ startedAt: number; workDeadline: number; dispatchedAt: number; observedAt: number; contenderPending: boolean; poll: number }>
 type WitnessPredicate = 'schedule' | 'bootstrap' | 'clock-finite' | 'clock-order' | 'work-window' | 'observation-window'
+  | 'db-observation-window'
   | 'poll' | 'receipt' | 'backend' | 'dispatch-shape' | 'dispatch-backend' | 'dispatch-source'
   | 'holder-shape' | 'holder-backend' | 'holder-source' | 'holder-window' | 'baseline' | 'holder-operation'
   | 'pending' | 'blocker' | 'waiter' | 'nowait-result' | 'nowait-window'
@@ -299,8 +313,14 @@ export function verifySurveyCommittedWitness(m: SurveyCommittedProofManifest, la
   assert(clock.startedAt <= clock.dispatchedAt && clock.dispatchedAt <= clock.observedAt && clock.observedAt < clock.workDeadline)
   predicate = 'work-window'
   assert(clock.workDeadline - clock.startedAt <= m.caps.workMs)
-  predicate = 'observation-window'
-  assert(clock.observedAt - clock.dispatchedAt <= m.caps.observationMs)
+  if (m.waitObservation === 'database750-original8000' && s.mode === 'wait') {
+    predicate = 'db-observation-window'
+    const elapsed = (raw as Record<string, unknown> | null)?.dbObservationMs
+    assert(typeof elapsed === 'number' && Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= m.caps.observationMs)
+  } else {
+    predicate = 'observation-window'
+    assert(clock.observedAt - clock.dispatchedAt <= m.caps.observationMs)
+  }
   predicate = 'poll'
   assert(Number.isInteger(clock.poll) && clock.poll >= 1 && clock.poll <= m.caps.polls)
   predicate = 'receipt'

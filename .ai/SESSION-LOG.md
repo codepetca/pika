@@ -11,50 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Harness ownership contracts corrected before narrow confirmation
-
-Human approved the recommended source corrections and narrow confirmation, not
-another full-app rehearsal. Batch58 splits process birth/lineage from pathname:
-private macOS flavor18 exact192-byte ABI supplies unique IDs, UUID and pidversion;
-descendant pathname publication may change only within the same image generation.
-Roots, unknown groups, later exec and fresh signal-time checks remain strict.
-Browser requests are owned from start through transport/body completion; all
-workflow departure/reload/close paths drain within the original deadline.
-Pinned Playwright adapter tests expose its empty-body refetch fallback: browser
-JSON with positive/malformed Content-Length now fails before body() (temporary
-carrier restriction); APIResponse remains independent. No product auth/UI edit.
-Deterministic process/request tests and TypeScript pass; startup note compacted
-without dropping required setup paths. Full gate/browser review remain required.
-Process commitbdc7f2bc independently reviewed100 CLEAN; exact self/child native
-ABI/exec check PASS64ms, child reaped, no parent signals. Synthetic3-request
-navigation mode prepared using existing Playwright controls; browser not run.
-Chrome auto-updated155.0.8059.84; signature verified, diagnostic-only pin updated
-for review. Full-app admission remains unchanged and no full rehearsal authorized.
-Orchestrate workers Astra ultra/process and Astra high/request; effective config
-and token usage unknown. Prior99review turns/57batches carry forward; review100/batch58 now
-active, routine-stop waiver retained. PR1581 stays draft; production/shared-local,
-provider-held Survey/socket scope and rollout holds unchanged. Private evidence
-under restart-recovery/underlying-harness-diagnosis-20261015.md retains details.
-
-Review101 found one P2: task retirement could erase an expired request/body
-deadline before delayed timer callbacks. Batch59 latches expiry before both
-removal paths without throwing in event handlers/finalizers. Six deterministic
-before/exact/after-end regressions reproduced4fail/2pass then allpass; affected
-131tests PASS. Targeted review102 and final gate follow before the one synthetic
-browser attempt. Prior full gate3526PASS/8skip and allstaticchecks passed; Chrome
-diagnostic pin only is155.0.8059.84, signatureverified. All holds unchanged.
-
-Review102 CLEAN targeted deadline correction/privateinvoker; finalgate3532PASS/
-8skip plus allstatic/type/lint PASS. Code0890ac28 pushed to draft1581. ONE synthetic
-browser attempt55881 PASS (s9iNPr):3HTTP/1JSON/1originalbody, bothholds+validated
-departure, zero unexpectedrequests/pending/sockets, context/server/ownedprocess
-closure PASS; no nativefailure. Independent43385 confirms21sources/dependencies
-unchanged; freeze released. Kernel64ms and browser13.441s checks prove narrow
-contracts, not realPika/fullapp/visual acceptance. Both attempts spent/pass;
-historical failures unchanged. Full-app pin still.79; needs reviewedbinding and
-separateboundedrun. No DB/production changes. Cumulative102reviews/59batches,
-originalclocks/waiver and allholds retained. Final receipts in private handoff.
-
 ## 2026-10-15 — Fresh full-app lifecycle binding
 
 User authorized one bounded real-Pika rehearsal after narrow kernel/browser checks
@@ -730,3 +686,9 @@ Correction134 passed4428 full checks/review206; isolated PostgreSQL17.6 regressi
 ## 2026-10-18 — Reproduce Survey scenario24 and classify witness failures
 
 Correction135 passed4435 full checks/review207. Fresh v7 passed49 SQL cases in106109ms, then failed at direction24 observer/action148/control2387; cleanup and immediate source/dependency preservation passed. The alias remains spent. Owner authorized offline reproduction and privacy-safe labels, not another admission. Correction136 reproduces the same generic signature with a751ms mandatory observer guard;750ms passes. Alternate invalid evidence reproduces that signature too, so historical cause remains unknown. Fixed predicate/direction/frame labels and bounded observation delta freeze the first eligible host failure without exposing SQL, rows, IDs, timestamps or error text. Original assertions/order/clock origins/guards and all limits remain unchanged.313 affected tests, strict TypeScript/audit pass; root fullgate and targeted independent review follow on the stable revision. No product/schema/native operation or production/shared-local/provider/account/rollout activation. Counters207 reviews/136 corrections; routine-stop waiver retained without resetting history.
+
+## 2026-10-18 — Separate Survey database observation from guarded transport
+
+Correction136 passed4448 full checks/reviews208–209. Fresh v8 passed49 SQL cases in103062ms, then identified direction5's758ms aggregate observation rejection; exact cleanup and immediate preservation passed, alias spent. Owner approved correction137 offline and independent review before another rehearsal: remaining269 successful WAIT only keeps server-local750ms through completion of the actual read, with a post-read check including the final poll and fractional overflow; fresh host guards, observation/release and completion acceptance remain inside the original contender8s/global deadline. No timer renewal or skipped guard. Legacy/component and NOWAIT behavior, all other caps and production/shared-local/provider/account/rollout holds remain. Actual-engine test-first cases reproduce the old rejection at758ms/2000ms; native fit and full remaining acceptance are unproved. Root owns stable integration/fullgate, with one independent Astra/high review; routine-stop waiver carries prior209 reviews/136 completed corrections forward. No new native attempt is authorized here.
+
+Settled source passes strict TypeScript/audit. Affected run333pass/1 unchanged5s test timeout; exact isolated invalid-backend case passes1.26s, so the timeout remains recorded rather than claiming a fully green suite. Root fullgate and independent review are pending. Fixed observer-onlyP7501 distinguishes SQL-local expiry; wrong-frame/legacy codes stay unknown. Normal198actions/4008controls/16requests remain, with4420 additional mocked exchange bytes; native fit remains unproved.

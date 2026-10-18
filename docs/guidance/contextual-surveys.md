@@ -403,3 +403,51 @@ remain unchanged:120s only for the exact49-case suite,8s operation/RPC,60s SDK,
 Legacy/component behavior and all production/shared-local/provider/account/rollout
 holds remain. Independent source review is required before any separate rehearsal
 decision; this correction neither admits a new attempt nor claims native acceptance.
+
+## Remaining WAIT two-window timing correction137
+
+The eighth attempt is permanently spent. Its49-case suite passed211 markers in
+103,062ms. Direction5 then failed at action34/control677 with the fixed
+`observation-window` label and758ms dispatch-to-server-observation delta. Later
+backend/operation/blocker/waiter predicates had not executed after that rejection;
+they are not claimed as passed. Exact cleanup and source/dependency preservation
+passed. This identifies v8's harness timing failure, not historical v7's cause.
+
+The user explicitly approved a changed timing interval for the remaining profile's
+13 successful-WAIT directions. The sealed remaining manifest now selects a fixed
+two-window contract. Its DB observation block retains at most3 polls and750ms,
+but checks server-local elapsed **after** each actual snapshot/read and before
+exit, including the final poll. Fractional750ms overflow and negative elapsed
+are rejected without rounding. The same sealed frame returns `dbObservationMs`;
+the host also validates that finite0..750ms value. A source-fixedP7501 identifies
+SQL-local deadline rejection only while the sealed remaining observer is active;
+it is not a generic accepted SQLSTATE or a cancellation-proof57014 substitute.
+
+Mandatory host guard/transport time is excluded from that DB interval only under
+the approved policy change, and remains bounded by the source-owned original
+contender dispatch+8000ms, clamped by the original global work deadline. Observer
+and release privately bind that original pending contender. Both check eligibility
+before/after the full fresh guard and before write; frame waits use only remaining
+time. Late observer/release receipts, host acceptance and original contender
+completion fail closed. The remaining WAIT contender's client wait is additionally
+capped at its existing8s operation allowance. No fresh clock is allocated after
+guard/receipt. Existing guard-child joins may finish under original settlement/
+cleanup rules; they are not claimed to be forcibly cancelled at the private8s
+deadline. No late ordinary observer or COMMIT is dispatched after expiry.
+
+This supersedes only the former remaining-WAIT aggregate750ms predicate. NOWAIT
+promptness750ms, legacy/component behavior, all identity/source/timestamp-order,
+pending/blocking-edge and complete effects/revision/graph checks remain. Existing
+wall clocks are not newly described as monotonic; no clock-skew tolerance is added.
+The local750ms check is a postcondition, not a new hard-cancellation timer.
+
+CPU regressions cover direction5 and24 with758ms mandatory-guard overhead and a
+2000ms direction24 delay, DB750/750.001ms, original deadline and late-receipt paths,
+and unchanged invalid-witness rejection. They do not prove PostgreSQL timing or
+native fit. Normal198actions/4008nativecontrols/16requests are retained; observer
+SQL/receipt bytes increase and remain charged to128MiB. No query/frame/control/
+session/request is added.120s49-case suite,8s RPC,60s SDK,200actions/6000controls,
+two sessions,8MiB frames and720000ms work+180000ms cleanup remain unchanged.
+Independent review precedes any separate rehearsal decision. No new native attempt
+or acceptance is admitted here; all production/shared-local/provider/account/
+activation/rollout holds remain.
