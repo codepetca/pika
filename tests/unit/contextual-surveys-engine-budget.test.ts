@@ -9,6 +9,7 @@ const seam = vi.hoisted(() => ({ exec: vi.fn(), spawn: vi.fn(), collect: vi.fn()
   held: false, component: false, brokenMetadata: false, holdReaders: false, holdMetadata: false, holdClose: false, poisonAfterBootstrap: false, cliReply: 'held', children: [] as string[], readers: [] as string[],
   spawnCalls: [] as string[], metadataReplies: [] as Array<() => void>,
   afterBootstrap: undefined as (()=>void)|undefined, terminations: 0, closedSessions: 0,
+  sdkTransportReady:false,holdSdkGuard:0,sdkGuardCount:0,
   replies: [] as Array<() => void>, manifest: {} as Record<string, unknown>, writes: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ execFile: seam.exec, spawn: seam.spawn }))
 vi.mock('node:http', async original => ({ ...await original<typeof import('node:http')>(), request: seam.http }))
@@ -46,7 +47,7 @@ vi.mock('../../scripts/contextual-surveys-native-contracts', async original => (
 vi.mock('../../scripts/contextual-surveys-sdk-contracts', () => ({ runContextualSurveysSdkContracts: vi.fn(async () => {}) }))
 vi.mock('../../scripts/contextual-surveys-sdk-proof', async original => ({
   ...await original<typeof import('../../scripts/contextual-surveys-sdk-proof')>(),
-  createSurveySdkProofTransport: vi.fn(() => ({ client: {}, start: vi.fn(), complete: () => ({ calls: 14, nativeVerified: false }) })),
+  createSurveySdkProofTransport: vi.fn(() => ({ client: {}, start: vi.fn(), settle:async()=>{}, complete: () => ({ calls: 14, nativeVerified: false }) })),
   verifySurveySdkTerminalEffects: vi.fn(() => ({ nativeVerified: false })),
 }))
 import { createContextualSurveysNativeContracts, buildSurveyNativeContractsManifest, buildSurvey269ComponentManifest, createSurvey269ComponentNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
@@ -56,7 +57,11 @@ import { assignmentListExpectedResources, assignmentListEphemeralPlan, runAssign
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { surveyNativePlan, bindSurveyNativeLifecycleWorkload } from '../../scripts/contextual-surveys-native-contracts'
 import * as surveyContracts from '../../scripts/contextual-surveys-native-contracts'
+import * as sdkProof from '../../scripts/contextual-surveys-sdk-proof'
+import * as sdkContracts from '../../scripts/contextual-surveys-sdk-contracts'
 const offlineRaceOracle = vi.mocked(surveyContracts.runSurveyNativeRollbackRaces).getMockImplementation()!
+const offlineSdkOracle=vi.mocked(sdkContracts.runContextualSurveysSdkContracts).getMockImplementation()!
+const offlineTransportFactory=vi.mocked(sdkProof.createSurveySdkProofTransport).getMockImplementation()!
 const original = newAssignmentListProofFixture(), repository = process.cwd()
 const manifest = buildSurveyNativeContractsManifest(original, seam.head, repository)
 const projectId = manifest.projectId, workdir = `/private/tmp/pika-assignment-list-${projectId.slice(-12)}`
@@ -85,15 +90,19 @@ const engine = () => createContextualSurveysNativeContracts({ original, reposito
 async function flush() { for (let n = 0; n < 100; n++) await Promise.resolve() }
 beforeEach(() => {
   vi.mocked(surveyContracts.runSurveyNativeRollbackRaces).mockImplementation(offlineRaceOracle)
+  vi.mocked(sdkContracts.runContextualSurveysSdkContracts).mockImplementation(offlineSdkOracle)
+  vi.mocked(sdkProof.createSurveySdkProofTransport).mockImplementation(offlineTransportFactory)
   vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] }); startedAt = Date.now()
   seam.repository = repository; seam.workdir = workdir; seam.config = assignmentListEphemeralPlan({ projectId, workdir }).config
   seam.manifest = manifest; seam.held = false; seam.component = false; seam.brokenMetadata = false; seam.holdReaders = false; seam.holdMetadata = false; seam.holdClose = false
   seam.cliReply = 'held'; seam.poisonAfterBootstrap = false
   seam.afterBootstrap=undefined;seam.terminations=0;seam.closedSessions=0
+  seam.sdkTransportReady=false;seam.holdSdkGuard=0;seam.sdkGuardCount=0
   seam.children.length = 0; seam.readers.length = 0; seam.replies.length = 0; seam.writes.clear()
   seam.spawnCalls.length = 0; seam.metadataReplies.length = 0
   for (const key of Object.keys(process.env)) if (/DOCKER_|PROXY|SUPABASE_CLI_BINARY_OVERRIDE/.test(key)) vi.stubEnv(key, undefined)
   seam.exec.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+    if(seam.sdkTransportReady && file==='git' && args.join(' ')==='rev-parse HEAD' && ++seam.sdkGuardCount===seam.holdSdkGuard)seam.holdMetadata=true
     seam.children.push(file); let input = ''
     const child = Object.assign(new EventEmitter(), { stdin: { on: vi.fn(), end: (value?: string) => { input = value ?? '' } }, kill: vi.fn() })
     const reply = () => {
@@ -151,7 +160,7 @@ beforeEach(() => {
     }); return req
   })
 })
-afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs();vi.unstubAllGlobals(); vi.restoreAllMocks() })
 describe('actual Survey engine budget composition (offline)', () => {
   function componentEngine() {
     seam.component = true
@@ -170,7 +179,7 @@ describe('actual Survey engine budget composition (offline)', () => {
     const adapters = platform.createAssignmentListNativeAdapters(original,{survey263Endpoint:{kind:'survey263',host:seam.host,identity:[1,2,3,4]},survey263Budget:budget(),survey263NativeCli:platform.SURVEY263_NATIVE_CLI,survey269Component:true})
     const componentManifest=buildSurvey269ComponentManifest(original,sourceBinding)
     seam.manifest=componentManifest
-    return {adapters,engine:createSurvey269ComponentNativeContracts({original,binding:sourceBinding,containerId:resources[0].id,capturedResources:resources,
+    return {adapters,fixture:plan.fixture,engine:createSurvey269ComponentNativeContracts({original,binding:sourceBinding,containerId:resources[0].id,capturedResources:resources,
       acceptedManifestSha256:sha(componentManifest),absoluteDeadline:budget().workDeadline,statusTarget:status,survey263Endpoint:platform.requireSurvey263AdapterEndpoint(adapters)})}
   }
   it('closed269 profile runs contracts once and never races/committed/cancellation, then gates genuine types behind SDK', async()=>{
@@ -208,6 +217,41 @@ describe('actual Survey engine budget composition (offline)', () => {
     expect(()=>platform.checkSurvey263AdapterTotal(adapters)).toThrow('cumulative exchange limit')
     await expect(component.runContractsOnly()).rejects.toThrow()
     expect(component.nativeVerified).toBe(false)
+  })
+  it.each([['pre',false],['post',false],['pre',true],['post',true],['before',true]] as const)('actual transport joins %s native guard at SDK timeout (never-close=%s) before any secondary phase',async(side,neverClose)=>{
+    const actualTransport=await vi.importActual<typeof sdkProof>('../../scripts/contextual-surveys-sdk-proof')
+    const actualSdk=await vi.importActual<typeof sdkContracts>('../../scripts/contextual-surveys-sdk-contracts')
+    const {engine:component,fixture:f}=componentEngine()
+    await component.setup();await component.runContractsOnly()
+    vi.mocked(sdkContracts.runContextualSurveysSdkContracts).mockImplementation(actualSdk.runContextualSurveysSdkContracts)
+    vi.mocked(sdkProof.createSurveySdkProofTransport).mockImplementation((...args)=>{seam.sdkTransportReady=true;return actualTransport.createSurveySdkProofTransport(...args)})
+    seam.holdSdkGuard=side==='before'?1:side==='pre'?2:3
+    const wire=vi.fn<typeof fetch>(async()=>new Response(JSON.stringify({classroom:{id:f.classes[0].id,teacher_id:f.actors[0].id,archived_at:null},
+      survey:{id:f.surveys[0].id,classroom_id:f.classes[0].id,created_by:f.actors[0].id,title:f.tag,status:'active',show_results:true,dynamic_responses:false,
+        opens_at:'2026-10-12T00:00:00+00:00',created_at:'2026-10-12T00:00:00Z',updated_at:'2026-10-12T00:00:00Z',position:0,
+        artifact_id:'00000000-0000-4000-8000-000000000088',source_artifact_id:null,source_blueprint_version_id:null,blueprint_archived_at:null},questions:[f.question],responses:[]}),{headers:{'content-type':'application/json'}}))
+    vi.stubGlobal('fetch',wire)
+    let finished=false
+    const operation=component.runSdkCommitted().catch(error=>error).finally(()=>{finished=true})
+    for(let n=0;n<2000 && !seam.metadataReplies.length;n++)await Promise.resolve()
+    expect(seam.metadataReplies.length).toBeGreaterThan(0)
+    const dispatches=seam.children.length,spawns=seam.spawnCalls.length
+    await vi.advanceTimersByTimeAsync(20001)
+    expect(finished).toBe(false);expect(seam.children).toHaveLength(dispatches);expect(seam.spawnCalls).toHaveLength(spawns)
+    expect(wire).toHaveBeenCalledTimes(side==='post'?1:0)
+    if(neverClose){
+      await vi.advanceTimersByTimeAsync(37000)
+      expect(await operation).toBeInstanceOf(platform.Survey263UnjoinedChildError)
+      expect(component.diagnostic()).toContain(side==='before'?'sdkPending=guard':'settlement=guard')
+      expect(seam.children).toHaveLength(dispatches);expect(seam.spawnCalls).toHaveLength(spawns)
+      await expect(component.generateTypes269()).rejects.toBeInstanceOf(platform.Survey263UnjoinedChildError)
+      expect(seam.children).toHaveLength(dispatches)
+    }else{
+      seam.holdMetadata=false;seam.metadataReplies.splice(0).forEach(reply=>reply())
+      expect(await operation).toBeInstanceOf(Error)
+      expect(finished).toBe(true)
+      expect(wire).toHaveBeenCalledTimes(side==='post'?1:0)
+    }
   })
   it('preserves poison through the actual race wrapper cleanup assertion', async () => {
     const actual = await vi.importActual<typeof import('../../scripts/contextual-surveys-native-contracts')>('../../scripts/contextual-surveys-native-contracts')

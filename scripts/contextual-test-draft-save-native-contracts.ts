@@ -955,6 +955,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   const closure = structuredClone(input.capturedResources)
   const start = profile.survey263Budget?.startedAt ?? Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
   const component = profile.survey269Component !== undefined
+  let surveySdkWorkDeadline: number | undefined
+  let surveySdkDiagnostic: (() => string) | undefined
+  let surveySdkGuardUnjoined = false
   function chargeComponent(bytes: number, cleanup = false) {
     try {exchanged = chargeSurvey269ComponentExchange(profile.survey269Exchange!, bytes, cleanup)}
     catch {record('budget');failed = true;throw failure()}
@@ -1055,6 +1058,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   }
   function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role, cleanup = false): Promise<string> {
     checkJoined()
+    if (component && !cleanup && surveySdkWorkDeadline !== undefined) assert(Date.now() < surveySdkWorkDeadline, 'Survey SDK ordinary dispatch expired')
     assert(++controls <= CAPS.controlCalls)
     if (file === 'supabase') assert((profile.label === 'survey263' || component) && endpoint)
     if (component && sql !== undefined) chargeComponent(Buffer.byteLength(sql), cleanup)
@@ -1221,6 +1225,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
     constructor(name: string) {
       this.name = name
+      if (component && surveySdkWorkDeadline !== undefined) assert(Date.now() < surveySdkWorkDeadline, 'Survey SDK ordinary dispatch expired')
       if (component) chargeSurvey269ComponentControl(profile.survey269Exchange!)
       this.child = spawn('docker', dockerArgs(name), { cwd: input.repository, stdio: ['pipe', 'pipe', 'pipe'] })
       this.closed = new Promise(resolveClose => this.child.once('close', () => {
@@ -1259,6 +1264,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number, carrier?: SurveyCarrier): Promise<readonly { result?: unknown }[]> {
+      if (component && !this.cleaning && surveySdkWorkDeadline !== undefined) assert(Date.now() < surveySdkWorkDeadline, 'Survey SDK ordinary dispatch expired')
       if (profile.survey263Budget) {
         timeoutMs = Math.min(timeoutMs, (this.cleaning ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
         assert(timeoutMs > 0)
@@ -1570,9 +1576,18 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         const decode = (rows: Awaited<ReturnType<typeof single>>) => decodeAssignmentListSnapshot(
           rows.map(row => JSON.stringify(row.result)).join('\n'), 'rows')
         const before = decode(await single(manifest.snapshot))
-        const transport = createSurveySdkProofTransport(profile.surveySdk!.fixture, profile.surveySdk!.status, fetch, guard, component ? chargeComponent : undefined)
+        const sdkDeadline = Math.min(Date.now() + 20000, start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs)
+        if (component) surveySdkWorkDeadline = sdkDeadline
+        const sdkGuard = async () => {
+          if (component) assert(Date.now() < sdkDeadline, 'Survey SDK ordinary dispatch expired')
+          try { await guard() } catch (error) { if (component && error instanceof Survey263UnjoinedChildError) surveySdkGuardUnjoined = true; throw error }
+          if (component) assert(Date.now() < sdkDeadline, 'Survey SDK ordinary dispatch expired')
+        }
+        const transport = createSurveySdkProofTransport(profile.surveySdk!.fixture, profile.surveySdk!.status, fetch, sdkGuard, component ? chargeComponent : undefined,
+          component ? { cleanupDeadline: profile.survey263Budget!.cleanupDeadline } : undefined)
+        if (component) surveySdkDiagnostic = transport.diagnostic
         const startedAt = new Date().toISOString()
-        transport.start(Math.min(start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs))
+        transport.start(component ? sdkDeadline : Math.min(start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs))
         let sdkFailure: unknown, sdkComplete = false, endedAt: string | undefined
         let sdk: ReturnType<typeof transport.complete> | undefined
         let after: ReturnType<typeof decode> | undefined
@@ -1581,10 +1596,16 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           await runContextualSurveysSdkContracts(transport.client, {
             ownerId: fixture.actors[0].id, memberId: fixture.actors[1].id, outsiderId: fixture.actors[2].id,
             classroomId: fixture.classes[0].id, surveyId: fixture.surveys[0].id,
-          }, guard)
+          }, sdkGuard)
           sdk = transport.complete(); endedAt = new Date().toISOString(); sdkComplete = true
         } catch (error) { sdkFailure = error }
         finally {
+          if (component) {
+            try { await transport.settle() }
+            catch (error) { if (error instanceof Survey263UnjoinedChildError) { failed = true; surveyUnjoined = true } throw error }
+            if (sdkFailure instanceof Survey263UnjoinedChildError) { failed = true; surveyUnjoined = true; throw sdkFailure }
+            checkJoined(); surveySdkWorkDeadline = undefined
+          }
           // A failed/uncertain SDK still gets independent fixed state evidence;
           // it never becomes success merely because its terminal rows look right.
           after = decode(await single(manifest.snapshot))
@@ -1654,6 +1675,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
         + (component ? `DIAG survey269-component settlement remainingSessions=${sessions.size} exchangeBytes=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).bytes} controlCalls=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).controls}.\n` : '')
+        + (component && surveySdkDiagnostic ? `${surveySdkDiagnostic()}\n` : '')
+        + (component && surveySdkGuardUnjoined ? 'DIAG survey269-component sdkPending=guard.\n' : '')
         + (profile.learnerCancellation ? `DIAG learner cancellationStage=${cancellationFirstFailure ?? cancellationStage} cancellationRestore=${cancellationRestoreFailure ?? 'none'}.\n` : '')
     },
     async setup() {

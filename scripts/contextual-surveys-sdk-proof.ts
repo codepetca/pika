@@ -8,6 +8,7 @@ import { z } from 'zod'
 import type { Database } from '../src/types/database'
 import type { SurveyNativeFixture } from './contextual-surveys-native-contracts'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
+import { Survey263UnjoinedChildError } from './contextual-assignment-list-proof-platform'
 import { contextualSurveyDetailSchema, contextualSurveyListSchema, contextualSurveyMemberResultsSchema,
   contextualSurveyOwnerResultsSchema, contextualSurveyMutationSchema, contextualSurveyQuestionMutationSchema,
   contextualSurveyRespondSchema, contextualSurveyDeleteSchema } from '../src/lib/validations/contextual-surveys'
@@ -52,7 +53,34 @@ export function surveySdkProofManifest(f: SurveyNativeFixture) {
     caps: SURVEY_SDK_PROOF_CAPS, executionEnabled: false as const, nativeVerified: false as const })
 }
 export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget: unknown, original: typeof fetch, guard: () => Promise<void>,
-  chargeComponentBytes?: (bytes: number) => void) {
+  chargeComponentBytes?: (bytes: number) => void, componentSettlement?: Readonly<{ cleanupDeadline: number }>) {
+  if (componentSettlement) {
+    assert.deepEqual(Object.keys(componentSettlement), ['cleanupDeadline'])
+    assert(Number.isSafeInteger(componentSettlement.cleanupDeadline) && componentSettlement.cleanupDeadline > Date.now())
+  }
+  const cleanupDeadline = componentSettlement?.cleanupDeadline
+  type PendingKind = 'guard' | 'http' | 'body' | 'cancel'
+  const pending = new Map<Promise<unknown>, PendingKind>()
+  let poison: Survey263UnjoinedChildError | undefined
+  let poisonKind = 'none'
+  function owned<T>(operation: Promise<T>, kind: PendingKind): Promise<T> {
+    if (cleanupDeadline === undefined) return operation
+    pending.set(operation, kind)
+    void operation.then(() => pending.delete(operation), error => { pending.delete(operation); if (kind === 'cancel' || error instanceof Survey263UnjoinedChildError) {poison ??= error instanceof Survey263UnjoinedChildError ? error : new Survey263UnjoinedChildError();if(poisonKind==='none')poisonKind=kind} })
+    return operation
+  }
+  async function settle() {
+    if (cleanupDeadline === undefined) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      assert(Date.now() < cleanupDeadline)
+      await Promise.race([(async () => {while (pending.size) await Promise.allSettled([...pending.keys()])})(), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {poisonKind=[...new Set(pending.values())].sort().join('+') || poisonKind;reject(poison ??= new Survey263UnjoinedChildError())}, cleanupDeadline - Date.now())
+      })])
+    } catch (error) { poison ??= error instanceof Survey263UnjoinedChildError ? error : new Survey263UnjoinedChildError() }
+    finally { if (timer) clearTimeout(timer) }
+    if (poison) throw poison
+  }
   const manifest = surveySdkProofManifest(f), manifestSha256 = hash(JSON.stringify(manifest))
   const target = validateAssignmentListProofTarget(rawTarget, f.projectId)
   let deadline: number | undefined, failed = false, inFlight = false, calls = 0, bytes = 0, index = 0
@@ -144,42 +172,48 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       let rejectAbort: (error: Error) => void = () => {}
       const aborted = new Promise<never>((_, reject) => { rejectAbort = reject })
       controller.signal.addEventListener('abort', () => rejectAbort(fail()), { once: true })
-      const bounded = async <T>(run: () => Promise<T>) => { check(); const value = await Promise.race([Promise.resolve().then(run), aborted]); check(); return value }
-      stage = 'guard-before'; await bounded(guard); check(); assert(++calls <= SURVEY_SDK_PROOF_CAPS.calls)
+      const bounded = async <T>(run: () => Promise<T>, kind: PendingKind) => { check(); const operation = owned(Promise.resolve().then(() => {if (cleanupDeadline !== undefined) check();return run()}), kind); const value = await Promise.race([operation, aborted]); check(); return value }
+      stage = 'guard-before'; await bounded(guard, 'guard'); check(); assert(++calls <= SURVEY_SDK_PROOF_CAPS.calls)
       bytes += Buffer.byteLength(init.body); assert(bytes <= SURVEY_SDK_PROOF_CAPS.totalBytes)
       chargeComponentBytes?.(Buffer.byteLength(init.body))
-      stage = 'exchange'; response = await bounded(() => original(String(resource), { method: 'POST', headers,
-        body: init.body, redirect: 'error', signal: controller.signal }))
+      stage = 'exchange'; response = await bounded(async () => {
+        const received = await original(String(resource), { method: 'POST', headers, body: init.body, redirect: 'error', signal: controller.signal })
+        if (cleanupDeadline !== undefined && controller.signal.aborted) {
+          try { await received.body?.cancel() } catch { throw new Survey263UnjoinedChildError() }
+        }
+        return received
+      }, 'http')
       stage = 'reply'; assert(response instanceof Response && !response.redirected && !response.headers.has('location') && response.body)
       assert(!response.url || response.url === String(resource)); assert(response.headers.get('content-type')?.startsWith('application/json'))
       const declared = response.headers.get('content-length')
       assert(declared === null || /^\d+$/.test(declared) && Number(declared) <= SURVEY_SDK_PROOF_CAPS.responseBytes)
       reader = response.body.getReader(); const chunks: Uint8Array[] = []; let count = 0, reads = 0
-      for (;;) { assert(++reads <= SURVEY_SDK_PROOF_CAPS.responseBytes + 1); const part = await bounded(() => reader!.read()); if (part.done) break
+      for (;;) { assert(++reads <= SURVEY_SDK_PROOF_CAPS.responseBytes + 1); const part = await bounded(() => reader!.read(), 'body'); if (part.done) break
         count += part.value.byteLength; bytes += part.value.byteLength
         chargeComponentBytes?.(part.value.byteLength)
         assert(count <= SURVEY_SDK_PROOF_CAPS.responseBytes && bytes <= SURVEY_SDK_PROOF_CAPS.totalBytes); chunks.push(part.value) }
       const body = Buffer.concat(chunks), text = new TextDecoder('utf-8', { fatal: true }).decode(body)
       validateReply(parse(text), response.status)
-      stage = 'guard-after'; await bounded(guard); check()
+      stage = 'guard-after'; await bounded(guard, 'guard'); check()
       receipts.push({ index, requestSha256: hash(init.body), responseSha256: hash(body), responseBytes: count }); index++
       stage = index === names.length ? 'complete' : 'idle'
       return new Response(body, { status: response.status, headers: response.headers })
-    } catch { failed = true; stage = 'failed'; controller.abort(); throw fail() }
+    } catch (error) { failed = true; stage = 'failed'; controller.abort(); if (cleanupDeadline !== undefined && error instanceof Survey263UnjoinedChildError) {poison ??= error;throw poison} throw fail() }
     finally { if (timer) clearTimeout(timer); caller?.removeEventListener('abort', abort)
       // Request cancellation without letting an untrusted stream's cancel hook
       // extend the fixed deadline. Root still owns exact SQL/backend settlement.
-      if (failed) { const cancelled = reader ? reader.cancel() : response?.body?.cancel(); void cancelled?.catch(() => {}) }
+      if (failed) { const cancelled = reader ? reader.cancel() : response?.body?.cancel();
+        if (cancelled) {const joined = owned(cancelled, 'cancel');void joined.catch(() => {})} }
       if (reader) { try { reader.releaseLock() } catch { /* a cancelled read is already refused */ } }
       inFlight = false }
   }
   const client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }, global: { fetch: safeFetch },
   })
-  return Object.freeze({ manifest, manifestSha256, client, fetch: safeFetch, start,
+  return Object.freeze({ manifest, manifestSha256, client, fetch: safeFetch, start, settle,
     complete() { assert(!failed && !inFlight && index === 14 && calls === 14 && deadline !== undefined && Date.now() < deadline)
       return freeze({ calls, bytes, receipts: structuredClone(receipts), nativeVerified: false as const }) },
-    diagnostic: () => `DIAG survey-sdk stage=${stage} calls=${Math.min(calls, 17)} bytes=${Math.min(bytes, SURVEY_SDK_PROOF_CAPS.totalBytes + 1)}.`,
+    diagnostic: () => `DIAG survey-sdk stage=${stage} calls=${Math.min(calls, 17)} bytes=${Math.min(bytes, SURVEY_SDK_PROOF_CAPS.totalBytes + 1)}${cleanupDeadline === undefined ? '' : ` settlement=${poisonKind}`}.`,
   })
 }
 

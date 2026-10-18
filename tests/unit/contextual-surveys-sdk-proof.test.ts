@@ -5,6 +5,7 @@ import { newSurveyNativeFixture } from '../../scripts/contextual-surveys-native-
 import { createSurveySdkProofTransport, SURVEY_SDK_PROOF_CAPS, verifySurveySdkTerminalEffects,
   verifySurveyMembershipRestoration, surveyMembershipRestoreSql } from '../../scripts/contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts } from '../../scripts/contextual-surveys-sdk-contracts'
+import { Survey263UnjoinedChildError } from '../../scripts/contextual-assignment-list-proof-platform'
 
 const f = newSurveyNativeFixture(newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z')))
 const owner = f.actors[0].id, member = f.actors[1].id, sid = f.surveys[0].id, cid = f.classes[0].id
@@ -52,6 +53,35 @@ const firstRequest = () => ({ method: 'POST', headers, body: JSON.stringify({ p_
 const firstUrl = 'http://127.0.0.1:54331/rest/v1/rpc/get_survey_for_owner_v1'
 
 describe('finite installed-SDK Survey transport (offline only)', () => {
+  it.each(['late-response','body','never-response','never-cancel'] as const)('joins actual %s cancellation by the original cleanup cutoff',async mode=>{
+    vi.useFakeTimers()
+    try{
+      let replyLate:((response:Response)=>void)|undefined,closeCancel:(()=>void)|undefined,cancelled=false
+      const response=()=>new Response(new ReadableStream({cancel(){cancelled=true;return new Promise<void>(resolve=>{closeCancel=resolve})}}),{headers:{'content-type':'application/json'}})
+      const wire=vi.fn<typeof fetch>(()=>mode==='body'||mode==='never-cancel' ? Promise.resolve(response()) : new Promise<Response>(resolve=>{replyLate=resolve}))
+      const transport=createSurveySdkProofTransport(f,target,wire,async()=>{},()=>{},{cleanupDeadline:Date.now()+300})
+      transport.start(Date.now()+100)
+      const request=transport.fetch(firstUrl,firstRequest()).catch(error=>error)
+      await vi.advanceTimersByTimeAsync(101)
+      expect(await request).toBeInstanceOf(Error)
+      let settled=false
+      const settlement=transport.settle().then(()=>undefined,error=>error).finally(()=>{settled=true})
+      await Promise.resolve();expect(settled).toBe(false)
+      if(mode==='late-response'){
+        replyLate!(response());for(let n=0;n<10;n++)await Promise.resolve()
+        expect(cancelled).toBe(true);expect(settled).toBe(false);closeCancel!()
+        expect(await settlement).toBeUndefined()
+      }else if(mode==='body'){
+        expect(cancelled).toBe(true);closeCancel!();expect(await settlement).toBeUndefined()
+      }else{
+        await vi.advanceTimersByTimeAsync(200)
+        expect(await settlement).toBeInstanceOf(Survey263UnjoinedChildError)
+        expect(transport.diagnostic()).toContain(`settlement=${mode==='never-response'?'http':'cancel'}`)
+        await expect(transport.settle()).rejects.toBeInstanceOf(Survey263UnjoinedChildError)
+      }
+      expect(wire).toHaveBeenCalledOnce();expect(()=>transport.complete()).toThrow()
+    }finally{vi.useRealTimers()}
+  })
   it('charges every actual request and response byte into the component ledger and fails closed on overflow', async () => {
     let charged = 0
     const wire = server(), transport = createSurveySdkProofTransport(f, target, wire, async () => {}, n => { charged += n })
