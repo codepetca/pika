@@ -200,3 +200,13 @@ transported. Source checks pass, but native execution and the unchanged 35-secon
 deadline fit are unverified. Valid 8MiB response-vector, list/results byte limits,
 10,000-row guards and the native wire probe remain uncovered. No acceptance flag
 or execution hold changes with this source-only subset.
+
+The inert cancellation descriptor now prepares an exact synthetic-row delay,
+original RPC request, server-observed pending backend identity and finally
+restoration frames. It does not dispatch SQL/HTTP or grant execution. The pending
+shape validator explicitly does not establish backend provenance. Real original
+HTTP cancellation, pinned runtime prerequisites, complete action/control/byte
+accounting and independently verified restoration remain required. All-single
+dispatch accounting would reach199 known actions before the remaining wire and
+membership restoration work, so it is not a complete admitted inventory. No
+timeout, product RPC, ACL, RLS, cap or production hold is weakened.
