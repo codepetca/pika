@@ -48466,3 +48466,43 @@ placeholderreadiness; canonicalTiptapemptyparagraphhastrailingBR. Exactfailed
 predicateunknown; pseudoheight0 alone isnotproof. Next boundedemptyreadiness/
 privacy-safefixedgeometrylabels, retaining visibilitychecks; no speculativefix.
 no product/production/sharedDB/provider/rolloutchanges. Counters103/60 unchanged.
+
+<!-- pika-session-log-archive-batch:84b0b4e12d9b555c10939d4ea6ef478e6bef0546b6f4d1a71397196d481dc9a5 -->
+## 2026-10-16 — Bounded empty-font capture readiness
+
+User Continue authorizes the recommended correction/review and one fresh bounded
+full-app rehearsal; CJrlCg stays permanently failed. Batch61 adds canonical-empty
+placeholder observation and a single nonrenewing capture deadline with fixed-only
+failure labels. Historical exact predicate remains unknown. Root integration and
+Sol6.1/high helper/test ownership are disjoint; no UI/sourceapp/DB changes. Required
+independent targeted review104 and final checks precede native dispatch. Existing
+103reviews/60batches/clocks retained under owner routine-stop waiver; weekly65%
+remaining, storagehealthy. Frozen21e755d3/001–262,45min+6mincleanup and all production,
+sharedlocal249+, provider-heldSurvey/planning, oldsocket81 and rollout holds stay.
+
+Review104 CLEAN0 at c25b5d82; 71 targeted CPU checks PASS. Exact focused default
+parallelism failed one unrelated ci-tart-host 100ms child-exit assumption; isolated
+test PASS, then supported max-workers2 exact gate PASS3551/8skip and all static
+checks without changing assertions. Preserve failure; contention is inference.
+ONE fresh kx0L9X full-app attempt SPENT/FAILED148388ms. First real owner login PASS;
+body/request failures null, pending/page/console errors0; only fixed empty capture
+placeholder/positioned/deadline checks failed. Other geometry/empty-text checks
+passed. Three PNG235043bytes hash-verified and root visually inspected; no full
+matrix or lifecycle acceptance. All cleanup gates PASS; independent17526 before
+postrun writes proves7648 source files/49485 dependency entries unchanged,
+current process candidates0. Exact fixture/tempapp gone and four ports clear.
+Freeze released; all evidence retained and no automatic retry.
+
+Bounded read-only Sol6.1/high worker identified a real installed Tiptap3.31.4
+defect, independently reproduced by root using real Editor/StarterKit/Placeholder
+in JSDOM: includeChildren:true + selectAll/deleteSelection leaves is-empty but
+omits is-editor-empty. Frozen placeholder CSS therefore does not match. Waiting
+or no-op transaction does not repair; a second selection does, with unchanged
+document JSON. Incremental plugin reads editor.isEmpty during new-state apply,
+before view.updateState. This explains a viable failure path, not proof of the
+unretained exact browser pseudo style. Do not weaken capture or add a synthetic
+selection workaround; next correct the shared-editor dependency interaction with
+real-editor regression coverage, then review the explicit isolated overlay delta.
+No product fix or further native run performed. PR1581 remains draft at c25b5d82;
+104reviews/61fixbatches and existing clocks/holds retained. UI verification skill
+keeps visual acceptance incomplete; no quota/auth/permission/production changes.

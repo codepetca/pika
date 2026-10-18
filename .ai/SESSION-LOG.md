@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Bounded empty-font capture readiness
-
-User Continue authorizes the recommended correction/review and one fresh bounded
-full-app rehearsal; CJrlCg stays permanently failed. Batch61 adds canonical-empty
-placeholder observation and a single nonrenewing capture deadline with fixed-only
-failure labels. Historical exact predicate remains unknown. Root integration and
-Sol6.1/high helper/test ownership are disjoint; no UI/sourceapp/DB changes. Required
-independent targeted review104 and final checks precede native dispatch. Existing
-103reviews/60batches/clocks retained under owner routine-stop waiver; weekly65%
-remaining, storagehealthy. Frozen21e755d3/001–262,45min+6mincleanup and all production,
-sharedlocal249+, provider-heldSurvey/planning, oldsocket81 and rollout holds stay.
-
-Review104 CLEAN0 at c25b5d82; 71 targeted CPU checks PASS. Exact focused default
-parallelism failed one unrelated ci-tart-host 100ms child-exit assumption; isolated
-test PASS, then supported max-workers2 exact gate PASS3551/8skip and all static
-checks without changing assertions. Preserve failure; contention is inference.
-ONE fresh kx0L9X full-app attempt SPENT/FAILED148388ms. First real owner login PASS;
-body/request failures null, pending/page/console errors0; only fixed empty capture
-placeholder/positioned/deadline checks failed. Other geometry/empty-text checks
-passed. Three PNG235043bytes hash-verified and root visually inspected; no full
-matrix or lifecycle acceptance. All cleanup gates PASS; independent17526 before
-postrun writes proves7648 source files/49485 dependency entries unchanged,
-current process candidates0. Exact fixture/tempapp gone and four ports clear.
-Freeze released; all evidence retained and no automatic retry.
-
-Bounded read-only Sol6.1/high worker identified a real installed Tiptap3.31.4
-defect, independently reproduced by root using real Editor/StarterKit/Placeholder
-in JSDOM: includeChildren:true + selectAll/deleteSelection leaves is-empty but
-omits is-editor-empty. Frozen placeholder CSS therefore does not match. Waiting
-or no-op transaction does not repair; a second selection does, with unchanged
-document JSON. Incremental plugin reads editor.isEmpty during new-state apply,
-before view.updateState. This explains a viable failure path, not proof of the
-unretained exact browser pseudo style. Do not weaken capture or add a synthetic
-selection workaround; next correct the shared-editor dependency interaction with
-real-editor regression coverage, then review the explicit isolated overlay delta.
-No product fix or further native run performed. PR1581 remains draft at c25b5d82;
-104reviews/61fixbatches and existing clocks/holds retained. UI verification skill
-keeps visual acceptance incomplete; no quota/auth/permission/production changes.
-
 ## 2026-10-16 — Scoped placeholder correction candidate
 
 User Fix it authorizes the recommended shared-editor fix, regression/review and
@@ -671,3 +632,7 @@ Settled source passes strict TypeScript/audit. Affected run333pass/1 unchanged5s
 Correction137 passed4461 full tests/static gates and independent review210; launcher review211 passed. One authorized v9 rehearsal stopped at survey-binding before fixture/remaining execution, with no native diagnostic and cleanup failures empty. Root immediately confirmed complete source/dependency equality and exact isolated resource/tempdir absence; the attempt remains failed/spent. Its304controls/4776554bytes/0requests were below all limits; the specific rejected binding substep is unknown. A pure real-factory construction check passed with synthetic status and no engine operations, which does not prove the actual session/resource gates. Routine correction138 adds fixed private binding checkpoints and real-factory offline lifecycle coverage under existing goal authority. Original errors, safety predicates, all caps and production/shared-local/provider/account/rollout holds remain. No second native attempt is authorized. Source author Astra/high; one Sol/high independent review and root fullgate follow the stable changes.
 
 Settled correction138 passes52affected tests, strict TypeScript/audit. Seven injected binding failures preserve the exact original error/poison while adding fixed labels; real workload/manifest/factory composition reaches a controlled pre-setup stop with zero native/HTTP operations. Legacy/component delivery and native-getter priority remain. Root stable review/fullgate follow; v9's exact cause and native timing acceptance remain unproved.
+
+## 2026-10-18 — Remaining Survey native rehearsal passed
+
+Correction138 passed4472full tests/static gates and review212; fresh launcher review213 passed. Owner-authorized v10 at eb9ef504/productdb1fb completed remaining SQL/all30committed directions, genuine57014/original-body settlement, actual wire overflow/restoration,14SDK calls and genuine269types/12RPC validation. Final198actions/4366shared controls/16requests/76506129bytes fit unchanged ceilings; elapsed339415ms. Root immediately deep-compared complete2source/2dependency snapshots before post-run edits/tests, then verified exact isolated resource/tempdir absence and clean original pins. Evidence/types retained privately; all prior failures stay spent. This closes bounded remaining-native evidence only; nativeVerified=false and application/epic/production/rollout holds remain. Documentation-only continuity update follows; no new runtime or policy change.

@@ -479,3 +479,25 @@ native acceptance. No query, frame, action, control, request, session, guard,
 predicate, clock or limit changes. No next native attempt is authorized by this
 correction; all production/shared-local/provider/account/billing/cohort/home/
 cutover holds remain.
+
+### Remaining native proof passed — 2026-10-18
+
+The one authorized v10 attempt passed at carrier `eb9ef5045` and product
+`db1fb5f12`, using the reviewed two-window timing and fixed binding diagnostics.
+It completed the remaining SQL suite, all30 committed directions, genuine57014
+cancellation with original HTTP/body settlement, actual wire overflow/restoration,
+ordinary14-call SDK effects and genuine269 types validating12RPC contracts.
+Primary membership, metadata and cron remained unchanged;0sessions remained.
+Final198actions/4366shared controls/16requests/76506129bytes fit the unchanged
+200/6000/16/128MiB ceilings. Elapsed339415ms fit the original12+3-minute budget.
+Independent complete source/dependency equality and exact isolated resource/
+temporary-directory absence passed before post-run edits or tests.
+
+Private receipts and the hash-verified generated types are retained under
+`~/.codex/verification/classroom-access/2026-10-12-restart-recovery/` as
+`survey-269-remaining-v10-*` and `SURVEY-REMAINING-V10-OUTCOME.md`.
+This is bounded remaining-native evidence; the receipt retains
+`nativeVerified=false`. Full application/epic acceptance and rollout remain
+separate. All production/shared-local/provider/account/billing/cohort/home/
+cutover holds and all limits remain. Prior failed attempts stay failed/spent;
+the historical v9 binding substep is still unknown.
