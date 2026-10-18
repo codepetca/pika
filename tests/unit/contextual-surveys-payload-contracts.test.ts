@@ -26,7 +26,8 @@ describe('bounded rollback-only Survey SQL payload subset', () => {
     expect(Buffer.byteLength(sql)).toBeLessThan(262144)
     expect(sql).not.toMatch(/disable\s+trigger|session_replication_role|alter\s+function|security\s+definer|pg_sleep/i)
     expect([...sql.matchAll(/generate_series\(([^)]+)\)/g)].map(match => match[1])).toEqual(['1,1699', '1,10000', '1,10000'])
-    expect(sql).not.toMatch(/raise\s+(notice|log|info)/i)
+    expect(sql).not.toMatch(/raise\s+(notice|log)/i)
+    expect(sql).toContain("raise info using errcode='PS'||lpad(p_step::text,3,'0'),message=''")
     expect(sql).toContain('create temporary table survey_payload_receipts(label text primary key,measured_bytes integer not null,measured_count integer,expected_code text,verified boolean not null) on commit drop')
     expect(sql).toContain("'kind','survey-sql-payload-matrix','nativeVerified',false")
     expect(sql).toContain("'schemaVersion',1,'columns',jsonb_build_array('label','bytes','count','code','verified')")
@@ -155,7 +156,10 @@ describe('bounded rollback-only Survey SQL payload subset', () => {
   })
 
   it('covers every reachable 10000/+1 count guard using shared fixed fixtures and honest joint attribution', () => {
-    expect(matrix).toContain(`foreach v_case in array array[${countCases.map(name => `'${name}'`).join(',')}] loop`)
+    expect(matrix).toContain("foreach v_family in array array['questions','lists'] loop")
+    expect(matrix).toContain("then array['results-owner','results-member','detail-questions-owner','detail-questions-member','detail-responses-member-joint','response-questions'] else array['list-owner','list-member'] end")
+    expect(matrix).toContain("'questions_count',case when survey.id=v_foreign_survey then 1 else 0 end")
+    expect(matrix).toContain("values(v_foreign_survey,v_boundary_question,v_other,'x')")
     expect(matrix).toContain("assert v_count=10000+v_delta,'Exact count measurement differs'")
     expect(matrix).toContain("'Count fixture bytes would mask the count guard'")
     expect(matrix).toContain("'Count subtransaction restoration differs'")
