@@ -198,6 +198,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   let surveyUnjoinedHolder = false
   let surveyOriginalBase:SurveyCpuGraph|undefined,surveySnapshot:(()=>SurveyCpuGraph)|undefined
   let remainingManifest:ReturnType<typeof buildSurvey269RemainingManifest>|undefined
+  let remainingProbeFrameFault:'prepare-close'|'observer-close'|'observer-timeout'|undefined
   function surveyAfter() {
     const state = surveyDirection!, s = state.schedule
     // Select the actual closed legacy-writer frame, independently of the
@@ -282,7 +283,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     surveyPositive = undefined; surveyGraph = undefined; surveySeedStamp = ''; surveyEvents.length = 0
     surveyBackends.clear(); surveyDirection = undefined; pendingSurveyContender = undefined
     surveyLateFrame = undefined; surveyWorkDeadline = 0; surveyUnjoinedHolder = false
-    surveyOriginalBase=undefined;surveySnapshot=undefined;remainingManifest=undefined
+    surveyOriginalBase=undefined;surveySnapshot=undefined;remainingManifest=undefined;remainingProbeFrameFault=undefined
     cancellationRestoreOutput = 'ok'
     cancellationCatalogChanged = false
     bulkDispatched = undefined
@@ -298,6 +299,11 @@ describe('native persistent-session transport with offline child mocks', () => {
       child.stdin = new Writable({ write(chunk, _encoding, done) { input += String(chunk); done() }, final(done) {
         sqlControls.push({ args: [...args], sql: input })
         queueMicrotask(() => {
+          if(remainingManifest&&[remainingManifest.cancellation.frames.restoreBeforeDispatch,remainingManifest.cancellation.frames.restoreAfterDispatch,remainingManifest.wire.frames.restore].includes(input)){
+            const expected=[...input.matchAll(/current_setting\('application_name'\)<>'([^']+)'/g)]
+            const actual=args.find(a=>a.startsWith('PGAPPNAME='))?.slice(10)
+            expect(expected).toHaveLength(1);expect(expected[0][1]).toBe(actual)
+          }
           if(mocks.remaining269&&file===SURVEY263_NATIVE_CLI.path)callback(null,mocks.generatedSource)
           else if (file === 'git') callback(null,mocks.remaining269&&args.includes('HEAD')?(args.includes('--show-toplevel')?`${head}\n${surveyNative.SURVEY_269_COMPONENT_ROOTS.product}\n`:args.includes('HEAD^{tree}')?`${head}\n${head}\n`:head):args[1] === '--show-toplevel' ? (_options as { cwd: string }).cwd : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
@@ -343,6 +349,15 @@ describe('native persistent-session transport with offline child mocks', () => {
         const text = String(chunk); const end = text.match(/\\echo (__draft_save_end_[0-9]+__)/)![1]
         const sql = text.slice(0, text.indexOf('\n\\echo'))
         if (surveyManifest) surveyWrites.push({ name, sql, marker: end })
+        if(remainingManifest&&[remainingManifest.cancellation.frames.prepare,remainingManifest.cancellation.frames.observer,remainingManifest.wire.frames.prepare].includes(sql)){
+          const expected=[...sql.matchAll(/current_setting\('application_name'\)<>'([^']+)'/g)]
+          if(expected.length!==1||expected[0][1]!==name){queueMicrotask(()=>child.emit('close',1));done();return}
+          if(sql===remainingManifest.cancellation.frames.prepare&&remainingProbeFrameFault==='prepare-close'||sql===remainingManifest.cancellation.frames.observer&&(remainingProbeFrameFault==='observer-close'||remainingProbeFrameFault==='observer-timeout')){
+            surveyEvents.push(sql===remainingManifest.cancellation.frames.prepare?'cancel-prepare':'cancel-observer')
+            if(remainingProbeFrameFault!=='observer-timeout')queueMicrotask(()=>child.emit('close',1))
+            done();return
+          }
+        }
         let response = ''
         if (diagnosticManifest && diagnosticContamination && sql !== diagnosticManifest.contracts.frames[1].sql)
           child.stderr.write('INFO: PDT01 1\nINFO: PDT02 2\nINFO: PDT03 3 private contamination\n')
@@ -662,8 +677,9 @@ describe('native persistent-session transport with offline child mocks', () => {
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
   })
-  it('runs actual remaining269 child engine30directions + original joined probes + installed SDK14 on one198-action/16-request ledger (offline)',async()=>{
+  it.each(['normal','prepare-close','observer-close','observer-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
     vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
+    remainingProbeFrameFault=mode==='normal'?undefined:mode
     const started=Date.now(),legacy=surveyNative.surveyRemainingNativePlan(original,head,repository),f=legacy.fixture
     const binding={product:{head,tree:head},carrier:{head,tree:head},sharedSources:Object.fromEntries(surveyNative.SURVEY_269_SHARED_FILES.map(file=>[file,'a'.repeat(64)]))} as surveyNative.Survey269ComponentBinding
     const plan={...legacy,kind:'survey269-remaining-only' as const,binding,repository:surveyNative.SURVEY_269_COMPONENT_ROOTS.product,migrations:[],
@@ -733,7 +749,27 @@ describe('native persistent-session transport with offline child mocks', () => {
       remainingManifest=buildSurvey269RemainingManifest(original,binding);surveyManifest=remainingManifest as unknown as typeof surveyManifest
       const adapter=createSurvey269RemainingNativeContracts({original,binding,capturedResources:resources,containerId:resources.find(r=>r.name===`supabase_db_${project}`)!.id,acceptedManifestSha256:testOwnerDigest(JSON.stringify(remainingManifest)),absoluteDeadline:started+720000,
         statusTarget:{API_URL:'http://127.0.0.1:54331',DB_URL:'postgresql://postgres:offline@127.0.0.1:54332/postgres',SERVICE_ROLE_KEY:`header.${Buffer.from(JSON.stringify({iss:'supabase-demo',role:'service_role'})).toString('base64url')}.signature`},survey263Endpoint:surveyPlatform.requireSurvey263AdapterEndpoint(adapters)})
-      await adapter.setup();const run=adapter.runRemainingCommitted()
+      await adapter.setup();const run=adapter.runRemainingCommitted();void run.catch(()=>{})
+      if(mode!=='normal'){
+        let settled=false;const failure=run.catch(e=>e).finally(()=>{settled=true})
+        for(let n=0;n<30000&&!surveyEvents.includes(mode==='prepare-close'?'cancel-prepare':'cancel-observer');n++)await Promise.resolve()
+        for(let n=0;n<100;n++)await Promise.resolve()
+        if(mode==='observer-timeout')await vi.advanceTimersByTimeAsync(35000)
+        if(mode!=='prepare-close'){
+          expect(settled).toBe(false)
+          resolveCancel!(reply({code:'57014',message:'cancelled',details:null,hint:null},500))
+        }
+        expect(await failure).toBeInstanceOf(surveyPlatform.Survey263UnjoinedChildError)
+        expect(adapter.diagnostic()).toContain(`failure=${mode==='observer-timeout'?'timeout':'child-exit'} role=holder`)
+        const restorations=[remainingManifest.cancellation.frames.restoreBeforeDispatch,remainingManifest.cancellation.frames.restoreAfterDispatch,remainingManifest.wire.frames.restore]
+        expect(sqlControls.filter(c=>restorations.includes(c.sql))).toHaveLength(0)
+        expect(surveyEvents).not.toContain('wire-prepare');expect(ordinaryCalls).toBe(0)
+        const dispatched=mocks.execFile.mock.calls.length,writes=surveyWrites.length
+        await expect(adapter.runSdkCommitted()).rejects.toBeInstanceOf(surveyPlatform.Survey263UnjoinedChildError)
+        await expect(adapter.generateTypes269()).rejects.toBeInstanceOf(surveyPlatform.Survey263UnjoinedChildError)
+        expect(mocks.execFile).toHaveBeenCalledTimes(dispatched);expect(surveyWrites).toHaveLength(writes)
+        return
+      }
       for(let n=0;n<30000&&!surveyEvents.includes('cancel-observer');n++)await Promise.resolve()
       expect(surveyEvents).toContain('cancel-observer');for(let n=0;n<100;n++)await Promise.resolve()
       vi.setSystemTime(Date.now()+8000);resolveCancel!(reply({code:'57014',message:'cancelled',details:null,hint:null},500))

@@ -81,7 +81,7 @@ const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503',
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
-type GuardCheckpoint = 'none' | 'sdk-deadline' | 'sdk-runner' | 'source-git' | 'source-files' | 'endpoint' | 'resources' | 'sql-ownership'
+type GuardCheckpoint = 'none' | 'sdk-deadline' | 'sdk-runner' | 'source-git' | 'source-files' | 'endpoint' | 'resources' | 'sql-ownership'|'probe-native-frame'|'probe-http'|'probe-restoration'
 class SurveySdkDeadlineError extends Error { constructor() { super('Survey SDK ordinary dispatch expired') } }
 // Retain only one allowlisted code. Untrusted stderr lines are bounded and
 // discarded; neither their text nor an exception is part of the diagnostic.
@@ -1486,7 +1486,17 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     surveySdkWorkStartedAt=Date.now()
     surveySdkWorkDeadline=Math.min(surveySdkWorkStartedAt+60000,profile.survey263Budget!.workDeadline)
     remainingProbeOwned=true
-    const frame=async(kind:SurveyFrame,sql:string)=>{const c=holder.surveyExecute('holder',kind,sql);await c.completion;return surveyResult(c)}
+    const frame=async(kind:SurveyFrame,sql:string)=>{
+      const c=holder.surveyExecute('holder',kind,sql)
+      try{await c.completion;return surveyResult(c)}catch(error){
+        // A rejected client promise is not a positively completed SQL frame.
+        // Only the actual carrier's nonce/end-marker path sets completedAt.
+        if(c.dispatchedAt!==undefined&&c.completedAt===undefined){
+          record('protocol','holder','unknown','probe-native-frame');surveyUnjoined=true;throw new Survey263UnjoinedChildError()
+        }
+        checkJoined();throw error
+      }
+    }
     const restored=(rows:Awaited<ReturnType<typeof restorationControl>>,stage:string,sha:string)=>{
       assert(rows.length===1);const r=rows[0].result as Record<string,unknown>
       assert(r&&r.stage===stage&&r.descriptorSha256===sha&&r.nativeVerified===false)
@@ -1502,7 +1512,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       const ownCancel=(p:Promise<void>)=>own(p.catch(()=>{surveyUnjoined=true;throw new Survey263UnjoinedChildError()}))
       const settle=async()=>{
         let closeTimer:ReturnType<typeof setTimeout>|undefined
-        try{checkSettlement();await Promise.race([(async()=>{while(pending.size)await Promise.allSettled([...pending])})(),new Promise<never>((_,reject)=>{closeTimer=setTimeout(()=>reject(new Survey263UnjoinedChildError()),Math.max(0,profile.survey263Budget!.cleanupDeadline-Date.now()))})]);checkJoined()}
+        // Passive joining still owns already-dispatched HTTP/body operations
+        // after a native-frame poison; it grants no further dispatch authority.
+        try{assert(Date.now()<profile.survey263Budget!.cleanupDeadline);await Promise.race([(async()=>{while(pending.size)await Promise.allSettled([...pending])})(),new Promise<never>((_,reject)=>{closeTimer=setTimeout(()=>reject(new Survey263UnjoinedChildError()),Math.max(0,profile.survey263Budget!.cleanupDeadline-Date.now()))})]);checkJoined()}
         catch{surveyUnjoined=true;throw new Survey263UnjoinedChildError()}
         finally{if(closeTimer)clearTimeout(closeTimer)}
       }
@@ -1557,6 +1569,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         }
         await guard();checkSurveySdkAdmission();check()
         return {bytes,observed}
+      }catch(error){
+        record(error instanceof SurveySdkDeadlineError?'guard':'unknown','none','unknown',error instanceof SurveySdkDeadlineError?'sdk-deadline':'probe-http');throw error
       }finally{
         if(timer)clearTimeout(timer)
         controller.abort()
@@ -1580,7 +1594,8 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         await originalRequest('cancellation');remainingCancellationDone=true
       }finally{
         if(cancelArmed){checkJoined();const sql=cancellationDispatched?remaining.cancellation.frames.restoreAfterDispatch:remaining.cancellation.frames.restoreBeforeDispatch
-          restored(await restorationControl(sql),'restored',remaining.cancellation.descriptorSha256)}
+          try{restored(await restorationControl(sql),'restored',remaining.cancellation.descriptorSha256)}
+          catch{record('unknown','none','unknown','probe-restoration');surveyUnjoined=true;throw new Survey263UnjoinedChildError()}}
       }
       let wireArmed=false
       remainingProbeStage='wire'
@@ -1588,7 +1603,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         wireArmed=true
         inspectSurveyWireReceipt(remaining.wire,'wire-prepared',await frame('wire-prepare',remaining.wire.frames.prepare))
         await originalRequest('wire');remainingWireDone=true
-      }finally{if(wireArmed){checkJoined();const r=restored(await restorationControl(remaining.wire.frames.restore),'wire-restored',remaining.wire.descriptorSha256);inspectSurveyWireReceipt(remaining.wire,'wire-restored',r)}}
+      }finally{if(wireArmed){checkJoined();
+        try{const r=restored(await restorationControl(remaining.wire.frames.restore),'wire-restored',remaining.wire.descriptorSha256);inspectSurveyWireReceipt(remaining.wire,'wire-restored',r)}
+        catch{record('unknown','none','unknown','probe-restoration');surveyUnjoined=true;throw new Survey263UnjoinedChildError()}}}
       remainingProbeStage='complete'
     }finally{remainingProbeOwned=false;checkJoined()}
   }

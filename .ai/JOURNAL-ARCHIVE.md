@@ -48112,3 +48112,103 @@ Final acad53e3 passes3252focused/8skip plus all policies/TSC/lint. Review81 fail
 with a provider safety refusal, no report; final independent P1 closure is not
 accepted. No rephrase/reroute or native dispatch. Fresh rehearsal remains unspent;
 review access must legitimately resolve before advancing. PR1581 stays draft.
+
+<!-- pika-session-log-archive-batch:04ca5f716e2c46c02519a07ac1d8ea4b58e969d8e94cf6c450b3fc7034559562 -->
+## 2026-10-15 Human review and fresh rehearsal result
+
+Human reviewed exactacad53e3f against the supplied final-correction checklist,
+no blockers; lifecycle records human review separately from refused81. Current
+9ca83a159 differs only in continuity docs. ONE authorized OmoGNa/1f6ce7c8e3eb
+full run FAILED/SPENT147.250s; workflow markers30.884s apart, exact action unknown.
+Server API0, all guard flags false; no native guard-fix acceptance inferred.
+Browser contexts closed/pending0/pageErrors0/consoleErrors0;8 app requests,
+no screenshots, baseline witness only. All six cleanup stages PASS/ownedSettled.
+BEFOREpost-run edits/tests independent7628source files and49485dependencies/
+602159325bytes matched; exact resources absent by both labels/name, workdir
+absent/four ports clear. Private evidence retained, raw DOM error-context absent.
+No replay, new clock, canonical-database equality or application acceptance.
+Next isolate the failing login step with fixed-enum evidence, not a guessed fix
+or wider egress. Fresh native attempt requires separate one-shot authority;
+production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+Follow-on human authorization: fixed login-step markers, independent review,
+then ONE fresh bounded attempt; prior allowance remains spent. Diagnostics retain
+only ordinal/entered/completed fixed labels (first64 logins, overflow flag), no
+results/errors/identity. Actual runtime fault injection covers all13 steps;
+82focused/4files, appType/lint/audit PASS. Existing login actions, original end,
+network/cap/cleanup/auth/product contracts unchanged. Native attempt unallocated.
+
+Marker revisionee68928a0 passes3266focused/8skip/all policies/TSC/lint; review82
+complete/CLEAN114s,0findings,37independent runtime CPU checks. ONE new authorized
+lb3dYa/5290b7aaa6fb full run FAILED/SPENT179.736s. Fixed marker entered navigate,
+completed page: initial login-page navigation did not complete, before preset,
+credentials or submission. Exact cause unknown;1app request/no page/console errors.
+Browser contexts closed/pending0; controller ownedSettledFALSE, execution cleanup
+owned-families/native-closure failed, unchanged not run. No historical closure or
+acceptance. Within original cleanup end, current app listener and matching app/
+browser candidates absent. BEFOREpost-run edits/tests limited current comparison
+matches7628sourcefiles/49485deps602159317B; preservationCompleteFALSE retained.
+Five running containers/two volumes/one network and isolated workdir retained;
+both project labels/creation times verified, no signals/deletion/retry/clock reset.
+Raw DOM error-context absent. Serious exact-target recovery/closure gate remains;
+diagnose navigation/readiness and cleanup without widening auth/egress. All holds.
+
+Approved exact-target recovery removed only5290b7aaa6fb's5containers/2volumes/
+1network and temporary app directory; independent both-label/name/port/receipt
+hash checks pass, evidence/shared dependencies preserved. Original run staysfailed.
+Source diagnoses83/84: cold route work outlasted navigation failure; native inner
+cleanup cause unretained/unknown, not permission to clear sticky uncertainty.
+Fix47 adds one unauthenticated fixed-loopback /login readiness GET before browser
+login, charged to existing server50 allocation within aggregate1000; original
+ready180s/browser30s/full45min/cleanup6min bounds remain. Complete bounded body and
+request/response/socket close required; positive Node close-before-end and late
+original-error regressions included. Native cleanup now retains bounded fixed
+cause/role/phase metadata even when closure fails, without changing its decisions.
+Root controller4RED/native3RED and authors' targeted regressions precedeGREEN;
+Initial independent85/86 complete: privacy/controller clean; HTTP review caught
+final ownership observation using a later end, independently reproduced2RED.
+Fix48 threads original ready end/admission through its snapshot and checks again
+after refresh; three CPU late-observation cases nowPASS with normalcleanup.
+Full gate3326PASS/1FAIL caught helper missing from diagnostic hashed inventory;
+exact path added without relaxing import-closure/source binding. Affected175/5PASS;
+targeted review/full gate pending. No new native attempt authorized or started;
+production/shared-local/Survey/account/billing/activation holds unchanged.
+
+Pre-run full3330PASS/8skips and architecture/policies/TSC/lintPASS; targeted85
+review cleared both P2 findings at3b338241e. No new runtime correction follows.
+Fresh owner-approved route-readiness rehearsal on reviewed3b338241e used new
+JlXid3/project2d086d0d87b2; one-shot19428 failed in141174ms at lifecycle setup,
+before binding/app/browser. Controller ownedSettledTRUE; all execution/command/
+unchanged cleanup checksPASS, native diagnostics empty with0probes/0families.
+Independent source/dependency recapture before any later writesPASS7630files/
+49485deps602159472B. Both project labels and names verify0containers/volumes/
+networks; workdirabsent and3117/54331/54332/54340clear. Evidence retained0600.
+Exact setup operation/cause unreported; no navigation-fix or application acceptance.
+No retry, renewed clock, production/shared-local/provider/account/billing change.
+
+Fix49 adds private WeakMap-bound fixed setup/cleanup labels to the actual Tests
+lifecycle error and controller receipt; no exception property/message/stack/row
+is read or retained. Existing operations, predicates, order and clocks unchanged.
+CPU6platform+1controller RED precede134/4GREEN, including genuine composition,
+hostile proxy/getter rejection, status/start/disposal and canonical drift labels.
+Human approves independent review then ONEfresh bounded rehearsal; all holds
+and spent attempts retained. No new native admission before review/readiness.
+
+Independent87 clean atcf44a9086; full3345PASS/8skips and all localgatesPASS.
+ONEnew setup-steps attempt81138/tqtkdV/project4551c09a9e8a failed after186350ms
+at browserwork, notsetup. Fixed labels show verify-ephemeral completed; cleanup
+labels empty. Login1 reached response-body after submit; session/identity not
+reached. Exact bodyfailurecause unknown. All process/SQL/command/unchanged cleanup
+checksPASS, ownedSettledTRUE,0activeprobes/0families. Independent preservation
+before later writesPASS7630sourcefiles/49485deps602159424B; bothlabel/name resource
+queries0containers/volumes/networks, workdirabsent andall4portsclear. Evidence0600
+retained; token permanentlyspent, no retry/renewal/nativeacceptance or rollout.
+
+Fix50 reproduces the inspector-body/document-commit race with the actual runtime
+and CPU browser doubles. Hold the login document request until its one original
+body/status passes; nonwaiting click avoids waiting on that same held navigation.
+Original deadline, explicit redirect/session/identity checks and cleanup remain.
+Fixed response resource/status/cause labels distinguish login from other JSON;
+no raw errors, URLs, bodies or error hashes retained. 9 RED cases then107/3 CPU
+PASS; independent review and one newly authorized full rehearsal follow. Frozen
+app/auth/migrations and all production/provider/shared-local holds unchanged.

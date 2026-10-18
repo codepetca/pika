@@ -12,7 +12,7 @@ import { assignmentListExpectedResources, runAssignmentListEphemeralLifecycle,
 const digest = (value: unknown) => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex')
 afterEach(() => vi.restoreAllMocks())
 
-function harness(failure?: 'committed' | 'sdk' | 'types' | 'unjoined' | 'preservation') {
+function harness(failure?: 'committed' | 'sdk' | 'types' | 'unjoined' | 'uncertain-restoration' | 'preservation') {
   const fixture = newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z'))
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
   const workdir = assignmentListProofWorkdir(projectId), now = Date.now()
@@ -43,7 +43,7 @@ function harness(failure?: 'committed' | 'sdk' | 'types' | 'unjoined' | 'preserv
   const native = {
     setup: vi.fn(async () => { stages.push('setup') }), diagnostic: () => 'offline-fixed-label',
     runRemainingCommitted: vi.fn(async () => { stages.push('remaining'); requests = 2
-      if (failure === 'unjoined') throw new platform.Survey263UnjoinedChildError()
+      if (failure === 'unjoined'||failure==='uncertain-restoration') throw new platform.Survey263UnjoinedChildError()
       if (failure === 'committed') throw new Error('Offline committed failure')
       return committed }),
     runSdkCommitted: vi.fn(async () => { stages.push('sdk'); if (failure === 'sdk') throw new Error('Offline SDK failure'); requests = 16; return sdk }),
@@ -100,6 +100,15 @@ describe('remaining Survey269 lifecycle coordination, offline only', () => {
     expect(h.cleanup).toHaveBeenCalledWith(h.adapters, true)
     expect(h.adapters.teardown).not.toHaveBeenCalled(); expect(h.adapters.removeWorkdir).not.toHaveBeenCalled()
     expect(h.native.runSdkCommitted).not.toHaveBeenCalled(); expect(h.native.generateTypes269).not.toHaveBeenCalled()
+  })
+  it('holds teardown/workdir and SDK/types when post-dispatch restoration is unconfirmed',async()=>{
+    // Actual lexical/native-frame tests establish this exact typed outcome;
+    // this boundary verifies it is not downgraded to a generic cleanup error.
+    const h=harness('uncertain-restoration')
+    await expect(runAssignmentListEphemeralLifecycle(h.input,h.adapters)).rejects.toMatchObject({primary:{stage:'survey-remaining-committed',nativeDiagnostic:'offline-fixed-label'}})
+    expect(h.cleanup).toHaveBeenCalledWith(h.adapters,true)
+    expect(h.adapters.teardown).not.toHaveBeenCalled();expect(h.adapters.removeWorkdir).not.toHaveBeenCalled()
+    expect(h.native.runSdkCommitted).not.toHaveBeenCalled();expect(h.native.generateTypes269).not.toHaveBeenCalled()
   })
   it.each(['survey269ComponentWorkload', 'surveyWorkload', 'surveyRemainingOnly'] as const)('rejects a combined %s profile before any adapter operation', async key => {
     const h = harness(); Object.assign(h.input, { [key]: key === 'surveyRemainingOnly' ? true : h.input.survey269RemainingWorkload })

@@ -18,6 +18,9 @@ export function surveyWireProofDescriptor(f:SurveyNativeFixture){
   // Reuse the complete source-owned project/database/settings guard, not just
   // the timeout prelude. Each frame independently authenticates its target.
   const begin=c.frames.prepare.slice(0,stateStart)
+  const restoreStart=c.frames.restoreBeforeDispatch.indexOf('create or replace function pg_temp.survey_cancel_state()')
+  assert(restoreStart>0)
+  const restoreBegin=c.frames.restoreBeforeDispatch.slice(0,restoreStart)
   const check=`if (select count(*) from ${table})<>1 or not exists(select 1 from ${table} where singleton and descriptor_sha256=${q(descriptorSha256)})
  or not exists(select 1 from pg_class where oid=${q(table)}::regclass and relowner='postgres'::regrole and relkind='r' and not relrowsecurity and not relforcerowsecurity)
  or exists(select 1 from pg_class r cross join lateral aclexplode(coalesce(r.relacl,acldefault('r',r.relowner))) a where r.oid=${q(table)}::regclass and a.grantee<>'postgres'::regrole)
@@ -49,7 +52,7 @@ export function surveyWireProofDescriptor(f:SurveyNativeFixture){
  update ${table} set inner_bytes=inner_size,minimum_wire_bytes=minimum_size,sql_wire_bytes=octet_length(payload::text) where singleton;
  end;$prepare$;commit;
  select jsonb_build_object('stage','wire-prepared','descriptorSha256',descriptor_sha256,'innerBytes',inner_bytes,'minimumWireBytes',minimum_wire_bytes,'sqlWireBytes',sql_wire_bytes,'nativeVerified',false) as result from ${table};`
-  const restore=`${begin}${state}
+  const restore=`${restoreBegin}${state}
  create temporary table survey_wire_receipt(result jsonb not null) on commit preserve rows;
  do $restore$ declare captured jsonb;actual jsonb;normalized jsonb;record_row jsonb;rows jsonb;key text;seen integer;prepared timestamptz;begin
  if to_regclass(${q(table)}) is null then

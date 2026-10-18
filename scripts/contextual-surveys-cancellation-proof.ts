@@ -26,12 +26,15 @@ function fixture(f: SurveyNativeFixture) {
   const original = { manifest: { syntheticTag: `assignmentlist_${f.tag.slice(-12)}` }, allocatedIds: [] } as unknown as AssignmentListProofFixture
   assert(isDeepStrictEqual(f, newSurveyNativeFixture(original)), 'Survey cancellation fixture differs')
 }
-function guard(f: SurveyNativeFixture) {
-  const source = testOwnerGuardSql(f.projectId)
+function guard(f: SurveyNativeFixture,session:'draft_holder'|'fixture') {
+  let source = testOwnerGuardSql(f.projectId)
   const prefix = "begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
   const terminal = "end;$guard$;select 'ok';rollback;"
   assert(source.startsWith(prefix) && source.endsWith(terminal))
-  // Future fixed frames use the existing fixture identity; no selector is added.
+  const predicate=`current_setting('application_name')<>${q(f.projectId+'_fixture')}`
+  assert(source.split(predicate).length===2,'Survey fixed guard session predicate differs')
+  source=source.replace(predicate,`current_setting('application_name')<>${q(f.projectId+'_'+session)}`)
+  // One exact source-owned identity per frame, never a session allowlist or SET.
   return source.slice(prefix.length, -terminal.length) + 'end;$guard$;'
 }
 
@@ -54,8 +57,9 @@ export function surveyCancellationProofDescriptor(f: SurveyNativeFixture) {
     migrationSha256: SURVEY_NATIVE_SOURCES.migration.sha256, functionBodySha256: hash(body),
     requestSha256: hash(JSON.stringify(request)), marker, postgrestSessionUser: 'authenticator' as const })
   const descriptorSha256 = hash(JSON.stringify(binding))
-  const checkGuard = guard(f)
+  const checkGuard = guard(f,'draft_holder')
   const begin = `begin;set local timezone='UTC';set local lock_timeout='1s';set local statement_timeout='8s';${checkGuard}`
+  const restoreBegin=`begin;set local timezone='UTC';set local lock_timeout='1s';set local statement_timeout='8s';${guard(f,'fixture')}`
   // Only our exact instrumentation is excluded while it exists. Other tables,
   // overloads, triggers and all full-row values remain in the complete baseline.
   const stateFunction = `create or replace function pg_temp.survey_cancel_state() returns jsonb language plpgsql as $state$
@@ -153,7 +157,7 @@ export function surveyCancellationProofDescriptor(f: SurveyNativeFixture) {
  update ${baseline} set pending=observed where singleton and pending is null;
  end;$observe$;commit;
  select jsonb_build_object('stage','pending','descriptorSha256',descriptor_sha256,'backend',pending,'nativeVerified',false) as result from ${baseline};`
-  const restore = (dispatched: boolean) => `${begin}${stateFunction}
+  const restore = (dispatched: boolean) => `${restoreBegin}${stateFunction}
  create temporary table survey_cancel_restored(result jsonb not null) on commit preserve rows;
  do $restore$ declare captured jsonb;pending_backend jsonb;saved_installed jsonb;begin
  if to_regclass(${q(baseline)}) is null then

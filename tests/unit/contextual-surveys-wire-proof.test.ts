@@ -5,10 +5,24 @@ import {newAssignmentListProofFixture} from '../../scripts/contextual-assignment
 import {surveyCommittedProofManifest} from '../../scripts/contextual-surveys-committed-proof'
 import {verifySurveyCommittedEnvelopes,verifySurveyCommittedEffects} from '../../scripts/contextual-surveys-committed-proof'
 import {surveyCommittedCpuFixtures} from '../helpers/survey-committed-cpu-fixtures'
+import {surveyCancellationProofDescriptor} from '../../scripts/contextual-surveys-cancellation-proof'
 import {surveyWireProofDescriptor,validateSurveyWireSql,verifySurveyPrimaryMembership,inspectSurveyWireReceipt} from '../../scripts/contextual-surveys-wire-proof'
 const f=newSurveyNativeFixture(newAssignmentListProofFixture(new Date('2026-10-12T12:00:00Z'))),m=surveyCommittedProofManifest(f)
 const h=(s:string)=>createHash('sha256').update(s).digest('hex')
 describe('closed wire fixture and primary membership source proof (no SQL/native)',()=>{
+  it('binds each complete generated guard to its one actual fixed holder or fixture dispatch identity',()=>{
+    const c=surveyCancellationProofDescriptor(f),w=surveyWireProofDescriptor(f)
+    for(const [sql,suffix]of [[c.frames.prepare,'draft_holder'],[c.frames.observer,'draft_holder'],[w.frames.prepare,'draft_holder'],[c.frames.restoreBeforeDispatch,'fixture'],[c.frames.restoreAfterDispatch,'fixture'],[w.frames.restore,'fixture']]){
+      const expected=[...sql.matchAll(/current_setting\('application_name'\)<>'([^']+)'/g)]
+      expect(expected).toHaveLength(1);expect(expected[0][1]).toBe(`${f.projectId}_${suffix}`)
+      const guard=sql.slice(0,sql.indexOf('end;$guard$;')+'end;$guard$;'.length)
+      // The instrumentation body legitimately marks the PostgREST backend;
+      // the target guard itself must never rename its native session.
+      expect(guard).not.toMatch(/set(?:_config|\s+(?:local\s+)?)\(?['"]?application_name/i)
+      expect(sql).toContain('Integrated guards or buckets differ');expect(sql).toContain('Test proof bucket differs')
+      for(const wrong of ['fixture','draft_holder','draft_contender'].filter(s=>s!==suffix))expect(expected[0][1]).not.toBe(`${f.projectId}_${wrong}`)
+    }
+  })
   it('pins foreign original read and only two fixed SQL frames with no executor/admission',()=>{
     const d=surveyWireProofDescriptor(f)
     expect(d).toEqual(surveyWireProofDescriptor(f));expect(d.nativeVerified).toBe(false);expect(d.executionEnabled).toBe(false)

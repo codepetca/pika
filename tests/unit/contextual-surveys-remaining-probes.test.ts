@@ -19,42 +19,73 @@ assert(extracted)
 const javascript=ts.transpileModule(extracted,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText
 class Deadline extends Error{}
 async function flush(){for(let n=0;n<3000;n++)await Promise.resolve()}
-function harness(mode:'normal'|'observer-fail'|'early-http'|'never-http'|'guard-expired'|'wire-cancel-reject'|'late-headers'|'late-chunk'='normal'){
+function harness(mode:'normal'|'observer-fail'|'early-http'|'never-http'|'guard-expired'|'wire-cancel-reject'|'late-headers'|'late-chunk'|'prepare-unjoined'|'observer-unjoined'|'observer-unjoined-never-http'|'prepare-predispatch'|'http-reset-restore-fail'|'cancel-restore-fail'|'cancel-receipt-bad'|'cancel-receipt-absent'|'wire-restore-fail'|'wire-receipt-bad'='normal'){
   const events:string[]=[],startedAt=Date.now(),cleanupDeadline=startedAt+900000
-  let requests=0,bytes=0,wireStartBytes=0,respond:((r:Response)=>void)|undefined,wireCancelClose:(()=>void)|undefined
+  let requests=0,bytes=0,wireStartBytes=0,respond:((r:Response)=>void)|undefined,reset:(()=>void)|undefined,wireCancelClose:(()=>void)|undefined
   const cancel=vi.fn(()=>new Promise<void>((resolve,reject)=>{wireCancelClose=()=>mode==='wire-cancel-reject'?reject(new Error('private cancel')):resolve()}))
   const pending=()=>({stage:'pending',descriptorSha256:remaining.cancellation.descriptorSha256,nativeVerified:false,backend:{pid:321,started:new Date(startedAt-100).toISOString(),database:'postgres',sessionUser:'authenticator',name:remaining.cancellation.binding.marker,state:'active',waitType:'Timeout',waitEvent:'PgSleep',transactionStartedAt:new Date(startedAt).toISOString(),queryStartedAt:new Date(startedAt).toISOString(),observedAt:new Date(Date.now()).toISOString(),poll:1}})
   const holder={surveyExecute(_side:string,kind:string,_sql:string){events.push(kind)
+    if(kind==='cancel-prepare'&&(mode==='prepare-unjoined'||mode==='prepare-predispatch'))return{dispatchedAt:mode==='prepare-unjoined'?Date.now():undefined,completedAt:undefined,completion:Promise.reject(new Error('private native frame failure'))}
+    if(kind==='cancel-observer'&&(mode==='observer-unjoined'||mode==='observer-unjoined-never-http'))return{dispatchedAt:Date.now(),completedAt:undefined,completion:Promise.reject(new Error('private native frame failure'))}
     if(kind==='cancel-observer'&&mode==='observer-fail')return{completion:Promise.reject(new Error('private observer failure'))}
     const r=kind==='cancel-prepare'?{stage:'prepared',descriptorSha256:remaining.cancellation.descriptorSha256,nativeVerified:false}:
       kind==='cancel-observer'?pending():{stage:'wire-prepared',descriptorSha256:remaining.wire.descriptorSha256,innerBytes:8388608,minimumWireBytes:8388609,sqlWireBytes:8388700,nativeVerified:false}
-    return{completion:Promise.resolve(),result:r}
+    return{dispatchedAt:Date.now(),completedAt:Date.now(),completion:Promise.resolve(),result:r}
   }}
   const fetch=vi.fn(async(url:string)=>{events.push(url.endsWith('respond_to_survey_for_member_v1')?'http-cancel':'http-wire')
     if(url.endsWith('respond_to_survey_for_member_v1')){
       if(mode==='early-http')return new Response('{}',{status:500,headers:{'content-type':'application/json'}})
-      return new Promise<Response>(resolve=>{respond=resolve})
+      return new Promise<Response>((resolve,reject)=>{respond=resolve;reset=()=>reject(new TypeError('private connection reset'))})
     }
     let chunks=0;wireStartBytes=bytes
     if(mode==='late-headers')queueMicrotask(()=>vi.setSystemTime(startedAt+60000))
     return new Response(new ReadableStream<Uint8Array>({pull(controller){controller.enqueue(new Uint8Array(chunks++<128?65536:1));if(mode==='late-chunk'&&chunks>1)vi.setSystemTime(startedAt+60000)},cancel}),{status:200,headers:{'content-type':'application/json','content-length':'9999999'}})
   })
   const restorationControl=async(sql:string)=>{events.push(sql===remaining.wire.frames.restore?'wire-restore':sql===remaining.cancellation.frames.restoreAfterDispatch?'cancel-restore-after':'cancel-restore-before')
-    return[{result:sql===remaining.wire.frames.restore?{stage:'wire-restored',descriptorSha256:remaining.wire.descriptorSha256,archiveRevisionDelta:4,blueprintRevisionDelta:2,stateSha256:'a'.repeat(64),nativeVerified:false}:{stage:'restored',descriptorSha256:remaining.cancellation.descriptorSha256,stateSha256:'a'.repeat(64),nativeVerified:false}}]
+    if(sql===remaining.wire.frames.restore&&mode==='wire-restore-fail'||sql===remaining.cancellation.frames.restoreAfterDispatch&&(mode==='cancel-restore-fail'||mode==='http-reset-restore-fail'))throw new Error('private backend not settled')
+    return[{result:sql===remaining.wire.frames.restore?{stage:'wire-restored',descriptorSha256:remaining.wire.descriptorSha256,archiveRevisionDelta:mode==='wire-receipt-bad'?0:4,blueprintRevisionDelta:2,stateSha256:'a'.repeat(64),nativeVerified:false}:{stage:mode==='cancel-receipt-absent'?'absent-unverified':'restored',descriptorSha256:remaining.cancellation.descriptorSha256,stateSha256:mode==='cancel-receipt-bad'?'invalid':'a'.repeat(64),nativeVerified:false}}]
   }
   const instantiate=new Function('assert','remaining','profile','component','surveyPair','assertSurvey269RemainingExchange','chargeSurvey269RemainingRequest','chargeComponent','guard','check','surveyResult','restorationControl','fetch','inspectSurveyCancellationPendingShape','inspectSurveyWireReceipt','Survey263UnjoinedChildError','SurveySdkDeadlineError',`
     let surveySdkWorkStartedAt,surveySdkWorkDeadline,remainingProbeOwned=false,remainingHttpPending=false,remainingProbeStage='none',remainingCancellationDone=false,remainingWireDone=false,surveyUnjoined=false;
     function checkJoined(){if(surveyUnjoined)throw new Survey263UnjoinedChildError()}
     function checkSettlement(){checkJoined();assert(Date.now()<profile.survey263Budget.cleanupDeadline)}
     function checkSurveySdkAdmission(){if(surveySdkWorkDeadline!==undefined&&Date.now()>=surveySdkWorkDeadline)throw new SurveySdkDeadlineError()}
+    let firstFault;function record(kind,role,state,checkpoint){firstFault??={kind,role,state,checkpoint}}
     ${javascript}
-    return {run:runSurveyRemainingProbes,state:()=>({surveySdkWorkStartedAt,surveySdkWorkDeadline,remainingProbeOwned,remainingHttpPending,remainingProbeStage,remainingCancellationDone,remainingWireDone,surveyUnjoined})}`)
+    return {run:runSurveyRemainingProbes,state:()=>({surveySdkWorkStartedAt,surveySdkWorkDeadline,remainingProbeOwned,remainingHttpPending,remainingProbeStage,remainingCancellationDone,remainingWireDone,surveyUnjoined,firstFault})}`)
   const engine=instantiate(assert,remaining,{surveySdk:{status:{SERVICE_ROLE_KEY:'offline'}},survey263Budget:{workDeadline:startedAt+720000,cleanupDeadline},survey269Exchange:{}},true,{},()=>{},()=>{requests++;assert(requests<=16)},(n:number)=>{bytes+=n;assert(bytes<=67108864)},async()=>{events.push('guard');if(mode==='guard-expired')vi.setSystemTime(startedAt+60000)},()=>{},(c:{result:unknown})=>c.result,restorationControl,fetch,inspectSurveyCancellationPendingShape,inspectSurveyWireReceipt,Survey263UnjoinedChildError,Deadline) as{run:(h:typeof holder)=>Promise<void>;state:()=>Record<string,unknown>}
   return{events,engine,holder,fetch,cancel,startedAt,cleanupDeadline,requests:()=>requests,bytes:()=>bytes,wireBytes:()=>bytes-wireStartBytes,
-    reply(){vi.setSystemTime(startedAt+8000);respond?.(new Response(JSON.stringify({code:'57014',message:'cancelled',details:null,hint:null}),{status:500,headers:{'content-type':'application/json'}}))},closeCancel(){wireCancelClose?.()}}
+    reply(){vi.setSystemTime(startedAt+8000);respond?.(new Response(JSON.stringify({code:'57014',message:'cancelled',details:null,hint:null}),{status:500,headers:{'content-type':'application/json'}}))},reset(){reset?.()},closeCancel(){wireCancelClose?.()}}
 }
 afterEach(()=>vi.useRealTimers())
 describe('actual remaining engine probe ownership (offline)',()=>{
+  it.each(['cancel-restore-fail','cancel-receipt-bad','cancel-receipt-absent','http-reset-restore-fail'] as const)('poisons unconfirmed cancellation restoration and never continues (%s)',async mode=>{
+    vi.useFakeTimers();const h=harness(mode),p=h.engine.run(h.holder).catch(e=>e);await flush()
+    if(mode==='http-reset-restore-fail')h.reset();else h.reply()
+    expect(await p).toBeInstanceOf(Survey263UnjoinedChildError)
+    expect(h.events.filter(e=>e==='cancel-restore-after')).toHaveLength(1)
+    expect(h.events).not.toContain('wire-prepare');expect(h.engine.state().surveyUnjoined).toBe(true)
+    if(mode==='http-reset-restore-fail')expect(h.engine.state().firstFault).toMatchObject({checkpoint:'probe-http'})
+  })
+  it.each(['wire-restore-fail','wire-receipt-bad'] as const)('poisons unconfirmed wire restoration/evidence (%s)',async mode=>{
+    vi.useFakeTimers();const h=harness(mode),p=h.engine.run(h.holder).catch(e=>e);await flush();h.reply();await flush();h.closeCancel()
+    expect(await p).toBeInstanceOf(Survey263UnjoinedChildError);expect(h.events.filter(e=>e==='wire-restore')).toHaveLength(1);expect(h.engine.state().surveyUnjoined).toBe(true)
+  })
+  it('poisons a dispatched prepare frame with no completion before any restoration or HTTP',async()=>{
+    vi.useFakeTimers();const h=harness('prepare-unjoined'),p=h.engine.run(h.holder).catch(e=>e);await flush()
+    expect(await p).toBeInstanceOf(Survey263UnjoinedChildError);expect(h.fetch).not.toHaveBeenCalled();expect(h.events.filter(e=>e.includes('restore'))).toEqual([])
+  })
+  it('permits only exact before-dispatch restoration for a native frame denied before dispatch',async()=>{
+    vi.useFakeTimers();const h=harness('prepare-predispatch'),p=h.engine.run(h.holder).catch(e=>e);await flush()
+    expect(await p).not.toBeInstanceOf(Survey263UnjoinedChildError);expect(h.fetch).not.toHaveBeenCalled();expect(h.events.filter(e=>e.includes('restore'))).toEqual(['cancel-restore-before']);expect(h.engine.state().surveyUnjoined).toBe(false)
+  })
+  it.each([false,true])('a poisoned native observer still passively joins owned HTTP before returning (neverHTTP=%s)',async never=>{
+    vi.useFakeTimers();const h=harness(never?'observer-unjoined-never-http':'observer-unjoined');let settled=false
+    const p=h.engine.run(h.holder).catch(e=>e).finally(()=>{settled=true});await flush()
+    expect(h.engine.state().surveyUnjoined).toBe(true);expect(settled).toBe(false);expect(h.events.filter(e=>e.includes('restore'))).toEqual([])
+    if(never)await vi.advanceTimersByTimeAsync(900000);else h.reply()
+    expect(await p).toBeInstanceOf(Survey263UnjoinedChildError);expect(h.events.filter(e=>e.includes('restore'))).toEqual([])
+  })
   it('joins original cancellation, observes pending then streams actual crossing bytes and waits for positive cancel before SQL restore',async()=>{
     vi.useFakeTimers();const h=harness();let settled=false;const p=h.engine.run(h.holder).finally(()=>{settled=true})
     await flush();expect(h.events).toContain('cancel-observer');expect(h.events).not.toContain('cancel-restore-after')
