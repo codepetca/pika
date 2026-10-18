@@ -48,6 +48,95 @@ function harness(now = () => 1000, proofScope?: ContextualTestProofScope) {
 }
 const flush = async () => { await new Promise<void>(resolve => setImmediate(resolve)) }
 
+describe('Survey successor browser capability', () => {
+  const scope = 'survey-workflow-v1' as const
+  const surveyPlan = () => createContextualTestPlan(plan.projectId, scope)
+  const id = (n: number) => `70000000-0000-4000-8000-${String(n).padStart(12,'0')}`
+  const host = 'localhost:3117', cookie = 'pika_session=owned-synthetic-session'
+  function policy() {
+    const p = surveyPlan(), gateway = new ContextualTestGatewayPolicy(p, 2_701_000, () => 1000, scope)
+    gateway.admit('app','/api/auth/login',host,'POST',{email:p.actors.ownerTeacher.email,password:'synthetic-password'})
+    gateway.observeAppResponse('app','/api/auth/login','POST',200,{user:p.actors.ownerTeacher},
+      {email:p.actors.ownerTeacher.email}, undefined, ['pika_session=owned-synthetic-session; Path=/; HttpOnly'])
+    const admit = (path: string, method='GET', body?: unknown) => gateway.admit('app',path,host,method,body,cookie)
+    const create = (n=1) => {
+      const body = {classroom_id:p.classrooms.classA.id}
+      admit('/api/teacher/surveys','POST',body)
+      gateway.observeAppResponse('app','/api/teacher/surveys','POST',201,{survey:{id:id(n),classroom_id:p.classrooms.classA.id,created_by:p.actors.ownerTeacher.id}},body,cookie)
+      return id(n)
+    }
+    const question = (parent: string, n: number) => {
+      const path = `/api/teacher/surveys/${parent}/questions`
+      admit(path,'POST',{question_type:'short_text',question_text:'Synthetic question',options:[],response_max_chars:500})
+      gateway.observeAppResponse('app',path,'POST',201,{question:{id:id(n),survey_id:parent}})
+      return id(n)
+    }
+    return {p,gateway,admit,create,question}
+  }
+  it('rejects absent/forged scope and changed fixture ceilings', () => {
+    expect(() => new ContextualTestGatewayPolicy(surveyPlan(),2_701_000,()=>1000)).toThrow()
+    expect(() => new ContextualTestGatewayPolicy(surveyPlan(),2_701_000,()=>1000,'forged' as never)).toThrow()
+    const forged = {...surveyPlan(),surveyLimits:{surveys:5,questionsPerSurvey:2,uploads:0,screenshots:16}}
+    expect(() => new ContextualTestGatewayPolicy(forged as never,2_701_000,()=>1000,scope)).toThrow()
+    expect(() => new ContextualTestGatewayPolicy(plan,2_701_000,()=>1000,scope)).toThrow()
+  })
+  it('requires a real login acknowledgement and refuses foreign/duplicate cookies', () => {
+    const h=policy()
+    expect(() => h.gateway.admit('app',`/api/teacher/surveys?classroom_id=${h.p.classrooms.classA.id}`,host,'GET',undefined,'pika_session=foreign')).toThrow()
+    const other=policy()
+    expect(() => other.gateway.admit('app',`/api/teacher/surveys?classroom_id=${other.p.classrooms.classA.id}`,host,'GET',undefined,`${cookie}; ${cookie}`)).toThrow()
+  })
+  it('admits known parents, companion reads, bounded reorder and both-fixture denial probes', () => {
+    const h=policy(), first=h.create(1), second=h.create(2), q=h.question(first,11), foreign=h.question(second,12)
+    h.admit(`/api/teacher/surveys?classroom_id=${h.p.classrooms.classB.id}`)
+    h.admit(`/api/teacher/assignments?classroom_id=${h.p.classrooms.classA.id}`)
+    h.admit(`/api/student/classrooms/${h.p.classrooms.classB.id}/materials`)
+    h.admit(`/api/teacher/classrooms/${h.p.classrooms.classA.id}/classwork/reorder`,'POST',{items:[{type:'survey',id:second},{type:'survey',id:first}]})
+    h.admit(`/api/teacher/surveys/${first}/questions/${foreign}`,'PATCH',{question_text:'Forbidden foreign question'})
+    h.gateway.observeAppResponse('app',`/api/teacher/surveys/${first}/questions/${foreign}`,'PATCH',404,{error:'Question not found'})
+    h.admit(`/api/teacher/surveys/${first}/questions/${q}`,'DELETE')
+    h.gateway.observeAppResponse('app',`/api/teacher/surveys/${first}/questions/${q}`,'DELETE',200,{success:true})
+    expect(() => h.admit(`/api/teacher/surveys/${first}/questions/${q}`,'PATCH',{question_text:'stale'})).toThrow()
+  })
+  it.each(['unknown','extra-query','duplicate-query','outside-class','wrong-method','parent-substitution','upload','test-write','provider'])('rejects %s browser capability', defect => {
+    const h=policy(), parent=h.create(), q=h.question(parent,11)
+    const routes: Record<string,[string,string,unknown?]> = {
+      unknown:[`/api/teacher/surveys/${id(99)}`,'GET'],
+      'extra-query':[`/api/teacher/surveys?classroom_id=${h.p.classrooms.classA.id}&extra=true`,'GET'],
+      'duplicate-query':[`/api/teacher/surveys?classroom_id=${h.p.classrooms.classA.id}&classroom_id=${h.p.classrooms.classA.id}`,'GET'],
+      'outside-class':[`/api/student/surveys?classroom_id=${id(99)}`,'GET'],
+      'wrong-method':[`/api/student/surveys/${parent}`,'DELETE'],
+      'parent-substitution':[`/api/teacher/surveys/${parent}`,'PATCH',{classroom_id:h.p.classrooms.classB.id}],
+      upload:[`/api/teacher/surveys/${parent}/questions/${q}/upload`,'POST',{}],
+      'test-write':['/api/teacher/tests','POST',{classroom_id:h.p.classrooms.classA.id}],
+      provider:['/api/teacher/ai/generate','POST',{}],
+    }
+    expect(() => h.admit(...routes[defect])).toThrow()
+  })
+  it('enforces total creation/question caps and deleted-parent freshness', () => {
+    const h=policy(), parent=h.create(); h.question(parent,11); h.question(parent,12)
+    expect(() => h.question(parent,13)).toThrow()
+    const full=policy(); for(let n=1;n<=4;n++)full.create(n)
+    expect(() => full.create(5)).toThrow()
+    const removed=policy(), old=removed.create()
+    removed.admit(`/api/teacher/surveys/${old}`,'DELETE')
+    removed.gateway.observeAppResponse('app',`/api/teacher/surveys/${old}`,'DELETE',200,{success:true})
+    expect(() => removed.gateway.observeAppResponse('app',`/api/teacher/surveys/${old}`,'GET',200,{survey:{id:old}})).not.toThrow()
+    expect(() => removed.admit(`/api/student/surveys/${old}`)).toThrow()
+  })
+  it('rejects forged create and successful foreign-question acknowledgements', () => {
+    const h=policy()
+    expect(() => h.gateway.observeAppResponse('app','/api/teacher/surveys','POST',201,{survey:{id:id(1),classroom_id:h.p.classrooms.classA.id,created_by:h.p.actors.nonmember.id}}, {classroom_id:h.p.classrooms.classA.id},cookie)).toThrow()
+    const other=policy(), first=other.create(1), second=other.create(2), q=other.question(second,11)
+    expect(() => other.gateway.observeAppResponse('app',`/api/teacher/surveys/${first}/questions/${q}`,'PATCH',200,{})).toThrow()
+  })
+  it.each([undefined,'vertical-v1','vertical-grade-return-v1','lifecycle-permissions-v1'] as const)('preserves %s Survey denial and backend isolation policy', old => {
+    const legacy = new ContextualTestGatewayPolicy(createContextualTestPlan(plan.projectId,old),2_701_000,()=>1000,old)
+    legacy.admit('api','/rest/v1/rpc/get_surveys_for_owner_v1','127.0.0.1:54340','POST',{})
+    expect(() => legacy.admit('app',`/api/teacher/surveys?classroom_id=${plan.classrooms.classA.id}`,host,'GET')).toThrow()
+  })
+})
+
 describe('fixed contextual Test HTTP gateway policy', () => {
   it.each([
     ['inspect', 'test_owner_invalid_deadline', 'inspect', 'invalid-deadline'],

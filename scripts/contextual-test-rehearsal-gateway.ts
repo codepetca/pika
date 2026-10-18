@@ -59,6 +59,8 @@ function endpointLabel(path: string) {
   if (path.startsWith('/__nextjs_')) return 'framework-other'
   if (path.startsWith('/api/student/tests')) return 'student-tests'
   if (path.startsWith('/api/teacher/tests')) return 'teacher-tests'
+  if (path.startsWith('/api/student/surveys')) return 'student-surveys'
+  if (path.startsWith('/api/teacher/surveys')) return 'teacher-surveys'
   if (path === '/api/student/notifications') return 'student-notifications'
   if (path.startsWith('/api/student/pal/')) return 'student-pal'
   if (path.startsWith('/api/classrooms/') || classRead.test(path)) return 'classroom'
@@ -89,15 +91,40 @@ export class ContextualTestGatewayPolicy {
   private returns = 0
   private readonly lifecycleTests = new Set<string>()
   private readonly lifecycleCounts = new Map<string,number>()
+  private readonly surveys = new Map<string, { classroomId: string; questions: Set<string>; deleted: boolean }>()
+  private readonly surveyQuestions = new Map<string, string>()
+  private readonly surveyQuestionCreates = new Map<string, number>()
+  private readonly surveySessions = new Map<string, string>()
   constructor(private readonly plan: RehearsalPlan, readonly deadline: number, private readonly now = Date.now, private readonly proofScope?: ContextualTestProofScope) {
-    if (![undefined, 'vertical-v1', 'vertical-grade-return-v1','lifecycle-permissions-v1'].includes(proofScope)) this.reject('protocol')
+    if (![undefined, 'vertical-v1', 'vertical-grade-return-v1','lifecycle-permissions-v1','survey-workflow-v1'].includes(proofScope)) this.reject('protocol')
+    if (proofScope === 'survey-workflow-v1' || plan.proofScope === 'survey-workflow-v1') {
+      if (proofScope !== 'survey-workflow-v1' || JSON.stringify(plan) !== JSON.stringify(createContextualTestPlan(plan.projectId, 'survey-workflow-v1'))) this.reject('protocol')
+    }
     if ((proofScope === 'vertical-grade-return-v1' || proofScope === 'lifecycle-permissions-v1') && plan.sourceSha !== createContextualTestPlan(plan.projectId, proofScope).sourceSha) this.reject('protocol')
     this.classIds = new Set(Object.values(plan.classrooms).map(c => c.id))
     if (plan.appOrigin !== origins.app || plan.apiOrigin !== 'http://127.0.0.1:54331' || plan.retiredTestIds.length !== 2
       || !Number.isSafeInteger(deadline) || deadline <= now() || deadline - now() > 2_700_000) this.reject('deadline')
   }
   /** Only a successful real create acknowledgement can name the successor parent. */
-  observeAppResponse(kind: Kind, target: string, method: string, status: number, body: unknown): void {
+  observeAppResponse(kind: Kind, target: string, method: string, status: number, body: unknown, requestBody?: unknown,
+    cookie?: string, setCookie?: string[]): void {
+    if (this.proofScope === 'survey-workflow-v1' && kind === 'app') {
+      if (target === '/api/auth/login' && method === 'POST' && status === 200) {
+        const user = (body as { user?: { id?: unknown; email?: unknown; role?: unknown } })?.user
+        const actor = Object.values(this.plan.actors).find(a => a.email === (requestBody as { email?: unknown })?.email)
+        const tokens = setCookie?.map(value => /^pika_session=([^;]+);/.exec(value)?.[1]).filter((value): value is string => !!value)
+        if (!actor || user?.id !== actor.id || user.email !== actor.email || user.role !== actor.role || tokens?.length !== 1
+          || this.surveySessions.has(tokens[0]) || this.surveySessions.size >= 7) this.reject('protocol')
+        this.surveySessions.set(tokens[0], actor.id); return
+      }
+      if (target === '/api/teacher/surveys' && method === 'POST' && status === 201) {
+        const row = (body as { survey?: { created_by?: unknown; classroom_id?: unknown } })?.survey
+        const actor = this.surveySessionActor(cookie)
+        const classroom = Object.values(this.plan.classrooms).find(c => c.id === row?.classroom_id)
+        if (!classroom || row?.created_by !== actor || this.plan.actors[classroom.owner as keyof RehearsalPlan['actors']].id !== actor) this.reject('protocol')
+      }
+      this.observeSurveyResponse(target, method, status, body, requestBody); return
+    }
     if (this.proofScope === 'lifecycle-permissions-v1' && kind === 'app' && target === '/api/teacher/tests' && method === 'POST' && status === 201) {
       const test = (body as {test?:{id?:unknown;classroom_id?:unknown}})?.test
       if (!test || typeof test.id !== 'string' || !new RegExp(`^${uuid}$`).test(test.id) || test.classroom_id !== this.plan.classrooms.classA.id
@@ -136,12 +163,12 @@ export class ContextualTestGatewayPolicy {
     if (target !== '/_next/webpack-hmr' || method !== 'GET') this.reject('protocol')
     this.charge('app'); this.rejectedHmr++
   }
-  admit(kind: Kind, target: string, host: unknown, method: string, body?: unknown): void {
-    this.reserve(kind, target, host, method)
+  admit(kind: Kind, target: string, host: unknown, method: string, body?: unknown, cookie?: string): void {
+    this.reserve(kind, target, host, method, cookie)
     this.validateBody(kind, target, method, body)
   }
   /** Charge before body buffering so a stalled request cannot evade the cap. */
-  reserve(kind: Kind, target: string, host: unknown, method: string): void {
+  reserve(kind: Kind, target: string, host: unknown, method: string, cookie?: string): void {
     this.check()
     try { contextualTestGatewayTarget(kind, target, host) } catch { this.reject('target') }
     const path = target.split('?')[0], read = method === 'GET' || method === 'HEAD'
@@ -153,6 +180,9 @@ export class ContextualTestGatewayPolicy {
         && ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(method)
     } else if (blockedDevelopmentRead(target, method)) {
       allowed = true
+    } else if (this.proofScope === 'survey-workflow-v1') {
+      allowed = this.admitSurveyTarget(target, method)
+      if (allowed && path.startsWith('/api/') && !['/api/auth/login','/api/auth/me'].includes(path)) this.surveySessionActor(cookie)
     } else if (read) {
       // Frozen app RootLayout icons and the always-mounted ClassDaysProvider
       // are shell reads even when the only enabled feature is Tests.
@@ -198,9 +228,18 @@ export class ContextualTestGatewayPolicy {
     this.charge(kind)
     if (kind === 'app' && blockedDevelopmentRead(target, method)) this.rejectedDiagnostics++
   }
+  private surveySessionActor(cookie?: string): string {
+    const matches = cookie?.split(';').map(value => value.trim()).filter(value => value.startsWith('pika_session='))
+    const actor = matches?.length === 1 ? this.surveySessions.get(matches[0].slice('pika_session='.length)) : undefined
+    if (!actor) this.reject('protocol')
+    return actor
+  }
   validateBody(kind: Kind, target: string, method: string, body?: unknown): void {
     this.check()
     const path = target.split('?')[0]
+    if (this.proofScope === 'survey-workflow-v1' && kind === 'app' && !blockedDevelopmentRead(target, method)) {
+      this.validateSurveyBody(target, method, body); return
+    }
     // Fixed development reads terminate in a local empty404 after normal origin,
     // body-size and JSON checks. They are not lifecycle writes or upstream access.
     if (this.proofScope === 'lifecycle-permissions-v1' && kind === 'app' && !['GET','HEAD'].includes(method)
@@ -227,6 +266,134 @@ export class ContextualTestGatewayPolicy {
       const row = body && typeof body === 'object' ? body as Record<string, unknown> : null
       if (!row || typeof row.classroom_id !== 'string' || !this.classIds.has(row.classroom_id) || this.creates >= (this.proofScope === 'lifecycle-permissions-v1' ? 2 : 1)) this.reject('create-cap')
       this.creates++
+    }
+  }
+  private admitSurveyTarget(target: string, method: string): boolean {
+    const url = new URL(target, origins.app), path = url.pathname, query = url.searchParams
+    const read = method === 'GET' || method === 'HEAD'
+    const classQuery = () => query.size === 1 && this.classIds.has(query.get('classroom_id') ?? '')
+    if (read && (path.startsWith('/_next/static/') || /^\/fonts\/[a-zA-Z0-9_./-]+$/.test(path))) return true
+    if (read && ['/login','/classrooms','/favicon.ico','/pika-icon-light.svg','/pika-icon-dark.svg'].includes(path))
+      return [...query.keys()].every(key => key === '_rsc')
+    if (path === '/api/auth/login') return method === 'POST' && query.size === 0
+    if (read && ['/api/auth/me','/api/classrooms/home','/api/student/attendance/status','/api/teacher/classrooms','/api/student/classrooms'].includes(path)) return query.size === 0
+    if (read && path === '/api/student/notifications') return classQuery()
+    if (read && /^\/api\/(teacher|student)\/(surveys|assignments)$/.test(path)) return classQuery()
+    if (path === '/api/teacher/surveys') return method === 'POST' && query.size === 0
+    for (const classroomId of this.classIds) {
+      if (read && path === `/classrooms/${classroomId}`)
+        return query.getAll('_rsc').length <= 1 && query.getAll('tab').length <= 1
+          && [...query].every(([key, value]) => key === '_rsc' || key === 'tab' && value === 'assignments')
+      if (read && [ `/api/classrooms/${classroomId}/class-days`,
+        ...['teacher','student'].flatMap(role => [`/api/${role}/classrooms/${classroomId}`, `/api/${role}/classrooms/${classroomId}/materials`,
+          `/api/${role}/classrooms/${classroomId}/roster`]) ].includes(path)) return query.size === 0
+      if (path === `/api/teacher/classrooms/${classroomId}/classwork/reorder`) return method === 'POST' && query.size === 0
+    }
+    if (path === `/api/teacher/classrooms/${this.plan.classrooms.classA.id}/roster/remove`) return method === 'POST' && query.size === 0
+    if (path === `/api/teacher/classrooms/${this.plan.classrooms.classB.id}`) return method === 'PATCH' && query.size === 0
+    const match = new RegExp(`^/api/(teacher|student)/surveys/(${uuid})(?:/(results|respond|questions)(?:/(${uuid}))?)?$`).exec(path)
+    if (!match || query.size !== 0) return false
+    const [, role, id, action, question] = match, survey = this.surveys.get(id)
+    if (!survey || survey.deleted) return false
+    if (question && !this.surveyQuestions.has(question)) return false
+    if (read) return !question && (!action || action === 'results')
+    if (role === 'student') return method === 'POST' && action === 'respond'
+    return !action && ['PATCH','DELETE'].includes(method)
+      || action === 'questions' && (question ? ['PATCH','DELETE'].includes(method) : method === 'POST')
+  }
+  private validateSurveyBody(target: string, method: string, raw: unknown): void {
+    const path = target.split('?')[0]
+    const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
+    const keys = (value: unknown, allowed: string[], required: string[] = []): value is Record<string, unknown> => object(value)
+      && Object.keys(value).every(key => allowed.includes(key)) && required.every(key => Object.hasOwn(value, key))
+    const text = (value: unknown, limit = 2000) => typeof value === 'string' && value.length > 0 && value.length <= limit
+    if (['GET','HEAD'].includes(method)) { if (raw !== undefined) this.reject('protocol'); return }
+    if (path === '/api/auth/login') {
+      if (!keys(raw, ['email','password'], ['email','password']) || !Object.values(this.plan.actors).some(actor => actor.email === raw!.email)
+        || !text(raw!.password,128)) this.reject('protocol')
+      return
+    }
+    if (path === '/api/teacher/surveys') {
+      if (!keys(raw, ['classroom_id','title','show_results','dynamic_responses'], ['classroom_id']) || !this.classIds.has(String(raw!.classroom_id))
+        || raw!.title !== undefined && !text(raw!.title,200) || raw!.show_results !== undefined && raw!.show_results !== true
+        || raw!.dynamic_responses !== undefined && raw!.dynamic_responses !== false || this.creates >= 4) this.reject('create-cap')
+      this.creates++; return
+    }
+    if (path.endsWith('/roster/remove')) {
+      if (!keys(raw,['roster_ids'],['roster_ids']) || JSON.stringify(raw!.roster_ids) !== JSON.stringify([this.plan.lifecycleRoster?.id])) this.reject('protocol')
+      const n = this.lifecycleCounts.get('remove') ?? 0; if (n) this.reject('protocol'); this.lifecycleCounts.set('remove',1); return
+    }
+    if (path === `/api/teacher/classrooms/${this.plan.classrooms.classB.id}`) {
+      const n = this.lifecycleCounts.get('archive') ?? 0
+      if (!keys(raw,['archived'],['archived']) || n >= 2 || raw!.archived !== (n === 0)) this.reject('protocol')
+      this.lifecycleCounts.set('archive', n + 1); return
+    }
+    if (path.endsWith('/classwork/reorder')) {
+      const classroomId = path.split('/')[4]
+      if (!keys(raw,['items'],['items']) || !Array.isArray(raw!.items) || raw!.items.length > 4 || raw!.items.length < 1) this.reject('protocol')
+      const items = raw!.items as unknown[]
+      if (new Set(items.map(item => object(item) ? item.id : null)).size !== items.length || !items.every(item => keys(item,['type','id'],['type','id'])
+        && item!.type === 'survey' && typeof item!.id === 'string' && this.surveys.get(item!.id)?.classroomId === classroomId && !this.surveys.get(item!.id)?.deleted)) this.reject('protocol')
+      return
+    }
+    const match = new RegExp(`^/api/(teacher|student)/surveys/(${uuid})(?:/(respond|questions)(?:/(${uuid}))?)?$`).exec(path)
+    if (!match) this.reject('protocol')
+    const [, , id, action] = match
+    if (method === 'DELETE') { if (raw !== undefined && raw !== null) this.reject('protocol'); return }
+    if (action === 'respond') {
+      if (!keys(raw,['responses'],['responses']) || !object(raw!.responses)) this.reject('protocol')
+      const answers = raw!.responses as Record<string,unknown>
+      if (Object.keys(answers).length !== 2 || !Object.entries(answers).every(([question, answer]) => this.surveyQuestions.get(question) === id
+        && (keys(answer,['question_type','selected_option'],['question_type','selected_option']) && answer!.question_type === 'multiple_choice' && answer!.selected_option === 1
+          || keys(answer,['question_type','response_text'],['question_type','response_text']) && ['short_text','link'].includes(String(answer!.question_type)) && text(answer!.response_text,2000)))) this.reject('protocol')
+      return
+    }
+    if (action === 'questions') {
+      if (!keys(raw,['question_type','question_text','options','response_max_chars','position']) || Object.keys(raw!).length === 0
+        || raw!.question_type !== undefined && !['multiple_choice','short_text','link'].includes(String(raw!.question_type))
+        || raw!.question_text !== undefined && !text(raw!.question_text)
+        || raw!.options !== undefined && (!Array.isArray(raw!.options) || raw!.options.length > 2 || !raw!.options.every(value => text(value,200)))
+        || raw!.response_max_chars !== undefined && raw!.response_max_chars !== 500
+        || raw!.position !== undefined && (typeof raw!.position !== 'number' || ![0,1].includes(raw!.position))) this.reject('protocol')
+      if (method === 'POST') {
+        const n = this.surveyQuestionCreates.get(id) ?? 0; if (n >= 2) this.reject('create-cap'); this.surveyQuestionCreates.set(id,n+1)
+      }
+      return
+    }
+    if (!keys(raw,['title','status','show_results','dynamic_responses','opens_at']) || Object.keys(raw!).length === 0
+      || raw!.title !== undefined && !text(raw!.title,200)
+      || raw!.status !== undefined && !['draft','active','closed'].includes(String(raw!.status))
+      || ['show_results','dynamic_responses'].some(key => raw![key] !== undefined && typeof raw![key] !== 'boolean')
+      || raw!.opens_at !== undefined && raw!.opens_at !== null && raw!.opens_at !== '2099-01-01T00:00:00.000Z') this.reject('protocol')
+  }
+  private observeSurveyResponse(target: string, method: string, status: number, raw: unknown, requestBody: unknown): void {
+    // A read admitted while a resource was live may finish after its DELETE.
+    // Its original bounded bytes still settle; new reads of tombstones are denied.
+    if (method === 'GET' || method === 'HEAD') return
+    const body = raw as { survey?: { id?: unknown; classroom_id?: unknown }; question?: { id?: unknown; survey_id?: unknown } }
+    if (target === '/api/teacher/surveys' && method === 'POST' && status === 201) {
+      const row = body?.survey, requested = requestBody as { classroom_id?: unknown }
+      if (!row || typeof row.id !== 'string' || !new RegExp(`^${uuid}$`).test(row.id) || this.surveys.has(row.id)
+        || row.classroom_id !== requested?.classroom_id || !this.classIds.has(String(row.classroom_id)) || this.surveys.size >= 4) this.reject('protocol')
+      this.surveys.set(row.id, { classroomId: String(row.classroom_id), questions: new Set(), deleted: false }); return
+    }
+    const match = new RegExp(`^/api/teacher/surveys/(${uuid})(?:/questions(?:/(${uuid}))?)?$`).exec(target)
+    if (!match) return
+    const [, id, questionId] = match, parent = this.surveys.get(id)
+    if (!parent || parent.deleted) this.reject('protocol')
+    if (questionId && this.surveyQuestions.get(questionId) !== id) {
+      if (status !== 404) this.reject('protocol'); return
+    }
+    if (status < 200 || status >= 300) return
+    if (method === 'POST' && target.endsWith('/questions')) {
+      const row = body?.question
+      if (!row || typeof row.id !== 'string' || !new RegExp(`^${uuid}$`).test(row.id) || row.survey_id !== id
+        || this.surveyQuestions.has(row.id) || parent.questions.size >= 2) this.reject('protocol')
+      parent.questions.add(row.id); this.surveyQuestions.set(row.id,id)
+    }
+    if (method === 'DELETE') {
+      if (questionId) { parent.questions.delete(questionId); this.surveyQuestions.delete(questionId) }
+      else { parent.deleted = true; for (const q of parent.questions) this.surveyQuestions.delete(q) }
     }
   }
   private validateLifecycleBody(path: string, method: string, raw: unknown): void {
@@ -347,7 +514,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
           const method = incoming.method ?? '', target = incoming.url ?? ''
           try { contextualTestGatewayTarget(kind, target, incoming.headers.host) } catch { policy.reject('target') }
           if (incoming.headers.origin !== undefined && incoming.headers.origin !== origins.app) policy.reject('target')
-          policy.reserve(kind, target, incoming.headers.host, method)
+          policy.reserve(kind, target, incoming.headers.host, method, incoming.headers.cookie)
           if (pending.size > 64) policy.reject('request-cap')
           const seen = new Set<string>()
           for (let i = 0; i < incoming.rawHeaders.length; i += 2) {
@@ -426,7 +593,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
                     let parsed: unknown
                     try { parsed = parseJson(originalBytes) } catch { policy.reject('response-json') }
                     policy.observeOwnerRpc(kind, target, method, response.statusCode ?? 0, body, parsed)
-                    policy.observeAppResponse(kind, target, method, response.statusCode ?? 0, parsed)
+                    policy.observeAppResponse(kind, target, method, response.statusCode ?? 0, parsed, body, incoming.headers.cookie, response.headers['set-cookie'])
                     jsonResponses++
                   }
                   responseBytes += size; responses++

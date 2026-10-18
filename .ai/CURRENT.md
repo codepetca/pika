@@ -1,4 +1,4 @@
-# State — 2026-10-17 UTC
+# State — 2026-10-18 UTC
 
 `3b7ae978e`; audit27 accepted: docs/guidance/codebase-audit-remediation-2026-10.md.
 
@@ -14,8 +14,11 @@ Access1 exit;2/3 active;4/5 dormant;164/236 closed.
 Exits: docs/guidance/classroom-access-and-entitlements-roadmap.md.
 1579/1577/1578 dormant merged8e9dabd597/18126e952/a37d03b3a;
 CI38204673501/38175680856/38192450117 PASS.
-#1580 dormant;1581 draft; full Tests/Survey/archive pending; holds unchanged.
-Survey001–263 component/12RPC metadata,41CPU PASS; full native/app pending.
+#1580 dormant;1581 draft; full integrated Tests/Survey/archive pending; holds unchanged.
+1613 dormant mergedf88b06a5e; consolidated Tests lifecycle/permissions proof PASS.
+1614 draftdb1fb5f12; Survey001–269 remaining DB proofv10 PASS; full app/visual pending.
+Survey:49SQL cases/30committed directions/cancel+wire/restoration/14SDK+2probes/types.
+Existing-screen Survey workflow preparation next; no rollout or sharedDB authority.
 Narrow proof PASS050699bb; full Tests/rollout held.
 1612 mergedeb4fa32b2; grade/return proof PASS969002ac.
 251/252 native/review/CI PASS.

@@ -14,7 +14,7 @@ export { validateContextualTestRunBinding, readContextualTestBinding, contextual
 export type { ContextualTestRunBinding, ContextualTestSqlKind, ContextualTestSqlTransport } from './contextual-test-rehearsal-binding'
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
-const migrationCount = (scope: ContextualTestRunBinding['proofScope']) => scope === 'lifecycle-permissions-v1' ? 268 : scope === 'vertical-grade-return-v1' ? 267 : 262
+const migrationCount = (scope: ContextualTestRunBinding['proofScope']) => scope === 'survey-workflow-v1' ? 269 : scope === 'lifecycle-permissions-v1' ? 268 : scope === 'vertical-grade-return-v1' ? 267 : 262
 
 /** Exact scope binding selects only its frozen source chain, never runner SQL. */
 export function contextualTestProjectPreparation(binding: ContextualTestRunBinding, frozenRepository: string) {

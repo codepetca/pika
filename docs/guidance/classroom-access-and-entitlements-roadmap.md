@@ -431,6 +431,26 @@ recheck stale candidates. This changes delivery strategy, not correctness criter
 
 #### Remaining-work orchestration — 2026-10-12
 
+Current checkpoint — 2026-10-18: dormant Test integration #1613 is merged on
+main `f88b06a5e52da64f182fa31ec1e7ba2258438c02`. The accepted consolidated Tests
+lifecycle/permissions proof is reused; do not rerun it merely for recency.
+Survey draft #1614 remains frozen at `db1fb5f12d2b45fda345735e30d9e4fdb18215cd`.
+Its bounded remaining database proof v10 passed:49 SQL boundary cases,30 distinct
+committed concurrency directions, actual cancellation/wire overflow with exact
+restoration,14 ordinary SDK exchanges plus2 probes and genuine001–269 types.
+Immediate source/dependency preservation and exact isolated cleanup passed.
+See [Survey evidence](contextual-surveys.md) for scope and limitations. This closes
+that bounded database inventory, not the full Survey/app or batch-2 exit.
+
+The next coherent deliverable is the existing-screen Survey owner/member workflow:
+author/publish/respond/update/inspect, visibility and current-relationship denials,
+with the existing role/viewport/theme matrix. Reuse the established Playwright
+carrier and fixed disposable backend isolation, not a new verification framework.
+Source preparation and independent review precede any fresh admitted runtime.
+Then finish Gradebook/returned Grades and current Assignment/grading adapters,
+remaining batch3 services/lifecycle, batch4 entry/navigation and batch5 integration.
+All production/shared-local/provider/account/billing/cohort/home/cutover holds stay.
+
 The owner requested orchestration with routine approvals waived except for serious
 situations. Continue scoped implementation, focused verification, independent
 review, remediation and normal protected-main merges without repeated routine

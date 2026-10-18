@@ -11,6 +11,7 @@ import { gradeReturnActors, gradeReturnLabels } from './contextual-test-grade-re
 import type { runContextualTestGradeReturnWorkflow } from './contextual-test-grade-return-workflow'
 import { lifecycleActors, lifecycleLabels, lifecycleScreens, lifecycleFailureStage, type LifecycleResult } from './contextual-test-lifecycle-contract'
 import type { LifecycleRuntime } from './contextual-test-lifecycle-workflow'
+import { surveyActors, surveyLabels, surveyScreens, surveyFailureStage, type SurveyRuntime, type SurveyWorkflowResult } from './contextual-survey-contract'
 
 // Public DOM hydration check, without importing the former interception runtime.
 export function verticalLoginReady(): boolean {
@@ -30,12 +31,13 @@ export function verticalScreenshotOptions(lifecycle: boolean, timeout: number) {
 
 export async function createContextualTestVerticalRuntime(browser: Browser) {
   const binding = contextualTestStartupBinding()
-  assert(binding.proofScope === 'vertical-v1' || binding.proofScope === 'vertical-grade-return-v1' || binding.proofScope === 'lifecycle-permissions-v1'); assert(!binding.sqlControl)
+  assert(binding.proofScope === 'vertical-v1' || binding.proofScope === 'vertical-grade-return-v1' || binding.proofScope === 'lifecycle-permissions-v1' || binding.proofScope === 'survey-workflow-v1'); assert(!binding.sqlControl)
   const successor = binding.proofScope === 'vertical-grade-return-v1'
   const lifecycle = binding.proofScope === 'lifecycle-permissions-v1'
+  const survey = binding.proofScope === 'survey-workflow-v1'
   const plan = createContextualTestPlan(binding.projectId, binding.proofScope)
-  const expectedActors = lifecycle ? lifecycleActors : successor ? gradeReturnActors : ['ownerStudent','memberTeacher','nonmember','ownerStudent'] as const
-  const expectedLabels = lifecycle ? lifecycleLabels : successor ? gradeReturnLabels : ['vertical-owner-author','vertical-member-submitted','vertical-owner-results'] as const
+  const expectedActors = survey ? surveyActors : lifecycle ? lifecycleActors : successor ? gradeReturnActors : ['ownerStudent','memberTeacher','nonmember','ownerStudent'] as const
+  const expectedLabels = survey ? surveyLabels : lifecycle ? lifecycleLabels : successor ? gradeReturnLabels : ['vertical-owner-author','vertical-member-submitted','vertical-owner-results'] as const
   const contexts = new Set<BrowserContext>(), artifacts: Array<{ label: string; kind: 'png'; bytes: number; sha256: string; actor?: string; viewport?: string; theme?: string }> = []
   const actors: string[] = []
   const contextActors = new WeakMap<BrowserContext,string>()
@@ -66,10 +68,10 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
       await page.goto(url, { waitUntil: 'load', timeout: timeout() }); check()
     },
     async withActor(actorLabel, callback) {
-      step = 'login'; check(); assert(lifecycle || ['ownerStudent','memberTeacher','nonmember'].includes(actorLabel))
-      assert(successor || lifecycle ? actorLabel === expectedActors[actors.length] : actors.length < 5)
+      step = 'login'; check(); assert(survey || lifecycle || ['ownerStudent','memberTeacher','nonmember'].includes(actorLabel))
+      assert(successor || lifecycle || survey ? actorLabel === expectedActors[actors.length] : actors.length < 5)
       const actor = plan.actors[actorLabel === 'ownerTeacherPeer' ? 'ownerTeacher' : actorLabel]
-      const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...(lifecycle?{colorScheme:'light' as const}:{}), serviceWorkers: 'block', acceptDownloads: false })
+      const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...(lifecycle || survey ? {colorScheme:'light' as const}:{}), serviceWorkers: 'block', acceptDownloads: false })
       contexts.add(context)
       context.on('page', page => { page.on('pageerror', () => { pageErrors++ }) })
       context.setDefaultTimeout(timeout()); context.setDefaultNavigationTimeout(timeout())
@@ -95,22 +97,22 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
     async snapshot(label, page) {
       step = 'screenshot'; owned(page)
       assert((expectedLabels as readonly string[]).includes(label))
-      if (successor || lifecycle) assert.equal(label, expectedLabels[artifacts.length])
+      if (successor || lifecycle || survey) assert.equal(label, expectedLabels[artifacts.length])
       assert(!artifacts.some(row => row.label === label))
-      const scene = lifecycle ? lifecycleScreens[artifacts.length] : undefined
+      const scene = survey ? surveyScreens[artifacts.length] : lifecycle ? lifecycleScreens[artifacts.length] : undefined
       if(scene) {
         assert.equal(contextActors.get(page.context()),scene.actor)
         assert.deepEqual(page.viewportSize(),scene.viewport==='mobile'?{width:390,height:844}:{width:1440,height:900})
         assert.equal(await page.evaluate(()=>document.documentElement.classList.contains('dark')),scene.theme==='dark')
       }
-      const bytes = await page.screenshot(verticalScreenshotOptions(lifecycle, timeout()))
+      const bytes = await page.screenshot(verticalScreenshotOptions(lifecycle || survey, timeout()))
       check(); assert(bytes.length > 0 && bytes.length <= 4194304)
       writeFileSync(join(output, `${label}.png`), bytes, { mode: 0o600, flag: 'wx' })
       artifacts.push({ label, kind: 'png', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),
         ...(scene?{actor:scene.actor,viewport:scene.viewport,theme:scene.theme}:{}) })
     },
   }
-  return { runtime: runtime as VerticalTestRuntime & LifecycleRuntime, async close(result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow>> | LifecycleResult | null, error?: unknown) {
+  return { runtime: runtime as VerticalTestRuntime & LifecycleRuntime & SurveyRuntime, async close(result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow>> | LifecycleResult | SurveyWorkflowResult | null, error?: unknown) {
     const settled = await Promise.allSettled([...contexts].map(async context => { await context.close(); contexts.delete(context) }))
     const contextsClosed = contexts.size === 0 && settled.every(r => r.status === 'fulfilled')
     const outcome = result && !error && contextsClosed && pageErrors === 0 && Date.now() < binding.deadline ? 'passed' : 'failed'
@@ -118,7 +120,7 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
     const receipt = { version: 1, proofScope: binding.proofScope, projectId: binding.projectId, nonce: binding.nonce,
       sourceSha: binding.sourceSha, sourceTree: binding.sourceTree, appOverlaySha256: binding.appOverlaySha256,
       deadline: binding.deadline, endedAt: Date.now(), outcome, contextsClosed, pageErrors, actors, result,
-      failureStage: outcome === 'passed' ? null : (lifecycle ? lifecycleFailureStage(error) : verticalWorkflowFailureStage(error)) ?? step, artifacts }
+      failureStage: outcome === 'passed' ? null : (survey ? surveyFailureStage(error) : lifecycle ? lifecycleFailureStage(error) : verticalWorkflowFailureStage(error)) ?? step, artifacts }
     writeFileSync(join(binding.outputDir, 'playwright-receipt.json'), JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
     assert.equal(outcome, 'passed', 'Narrow Test workflow failed')
   } }

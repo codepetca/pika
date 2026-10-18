@@ -48506,3 +48506,32 @@ real-editor regression coverage, then review the explicit isolated overlay delta
 No product fix or further native run performed. PR1581 remains draft at c25b5d82;
 104reviews/61fixbatches and existing clocks/holds retained. UI verification skill
 keeps visual acceptance incomplete; no quota/auth/permission/production changes.
+
+<!-- pika-session-log-archive-batch:21a7227e2be09df21ecc21a609f53211cd511a79d49d3d63a7bdc4e2a7fc679a -->
+## 2026-10-16 — Scoped placeholder correction candidate
+
+User Fix it authorizes the recommended shared-editor fix, regression/review and
+one fresh bounded isolated verification. Batch62 adds one selector to the exact
+font-overlay candidate: sole direct empty paragraph uses is-empty while existing
+styling and original selector remain. No extra selection, broader placeholder
+matching, library upgrade, auth/permission or capture acceptance change. UI-change
+brief records extend/reuse, same32font+16workflow screenshot matrix and holds.
+Sol6.1/high test author produced real Tiptap/compiled Sass+PostCSS regressions:
+2 deletion tests RED before fix,5 boundary tests PASS; all7 GREEN with candidate.
+Root integration avoids historical Git-object dependency for shallow CI. Combined
+79 focused CPU checks PASS; final focused gate and targeted independent review105
+pending. Existing104reviews/61batches/clocks carry under routine-stop waiver;
+weekly63%remaining, storagehealthy; effective worker config/tokens unknown.
+Production stylesheet remains unchanged until real visual acceptance. Frozen app
+21e755d3/migrations001–262,45min+6mincleanup, sharedlocal249+, provider-heldSurvey/
+planning, oldsocket81 and allproduction/account/plan/billing/cutover holds stay.
+
+Review105/106 CLEAN0, exact49f77ce0 focused3558PASS/8skip and static gates PASS.
+Doc budget corrected without removing required setup paths; prior failures kept.
+ONE fresh v8r0Sg attempt SPENT/FAILED160768ms: teacher login identity PASS; body/
+request failures null, page/console errors0. Empty readiness reports placeholder,
+positioned,text,deadline; only3 precedingPNG234349bytes hash-verified and visually
+inspected, readable but matrix incomplete. Cleanup allPASS, ownedSettledtrue,
+activeProbes/unsettledFamilies0. Independent49472 beforewrites:7649sources and
+49485 dependency entries unchanged; currentprocesscandidates0. Exactcontainers/
+volumes/network/tempapp absent/fourportsclear. Sourcefreeze released; no retry.

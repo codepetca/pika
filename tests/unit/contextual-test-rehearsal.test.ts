@@ -2,6 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { createContextualTestPlan, bootstrapContextualTestFixtureSql, contextualTestWitnessSql } from '../../e2e/helpers/contextual-test-rehearsal'
 
 describe('contextual Test rehearsal fixture contract', () => {
+  it('binds Survey269 separately with smaller resource ceilings and CLASSWORK only in that profile', () => {
+    const plan = createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f', 'survey-workflow-v1')
+    expect(plan.sourceSha).toBe('db1fb5f12d2b45fda345735e30d9e4fdb18215cd')
+    expect(plan.sourceTree).toBe('aac63aefbe7d5adbf01819087ef2fdb857e74ab3')
+    expect(plan.migrationChainSha256).toBe('8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf')
+    expect(plan.surveyLimits).toEqual({ surveys: 4, questionsPerSurvey: 2, uploads: 0, screenshots: 16 })
+    expect(bootstrapContextualTestFixtureSql(plan, '$2b$10$' + 'A'.repeat(53))).toContain('"classwork":true')
+    for (const scope of [undefined, 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const) {
+      const legacy = createContextualTestPlan(plan.projectId, scope)
+      expect(legacy.surveyLimits).toBeUndefined()
+      expect(bootstrapContextualTestFixtureSql(legacy, '$2b$10$' + 'A'.repeat(53))).toContain('"classwork":false')
+    }
+  })
   it('binds the frozen app, five historical roles, both classrooms and finite limits', () => {
     const plan = createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f')
     expect(plan.sourceSha).toBe('050699bb0f889a533a349b6af415b821ac56d0e3')

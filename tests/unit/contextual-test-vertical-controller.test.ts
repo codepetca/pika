@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import * as surveyProof from '../../scripts/contextual-survey-workflow-proof'
 import { createContextualTestPlan, type RehearsalWitness, type ContextualTestProofScope } from '../../e2e/helpers/contextual-test-rehearsal'
 import { gradeReturnActors, gradeReturnLabels } from '../../e2e/helpers/contextual-test-grade-return-contract'
 import type { GradeReturnWitness } from '../../scripts/contextual-test-grade-return-proof'
@@ -7,6 +8,7 @@ import { runContextualTestRehearsalController, validateContextualTestPlaywrightR
 import type { ContextualTestRunBinding } from '../../scripts/contextual-test-rehearsal-binding'
 import type { ContextualTestGatewayReceipt } from '../../scripts/contextual-test-rehearsal-gateway'
 import { contextualTestLifecycleFixture } from '../helpers/contextual-test-lifecycle-fixture'
+import { contextualSurveyFixture } from '../helpers/contextual-survey-fixture'
 
 const projectId = 'pika_assignment_list_123456abcdef', plan = createContextualTestPlan(projectId)
 const id = (n: number) => `60000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -59,10 +61,11 @@ function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
   const lifecycle = proofScope === 'lifecycle-permissions-v1'
     ? contextualTestLifecycleFixture({ projectId, startedAt: admission.startedAt,
       deadline: admission.deadline, nonce: admission.nonce }) : undefined
-  const acceptedBefore = lifecycle?.before ?? before, acceptedAfter = lifecycle?.after ?? after
-  const acceptedReceipt = lifecycle?.receipt ?? raw
+  const survey = proofScope === 'survey-workflow-v1' ? contextualSurveyFixture({...admission,...plan} as unknown as ContextualTestRunBinding) : undefined
+  const acceptedBefore = survey?.before ?? lifecycle?.before ?? before, acceptedAfter = survey?.after ?? lifecycle?.after ?? after
+  const acceptedReceipt = survey?.receipt ?? lifecycle?.receipt ?? raw
   let bound: ContextualTestRunBinding | undefined, witnessReads = 0
-  const gateway: ContextualTestGatewayReceipt = { version: 1, firstFailure: null, appRequests: 50, apiRequests: 100, creates: lifecycle ? 2 : 1,
+  const gateway: ContextualTestGatewayReceipt = { version: 1, firstFailure: null, appRequests: 50, apiRequests: 100, creates: proofScope === 'survey-workflow-v1' ? 4 : lifecycle ? 2 : 1,
     rejectedHmr: 0, rejectedDiagnostics: 0, firstEndpointFailure: null, firstOwnerRpcRejection: null, started: true, closing: true, closed: true, pending: 0, sockets: 0,
     jsonResponses: 50, responses: 50, requestBytes: 100, responseBytes: 100 }
   const gateways = { async start() { events.push('gateway-start') }, check() { events.push('gateway-check') },
@@ -89,7 +92,7 @@ function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
     async passwordHash() { return 'synthetic-bcrypt' },
     async sql(_binding: unknown, kind: string, _hash: unknown, transport: unknown) {
       expect(transport).toBe(control.command); events.push(`sql-${kind}`)
-      return kind === (lifecycle ? 'lifecycleWitness' : successor ? 'gradeReturnWitness' : 'witness')
+      return kind === (proofScope === 'survey-workflow-v1' ? 'surveyWitness' : lifecycle ? 'lifecycleWitness' : successor ? 'gradeReturnWitness' : 'witness')
         ? JSON.stringify(witnessReads++ === 0 ? acceptedBefore : acceptedAfter) : '{}'
     },
     assertSqlSettled() {}, createLedger() { throw Error('Old egress ledger must not run') },
@@ -103,6 +106,29 @@ function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
 }
 
 describe('vertical controller integration (CPU seams only, no native proof)', () => {
+  it('dispatches Survey validation, root-only witnesses and gateway-first closure through the existing controller', async () => {
+    const receiptCheck = vi.spyOn(surveyProof, 'validateContextualSurveyReceipt')
+    const databaseCheck = vi.spyOn(surveyProof, 'assertContextualSurveyDatabase')
+    try {
+      const f=fixture('survey-workflow-v1'), receipt=await f.run()
+      expect(receipt).toMatchObject({outcome:'passed',proofScope:'survey-workflow-v1',databaseValidated:true,ownedSettled:true})
+      expect(receiptCheck).toHaveBeenCalledExactlyOnceWith(f.raw,f.bound())
+      expect(databaseCheck).toHaveBeenCalledExactlyOnceWith(f.before,f.after,f.raw.result,f.bound())
+      expect(f.bound()).not.toHaveProperty('sqlControl')
+      expect(f.events.filter(e=>e==='sql-surveyWitness')).toHaveLength(2)
+      expect(f.events.indexOf('gateway-close')).toBeLessThan(f.events.lastIndexOf('sql-surveyWitness'))
+      expect(f.launches[0].listenerPort).toBe(3118)
+      expect(f.launches[1].args).toContain('contextual-test-vertical.spec.ts')
+      expect(f.launches[1].dependencySandboxProfile).not.toContain('54340')
+    } finally { receiptCheck.mockRestore(); databaseCheck.mockRestore() }
+  })
+  it('does not advance Survey success when strict receipt validation rejects', async () => {
+    const f=fixture('survey-workflow-v1'); f.raw.contextsClosed=false
+    await expect(f.run()).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({outcome:'failed',databaseValidated:false,ownedSettled:true})
+    expect(f.events.filter(e=>e==='sql-surveyWitness')).toHaveLength(1)
+    expect(f.events).toContain('disposal')
+  })
   it('uses the distinct lifecycle receipt and host-only witness with unchanged cleanup and sandbox controls', async () => {
     const f = fixture('lifecycle-permissions-v1'), receipt = await f.run()
     expect(receipt).toMatchObject({ outcome: 'passed', proofScope: 'lifecycle-permissions-v1',

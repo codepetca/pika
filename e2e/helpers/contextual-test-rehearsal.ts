@@ -10,17 +10,18 @@ import type { createContextualTestAuthoringProgress } from './contextual-test-au
 const uuid = (suffix: string) => `50000000-0000-4000-8000-0000000000${suffix}`
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
 
-export type ContextualTestProofScope = 'vertical-v1' | 'vertical-grade-return-v1' | 'lifecycle-permissions-v1'
+export type ContextualTestProofScope = 'vertical-v1' | 'vertical-grade-return-v1' | 'lifecycle-permissions-v1' | 'survey-workflow-v1'
 export function createContextualTestPlan(projectId: string, proofScope?: ContextualTestProofScope) {
   assert.match(projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
-  assert(proofScope === undefined || proofScope === 'vertical-v1' || proofScope === 'vertical-grade-return-v1' || proofScope === 'lifecycle-permissions-v1')
+  assert(proofScope === undefined || proofScope === 'vertical-v1' || proofScope === 'vertical-grade-return-v1' || proofScope === 'lifecycle-permissions-v1' || proofScope === 'survey-workflow-v1')
   const successor = proofScope === 'vertical-grade-return-v1'
   const lifecycle = proofScope === 'lifecycle-permissions-v1'
+  const survey = proofScope === 'survey-workflow-v1'
   const sourceBinding = Object.freeze({ projectId,
-    sourceSha: lifecycle ? '4e9c809d1c905a0482fb67880e056e5b8bc5f786' : successor ? 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' : '050699bb0f889a533a349b6af415b821ac56d0e3',
-    sourceTree: lifecycle ? '4d225a92b8d9dcfb8cc7118e989c63a46a3c5fbb' : successor ? 'ffec2cc82fd88e9819c147b2ab6246f95c28798e' : 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
+    sourceSha: survey ? 'db1fb5f12d2b45fda345735e30d9e4fdb18215cd' : lifecycle ? '4e9c809d1c905a0482fb67880e056e5b8bc5f786' : successor ? 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' : '050699bb0f889a533a349b6af415b821ac56d0e3',
+    sourceTree: survey ? 'aac63aefbe7d5adbf01819087ef2fdb857e74ab3' : lifecycle ? '4d225a92b8d9dcfb8cc7118e989c63a46a3c5fbb' : successor ? 'ffec2cc82fd88e9819c147b2ab6246f95c28798e' : 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
     appOverlaySha256: contextualTestFontOverlaySha256,
-    migrationChainSha256: lifecycle ? '16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0' : successor ? '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' : 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
+    migrationChainSha256: survey ? '8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf' : lifecycle ? '16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0' : successor ? '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' : 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
     appOrigin: 'http://localhost:3117' as const, apiOrigin: 'http://127.0.0.1:54331' as const,
   })
   const actors = Object.freeze({
@@ -43,6 +44,9 @@ export function createContextualTestPlan(projectId: string, proofScope?: Context
     // self-enrollment rows retained, two nonowner members in each class; nonmember absent.
     const pairs = Object.values(actors).flatMap(actor => Object.values(classrooms).map(c => ({ userId: actor.id, classroomId: c.id })))
     return { ...sourceBinding, actors, classrooms, limits, retiredTestIds: [uuid('31'), uuid('32')],
+      ...(survey ? { proofScope: 'survey-workflow-v1' as const,
+        surveyLimits: Object.freeze({ surveys: 4, questionsPerSurvey: 2, uploads: 0, screenshots: 16 }),
+        lifecycleRoster: { id: uuid('41'), classroomId: classrooms.classA.id, studentId: actors.memberStudent.id } } : {}),
       ...(lifecycle ? { proofScope: 'lifecycle-permissions-v1' as const,
         lifecycleRoster: { id: uuid('41'), classroomId: classrooms.classA.id, studentId: actors.memberStudent.id } } : {}),
       admission: { version: 1, admittedUserIds: Object.values(actors).map(actor => actor.id) },
@@ -81,7 +85,7 @@ export function bootstrapContextualTestFixtureSql(plan: RehearsalPlan, passwordH
   const { classIdsSql, actorIdsSql, retiredIdsSql } = sqlBindings(plan)
   if (!/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(passwordHash)) throw new Error('Expected private bcrypt hash')
   const userValues = Object.values(actors).map(actor => `('${actor.id}',${quote(actor.email)},'${actor.role}',${quote(passwordHash)})`).join(',\n')
-  const classValues = Object.values(classrooms).map(c => `('${c.id}','${actors[c.owner as keyof typeof actors].id}',${quote(c.title)},'${c.classCode}','{"attendance":false,"classwork":false,"tests":true,"gradebook":false,"student_grades":false,"calendar":false,"syllabus":false,"announcements":false,"achievements":false}'::jsonb)`).join(',\n')
+  const classValues = Object.values(classrooms).map(c => `('${c.id}','${actors[c.owner as keyof typeof actors].id}',${quote(c.title)},'${c.classCode}','{"attendance":false,"classwork":${plan.proofScope === 'survey-workflow-v1'},"tests":true,"gradebook":false,"student_grades":false,"calendar":false,"syllabus":false,"announcements":false,"achievements":false}'::jsonb)`).join(',\n')
   const enrollmentValues = Object.values(classrooms).flatMap(c => ['ownerTeacher','ownerStudent','memberTeacher','memberStudent'].map(label => `('${c.id}','${actors[label as keyof typeof actors].id}')`)).join(',\n')
   return `BEGIN;
 SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='30s';
@@ -99,7 +103,7 @@ INSERT INTO public.classroom_enrollments(classroom_id,student_id) VALUES ${enrol
 INSERT INTO public.tests(id,classroom_id,created_by,title,status,blueprint_archived_at) VALUES
 ('${uuid('31')}','${classrooms.classA.id}','${actors.ownerTeacher.id}','Retired fixture A','draft',now()),
 ('${uuid('32')}','${classrooms.classB.id}','${actors.ownerStudent.id}','Retired fixture B','draft',now());
-${plan.proofScope === 'lifecycle-permissions-v1' && plan.lifecycleRoster ? `INSERT INTO public.classroom_roster(id,classroom_id,email,first_name,last_name) VALUES ('${uuid('41')}','${classrooms.classA.id}',${quote(actors.memberStudent.email)},'Synthetic','Learner');
+${(plan.proofScope === 'lifecycle-permissions-v1' || plan.proofScope === 'survey-workflow-v1') && plan.lifecycleRoster ? `INSERT INTO public.classroom_roster(id,classroom_id,email,first_name,last_name) VALUES ('${uuid('41')}','${classrooms.classA.id}',${quote(actors.memberStudent.email)},'Synthetic','Learner');
 -- The real AFTER INSERT roster trigger creates stable identity; never duplicate it.
 DO $fixture$ BEGIN
 IF NOT EXISTS (SELECT 1 FROM public.classroom_roster_student_bindings WHERE roster_id='${uuid('41')}' AND classroom_id='${classrooms.classA.id}' AND student_id='${actors.memberStudent.id}') THEN RAISE EXCEPTION 'fixture_roster_binding_missing'; END IF;

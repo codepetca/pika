@@ -21,6 +21,25 @@ const binding = () => ({ version: 1, projectId, ...Object.fromEntries(['sourceSh
   docker: { path: '/usr/local/bin/docker', sha256: 'b'.repeat(64), host: 'unix:///private/tmp/docker.sock', socketIdentity: [1,2,3,4], containerId: 'c'.repeat(64) } })
 
 describe('Tests rehearsal binding and fixed SQL', () => {
+  it('binds Survey269 and rejects downgraded, forged, expired or SQL-capable Survey bindings', () => {
+    const proofScope = 'survey-workflow-v1' as const
+    const survey = createContextualTestPlan(projectId, proofScope)
+    const candidate = { ...binding(), proofScope, sourceSha: survey.sourceSha, sourceTree: survey.sourceTree,
+      migrationChainSha256: survey.migrationChainSha256, planSha256: sha(JSON.stringify(survey)) }
+    expect(validateContextualTestRunBinding(candidate, now).proofScope).toBe(proofScope)
+    for (const drift of [{ proofScope: undefined }, { proofScope: 'survey-workflow-v2' }, { sourceSha: plan.sourceSha },
+      { sourceTree: plan.sourceTree }, { migrationChainSha256: plan.migrationChainSha256 },
+      { planSha256: sha(JSON.stringify(plan)) }, { sqlControl: {} }]) {
+      expect(() => validateContextualTestRunBinding({ ...candidate, ...drift }, now)).toThrow()
+    }
+    expect(() => validateContextualTestRunBinding(candidate, candidate.deadline)).toThrow()
+    const value = validateContextualTestRunBinding(candidate, now)
+    expect(contextualTestSql(value, 'surveyWitness')).toContain('READ ONLY')
+    expect(() => contextualTestSql(value, 'surveyWitness', 'password')).toThrow()
+    for (const kind of ['archiveA', 'restoreArchiveA', 'revokeMemberTeacherA', 'restoreMemberTeacherA'] as const)
+      expect(() => contextualTestSql(value, kind)).toThrow()
+    expect(() => contextualTestSql(validateContextualTestRunBinding(binding(), now), 'surveyWitness')).toThrow()
+  })
   it('binds the exact frozen plan and original finite clock', () => {
     const value = validateContextualTestRunBinding(binding(), now)
     expect(value.projectId).toBe(projectId)

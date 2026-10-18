@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Scoped placeholder correction candidate
-
-User Fix it authorizes the recommended shared-editor fix, regression/review and
-one fresh bounded isolated verification. Batch62 adds one selector to the exact
-font-overlay candidate: sole direct empty paragraph uses is-empty while existing
-styling and original selector remain. No extra selection, broader placeholder
-matching, library upgrade, auth/permission or capture acceptance change. UI-change
-brief records extend/reuse, same32font+16workflow screenshot matrix and holds.
-Sol6.1/high test author produced real Tiptap/compiled Sass+PostCSS regressions:
-2 deletion tests RED before fix,5 boundary tests PASS; all7 GREEN with candidate.
-Root integration avoids historical Git-object dependency for shallow CI. Combined
-79 focused CPU checks PASS; final focused gate and targeted independent review105
-pending. Existing104reviews/61batches/clocks carry under routine-stop waiver;
-weekly63%remaining, storagehealthy; effective worker config/tokens unknown.
-Production stylesheet remains unchanged until real visual acceptance. Frozen app
-21e755d3/migrations001–262,45min+6mincleanup, sharedlocal249+, provider-heldSurvey/
-planning, oldsocket81 and allproduction/account/plan/billing/cutover holds stay.
-
-Review105/106 CLEAN0, exact49f77ce0 focused3558PASS/8skip and static gates PASS.
-Doc budget corrected without removing required setup paths; prior failures kept.
-ONE fresh v8r0Sg attempt SPENT/FAILED160768ms: teacher login identity PASS; body/
-request failures null, page/console errors0. Empty readiness reports placeholder,
-positioned,text,deadline; only3 precedingPNG234349bytes hash-verified and visually
-inspected, readable but matrix incomplete. Cleanup allPASS, ownedSettledtrue,
-activeProbes/unsettledFamilies0. Independent49472 beforewrites:7649sources and
-49485 dependency entries unchanged; currentprocesscandidates0. Exactcontainers/
-volumes/network/tempapp absent/fourportsclear. Sourcefreeze released; no retry.
-
 ## 2026-10-16 — Real keyboard clear fixes a second concrete ordering failure
 
 Bounded Sol6.1/high read-only worker reproduced installed real-editor DOMRange
@@ -636,3 +608,7 @@ Settled correction138 passes52affected tests, strict TypeScript/audit. Seven inj
 ## 2026-10-18 — Remaining Survey native rehearsal passed
 
 Correction138 passed4472full tests/static gates and review212; fresh launcher review213 passed. Owner-authorized v10 at eb9ef504/productdb1fb completed remaining SQL/all30committed directions, genuine57014/original-body settlement, actual wire overflow/restoration,14SDK calls and genuine269types/12RPC validation. Final198actions/4366shared controls/16requests/76506129bytes fit unchanged ceilings; elapsed339415ms. Root immediately deep-compared complete2source/2dependency snapshots before post-run edits/tests, then verified exact isolated resource/tempdir absence and clean original pins. Evidence/types retained privately; all prior failures stay spent. This closes bounded remaining-native evidence only; nativeVerified=false and application/epic/production/rollout holds remain. Documentation-only continuity update follows; no new runtime or policy change.
+
+## 2026-10-18 — Prepare the existing-screen Survey workflow
+
+Correction139 reuses the narrow Playwright carrier with a fixed Survey profile on productdb1fb/schema001–269. Two bounded writers split existing profile/controller/gateway integration from new workflow/receipt/database witnesses; no product, schema, dependency or native changes. Existing-screen author/save/reload/preview/publish/respond/results, mixed historical roles, dynamic timestamp preservation, disclosure/foreign-resource/archive/removal denials and16role/viewport/theme cells are prepared under unchanged caps. Existing fixed-disposable REST capability is reused, not expanded into a new RPC-query framework; browser SQL remains absent. Root independently confirms byte-identical plans/bootstrap SQL for all4older profiles. Focused CPU checks pass; stable cumulative source review/fullgate follow before any fresh runtime admission. PR1614 remains draft with corrected v10 database evidence. Full application/batch2/goal acceptance is not claimed; production/shared-local/provider/account/billing/home/cohort/cutover holds remain. Counters214reviews/138completedcorrections carry;139inprogress, no reset.

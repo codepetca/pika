@@ -501,3 +501,36 @@ This is bounded remaining-native evidence; the receipt retains
 separate. All production/shared-local/provider/account/billing/cohort/home/
 cutover holds and all limits remain. Prior failed attempts stay failed/spent;
 the historical v9 binding substep is still unknown.
+
+### Existing-screen successor — source preparation, 2026-10-18
+
+The next gate reuses the established narrow Playwright application carrier with
+an explicit `survey-workflow-v1` profile. It pins the same verified product
+`db1fb5f12` and001–269 migration chain; historical Test profiles stay unchanged.
+Source preparation is not a runtime admission or a passed workflow.
+
+The planned existing-screen proof covers both historical account roles as owners
+and members, same-account ownership in one class and membership in another,
+author/save/reload/preview/publish/respond/results, static duplicate refusal and
+dynamic updates preserving original submission timestamps. It also covers
+result nondisclosure, future-open/closed refusal, owner precedence, foreign
+resource substitutions, and cached/fresh archive and revocation denials while
+preserving saved answers. Use existing owner lifecycle endpoints, not browser SQL.
+Future opening uses the existing owner settings API because the current Survey
+editor has no date control; do not describe that fixture as screen interaction.
+
+The scope fits within existing carrier ceilings: at most4 synthetic Surveys with
+2 questions each, no uploads,7 actor contexts and16 role/relationship × viewport
+× theme captures. Existing45-minute work/6-minute cleanup,30-second operation,
+request/byte controls, real login/cookies, network/process ownership, positive
+settlement, canonical preservation and one-launch/zero-retry rules remain.
+The backend gateway retains its already accepted fixed-disposable REST capability;
+only the browser-facing Survey route/resource/method/query/body inventory is new.
+No production, shared database, Storage or provider access is added. Controller
+read-only witnesses must prove complete Survey work and unrelated data preservation.
+
+Independent source review and readiness precede any fresh runtime; actual images
+must be inspected before visual acceptance. The existing font-overlay limitation
+remains explicit, and no production visual equivalence or new UI change is claimed.
+Final cumulative product review and exact-head CI/PR Gate remain separate gates.
+All production/shared-local/provider/account/billing/cohort/home/cutover holds stay.
