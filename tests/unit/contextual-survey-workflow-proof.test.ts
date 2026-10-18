@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { markdownToSurvey } from '../../src/lib/survey-markdown'
 import { surveyFailureStage, assertSurveySubmissionPreserved, surveyText, assertSurveyResults } from '../../e2e/helpers/contextual-survey-contract'
-import { surveyMarkdown, openContextualSurveyEditor, openContextualSurveyClasswork, selectContextualSurvey } from '../../e2e/helpers/contextual-survey-workflow'
+import { surveyMarkdown, openContextualSurveyEditor, openContextualSurveyClasswork, selectContextualSurvey,
+  selectContextualSurveyForResponse, selectContextualSurveyForCapture } from '../../e2e/helpers/contextual-survey-workflow'
 import { contextualSurveyWitnessSql, validateContextualSurveyReceipt, assertContextualSurveyDatabase } from '../../scripts/contextual-survey-workflow-proof'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { contextualSurveyFixture } from '../helpers/contextual-survey-fixture'
@@ -39,6 +40,25 @@ function surveyNavigation(initialUrl: string, mobile = false) {
   }
   const runtime = { plan, async navigate(_page: unknown, url: string) { documents.push(url); current = url } }
   return { page, runtime, documents, interactions, current: () => current }
+}
+/** StudentSurveyPanel reads detail on mount/id change and its own submit;
+ * TeacherSurveyResultsPane reads on id/responded/total changes. External changes
+ * with those dependencies unchanged do not push data into either mounted view. */
+function surveyMountedViews() {
+  const identity = contextualSurveyFixture(binding).result.surveys[0]
+  const navigation = surveyNavigation(summary + '&surveyId=' + identity.surveyId, true)
+  const server = { dynamic: false, text: 'Original response', responded: 2, total: 3 }
+  let member = { ...server }, owner = { ...server }
+  const runtime = { ...navigation.runtime, async navigate(page: unknown, url: string) {
+    await navigation.runtime.navigate(page, url)
+    member = { ...server }; owner = { ...server }
+  } }
+  return { ...navigation, runtime, identity, server,
+    memberCanUpdate: () => member.dynamic,
+    ownerText: () => owner.text,
+    selfSubmit: () => { member = { ...server } },
+    reconcileOwnerDependencies: () => { if (owner.responded !== server.responded || owner.total !== server.total) owner = { ...server } },
+  }
 }
 
 describe('Survey successor source contracts (no browser/database execution)', () => {
@@ -109,6 +129,38 @@ describe('Survey successor source contracts (no browser/database execution)', ()
     await selectContextualSurvey(model.runtime as never, model.page as never, identity, true, true)
     expect(model.documents).toEqual([summary, summary])
     expect(model.interactions).toEqual(['button:' + identity.title, 'button:' + identity.title])
+  })
+  it('refreshes member detail after another owner enables updates; URL reuse cannot update mounted settings', async () => {
+    const model = surveyMountedViews()
+    model.selfSubmit() // Own first response refreshes detail while dynamic=false.
+    model.server.dynamic = true // The owner changes settings in another context.
+    await selectContextualSurvey(model.runtime as never, model.page as never, model.identity, false)
+    expect(model.memberCanUpdate()).toBe(false) // Reproduces the old deterministic missing Edit response.
+    await selectContextualSurveyForResponse(model.runtime as never, model.page as never, model.identity, true)
+    expect(model.memberCanUpdate()).toBe(true)
+    expect(model.documents).toEqual([summary])
+  })
+  it('refreshes first owner capture despite unchanged response counts, then reuses only the known-fresh viewport scene', async () => {
+    const model = surveyMountedViews()
+    model.server.text = 'Updated response in another context'
+    model.reconcileOwnerDependencies()
+    expect(model.ownerText()).toBe('Original response')
+    await selectContextualSurvey(model.runtime as never, model.page as never, model.identity, true)
+    expect(model.ownerText()).toBe('Original response')
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, true, true, false)
+    expect(model.ownerText()).toBe(model.server.text)
+    expect(model.documents).toEqual([summary])
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, true, false, false)
+    expect(model.documents).toEqual([summary])
+    expect(model.ownerText()).toBe(model.server.text)
+  })
+  it('refreshes first member capture and each theme change but not the following viewport-only cell', async () => {
+    const model = surveyMountedViews()
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, true, false)
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, false, false)
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, false, true)
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, false, false)
+    expect(model.documents).toEqual([summary, summary])
   })
   it('witness SQL is fixed and includes all Survey work and membership/revision evidence', () => {
     const plan = createContextualTestPlan('pika_assignment_list_123456abcdef', 'survey-workflow-v1')

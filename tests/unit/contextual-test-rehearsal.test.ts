@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { createContextualTestPlan, bootstrapContextualTestFixtureSql, contextualTestWitnessSql } from '../../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, contextualTestNarrowScopes, isContextualTestNarrowScope, bootstrapContextualTestFixtureSql, contextualTestWitnessSql } from '../../e2e/helpers/contextual-test-rehearsal'
+
+describe('closed narrow-scope recognition', () => {
+  it('recognizes exactly four fixed scopes without admitting full or forged values', () => {
+    expect(contextualTestNarrowScopes).toEqual(['vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1', 'survey-workflow-v1'])
+    expect(Object.isFrozen(contextualTestNarrowScopes)).toBe(true)
+    for (const scope of contextualTestNarrowScopes) expect(isContextualTestNarrowScope(scope)).toBe(true)
+    for (const scope of [undefined, null, false, '', 'full', 'survey-workflow-v2', {}, ['survey-workflow-v1'], new String('survey-workflow-v1')]) {
+      expect(isContextualTestNarrowScope(scope)).toBe(false)
+      if (scope !== undefined) expect(() => createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f', scope as never)).toThrow()
+    }
+    expect(() => createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f', undefined)).not.toThrow()
+  })
+})
 
 describe('contextual Test rehearsal fixture contract', () => {
   it('binds Survey269 separately with smaller resource ceilings and CLASSWORK only in that profile', () => {

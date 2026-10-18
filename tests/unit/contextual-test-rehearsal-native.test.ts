@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-const native = vi.hoisted(() => ({ spawn: vi.fn(), verify: vi.fn() }))
+const native = vi.hoisted(() => ({ spawn: vi.fn(), verify: vi.fn(), listen: vi.fn() }))
 const routeReadiness = vi.hoisted(() => ({ run: vi.fn(), settle: vi.fn(), assertClosed: vi.fn() }))
 vi.mock('../../scripts/contextual-test-route-readiness', () => ({ createContextualTestRouteReadiness: () => routeReadiness }))
 vi.mock('node:child_process', () => ({ spawn: native.spawn }))
-vi.mock('node:net', () => ({ createServer: () => ({ once() {}, listen(_options: unknown, ready: () => void) { ready() }, close(done: () => void) { done() } }) }))
+vi.mock('node:net', () => ({ createServer: () => ({ once() {}, listen(options: unknown, ready: () => void) { native.listen(options); ready() }, close(done: () => void) { done() } }) }))
 vi.mock('../../scripts/contextual-test-rehearsal-launch', async original => ({
   ...await original<typeof import('../../scripts/contextual-test-rehearsal-launch')>(), verifyContextualTestBinary: native.verify,
 }))
@@ -17,6 +17,7 @@ import { runContextualTestRehearsalController } from '../../scripts/contextual-t
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { settleOwnedFamily, type Capture, type OwnedProcessRow } from '../../scripts/contextual-test-process-ownership'
 import * as launchModule from '../../scripts/contextual-test-rehearsal-launch'
+import { contextualTestVerticalCommands, contextualTestVerticalProfile, contextualTestVerticalNetworkProbe } from '../../scripts/contextual-test-vertical-environment'
 
 class Child extends EventEmitter {
   exitCode: number | null = null
@@ -47,7 +48,7 @@ const pins: ContextualTestNativePins = {
 let rows: Row[], app: Child, owned: Child[], kill: ReturnType<typeof vi.spyOn>, nextPid: number, output: string
 beforeEach(() => {
   routeReadiness.run.mockReset().mockResolvedValue(undefined); routeReadiness.settle.mockReset().mockResolvedValue(undefined); routeReadiness.assertClosed.mockReset()
-  native.spawn.mockReset(); native.verify.mockReset(); rows = []; owned = []; nextPid = 8000; output = ''
+  native.spawn.mockReset(); native.verify.mockReset(); native.listen.mockReset(); rows = []; owned = []; nextPid = 8000; output = ''
   kill = vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
     if (pid < 0) rows = rows.filter(row => row.pgid !== -pid)
     else rows = rows.filter(row => row.pid !== pid)
@@ -657,12 +658,15 @@ describe('fresh execution seal (CPU only, no admission)', () => {
       await expect(command.run('git', ['status'])).rejects.toThrow()
     } finally { for (const spy of spies.reverse()) spy.mockRestore() }
   })
-  it.each(['stable', 'source', 'dependencies'])('checks unchanged state through real pinned commands after native cleanup; %s', async change => {
+  it.each(['stable', 'source', 'dependencies', 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1', 'survey-workflow-v1'] as const)('checks actual native admission, launch controls and unchanged state; %s', async change => {
     vi.useFakeTimers()
     const { admission, seal } = sealFixture(), node = realpathSync(process.execPath), imageId = 'sha256:' + 'a'.repeat(64)
     const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: '63ee57066ef61169445ded279701d974ad23c805a60b8f77a4b8776183ac58fb' } }
-    const base = { ...admission, appDir: process.cwd(), runner: { ...admission.runner, repository: process.cwd() },
+    const proofScope = change === 'stable' || change === 'source' || change === 'dependencies' ? undefined : change
+    const base = { ...admission, ...(proofScope ? { proofScope } : {}), outputDir: '/private/cpu-output', appDir: process.cwd(), runner: { ...admission.runner, repository: process.cwd() },
       dependencies: { ...admission.dependencies, root: resolve('node_modules') } }
+    actualPins.outputDir = base.outputDir
+    base.transportPins = { ...base.transportPins, outputDir: base.outputDir }
     const reviewed = { ...seal, requiredImages: CONTEXTUAL_TEST_REQUIRED_IMAGES.map(ref => ({ ref, id: imageId })) }
     const accepted = contextualTestExecutionDigest(base, actualPins, reviewed), input = { ...base, review: { ...base.review, manifestSha256: accepted } }
     const transport = launchModule.createContextualTestPinnedCommand, spawnDouble = native.spawn.getMockImplementation()!
@@ -696,7 +700,10 @@ describe('fresh execution seal (CPU only, no admission)', () => {
     native.spawn.mockImplementation((file: string, args: string[]) => {
       if (file === pins.sandbox.path && args.includes('-e')) {
         const probe = new Child(nextPid++)
-        probe.stdin.end.mockImplementation(() => queueMicrotask(() => probe.emit('close', 0, null)))
+        probe.stdin.end.mockImplementation(() => queueMicrotask(() => {
+          if (args.some(arg => arg.includes('vertical-network-denied-v1'))) probe.stdout.emit('data', Buffer.from('vertical-network-denied-v1'))
+          probe.emit('close', 0, null)
+        }))
         return probe
       }
       const helper = spawnDouble(file, args) as Child
@@ -708,6 +715,42 @@ describe('fresh execution seal (CPU only, no admission)', () => {
     try {
       const controls = createContextualTestExecutionControls(input, actualPins, { ...reviewed, manifestSha256: accepted })
       await controls.assertReady(input)
+      if (proofScope) {
+        expect(native.listen.mock.calls.map(([options]) => options.port)).toEqual([3117, 3118, 54331, 54332, 54340])
+        const commands = contextualTestVerticalCommands(input.runner.repository, input.dependencies.root)
+        for (const role of ['app', 'browser'] as const) {
+          const profile = contextualTestVerticalProfile(role, input.dependencies.roots, input.workdir, input.outputDir)
+          expect(native.spawn.mock.calls.some(([file, args]) => file === pins.sandbox.path && JSON.stringify(args) === JSON.stringify([
+            '-p', profile, node, '-e', contextualTestVerticalNetworkProbe(role, '/cpu/docker.sock'),
+          ]))).toBe(true)
+          const valid = { binding: { projectId: input.projectId, outputDir: input.outputDir, proofScope }, cwd: process.cwd(),
+            listenerPort: 3118, args: role === 'app' ? commands.app : commands.runner, dependencySandboxProfile: profile,
+            env: { TMPDIR: join(input.workdir, 'tmp'), MAC_CHROMIUM_TMPDIR: join(input.workdir, 'tmp') } }
+          const execute = role === 'app' ? controls.launchApp : controls.launchPlaywright
+          const invalid = [ { ...valid, dependencySandboxProfile: '(allow default)' }, { ...valid, args: ['/cpu/spec.js'] },
+            { ...valid, env: { ...valid.env, NODE_OPTIONS: '--require=/foreign.js' } },
+            ...[undefined, 'unknown', proofScope === 'vertical-v1' ? 'survey-workflow-v1' : 'vertical-v1'].map(scope => ({ ...valid, binding: { ...valid.binding, proofScope: scope } })),
+            ...(role === 'app' ? [{ ...valid, listenerPort: 3117 }] : [
+              { ...valid, binding: { ...valid.binding, sqlControl: {} } },
+              { ...valid, env: { ...valid.env, TMPDIR: '/foreign' } },
+              { ...valid, env: { ...valid.env, MAC_CHROMIUM_TMPDIR: '/foreign' } },
+            ]),
+          ]
+          for (const poisoned of invalid) {
+            const before = native.spawn.mock.calls.length
+            await expect(execute(poisoned as never)).rejects.toThrow()
+            expect(native.spawn).toHaveBeenCalledTimes(before)
+          }
+          // The valid launch traverses the real assertions to the existing
+          // subprocess seam. The seam deliberately refuses birth: no process.
+          native.spawn.mockImplementationOnce(() => { throw Error('CPU valid launch edge') })
+          await expect(execute(valid as never)).rejects.toThrow()
+          expect(native.spawn.mock.lastCall?.[1]).toEqual(['-p', profile, node, ...valid.args])
+        }
+        await controls.settleAll(Date.now() + 5000)
+        return
+      }
+      expect(native.listen.mock.calls.map(([options]) => options.port)).toEqual([3117, 54331, 54332, 54340])
       const launchInput = { binding: { projectId: input.projectId, outputDir: input.outputDir }, cwd: process.cwd(), env: {},
         args: ['/cpu/spec.js'], dependencySandboxProfile: '(version 1)' } as never
       await controls.launchApp(launchInput)

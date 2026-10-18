@@ -6,11 +6,41 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { Script } from 'node:vm'
 import * as launch from '../../scripts/contextual-test-rehearsal-launch'
+import * as plan from '../../e2e/helpers/contextual-test-rehearsal'
 
 const require = createRequire(import.meta.url), pw = createRequire(require.resolve('@playwright/test/package.json'))
 const { babelTransform } = require(join(dirname(pw.resolve('playwright/package.json')), 'lib/transform/babelBundle.js'))
 const file = resolve(import.meta.dirname, '../../e2e/helpers/contextual-test-admission.ts')
 const compiled = babelTransform(readFileSync(file, 'utf8'), file, false, [], []).code
+
+describe('actual narrow Playwright config admission (CPU only)', () => {
+  const configFile = resolve(import.meta.dirname, '../../playwright.contextual-test-vertical.config.ts')
+  const configCode = babelTransform(readFileSync(configFile, 'utf8'), configFile, false, [], []).code
+  function config(proofScope: unknown) {
+    const exports: Record<string, unknown> = {}, events: string[] = []
+    const run = () => new Script(configCode).runInNewContext({ exports, require: (specifier: string) => {
+      if (specifier === 'node:assert/strict') return assert
+      if (specifier === 'node:path') return { join }
+      if (specifier === 'node:dns') return { setDefaultResultOrder: (order: string) => events.push(order) }
+      if (specifier === '@playwright/test') return { defineConfig: (value: unknown) => { events.push('config'); return value } }
+      if (specifier.endsWith('contextual-test-rehearsal')) return plan
+      if (specifier.endsWith('contextual-test-admission')) return { contextualTestConfigBinding: () => ({ proofScope, outputDir: '/private/synthetic-output' }), CONTEXTUAL_TEST_CHROME: '/synthetic/chrome' }
+      throw Error('Unexpected CPU config import')
+    } })
+    return { run, exports, events }
+  }
+  it.each(['vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1', 'survey-workflow-v1'])('admits %s through the actual config with fixed launch limits', scope => {
+    const f = config(scope); f.run()
+    expect(f.events).toEqual(['ipv4first', 'config'])
+    expect(f.exports.default).toMatchObject({ testMatch: 'contextual-test-vertical.spec.ts', workers: 1, retries: 0, maxFailures: 1,
+      timeout: 2700000, globalTimeout: 2700000, outputDir: '/private/synthetic-output/runner-output',
+      use: { baseURL: 'http://localhost:3117', headless: false, serviceWorkers: 'block', actionTimeout: 30000, navigationTimeout: 30000,
+        launchOptions: { executablePath: '/synthetic/chrome' }, screenshot: 'off', trace: 'off', video: 'off' } })
+  })
+  it.each([undefined, null, '', 'full', 'survey-workflow-v2', {}, ['survey-workflow-v1']])('rejects non-narrow scope %j before config effects', scope => {
+    const f = config(scope); expect(f.run).toThrow(); expect(f.events).toEqual([])
+  })
+})
 
 function admissionFixture() {
   const events: string[] = [], files = new Set<string>(), outputDir = '/private/synthetic-output'

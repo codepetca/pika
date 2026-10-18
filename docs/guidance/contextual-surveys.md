@@ -544,3 +544,13 @@ two fixture-scoped no-query Gradebook GETs. Historical teacher-members still see
 that route's legacy403; this is not contextual Gradebook acceptance. The actual
 Classwork selection/navigation issue remains part of the later product-entry
 group. No product fix, broader gateway capability or cap increase is implied.
+
+Targeted review additionally found duplicated narrow-scope recognition in the
+Playwright config/native preflight and unsupported assumptions about cross-user
+live refresh. The correction shares one closed four-scope predicate in the
+existing plan helper, preserves the separate full-profile allowance and every
+native denial/launch guard, and refreshes selected documents after the external
+dynamic setting and before each actor's first capture/theme change. Only later
+viewport-only captures reuse that known-fresh mounted view. These are carrier
+corrections, not product realtime behavior or permission changes; actual runtime
+and visual acceptance remain required under unchanged limits and holds.

@@ -8,7 +8,7 @@ import { createRequire } from 'node:module'
 import { constants, closeSync, fsyncSync, fstatSync, lstatSync, openSync, readFileSync, readSync, realpathSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, normalize } from 'node:path'
 import { isProxy } from 'node:util/types'
-import { createContextualTestPlan, type RehearsalWitness, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, isContextualTestNarrowScope, type RehearsalWitness, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
 import { contextualTestFontShots } from '../e2e/helpers/contextual-test-font-matrix'
 import { readFullStartupReport, validateFullStartupReport, type FullStartupReport } from '../e2e/helpers/contextual-test-startup'
 import { hashPassword } from '../src/lib/crypto'
@@ -246,7 +246,7 @@ const defaults: ContextualTestControllerEdges = {
 }
 
 function validateAdmission(a: ContextualTestControllerAdmission, now: number) {
-  assert(a.proofScope === undefined || a.proofScope === 'vertical-v1' || a.proofScope === 'vertical-grade-return-v1' || a.proofScope === 'lifecycle-permissions-v1' || a.proofScope === 'survey-workflow-v1')
+  assert(a.proofScope === undefined || isContextualTestNarrowScope(a.proofScope))
   assert(a.version === 1 && /^[a-f0-9]{32}$/.test(a.nonce) && a.nonce.endsWith(a.projectId.slice(-12)))
   const plan = createContextualTestPlan(a.projectId, a.proofScope)
   assert.equal(a.workdir, assignmentListProofWorkdir(a.projectId)); assert.equal(a.appDir, join(a.workdir, 'app'))
@@ -348,7 +348,7 @@ export async function runContextualTestRehearsalController(admission: Contextual
   // Keep the admitted target and original clocks stable across async callbacks.
   // Nested source/fixture inventories retain their existing reviewed identities.
   admission = immutableContextualTestData(admission)
-  const vertical = admission.proofScope === 'vertical-v1' || admission.proofScope === 'vertical-grade-return-v1' || admission.proofScope === 'lifecycle-permissions-v1' || admission.proofScope === 'survey-workflow-v1'
+  const vertical = isContextualTestNarrowScope(admission.proofScope)
   const gradeReturn = admission.proofScope === 'vertical-grade-return-v1'
   const lifecycle = admission.proofScope === 'lifecycle-permissions-v1'
   const survey = admission.proofScope === 'survey-workflow-v1'

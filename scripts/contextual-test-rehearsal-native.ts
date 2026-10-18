@@ -14,6 +14,7 @@ import { contextualTestIdentityMismatch, parseKernelProcessRows, type Contextual
 import { createContextualTestRouteReadiness } from './contextual-test-route-readiness'
 import type { ContextualTestControllerAdmission, ContextualTestControllerControls } from './contextual-test-rehearsal-controller'
 import { contextualTestFontOverlaySha256 } from '../e2e/helpers/contextual-test-font-overlay'
+import { isContextualTestNarrowScope } from '../e2e/helpers/contextual-test-rehearsal'
 import { contextualTestVerticalProfile, contextualTestVerticalNetworkProbe, contextualTestVerticalCommands } from './contextual-test-vertical-environment'
 
 export type ContextualTestNativePins = Readonly<{
@@ -367,7 +368,7 @@ export function contextualTestExecutionDigest(admission: ContextualTestControlle
 export function createContextualTestExecutionControls(admission: ContextualTestControllerAdmission,
   pins: ContextualTestNativePins, seal: ContextualTestExecutionSeal): ContextualTestControllerControls {
   admission = immutableContextualTestData(admission); pins = immutableContextualTestData(pins); seal = immutableContextualTestData(seal)
-  const vertical = admission.proofScope === 'vertical-v1' || admission.proofScope === 'vertical-grade-return-v1' || admission.proofScope === 'lifecycle-permissions-v1'
+  const vertical = isContextualTestNarrowScope(admission.proofScope)
   const native = createContextualTestNativeControls(pins, admission.cleanupDeadline)
   const command = createContextualTestPinnedCommand(admission.transportPins, admission, { settle: native.settleCommand })
   let admitted = false, executionEnd = admission.cleanupDeadline

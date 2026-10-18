@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Placeholder verified in partial matrix; reset retained gallery state
-
-Human approved ONEfreshboundedrehearsal. Startup/pins PASS, storage335.46GBhealthy,
-weekly61%remaining. Review108 CLEAN0 freshwx wrapper identifiers only, no source
-change; prior107coverage reused. tPOFbM57957 SPENT/FAILED188902ms: two real logins
-identityPASS,20fontPNGs1002741bytes hash-verified (16teacher/fourstudentdesktoplight).
-AllfivecapturedemptychecksPASS;rootviewedfiveempty/threestudentnonempty, Sol6.1/high
-workerreviewed12teachernonempty. Readable, themesconsistent; mobilefocusedpreview
-inner scroller omits document heading/startofSection1, so no such coverage claimed.
-AllcleanupPASS,ownedSettledtrue,activeProbes/unsettled0;independent46013 beforewrites
-proves7649sources/49485dependencies unchanged,currentprocesscandidates0. Exactfixture
-containers/volumes/network/tempapp absent,fourportsclear;freeze released,evidencekept.
-
-Nextworkflowtimeout after studentlightempty; network/body/requestfailuresNULL,
-pending/page/consoleerrors0. Source: studenthash-onlynavigation retainsclosedpreview
-andmountedtheme, but nextcasewaitsExitpreview. Exacttimeoutline unretained; stateful
-matrixregression reproducesclosedpreview failure RED, then GREEN with one existing
-runtime-ownedreloadpercase. No newbrowseredge, retry, contentinjection, relaxedcheck
-orlimit. 100targetedPASS,tsc/lint/auditPASS; finalgate/targetedreview109 next.
-Counters108reviews/65fixcommitscarry underwaiver. No furthernativeattempt; remaining
-12font+16workflowscreenshots absent. ProductSCSS staysuncommitted; allproduction,
-sharedlocal249+, providerSurvey/planning, oldsocket81 androllout holds unchanged.
-
 ## 2026-10-16 — Fresh matrix-reset rehearsal stopped safely at network boundary
 
 Human approved ONE fresh bounded run of reviewed39e36ae8. Review110 CLEAN0 for
@@ -599,3 +576,7 @@ Correction139 reuses the narrow Playwright carrier with a fixed Survey profile o
 ## 2026-10-18 — Batch Survey screen compatibility corrections before execution
 
 Initial139 source0cc85e01 received clean security review215; compatibility review216 found three concrete setup blockers before native execution: Classwork link retains surveyId, mobile navigation is hidden, and member summary's Gradebook companion GET was absent. Fullfocused had4531PASS/8skip with only startupdocs17259>17000; root compacts CURRENT to16985 without raising its limit and79startup checks pass. Correction140 uses controlled exact-summary navigation only when needed/forced, reuses the already-selected Survey for viewport/settings, and admits only no-query GET on the two known student Gradebook paths under all original guards. Test-first navigation RED6→GREEN43, gateway RED2→GREEN153; strict sourceTS passes. Historical teacher-member Gradebook403 stays an explicit separate batch2 limitation, not Survey/Gradebook acceptance. All52exchanges/7logins/4Surveys/8questions/16scenes, caps and production/shared-local/provider/account/billing/rollout holds stay. No product edit or native attempt; root finalgate and one targeted review217 precede any admission.
+
+## 2026-10-18 — Close Survey runner recognition and mounted freshness gaps
+
+Review217 resolved prior navigation/companion fixes but caught missing Survey config/native recognition and stale mounted member settings/owner text. Correction141 consolidates the four narrow modes in the existing plan helper, preserves separate full mode and all native denial/profile/command/env controls, and refreshes after cross-context settings and before first/theme captures while retaining viewport-only reuse. Actual config/native CPU seams reproduce the omitted branches before correction; freshness regressions reproduce cached values, then46workflow tests pass. No product/schema/dependency/framework/cap change or native attempt. Prior full4550PASS/8skip plus one unchanged offline5s timeout stays failed; exact isolated case passes3.89s under the same limit. Root finalgate and targeted review218 follow stable source. The three unused private launch/preservation wrappers match their accepted derivation; runtime remains unadmitted and all production/shared-local/provider/account/billing/cohort/home/cutover holds remain.

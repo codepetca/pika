@@ -42,6 +42,18 @@ export async function selectContextualSurvey(r: Pick<SurveyRuntime, 'plan' | 'na
   await openContextualSurveyClasswork(r, page, classroomUrl, freshDocument)
   await page.getByRole('button', { name: owner ? identity.title : new RegExp(identity.title), exact: owner }).first().click()
 }
+/** Another owner enabled updates; the member's mounted detail has no external
+ * refresh. Its own earlier submit refreshed the previous dynamic=false state. */
+export async function selectContextualSurveyForResponse(r: Pick<SurveyRuntime, 'plan' | 'navigate'>, page: Page,
+  identity: SurveyIdentity, updated: boolean): Promise<void> {
+  await selectContextualSurvey(r, page, identity, false, updated)
+}
+/** API readback does not refresh mounted owner results when counts are equal.
+ * Establish freshness on each actor's first capture and on theme reloads. */
+export async function selectContextualSurveyForCapture(r: Pick<SurveyRuntime, 'plan' | 'navigate'>, page: Page,
+  identity: SurveyIdentity, owner: boolean, firstCapture: boolean, themeChanged: boolean): Promise<void> {
+  await selectContextualSurvey(r, page, identity, owner, firstCapture || themeChanged)
+}
 function waitFor(page: Page, method: string, path: string): Promise<Response> {
   const pending = page.waitForResponse(response => response.request().method() === method && new URL(response.url()).pathname === path)
   void pending.catch(() => {}); return pending
@@ -117,7 +129,7 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
   }
   const respond = async (page: Page, actor: ActorLabel, identity: SurveyIdentity, label: string, scratch = false, updated = false) => {
     stage = updated ? 'dynamic-update' : 'member-respond'
-    await selected(page, identity, false)
+    await selectContextualSurveyForResponse(r, page, identity, updated)
     const respondAction = page.getByRole('button', { name: updated ? 'Edit response' : 'Respond', exact: true })
     await expect(respondAction).toBeVisible(); await respondAction.click()
     if (scratch) await page.getByRole('textbox', { name: `${surveyPrompt.link} response`, exact: true }).fill('https://example.invalid/learning')
@@ -222,6 +234,7 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
               if (label === 'close') await record('closed-response', 'memberStudent', 'denied-probe', 'POST', `/api/student/surveys/${mainA.surveyId}/respond`, student, 400, answers(mainA, 'memberStudent', true))
             }
             stage = 'captures'
+            const capturedActors = new Set<string>()
             for (const scene of surveyScreens) {
               const page = { ownerTeacher: ownerA, ownerStudent: ownerB, memberStudent: student, memberTeacher: teacher }[scene.actor]
               const identity = scene.actor === 'ownerTeacher' || scene.actor === 'memberStudent' ? mainA : mainB
@@ -229,7 +242,7 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
               await page.emulateMedia({ colorScheme: scene.theme })
               const themeChanged = await page.evaluate(theme => document.documentElement.classList.contains('dark') !== (theme === 'dark'), scene.theme)
               await page.evaluate(theme => localStorage.setItem('theme', theme), scene.theme)
-              await selected(page, identity, scene.actor.startsWith('owner'), themeChanged)
+              await selectContextualSurveyForCapture(r, page, identity, scene.actor.startsWith('owner'), !capturedActors.has(scene.actor), themeChanged)
               await expect(page.getByText(surveyText(scene.actor === 'ownerTeacher' ? 'memberStudent' : scene.actor === 'ownerStudent' ? 'memberTeacher' : scene.actor,
                 scene.actor === 'ownerTeacher' || scene.actor === 'memberStudent'), { exact: true })).toBeVisible()
               const editor = scene.actor.startsWith('owner') ? await openContextualSurveyEditor(page) : null
@@ -239,6 +252,7 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
               }
               assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1))
               await r.snapshot(scene.label, page)
+              capturedActors.add(scene.actor)
               if (editor) await editor.getByRole('button', { name: 'Close survey editor', exact: true }).click()
             }
             stage = 'archive'; const archiveBefore = await ownerResults(ownerB, mainB)

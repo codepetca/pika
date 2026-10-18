@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { closeSync, constants, fsyncSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, normalize } from 'node:path'
-import { createContextualTestPlan, bootstrapContextualTestFixtureSql, contextualTestWitnessSql, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, isContextualTestNarrowScope, bootstrapContextualTestFixtureSql, contextualTestWitnessSql, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
 import { contextualTestGradeReturnWitnessSql } from './contextual-test-grade-return-proof'
 import { contextualTestLifecycleWitnessSql } from './contextual-test-lifecycle-proof'
 import { contextualSurveyWitnessSql } from './contextual-survey-workflow-proof'
@@ -42,7 +42,7 @@ export function validateContextualTestRunBinding(value: unknown, now = Date.now(
   const hasScope = !!value && typeof value === 'object' && Object.hasOwn(value, 'proofScope')
   exactData(value, ['version','projectId','appOrigin','apiOrigin','sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','planSha256',
     'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : []), ...(hasScope ? ['proofScope'] : [])])
-  if (hasScope) { assert(value.proofScope === 'vertical-v1' || value.proofScope === 'vertical-grade-return-v1' || value.proofScope === 'lifecycle-permissions-v1' || value.proofScope === 'survey-workflow-v1'); assert(!hasSqlControl, 'Narrow browser receives no SQL controls') }
+  if (hasScope) { assert(isContextualTestNarrowScope(value.proofScope)); assert(!hasSqlControl, 'Narrow browser receives no SQL controls') }
   assert.equal(value.version, 1); assert(typeof value.projectId === 'string')
   const plan = createContextualTestPlan(value.projectId, value.proofScope as ContextualTestProofScope | undefined)
   for (const key of ['sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','appOrigin','apiOrigin'] as const) assert.equal(value[key], plan[key])

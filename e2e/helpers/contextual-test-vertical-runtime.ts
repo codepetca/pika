@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Browser, BrowserContext, Page, Response } from '@playwright/test'
 import { contextualTestStartupBinding } from './contextual-test-startup'
-import { createContextualTestPlan } from './contextual-test-rehearsal'
+import { createContextualTestPlan, isContextualTestNarrowScope } from './contextual-test-rehearsal'
 import { verticalWorkflowFailureStage, type VerticalTestRuntime, type runContextualTestVerticalWorkflow } from './contextual-test-vertical-workflow'
 import { gradeReturnActors, gradeReturnLabels } from './contextual-test-grade-return-contract'
 import type { runContextualTestGradeReturnWorkflow } from './contextual-test-grade-return-workflow'
@@ -31,7 +31,7 @@ export function verticalScreenshotOptions(lifecycle: boolean, timeout: number) {
 
 export async function createContextualTestVerticalRuntime(browser: Browser) {
   const binding = contextualTestStartupBinding()
-  assert(binding.proofScope === 'vertical-v1' || binding.proofScope === 'vertical-grade-return-v1' || binding.proofScope === 'lifecycle-permissions-v1' || binding.proofScope === 'survey-workflow-v1'); assert(!binding.sqlControl)
+  assert(isContextualTestNarrowScope(binding.proofScope)); assert(!binding.sqlControl)
   const successor = binding.proofScope === 'vertical-grade-return-v1'
   const lifecycle = binding.proofScope === 'lifecycle-permissions-v1'
   const survey = binding.proofScope === 'survey-workflow-v1'

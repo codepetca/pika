@@ -4,7 +4,7 @@
  */
 import { createServer, request, type IncomingMessage, type RequestListener, type RequestOptions, type Server } from 'node:http'
 import type { Socket } from 'node:net'
-import { createContextualTestPlan, type RehearsalPlan, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
+import { createContextualTestPlan, isContextualTestNarrowScope, type RehearsalPlan, type ContextualTestProofScope } from '../e2e/helpers/contextual-test-rehearsal'
 
 type Kind = 'app' | 'api'
 const failureCategories = ['deadline', 'target', 'endpoint', 'request-cap', 'create-cap', 'protocol',
@@ -96,7 +96,7 @@ export class ContextualTestGatewayPolicy {
   private readonly surveyQuestionCreates = new Map<string, number>()
   private readonly surveySessions = new Map<string, string>()
   constructor(private readonly plan: RehearsalPlan, readonly deadline: number, private readonly now = Date.now, private readonly proofScope?: ContextualTestProofScope) {
-    if (![undefined, 'vertical-v1', 'vertical-grade-return-v1','lifecycle-permissions-v1','survey-workflow-v1'].includes(proofScope)) this.reject('protocol')
+    if (proofScope !== undefined && !isContextualTestNarrowScope(proofScope)) this.reject('protocol')
     if (proofScope === 'survey-workflow-v1' || plan.proofScope === 'survey-workflow-v1') {
       if (proofScope !== 'survey-workflow-v1' || JSON.stringify(plan) !== JSON.stringify(createContextualTestPlan(plan.projectId, 'survey-workflow-v1'))) this.reject('protocol')
     }

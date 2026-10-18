@@ -10,10 +10,14 @@ import type { createContextualTestAuthoringProgress } from './contextual-test-au
 const uuid = (suffix: string) => `50000000-0000-4000-8000-0000000000${suffix}`
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
 
-export type ContextualTestProofScope = 'vertical-v1' | 'vertical-grade-return-v1' | 'lifecycle-permissions-v1' | 'survey-workflow-v1'
+export const contextualTestNarrowScopes = Object.freeze(['vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1', 'survey-workflow-v1'] as const)
+export type ContextualTestProofScope = typeof contextualTestNarrowScopes[number]
+export function isContextualTestNarrowScope(value: unknown): value is ContextualTestProofScope {
+  return typeof value === 'string' && (contextualTestNarrowScopes as readonly string[]).includes(value)
+}
 export function createContextualTestPlan(projectId: string, proofScope?: ContextualTestProofScope) {
   assert.match(projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
-  assert(proofScope === undefined || proofScope === 'vertical-v1' || proofScope === 'vertical-grade-return-v1' || proofScope === 'lifecycle-permissions-v1' || proofScope === 'survey-workflow-v1')
+  assert(proofScope === undefined || isContextualTestNarrowScope(proofScope))
   const successor = proofScope === 'vertical-grade-return-v1'
   const lifecycle = proofScope === 'lifecycle-permissions-v1'
   const survey = proofScope === 'survey-workflow-v1'
