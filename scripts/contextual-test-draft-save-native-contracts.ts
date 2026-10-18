@@ -1007,6 +1007,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let learnerCancellationDone = false
   let surveySdkRan = false, surveySdkDone = false, surveyTypesGenerated = false, surveyUnjoined = false
   let surveyCommittedStarted = false, surveyCommittedDone = false
+  let remainingRollbackActive = false
   let remainingProbeOwned=false,remainingHttpPending=false,remainingProbeStage:'none'|'cancellation'|'wire'|'complete'='none'
   let remainingCancellationDone=false,remainingWireDone=false
   type SurveyGraph = ReturnType<typeof parseSurveyCommittedGraph>
@@ -1360,13 +1361,21 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number, carrier?: SurveyCarrier): Promise<readonly { result?: unknown }[]> {
       checkSurveySdkAdmission(this.cleaning)
+      // Only the original sealed remaining49 suite may exceed generic90s.
+      // Check the requested duration before clamping, so a short outer cutoff
+      // cannot launder an oversized request for a different frame/session.
+      const remainingSuite = remaining && component && remainingRollbackActive && phase === 'transitions'
+        && this.name === `${project}_draft_contracts` && this.owned && !this.cleaning && !firstFault
+        && carrier === undefined && sql === profile.surveyProgressSql
+      const frameLimit = remainingSuite ? 120000 : CAPS.actionMs
+      assert(timeoutMs > 0 && timeoutMs <= frameLimit)
       const releaseDeadline=surveyReleaseDeadline(carrier)
       if(releaseDeadline!==undefined)timeoutMs=Math.min(timeoutMs,releaseDeadline-Date.now())
       if (profile.survey263Budget) {
         timeoutMs = Math.min(timeoutMs, (this.cleaning ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
         assert(timeoutMs > 0)
       }
-      assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= CAPS.actionMs)
+      assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= frameLimit)
       if (profile.reorderDiagnosticSql) { exchanged += Buffer.byteLength(sql); assert(exchanged <= exchangeLimit) }
       this.progressScope = !this.cleaning && !firstFault && profile.label === 'test-owner-reorder' && phase === 'contracts'
         && role(this.name) === 'contracts' && profile.reorderProgressSql
@@ -1699,7 +1708,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         surveyCommittedStarted = true; check()
         // Preserve the original rollback SQL contract without replaying its races.
         const contractTarget = target(profile.contractsSha256)
-        await profile.runContracts(contractTarget, driver(contractTarget))
+        remainingRollbackActive = !!remaining
+        try { await profile.runContracts(contractTarget, driver(contractTarget)) }
+        finally { remainingRollbackActive = false }
         const d = driver(target(input.acceptedManifestSha256))
         holder = await d.openSession(`${project}_draft_holder`) as NativeSession
         contender = await d.openSession(`${project}_draft_contender`) as NativeSession

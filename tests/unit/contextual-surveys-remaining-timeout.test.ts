@@ -16,7 +16,7 @@ vi.mock('node:fs',async original=>{
     const value=fs.readFileSync(path,options)
     if(!faults.source||!String(path).endsWith('/scripts/contextual-surveys-db-contracts.sql'))return value
     const text=value.toString(),header="set local statement_timeout = '35s';"
-    const changed=faults.source==='missing'?text.replace(header,''):faults.source==='duplicate'?text+header:text.replace(header,"set local statement_timeout = '90s';")
+    const changed=faults.source==='missing'?text.replace(header,''):faults.source==='duplicate'?text+header:text.replace(header,`set local statement_timeout = '${faults.source==='already120'?120:90}s';`)
     return Buffer.isBuffer(value)?Buffer.from(changed):changed
   }) as typeof fs.readFileSync}
 })
@@ -27,8 +27,8 @@ const header="set local statement_timeout = '35s';"
 function target(plan:ReturnType<typeof survey269ComponentPlan>|ReturnType<typeof survey269RemainingPlan>|ReturnType<typeof surveyNativePlan>):DraftSaveTarget{
   return {projectId:plan.projectId,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,containerId:'b'.repeat(64),containerProjectLabel:plan.projectId,disposable:true,reviewedHead:plan.reviewedHead,migrationManifestSha256:plan.migrationManifestSha256,reviewedSourceSha256:plan.sourceSha256,acceptedManifestSha256:sha(JSON.stringify(plan.contracts))}
 }
-describe('approved remaining-only49-case90-second frame',()=>{
-  it.each(['missing','duplicate','already90'])('rejects changed raw%s source before deriving a remaining contract',defect=>{
+describe('approved remaining-only49-case120-second frame',()=>{
+  it.each(['missing','duplicate','already90','already120'])('rejects changed raw%s source before deriving a remaining contract',defect=>{
     faults.source=defect
     try{expect(()=>survey269RemainingPlan(original,binding)).toThrow()}
     finally{faults.source=''}
@@ -37,9 +37,9 @@ describe('approved remaining-only49-case90-second frame',()=>{
     const component=survey269ComponentPlan(original,binding),remaining=survey269RemainingPlan(original,binding),native=surveyNativePlan(original,head,process.cwd())
     expect(raw.split(header)).toHaveLength(2)
     expect(component.contracts.sql).toBe(raw);expect(native.contracts.sql).toBe(raw)
-    expect(remaining.contracts.sql).toBe(raw.replace(header,"set local statement_timeout = '90s';"))
+    expect(remaining.contracts.sql).toBe(raw.replace(header,"set local statement_timeout = '120s';"))
     expect(remaining.contracts).not.toBe(component.contracts)
-    expect(remaining.inventory.originalClock).toEqual({workMs:720000,cleanupMs:180000,sdkPhaseMs:60000,sqlContractMs:90000,rpcMs:8000})
+    expect(remaining.inventory.originalClock).toEqual({workMs:720000,cleanupMs:180000,sdkPhaseMs:60000,sqlContractMs:120000,rpcMs:8000})
     expect(remaining.inventory.exchangeByteCeiling).toBe(128*1024*1024)
     expect(remaining.remainingCaps.totalBytes).toBe(128*1024*1024)
     expect(remaining.cancellation.caps.totalBytes).toBe(64*1024*1024)
@@ -48,6 +48,7 @@ describe('approved remaining-only49-case90-second frame',()=>{
     const full=buildSurvey269RemainingManifest(original,binding)
     expect(full.inventory.exchangeByteCeiling).toBe(128*1024*1024)
     expect(full.capabilities.totalBytes).toBe(64*1024*1024)
+    expect(full.capabilities.actionMs).toBe(90000)
     expect(full.contracts.sql).toBe(remaining.contracts.sql)
     expect(validateSurvey269ComponentSql(full,full.contracts.sql)).toBe(true)
     expect(validateSurvey269ComponentSql(component,remaining.contracts.sql)).toBe(false)
@@ -63,7 +64,7 @@ describe('approved remaining-only49-case90-second frame',()=>{
     const driver:DraftSaveDriver={verifyTarget:vi.fn(async()=>{events.push('verify');return bound}),openSession:vi.fn(async name=>{events.push('open');return{name,execute,rollbackAndClose:close}})}
     if(kind==='native')await runSurveyNativeRollbackContracts(plan as ReturnType<typeof surveyNativePlan>,bound,driver)
     else await runSurvey269ComponentRollback(plan as ReturnType<typeof survey269ComponentPlan>,bound,driver)
-    expect(events).toEqual(['verify','open']);expect(execute).toHaveBeenCalledWith(plan.contracts.sql,kind==='remaining'?90000:35000)
+    expect(events).toEqual(['verify','open']);expect(execute).toHaveBeenCalledWith(plan.contracts.sql,kind==='remaining'?120000:35000)
     expect(close).toHaveBeenCalledWith(12000)
     const changed={...bound,acceptedManifestSha256:'0'.repeat(64)};vi.mocked(driver.openSession).mockClear()
     if(kind!=='native')await expect(runSurvey269ComponentRollback(plan as ReturnType<typeof survey269ComponentPlan>,changed,driver)).rejects.toThrow()

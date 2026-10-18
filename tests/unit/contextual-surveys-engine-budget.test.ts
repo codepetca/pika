@@ -92,6 +92,7 @@ const engine = () => createContextualSurveysNativeContracts({ original, reposito
   capturedResources: resources, acceptedManifestSha256: sha(manifest), absoluteDeadline: budget().workDeadline, survey263Endpoint: binding(), statusTarget: status })
 async function flush() { for (let n = 0; n < 100; n++) await Promise.resolve() }
 beforeEach(() => {
+  vi.mocked(surveyContracts.runSurveyNativeRollbackContracts).mockClear()
   seam.progressMode='';seam.progressLate=undefined
   vi.mocked(surveyContracts.runSurveyNativeRollbackRaces).mockImplementation(offlineRaceOracle)
   vi.mocked(sdkContracts.runContextualSurveysSdkContracts).mockImplementation(offlineSdkOracle)
@@ -215,6 +216,30 @@ describe('actual Survey engine budget composition (offline)', () => {
     return {adapters,fixture:plan.fixture,engine:createSurvey269ComponentNativeContracts({original,binding:sourceBinding,containerId:resources[0].id,capturedResources:resources,
       acceptedManifestSha256:sha(componentManifest),absoluteDeadline:budget().workDeadline,statusTarget:status,survey263Endpoint:platform.requireSurvey263AdapterEndpoint(adapters)})}
   }
+  it.each(['legacy','component'] as const)('rejects an above-generic-ceiling SQL request in the actual %s contracts session',async kind=>{
+    const priorSpawns=seam.spawn.mock.calls.length
+    const adapter=kind==='component'?componentEngine().engine:engine()
+    let denied=false
+    if(kind==='component')vi.mocked(surveyContracts.runSurvey269ComponentRollback).mockImplementationOnce(async(plan,target,driver)=>{
+      expect(await driver.verifyTarget()).toEqual(target)
+      const session=await driver.openSession(`${plan.projectId}_draft_contracts`)
+      try{await expect(session.execute(plan.contracts.sql,90001)).rejects.toThrow();denied=true}
+      finally{await session.rollbackAndClose(12000)}
+      throw new Error('Expected component oversized-frame refusal')
+    })
+    else vi.mocked(surveyContracts.runSurveyNativeRollbackContracts).mockImplementationOnce(async(plan,target,driver)=>{
+      expect(await driver.verifyTarget()).toEqual(target)
+      const session=await driver.openSession(`${plan.projectId}_draft_contracts`)
+      try{await expect(session.execute(plan.contracts.sql,90001)).rejects.toThrow();denied=true}
+      finally{await session.rollbackAndClose(12000)}
+      throw new Error('Expected legacy oversized-frame refusal')
+    })
+    await adapter.setup()
+    await expect('runContractsOnly' in adapter?adapter.runContractsOnly():adapter.run()).rejects.toThrow()
+    expect(denied).toBe(true)
+    expect(seam.closedSessions).toBe(seam.spawn.mock.calls.slice(priorSpawns).filter(([,args])=>args.includes('psql')).length)
+    if(kind==='component')expect(adapter.diagnostic()).toContain('remainingSessions=0')
+  })
   it('closed269 profile runs contracts once and never races/committed/cancellation, then gates genuine types behind SDK', async()=>{
     const {engine:component}=componentEngine()
     expect(Object.keys(component).sort()).toEqual(['diagnostic','generateTypes269','inventoryComplete','manifest','nativeVerified','runContractsOnly','runSdkCommitted','setup','verifyTarget'])

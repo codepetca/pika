@@ -711,14 +711,16 @@ describe('native persistent-session transport with offline child mocks', () => {
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
   })
-  it.each(['normal','normal-over64','over128','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
+  it.each(['normal','normal-over64','over128','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','contract-wrong-sql','contract-wrong-sql-clamped','contract-wrong-session','contract-over120','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
     vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
     if(mode==='wait-release'||mode==='wait-observer-late'||mode==='wait-pre-expired'||mode==='wait-post-expired'||mode==='wait-outer-cutoff'||mode==='wait-statement-timeout')waitTiming=mode
-    else remainingProbeFrameFault=mode==='normal'||mode==='normal-over64'||mode==='over128'?undefined:mode
+    else remainingProbeFrameFault=mode==='prepare-close'||mode==='observer-close'||mode==='observer-timeout'||mode==='contract-timeout'||mode==='contract-cutoff'?mode:undefined
+    const deniedContract=['contract-wrong-sql','contract-wrong-sql-clamped','contract-wrong-session','contract-over120'].includes(mode)
+    let timeoutDenied=false
     const started=Date.now(),legacy=surveyNative.surveyRemainingNativePlan(original,head,repository),f=legacy.fixture
     const binding={product:{head,tree:head},carrier:{head,tree:head},sharedSources:Object.fromEntries(surveyNative.SURVEY_269_SHARED_FILES.map(file=>[file,'a'.repeat(64)]))} as surveyNative.Survey269ComponentBinding
     const plan={...legacy,kind:'survey269-remaining-only' as const,binding,repository:surveyNative.SURVEY_269_COMPONENT_ROOTS.product,migrations:[],
-      contracts:{...legacy.contracts,sql:legacy.contracts.sql.replace("set local statement_timeout = '35s';","set local statement_timeout = '90s';")},
+      contracts:{...legacy.contracts,sql:legacy.contracts.sql.replace("set local statement_timeout = '35s';","set local statement_timeout = '120s';")},
       migrationManifestSha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.manifestSha256,sourceSha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.sourceSha256,
       sources:{...legacy.sources,migration:{file:'supabase/migrations/269_contextual_surveys_workflow.sql',sha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.sourceSha256}},
       concurrency:{...legacy.concurrency,schedules:[]},caps:{...legacy.caps,controls:6000,sdkMs:60000},
@@ -731,8 +733,14 @@ describe('native persistent-session transport with offline child mocks', () => {
       // The actual private driver/SQL/frame/close mechanism runs; only the
       // source-seal phase oracle is synthetic, not dispatch or settlement.
       vi.spyOn(surveyNative,'runSurvey269ComponentRollback').mockImplementation(async(p,t,d)=>{
-        expect(await d.verifyTarget()).toEqual(t);const session=await d.openSession(`${p.projectId}_draft_contracts`)
-        try{await session.execute(p.contracts.sql,p.kind==='survey269-remaining-only'?90000:35000)}finally{await session.rollbackAndClose(12000)}
+        expect(await d.verifyTarget()).toEqual(t);const session=await d.openSession(`${p.projectId}_${mode==='contract-wrong-session'?'fixture':'draft_contracts'}`)
+        try{
+          if(deniedContract){
+            await expect(session.execute(mode==='contract-wrong-sql'||mode==='contract-wrong-sql-clamped'?'rollback;':p.contracts.sql,mode==='contract-over120'?120001:120000)).rejects.toThrow()
+            timeoutDenied=true;throw new Error('Expected oversized frame refusal')
+          }
+          await session.execute(p.contracts.sql,p.kind==='survey269-remaining-only'?120000:35000)
+        }finally{await session.rollbackAndClose(12000)}
         return{kind:'survey269-rollback-component-only',nativeVerified:false}
       }),
       vi.spyOn(surveyPlatform,'survey269RemainingDockerInventory').mockImplementation(async run=>{
@@ -794,9 +802,15 @@ describe('native persistent-session transport with offline child mocks', () => {
         return
       }
       await adapter.setup()
-      if(mode==='contract-cutoff')vi.setSystemTime(started+680000)
+      if(mode==='contract-cutoff'||mode==='contract-wrong-sql-clamped')vi.setSystemTime(started+680000)
       if(mode==='wait-outer-cutoff')vi.setSystemTime(started+719100)
       const run=adapter.runRemainingCommitted();void run.catch(()=>{})
+      if(deniedContract){
+        await expect(run).rejects.toThrow();expect(timeoutDenied).toBe(true)
+        expect(surveyWrites.some(w=>w.sql===plan.contracts.sql)).toBe(false)
+        expect(surveyEvents).not.toContain('cancel-prepare');expect(actualFetches).toBe(0)
+        expect(adapter.diagnostic()).toContain('remainingSessions=0');return
+      }
       if(waitTiming){
         const result=run.catch(e=>e)
         for(let n=0;n<30000&&!waitStarted;n++)await Promise.resolve()
@@ -828,7 +842,7 @@ describe('native persistent-session transport with offline child mocks', () => {
         expect(surveyEvents).toContain('contract-hanging')
         const spawned=children.length
         await vi.advanceTimersByTimeAsync(35000);expect(settled).toBe(false);expect(children).toHaveLength(spawned)
-        await vi.advanceTimersByTimeAsync(mode==='contract-timeout'?54999:4999);expect(settled).toBe(false)
+        await vi.advanceTimersByTimeAsync(mode==='contract-timeout'?84999:4999);expect(settled).toBe(false)
         await vi.advanceTimersByTimeAsync(1);expect(await result).toBeInstanceOf(Error)
         expect(adapter.diagnostic()).toContain('failure=timeout role=contracts')
         expect(adapter.diagnostic()).toContain('sequence=171')

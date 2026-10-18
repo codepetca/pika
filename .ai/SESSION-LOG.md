@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Fresh guard rehearsal failed; partial font visuals retained
-
-Reviewed runner bab32e815/tree700cf2d2 pushed to existing draft1581; original frozen
-app21e755 plus exact font overlay only. Final focused gate3455PASS/8skip and all
-static/type/lint PASS. Review97 found missing closed-inventory import; batch57
-corrected it and startup-summary size. Review98 CLEAN; prior95/96 coverage reused.
-ONE S2ahHo attempt19285 CLOSED1 after149s: teacher and student login identity
-complete; then non-login response-body inspector-resource-unavailable and another
-captured Chrome descendant executable mismatch (same birth/PGID). No origin
-rejection; no new Tests/uploads. Fail-closed cleanup retained uncertainty.
-Root inspected16 teacher-reference PNGs: desktop readable; mobile sticky header
-occludes some headings. Student and original16 workflow screenshots not reached;
-visual gate incomplete. No product font commit or retry. Evidence preserved.
-Independent pre/post recovery checks confirm7643 source files and49485 dependency
-entries unchanged and current process candidates0. Review99 CLEAN exact-recovery
-binding; removed only this fixture's5 containers/2 synthetic volumes/1 network,
-retained temporary app. Historical failed acceptance remains failed. Cumulative
-99review turns/57fix batches; original clocks/waiver retained. All production,
-shared-local, provider and rollout holds unchanged; source diagnosis remains.
-
 ## 2026-10-15 — Underlying harness assumptions diagnosed without another run
 
 Human requested root-cause analysis instead of repeated rehearsals. Two bounded
@@ -761,3 +741,7 @@ Correction133 materializes full captured JSONB before baseline DROP in cancellat
 ## 2026-10-18 — Approve remaining-only Survey cumulative verification allowance
 
 Owner explicitly approved128MiB for remaining269, independent review, the isolated PostgreSQL TOAST regression and one fresh bounded full rehearsal. Correction134 binds128MiB through the closed remaining ledger, complete manifest and native command/session checks; legacy263/component269/shared cancellation descriptors remain64MiB. Exact-limit/overflow/work/request/final-acceptance regressions preserve charged cleanup without allowing overflow success.391 focused tests, strict TypeScript and audit pass; actual offline engine completes above64MiB and rejects over128 before sessions/HTTP. All200action/6000control/16request/two-session/8MiB-frame/60s-SDK/12+3-minute limits and remaining49-case90s exception remain. Root owns stable pins, fullgate, independent review and the two authorized native checks. No native acceptance, product/schema changes, production/shared-local work or rollout is claimed; prior attempts stay spent and all serious holds remain.
+
+## 2026-10-18 — Approved exact Survey rollback-suite120-second exception
+
+Correction134 passed4428 full checks/review206; isolated PostgreSQL17.6 regression reproduced old TOAST comparison/hash failures and passed materialized equality/hashes/negative/rollback with exact cleanup. Fresh v6 then timed out in the separate49-case90s SQL suite at marker174/89,773ms; immediate source/dependency preservation and exact cleanup passed, alias spent. Owner explicitly approved120s only for that suite and one fresh bounded rehearsal. Correction135 binds the derived header/manifest/client120s while generic90s and raw/component35s remain. The exception requires active original rollback scope, exact sealed SQL/owned contracts session/phase, no committed carrier or cleanup/fault; requested limits are checked before original global clamping.331 focused checks, strict TypeScript and audit pass. Cases/markers/guards/actions/requests remain; header adds one byte. Fullgate and independent review precede admission. All other caps and production/shared-local/provider/account/rollout holds remain; no full acceptance claimed.

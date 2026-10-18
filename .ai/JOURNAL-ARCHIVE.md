@@ -48352,3 +48352,24 @@ independent delta review precede preparation and the one exclusive invocation.
 Historical failures stay failed; PR1581 stays draft and all production/shared-local,
 rollout and provider holds remain. Existing review counters96 and clocks retained;
 preparation is fix batch56. No attempt has yet been spent for this authorization.
+
+<!-- pika-session-log-archive-batch:49044a08154a54c517c04720d9136dfc7cff24b6f311633c30c87824e19e0d49 -->
+## 2026-10-15 — Fresh guard rehearsal failed; partial font visuals retained
+
+Reviewed runner bab32e815/tree700cf2d2 pushed to existing draft1581; original frozen
+app21e755 plus exact font overlay only. Final focused gate3455PASS/8skip and all
+static/type/lint PASS. Review97 found missing closed-inventory import; batch57
+corrected it and startup-summary size. Review98 CLEAN; prior95/96 coverage reused.
+ONE S2ahHo attempt19285 CLOSED1 after149s: teacher and student login identity
+complete; then non-login response-body inspector-resource-unavailable and another
+captured Chrome descendant executable mismatch (same birth/PGID). No origin
+rejection; no new Tests/uploads. Fail-closed cleanup retained uncertainty.
+Root inspected16 teacher-reference PNGs: desktop readable; mobile sticky header
+occludes some headings. Student and original16 workflow screenshots not reached;
+visual gate incomplete. No product font commit or retry. Evidence preserved.
+Independent pre/post recovery checks confirm7643 source files and49485 dependency
+entries unchanged and current process candidates0. Review99 CLEAN exact-recovery
+binding; removed only this fixture's5 containers/2 synthetic volumes/1 network,
+retained temporary app. Historical failed acceptance remains failed. Cumulative
+99review turns/57fix batches; original clocks/waiver retained. All production,
+shared-local, provider and rollout holds unchanged; source diagnosis remains.

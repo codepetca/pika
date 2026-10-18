@@ -281,7 +281,7 @@ export function survey269RemainingPlan(original: AssignmentListProofFixture, bin
   assert(component.contracts.sql.split(header).length===2
     && (component.contracts.sql.match(/statement_timeout/gi)??[]).length===1
     && component.contracts.sql.includes(`\nbegin;\n${header}\nset local lock_timeout = '1s';\n`),'Survey rollback timeout header differs')
-  const contracts=freeze({...component.contracts,sql:component.contracts.sql.replace(header,"set local statement_timeout = '90s';")})
+  const contracts=freeze({...component.contracts,sql:component.contracts.sql.replace(header,"set local statement_timeout = '120s';")})
   const committed=surveyCommittedProofManifest(component.fixture),cancellation=surveyCancellationProofDescriptor(component.fixture),wire=surveyWireProofDescriptor(component.fixture)
   const plan=freeze({...component,contracts,kind:'survey269-remaining-only' as const,committed,cancellation,wire,
     caps:{...component.caps,controls:6000,sdkMs:60000},
@@ -295,7 +295,7 @@ export function survey269RemainingPlan(original: AssignmentListProofFixture, bin
       allExchangeChannelsCounted:true,exchangeByteCeiling:SURVEY_269_REMAINING_CANDIDATE_CAPS.totalBytes,actualExchangeBytes:null,
       countedChannels:['root-git-stdout-stderr','platform-command-stdin-stdout-stderr','engine-command-stdin-stdout-stderr',
         'engine-framed-session-stdin-stdout-stderr','all16-original-request-and-observed-response-body-bytes'],
-      originalClock:{workMs:720000,cleanupMs:180000,sdkPhaseMs:60000,sqlContractMs:90000,rpcMs:8000}},
+      originalClock:{workMs:720000,cleanupMs:180000,sdkPhaseMs:60000,sqlContractMs:120000,rpcMs:8000}},
     inventoryComplete:true as const,executionEnabled:false as const,
     requiredBeforeAcceptance:['independent-full-remaining-review','private-original-http-and-body-settlement',
       'genuine57014-and-pending-backend','actual-wire-overflow-and-restoration','all30-direction-oracles',
@@ -353,7 +353,7 @@ export function validateSurvey269ComponentSql(plan: Survey269ComponentPlan | Sur
 export async function runSurvey269ComponentRollback(plan: Survey269ComponentPlan | Survey269RemainingPlan, target: DraftSaveTarget, driver: DraftSaveDriver) {
   await validateTarget(plan, target, driver, 'contracts')
   const session = await driver.openSession(`${plan.projectId}_draft_contracts`)
-  try {await session.execute(plan.contracts.sql, plan.kind==='survey269-remaining-only'?90000:SURVEY_NATIVE_CAPS.actionMs)} finally {await session.rollbackAndClose(SURVEY_NATIVE_CAPS.closeMs)}
+  try {await session.execute(plan.contracts.sql, plan.kind==='survey269-remaining-only'?120000:SURVEY_NATIVE_CAPS.actionMs)} finally {await session.rollbackAndClose(SURVEY_NATIVE_CAPS.closeMs)}
   return freeze({ kind: 'survey269-rollback-component-only' as const, nativeVerified: false as const })
 }
 export function validateSurvey269ComponentGeneratedTypes(source: string, sha256: string) {

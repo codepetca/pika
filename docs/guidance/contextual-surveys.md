@@ -192,7 +192,7 @@ controls,4366 normal-completion controls or4387 partial-teardown controls,
 now128MiB for remaining269 only (correction134). The6000-control allowance,
 two persistent sessions,8s RPC behavior and12-minute work
 plus3-minute cleanup clocks remain unchanged. The isolated remaining rollback
-frame has the separately approved90s exception described below; all other
+frame now has the separately approved120s exception in correction135; all other
 35s frame limits remain unchanged. The complete
 source inventory is distinct from native acceptance and execution admission.
 
@@ -329,12 +329,40 @@ Every actual exchange channel stays charged. Ordinary work and final acceptance
 reject over128MiB; existing owned cleanup may still account bytes after overflow,
 but cannot turn that overflow into success. The8MiB frame/response ceiling,
 200actions/6000controls/16requests/two persistent sessions,60s SDK,720000ms work
-plus180000ms cleanup,8s RPC and remaining49-case90s SQL limit are unchanged.
+plus180000ms cleanup and8s RPC are unchanged. The then-current remaining49-case
+90s SQL limit is superseded only by correction135 below.
 This is an explicit cap change, not a claim that all earlier caps were unchanged.
 Approval does not replay spent attempts or prove fit: root owns review, regression,
 stable-source binding and the one fresh admission. No native acceptance is claimed
 by this source correction; all production/shared-local/provider/account/rollout
 holds remain.
+
+## Remaining-only49-case timeout correction135
+
+The sixth remaining attempt is permanently spent: its90s49-case frame timed out
+after valid progress marker174 at89,773ms. Exact cleanup and immediate two-source/
+two-dependency preservation passed; no native process remains. The standalone
+TOAST regression separately passed on PostgreSQL17.6 under its prior approval;
+it is not rerun by this correction.
+
+The user explicitly approved increasing only this49-case SQL suite to120seconds,
+review and one fresh bounded rehearsal. The raw shared SQL remains35s. The exact
+remaining derivative substitutes only its unique timeout header with120s; the
+complete manifest, inventory and rollback driver's client timeout bind120,000ms.
+All49 cases and211 progress markers remain byte-identical apart from that header.
+
+The generic native action ceiling stays90,000ms. Its sole120,000ms exception
+requires the active original remaining rollback call, transitions phase, exact
+contracts session with owned backend, exact sealed suite SQL, no committed-frame
+carrier and no cleanup/first-fault state. The scope closes in finally. Requested
+timeouts are validated before the original global-work cutoff clamps them, so
+a short remaining work window cannot authorize oversized other-frame requests.
+There is one original frame timer, with no renewal, suite splitting or extra
+SQL/session/action/control. Component/legacy SQL35s and other frame limits stay
+unchanged, as do8s RPC,60s SDK,200actions/6000controls/128MiB/16HTTP/two sessions
+and720000ms work+180000ms cleanup. All production/shared-local/provider/account/
+rollout holds remain. CPU checks do not establish120s native fit or full acceptance;
+root owns stable-source review and the one fresh admission, never replay of v6.
 
 The original cancellation and wire probes,30 committed directions, ordinary
 14 SDK calls, genuine269 types, restoration/preservation and screen proof remain
