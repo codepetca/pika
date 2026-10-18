@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
-const fsFaults = vi.hoisted(() => ({ sdkProofDrift: false, componentRoots: false, sharedDrift: false }))
+const fsFaults = vi.hoisted(() => ({ sdkProofDrift: false, progressDrift: false, componentRoots: false, sharedDrift: false }))
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
   const roots=['/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main','/Users/stew/.codex/worktrees/classroom-access-completion-plan/pika']
   return { ...actual, realpathSync: ((path)=>fsFaults.componentRoots && roots.includes(String(path)) ? String(path) : actual.realpathSync(path)) as typeof actual.realpathSync, readFileSync: ((path, options) => {
     const original=String(path), root=fsFaults.componentRoots ? roots.find(root=>original.startsWith(root+'/')) : undefined
     const value = actual.readFileSync(root ? original.replace(root,process.cwd()) : path, options)
+    if (fsFaults.progressDrift && String(path).endsWith('/scripts/contextual-surveys-progress.ts'))
+      return Buffer.isBuffer(value) ? Buffer.concat([value, Buffer.from('\n// changed progress')]) : value + '\n// changed progress'
     if(fsFaults.sharedDrift && original===roots[0]+'/src/lib/validations/contextual-surveys.ts') return Buffer.isBuffer(value) ? Buffer.concat([value,Buffer.from('\n// changed')]) : value+'\n// changed'
     if (fsFaults.sdkProofDrift && String(path).endsWith('/scripts/contextual-surveys-sdk-proof.ts'))
       return Buffer.isBuffer(value) ? Buffer.concat([value, Buffer.from('\n// changed SDK oracle source')]) : value + '\n// changed SDK oracle source'
@@ -46,6 +48,12 @@ const targetFor = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency
 })
 
 describe('source-only sealed Survey263 native reuse', () => {
+  it('seals the progress module import and rejects drift before any plan can be bound', () => {
+    expect(plan().sources.progress.file).toBe('scripts/contextual-surveys-progress.ts')
+    fsFaults.progressDrift=true
+    try { expect(()=>plan()).toThrow('Survey reviewed source differs') }
+    finally { fsFaults.progressDrift=false }
+  })
   it('component269 refuses historical263 migration inventory, unbound workloads and modified source bindings',()=>{
     expect(()=>validateSurvey269ComponentMigrations(loadAssignmentListReviewedMigrations(repository))).toThrow()
     expect(()=>validateSurvey269ComponentWorkload({} as never, original)).toThrow('not source-bound')

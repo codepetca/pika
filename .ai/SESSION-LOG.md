@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Login-order rehearsal fails; isolated recovery and preserved diagnosis
-
-Fix50 committed45a87ebcf, independent Astra/high review88 CLEAN162s/0findings;
-107focused/3files PASS, appType/lint/audit PASS. Both broad check invocations
-remain failed:3354PASS/2unchanged timing failures then serial3355PASS/1unchanged
-timing failure, each isolated failing case subsequently passed unchanged.
-Architecture/UI/design/type/lint separatelyPASS; no green full-gate claim.
-Normal push verified exacthead on OPEN/DRAFT1581; existing main conflict remains.
-
-ONEauthorized login-order attempt42685/mA01Ct/c57312d1a4f4 FAILED/SPENT137129ms.
-Browser login entered response-body/completedsubmit; contextsclosed/pending0,
-boundary firstFailure/responseFailure NULL. Not another recorded body rejection;
-outer login timeout, response completion/status/MIME remain indistinguishable.
-Read-only isolatedDB counts show sole synthetic owner's session issued4529ms
-after browserstart,27706ms before browserreceipt. Credentials/session issuance
-succeeded; browser cookie/redirect/identity still NOT verified. Source diagnosis88
-identifies outer30s timer rejecting without boundary failure and later body task
-settling during cleanup as compatible explanation, not proven CDP root cause.
-Request-stage Fetch interception does not imply missing continueResponse.
-
-Native browser monitor identity-mismatch stayed sticky; ownedSettledFALSE even
-after0probes/0families and closed browser. Original cleanup remains FAILED, not
-retroactively repaired. Current exact process markers absent; recovered ONLY
-this fixture's5containers/2syntheticvolumes/1network after both-label, mount and
-attachment validation. Temporary app MOVED to private evidence (recoverable),
-not deleted; all receipts retained. Separate post-recovery capture before source
-writesPASS7630sourcefiles/49485deps602159413B, source/deps unchanged; all4ports
-clear and isolated Docker resources absent. No new attempt or renewed clock.
-Next requires distinguishing request completion/body wait/outer timer and the
-specific native identity mismatch; no more speculative full rehearsal. Auth/app/
-migrations/dependencies unchanged; all production/shared-local/provider holds
-remain. Overall goal and login fix NOT accepted; draft PR not ready or merged.
-
 ## 2026-10-15 — Approved narrow browser/body and identity diagnostic
 
 Human authorizes one narrow browser diagnostic; no fresh full-app rehearsal.
@@ -869,3 +836,7 @@ Correction126 integrates the existing committed engine, two owned cancellation/w
 ## 2026-10-18 — Remaining Survey review corrections
 
 Full4362-test/static gate passed at75ba44b5b, but independent reviews197/198 found two runner blockers before native execution: probe SQL expected fixture instead of the actual holder identity, and unconfirmed backend restoration could lose typed ownership poison. Correction127 binds exactly three holder and three fixture frames without relaxing other guards, refuses secondary work after uncertain native-frame completion, and still passively joins already-owned HTTP/body operations under the original cleanup clock. Tests-first regressions cover actual child/SQL identity, reset/restore failure, malformed receipts, native close/timeout, and outer teardown refusal;240 focused checks/strict TypeScript pass. Root separately fixed and reproduced the private launcher's zero-timeout dispatch boundary offline. Counts remain198actions/4008nativecontrols/16requests with all original caps. Full checks and independent targeted review precede the still-unspent remaining-v1 attempt; production and other serious holds remain.
+
+## 2026-10-18 — Survey rollback timeout diagnosis and bounded progress
+
+Correction127 passed4377 focused/static checks and independent reviews199/200. One remaining-v1 attempt failed its35-second49-case SQL frame before committed/HTTP work; exact isolated cleanup and immediate source/dependency/global/canonical preservation passed. That alias remains spent. Correction128 separates the twelve question/response and four list count cases within the same frame, preserves all49 assertions/real triggers/full-state equality, and adds one answered list response plus two restoration witnesses.211 fixed INFO SQLSTATE markers now retain only a bounded stage and monotonic elapsed time; the two output streams join under the original timer.323 unique focused tests and targeted strict TypeScript pass. Counts remain198actions/4008nativecontrols/16requests; no cap, product function, migration or production hold changes. Independent review and full gates precede one fresh alias; native fit and overall goal acceptance remain unproved.

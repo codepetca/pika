@@ -18,7 +18,8 @@ import { surveyWireProofDescriptor } from './contextual-surveys-wire-proof'
 
 export const SURVEY_NATIVE_SOURCES = freeze({
   migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9' },
-  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: '723a7260c6e3a78d3c223d132292578688da7a7a2c5cc7e001b99b8773a8c3d7' },
+  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: 'da600baaff7aadb4e634395a7299aa4b629dcb6cc9b69eb9935bbb9546c86872' },
+  progress: { file: 'scripts/contextual-surveys-progress.ts', sha256: '4bb8c0dfa7f34006682a3f5ac4b94d5ed1ed4effdff34a296548befcea75472d' },
   sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: '755a3c10c8e51b501b05c3e8ee71f15ea2c45a588205f4f2fff6179525a77491' },
   races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
   sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'ae8735b7995438a0b9017e3024c750a8c168fc4a26411a380acfd904f6ad6075' },
@@ -232,6 +233,7 @@ function componentBinding(raw: Survey269ComponentBinding) {
 }
 export function verifySurvey269ComponentSources(binding: Survey269ComponentBinding) {
   componentBinding(binding)
+  checked(SURVEY_269_COMPONENT_ROOTS.carrier, SURVEY_NATIVE_SOURCES.progress)
   for (const repository of Object.values(SURVEY_269_COMPONENT_ROOTS)) assert.equal(realpathSync(repository), repository)
   for (const file of SURVEY_269_SHARED_FILES) for (const repository of Object.values(SURVEY_269_COMPONENT_ROOTS))
     assert.equal(digest(readFileSync(resolve(repository, file))), binding.sharedSources[file], 'Survey269 shared runtime source differs')
@@ -379,7 +381,7 @@ export function surveyRemainingNativePlan(original: AssignmentListProofFixture, 
         'helper-and-outer-dispatch-accounting', 'restoration-and-final-preservation-inventory',
         'complete-input-output-and-helper-byte-accounting'] } })
 }
-export function verifySurveyRemainingSources(repository: string) { checked(repository, SURVEY_COMMITTED_SOURCE) }
+export function verifySurveyRemainingSources(repository: string) { checked(repository, SURVEY_COMMITTED_SOURCE); checked(repository, SURVEY_NATIVE_SOURCES.progress) }
 type SurveyWorkloadData = Readonly<{ kind: 'survey263-rollback-and-sdk-terminal'; repository: string; reviewedHead: string;
   projectId: string; reviewedManifestSha256: string; absoluteDeadline: number; nativeVerified: false }>
 const workloads = new WeakSet<object>()

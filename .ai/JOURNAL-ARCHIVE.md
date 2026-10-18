@@ -48212,3 +48212,37 @@ Fixed response resource/status/cause labels distinguish login from other JSON;
 no raw errors, URLs, bodies or error hashes retained. 9 RED cases then107/3 CPU
 PASS; independent review and one newly authorized full rehearsal follow. Frozen
 app/auth/migrations and all production/provider/shared-local holds unchanged.
+
+<!-- pika-session-log-archive-batch:f8de0a47b3f2e6c92c240aea897af48115b7629d5f1c72f929d9d2e87a74f41c -->
+## 2026-10-15 — Login-order rehearsal fails; isolated recovery and preserved diagnosis
+
+Fix50 committed45a87ebcf, independent Astra/high review88 CLEAN162s/0findings;
+107focused/3files PASS, appType/lint/audit PASS. Both broad check invocations
+remain failed:3354PASS/2unchanged timing failures then serial3355PASS/1unchanged
+timing failure, each isolated failing case subsequently passed unchanged.
+Architecture/UI/design/type/lint separatelyPASS; no green full-gate claim.
+Normal push verified exacthead on OPEN/DRAFT1581; existing main conflict remains.
+
+ONEauthorized login-order attempt42685/mA01Ct/c57312d1a4f4 FAILED/SPENT137129ms.
+Browser login entered response-body/completedsubmit; contextsclosed/pending0,
+boundary firstFailure/responseFailure NULL. Not another recorded body rejection;
+outer login timeout, response completion/status/MIME remain indistinguishable.
+Read-only isolatedDB counts show sole synthetic owner's session issued4529ms
+after browserstart,27706ms before browserreceipt. Credentials/session issuance
+succeeded; browser cookie/redirect/identity still NOT verified. Source diagnosis88
+identifies outer30s timer rejecting without boundary failure and later body task
+settling during cleanup as compatible explanation, not proven CDP root cause.
+Request-stage Fetch interception does not imply missing continueResponse.
+
+Native browser monitor identity-mismatch stayed sticky; ownedSettledFALSE even
+after0probes/0families and closed browser. Original cleanup remains FAILED, not
+retroactively repaired. Current exact process markers absent; recovered ONLY
+this fixture's5containers/2syntheticvolumes/1network after both-label, mount and
+attachment validation. Temporary app MOVED to private evidence (recoverable),
+not deleted; all receipts retained. Separate post-recovery capture before source
+writesPASS7630sourcefiles/49485deps602159413B, source/deps unchanged; all4ports
+clear and isolated Docker resources absent. No new attempt or renewed clock.
+Next requires distinguishing request completion/body wait/outer timer and the
+specific native identity mismatch; no more speculative full rehearsal. Auth/app/
+migrations/dependencies unchanged; all production/shared-local/provider holds
+remain. Overall goal and login fix NOT accepted; draft PR not ready or merged.

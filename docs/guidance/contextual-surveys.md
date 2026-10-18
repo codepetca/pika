@@ -184,47 +184,45 @@ table-key comparison, off-table content preservation and cross-table collision
 checks remain mandatory. This reuses the accepted hot-lifecycle witness approach;
 it does not raise the8MiB frame or64MiB cumulative transport limit.
 
-Source/CPU preparation does not establish native byte fit or acceptance. Complete
-dispatch/control/byte accounting, real size boundaries, fixed cancellation and
-finally restoration, current-main migration resequencing/genuine types and the
-remaining screen proof are still required. `inventoryComplete` stays false;
-native/provider and production holds are unchanged.
+Source/CPU preparation does not establish native byte fit or acceptance. The
+closed remaining269 source integration now counts198 native actions,4008 native
+controls,4366 normal-completion controls or4387 partial-teardown controls,
+16 original HTTP requests and14 observer frames. Its6000-control allowance,
+64MiB exchange cap, two persistent sessions,35s SQL frame,8s RPC behavior and
+12-minute work plus3-minute cleanup clocks remain unchanged. The complete
+source inventory is distinct from native acceptance and execution admission.
 
-The rollback contract now prepares nineteen SQL payload cases in its existing
-single dispatch: exact and one-byte-over limits for owner patch/question inputs,
-expected question row/array snapshots and owner/member detail reads, plus five
-malformed input shapes. It measures the actual SQL expressions, asserts exact
-success/denial behavior, and rolls each case back with complete scoped row and
-revision equality. Only compact case metadata leaves SQL; no giant graph is
-transported. Source checks pass, but native execution and the unchanged 35-second
-deadline fit are unverified. Valid 8MiB response-vector, list/results byte limits,
-10,000-row guards and the native wire probe remain uncovered. No acceptance flag
-or execution hold changes with this source-only subset.
+The same rollback SQL frame contains49 cases: input/detail byte and shape
+boundaries, valid multi-answer vectors, list/results byte pairs, reachable
+10,000/+1 count pairs and cardinality denials. Every case retains exact
+measurements, byte-mask checks, original RPC calls, success/denial assertions,
+real triggers and full scoped row/revision restoration equality. The member
+response-count pair is joint with question count. The earlier19-case component
+prerequisite passed; the first expanded49-case attempt failed its35s frame
+without case telemetry and is permanently spent. No49-case native pass or
+35-second fit has been established.
 
-The inert cancellation descriptor now prepares an exact synthetic-row delay,
-original RPC request, server-observed pending backend identity and finally
-restoration frames. It does not dispatch SQL/HTTP or grant execution. The pending
-shape validator explicitly does not establish backend provenance. Real original
-HTTP cancellation, pinned runtime prerequisites, complete action/control/byte
-accounting and independently verified restoration remain required. All-single
-dispatch accounting would reach199 known actions before the remaining wire and
-membership restoration work, so it is not a complete admitted inventory. No
-timeout, product RPC, ACL, RLS, cap or production hold is weakened.
+Correction128 separates count fixtures inside that same DO and outer rollback:
+twelve question/response cases use one Survey; four list cases use10,001 Surveys
+and one real answered question. The list fixture adds exactly one response
+insertion and retains submitted=true/responded=1 with questioncount1. Each
+family has its own complete restoration check; no fixture commits or extra
+SQL frames/actions/controls/sessions are introduced. The full-state digest and
+all production migrations/functions remain unchanged.
 
-Current source preparation expands the same rollback dispatch to49 cases, with
-valid multi-answer vectors, list/results byte pairs, reachable count pairs and
-cardinality denials. The original19 cases passed a separate current-base269
-compatibility/types prerequisite; the new matrix's native acceptance/35s fit is
-not yet proved. Shared fixed fixtures and per-case success/denial changes roll
-back with scoped row/revision equality; compact receipts name their columns and
-version. The member response-count pair is joint with question count.
+The exact Survey SQL frame emits211 closed INFO SQLSTATE progress markers for
+functional/fixture stages and each case's start, RPC start/end and restored
+state. The parser bounds this to224 events and128 bytes per line (28,672 bytes
+maximum), charges the existing stderr exchange ledger, stores only fixed stage
+identifiers and client monotonic elapsed milliseconds, and freezes on first
+failure. It rejects malformed, duplicate, out-of-order and oversized markers.
+It joins stdout completion and stderr progress within the original35s timer;
+telemetry is diagnostic only and never supplies native acceptance. SQL source
+and marker bytes remain subject to the existing64MiB total; actual remaining
+attempt exchange bytes are unproved until a separately admitted run.
 
-Same-predicate fresh Git batching reduces the component guard from18 to15
-one-batch child commands without caching or dropping checks. A separate inert
-remaining269 candidate counts4039 known controls/199 actions/16 requests and14
-observations, but outer/failure/byte totals and actual probe integration remain
-incomplete. The owner approved remaining-only6000 controls and60s SDK; executable
-component/legacy budgets stay unchanged until a separately reviewed closed
-remaining integration. No admission/nativeVerified flag is raised, no spent
-attempt is replayed, and all production/shared-local/account/activation holds
-remain. The canonical roadmap still governs phase exit.
+The original cancellation and wire probes,30 committed directions, ordinary
+14 SDK calls, genuine269 types, restoration/preservation and screen proof remain
+required. No nativeVerified flag is raised, no spent attempt is replayed, and
+all production/shared-local/account/activation holds remain. The canonical
+roadmap still governs phase exit.

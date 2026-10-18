@@ -9,7 +9,7 @@ const seam = vi.hoisted(() => ({ exec: vi.fn(), spawn: vi.fn(), collect: vi.fn()
   held: false, component: false, brokenMetadata: false, holdReaders: false, holdMetadata: false, holdClose: false, poisonAfterBootstrap: false, cliReply: 'held', children: [] as string[], readers: [] as string[],
   spawnCalls: [] as string[], metadataReplies: [] as Array<() => void>,
   afterBootstrap: undefined as (()=>void)|undefined, terminations: 0, closedSessions: 0,
-  sdkTransportReady:false,holdSdkGuard:0,sdkGuardCount:0,
+  sdkTransportReady:false,holdSdkGuard:0,sdkGuardCount:0,progressMode:'',progressLate:undefined as (()=>void)|undefined,
   wrongSource:false,wrongGuard:false,failGuard:false,gitFrameDefect:'',
   replies: [] as Array<() => void>, manifest: {} as Record<string, unknown>, writes: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ execFile: seam.exec, spawn: seam.spawn }))
@@ -92,6 +92,7 @@ const engine = () => createContextualSurveysNativeContracts({ original, reposito
   capturedResources: resources, acceptedManifestSha256: sha(manifest), absoluteDeadline: budget().workDeadline, survey263Endpoint: binding(), statusTarget: status })
 async function flush() { for (let n = 0; n < 100; n++) await Promise.resolve() }
 beforeEach(() => {
+  seam.progressMode='';seam.progressLate=undefined
   vi.mocked(surveyContracts.runSurveyNativeRollbackRaces).mockImplementation(offlineRaceOracle)
   vi.mocked(sdkContracts.runContextualSurveysSdkContracts).mockImplementation(offlineSdkOracle)
   vi.mocked(sdkContracts.runSurvey269ComponentSdkContracts).mockImplementation(offlineComponentSdkOracle)
@@ -150,7 +151,16 @@ beforeEach(() => {
           const componentSnapshot = [{table:'public.classrooms',rows:[{},{}]}, {table:'public.surveys',rows:[{},{},{}]}, {table:'public.survey_questions',rows:[{},{}]}, {metadata:{}},{cron:[]}].map(row=>JSON.stringify(row)).join('\n')
           const rows = sql === manifest.bootstrap ? JSON.stringify({ pid: 123, started: '2026-10-12T00:00:00+00:00', name, database: 'postgres', user: 'postgres' }) : sql === manifest.snapshot ? seam.component ? componentSnapshot : snapshot : ''
           if (sql === manifest.bootstrap && seam.poisonAfterBootstrap) seam.holdMetadata = true
-          queueMicrotask(() => {child.stdout.write(Buffer.from(`${rows}\n${marker[1]}\n`))
+          queueMicrotask(() => {
+            const progress=seam.progressMode && sql.includes('create function pg_temp.survey_progress')
+            const notices=Array.from({length:211},(_,i)=>`INFO:  PS${String(i+1).padStart(3,'0')}\n`).join('')
+            if(progress && seam.progressMode==='stderr-first') child.stderr.write(notices)
+            if(progress && ['missing','malformed','partial'].includes(seam.progressMode)) child.stderr.write(notices.split('\n').slice(0,210).join('\n')+'\n')
+            child.stdout.write(Buffer.from(`${rows}\n${marker[1]}\n`))
+            if(progress && seam.progressMode==='stdout-first') queueMicrotask(()=>child.stderr.write(notices))
+            if(progress && seam.progressMode==='malformed') child.stderr.write('INFO: PS211 private-payload\n')
+            if(progress && seam.progressMode==='partial') child.stderr.write('INFO: PS211')
+            if(progress) seam.progressLate=()=>child.stderr.write('INFO: PS211\n')
             if(sql===manifest.bootstrap && seam.afterBootstrap)queueMicrotask(()=>{const run=seam.afterBootstrap;seam.afterBootstrap=undefined;run?.()})})
         }; done()
       } }) as PassThrough
@@ -221,6 +231,31 @@ describe('actual Survey engine budget composition (offline)', () => {
     await component.runSdkCommitted()
     await expect(component.runContractsOnly()).rejects.toThrow()
     expect(component.inventoryComplete).toBe(false)
+  })
+  it.each(['stderr-first','stdout-first','missing','malformed','partial'])('joins real engine progress pipes within the same deadline: %s',async mode=>{
+    const {engine:component}=componentEngine();await component.setup();seam.progressMode=mode
+    vi.mocked(surveyContracts.runSurvey269ComponentRollback).mockImplementationOnce(async(plan,_target,driver)=>{
+      const session=await driver.openSession(`${plan.projectId}_draft_contracts`)
+      try{await session.execute(plan.contracts.sql,35000)}finally{await session.rollbackAndClose(12000)}
+      return {kind:'survey269-rollback-component-only',nativeVerified:false}
+    })
+    const pending=component.runContractsOnly().catch(error=>error)
+    for(let n=0;n<30 && !seam.progressLate;n++) await flush()
+    expect(seam.progressLate).toBeTypeOf('function')
+    if(mode==='missing'||mode==='partial'){
+      const calls=seam.spawnCalls.length;await vi.advanceTimersByTimeAsync(35000)
+      expect(seam.spawnCalls.length).toBe(calls)
+    }
+    const result=await pending
+    if(mode==='stderr-first'||mode==='stdout-first'){
+      expect(result).not.toBeInstanceOf(Error);expect(component.diagnostic()).toContain('progress=matrix:complete sequence=211')
+    }else{
+      expect(result).toBeInstanceOf(Error)
+      const before=component.diagnostic();expect(before).toContain('sequence=210')
+      expect(before).toContain(mode==='malformed'?'failure=protocol':'failure=timeout')
+      expect(before).not.toContain('private-payload');seam.progressLate?.();expect(component.diagnostic()).toBe(before)
+      expect(before).toContain('remainingSessions=0')
+    }
   })
   it('closed269 engine rejects a shared cap exhausted by the outer platform before native dispatch',async()=>{
     const {engine:component,adapters}=componentEngine()

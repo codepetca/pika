@@ -35,6 +35,7 @@ import { TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_BULK_FAILURE_CODES
 import { testOwnerReorderConcurrencyManifest, validateTestOwnerReorderConcurrencySql, runTestOwnerReorderConcurrency } from './check-contextual-test-reorder-concurrency'
 import { testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql, runTestOwnerReorderCommittedTransitions } from './check-contextual-test-reorder-committed'
 import { captureTestOwnerReorderProgress, type TestOwnerReorderProgressCheckpoint, type TestOwnerReorderProgressScope } from './contextual-test-reorder-progress'
+import { captureSurveyProgress, SURVEY_PROGRESS_EVENTS } from './contextual-surveys-progress'
 import { assertTestOwnerReorderDiagnosticAvailable, buildTestOwnerReorderDiagnosticManifest, validateTestOwnerReorderDiagnosticSql,
   runTestOwnerReorderDiagnostic, captureTestOwnerReorderTimings, validateTestOwnerReorderDiagnosticReceipt, type TestOwnerReorderTimings } from './contextual-test-reorder-diagnostic'
 import { testLearnerNativePlan, validateTestLearnerNativePlanSql, runTestLearnerNativeContracts, runTestLearnerNativeRaces,
@@ -571,6 +572,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   committedOuterPrivilege?: true;
   reorderProgressSql?: Readonly<{ bulk: string; calibration: string }>;
   reorderDiagnosticSql?: string;
+  surveyProgressSql?: string;
   /** Only the concrete Survey factory can bind these private status credentials. */
   surveySdk?: Readonly<{ fixture: SurveyNativeFixture; status: ReturnType<typeof validateAssignmentListProofTarget> }>;
   survey263Endpoint?: Readonly<{ host: string; identity: readonly [number, number, number, number] }>;
@@ -688,6 +690,7 @@ function createSurvey269Contracts(input:Parameters<typeof createSurvey269Compone
   const nativeInput = { ...input, repository: SURVEY_269_COMPONENT_ROOTS.product, reviewedHead: manifest.reviewedHead }
   const engine = createNativeOwnerContracts(nativeInput, { manifest, project: manifest.projectId,
     sourceFile: '269_contextual_surveys_workflow.sql', label: 'survey269-component', absoluteDeadline: input.absoluteDeadline,
+    surveyProgressSql: manifest.contracts.sql,
     survey269Component: manifest.binding, survey269Exchange: input.survey263Endpoint.componentExchange, survey263Budget: budget, survey263NativeCli: cli,
     ...(plan?{surveyCommitted:plan.committed,survey269Remaining:{cancellation:plan.cancellation,wire:plan.wire}}:{}),
     survey263Endpoint: freeze({ host: input.survey263Endpoint.host, identity: [...input.survey263Endpoint.identity] as [number,number,number,number] }),
@@ -1054,6 +1057,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
   let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number;
     progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified'; checkpoint: GuardCheckpoint; sdkElapsedMs: number | 'none'; sdkRemainingMs: number | 'none' }> | undefined
+  let surveyProgress = captureSurveyProgress(false).snapshot()
   function role(name: string): Role {
     if (name === `${project}_fixture`) return 'fixture'
     if (name === `${project}_draft_contracts`) return 'contracts'
@@ -1063,6 +1067,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   }
   function record(kind: Fault, ownedRole: Role = 'none', sqlstate = 'unknown', checkpoint: GuardCheckpoint = 'none') {
     if (firstFault) return
+    for (const session of sessions) if (session.surveyProgressObservation().enabled) surveyProgress = session.freezeSurveyProgress()
     if (profile.reorderDiagnosticSql) diagnosticTimings = [...sessions].find(session => session.diagnosticObservation().enabled)?.diagnosticObservation().snapshot ?? diagnosticTimings
     const observations = [...sessions].map(session => session.progressObservation())
     const activeBulk = observations.find(value => value.scope === 'bulk')
@@ -1277,12 +1282,15 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private owned?: Backend
     private ended = false
     private closed: Promise<void>
-    private active?: { reject: (error: Error) => void; finish: () => void; timer: ReturnType<typeof setTimeout>; end: string; lines: string[]; bytes: number }
+    private active?: { reject: (error: Error) => void; finish: () => void; timer: ReturnType<typeof setTimeout>; end: string; lines: string[]; bytes: number; endSeen?: boolean }
     private partial = ''; private stderr = 0; private frame = 0; private closing?: Promise<void>
     private decoder = new StringDecoder('utf8')
     private sqlstate = captureSqlstate()
     private progressScope: TestOwnerReorderProgressScope = 'none'
     private progress = captureTestOwnerReorderProgress('none')
+    private surveyProgressCapture = captureSurveyProgress(false)
+    surveyProgressObservation() { return this.surveyProgressCapture.snapshot() }
+    freezeSurveyProgress() { return this.surveyProgressCapture.freeze() }
     private diagnosticEnabled = false
     private timing = captureTestOwnerReorderTimings(false)
     private cleaning = false
@@ -1309,7 +1317,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
             const newline = this.partial.indexOf('\n'); if (newline < 0) break
             const line = this.partial.slice(0, newline).replace(/\r$/, ''); this.partial = this.partial.slice(newline + 1)
             assert(this.active)
-            if (line === this.active.end) { this.active.finish(); continue }
+            if (line === this.active.end) { this.active.endSeen = true; this.active.finish(); continue }
             this.active.bytes += Buffer.byteLength(line); if (!component) exchanged += Buffer.byteLength(line)
             assert(this.active.bytes <= CAPS.outputBytes && (exchanged <= CAPS.totalBytes || (component && this.cleaning)))
             if (line) this.active.lines.push(line)
@@ -1323,6 +1331,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
         else {
           this.sqlstate.push(chunk)
+          if (!this.cleaning && !firstFault && this.active && this.surveyProgressCapture.snapshot().enabled) {
+            this.surveyProgressCapture.push(chunk)
+            if (!this.surveyProgressCapture.snapshot().valid) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}); return }
+            if (this.active?.endSeen) this.active.finish()
+          }
           if (!this.cleaning && !firstFault && this.active) this.progress.push(chunk)
           if (!this.cleaning && !firstFault && this.active && this.diagnosticEnabled) this.timing.push(chunk)
         }
@@ -1346,10 +1359,19 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         && profile.reorderDiagnosticSql === sql
       this.timing = captureTestOwnerReorderTimings(this.diagnosticEnabled)
       const marker = `__draft_save_end_${++this.frame}__`
+      this.surveyProgressCapture = captureSurveyProgress(!this.cleaning && !firstFault && component
+        && role(this.name) === 'contracts' && (phase === 'contracts' || phase === 'transitions') && sql === profile.surveyProgressSql)
       return new Promise((resolveRows, reject) => {
         const timer = setTimeout(() => { this.fault('timeout'); this.reject(); void closeAll().catch(() => {}) }, timeoutMs)
         this.active = { timer, reject, end: marker, bytes: 0, lines: [], finish: () => {
+          // stdout/stderr are independent pipes. Join their terminal markers
+          // under the original timer; never reject merely for delivery order.
+          if (this.surveyProgressCapture.snapshot().enabled && this.surveyProgressCapture.snapshot().sequence < SURVEY_PROGRESS_EVENTS.length) return
           const active = this.active!; this.active = undefined; clearTimeout(timer)
+          if (this.surveyProgressCapture.snapshot().enabled) {
+            if (!this.surveyProgressCapture.finish().valid) { this.fault('protocol'); reject(failure()); void closeAll().catch(() => {}); return }
+            surveyProgress = this.surveyProgressCapture.freeze()
+          }
           if (!firstFault && !this.cleaning) {
             if (this.diagnosticEnabled) diagnosticTimings = this.timing.snapshot()
             if (this.progressScope === 'bulk') bulkProgress = this.progress.snapshot().checkpoint
@@ -1896,6 +1918,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
         + (component ? `DIAG survey269-component settlement remainingSessions=${sessions.size} exchangeBytes=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).bytes} controlCalls=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).controls}.\n` : '')
         + (component ? `DIAG survey269-component firstFailure checkpoint=${d.checkpoint} sdkElapsedMs=${d.sdkElapsedMs} sdkRemainingMs=${d.sdkRemainingMs}.\n` : '')
+        + (component ? `DIAG survey269-contract progress=${surveyProgress.checkpoint} sequence=${surveyProgress.sequence} elapsedMs=${surveyProgress.elapsedMs ?? 'none'} valid=${surveyProgress.valid}.\n` : '')
         + (component && surveySdkDiagnostic ? `${surveySdkDiagnostic()}\n` : '')
         + (component && surveySdkGuardUnjoined ? 'DIAG survey269-component sdkPending=guard.\n' : '')
         + (remaining?`DIAG survey269-remaining probe=${remainingProbeStage} cancellation=${remainingCancellationDone} wire=${remainingWireDone} originalPending=${remainingHttpPending}.\n`:'')

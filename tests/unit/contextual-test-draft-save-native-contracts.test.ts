@@ -372,6 +372,12 @@ describe('native persistent-session transport with offline child mocks', () => {
           const rows=[...Object.entries(surveySnapshot()).map(([table,rows])=>JSON.stringify({table,rows})),JSON.stringify({metadata:{}}),JSON.stringify({cron:[]})]
           queueMicrotask(()=>child.stdout.write(rows.join('\n')+'\n'+end+'\n'));done();return
         }
+        else if (remainingManifest && sql.trim() === remainingManifest.contracts.sql.trim()) {
+          queueMicrotask(() => {
+            for(let n=1;n<=211;n++) child.stderr.write(`INFO:  PS${String(n).padStart(3,'0')}\n`)
+            child.stdout.write(end+'\n')
+          }); done(); return
+        }
         else if (surveyManifest && 'committed' in surveyManifest && surveyPositive) {
           const m = surveyManifest.committed, now = new Date().toISOString()
           const emit = (value: unknown, marker = end) => queueMicrotask(() => child.stdout.write(`${value === undefined ? '' : JSON.stringify(value) + '\n'}${marker}\n`))
