@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
-const fsFaults = vi.hoisted(() => ({ sdkProofDrift: false }))
+const fsFaults = vi.hoisted(() => ({ sdkProofDrift: false, componentRoots: false, sharedDrift: false }))
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
-  return { ...actual, readFileSync: ((path, options) => {
-    const value = actual.readFileSync(path, options)
+  const roots=['/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main','/Users/stew/.codex/worktrees/classroom-access-completion-plan/pika']
+  return { ...actual, realpathSync: ((path)=>fsFaults.componentRoots && roots.includes(String(path)) ? String(path) : actual.realpathSync(path)) as typeof actual.realpathSync, readFileSync: ((path, options) => {
+    const original=String(path), root=fsFaults.componentRoots ? roots.find(root=>original.startsWith(root+'/')) : undefined
+    const value = actual.readFileSync(root ? original.replace(root,process.cwd()) : path, options)
+    if(fsFaults.sharedDrift && original===roots[0]+'/src/lib/validations/contextual-surveys.ts') return Buffer.isBuffer(value) ? Buffer.concat([value,Buffer.from('\n// changed')]) : value+'\n// changed'
     if (fsFaults.sdkProofDrift && String(path).endsWith('/scripts/contextual-surveys-sdk-proof.ts'))
       return Buffer.isBuffer(value) ? Buffer.concat([value, Buffer.from('\n// changed SDK oracle source')]) : value + '\n// changed SDK oracle source'
     return value
@@ -22,7 +25,8 @@ import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-a
 import { surveyNativePlan, validateSurveyNativeMigrationProfile, validateSurveyNativeSql,
   bindSurveyNativeLifecycleWorkload, validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload,
   runSurveyNativeRollbackRaces, runSurveyNativeRollbackContracts, validateSurveyGeneratedTypes,
-  SURVEY_RPC_ARGUMENTS } from '../../scripts/contextual-surveys-native-contracts'
+  validateSurvey269ComponentGeneratedTypes, validateSurvey269ComponentMigrations, validateSurvey269ComponentWorkload, verifySurvey269ComponentSources,
+  SURVEY_269_SHARED_FILES, SURVEY_RPC_ARGUMENTS } from '../../scripts/contextual-surveys-native-contracts'
 import { surveyRemainingNativePlan } from '../../scripts/contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 const surveyEndpoint = { kind: 'survey263' as const, host: 'unix:///offline-survey.sock', identity: [1, 2, 3, 4] as const,
@@ -41,6 +45,22 @@ const targetFor = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency
 })
 
 describe('source-only sealed Survey263 native reuse', () => {
+  it('component269 refuses historical263 migration inventory, unbound workloads and modified source bindings',()=>{
+    expect(()=>validateSurvey269ComponentMigrations(loadAssignmentListReviewedMigrations(repository))).toThrow()
+    expect(()=>validateSurvey269ComponentWorkload({} as never, original)).toThrow('not source-bound')
+    const sources=Object.fromEntries(SURVEY_269_SHARED_FILES.map(file=>[file,createHash('sha256').update(readFileSync(`${repository}/${file}`)).digest('hex')]))
+    const binding={product:{head,tree:head},carrier:{head,tree:head},sharedSources:sources} as Parameters<typeof verifySurvey269ComponentSources>[0]
+    fsFaults.componentRoots=true
+    try {
+      expect(()=>verifySurvey269ComponentSources(binding)).not.toThrow()
+      fsFaults.sharedDrift=true
+      expect(()=>verifySurvey269ComponentSources(binding)).toThrow('shared runtime source differs')
+    } finally {fsFaults.componentRoots=false;fsFaults.sharedDrift=false}
+    expect(()=>verifySurvey269ComponentSources({...binding,sharedSources:{...sources,extra:'a'.repeat(64)}} as never)).toThrow()
+    expect(()=>verifySurvey269ComponentSources({...binding,product:{head,tree:'changed'}})).toThrow()
+    const getter=Object.defineProperty({...binding},'product',{get:()=>binding.product})
+    expect(()=>verifySurvey269ComponentSources(getter)).toThrow()
+  })
   it('keeps remaining-only private binding inert and refuses a workload before attempt consumption', async () => {
     const remaining = surveyRemainingNativePlan(original, head, repository)
     expect(remaining.executionEnabled).toBe(false); expect(remaining.nativeVerified).toBe(false)
@@ -189,6 +209,12 @@ describe('source-only sealed Survey263 native reuse', () => {
     }} } }`
     const sha = (value: string) => createHash('sha256').update(value).digest('hex')
     expect(validateSurveyGeneratedTypes(source, sha(source))).toBe(true)
+    const hot='set_classroom_hot_archive_for_owner_v1: {Args: {p_actor_id: string; p_classroom_id: string; p_archived: boolean}; Returns: Json};'
+    const withFoundation=source.replace('Functions: {',`Functions: {${hot}`)
+    expect(validateSurvey269ComponentGeneratedTypes(withFoundation,sha(withFoundation))).toBe(true)
+    expect(()=>validateSurvey269ComponentGeneratedTypes(source,sha(source))).toThrow()
+    for (const changed of [withFoundation.replace('p_archived: boolean','p_archived: string'),withFoundation.replace('p_archived: boolean','p_archived?: boolean')])
+      expect(()=>validateSurvey269ComponentGeneratedTypes(changed,sha(changed))).toThrow()
     expect(() => validateSurveyGeneratedTypes(source, 'a'.repeat(64))).toThrow()
     for (const changed of [source.replace('get_surveys_for_owner_v1', 'unknown_owner_rpc'),
       source.replace('p_actor_id: string', 'p_actor_id?: string'), source.replace('p_actor_id: string', 'p_actor_id: number'),

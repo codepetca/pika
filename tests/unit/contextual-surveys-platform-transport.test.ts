@@ -51,7 +51,8 @@ vi.mock('node:net', async original => {
   }) }
 })
 import { createAssignmentListNativeAdapters, requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup,
-  SURVEY263_NATIVE_CLI, verifySurvey263NativeCli } from '../../scripts/contextual-assignment-list-proof-platform'
+  SURVEY263_NATIVE_CLI, verifySurvey263NativeCli, chargeSurvey269ComponentExchange, survey269ComponentExchangeReceipt,
+  checkSurvey263AdapterTotal, chargeSurvey269ComponentControl } from '../../scripts/contextual-assignment-list-proof-platform'
 import { AssignmentListStartupError, assignmentListStartupDiagnostic, Survey263UnjoinedChildError,
   writeAssignmentListStartupDiagnostic } from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
@@ -75,6 +76,40 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 describe('sealed Survey platform factory (offline actual seams)', () => {
+  it('joins component command input, untrimmed stdout/stderr and external bytes without renewing the ledger', async () => {
+    const adapters = createAssignmentListNativeAdapters(fixture, { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI, survey269Component: true })
+    const token = requireSurvey263AdapterEndpoint(adapters).componentExchange!
+    expect(() => survey269ComponentExchangeReceipt({ ...token })).toThrow()
+    chargeSurvey269ComponentExchange(token, 17)
+    seam.stdout = '  {"text":"漢"}\n'; seam.stderr = 'warning\n'
+    await adapters.command({ args: ['status', '--workdir', workdir, '-o', 'json'], workdir, timeoutMs: 1000 })
+    const contextBytes = Buffer.byteLength(JSON.stringify({ endpoints: { docker: { Host: seam.context } }, tlsMaterial: null }))
+    expect(survey269ComponentExchangeReceipt(token).bytes).toBe(17 + 2 * contextBytes + Buffer.byteLength(seam.stdout) + Buffer.byteLength(seam.stderr))
+    chargeSurvey269ComponentExchange(token, 67108864 - survey269ComponentExchangeReceipt(token).bytes)
+    expect(() => chargeSurvey269ComponentExchange(token, 1)).toThrow('cumulative exchange limit')
+    expect(() => adapters.checkWork!()).toThrow()
+    beginSurvey263AdapterCleanup(adapters)
+    await adapters.inventory({projectId:project,workdir,apiUrl:'http://127.0.0.1:54331',dbPort:54332})
+    expect(() => checkSurvey263AdapterTotal(adapters)).toThrow('cumulative exchange limit')
+    expect(survey269ComponentExchangeReceipt(token).bytes).toBeGreaterThan(67108864)
+  })
+  it('reserves the original32 controls and counts cleanup after exhaustion without admitting success',()=>{
+    const adapters=createAssignmentListNativeAdapters(fixture,{survey263Endpoint:endpoint(),survey263Budget:budget(),survey263NativeCli:SURVEY263_NATIVE_CLI,survey269Component:true})
+    const token=requireSurvey263AdapterEndpoint(adapters).componentExchange!
+    for(let n=0;n<3968;n++)chargeSurvey269ComponentControl(token)
+    expect(()=>chargeSurvey269ComponentControl(token)).toThrow('control reserve')
+    beginSurvey263AdapterCleanup(adapters)
+    for(let n=0;n<32;n++)chargeSurvey269ComponentControl(token,true)
+    expect(survey269ComponentExchangeReceipt(token).controls).toBe(4001)
+    expect(()=>checkSurvey263AdapterTotal(adapters)).toThrow('control limit')
+  })
+  it('counts failed-child component stdout/stderr before rejecting and leaves legacy263 unjoined', async () => {
+    const adapters = createAssignmentListNativeAdapters(fixture, { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI, survey269Component: true })
+    seam.fail = true; seam.stdout = 'synthetic'; seam.stderr = 'failure'
+    await expect(adapters.command({ args: ['status'], workdir, timeoutMs: 1000 })).rejects.toThrow()
+    expect(survey269ComponentExchangeReceipt(requireSurvey263AdapterEndpoint(adapters).componentExchange!).bytes).toBeGreaterThan(16)
+    expect(requireSurvey263AdapterEndpoint(make()).componentExchange).toBeUndefined()
+  })
   it('retains bounded private failed-start callback facts only after actual positive close', async () => {
     const adapters = make(); seam.fail = true; seam.holdNativeClose = true
     seam.stdout = '漢'.repeat(6000) + 'synthetic tail'; seam.stderr = 'x'.repeat(20000) + 'failed to pull docker image: synthetic private tail'

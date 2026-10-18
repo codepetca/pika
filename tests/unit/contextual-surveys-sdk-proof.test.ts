@@ -52,6 +52,22 @@ const firstRequest = () => ({ method: 'POST', headers, body: JSON.stringify({ p_
 const firstUrl = 'http://127.0.0.1:54331/rest/v1/rpc/get_survey_for_owner_v1'
 
 describe('finite installed-SDK Survey transport (offline only)', () => {
+  it('charges every actual request and response byte into the component ledger and fails closed on overflow', async () => {
+    let charged = 0
+    const wire = server(), transport = createSurveySdkProofTransport(f, target, wire, async () => {}, n => { charged += n })
+    transport.start(Date.now() + 20000)
+    await runContextualSurveysSdkContracts(transport.client, { ownerId: owner, memberId: member, outsiderId: f.actors[2].id, classroomId: cid, surveyId: sid }, async () => {})
+    expect(charged).toBe(transport.complete().bytes)
+    const stopped = server(), refused = createSurveySdkProofTransport(f, target, stopped, async () => {}, () => { throw new Error('shared cap') })
+    refused.start(Date.now() + 20000)
+    await expect(refused.fetch(firstUrl, firstRequest())).rejects.toThrow()
+    expect(stopped).not.toHaveBeenCalled(); expect(() => refused.complete()).toThrow()
+    let charges=0
+    const responseWire=server(), responseRefused=createSurveySdkProofTransport(f,target,responseWire,async()=>{},()=>{if(++charges===2)throw new Error('shared cap')})
+    responseRefused.start(Date.now()+20000)
+    await expect(responseRefused.fetch(firstUrl,firstRequest())).rejects.toThrow()
+    expect(responseWire).toHaveBeenCalledOnce();expect(()=>responseRefused.complete()).toThrow()
+  })
   it('runs actual installed SDK encoding through all14 frozen requests with byte receipts', async () => {
     const wire = server(), guard = vi.fn(async () => {}), transport = createSurveySdkProofTransport(f, target, wire, guard)
     transport.start(Date.now() + 20000)
@@ -95,7 +111,7 @@ describe('finite installed-SDK Survey transport (offline only)', () => {
   it('uses one absolute20s deadline and rejects replay/extra requests after completion', async () => {
     vi.useFakeTimers()
     try {
-      const wire = vi.fn<typeof fetch>(() => new Promise(() => {})), transport = createSurveySdkProofTransport(f, target, wire, async () => {})
+      const wire = vi.fn<typeof fetch>(() => new Promise<Response>(() => {})), transport = createSurveySdkProofTransport(f, target, wire, async () => {})
       transport.start(Date.now() + 60000)
       const pending = transport.fetch(firstUrl, firstRequest()).then(() => undefined, error => error)
       await vi.advanceTimersByTimeAsync(20001)

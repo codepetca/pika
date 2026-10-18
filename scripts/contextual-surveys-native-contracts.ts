@@ -2,7 +2,7 @@
  * Rollback evidence is deliberately distinct from outstanding committed proof. */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
@@ -19,7 +19,7 @@ export const SURVEY_NATIVE_SOURCES = freeze({
   contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: 'd0e71b2e598b179e2947f34ee7023da7dc9ce29582db1faffefb3cc0ef385ec0' },
   sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: 'f045c59fadd93a636bdaf8ec7fc447e54086e47c7ce7a6caae3817de37c54172' },
   races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
-  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'eccf407ccc2b45a39cc1fbc0bbc485ad2428cdc7b238c98ee6ddcfd4b9f3e0de' },
+  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'db44c5b94aeed330132034b0d2c59f07a8d296908a39dae8b29d690cbf1bf46e' },
 })
 export const SURVEY_NATIVE_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   schedules: 30, sessions: 2, actionMs: 35000, closeMs: 12000, sdkRequests: 16, sdkMs: 20000 })
@@ -199,6 +199,114 @@ end;$reject$;select jsonb_build_object('rejected',true,'label',${q(label)});`
   return plan
 }
 export type SurveyNativePlan = ReturnType<typeof surveyNativePlan>
+
+/** Fixed source roots, not target selectors. Root supplies the two independently
+ * reviewed Git identities; counted runtime guards verify both before dispatch. */
+export const SURVEY_269_COMPONENT_ROOTS = Object.freeze({
+  product: '/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main',
+  carrier: '/Users/stew/.codex/worktrees/classroom-access-completion-plan/pika',
+})
+export const SURVEY_269_COMPONENT_SCHEMA = Object.freeze({ count: 269, file: '269_contextual_surveys_workflow.sql',
+  prefixSha256: '16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0',
+  sourceSha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9',
+  manifestSha256: '8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf',
+})
+export const SURVEY_269_SHARED_FILES = Object.freeze(['scripts/contextual-surveys-db-contracts.sql',
+  'scripts/contextual-surveys-sdk-contracts.ts', 'src/lib/validations/contextual-surveys.ts'] as const)
+export type Survey269ComponentBinding = Readonly<{ product: Readonly<{ head: string; tree: string }>;
+  carrier: Readonly<{ head: string; tree: string }>; sharedSources: Readonly<Record<typeof SURVEY_269_SHARED_FILES[number], string>> }>
+function componentBinding(raw: Survey269ComponentBinding) {
+  for (const value of [raw, raw.product, raw.carrier, raw.sharedSources]) {
+    assert(value && Object.getPrototypeOf(value) === Object.prototype)
+    assert(Object.values(Object.getOwnPropertyDescriptors(value)).every(field => 'value' in field))
+  }
+  assert.deepEqual(Object.keys(raw).sort(), ['carrier', 'product', 'sharedSources'])
+  for (const source of [raw.product, raw.carrier]) {
+    assert.deepEqual(Object.keys(source).sort(), ['head', 'tree']);assert.match(source.head, /^[a-f0-9]{40}$/);assert.match(source.tree, /^[a-f0-9]{40}$/)
+  }
+  assert.deepEqual(Object.keys(raw.sharedSources).sort(), [...SURVEY_269_SHARED_FILES].sort())
+  Object.values(raw.sharedSources).forEach(value => assert.match(value, /^[a-f0-9]{64}$/))
+  return freeze(structuredClone(raw))
+}
+export function verifySurvey269ComponentSources(binding: Survey269ComponentBinding) {
+  componentBinding(binding)
+  for (const repository of Object.values(SURVEY_269_COMPONENT_ROOTS)) assert.equal(realpathSync(repository), repository)
+  for (const file of SURVEY_269_SHARED_FILES) for (const repository of Object.values(SURVEY_269_COMPONENT_ROOTS))
+    assert.equal(digest(readFileSync(resolve(repository, file))), binding.sharedSources[file], 'Survey269 shared runtime source differs')
+}
+export function validateSurvey269ComponentMigrations(migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>) {
+  const schema = SURVEY_269_COMPONENT_SCHEMA
+  assert.equal(migrations.length, schema.count)
+  migrations.forEach((m, index) => {assert(m.name.startsWith(`${String(index + 1).padStart(3, '0')}_`));assert.equal(digest(m.sql), m.sha256)})
+  const entries = migrations.map(({ name, sha256 }) => ({ name, sha256 }))
+  assert.equal(digest(JSON.stringify(entries.slice(0, 268))), schema.prefixSha256)
+  assert.equal(digest(JSON.stringify(entries)), schema.manifestSha256)
+  assert.equal(migrations[268].name, schema.file);assert.equal(migrations[268].sha256, schema.sourceSha256)
+}
+export function survey269ComponentPlan(original: AssignmentListProofFixture, sourceBinding: Survey269ComponentBinding) {
+  const binding = componentBinding(sourceBinding);verifySurvey269ComponentSources(binding)
+  const migrations = loadAssignmentListReviewedMigrations(SURVEY_269_COMPONENT_ROOTS.product)
+  validateSurvey269ComponentMigrations(migrations)
+  // Reuse only the closed fixture/setup/rollback/ordinary-SDK source. No race
+  // executor or remaining-proof workload is invoked or admitted here.
+  const legacy = surveyNativePlan(original, binding.carrier.head, SURVEY_269_COMPONENT_ROOTS.carrier)
+  const plan = freeze({ ...legacy, kind: 'survey269-source-compatibility-and-genuine-types' as const, binding,
+    reviewedHead: binding.product.head, repository: SURVEY_269_COMPONENT_ROOTS.product,
+    migrations: migrations.map(({ name, sha256 }) => ({ name, sha256 })),
+    migrationManifestSha256: SURVEY_269_COMPONENT_SCHEMA.manifestSha256,
+    sourceSha256: SURVEY_269_COMPONENT_SCHEMA.sourceSha256,
+    sources: {...legacy.sources, migration: {file: `supabase/migrations/${SURVEY_269_COMPONENT_SCHEMA.file}`, sha256: SURVEY_269_COMPONENT_SCHEMA.sourceSha256}},
+    concurrency: { ...legacy.concurrency, schedules: [] },
+    inventoryComplete: false as const, nativeVerified: false as const,
+    requiredBeforeAcceptance: ['remaining-full-proof-is-separate-and-incomplete'] })
+  sourcePlans.set(plan.contracts, plan);return plan
+}
+export type Survey269ComponentPlan = ReturnType<typeof survey269ComponentPlan>
+const componentWorkloads = new WeakSet<object>(), consumedComponents = new WeakSet<object>()
+export function bindSurvey269ComponentWorkload(input: { original: AssignmentListProofFixture; binding: Survey269ComponentBinding;
+  reviewedManifestSha256: string; absoluteDeadline: number; rootReviewed: true; oneAttemptAuthorized: true; freshCapacityChecked: true }) {
+  assert.deepEqual(Object.keys(input).sort(), ['absoluteDeadline','binding','freshCapacityChecked','oneAttemptAuthorized','original','reviewedManifestSha256','rootReviewed'])
+  assert.equal(input.rootReviewed, true);assert.equal(input.oneAttemptAuthorized, true);assert.equal(input.freshCapacityChecked, true)
+  const plan = survey269ComponentPlan(input.original, input.binding)
+  assert.equal(input.reviewedManifestSha256, digest(JSON.stringify(plan)))
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > Date.now() && input.absoluteDeadline <= Date.now() + 900000)
+  const workload = freeze({ kind: plan.kind, binding: plan.binding, projectId: plan.projectId,
+    reviewedManifestSha256: input.reviewedManifestSha256, absoluteDeadline: input.absoluteDeadline, nativeVerified: false as const })
+  componentWorkloads.add(workload);return workload
+}
+export type Survey269ComponentWorkload = ReturnType<typeof bindSurvey269ComponentWorkload>
+export function validateSurvey269ComponentWorkload(workload: Survey269ComponentWorkload, original: AssignmentListProofFixture) {
+  assert(componentWorkloads.has(workload) && Object.isFrozen(workload), 'Survey269 workload is not source-bound')
+  const plan = survey269ComponentPlan(original, workload.binding)
+  assert.equal(workload.kind, plan.kind);assert.equal(workload.projectId, plan.projectId)
+  assert.equal(workload.reviewedManifestSha256, digest(JSON.stringify(plan)));return plan
+}
+export function consumeSurvey269ComponentWorkload(workload: Survey269ComponentWorkload) {
+  assert(componentWorkloads.has(workload) && !consumedComponents.has(workload));assert(Date.now() < workload.absoluteDeadline)
+  consumedComponents.add(workload)
+}
+export function validateSurvey269ComponentSql(plan: Survey269ComponentPlan, sql: string) {
+  return sealed(plan) && typeof sql === 'string' && Buffer.byteLength(sql) <= SURVEY_NATIVE_CAPS.sqlBytes
+    && [plan.setup, plan.snapshot, plan.contracts.sql, plan.concurrency.close].includes(sql)
+}
+export async function runSurvey269ComponentRollback(plan: Survey269ComponentPlan, target: DraftSaveTarget, driver: DraftSaveDriver) {
+  await validateTarget(plan, target, driver, 'contracts')
+  const session = await driver.openSession(`${plan.projectId}_draft_contracts`)
+  try {await session.execute(plan.contracts.sql, SURVEY_NATIVE_CAPS.actionMs)} finally {await session.rollbackAndClose(SURVEY_NATIVE_CAPS.closeMs)}
+  return freeze({ kind: 'survey269-rollback-component-only' as const, nativeVerified: false as const })
+}
+export function validateSurvey269ComponentGeneratedTypes(source: string, sha256: string) {
+  validateSurveyGeneratedTypes(source, sha256)
+  const tree = ts.createSourceFile('generated.ts', source, ts.ScriptTarget.Latest, true)
+  const field = (node: ts.TypeNode, name: string) => {assert(ts.isTypeLiteralNode(node));const rows = node.members.filter(ts.isPropertySignature).filter(m => m.name.getText(tree) === name);assert.equal(rows.length, 1);assert(rows[0].type && !rows[0].questionToken);return rows[0].type}
+  const db = tree.statements.filter(ts.isTypeAliasDeclaration).find(n => n.name.text === 'Database');assert(db)
+  const hot = field(field(field(db.type, 'public'), 'Functions'), 'set_classroom_hot_archive_for_owner_v1')
+  const args = field(hot, 'Args');assert(ts.isTypeLiteralNode(args))
+  assert(args.members.every(m=>ts.isPropertySignature(m) && !m.questionToken))
+  assert.deepEqual(args.members.map(m => m.name?.getText(tree)).sort(), ['p_actor_id','p_archived','p_classroom_id'])
+  for (const arg of args.members) {assert(ts.isPropertySignature(arg) && !arg.questionToken);assert.equal(arg.type?.kind, arg.name.getText(tree) === 'p_archived' ? ts.SyntaxKind.BooleanKeyword : ts.SyntaxKind.StringKeyword)}
+  assert.equal(field(hot, 'Returns').getText(tree), 'Json');return true
+}
 /** Fixed reviewed leaf; this is an external source pin, not a recomputed approval. */
 export const SURVEY_COMMITTED_SOURCE = Object.freeze({ file: 'scripts/contextual-surveys-committed-proof.ts',
   sha256: 'f2f888175d77437b28d25a66bcd8ed109296c77628d82d91db2db1374e286352' })

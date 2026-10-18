@@ -51,7 +51,8 @@ export function surveySdkProofManifest(f: SurveyNativeFixture) {
   return freeze({ version: 1, projectId: f.projectId, origin, method: 'POST', rpcNames: names, fixtureSha256: hash(JSON.stringify(f)),
     caps: SURVEY_SDK_PROOF_CAPS, executionEnabled: false as const, nativeVerified: false as const })
 }
-export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget: unknown, original: typeof fetch, guard: () => Promise<void>) {
+export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget: unknown, original: typeof fetch, guard: () => Promise<void>,
+  chargeComponentBytes?: (bytes: number) => void) {
   const manifest = surveySdkProofManifest(f), manifestSha256 = hash(JSON.stringify(manifest))
   const target = validateAssignmentListProofTarget(rawTarget, f.projectId)
   let deadline: number | undefined, failed = false, inFlight = false, calls = 0, bytes = 0, index = 0
@@ -146,6 +147,7 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       const bounded = async <T>(run: () => Promise<T>) => { check(); const value = await Promise.race([Promise.resolve().then(run), aborted]); check(); return value }
       stage = 'guard-before'; await bounded(guard); check(); assert(++calls <= SURVEY_SDK_PROOF_CAPS.calls)
       bytes += Buffer.byteLength(init.body); assert(bytes <= SURVEY_SDK_PROOF_CAPS.totalBytes)
+      chargeComponentBytes?.(Buffer.byteLength(init.body))
       stage = 'exchange'; response = await bounded(() => original(String(resource), { method: 'POST', headers,
         body: init.body, redirect: 'error', signal: controller.signal }))
       stage = 'reply'; assert(response instanceof Response && !response.redirected && !response.headers.has('location') && response.body)
@@ -155,6 +157,7 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       reader = response.body.getReader(); const chunks: Uint8Array[] = []; let count = 0, reads = 0
       for (;;) { assert(++reads <= SURVEY_SDK_PROOF_CAPS.responseBytes + 1); const part = await bounded(() => reader!.read()); if (part.done) break
         count += part.value.byteLength; bytes += part.value.byteLength
+        chargeComponentBytes?.(part.value.byteLength)
         assert(count <= SURVEY_SDK_PROOF_CAPS.responseBytes && bytes <= SURVEY_SDK_PROOF_CAPS.totalBytes); chunks.push(part.value) }
       const body = Buffer.concat(chunks), text = new TextDecoder('utf-8', { fatal: true }).decode(body)
       validateReply(parse(text), response.status)

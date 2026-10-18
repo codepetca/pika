@@ -51,13 +51,17 @@ import { testOwnerDeletionNativePlan, validateTestOwnerDeletionNativePlanSql, ru
 import { surveyNativePlan, validateSurveyNativeSql, runSurveyNativeRollbackContracts,
   runSurveyNativeRollbackRaces, validateSurveyGeneratedTypes, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
 import { surveyRemainingNativePlan, verifySurveyRemainingSources } from './contextual-surveys-native-contracts'
+import { survey269ComponentPlan, validateSurvey269ComponentSql, runSurvey269ComponentRollback,
+  validateSurvey269ComponentGeneratedTypes, verifySurvey269ComponentSources, SURVEY_269_COMPONENT_ROOTS,
+  type Survey269ComponentBinding } from './contextual-surveys-native-contracts'
 import { validateSurveyCommittedSql, surveyCommittedObservationSql, validateSurveyCommittedObservationSql,
   parseSurveyCommittedGraph, verifySurveyCommittedSeed, verifySurveyCommittedWitness, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
   type SurveyCommittedProofManifest, type SurveyCommittedBootstrap, type SurveyCommittedTimes } from './contextual-surveys-committed-proof'
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
 import { decodeAssignmentListSnapshot, validateSurvey263Budget, verifySurvey263NativeCli, Survey263UnjoinedChildError,
-  type Survey263Budget, type Survey263NativeCli } from './contextual-assignment-list-proof-platform'
+  chargeSurvey269ComponentExchange, chargeSurvey269ComponentControl, survey269ComponentExchangeReceipt, assignmentListDockerInventory,
+  type Survey269ComponentExchange, type Survey263Budget, type Survey263NativeCli } from './contextual-assignment-list-proof-platform'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
 import { generateTestDraftSaveTypes, testDraftSaveTypeGenerationPlan } from './generate-contextual-test-draft-save-types'
 
@@ -549,8 +553,8 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '259_contextual_test_owner_grading.sql' | '260_contextual_test_owner_recovery.sql' | '261_contextual_test_owner_unpublish.sql' | '262_contextual_test_owner_delete.sql' | '263_contextual_surveys_workflow.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading' | 'test-owner-recovery' | 'test-owner-unpublication' | 'test-owner-deletion' | 'survey263';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '259_contextual_test_owner_grading.sql' | '260_contextual_test_owner_recovery.sql' | '261_contextual_test_owner_unpublish.sql' | '262_contextual_test_owner_delete.sql' | '263_contextual_surveys_workflow.sql' | '269_contextual_surveys_workflow.sql';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading' | 'test-owner-recovery' | 'test-owner-unpublication' | 'test-owner-deletion' | 'survey263' | 'survey269-component';
   learnerCancellation?: TestLearnerNativePlan['cancellation'];
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
@@ -566,6 +570,8 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   survey263Budget?: Survey263Budget;
   survey263NativeCli?: Survey263NativeCli;
   surveyCommitted?: SurveyCommittedProofManifest;
+  survey269Component?: Survey269ComponentBinding;
+  survey269Exchange?: Survey269ComponentExchange;
   runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
@@ -631,6 +637,43 @@ export function createContextualSurveysNativeContracts(input: NativeOwnerInput &
       assert(engine.generateSurveyTypes, 'Survey types private status binding is absent')
       return engine.generateSurveyTypes()
     }, nativeVerified: false as const })
+}
+
+export function buildSurvey269ComponentManifest(original: AssignmentListProofFixture, binding: Survey269ComponentBinding) {
+  const plan = survey269ComponentPlan(original, binding)
+  return freeze({ ...plan, bootstrap: boot, termination: draftSaveNativeTerminationSql(), close: 'rollback;',
+    capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql('survey') })
+}
+/** No race/committed/cancellation or arbitrary skip capability is returned. */
+export function createSurvey269ComponentNativeContracts(input: Omit<NativeOwnerInput, 'repository' | 'reviewedHead'> & {
+  binding: Survey269ComponentBinding; absoluteDeadline: number; statusTarget: unknown;
+  survey263Endpoint: Readonly<{ host: string; identity: readonly [number, number, number, number]; budget: Survey263Budget; nativeCli: Survey263NativeCli; componentExchange?: Survey269ComponentExchange }>;
+}) {
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > Date.now() && input.absoluteDeadline <= Date.now() + CAPS.totalMs)
+  assert.deepEqual(Object.keys(input).sort(), ['absoluteDeadline','acceptedManifestSha256','binding','capturedResources','containerId','original','statusTarget','survey263Endpoint'].sort())
+  assert(input.survey263Endpoint && Object.keys(input.survey263Endpoint).every(key => ['kind','host','identity','budget','nativeCli','componentExchange'].includes(key)))
+  assert(input.survey263Endpoint.componentExchange, 'Survey269 shared exchange ledger is absent')
+  survey269ComponentExchangeReceipt(input.survey263Endpoint.componentExchange)
+  const budget = validateSurvey263Budget(input.survey263Endpoint.budget)
+  assert.equal(input.absoluteDeadline, budget.workDeadline)
+  const cli = verifySurvey263NativeCli(input.survey263Endpoint.nativeCli)
+  assert(input.survey263Endpoint.host.startsWith('unix:///') && !/[\x00-\x20\x7f%?#]/.test(input.survey263Endpoint.host))
+  assert(input.survey263Endpoint.identity.length === 4 && input.survey263Endpoint.identity.every(n => Number.isSafeInteger(n) && n >= 0))
+  const manifest = buildSurvey269ComponentManifest(input.original, input.binding)
+  const nativeInput = { ...input, repository: SURVEY_269_COMPONENT_ROOTS.product, reviewedHead: manifest.reviewedHead }
+  const engine = createNativeOwnerContracts(nativeInput, { manifest, project: manifest.projectId,
+    sourceFile: '269_contextual_surveys_workflow.sql', label: 'survey269-component', absoluteDeadline: input.absoluteDeadline,
+    survey269Component: manifest.binding, survey269Exchange: input.survey263Endpoint.componentExchange, survey263Budget: budget, survey263NativeCli: cli,
+    survey263Endpoint: freeze({ host: input.survey263Endpoint.host, identity: [...input.survey263Endpoint.identity] as [number,number,number,number] }),
+    singleMs: 35000, surveySdk: { fixture: manifest.fixture, status: validateAssignmentListProofTarget(input.statusTarget, manifest.projectId) },
+    validateSql: sql => [manifest.bootstrap, manifest.close].includes(sql) || validateSurvey269ComponentSql(manifest, sql),
+    contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    runContracts: (target, driver) => runSurvey269ComponentRollback(manifest, target, driver),
+    runRaces: async () => {throw new Error('Survey269 component cannot run races')},
+  })
+  return Object.freeze({ manifest: engine.manifest, setup: engine.setup, verifyTarget: engine.verifyTarget, diagnostic: engine.diagnostic,
+    runContractsOnly: engine.runSurvey269ContractsOnly!, runSdkCommitted: engine.runSurveySdkCommitted!,
+    generateTypes269: engine.generateSurveyTypes!, nativeVerified: false as const, inventoryComplete: false as const })
 }
 
 /** One fixed grading profile reuses the native engine; there is no public SQL,
@@ -911,6 +954,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   const project = profile.project
   const closure = structuredClone(input.capturedResources)
   const start = profile.survey263Budget?.startedAt ?? Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let runDone = false; let probing = false; let committedRan = false
+  const component = profile.survey269Component !== undefined
+  function chargeComponent(bytes: number, cleanup = false) {
+    try {exchanged = chargeSurvey269ComponentExchange(profile.survey269Exchange!, bytes, cleanup)}
+    catch {record('budget');failed = true;throw failure()}
+  }
   const probed = new Set<'outer' | 'inner' | PublicationPrivilegeKind>()
   const completedProbes = new Set<'outer' | 'inner' | PublicationPrivilegeKind>()
   // The rollback and committed publication schedules share one race clock.
@@ -1008,13 +1056,15 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   function command(file: 'git' | 'docker' | 'supabase', args: string[], sql?: string, timeout: number = CAPS.controlMs, diagnosticRole?: Role, cleanup = false): Promise<string> {
     checkJoined()
     assert(++controls <= CAPS.controlCalls)
-    if (file === 'supabase') assert(profile.label === 'survey263' && endpoint)
+    if (file === 'supabase') assert((profile.label === 'survey263' || component) && endpoint)
+    if (component && sql !== undefined) chargeComponent(Buffer.byteLength(sql), cleanup)
     if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
     const executable = file === 'supabase' ? verifySurvey263NativeCli(profile.survey263NativeCli!).path : file
     if (profile.survey263Budget) {
       timeout = Math.min(timeout, (cleanup ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline) - Date.now())
       assert(timeout > 0)
     }
+    if (component) chargeSurvey269ComponentControl(profile.survey269Exchange!, cleanup)
     return new Promise((resolveClosed, rejectClosed) => {
       let joined = !profile.survey263Budget, outcome: { value?: string; error?: unknown } | undefined
       const settle = () => { if (joined && outcome) { if ('error' in outcome) rejectClosed(outcome.error); else resolveClosed(outcome.value!) } }
@@ -1023,6 +1073,10 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       let inputFailed = false
       const child = execFile(executable, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes,
         ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint!.host } } : {}) }, (error, stdout, stderr) => {
+        if (component) {
+          try {assert(typeof stdout === 'string' && typeof stderr === 'string');chargeComponent(Buffer.byteLength(stdout) + Buffer.byteLength(stderr), cleanup);assert(Buffer.byteLength(stderr) <= CAPS.stderrBytes)}
+          catch {reject(failure());return}
+        }
         if (profile.reorderDiagnosticSql && typeof stderr === 'string') {
           exchanged += Buffer.byteLength(stderr)
           if (Buffer.byteLength(stderr) > CAPS.stderrBytes || exchanged > CAPS.totalBytes) { reject(failure()); return }
@@ -1035,7 +1089,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           }
           reject(failure())
         }
-        else { exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes ? reject(failure()) : resolveResult(stdout.trim()) }
+        else { if (!component) exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes && !(component && cleanup) ? reject(failure()) : resolveResult(stdout.trim()) }
       })
       if (profile.survey263Budget) {
         const closeDeadline = Math.min(profile.survey263Budget.cleanupDeadline, Date.now() + timeout + CAPS.closeMs)
@@ -1083,6 +1137,16 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     ])
     checkJoined()
     for (const result of checks) if (result.status === 'rejected') throw result.reason
+    if (profile.survey269Component) {
+      const binding = profile.survey269Component
+      for (const [key, repository] of Object.entries(SURVEY_269_COMPONENT_ROOTS)) {
+        const source = binding[key as 'product' | 'carrier']
+        assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD'], undefined, CAPS.controlMs, undefined, cleanup), source.head)
+        assert.equal(await command('git', ['-C', repository, 'rev-parse', 'HEAD^{tree}'], undefined, CAPS.controlMs, undefined, cleanup), source.tree)
+        assert.equal(await command('git', ['-C', repository, 'status', '--porcelain', '--untracked-files=all'], undefined, CAPS.controlMs, undefined, cleanup), '')
+      }
+      verifySurvey269ComponentSources(binding)
+    }
     assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
     assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations', profile.sourceFile), 'utf8')), manifest.sourceSha256)
     if (profile.surveyCommitted) verifySurveyRemainingSources(input.repository)
@@ -1097,7 +1161,14 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     // the original reserve during work; cleanup discovery uses the total clock.
     if (profile.survey263Budget) { if (!cleanup) check(observe); else checkSettlement() }
     try {
-      return await draftSaveProofDockerInventory({}, profile.label === 'survey263' ? endpoint : undefined,
+      if (component) {
+        assert(endpoint)
+        return await assignmentListDockerInventory((file, args) => {
+          assert.equal(file, 'docker')
+          return command('docker', ['--host', endpoint!.host, ...args], undefined, CAPS.controlMs, undefined, cleanup)
+        })
+      }
+      return await draftSaveProofDockerInventory({}, profile.survey263Endpoint ? endpoint : undefined,
         profile.survey263Budget ? {
           dispatchDeadline: cleanup ? profile.survey263Budget.cleanupDeadline : profile.survey263Budget.workDeadline,
           settlementDeadline: profile.survey263Budget.cleanupDeadline,
@@ -1150,6 +1221,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
     constructor(name: string) {
       this.name = name
+      if (component) chargeSurvey269ComponentControl(profile.survey269Exchange!)
       this.child = spawn('docker', dockerArgs(name), { cwd: input.repository, stdio: ['pipe', 'pipe', 'pipe'] })
       this.closed = new Promise(resolveClose => this.child.once('close', () => {
         if (this.active) this.fault('child-exit')
@@ -1159,21 +1231,23 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       this.child.stdin.on('error', () => { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) })
       this.child.stdout.on('data', (chunk: Buffer) => {
         try {
-          assert(Buffer.isBuffer(chunk)); assert(chunk.length <= CAPS.outputBytes - Buffer.byteLength(this.partial))
+          assert(Buffer.isBuffer(chunk));if (component) chargeComponent(chunk.length, this.cleaning)
+          assert(chunk.length <= CAPS.outputBytes - Buffer.byteLength(this.partial))
           this.partial += this.decoder.write(chunk)
           for (;;) {
             const newline = this.partial.indexOf('\n'); if (newline < 0) break
             const line = this.partial.slice(0, newline).replace(/\r$/, ''); this.partial = this.partial.slice(newline + 1)
             assert(this.active)
             if (line === this.active.end) { this.active.finish(); continue }
-            this.active.bytes += Buffer.byteLength(line); exchanged += Buffer.byteLength(line)
-            assert(this.active.bytes <= CAPS.outputBytes && exchanged <= CAPS.totalBytes)
+            this.active.bytes += Buffer.byteLength(line); if (!component) exchanged += Buffer.byteLength(line)
+            assert(this.active.bytes <= CAPS.outputBytes && (exchanged <= CAPS.totalBytes || (component && this.cleaning)))
             if (line) this.active.lines.push(line)
           }
         } catch { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
       })
       this.child.stderr.on('data', (chunk: Buffer) => {
         this.stderr += chunk.length
+        if (component) {try {chargeComponent(chunk.length, this.cleaning)} catch {this.fault('budget');this.reject();void closeAll().catch(() => {});return}}
         if (profile.reorderDiagnosticSql) exchanged += chunk.length
         if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
         else {
@@ -1225,7 +1299,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           // Issue only at the actual guarded write, not at execute invocation.
           carrier.backend = Object.freeze({ ...this.owned }); carrier.marker = marker; carrier.dispatchedAt = Date.now()
         }
-        this.child.stdin.write(`${sql}\n\\echo ${marker}\n`)
+        const wire = `${sql}\n\\echo ${marker}\n`
+        if (component) chargeComponent(Buffer.byteLength(wire), this.cleaning)
+        this.child.stdin.write(wire)
         carrier?.didDispatch()
       })
     }
@@ -1466,16 +1542,35 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           'restoration-and-final-preservation-inventory', 'complete-input-output-and-helper-byte-accounting'],
         controls, actions, exchangeBytes: exchanged, remainingSessions: sessions.size })
     } } : {}),
+    ...(profile.survey269Component ? { async runSurvey269ContractsOnly() {
+      phase = 'contracts'
+      try {
+        assert(setupDone && !ran && !probing && sessions.size === 0);ran = true;check()
+        const before = await single(manifest.snapshot)
+        const decoded = decodeAssignmentListSnapshot(before.map(row => JSON.stringify(row.result)).join('\n'), 'rows')
+        assert(Array.isArray(decoded.tables['public.classrooms']) && decoded.tables['public.classrooms'].length >= 2)
+        assert(Array.isArray(decoded.tables['public.surveys']) && decoded.tables['public.surveys'].length >= 3)
+        assert(Array.isArray(decoded.tables['public.survey_questions']) && decoded.tables['public.survey_questions'].length >= 2)
+        const bound = target(profile.contractsSha256)
+        const contracts = await profile.runContracts(bound, driver(bound))
+        phase = 'contracts-verify'
+        assert.deepEqual(await single(manifest.snapshot), before, 'Survey269 rollback whole-row equality differs')
+        assert.equal(sessions.size, 0);check();runDone = true;phase = 'complete'
+        return freeze({ scope: 'source-compatibility-and-genuine-types-prerequisite' as const, contracts,
+          fixtureUnchanged: true as const, racesRun: false as const, nativeVerified: false as const,
+          controls, actions, exchangeBytes: exchanged, countedChannels: survey269ComponentExchangeReceipt(profile.survey269Exchange!).channels, remainingSessions: sessions.size })
+      } catch (error) {record('unknown');checkJoined();throw error}
+    } } : {}),
     ...(profile.surveySdk ? { async runSurveySdkCommitted() {
       phase = 'transitions'
       try {
-        assert.equal(profile.label, 'survey263')
+        assert(profile.label === 'survey263' || component)
         assert(setupDone && (profile.surveyCommitted ? surveyCommittedDone : ran && runDone) && !surveySdkRan && !probing && sessions.size === 0)
         surveySdkRan = true; check()
         const decode = (rows: Awaited<ReturnType<typeof single>>) => decodeAssignmentListSnapshot(
           rows.map(row => JSON.stringify(row.result)).join('\n'), 'rows')
         const before = decode(await single(manifest.snapshot))
-        const transport = createSurveySdkProofTransport(profile.surveySdk!.fixture, profile.surveySdk!.status, fetch, guard)
+        const transport = createSurveySdkProofTransport(profile.surveySdk!.fixture, profile.surveySdk!.status, fetch, guard, component ? chargeComponent : undefined)
         const startedAt = new Date().toISOString()
         transport.start(Math.min(start + CAPS.totalMs, profile.absoluteDeadline ?? start + CAPS.totalMs))
         let sdkFailure: unknown, sdkComplete = false, endedAt: string | undefined
@@ -1508,7 +1603,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     }, async generateSurveyTypes() {
       phase = 'transitions'
       try {
-        assert.equal(profile.label, 'survey263')
+        assert(profile.label === 'survey263' || component)
         assert(surveySdkDone && !surveyTypesGenerated && !probing && sessions.size === 0)
         surveyTypesGenerated = true; check()
         const plan = testDraftSaveTypeGenerationPlan(input.repository, input.reviewedHead, project)
@@ -1539,9 +1634,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         }, async () => { assert(endpoint); return dockerInventory(generationSettling) })
         const source = readFileSync(receipt.path, 'utf8')
         assert.equal(Buffer.byteLength(source), receipt.bytes)
-        validateSurveyGeneratedTypes(source, receipt.sha256); check()
+        if (component) validateSurvey269ComponentGeneratedTypes(source, receipt.sha256)
+        else validateSurveyGeneratedTypes(source, receipt.sha256)
+        check()
         phase = 'complete'
-        return freeze({ ...receipt, kind: 'genuine-survey263-types' as const, validatedRpcContracts: 12,
+        return freeze({ ...receipt, kind: component ? 'genuine-survey269-component-types' as const : 'genuine-survey263-types' as const, validatedRpcContracts: 12,
+          ...(component ? {validatedFoundationHotArchiveRpc: true as const} : {}),
           nativeVerified: false as const })
       } catch (error) { record('unknown'); checkJoined(); throw error }
     } } : {}),
@@ -1555,6 +1653,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
       return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
+        + (component ? `DIAG survey269-component settlement remainingSessions=${sessions.size} exchangeBytes=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).bytes} controlCalls=${survey269ComponentExchangeReceipt(profile.survey269Exchange!).controls}.\n` : '')
         + (profile.learnerCancellation ? `DIAG learner cancellationStage=${cancellationFirstFailure ?? cancellationStage} cancellationRestore=${cancellationRestoreFailure ?? 'none'}.\n` : '')
     },
     async setup() {
@@ -1646,6 +1745,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     async run() {
       phase = 'snapshot'
       try {
+      assert(!component, 'Survey269 component exposes contracts-only, never races')
       assert(!profile.surveyCommitted, 'Survey remaining-only profile cannot replay rollback races')
       assert(!profile.reorderDiagnosticSql)
       assert(setupDone && !ran && !probing)
