@@ -451,3 +451,31 @@ two sessions,8MiB frames and720000ms work+180000ms cleanup remain unchanged.
 Independent review precedes any separate rehearsal decision. No new native attempt
 or acceptance is admitted here; all production/shared-local/provider/account/
 activation/rollout holds remain.
+
+### Remaining binding diagnostics (correction138, offline only)
+
+The one authorized v9 attempt is permanently spent/failed at `survey-binding`,
+before fixture setup, with no native diagnostic assigned. Cleanup and independent
+source/dependency preservation passed. Its exact failing assertion remains unknown;
+it did not exercise the new WAIT timing policy. A construction-only probe passed,
+but synthetic status/resources cannot establish the actual ephemeral safety gates.
+
+The remaining-only lifecycle now reports one fixed pre-constructor checkpoint
+through the existing diagnostic field: `workload`, `session-resource`,
+`ephemeral-verification`, `session-result`, `capture-resource`, `manifest`, or
+`constructor`. It preserves the original exception and unjoined-child poison
+semantics, captures the primary label before cleanup, and yields to the native
+getter once construction succeeds. No error messages, stacks, source line numbers,
+SQL, resource identifiers or arbitrary payloads enter these labels. An ephemeral
+verification label still cannot distinguish the platform's internal inventory,
+gate query, snapshot or parser; this ambiguity is deliberate, not a causal claim.
+
+CPU coverage now composes the real workload, manifest and factory/constructor
+through the lifecycle with synthetic external adapters and ledger, then stops
+before setup. Failure injection covers all seven boundaries, privacy canaries,
+original-error identity through cleanup, poison handling, and unchanged component/
+legacy delivery. This establishes offline composition only, not PostgreSQL or
+native acceptance. No query, frame, action, control, request, session, guard,
+predicate, clock or limit changes. No next native attempt is authorized by this
+correction; all production/shared-local/provider/account/billing/cohort/home/
+cutover holds remain.

@@ -1,15 +1,22 @@
 /** Offline coordination only: these doubles never establish native acceptance. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import * as childProcess from 'node:child_process'
 import * as plans from '../../scripts/contextual-surveys-native-contracts'
 import * as engine from '../../scripts/contextual-test-draft-save-native-contracts'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
+import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { assignmentListExpectedResources, runAssignmentListEphemeralLifecycle,
   type AssignmentListLifecycleAdapters, type AssignmentListLifecycleInput, type AssignmentListResource } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 
 const digest = (value: unknown) => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex')
+vi.mock('node:child_process', async original => ({ ...await original<typeof import('node:child_process')>(),
+  spawn: vi.fn(() => { throw new Error('Unexpected offline spawn') }),
+  execFile: vi.fn(() => { throw new Error('Unexpected offline exec') }),
+}))
 afterEach(() => vi.restoreAllMocks())
 
 function harness(failure?: 'committed' | 'sdk' | 'types' | 'unjoined' | 'uncertain-restoration' | 'preservation') {
@@ -50,7 +57,7 @@ function harness(failure?: 'committed' | 'sdk' | 'types' | 'unjoined' | 'uncerta
     generateTypes269: vi.fn(async () => { stages.push('types'); if (failure === 'types') throw new Error('Offline types failure'); return generated }),
   }
   // The facade is a closed source-owned factory in production; only this offline test substitutes it.
-  vi.spyOn(engine, 'buildSurvey269RemainingManifest').mockReturnValue(plan as never)
+  const manifest = vi.spyOn(engine, 'buildSurvey269RemainingManifest').mockReturnValue(plan as never)
   const factory = vi.spyOn(engine, 'createSurvey269RemainingNativeContracts').mockReturnValue(native as never)
   const canonical = { rowDigests: 'complete', guard168Metadata: 'complete', settings: 'complete', cronJobs: 'complete', resources: 'complete' }
   const adapters: AssignmentListLifecycleAdapters = {
@@ -64,10 +71,106 @@ function harness(failure?: 'committed' | 'sdk' | 'types' | 'unjoined' | 'uncerta
     teardown: vi.fn(async () => { check(); started = false }), removeWorkdir: vi.fn(async () => { check(); prepared = false }),
   }
   const input: AssignmentListLifecycleInput = { fixture, projectId, workdir, migrations, reviewedManifestSha256: digest(fixture.manifest), mode: 'normal', expectedResources, restorationPolicies: [], survey269RemainingWorkload: workload }
-  return { input, adapters, native, stages, committed, sdk, generated, validate, consume, cleanup, factory, endpoint }
+  return { input, adapters, native, stages, committed, sdk, generated, validate, consume, cleanup, factory, manifest, endpoint, migrations }
 }
 
 describe('remaining Survey269 lifecycle coordination, offline only', () => {
+  it('composes the real workload, manifest and constructor through the lifecycle, stopping before setup', async () => {
+    const h = harness(), stop = new Error('Controlled offline pre-setup stop')
+    // Only the external adapter/ledger binding is synthetic; no native action is dispatched.
+    vi.mocked(platform.survey269ComponentExchangeReceipt).mockReturnValue({ bytes: 0, limit: 134217728, controls: 0, controlLimit: 6000, requests: 0, requestLimit: 16, channels: [] } as never)
+    h.validate.mockRestore(); h.consume.mockRestore(); h.manifest.mockRestore(); h.factory.mockRestore()
+    const head = 'a'.repeat(40)
+    const binding: plans.Survey269ComponentBinding = { product: { head, tree: head }, carrier: { head, tree: head },
+      sharedSources: Object.fromEntries(plans.SURVEY_269_SHARED_FILES.map(file => [file, digest(readFileSync(`${plans.SURVEY_269_COMPONENT_ROOTS.carrier}/${file}`, 'utf8'))])) as plans.Survey269ComponentBinding['sharedSources'] }
+    const plan = plans.survey269RemainingPlan(h.input.fixture, binding)
+    h.migrations.splice(0, h.migrations.length, ...loadAssignmentListReviewedMigrations(plans.SURVEY_269_COMPONENT_ROOTS.product))
+    h.input.survey269RemainingWorkload = plans.bindSurvey269RemainingWorkload({ original: h.input.fixture, binding,
+      reviewedManifestSha256: digest(plan), absoluteDeadline: h.endpoint.budget.workDeadline,
+      rootReviewed: true, oneAttemptAuthorized: true, freshCapacityChecked: true })
+    const factory = engine.createSurvey269RemainingNativeContracts
+    let returned = false, stopped = false
+    const realFactory = vi.spyOn(engine, 'createSurvey269RemainingNativeContracts').mockImplementation(input => {
+      const native = factory(input)
+      expect('committed' in native.manifest && native.manifest.committed.waitObservation).toBe('database750-original8000')
+      returned = true; return native
+    })
+    const spawn = vi.mocked(childProcess.spawn), exec = vi.mocked(childProcess.execFile)
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => { throw new Error('Unexpected offline HTTP') })
+    vi.mocked(h.adapters.checkWork!).mockImplementation(() => { if (returned && !stopped) { stopped = true; throw stop } })
+    const error = await runAssignmentListEphemeralLifecycle(h.input, h.adapters).catch(error => error)
+    expect(realFactory).toHaveBeenCalledOnce(); expect(returned).toBe(true)
+    expect(error.primary.error).toBe(stop); expect(error.primary.stage).toBe('fixture')
+    expect(error.primary.nativeDiagnostic).toContain('controls=0 actions=0 sessions=0')
+    expect(error.primary.nativeDiagnostic).not.toContain('survey-binding checkpoint=')
+    expect(error.cleanupFailures).toEqual([])
+    expect(spawn).not.toHaveBeenCalled(); expect(exec).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled()
+    expect(h.adapters.verifyEphemeral).toHaveBeenCalledOnce(); expect(h.adapters.inventory).toHaveBeenCalledTimes(9)
+    expect(h.adapters.executeSql).not.toHaveBeenCalled(); expect(h.adapters.command).toHaveBeenCalledTimes(2)
+  })
+  it('retains a pre-constructor unjoined error and poison barrier without exposing its message', async () => {
+    const h = harness(), original = new platform.Survey263UnjoinedChildError()
+    vi.mocked(h.adapters.verifyEphemeral).mockRejectedValueOnce(original)
+    const error = await runAssignmentListEphemeralLifecycle(h.input, h.adapters).catch(error => error)
+    expect(error.primary.error).toBe(original)
+    expect(error.primary.nativeDiagnostic).toBe('survey-binding checkpoint=ephemeral-verification')
+    expect(h.cleanup).toHaveBeenCalledWith(h.adapters, true)
+    expect(h.adapters.teardown).not.toHaveBeenCalled(); expect(h.adapters.removeWorkdir).not.toHaveBeenCalled()
+    expect(h.factory).not.toHaveBeenCalled()
+  })
+  it.each(['component', 'legacy'] as const)('does not add binding diagnostics to %s failures', async profile => {
+    const h = harness(), original = new Error('PRIVATE wrong-profile canary')
+    const plan = { migrationManifestSha256: digest(h.migrations.map(({ name, sha256 }) => ({ name, sha256 }))), inventoryComplete: true }
+    const workload = h.input.survey269RemainingWorkload!
+    h.input.survey269RemainingWorkload = undefined
+    if (profile === 'component') {
+      h.input.survey269ComponentWorkload = workload as never
+      vi.spyOn(plans, 'validateSurvey269ComponentWorkload').mockReturnValue(plan as never)
+      vi.spyOn(plans, 'consumeSurvey269ComponentWorkload').mockImplementation(() => {})
+      vi.mocked(platform.survey269ComponentExchangeReceipt).mockReturnValue({ controlLimit: 4000 } as never)
+    } else {
+      h.input.surveyWorkload = workload as never
+      vi.spyOn(plans, 'validateSurveyNativeLifecycleWorkload').mockReturnValue(plan as never)
+      vi.spyOn(plans, 'consumeSurveyNativeLifecycleWorkload').mockImplementation(() => {})
+      Object.assign(h.endpoint, { componentExchange: undefined })
+    }
+    vi.mocked(h.adapters.verifyEphemeral).mockRejectedValueOnce(original)
+    const error = await runAssignmentListEphemeralLifecycle(h.input, h.adapters).catch(error => error)
+    expect(error.primary.error).toBe(original); expect(error.primary.stage).toBe('survey-binding')
+    expect(error.primary.nativeDiagnostic).toBeUndefined(); expect(h.factory).not.toHaveBeenCalled()
+  })
+  it.each(['workload', 'session-resource', 'ephemeral-verification', 'session-result', 'capture-resource', 'manifest', 'constructor'] as const)('retains the original %s binding failure with only a fixed private label', async checkpoint => {
+    const h = harness(), original = new Error('SECRET SQL endpoint row identifier stack canary')
+    original.stack = 'SECRET arbitrary stack canary'
+    if (checkpoint === 'workload') h.validate.mockImplementationOnce(() => ({ migrationManifestSha256: digest(h.migrations.map(({ name, sha256 }) => ({ name, sha256 }))), inventoryComplete: true }) as never).mockImplementationOnce(() => { throw original })
+    if (checkpoint === 'session-resource' || checkpoint === 'capture-resource') {
+      const inventory = vi.mocked(h.adapters.inventory).getMockImplementation()!; let calls = 0
+      vi.mocked(h.adapters.inventory).mockImplementation(async (...args) => {
+        if (++calls === (checkpoint === 'session-resource' ? 4 : 5)) throw original
+        return inventory(...args)
+      })
+    }
+    if (checkpoint === 'ephemeral-verification') vi.mocked(h.adapters.verifyEphemeral).mockRejectedValueOnce(original)
+    if (checkpoint === 'session-result') {
+      const verify = vi.mocked(h.adapters.verifyEphemeral).getMockImplementation()!
+      vi.mocked(h.adapters.verifyEphemeral).mockImplementationOnce(async input => {
+        const result = await verify(input); vi.mocked(h.adapters.checkWork!).mockImplementationOnce(() => { throw original }); return result
+      })
+    }
+    if (checkpoint === 'manifest') h.manifest.mockImplementationOnce(() => { throw original })
+    if (checkpoint === 'constructor') h.factory.mockImplementationOnce(() => { throw original })
+    const canonical = vi.mocked(h.adapters.canonicalSnapshot).getMockImplementation()!
+    let snapshots = 0
+    vi.mocked(h.adapters.canonicalSnapshot).mockImplementation(async input => { if (++snapshots === 2) throw new Error('SECRET cleanup canary'); return canonical(input) })
+    const error = await runAssignmentListEphemeralLifecycle(h.input, h.adapters).catch(error => error)
+    expect(error.primary.error).toBe(original)
+    expect(error.primary.stage).toBe('survey-binding')
+    expect(error.primary.nativeDiagnostic).toBe(`survey-binding checkpoint=${checkpoint}`)
+    expect(error.primary.nativeDiagnostic).not.toContain('SECRET')
+    expect(error.cleanupFailures.length).toBeGreaterThan(0)
+    expect(h.native.setup).not.toHaveBeenCalled(); expect(h.adapters.executeSql).not.toHaveBeenCalled()
+    expect(h.adapters.command).toHaveBeenCalledTimes(2)
+  })
   it('runs one closed remaining phase before SDK/types and retains real phase receipts without declaring acceptance', async () => {
     const h = harness()
     await expect(runAssignmentListEphemeralLifecycle(h.input, h.adapters)).resolves.toMatchObject({

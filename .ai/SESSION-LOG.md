@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Fresh full-app lifecycle binding
-
-User authorized one bounded real-Pika rehearsal after narrow kernel/browser checks
-passed. Batch60 binds full-app Chrome155.0.8059.84 (signature/hash verified), current
-process helper and fresh exclusive one-shot wrapper; no old attempt is retried.
-Screenshot-only positioning correction delegated to Sol6.1/high; root handles
-binding, CPU gates and sole native operation. All production/shared-local/provider/
-rollout holds remain; frozen app21e755d3 and migrations001–262 unchanged. Targeted
-review103 follows clean CPU checks; historical102reviews/59batches and clocks
-retained under owner routine-stop waiver. Weekly66%remaining; effective worker
-configuration/tokens unknown. Current production lines above are this branch's
-historical baseline, not an assertion against newer unrelated release work.
-
-Review103 CLEAN0 complete delta9be50234 plus3privatewrappers; fullfocused3536PASS/
-8skip, allstaticchecksPASS. Draft1581 exact9be50234 pushed. ONE realappCJrlCg run
-SPENT/FAILED115109ms: firstownerpasswordloginthroughidentityPASS, no body/request/
-identityguardfailure; empty-editorfontcaptureassertion stoppedafter3readable
-teacherdesktop/lightPNG. Fullvisual/fullworkflowexitNOTmet. CleanupallstagesPASS,
-ownedSettledtrue; independent57689 confirms7646sources/49485dependenciesunchanged
-and0currentprocesscandidates. Exactisolatedresources/tempappgone, fourportsclear;
-evidenceretained. Freeze released; no automaticretry. RootcorrectedinitialPNGcount
-(filesnestedunderplaywright/). Source-onlydiagnosis: fill('') doesnotwaitfor
-placeholderreadiness; canonicalTiptapemptyparagraphhastrailingBR. Exactfailed
-predicateunknown; pseudoheight0 alone isnotproof. Next boundedemptyreadiness/
-privacy-safefixedgeometrylabels, retaining visibilitychecks; no speculativefix.
-no product/production/sharedDB/provider/rolloutchanges. Counters103/60 unchanged.
-
 ## 2026-10-16 — Bounded empty-font capture readiness
 
 User Continue authorizes the recommended correction/review and one fresh bounded
@@ -692,3 +665,9 @@ Correction135 passed4435 full checks/review207. Fresh v7 passed49 SQL cases in10
 Correction136 passed4448 full checks/reviews208–209. Fresh v8 passed49 SQL cases in103062ms, then identified direction5's758ms aggregate observation rejection; exact cleanup and immediate preservation passed, alias spent. Owner approved correction137 offline and independent review before another rehearsal: remaining269 successful WAIT only keeps server-local750ms through completion of the actual read, with a post-read check including the final poll and fractional overflow; fresh host guards, observation/release and completion acceptance remain inside the original contender8s/global deadline. No timer renewal or skipped guard. Legacy/component and NOWAIT behavior, all other caps and production/shared-local/provider/account/rollout holds remain. Actual-engine test-first cases reproduce the old rejection at758ms/2000ms; native fit and full remaining acceptance are unproved. Root owns stable integration/fullgate, with one independent Astra/high review; routine-stop waiver carries prior209 reviews/136 completed corrections forward. No new native attempt is authorized here.
 
 Settled source passes strict TypeScript/audit. Affected run333pass/1 unchanged5s test timeout; exact isolated invalid-backend case passes1.26s, so the timeout remains recorded rather than claiming a fully green suite. Root fullgate and independent review are pending. Fixed observer-onlyP7501 distinguishes SQL-local expiry; wrong-frame/legacy codes stay unknown. Normal198actions/4008controls/16requests remain, with4420 additional mocked exchange bytes; native fit remains unproved.
+
+## 2026-10-18 — Diagnose Survey binding before native setup
+
+Correction137 passed4461 full tests/static gates and independent review210; launcher review211 passed. One authorized v9 rehearsal stopped at survey-binding before fixture/remaining execution, with no native diagnostic and cleanup failures empty. Root immediately confirmed complete source/dependency equality and exact isolated resource/tempdir absence; the attempt remains failed/spent. Its304controls/4776554bytes/0requests were below all limits; the specific rejected binding substep is unknown. A pure real-factory construction check passed with synthetic status and no engine operations, which does not prove the actual session/resource gates. Routine correction138 adds fixed private binding checkpoints and real-factory offline lifecycle coverage under existing goal authority. Original errors, safety predicates, all caps and production/shared-local/provider/account/rollout holds remain. No second native attempt is authorized. Source author Astra/high; one Sol/high independent review and root fullgate follow the stable changes.
+
+Settled correction138 passes52affected tests, strict TypeScript/audit. Seven injected binding failures preserve the exact original error/poison while adding fixed labels; real workload/manifest/factory composition reaches a controlled pre-setup stop with zero native/HTTP operations. Legacy/component delivery and native-getter priority remain. Root stable review/fullgate follow; v9's exact cause and native timing acceptance remain unproved.

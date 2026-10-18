@@ -245,6 +245,13 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   // Only the closed source-owned269 factory can provide this getter. It is not
   // an adapter callback or an error/message serializer.
   let survey269NativeDiagnostic: (() => string) | undefined
+  // Fixed remaining-only pre-constructor evidence. Never derive labels from an
+  // exception, stack, resource or caller value; retain the original error below.
+  type SurveyBindingCheckpoint = 'workload' | 'session-resource' | 'ephemeral-verification' | 'session-result' | 'capture-resource' | 'manifest' | 'constructor'
+  let surveyBindingCheckpoint: SurveyBindingCheckpoint | undefined
+  const bindingCheckpoint = (checkpoint: SurveyBindingCheckpoint) => {
+    if (survey269RemainingWorkload && stage === 'survey-binding' && !survey269NativeDiagnostic) surveyBindingCheckpoint = checkpoint
+  }
   const cleanupFailures: Failure[] = []; const captured = new Map<string, AssignmentListResource>()
   const checkWork = () => adapters.checkWork?.()
   const validateCanonical = (snapshot: Canonical) => { for (const k of ['rowDigests', 'guard168Metadata', 'settings', 'cronJobs', 'resources'] as const) assert(typeof snapshot[k] === 'string' && snapshot[k].length > 0) }
@@ -271,6 +278,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     return result
   }
   const session = async (restoration = false): Promise<Session> => {
+    bindingCheckpoint('session-resource')
     const checkSessionWork = () => { if (!restoration) checkWork() }
     checkSessionWork()
     assert(target && before)
@@ -279,7 +287,9 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     const kong = selected.find(r => r.kind === 'container' && r.name === `supabase_kong_${identity.projectId}`)!
     assert.deepEqual(db.ports, [54332]); assert.deepEqual(kong.ports, [54331])
     checkSessionWork()
+    bindingCheckpoint('ephemeral-verification')
     const s = await adapters.verifyEphemeral({ projectId: identity.projectId, dbPort: 54332, applicationName: `${identity.projectId}_fixture`, target })
+    bindingCheckpoint('session-result')
     checkSessionWork()
     assert.equal(s.projectId, identity.projectId); assert.equal(s.dbPort, 54332); assert.equal(s.applicationName, `${identity.projectId}_fixture`)
     assert.equal(s.containerId, db.id); assert(s.guard168Enabled && s.persistedGatesOff && s.activeNetworkCronAbsent)
@@ -315,9 +325,11 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     stage = 'status'; checkWork(); target = validateAssignmentListProofTarget(await adapters.command({ args: ['status', '--workdir', identity.workdir, '-o', 'json'], workdir: identity.workdir, timeoutMs: 15000 }), identity.projectId)
     if (survey269RemainingWorkload) {
       const workload = survey269RemainingWorkload
-      stage = 'survey-binding'; checkWork(); validateSurvey269RemainingWorkload(workload, fixture)
-      const s = await session(); const resources = (await inspectFresh()).selected
+      stage = 'survey-binding'; bindingCheckpoint('workload'); checkWork(); validateSurvey269RemainingWorkload(workload, fixture)
+      const s = await session(); bindingCheckpoint('capture-resource'); const resources = (await inspectFresh()).selected
+      bindingCheckpoint('manifest')
       const nativeManifest = buildSurvey269RemainingManifest(fixture, workload.binding)
+      bindingCheckpoint('constructor')
       const native = createSurvey269RemainingNativeContracts({ original: fixture, binding: workload.binding,
         capturedResources: resources, containerId: s.containerId, acceptedManifestSha256: sha(JSON.stringify(nativeManifest)),
         absoluteDeadline: workload.absoluteDeadline, statusTarget: target, survey263Endpoint: survey263Endpoint! })
@@ -390,6 +402,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   } catch (error) {
     let nativeDiagnostic: string | undefined
     try { nativeDiagnostic = survey269NativeDiagnostic?.() } catch { /* Preserve the primary failure if evidence is unavailable. */ }
+    if (!survey269NativeDiagnostic && surveyBindingCheckpoint) nativeDiagnostic = `survey-binding checkpoint=${surveyBindingCheckpoint}`
     primary = { stage, error, ...(nativeDiagnostic === undefined ? {} : { nativeDiagnostic }),
       ...(currentRevocation ? { transition: currentRevocation.transition, boundary: currentRevocation.boundary } : {}) }
   }
