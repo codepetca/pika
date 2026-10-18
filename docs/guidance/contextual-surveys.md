@@ -189,3 +189,14 @@ dispatch/control/byte accounting, real size boundaries, fixed cancellation and
 finally restoration, current-main migration resequencing/genuine types and the
 remaining screen proof are still required. `inventoryComplete` stays false;
 native/provider and production holds are unchanged.
+
+The rollback contract now prepares nineteen SQL payload cases in its existing
+single dispatch: exact and one-byte-over limits for owner patch/question inputs,
+expected question row/array snapshots and owner/member detail reads, plus five
+malformed input shapes. It measures the actual SQL expressions, asserts exact
+success/denial behavior, and rolls each case back with complete scoped row and
+revision equality. Only compact case metadata leaves SQL; no giant graph is
+transported. Source checks pass, but native execution and the unchanged 35-second
+deadline fit are unverified. Valid 8MiB response-vector, list/results byte limits,
+10,000-row guards and the native wire probe remain uncovered. No acceptance flag
+or execution hold changes with this source-only subset.

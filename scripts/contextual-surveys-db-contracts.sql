@@ -4,6 +4,27 @@ begin;
 set local statement_timeout = '35s';
 set local lock_timeout = '1s';
 
+-- Internal equality carrier only: complete rows of the affected Classroom,
+-- including all revision/default/membership fields. No large JSON leaves SQL.
+create function pg_temp.survey_payload_state(p_classroom uuid)
+returns text language sql volatile set search_path = '' as $payload_state$
+  select encode(sha256(convert_to(jsonb_build_object(
+    'classrooms',(select coalesce(jsonb_agg(to_jsonb(r) order by r.id),'[]'::jsonb) from public.classrooms r where r.id=p_classroom),
+    'revisions',(select coalesce(jsonb_agg(to_jsonb(r) order by r.classroom_id),'[]'::jsonb) from public.classroom_archive_revisions r where r.classroom_id=p_classroom),
+    'enrollments',(select coalesce(jsonb_agg(to_jsonb(r) order by r.id),'[]'::jsonb) from public.classroom_enrollments r where r.classroom_id=p_classroom),
+    'generations',(select coalesce(jsonb_agg(to_jsonb(r) order by r.generation_id),'[]'::jsonb) from private.pal_membership_generations r
+      where r.generation_id in (select id from public.classroom_enrollments where classroom_id=p_classroom)),
+    'categories',(select coalesce(jsonb_agg(to_jsonb(r) order by r.id),'[]'::jsonb) from public.gradebook_categories r where r.classroom_id=p_classroom),
+    'surveys',(select coalesce(jsonb_agg(to_jsonb(r) order by r.id),'[]'::jsonb) from public.surveys r where r.classroom_id=p_classroom),
+    'questions',(select coalesce(jsonb_agg(to_jsonb(r) order by r.id),'[]'::jsonb) from public.survey_questions r
+      where r.survey_id in (select id from public.surveys where classroom_id=p_classroom)),
+    'responses',(select coalesce(jsonb_agg(to_jsonb(r) order by r.id),'[]'::jsonb) from public.survey_responses r
+      where r.survey_id in (select id from public.surveys where classroom_id=p_classroom))
+  )::text,'UTF8')),'hex')
+$payload_state$;
+revoke all on function pg_temp.survey_payload_state(uuid) from public,anon,authenticated,service_role;
+create temporary table survey_payload_receipts(label text primary key,measured_bytes integer not null,expected_code text,verified boolean not null) on commit drop;
+
 do $contract$
 declare
   v_owner uuid:=gen_random_uuid(); v_member uuid:=gen_random_uuid(); v_other uuid:=gen_random_uuid();
@@ -13,6 +34,9 @@ declare
   v_archive bigint; v_blueprint bigint; v_function regprocedure;
   v_purge uuid:=gen_random_uuid();
   v_link_cap integer; v_raw_metadata jsonb;
+  v_boundary_question uuid; v_case text; v_delta integer; v_limit integer; v_measured integer; v_base integer;
+  v_code text; v_message text; v_expected_code text; v_expected_message text; v_verified boolean;
+  v_before text; v_call_before text; v_probe jsonb; v_result jsonb; v_question_patch jsonb;
 begin
   -- Verify actual catalog ACLs, not migration text.
   foreach v_function in array array[
@@ -185,6 +209,136 @@ begin
   assert exists(select 1 from public.surveys where id=v_foreign_survey);
   assert (select revision>v_archive from public.classroom_archive_revisions where classroom_id=v_classroom);
   assert (select blueprint_source_revision>v_blueprint from public.classrooms where id=v_classroom);
+
+  -- Payload subset, folded into this SAME rollback dispatch. Reuse the small
+  -- foreign Classroom/Survey and one enrolled reader; do not generate thousands
+  -- of writes merely to claim an 8MiB valid answer vector or 10,000-row counts.
+  execute 'reset role';
+  insert into public.classroom_enrollments(classroom_id,student_id) values(v_foreign_classroom,v_other);
+  execute 'set local role service_role';
+  v_boundary_question:=(public.create_survey_question_for_owner_v1(v_owner,v_foreign_survey,
+    '{"question_type":"short_text","question_text":"Boundary?","options":[],"response_max_chars":4}'::jsonb)->'question'->>'id')::uuid;
+  perform public.update_survey_for_owner_v1(v_owner,v_foreign_survey,'{"status":"active"}');
+  execute 'reset role';
+  v_question_patch:='{"question_type":"short_text","question_text":"Changed boundary?","options":[],"response_max_chars":4}'::jsonb;
+  foreach v_case in array array['owner-patch','question-create','question-update','expected-question','expected-questions','detail-owner','detail-member'] loop
+    v_limit:=case when v_case in ('owner-patch','question-create','question-update') then 4194304 else 8388608 end;
+    for v_delta in 0..2 loop
+      -- Shape checks are input-only; reads have no JSON input shape to corrupt.
+      continue when v_delta=2 and v_case in ('detail-owner','detail-member');
+      v_expected_code:=case when v_delta=0 then null when v_case in ('expected-question','expected-questions') then 'PT409'
+        when v_case in ('detail-owner','detail-member') then 'PT503' else 'PT400' end;
+      v_expected_message:=case when v_case='owner-patch' then 'survey_invalid_patch'
+        when v_case in ('question-create','question-update') then 'survey_invalid_question'
+        when v_case='expected-question' then 'survey_question_changed'
+        when v_case='expected-questions' then 'survey_questions_changed' else 'survey_payload_limit' end;
+      v_before:=pg_temp.survey_payload_state(v_foreign_classroom);v_verified:=false;v_measured:=0;
+      begin
+        if v_case='owner-patch' then
+          if v_delta=2 then v_probe:='{"unknown":true}'::jsonb;
+          else
+            v_probe:=jsonb_build_object('title','');
+            v_probe:=jsonb_build_object('title',repeat('x',v_limit+v_delta-octet_length(v_probe::text)));
+          end if;
+          v_measured:=octet_length(v_probe::text);
+        elsif v_case in ('question-create','question-update') then
+          if v_delta=2 then v_probe:=jsonb_set(v_question_patch,'{options}','{}'::jsonb);
+          else
+            v_probe:=jsonb_set(v_question_patch,'{question_text}','""'::jsonb);
+            v_probe:=jsonb_set(v_probe,'{question_text}',to_jsonb(repeat('x',v_limit+v_delta-octet_length(v_probe::text))));
+          end if;
+          v_measured:=octet_length(v_probe::text);
+        elsif v_case in ('expected-question','expected-questions') then
+          -- Table-valid legacy snapshot fixture, NOT an authoring-input claim:
+          -- one stored question may exceed the 4MiB authoring JSON budget.
+          if v_delta=2 then v_probe:='{}'::jsonb;
+          else
+            update public.survey_questions set question_text='' where id=v_boundary_question;
+            if v_case='expected-question' then
+              select to_jsonb(r) into v_probe from public.survey_questions r where id=v_boundary_question;
+            else
+              select jsonb_agg(to_jsonb(r) order by position,id) into v_probe from public.survey_questions r where survey_id=v_foreign_survey;
+            end if;
+            v_base:=octet_length(v_probe::text);
+            update public.survey_questions set question_text=repeat('x',v_limit+v_delta-v_base) where id=v_boundary_question;
+            if v_case='expected-question' then
+              select to_jsonb(r) into v_probe from public.survey_questions r where id=v_boundary_question;
+            else
+              select jsonb_agg(to_jsonb(r) order by position,id) into v_probe from public.survey_questions r where survey_id=v_foreign_survey;
+            end if;
+          end if;
+          v_measured:=octet_length(v_probe::text);
+        else
+          -- Measure the EXACT detail guard's three-term sum, not JSON wire or
+          -- wrapper bytes. The stored title is table-valid legacy fixture data.
+          update public.surveys set title='' where id=v_foreign_survey;
+          select octet_length(coalesce(jsonb_agg(to_jsonb(r) order by position,id),'[]'::jsonb)::text)
+            into v_base from public.survey_questions r where survey_id=v_foreign_survey;
+          select v_base+octet_length('[]'::jsonb::text)+octet_length(to_jsonb(r)::text)
+            into v_base from public.surveys r where id=v_foreign_survey;
+          update public.surveys set title=repeat('x',v_limit+v_delta-v_base) where id=v_foreign_survey;
+          select octet_length(coalesce(jsonb_agg(to_jsonb(r) order by position,id),'[]'::jsonb)::text)
+            into v_measured from public.survey_questions r where survey_id=v_foreign_survey;
+          select v_measured+octet_length('[]'::jsonb::text)+octet_length(to_jsonb(r)::text)
+            into v_measured from public.surveys r where id=v_foreign_survey;
+        end if;
+        if v_delta<2 then assert v_measured=v_limit+v_delta,'Exact SQL payload measurement differs';end if;
+        v_call_before:=pg_temp.survey_payload_state(v_foreign_classroom);
+        v_code:=null;v_message:=null;
+        begin
+          execute 'set local role service_role';
+          case v_case
+            when 'owner-patch' then v_result:=public.update_survey_for_owner_v1(v_owner,v_foreign_survey,v_probe);
+            when 'question-create' then v_result:=public.create_survey_question_for_owner_v1(v_owner,v_foreign_survey,v_probe);
+            when 'question-update' then
+              select to_jsonb(r) into v_payload from public.survey_questions r where id=v_boundary_question;
+              v_result:=public.update_survey_question_for_owner_v1(v_owner,v_foreign_survey,v_boundary_question,v_payload,v_probe);
+            when 'expected-question' then
+              v_result:=public.update_survey_question_for_owner_v1(v_owner,v_foreign_survey,v_boundary_question,v_probe,v_question_patch);
+            when 'expected-questions' then
+              v_result:=public.respond_to_survey_for_member_v1(v_other,v_foreign_survey,v_foreign_classroom,v_probe,
+                jsonb_build_object(v_boundary_question::text,jsonb_build_object('question_type','short_text','response_text','good')));
+            when 'detail-owner' then v_result:=public.get_survey_for_owner_v1(v_owner,v_foreign_survey);
+            when 'detail-member' then v_result:=public.get_survey_for_member_v1(v_other,v_foreign_survey);
+          end case;
+        exception when others then get stacked diagnostics v_code=returned_sqlstate,v_message=message_text;end;
+        execute 'reset role';
+        if v_expected_code is null then
+          assert v_code is null,'Exact positive SQL boundary was rejected';
+          if v_case='owner-patch' then
+            assert v_result->'survey'->'title'=v_probe->'title';
+            assert (select title=v_probe->>'title' from public.surveys where id=v_foreign_survey);
+          elsif v_case in ('question-create','question-update') then
+            assert v_result->'question'->'question_text'=v_probe->'question_text';
+            assert exists(select 1 from public.survey_questions where id=(v_result->'question'->>'id')::uuid and question_text=v_probe->>'question_text');
+          elsif v_case='expected-question' then
+            assert v_result->'question'->>'question_text'='Changed boundary?';
+            assert (select question_text='Changed boundary?' from public.survey_questions where id=v_boundary_question);
+          elsif v_case='expected-questions' then
+            assert v_result='{"success":true,"updated":false}'::jsonb;
+            assert (select count(*)=1 and min(response_text)='good' from public.survey_responses where survey_id=v_foreign_survey and student_id=v_other);
+          else
+            assert v_result->'survey'->>'id'=v_foreign_survey::text;
+            assert jsonb_array_length(v_result->'questions')=1 and v_result->'responses'='[]'::jsonb;
+            assert pg_temp.survey_payload_state(v_foreign_classroom)=v_call_before,'Boundary read changed data/revisions';
+          end if;
+        else
+          assert v_code=v_expected_code and v_message=v_expected_message,'Exact payload denial differs';
+          assert pg_temp.survey_payload_state(v_foreign_classroom)=v_call_before,'Denied payload changed data/revisions';
+        end if;
+        v_verified:=true;
+        -- Success and denial fixture changes BOTH roll back. Only this private
+        -- sentinel is caught here; assertions and unexpected RPC errors escape.
+        raise exception using errcode='ZP001',message='survey_payload_case_rollback';
+      exception when sqlstate 'ZP001' then null;end;
+      assert v_verified,'Payload case did not reach its independent assertions';
+      assert pg_temp.survey_payload_state(v_foreign_classroom)=v_before,'Payload subtransaction restoration differs';
+      insert into survey_payload_receipts values(v_case||case v_delta when 0 then ':exact' when 1 then ':plus-one' else ':shape' end,v_measured,v_expected_code,true);
+      v_result:=null;v_probe:=null;v_payload:=null;
+    end loop;
+  end loop;
 end;
 $contract$;
+-- Compact source-owned receipts only; never SELECT giant payloads/graphs.
+select jsonb_build_object('kind','survey-sql-payload-subset','nativeVerified',false,'cases',jsonb_agg(to_jsonb(r) order by label)) from survey_payload_receipts r;
 rollback;
