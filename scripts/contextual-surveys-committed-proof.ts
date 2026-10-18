@@ -18,7 +18,12 @@ function freeze<T>(v: T): T { if (v && typeof v === 'object') { Object.values(v)
 export const SURVEY_COMMITTED_CAPS = Object.freeze({ actions: 200, controls: 4000, sessions: 2, workMs: 720000,
   cleanupMs: 180000, sqlBytes: 262144, responseBytes: 8388608, polls: 3, observationMs: 750, legacyLockMs: 1000 })
 type Side = 'holder' | 'contender'
-type Graph = Record<string, Record<string, unknown>[]>
+const FULL_TABLES = ['public.classrooms', 'public.classroom_archive_revisions', 'public.classroom_enrollments',
+  'public.surveys', 'public.survey_questions', 'public.survey_responses', 'public.gradebook_categories', 'private.pal_membership_generations'] as const
+const IDENTITY_FIELDS = ['id', 'artifact_id', 'generation_id'] as const
+type FullTable = typeof FULL_TABLES[number]
+type TableWitness = { count: number; sha256: string; identities: Record<typeof IDENTITY_FIELDS[number], string[]> }
+type Graph = Record<string, Record<string, unknown>[] | TableWitness> & Record<FullTable, Record<string, unknown>[]>
 type Lock = Readonly<{ kind: 'row' | 'advisory'; relation: string; targetColumn: 'id' | 'classroom_id'; targetId: string; key: string; mode: 'ExclusiveLock' | 'ShareLock' }>
 type Cohort = Readonly<{ classroomId: string; foreignClassroomId: string; surveyId: string; foreignSurveyId: string;
   resultSurveyId: string; enrollmentId: string; readerEnrollmentId: string; scopeDigest: string; question: SurveyNativeFixture['question']; aggregateQuestion: SurveyNativeFixture['question']; aggregateResponseId: string }>
@@ -59,7 +64,9 @@ function graphFunctions() {
  for t in select n.nspname,c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
  where c.relkind in ('r','p') and n.nspname in ('public','private','storage') order by n.nspname,c.relname loop
  execute format('select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),''[]''::jsonb) from %I.%I r',t.nspname,t.relname) into rows;
- g:=g||jsonb_build_object(t.nspname||'.'||t.relname,rows);end loop;return g;end;$graph$;
+ g:=g||jsonb_build_object(t.nspname||'.'||t.relname,case when t.nspname||'.'||t.relname in (${FULL_TABLES.map(q).join(',')}) then rows
+ else jsonb_build_object('count',jsonb_array_length(rows),'sha256',encode(sha256(convert_to(rows::text,'UTF8')),'hex'),
+ 'identities',jsonb_build_object(${IDENTITY_FIELDS.map(field => `${q(field)},(select coalesce(jsonb_agg(r.value->${q(field)} order by (r.value->>${q(field)}) collate "C"),'[]'::jsonb) from jsonb_array_elements(rows) r(value) where jsonb_typeof(r.value->${q(field)})='string')`).join(',')})) end);end loop;return g;end;$graph$;
  create temporary table if not exists survey_committed_cache(label text primary key,questions jsonb not null,graph jsonb not null) on commit preserve rows;`
 }
 function operations(f: SurveyNativeFixture, c: Cohort, label: string) {
@@ -288,9 +295,9 @@ export function verifySurveyCommittedWitness(m: SurveyCommittedProofManifest, la
     blockingEdgeVerified: s.mode === 'wait', exactTupleOwnershipClaimed: false as const, nativeVerified: false as const })
 }
 
-function row(g: Graph, table: string, column: string, value: string) { assert(Array.isArray(g[table])); const rows = g[table].filter(r => r[column] === value); assert.equal(rows.length, 1, 'Exact committed row differs'); return rows[0] }
+function row(g: Graph, table: string, column: string, value: string) { const source = g[table]; assert(Array.isArray(source)); const rows = source.filter(r => r[column] === value); assert.equal(rows.length, 1, 'Exact committed row differs'); return rows[0] }
 function put(g: Graph, table: string, column: string, value: string, replacement: Record<string, unknown> | null) {
-  g[table] = g[table].filter(r => r[column] !== value); if (replacement) g[table].push(replacement)
+  const rows = g[table]; assert(Array.isArray(rows)); const next = rows.filter(r => r[column] !== value); if (replacement) next.push(replacement); g[table] = next
 }
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue)
@@ -301,16 +308,58 @@ function canonicalValue(value: unknown): unknown {
   assert(value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value), 'Non-JSON committed value')
   return value
 }
-function canonical(g: Graph) { return Object.fromEntries(Object.keys(g).sort().map(t => {
-  assert(Array.isArray(g[t]), 'Committed catalog is not a row array')
-  return [t, g[t].map(r => JSON.stringify(canonicalValue(r))).sort()]
-})) }
+/** Native graphs retain all eight inspected tables in full. Every other table
+ * has a complete ordered-row digest/count and exact collision-check identities.
+ * Historical full-row CPU graphs remain supported, but formats cannot be mixed.
+ * A catalog key is never inferred or dropped: equality compares every key. */
+export function parseSurveyCommittedGraph(value: unknown): Graph {
+  assert(value && typeof value === 'object' && !Array.isArray(value), 'Invalid committed graph')
+  assert(Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+  assert(Buffer.byteLength(JSON.stringify(value)) <= SURVEY_COMMITTED_CAPS.responseBytes)
+  const g = value as Graph
+  for (const table of FULL_TABLES) assert(Array.isArray(g[table]), 'Missing complete committed table')
+  let format: 'rows' | 'witness' | undefined
+  for (const [table, entry] of Object.entries(g)) {
+    assert(/^(public|private|storage)\.[^\u0000]+$/.test(table), 'Invalid committed table key')
+    if (Array.isArray(entry)) {
+      for (const r of entry) { assert(r && typeof r === 'object' && !Array.isArray(r)); canonicalValue(r) }
+      if (!(FULL_TABLES as readonly string[]).includes(table)) { assert(format !== 'witness', 'Mixed committed graph formats'); format = 'rows' }
+    } else {
+      assert(!(FULL_TABLES as readonly string[]).includes(table) && entry && typeof entry === 'object')
+      assert.deepEqual(Object.keys(entry).sort(), ['count', 'identities', 'sha256'])
+      assert(Number.isSafeInteger(entry.count) && entry.count >= 0)
+      assert(typeof entry.sha256 === 'string' && /^[a-f0-9]{64}$/.test(entry.sha256))
+      assert(entry.identities && typeof entry.identities === 'object' && !Array.isArray(entry.identities))
+      assert.deepEqual(Object.keys(entry.identities).sort(), [...IDENTITY_FIELDS].sort())
+      for (const field of IDENTITY_FIELDS) {
+        const ids = entry.identities[field]
+        assert(Array.isArray(ids) && ids.length <= entry.count && ids.every(id => typeof id === 'string'))
+        assert(isDeepStrictEqual(ids, [...ids].sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)))))
+      }
+      canonicalValue(entry)
+      assert(format !== 'rows', 'Mixed committed graph formats'); format = 'witness'
+    }
+  }
+  return g
+}
+function identities(g: Graph, fields: readonly typeof IDENTITY_FIELDS[number][]) {
+  return Object.values(g).flatMap(entry => Array.isArray(entry)
+    ? entry.flatMap(r => fields.flatMap(field => typeof r[field] === 'string' ? [String(r[field])] : []))
+    : fields.flatMap(field => entry.identities[field]))
+}
+function canonical(g: Graph) {
+  parseSurveyCommittedGraph(g)
+  return Object.fromEntries(Object.keys(g).sort().map(t => {
+    const entry = g[t]
+    return [t, Array.isArray(entry) ? entry.map(r => JSON.stringify(canonicalValue(r))).sort() : canonicalValue(entry)]
+  }))
+}
 /** Independent fixed defaults from006/058/081/108/112/128/147/150/205/222.
  * Only generated artifact/category UUIDs and168 Pal references are observed;
  * every relationship/value/counter/timestamp is specified independently. */
 function expectedSeed(m: SurveyCommittedProofManifest, actual: Graph, timestamp: string): Graph {
-  const g: Graph = Object.fromEntries(['public.classrooms','public.classroom_archive_revisions','public.classroom_enrollments',
-    'public.surveys','public.survey_questions','public.survey_responses','public.gradebook_categories','private.pal_membership_generations'].map(t => [t, []]))
+  const g: Graph = { 'public.classrooms': [], 'public.classroom_archive_revisions': [], 'public.classroom_enrollments': [],
+    'public.surveys': [], 'public.survey_questions': [], 'public.survey_responses': [], 'public.gradebook_categories': [], 'private.pal_membership_generations': [] }
   for (const s of m.schedules) { const c = s.cohort
     for (const [cid, owner, blueprint, archive] of [[c.classroomId,m.actors[0].id,5,15],[c.foreignClassroomId,m.actors[1].id,2,6]] as const) {
       g['public.classrooms'].push({ id: cid, teacher_id: owner, title: `surveynative_${m.projectId.slice(-12)}`, class_code: cid,
@@ -346,20 +395,21 @@ function expectedSeed(m: SurveyCommittedProofManifest, actual: Graph, timestamp:
   }
   return g
 }
-export function verifySurveyCommittedSeed(m: SurveyCommittedProofManifest, before: Graph, after: Graph, times: {startedAt:string;endedAt:string;seedTimestamp:string}) {
+export function verifySurveyCommittedSeed(m: SurveyCommittedProofManifest, rawBefore: unknown, rawAfter: unknown, times: {startedAt:string;endedAt:string;seedTimestamp:string}) {
+  const before = parseSurveyCommittedGraph(rawBefore), after = parseSurveyCommittedGraph(rawAfter)
   assert(issued.has(m)); assert(!seedGraphs.has(m), 'Captured committed seed already authenticated')
   const st=Date.parse(times.seedTimestamp);assert(Date.parse(times.startedAt)<=st&&st<=Date.parse(times.endedAt))
   assert(Date.parse(times.endedAt)-Date.parse(times.startedAt)<=m.caps.workMs)
   assert(isDeepStrictEqual(Object.keys(before).sort(),Object.keys(after).sort()))
   const additions=expectedSeed(m,after,times.seedTimestamp),expected=structuredClone(before),freshIds:string[]=[],freshReferences:string[]=[]
-  const priorIds=new Set(Object.values(before).flat().flatMap(r=>[r.id,r.artifact_id,r.generation_id].filter(v=>typeof v==='string')))
+  const priorIds=new Set(identities(before, IDENTITY_FIELDS))
   const priorReferences=new Set((before['private.pal_membership_generations']??[]).map(r=>r.pal_reference))
   for(const [table,rows] of Object.entries(additions)) {
-    assert(Array.isArray(before[table])); for(const r of rows) {
+    assert(Array.isArray(before[table]) && Array.isArray(rows)); for(const r of rows) {
       for(const field of ['id','artifact_id','generation_id']) if(typeof r[field]==='string') { const value=String(r[field]);assert(uuid.test(value)&&!priorIds.has(value));freshIds.push(value) }
       if(table==='private.pal_membership_generations') {assert(typeof r.pal_reference==='string'&&/^pika-membership-v1-[a-f0-9]{32}$/.test(r.pal_reference)&&!priorReferences.has(r.pal_reference));freshReferences.push(String(r.pal_reference))}
     }
-    expected[table].push(...rows)
+    const target = expected[table];assert(Array.isArray(target) && Array.isArray(rows));target.push(...rows)
   }
   // Enrollment UUID is legitimately repeated once as its generation primary key.
   const enrollmentIds=new Set(additions['public.classroom_enrollments'].map(r=>r.id))
@@ -389,7 +439,8 @@ function aggregate(g:Graph,c:Cohort) {
     results:[{question_id:question.id,question_type:question.question_type,question_text:question.question_text,options:[],counts:[],total_responses:1,
       responses:[Object.fromEntries(['response_text','submitted_at','updated_at'].map(k=>[k,response[k]]).concat([['response_id',response.id]]))]}]}
 }
-export function verifySurveyCommittedEnvelopes(m:SurveyCommittedProofManifest,label:string,before:Graph,after:Graph,raw:{holder:Operation;contender:Operation;retry?:Operation;cachedQuestions:unknown;freshRead:Operation;cachedResponseProbe:Operation|null}) {
+export function verifySurveyCommittedEnvelopes(m:SurveyCommittedProofManifest,label:string,rawBefore:unknown,rawAfter:unknown,raw:{holder:Operation;contender:Operation;retry?:Operation;cachedQuestions:unknown;freshRead:Operation;cachedResponseProbe:Operation|null}) {
+  const before=parseSurveyCommittedGraph(rawBefore),after=parseSurveyCommittedGraph(rawAfter)
   const s=schedule(m,label),c=s.cohort,accepted=acceptedEffects.get(m)?.get(label)
   assert(accepted,'Missing authenticated committed effects')
   assert(isDeepStrictEqual(canonical(accepted.before),canonical(before))&&isDeepStrictEqual(canonical(accepted.after),canonical(after)),'Authenticated envelope graphs differ')
@@ -416,7 +467,8 @@ export type SurveyCommittedTimes = Readonly<{ startedAt: string; endedAt: string
 /** Exact independent effect ledger; all catalog tables/rows must match the
  * captured seed advanced only by previously authenticated direction effects.
  * Accepted before/after pairs remain private for later envelope validation. */
-export function verifySurveyCommittedEffects(m: SurveyCommittedProofManifest, label: string, before: Graph, after: Graph, times: SurveyCommittedTimes) {
+export function verifySurveyCommittedEffects(m: SurveyCommittedProofManifest, label: string, rawBefore: unknown, rawAfter: unknown, times: SurveyCommittedTimes) {
+  const before = parseSurveyCommittedGraph(rawBefore), after = parseSurveyCommittedGraph(rawAfter)
   const s = schedule(m, label), c = s.cohort, e = s.effects
   assertBaseline(m,before)
   const accepted=acceptedEffects.get(m);assert(accepted&&!accepted.has(label),'Committed direction effects already authenticated')
@@ -458,7 +510,7 @@ export function verifySurveyCommittedEffects(m: SurveyCommittedProofManifest, la
   if (e.membershipRemoved) { put(expected, 'public.classroom_enrollments', 'id', c.enrollmentId, null);
     put(expected, 'private.pal_membership_generations', 'generation_id', c.enrollmentId, { ...generation, state: 'removed' }) }
   if (e.responseCount) { assert(times.responseId && uuid.test(times.responseId) && !m.allocatedIds.includes(times.responseId));
-    assert(!Object.values(before).flat().some(r => r.id === times.responseId)); assert(times.responseTimestamp && times.responseSubmittedAt);
+    assert(!identities(before, ['id']).includes(times.responseId)); assert(times.responseTimestamp && times.responseSubmittedAt);
     const rt = Date.parse(times.responseTimestamp), st = Date.parse(times.responseSubmittedAt); assert(started <= st && st <= rt && rt <= ended);
     const response = row(after, 'public.survey_responses', 'id', times.responseId)
     assert(isDeepStrictEqual(response, { id: times.responseId, survey_id: c.surveyId, question_id: c.question.id, student_id: m.actors[1].id,

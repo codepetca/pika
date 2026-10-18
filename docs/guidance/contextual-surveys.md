@@ -173,3 +173,19 @@ independent cumulative review, final-SHA CI/PR Gate and reachable existing-scree
 mixed-role rehearsal are outstanding. UI changes require the Pika UI skills and
 visual matrix; this source group changes no UI. Root owns roadmap, continuity,
 shared types, package/classifier/CI integration and publication.
+
+## Remaining-proof transport preparation — 2026-10-17
+
+The thirty-direction proof previously emitted at least32 complete database graphs.
+It now keeps complete rows for the eight tables inspected by its seed/effects
+oracle, while every other public/private/storage table carries a deterministic
+full-row SHA256/count and exact id/artifact_id/generation_id projections. Complete
+table-key comparison, off-table content preservation and cross-table collision
+checks remain mandatory. This reuses the accepted hot-lifecycle witness approach;
+it does not raise the8MiB frame or64MiB cumulative transport limit.
+
+Source/CPU preparation does not establish native byte fit or acceptance. Complete
+dispatch/control/byte accounting, real size boundaries, fixed cancellation and
+finally restoration, current-main migration resequencing/genuine types and the
+remaining screen proof are still required. `inventoryComplete` stays false;
+native/provider and production holds are unchanged.

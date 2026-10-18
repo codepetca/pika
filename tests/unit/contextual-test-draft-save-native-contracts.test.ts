@@ -617,8 +617,9 @@ describe('native persistent-session transport with offline child mocks', () => {
       const seeds = surveyWrites.filter(w => w.sql === committed.seed)
       expect(seeds).toHaveLength(fault === 'foreign-backend' ? 0 : 1)
       if (fault === 'malformed-graph') {
-        expect(seedCheck).toHaveBeenCalledOnce()
-        expect(seedCheck.mock.calls[0].slice(1, 3)).toEqual([{}, {}])
+        // The wire decoder rejects an incomplete table inventory before the
+        // seed/effects validator can authenticate it as a baseline.
+        expect(seedCheck).not.toHaveBeenCalled()
         expect(seeds[0]).toMatchObject({ name: `${project}_draft_holder`, marker: '__draft_save_end_2__' })
       } else expect(seedCheck).not.toHaveBeenCalled()
       expect(surveyWrites.some(w => committed.schedules.some(s => w.sql === s.frames.holder || w.sql === s.frames.contender))).toBe(false)

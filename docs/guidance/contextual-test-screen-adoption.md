@@ -169,6 +169,19 @@ SHA comparisons are identity checks. Publication now uses exact recognized
 workflow-profile membership, with all historical/current paths tested. This is
 a runner correction, not an application or permission change.
 
+The ninth fresh attempt passed on 2026-10-17: frozen app `4e9c809d1`, runner
+`fd7b96591`, disposable `pika_assignment_list_5d9ac4830ee6`, schema001–268.
+All40 ordered exchanges and eight hash-verified captures passed, including real
+archive/restore, exact retained-work equality and cached/fresh permission denials.
+Controller database/browser validation, canonical equality, exact cleanup and
+immediate independent source/dependency preservation passed; zero page errors
+or unsettled processes. The coordinator visually inspected the complete eight-state
+owner/learner desktop/mobile light/dark matrix. The existing preserve-data rejoin
+refusal remains500; this is preservation evidence, not polished error handling.
+The explicit font/placeholder overlay retains its separate broader visual gate.
+This accepts the consolidated manual Test check, not Surveys/AI/Blueprint,
+the whole assessment batch, or rollout. All earlier failed attempts remain spent.
+
 Shared-local249+, production259+, production promotion, provider/AI/billing,
 account/plan changes and admission/home/page/cohort/cutover activation remain held.
 This source-only document grants no execution authority and no new trial/retention

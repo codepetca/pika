@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { createHash } from 'node:crypto'
 import type { AssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newSurveyNativeFixture } from '../../scripts/contextual-surveys-native-contracts'
 import { surveyCommittedProofManifest, validateSurveyCommittedSql, validateSurveyCommittedSource, verifySurveyCommittedEffects,
   surveyCommittedObservationSql, verifySurveyCommittedWitness, verifySurveyCommittedEnvelopes,
-  verifySurveyCommittedSeed } from '../../scripts/contextual-surveys-committed-proof'
+  verifySurveyCommittedSeed, parseSurveyCommittedGraph } from '../../scripts/contextual-surveys-committed-proof'
 
 // No entropy, native driver, filesystem target, provider or database is used.
 const f = newSurveyNativeFixture({ manifest: { syntheticTag: 'assignmentlist_123456abcdef' }, allocatedIds: [] } as unknown as AssignmentListProofFixture)
@@ -11,7 +12,114 @@ const manifest = () => surveyCommittedProofManifest(f)
 import {surveyCommittedCpuFixtures,type SurveyCpuGraph as Graph} from '../helpers/survey-committed-cpu-fixtures'
 const {capturedSeed,seedBefore,admitSeed,changedCase,practicalFixture,envelopes}=surveyCommittedCpuFixtures(f)
 const seedStamp='2026-10-13T02:59:00Z',writeStamp='2026-10-13T03:00:00Z'
+const fullTables = new Set(['public.classrooms','public.classroom_archive_revisions','public.classroom_enrollments',
+  'public.surveys','public.survey_questions','public.survey_responses','public.gradebook_categories','private.pal_membership_generations'])
+// Wire-shaped synthetic witnesses only: the genuine ordered jsonb::text digest
+// is produced by PostgreSQL, not by this offline fixture's JSON serializer.
+function compact(g: Graph) {
+  const sorted = (value: unknown): unknown => Array.isArray(value) ? value.map(sorted) : value && typeof value === 'object'
+    ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, sorted(v)])) : value
+  return parseSurveyCommittedGraph(Object.fromEntries(Object.entries(g).map(([table, rows]) => [table, fullTables.has(table) ? structuredClone(rows) : {
+    count: rows.length, sha256: createHash('sha256').update(JSON.stringify(rows.map(sorted).map(r => JSON.stringify(r)).sort())).digest('hex'),
+    identities: Object.fromEntries(['id','artifact_id','generation_id'].map(field => [field, rows.flatMap(r => typeof r[field] === 'string' ? [String(r[field])] : [])
+      .sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)))])),
+  }])) )
+}
 describe('source-only Survey committed directions', () => {
+  it('emits complete catalog/count/digest witnesses and retains exact identity projections', () => {
+    const m = manifest(), sql = m.seed
+    expect(sql).toContain("n.nspname in ('public','private','storage')")
+    expect(sql).toContain("c.relkind in ('r','p')")
+    expect(sql).toContain('jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text)')
+    expect(sql).toContain("encode(sha256(convert_to(rows::text,'UTF8')),'hex')")
+    expect(sql).toContain("'count',jsonb_array_length(rows)")
+    for (const table of fullTables) expect(sql).toContain(`'${table}'`)
+    for (const field of ['id','artifact_id','generation_id']) {
+      expect(sql).toContain(`jsonb_typeof(r.value->'${field}')='string'`)
+      expect(sql).toContain(`(r.value->>'${field}') collate "C"`)
+    }
+    expect(m.nativeVerified).toBe(false); expect(m.executionEnabled).toBe(false)
+    expect(m.caps.responseBytes).toBe(8388608)
+  })
+  it('strictly rejects malformed, missing, extra and mixed compact representations', () => {
+    const g = compact(capturedSeed(manifest()))
+    for (const defect of ['full-missing','full-witness','sha','count','count-missing','identity-missing','identity-shape','identity-type','identity-count','identity-order','extra','schema','mixed'] as const) {
+      const bad = structuredClone(g)
+      const witness = bad['public.untouched']; if (Array.isArray(witness)) throw new Error('Expected compact fixture')
+      if (defect === 'full-missing') Reflect.deleteProperty(bad, 'public.classrooms')
+      if (defect === 'full-witness') Object.assign(bad, { 'public.classrooms': witness })
+      if (defect === 'sha') witness.sha256 = 'A'.repeat(64)
+      if (defect === 'count') witness.count = -1
+      if (defect === 'count-missing') Reflect.deleteProperty(witness, 'count')
+      if (defect === 'identity-missing') Reflect.deleteProperty(witness.identities, 'id')
+      if (defect === 'identity-shape') Object.assign(witness.identities, { extra: [] })
+      if (defect === 'identity-type') Object.assign(witness.identities, { id: [1] })
+      if (defect === 'identity-count') witness.identities.id = ['one','two']
+      if (defect === 'identity-order') { witness.count = 2; witness.identities.id = ['z','a'] }
+      if (defect === 'extra') Object.assign(witness, { extra: true })
+      if (defect === 'schema') bad['auth.users'] = witness
+      if (defect === 'mixed') bad['public.extra'] = []
+      expect(() => parseSurveyCommittedGraph(bad)).toThrow()
+    }
+    expect(parseSurveyCommittedGraph(g)).toBe(g)
+  })
+  it('retains duplicate and non-UUID off-table identities without transporting unrelated content', () => {
+    const full = capturedSeed(manifest())
+    full['storage.objects'] = [{ id: 'é', artifact_id: 'same', generation_id: 'z', content: 'private synthetic content' },
+      { id: 'é', artifact_id: 'same', generation_id: 'a', content: 'more synthetic content' }]
+    const g = compact(full), witness = g['storage.objects']
+    expect(witness).toEqual({ count: 2, sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      identities: { id: ['é','é'], artifact_id: ['same','same'], generation_id: ['a','z'] } })
+    const changed = structuredClone(full); changed['storage.objects'][0].content = 'changed synthetic content'
+    expect(compact(changed)['storage.objects']).not.toEqual(witness)
+    expect(JSON.stringify(witness)).not.toContain('synthetic content')
+  })
+  it('detects changed off-table content/count/identity and complete table inventory at seed and terminal', () => {
+    for (const defect of ['data','count','identity','delete','add'] as const) {
+      const m = manifest(), original = capturedSeed(m), before = compact(seedBefore(original)), after = compact(original), bad = structuredClone(after)
+      const witness = bad['public.untouched']; if (Array.isArray(witness)) throw new Error('Expected compact fixture')
+      if (defect === 'data') witness.sha256 = '0'.repeat(64)
+      if (defect === 'count') witness.count++
+      if (defect === 'identity') witness.identities.id = ['substituted']
+      if (defect === 'delete') delete bad['public.untouched']
+      if (defect === 'add') bad['storage.extra'] = structuredClone(witness)
+      expect(() => verifySurveyCommittedSeed(m, before, bad, { startedAt: seedStamp, endedAt: seedStamp, seedTimestamp: seedStamp })).toThrow()
+      verifySurveyCommittedSeed(m, before, after, { startedAt: seedStamp, endedAt: seedStamp, seedTimestamp: seedStamp })
+      const s = m.schedules.find(s => s.index === 5 && s.direction === 'forward')!
+      const times = { startedAt: writeStamp, endedAt: '2026-10-13T03:00:02Z', writerTimestamp: writeStamp }
+      expect(() => verifySurveyCommittedEffects(m, s.label, after, bad, times)).toThrow()
+      // Corruption cannot be laundered by changing both next snapshots.
+      expect(() => verifySurveyCommittedEffects(m, s.label, bad, structuredClone(bad), times)).toThrow()
+      expect(verifySurveyCommittedEffects(m, s.label, after, after, times).fullGraphVerified).toBe(true)
+    }
+  })
+  it('retains cross-table id/artifact/generation collision rejection at seed and response insertion', () => {
+    for (const field of ['id','artifact_id','generation_id'] as const) {
+      const m = manifest(), original = capturedSeed(m), collision = String(original['public.surveys'][0].artifact_id)
+      original['public.untouched'].push({ [field]: collision })
+      expect(() => verifySurveyCommittedSeed(m, compact(seedBefore(original)), compact(original), {
+        startedAt: seedStamp, endedAt: seedStamp, seedTimestamp: seedStamp })).toThrow()
+    }
+    const m = manifest(), s = m.schedules.find(s => s.index === 13)!, original = capturedSeed(m)
+    const response = changedCase(s, original)
+    original['public.untouched'].push({ id: response.times.responseId })
+    const before = compact(original)
+    verifySurveyCommittedSeed(m, compact(seedBefore(original)), before, { startedAt: seedStamp, endedAt: seedStamp, seedTimestamp: seedStamp })
+    const { after, times } = changedCase(s, original)
+    expect(() => verifySurveyCommittedEffects(m, s.label, before, compact(after), times)).toThrow()
+  })
+  it('authenticates all 30 compact directions with unchanged envelopes and full inspected rows', () => {
+    const m = manifest(); let full = capturedSeed(m), graph = compact(full)
+    verifySurveyCommittedSeed(m, compact(seedBefore(full)), graph, { startedAt: seedStamp, endedAt: seedStamp, seedTimestamp: seedStamp })
+    for (const s of m.schedules) {
+      const before = graph, result = changedCase(s, full), after = compact(result.after)
+      expect(verifySurveyCommittedEffects(m, s.label, before, after, result.times).fullGraphVerified).toBe(true)
+      expect(verifySurveyCommittedEnvelopes(m, s.label, before, after, envelopes(s, full, result.after)).operationEnvelopesVerified).toBe(true)
+      const practical = practicalFixture(m, s, full)
+      expect(verifySurveyCommittedWitness(m, s.label, practical.bootstrap, practical.witness, practical.clock).nativeVerified).toBe(false)
+      full = result.after; graph = after
+    }
+  })
   it('derives separate closed cohorts for all original pairs and both directions', () => {
     const m = manifest()
     expect(m.schedules).toHaveLength(30)

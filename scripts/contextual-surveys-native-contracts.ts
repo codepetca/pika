@@ -201,7 +201,7 @@ end;$reject$;select jsonb_build_object('rejected',true,'label',${q(label)});`
 export type SurveyNativePlan = ReturnType<typeof surveyNativePlan>
 /** Fixed reviewed leaf; this is an external source pin, not a recomputed approval. */
 export const SURVEY_COMMITTED_SOURCE = Object.freeze({ file: 'scripts/contextual-surveys-committed-proof.ts',
-  sha256: '16015ce0e0ea5a8f0e8173c14b5cccc750ce22c724f7a0aaf869e2b32ae74eb2' })
+  sha256: 'f2f888175d77437b28d25a66bcd8ed109296c77628d82d91db2db1374e286352' })
 export function surveyRemainingNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   const plan = surveyNativePlan(original, reviewedHead, repository)
   checked(repository, SURVEY_COMMITTED_SOURCE)

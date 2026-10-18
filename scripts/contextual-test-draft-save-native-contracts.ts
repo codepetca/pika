@@ -52,7 +52,7 @@ import { surveyNativePlan, validateSurveyNativeSql, runSurveyNativeRollbackContr
   runSurveyNativeRollbackRaces, validateSurveyGeneratedTypes, type SurveyNativeFixture } from './contextual-surveys-native-contracts'
 import { surveyRemainingNativePlan, verifySurveyRemainingSources } from './contextual-surveys-native-contracts'
 import { validateSurveyCommittedSql, surveyCommittedObservationSql, validateSurveyCommittedObservationSql,
-  verifySurveyCommittedSeed, verifySurveyCommittedWitness, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
+  parseSurveyCommittedGraph, verifySurveyCommittedSeed, verifySurveyCommittedWitness, verifySurveyCommittedEffects, verifySurveyCommittedEnvelopes,
   type SurveyCommittedProofManifest, type SurveyCommittedBootstrap, type SurveyCommittedTimes } from './contextual-surveys-committed-proof'
 import { createSurveySdkProofTransport, verifySurveySdkTerminalEffects } from './contextual-surveys-sdk-proof'
 import { runContextualSurveysSdkContracts } from './contextual-surveys-sdk-contracts'
@@ -920,7 +920,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let learnerCancellationDone = false
   let surveySdkRan = false, surveySdkDone = false, surveyTypesGenerated = false, surveyUnjoined = false
   let surveyCommittedStarted = false, surveyCommittedDone = false
-  type SurveyGraph = Record<string, Record<string, unknown>[]>
+  type SurveyGraph = ReturnType<typeof parseSurveyCommittedGraph>
   type SurveyFrame = 'seed' | 'bootstrap' | 'observer' | 'holder' | 'contender' | 'release' | 'settle' | 'retry' | 'terminal'
   // Neither these carriers nor the baseline marker escape this engine instance.
   type SurveyCarrier = { session: NativeSession; label: string; side: 'holder' | 'contender'; frame: SurveyFrame; sql: string;
@@ -1391,8 +1391,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         const graph = (value: unknown): SurveyGraph => {
           assert(value && typeof value === 'object' && !Array.isArray(value))
           assert(Buffer.byteLength(JSON.stringify(value)) <= m.caps.responseBytes)
-          for (const rows of Object.values(value)) assert(Array.isArray(rows) && rows.every(r => r && typeof r === 'object' && !Array.isArray(r)))
-          return structuredClone(value) as SurveyGraph
+          return structuredClone(parseSurveyCommittedGraph(value))
         }
         const seedGraph = graph(captured.after)
         verifySurveyCommittedSeed(m, graph(captured.before), seedGraph, {
