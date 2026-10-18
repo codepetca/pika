@@ -429,6 +429,15 @@ visual verification, final-SHA CI and PR Gate. Do not weaken safety gates to gai
 speed. Integrate against a current frozen base before readiness, not repeatedly
 recheck stale candidates. This changes delivery strategy, not correctness criteria.
 
+2026-10-17 consolidated Test permissions checkpoint: the admitted classroom
+metadata route deliberately rejects archive/restore. The proof reached this
+missing batch-3 capability; it is not another browser-navigation defect.
+Prepare the bounded [hot archive/restore foundation](contextual-classroom-hot-lifecycle.md)
+with current-owner transaction authorization and retained restore entitlements.
+Keep the strict metadata contract and legacy branch intact. Focused native
+verification precedes another full Test rehearsal. This moves only the concrete
+lifecycle dependency forward; production and activation holds remain unchanged.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

@@ -47330,3 +47330,21 @@ Owner/adopter219, TypeScript/lint/audit PASS; four canonical goldens unchanged. 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested click-to-edit lesson content. Removed separate edit/add icons; native shared Button behind rich preview preserves keyboard entry/focus and separate links. Student/weekend/read-only permissions preserved.
 - 49 focused Calendar/DayCell tests pass, including content click, links, Enter/Space, Escape/blur/autosave. Eight real-owner role/viewport/theme captures refreshed; teacher content/empty clicks and focus return verified. UiGallery regression updated for the new content target.
 - PR returned to draft before changing source. Targeted general-tier medium independent review and final focused gate next; no merge/production authority inferred.
+
+<!-- pika-session-log-archive-batch:688b15aa3a402c9093ada2eff50c916265f5f5a8e8d99db4e5781ee7bd0d38d6 -->
+## 2026-10-14 — Calendar muted non-class cards and short-content centering
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested muted non-class cards without visible No class and centered short lesson content. Hidden status remains accessible; long reading and the editor remain top-aligned; permissions and click-to-edit are unchanged.
+- 93 feature/gallery tests pass; types/lint/UI/design policies/audit pass. Latest eight-context Playwright captures include measured centering, long-content top alignment, hidden No class, editor entry/Escape focus and student read-only behavior. Final focused gate and independent presentation review next; PR held draft during changes.
+
+<!-- pika-session-log-archive-batch:a044608043dc0724461d3b75c79cefe0fae6a6678d94d3db592c59c807b1a5a3 -->
+## 2026-10-14 — Calendar non-class hatching
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner found muted days unclear; added a semantic-token diagonal hatch to Week non-class cards. Current-day outline, hidden accessible status, centered short content and interactions preserved.
+- Eight-context real-owner Playwright matrix refreshed; date text contrast on stripe pixels calculated at 6.22:1 light/4.64:1 dark. Design policy passes without exceptions or new tokens. Final checks/presentation review next; PR kept draft during the change.
+
+<!-- pika-session-log-archive-batch:b690362e742793f5322817ad8a412b523c4f67db23b80dbc152af33e9557ed35 -->
+## 2026-10-14 — Calendar uniform class-day backgrounds
+
+- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
+- Existing Calendar/DayCell regression and eight-context native visual/geometry checks are running; audit/policies/types/lint and targeted presentation review required before ready. PR remains draft while changing its head.

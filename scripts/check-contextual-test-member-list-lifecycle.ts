@@ -1,4 +1,5 @@
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
+import { validateClassroomHotLifecycleReviewedMigration } from './classroom-hot-lifecycle-reviewed-migration'
 import { validateGradebookZeroWeightStudentVisibilityReviewedMigration } from './gradebook-zero-weight-student-visibility-reviewed-migration'
 import { validateTestReturnUngradedWorkReviewedMigration } from './test-return-ungraded-work-reviewed-migration'
 import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
@@ -63,7 +64,7 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
 /** Exact complete source profiles for this proof; future additions need review. */
 export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   validateAssignmentListMigrationChain(migrations)
-  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267].includes(migrations.length), 'Unreviewed member-list migration profile')
+  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268].includes(migrations.length), 'Unreviewed member-list migration profile')
   classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   if (migrations.length >= 254) {
     const addition = migrations[253]
@@ -83,7 +84,8 @@ export function validateTestMemberListReviewedMigrations(migrations: Parameters<
   if (migrations.length >= 264) validateTestAiGradingSavedWorkReviewedMigration(migrations[263])
   if (migrations.length >= 265) validateTestReturnUngradedWorkReviewedMigration(migrations[264])
   if (migrations.length >= 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(migrations[265])
-  if (migrations.length === 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(migrations[266])
+  if (migrations.length >= 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(migrations[266])
+  if (migrations.length === 268) validateClassroomHotLifecycleReviewedMigration(migrations[267])
 }
 /** Both exact reviewed canonical profiles remain complete. The isolated253
  * union is idempotent and bound to the reviewed migration, never fixture rows. */

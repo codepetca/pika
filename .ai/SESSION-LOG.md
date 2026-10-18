@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Calendar muted non-class cards and short-content centering
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested muted non-class cards without visible No class and centered short lesson content. Hidden status remains accessible; long reading and the editor remain top-aligned; permissions and click-to-edit are unchanged.
-- 93 feature/gallery tests pass; types/lint/UI/design policies/audit pass. Latest eight-context Playwright captures include measured centering, long-content top alignment, hidden No class, editor entry/Escape focus and student read-only behavior. Final focused gate and independent presentation review next; PR held draft during changes.
-
-## 2026-10-14 — Calendar non-class hatching
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner found muted days unclear; added a semantic-token diagonal hatch to Week non-class cards. Current-day outline, hidden accessible status, centered short content and interactions preserved.
-- Eight-context real-owner Playwright matrix refreshed; date text contrast on stripe pixels calculated at 6.22:1 light/4.64:1 dark. Design policy passes without exceptions or new tokens. Final checks/presentation review next; PR kept draft during the change.
-
-## 2026-10-14 — Calendar uniform class-day backgrounds
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested a uniform class-day surface, preserving non-class hatching and today's blue outline. Week composition now uses bg-surface for all row wrappers; day-state ownership and Month/Term are unchanged.
-- Existing Calendar/DayCell regression and eight-context native visual/geometry checks are running; audit/policies/types/lint and targeted presentation review required before ready. PR remains draft while changing its head.
-
 ## 2026-10-14 — Calendar remove hatching
 
 - Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
@@ -495,3 +480,65 @@ two failing deferred500/409 regressions; move mutation-error/retry reset to the
 resource-scope transition, preserving explicit edit/save recovery. Remediation98
 adds no API, permission, styling or database change; targeted re-review and final
 checks/fixture captures follow on the new SHA. Original proof remains historical.
+
+## 2026-10-17 — Contextual hot classroom lifecycle foundation
+
+The consolidated Test proof reached an unimplemented dependency: admitted
+classroom PATCH deliberately rejected archive/restore through its metadata-only
+contract. Stopped full browser attempts; preserved failed receipts and verified
+cleanup. Coordinator owns codex/contextual-hot-archive from current main eb4fa32b2.
+Add strict lifecycle dispatch, service-only migration268 and restore entitlement
+checks without widening metadata, changing legacy behavior or activating admission.
+No UI component, plan, retention or Storage change. Risk: consequential classroom
+authorization/lifecycle boundary; risk profile none (no workspace/AI/exam/runtime
+platform behavior). Native verification and generated types remain prerequisites.
+
+Astra/high bounded architect plan accepted after source verification. Sol6.1/high
+workers own SQL/rollback tests and the existing disposable harness's closed268
+profile; coordinator owns API/service/tests/CI/docs/integration. Offline API and SQL
+contract checks pass; actual database/concurrency acceptance is not yet established.
+Independent security and compatibility review required on stable cumulative source.
+Standing routine-approval/review-budget waiver retained, prior172 review turns and
+110 correction batches not reset. All production/shared-local/provider/account/
+admission/home/cutover holds unchanged; no migration applied. Existing harness,
+source/dependency preservation and one-shot exact-target disposal gates retained.
+
+## 2026-10-17 — Hot lifecycle snapshot correction
+
+PR1613 remains draft after two independent source reviews. First fresh isolated
+proof stopped before the initial learner RPC; exact teardown, canonical equality
+and independent source/dependency preservation passed. No native acceptance.
+Offline investigation found the snapshot's PL/pgSQL variable/column `v` collision
+and record/table-alias `t` collision. Qualified catalog aliases and a distinct
+record name fix both without changing snapshot coverage or SQL settings. The
+second isolated proof narrowed failure to snapshot-query with zero RPCs; cleanup
+and preservation again passed. PostgreSQL source confirms the second collision's
+undefined-record-field resolution; actual corrected execution remains pending.
+Added closed failure-shape, SQLSTATE, snapshot-step and transport-phase diagnostics
+without logging raw errors or data. Actual installed-SDK/learner helper regression
+passes offline. One bounded reviewed fresh proof remains required; spent attempt
+retained, all production/shared-local/provider/activation holds unchanged.
+
+## 2026-10-17 — Bounded hot lifecycle witness transport
+
+Corrected snapshot executed in the fresh3196 proof:13 actual SDK calls,
+privilege restoration and rollback SQL passed. Three committed races completed;
+the fourth holder output failed protocol with45actions/605controls. Source
+accounting identifies the nineteenth full graph; cumulative64MiB exhaustion is
+strongly supported but the spent diagnostic lacked bytes, so not runtime-proven.
+Compact witnesses retain full classroom/revision rows and every other table's
+count plus SHA256 of its complete ordered row JSON, table inventory and catalog.
+No caps or data coverage removed. Fixed protocol labels/counters now distinguish
+overflow; fake-child cumulative-cap regression and187 transport tests pass.
+All spent attempts have exact cleanup/canonical/source/dependency preservation;
+one targeted independent correction review and fresh native proof remain required.
+Sol6.1/high bounded read-only diagnosis then two-file implementation verified by
+coordinator; per-worker usage unknown. Cumulative176reviews/113correction batches,
+existing clocks and routine-approval waiver retained; production holds unchanged.
+
+Fresh1678418b proof subsequently PASS:13 actualSDK calls, rollbackSQL, four
+observed committed races;655controls51actions842800bytes0sessions. Exact disposal,
+canonical equality and independent source/dependency equality PASS. Genuine268
+generated types installed byte-identically from private artifact1230d8e1…;
+temporary RPC signature removed. Targeted integration review and consolidated
+browser/CI gates remain. No shared-local/production migration or activation.

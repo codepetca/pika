@@ -13420,6 +13420,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      set_classroom_hot_archive_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_archived: boolean
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       set_effective_feature_entitlement_v1: {
         Args: {
           p_actor_ref: string
