@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Durable browser diagnostic startup reporting
-
-Previous one-shot preparation exists but output is empty: no admission/browser/
-controller receipt, terminal session unavailable. Current read-only checks PASS
-all16source hashes,49485 dependency entries and process absence; historical exit
-cause remains unknown, no body/identity conclusion. Old token remains SPENT.
-Human authorizes startup reporting, review and ONE fresh bounded browser-only run.
-Runner now reports pre-admission input/source/binary/dependency/profile/admission
-stages through a private exclusive fsync-flushed journal. Fixed labels/codes only;
-no raw messages/stacks/paths/payloads. Entered survives an interrupted process;
-failed records preserve stage and block continuation. Browser deadlines, ownership,
-cleanup and request limits unchanged. Initial missing-module RED then36focused
-CPU PASS; type/lint/audit and independent review precede the single fresh attempt.
-Private launcher records binding/import/preparation before runtime handoff. No
-full-app approval or product acceptance; production/shared-local/provider holds
-unchanged. Existing review counters/waiver retained; no repeated broad review.
-
 ## 2026-10-15 — Pre-navigation original-body barrier and socket closure
 
 Corrected launcher ran once: synthetic original body pending8s while navigation
@@ -826,3 +809,7 @@ Correction127 passed4377 focused/static checks and independent reviews199/200. O
 ## 2026-10-18 — Approved remaining-only Survey rollback deadline
 
 Review201 and4396 carrier/940 product checks passed. Remaining-v2 localized the35s failure to marker171: the10000-question response upsert began at28,081ms after40 restored cases. Exact cleanup and immediate preservation passed; the failed attempt remains spent. Owner explicitly approved90s only for this isolated49-case rollback block. Correction130 derives exactly one timeout-header replacement from hash-verified raw SQL and seals the new manifest; the actual remaining client deadline matches90s while component/native35s and the original overall clock remain.272 unique focused checks and targeted strict TypeScript pass, including actual engine90s/outer40s expiry and cross-profile rejection. Product/raw SQL and all other limits/production holds are unchanged. Independent review and the full carrier gate precede one fresh alias; no new native acceptance or goal completion is claimed.
+
+## 2026-10-18 — Survey committed-probe eligibility correction
+
+Review202/full4405 checks passed at372e07f8. Fresh remaining-v3 completed all49 rollback cases in74,899ms, then failed a later committed terminal assertion. Exact cleanup/immediate preservation passed; alias remains spent. Source mapping identifies reverse question-edit probes using an already-answered static-Survey actor, whose duplicate PT400 correctly precedes stale-question PT409. Correction131 retains strict freshness checking with the existing unanswered enrolled reader only in those four terminal probes; original concurrent operations/actors are byte-identical. Same-frame eligibility, exact fixed denial causes and full graph/effect equality remain mandatory. Independent graph-derived CPU fixtures reproduce9 old-source failures; corrected281 focused tests/strict TypeScript pass. No product/rawSQL/migration/cap changes. Native cumulative64MiB fit and remaining full acceptance are unproved; review/fullgate precede another separately spent attempt. All serious holds remain.

@@ -201,8 +201,8 @@ measurements, byte-mask checks, original RPC calls, success/denial assertions,
 real triggers and full scoped row/revision restoration equality. The member
 response-count pair is joint with question count. The earlier19-case component
 prerequisite passed; the first expanded49-case attempt failed its35s frame
-without case telemetry and is permanently spent. No49-case native pass or
-35-second fit has been established.
+without case telemetry and is permanently spent. At that point no49-case native
+pass had been established;35-second fit remains unproved.
 
 Correction128 separates count fixtures inside that same DO and outer rollback:
 twelve question/response cases use one Survey; four list cases use10,001 Surveys
@@ -220,8 +220,8 @@ identifiers and client monotonic elapsed milliseconds, and freezes on first
 failure. It rejects malformed, duplicate, out-of-order and oversized markers.
 It joins stdout completion and stderr progress within the bound frame timer;
 telemetry is diagnostic only and never supplies native acceptance. SQL source
-and marker bytes remain subject to the existing64MiB total; actual remaining
-attempt exchange bytes are unproved until a separately admitted run.
+and marker bytes remain subject to the existing64MiB total. Full remaining-run
+exchange fit remains unproved; partial-attempt totals do not establish completion.
 
 ## Remaining-only rollback timeout correction130
 
@@ -240,10 +240,29 @@ clamps that deadline. Component and legacy/native profiles, the product checkout
 setup/snapshot/single-frame35s limits, committed/probe/SDK behavior, and every
 case, telemetry marker, trigger and restoration check remain unchanged.
 
-No90s native fit or49-case native acceptance has been established. Both failed
-attempts remain spent; source validation does not admit or replay an attempt.
+The third remaining attempt completed the49-case rollback SQL frame in74,899ms
+with all211 valid progress markers, establishing that isolated frame's90s fit.
+It subsequently failed in committed direction18's terminal frame (action115),
+so full remaining native acceptance is still absent. All three attempts remain
+spent; source validation does not admit or replay an attempt.
 Actions, controls, HTTP, sessions, exchange bytes and work/cleanup allowances
 are unchanged; this exception grants no other cap increase or production action.
+
+Correction131 fixes the committed proof's terminal responder selection, not the
+product. Reverse question-edit cases8–11 had already committed member A's static
+answer, so the product correctly returned duplicate-response PT400 before stale
+questions PT409. Those four terminal freshness probes now use existing enrolled,
+unanswered member B. Their original concurrent operations and fresh reads retain
+A. Same-frame eligibility and exact fixed denial-cause checks preserve the stale
+question assertion; complete graph/effect equality retains A's response and B's
+absence. Forward freshness probes remain A; close/static-duplicate probes retain
+their original actors and PT400 causes. CPU fixtures derive denials from actual
+actor/graph preconditions rather than copying the expected status. No fixture,
+frame, action, control, HTTP request, session or cap is added; no product, migration
+or shared49-case SQL changes. Corrected committed native acceptance remains unproved.
+The committed static SQL inventory grows864,383→874,891 bytes (+10,508): eight
+freshness terminals add eligibility/cause checks and four close/duplicate terminals
+add exact cause checks. Only four reverse terminals change responder identity.
 
 The original cancellation and wire probes,30 committed directions, ordinary
 14 SDK calls, genuine269 types, restoration/preservation and screen proof remain

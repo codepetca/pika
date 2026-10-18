@@ -9,7 +9,7 @@ import { surveyCommittedProofManifest, validateSurveyCommittedSql, validateSurve
 // No entropy, native driver, filesystem target, provider or database is used.
 const f = newSurveyNativeFixture({ manifest: { syntheticTag: 'assignmentlist_123456abcdef' }, allocatedIds: [] } as unknown as AssignmentListProofFixture)
 const manifest = () => surveyCommittedProofManifest(f)
-import {surveyCommittedCpuFixtures,type SurveyCpuGraph as Graph} from '../helpers/survey-committed-cpu-fixtures'
+import {surveyCommittedCpuFixtures,surveyCpuResponseDenial,type SurveyCpuGraph as Graph} from '../helpers/survey-committed-cpu-fixtures'
 const {capturedSeed,seedBefore,admitSeed,changedCase,practicalFixture,envelopes}=surveyCommittedCpuFixtures(f)
 const seedStamp='2026-10-13T02:59:00Z',writeStamp='2026-10-13T03:00:00Z'
 const fullTables = new Set(['public.classrooms','public.classroom_archive_revisions','public.classroom_enrollments',
@@ -26,6 +26,53 @@ function compact(g: Graph) {
   }])) )
 }
 describe('source-only Survey committed directions', () => {
+  it.each([8,9,10,11])('keeps the reverse%d stale-question probe eligible without changing the original responder',index=>{
+    const m=manifest(),s=m.schedules.find(s=>s.index===index&&s.direction==='reverse')!,before=capturedSeed(m),{after}=changedCase(s,before)
+    const cached=before['public.survey_questions'].filter(r=>r.survey_id===s.cohort.surveyId)
+    expect(surveyCpuResponseDenial(after,f.actors[1].id,s.cohort.surveyId,cached,writeStamp)).toEqual({code:'PT400',message:'survey_already_answered'})
+    expect(surveyCpuResponseDenial(after,f.actors[3].id,s.cohort.surveyId,cached,writeStamp)).toEqual({code:'PT409',message:'survey_questions_changed'})
+    expect(s.frames.holder).toContain(`respond_to_survey_for_member_v1('${f.actors[1].id}'`)
+    expect(s.frames.terminal).toContain(`respond_to_survey_for_member_v1('${f.actors[3].id}'`)
+    expect(s.frames.terminal).toContain("message is distinct from 'survey_questions_changed'")
+  })
+  it('binds all30 terminal actors and denial causes without leaking B into original operations or fresh reads',()=>{
+    for(const s of manifest().schedules){
+      const freshness=s.index>=8&&s.index<=11,probe=s.index>=8&&s.index<=13
+      const responseCalls=(sql:string)=>[...sql.matchAll(/respond_to_survey_for_member_v1\('([^']+)','([^']+)','([^']+)'/g)].map(r=>r.slice(1))
+      for(const frame of ['holder','contender','retry'] as const)for(const call of responseCalls(s.frames[frame]))expect(call).toEqual([f.actors[1].id,s.cohort.surveyId,s.cohort.classroomId])
+      expect(responseCalls(s.frames.terminal)).toEqual(probe?[[f.actors[freshness&&s.direction==='reverse'?3:1].id,s.cohort.surveyId,s.cohort.classroomId]]:[])
+      if(s.index>=8)expect(s.frames.terminal).toContain(`get_survey_for_member_v1('${f.actors[1].id}'`)
+      if(freshness){
+        expect(s.frames.terminal).toContain('Survey stale probe eligibility differs')
+        expect(s.frames.terminal).toContain(`and e.id='${s.direction==='reverse'?s.cohort.readerEnrollmentId:s.cohort.enrollmentId}'`)
+        expect(s.frames.terminal).toContain("message is distinct from 'survey_questions_changed'")
+      }else expect(s.frames.terminal).not.toContain('Survey stale probe eligibility differs')
+      if(s.index===12)expect(s.frames.terminal).toContain("message is distinct from 'survey_not_open'")
+      if(s.index===13)expect(s.frames.terminal).toContain("message is distinct from 'survey_already_answered'")
+      expect(s.frames.terminal).not.toContain("'message',message")
+    }
+  })
+  it('derives probe eligibility from rows and actor instead of the desired status',()=>{
+    const m=manifest(),s=m.schedules.find(s=>s.index===8&&s.direction==='reverse')!,before=capturedSeed(m),{after}=changedCase(s,before),c=s.cohort,actor=f.actors[3].id
+    const cached=before['public.survey_questions'].filter(r=>r.survey_id===c.surveyId)
+    for(const [defect,code,message] of [['missing-member','PT403','survey_not_enrolled'],['owner','PT403','survey_forbidden'],['archived','PT403','survey_forbidden'],['closed','PT400','survey_not_open'],['future','PT400','survey_not_open'],['answered','PT400','survey_already_answered']] as const){
+      const g=structuredClone(after),cl=g['public.classrooms'].find(r=>r.id===c.classroomId)!,survey=g['public.surveys'].find(r=>r.id===c.surveyId)!
+      if(defect==='missing-member')g['public.classroom_enrollments']=g['public.classroom_enrollments'].filter(r=>r.id!==c.readerEnrollmentId)
+      if(defect==='owner')cl.teacher_id=actor
+      if(defect==='archived')cl.archived_at=writeStamp
+      if(defect==='closed')survey.status='closed'
+      if(defect==='future')survey.opens_at='2099-01-01T00:00:00Z'
+      if(defect==='answered')g['public.survey_responses'].push({...g['public.survey_responses'].find(r=>r.survey_id===c.surveyId)!,student_id:actor})
+      expect(surveyCpuResponseDenial(g,actor,c.surveyId,cached,writeStamp)).toEqual({code,message})
+    }
+    expect(surveyCpuResponseDenial(after,actor,c.surveyId,after['public.survey_questions'].filter(r=>r.survey_id===c.surveyId),writeStamp)).toBe(null)
+    const oldActorSql={...s,frames:{...s.frames,terminal:s.frames.terminal.replace(`respond_to_survey_for_member_v1('${actor}'`,`respond_to_survey_for_member_v1('${f.actors[1].id}'`)}}
+    expect(envelopes(oldActorSql,before,after).cachedResponseProbe).toEqual({code:'PT400',result:null})
+    const wrongCause={...s,frames:{...s.frames,terminal:s.frames.terminal.replace("message is distinct from 'survey_questions_changed'","message is distinct from 'survey_operation_busy'")}}
+    expect(()=>envelopes(wrongCause,before,after)).toThrow('CPU exact denial cause differs')
+    admitSeed(m,before);const {times}=changedCase(s,before);verifySurveyCommittedEffects(m,s.label,before,after,times)
+    expect(()=>verifySurveyCommittedEnvelopes(m,s.label,before,after,envelopes(oldActorSql,before,after))).toThrow('Cached response freshness probe differs')
+  })
   it('emits complete catalog/count/digest witnesses and retains exact identity projections', () => {
     const m = manifest(), sql = m.seed
     expect(sql).toContain("n.nspname in ('public','private','storage')")

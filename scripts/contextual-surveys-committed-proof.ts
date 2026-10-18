@@ -69,25 +69,28 @@ function graphFunctions() {
  'identities',jsonb_build_object(${IDENTITY_FIELDS.map(field => `${q(field)},(select coalesce(jsonb_agg(r.value->${q(field)} order by (r.value->>${q(field)}) collate "C"),'[]'::jsonb) from jsonb_array_elements(rows) r(value) where jsonb_typeof(r.value->${q(field)})='string')`).join(',')})) end);end loop;return g;end;$graph$;
  create temporary table if not exists survey_committed_cache(label text primary key,questions jsonb not null,graph jsonb not null) on commit preserve rows;`
 }
+function responseSql(c: Cohort, label: string, actor: string) {
+  return `select public.respond_to_survey_for_member_v1(${q(actor)},${q(c.surveyId)},${q(c.classroomId)},
+ (select questions from survey_committed_cache where label=${q(label)}),${q(JSON.stringify({ [c.question.id]: { question_type: 'short_text', response_text: 'Synthetic response' } }))}::jsonb);`
+}
 function operations(f: SurveyNativeFixture, c: Cohort, label: string) {
   const cases = contextualSurveysConcurrencyCases({ ownerId: f.actors[0].id, memberId: f.actors[1].id,
     resultReaderId: f.actors[3].id, resultSurveyId: c.resultSurveyId, classroomId: c.classroomId,
     surveyId: c.surveyId, questionId: c.question.id, foreignSurveyId: c.foreignSurveyId }, { expectedQuestions: [c.question], responses: {} })
   // Cache actual committed seed rows, including their genuine transaction timestamps.
-  const respond = `select public.respond_to_survey_for_member_v1(${q(f.actors[1].id)},${q(c.surveyId)},${q(c.classroomId)},
- (select questions from survey_committed_cache where label=${q(label)}),${q(JSON.stringify({ [c.question.id]: { question_type: 'short_text', response_text: 'Synthetic response' } }))}::jsonb);`
+  const respond = responseSql(c,label,f.actors[1].id)
   return cases.map(r => ({ ...r, first: r.first.includes('respond_to_survey') ? respond : r.first,
     second: r.second.includes('respond_to_survey') ? respond : r.second }))
 }
 function performed(sql: string) { return sql.startsWith('select ') ? `perform ${sql.slice(7)}` : sql }
-function attempted(sql: string, expected: string | null) {
+function attempted(sql: string, expected: string | null, expectedMessage?: string) {
   const jsonRpc = sql.startsWith('select public.')
   return `create temporary table if not exists survey_committed_operation(result jsonb,started_at timestamptz not null,finished_at timestamptz not null,source_sha256 text not null) on commit preserve rows;delete from survey_committed_operation;
- do $operation$ declare code text;r jsonb;n integer;started timestamptz:=clock_timestamp();begin begin ${jsonRpc ? `r:=${sql.slice(7).replace(/;$/, '')};` : performed(sql)}
+ do $operation$ declare code text;${expectedMessage ? 'message text;' : ''}r jsonb;n integer;started timestamptz:=clock_timestamp();begin begin ${jsonRpc ? `r:=${sql.slice(7).replace(/;$/, '')};` : performed(sql)}
  ${sql.startsWith('update ') || sql.startsWith('delete ') ? "get diagnostics n=row_count;if n<>1 then raise exception 'Exact legacy affected-row count differs';end if;" : ''}
  ${expected ? "raise exception 'Expected Survey denial missing';" : ''}
- exception when others then get stacked diagnostics code=returned_sqlstate;
- ${expected ? `if code is distinct from ${q(expected)} then raise exception 'Survey exact SQLSTATE differs';end if;` : 'raise;'} end;
+ exception when others then get stacked diagnostics code=returned_sqlstate${expectedMessage ? ',message=message_text' : ''};
+ ${expected ? `if code is distinct from ${q(expected)} then raise exception 'Survey exact SQLSTATE differs';end if;${expectedMessage ? `if message is distinct from ${q(expectedMessage)} then raise exception 'Survey exact denial cause differs';end if;` : ''}` : 'raise;'} end;
  insert into survey_committed_operation values(jsonb_build_object('code',code,'result',r),started,clock_timestamp(),${q(hash(sql))});end;$operation$;`
 }
 function archiveReceiptSql(sql: string, label: string, c: Cohort) {
@@ -163,8 +166,23 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
       : `select public.get_survey_for_${[0, 1, 2, 6, 7].includes(index) ? 'owner' : 'member'}_v1(${q(f.actors[[0, 1, 2, 6, 7].includes(index) ? 0 : 1].id)},${q(c.surveyId)});`
     const terminalCode = [2, 3, 4].includes(index) ? 'PT403' : null
     const probeCode = index >= 8 && index <= 11 ? 'PT409' : index === 12 || index === 13 ? 'PT400' : null
+    // Reverse freshness races already committed A's static response. Probe the
+    // existing unanswered member B so duplicate precedence cannot mask staleness.
+    const freshness = index >= 8 && index <= 11
+    const probeActor = f.actors[freshness && direction === 'reverse' ? 3 : 1].id
+    const probeEnrollment = freshness && direction === 'reverse' ? c.readerEnrollmentId : c.enrollmentId
+    const eligibility = freshness ? `do $probe_eligibility$ begin
+ if not exists(select 1 from public.surveys s join public.classrooms c on c.id=s.classroom_id
+ join public.classroom_enrollments e on e.classroom_id=c.id where s.id=${q(c.surveyId)} and c.id=${q(c.classroomId)}
+ and c.teacher_id<>${q(probeActor)} and c.archived_at is null and s.status='active' and s.opens_at is null and not s.dynamic_responses
+ and e.id=${q(probeEnrollment)} and e.student_id=${q(probeActor)})
+ or exists(select 1 from public.survey_responses where survey_id=${q(c.surveyId)} and student_id=${q(probeActor)})
+ or (select questions from survey_committed_cache where label=${q(label)}) is not distinct from
+ (select coalesce(jsonb_agg(to_jsonb(r) order by position,id),'[]'::jsonb) from public.survey_questions r where survey_id=${q(c.surveyId)})
+ then raise exception 'Survey stale probe eligibility differs';end if;end;$probe_eligibility$;` : ''
+    const probeMessage = freshness ? 'survey_questions_changed' : index === 12 ? 'survey_not_open' : index === 13 ? 'survey_already_answered' : undefined
     const probe = probeCode ? `create temporary table survey_committed_fresh_read(result jsonb) on commit drop;insert into survey_committed_fresh_read select result from survey_committed_operation;
- ${attempted(operations(f, c, label)[index].first.includes('respond_to_survey') ? operations(f, c, label)[index].first : operations(f, c, label)[index].second, probeCode)}` : ''
+ ${eligibility}${attempted(responseSql(c,label,probeActor), probeCode, probeMessage)}` : ''
     const terminal = `${guard(f, 'holder', true)}${attempted(read, terminalCode)}${probe}
  select jsonb_build_object('label',${q(label)},'graph',pg_temp.survey_committed_graph(),
  'cached_questions',(select questions from survey_committed_cache where label=${q(label)}),
@@ -459,6 +477,16 @@ export function verifySurveyCommittedEnvelopes(m:SurveyCommittedProofManifest,la
   const fresh=[2,3,4].includes(s.index)?denied('PT403'):success(s.index===5?aggregate(after,c):detail(after,c,![0,1,2,6,7].includes(s.index),m.actors[1].id))
   assert(isDeepStrictEqual(raw.freshRead,fresh),'Fresh committed read envelope differs')
   const probe=s.index>=8&&s.index<=11?'PT409':s.index===12||s.index===13?'PT400':null
+  if(s.index>=8&&s.index<=11){
+    const actor=m.actors[s.direction==='reverse'?3:1].id,enrollment=s.direction==='reverse'?c.readerEnrollmentId:c.enrollmentId
+    const classroom=row(after,'public.classrooms','id',c.classroomId),survey=row(after,'public.surveys','id',c.surveyId)
+    assert.notEqual(classroom.teacher_id,actor);assert.equal(classroom.archived_at,null)
+    assert.equal(survey.status,'active');assert.equal(survey.opens_at,null);assert.equal(survey.dynamic_responses,false)
+    const member=row(after,'public.classroom_enrollments','id',enrollment)
+    assert.equal(member.classroom_id,c.classroomId);assert.equal(member.student_id,actor)
+    for(const g of [before,after])assert(!g['public.survey_responses'].some(r=>r.survey_id===c.surveyId&&r.student_id===actor),'Stale probe actor already answered')
+    assert(!isDeepStrictEqual(raw.cachedQuestions,after['public.survey_questions'].filter(r=>r.survey_id===c.surveyId)),'Stale probe questions unchanged')
+  }
   assert(isDeepStrictEqual(raw.cachedResponseProbe,probe?denied(probe):null),'Cached response freshness probe differs')
   return freeze({label,cachedSourceVerified:true,operationEnvelopesVerified:true,freshReadVerified:true,nativeVerified:false as const})
 }

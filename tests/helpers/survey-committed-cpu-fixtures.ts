@@ -1,9 +1,26 @@
 /** Shared reviewed CPU fixtures. Synthetic data only; no native provenance or execution. */
 import {createHash} from 'node:crypto'
+import {isDeepStrictEqual} from 'node:util'
 import type {SurveyNativeFixture} from '../../scripts/contextual-surveys-native-contracts'
 import {verifySurveyCommittedSeed,type SurveyCommittedProofManifest} from '../../scripts/contextual-surveys-committed-proof'
 export type SurveyCpuGraph = Record<string,Record<string,unknown>[]>
 type Graph = SurveyCpuGraph
+
+/** Independent bounded model of269's context/status/duplicate/snapshot order.
+ * It reads actor/rows, not schedule index or the verifier's expected status. */
+export function surveyCpuResponseDenial(g:Graph,actor:string,surveyId:string,expectedQuestions:unknown,now:string){
+  const survey=g['public.surveys'].find(r=>r.id===surveyId)
+  if(!survey)throw new Error('Missing CPU Survey')
+  const classroom=g['public.classrooms'].find(r=>r.id===survey.classroom_id)
+  if(!classroom)throw new Error('Missing CPU classroom')
+  if(classroom.teacher_id===actor||classroom.archived_at!==null)return{code:'PT403',message:'survey_forbidden'}
+  if(!g['public.classroom_enrollments'].some(r=>r.classroom_id===classroom.id&&r.student_id===actor))return{code:'PT403',message:'survey_not_enrolled'}
+  if(survey.status!=='active'||survey.opens_at!==null&&Date.parse(String(survey.opens_at))>Date.parse(now))return{code:'PT400',message:'survey_not_open'}
+  if(!survey.dynamic_responses&&g['public.survey_responses'].some(r=>r.survey_id===surveyId&&r.student_id===actor))return{code:'PT400',message:'survey_already_answered'}
+  const questions=g['public.survey_questions'].filter(r=>r.survey_id===surveyId).sort((a,b)=>Number(a.position)-Number(b.position)||String(a.id).localeCompare(String(b.id)))
+  if(!isDeepStrictEqual(questions,expectedQuestions))return{code:'PT409',message:'survey_questions_changed'}
+  return null
+}
 
 export function surveyCommittedCpuFixtures(f:SurveyNativeFixture,stamps:Partial<Record<'seedStamp'|'writeStamp'|'changeStamp'|'archiveStamp'|'endStamp'|'archiveOperationEnd',string>>={}){
 const {seedStamp,writeStamp,changeStamp,archiveStamp,endStamp,archiveOperationEnd}= {
@@ -94,8 +111,15 @@ const detail=(g:Graph,member:boolean)=>{const klass=one(g,'public.classrooms','i
     const secondRead=isRead&&!firstRead,secondRespond=index>=13||index>=8&&direction==='forward'
     const contender=s.mode==='nowait'?denied('PT409'):success(secondRead?read(after):secondRespond?{success:true,updated:false}:null)
     const retry=s.mode==='nowait'?(s.retryCode?denied(s.retryCode):success(secondRead?read(after):secondRespond?{success:true,updated:index===14}:null)):undefined
-    const probe=index>=8&&index<=11?'PT409':index===12||index===13?'PT400':null
-    const receipts={holder,contender,retry,cachedQuestions:[one(before,'public.survey_questions','id',c.question.id)],freshRead:[2,3,4].includes(index)?denied('PT403'):success(index===5?aggregate(after):detail(after,![0,1,2,6,7].includes(index))),cachedResponseProbe:probe?denied(probe):null}
+    const calls=[...s.frames.terminal.matchAll(/respond_to_survey_for_member_v1\('([^']+)','([^']+)','([^']+)'/g)]
+    if(calls.length>1)throw new Error('CPU terminal response count differs')
+    const cachedQuestions=[one(before,'public.survey_questions','id',c.question.id)]
+    const probe=calls.length?surveyCpuResponseDenial(after,calls[0][1],calls[0][2],cachedQuestions,endStamp):null
+    if(calls.length&&!probe)throw new Error('CPU terminal response would pass denial gates')
+    const expectedCode=[...s.frames.terminal.matchAll(/if code is distinct from '([^']+)'/g)].at(-1)?.[1]
+    const expectedMessage=s.frames.terminal.match(/if message is distinct from '([^']+)'/)?.[1]
+    if(probe&&probe.code===expectedCode&&expectedMessage&&probe.message!==expectedMessage)throw new Error('CPU exact denial cause differs')
+    const receipts={holder,contender,retry,cachedQuestions,freshRead:[2,3,4].includes(index)?denied('PT403'):success(index===5?aggregate(after):detail(after,![0,1,2,6,7].includes(index))),cachedResponseProbe:probe?denied(probe.code):null}
 return receipts
 }
 return {capturedSeed,seedBefore,admitSeed,changedCase,practicalFixture,envelopes}

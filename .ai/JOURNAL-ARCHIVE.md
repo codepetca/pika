@@ -48265,3 +48265,21 @@ and one independent reviewed-source pass precede ONE new execution. Existing
 review/fix clocks retained under human waiver; no provider scope or retry change.
 Weekly90%remaining/ordinaryallowed; storage315.59GBhealthy. All production,
 shared-local, provider-refused and rollout holds unchanged. Not product acceptance.
+
+<!-- pika-session-log-archive-batch:370fc980ff47fe586df58847de55b023139cebae05892a14cd21aeb48c3968d4 -->
+## 2026-10-15 — Durable browser diagnostic startup reporting
+
+Previous one-shot preparation exists but output is empty: no admission/browser/
+controller receipt, terminal session unavailable. Current read-only checks PASS
+all16source hashes,49485 dependency entries and process absence; historical exit
+cause remains unknown, no body/identity conclusion. Old token remains SPENT.
+Human authorizes startup reporting, review and ONE fresh bounded browser-only run.
+Runner now reports pre-admission input/source/binary/dependency/profile/admission
+stages through a private exclusive fsync-flushed journal. Fixed labels/codes only;
+no raw messages/stacks/paths/payloads. Entered survives an interrupted process;
+failed records preserve stage and block continuation. Browser deadlines, ownership,
+cleanup and request limits unchanged. Initial missing-module RED then36focused
+CPU PASS; type/lint/audit and independent review precede the single fresh attempt.
+Private launcher records binding/import/preparation before runtime handoff. No
+full-app approval or product acceptance; production/shared-local/provider holds
+unchanged. Existing review counters/waiver retained; no repeated broad review.
