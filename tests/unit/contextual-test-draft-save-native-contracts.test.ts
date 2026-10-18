@@ -8,12 +8,17 @@ import { createOfflineTestLearnerRepository } from '../helpers/test-learner-nati
 const learnerOffline = createOfflineTestLearnerRepository(process.cwd())
 afterAll(learnerOffline.dispose)
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
-  snapshotSqlReads: false, sourceDrift: false, driftMigration: '249_contextual_test_draft_owner_save.sql', socketInode: 2, sqlFileCache: new Map<string, string>() }))
+  generatedSource:'',syntheticArtifacts:new Map<string,string>(),config:'',remaining269:false,snapshotSqlReads: false, sourceDrift: false, driftMigration: '249_contextual_test_draft_owner_save.sql', socketInode: 2, sqlFileCache: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn, execFile: mocks.execFile, execFileSync: vi.fn() }))
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
-  return { ...actual, realpathSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? path : actual.realpathSync(path),
+  return { ...actual, realpathSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock'||mocks.remaining269&&(path==='/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main'||/^\/private\/tmp\/pika-assignment-list-[a-f0-9]{12}$/.test(path)) ? path : actual.realpathSync(path),
     readFileSync: ((path, options) => {
+      if(mocks.remaining269){
+        if(mocks.syntheticArtifacts.has(String(path)))return mocks.syntheticArtifacts.get(String(path))
+        if(/^\/private\/tmp\/pika-assignment-list-[a-f0-9]{12}\/supabase\/migrations\//.test(String(path)))path='/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main/supabase/migrations/'+String(path).split('/').at(-1)
+        if(/^\/private\/tmp\/pika-assignment-list-[a-f0-9]{12}\/supabase\/config.toml$/.test(String(path)))return mocks.config
+      }
       // Offline transport tests use immutable fixture bytes, but still execute every source-hash guard.
       if (mocks.snapshotSqlReads && typeof path === 'string' && options === 'utf8'
         && /\/supabase\/migrations\/\d{3}_[a-z0-9_]+\.sql$/.test(path)) {
@@ -24,6 +29,7 @@ vi.mock('node:fs', async importOriginal => {
       }
       return actual.readFileSync(path, options)
     }) as typeof actual.readFileSync,
+    writeFileSync:((path,value,options)=>{if(mocks.remaining269&&String(path).startsWith('/private/tmp/pika-test-draft-save-generated-')){if(mocks.syntheticArtifacts.has(String(path)))throw Error('Synthetic artifact exists');mocks.syntheticArtifacts.set(String(path),String(value));return}return actual.writeFileSync(path,value,options)}) as typeof actual.writeFileSync,
     statSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? { isSocket: () => true, dev: 1, ino: mocks.socketInode, mode: 3, rdev: 4 } : actual.statSync(path) }
 })
 vi.mock('../../scripts/contextual-test-draft-save-proof-inventory', () => ({ draftSaveProofDockerInventory: mocks.inventory }))
@@ -35,6 +41,12 @@ import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, 
   buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts,
   buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts,
   buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+import {buildSurvey269RemainingManifest,createSurvey269RemainingNativeContracts} from '../../scripts/contextual-test-draft-save-native-contracts'
+import * as surveyNative from '../../scripts/contextual-surveys-native-contracts'
+import * as surveyPlatform from '../../scripts/contextual-assignment-list-proof-platform'
+import * as draftGuards from '../../scripts/check-contextual-test-draft-save-db-contracts'
+import {surveyCancellationProofDescriptor} from '../../scripts/contextual-surveys-cancellation-proof'
+import {surveyWireProofDescriptor} from '../../scripts/contextual-surveys-wire-proof'
 import { SURVEY263_NATIVE_CLI } from '../../scripts/contextual-assignment-list-proof-platform'
 import * as surveyCommittedProof from '../../scripts/contextual-surveys-committed-proof'
 import { surveyCommittedCpuFixtures, type SurveyCpuGraph } from '../helpers/survey-committed-cpu-fixtures'
@@ -46,7 +58,7 @@ import { newTestOwnerPublicationFixture } from '../../scripts/contextual-test-pu
 import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { DRAFT_SAVE_CAPS } from '../../scripts/check-contextual-test-draft-save-db-contracts'
-import { assignmentListExpectedResources } from '../../scripts/contextual-assignment-list-proof-lifecycle'
+import { assignmentListExpectedResources,assignmentListEphemeralPlan } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
 import * as publicationContracts from '../../scripts/contextual-test-publication-db-contracts'
 import * as publicationRaces from '../../scripts/check-contextual-test-publication-concurrency'
@@ -184,6 +196,8 @@ describe('native persistent-session transport with offline child mocks', () => {
   let pendingSurveyContender: (() => void) | undefined
   let surveyLateFrame: 'observer' | 'terminal' | undefined, surveyWorkDeadline = 0
   let surveyUnjoinedHolder = false
+  let surveyOriginalBase:SurveyCpuGraph|undefined,surveySnapshot:(()=>SurveyCpuGraph)|undefined
+  let remainingManifest:ReturnType<typeof buildSurvey269RemainingManifest>|undefined
   function surveyAfter() {
     const state = surveyDirection!, s = state.schedule
     // Select the actual closed legacy-writer frame, independently of the
@@ -258,7 +272,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(diagnosticManifest)), absoluteDeadline: Date.now() + 900000 })
   }
   beforeEach(() => {
-    mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
+    mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear();mocks.remaining269=false;mocks.syntheticArtifacts.clear();mocks.generatedSource='';mocks.config=''
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined; publicationManifest = undefined
@@ -268,6 +282,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     surveyPositive = undefined; surveyGraph = undefined; surveySeedStamp = ''; surveyEvents.length = 0
     surveyBackends.clear(); surveyDirection = undefined; pendingSurveyContender = undefined
     surveyLateFrame = undefined; surveyWorkDeadline = 0; surveyUnjoinedHolder = false
+    surveyOriginalBase=undefined;surveySnapshot=undefined;remainingManifest=undefined
     cancellationRestoreOutput = 'ok'
     cancellationCatalogChanged = false
     bulkDispatched = undefined
@@ -275,16 +290,25 @@ describe('native persistent-session transport with offline child mocks', () => {
     diagnosticManifest = undefined; diagnosticChunks = []; diagnosticNoise = ''; diagnosticHang = false; diagnosticExit = false
     diagnosticMarkerFirst = false; diagnosticContamination = false; diagnosticDispatched = undefined
     mocks.inventory.mockResolvedValue(resources)
-    mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
+    mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, rawCallback: (error: unknown, stdout: string,stderr?:string) => void) => {
+      const callback=(error:unknown,stdout:string)=>rawCallback(error,stdout,'')
       const child = new EventEmitter() as EventEmitter & { stdin: Writable; kill: ReturnType<typeof vi.fn> }
       let input = ''
       child.kill = vi.fn(() => true)
       child.stdin = new Writable({ write(chunk, _encoding, done) { input += String(chunk); done() }, final(done) {
         sqlControls.push({ args: [...args], sql: input })
         queueMicrotask(() => {
-          if (file === 'git') callback(null, args[1] === '--show-toplevel' ? (_options as { cwd: string }).cwd : args[0] === 'rev-parse' ? head : '')
+          if(mocks.remaining269&&file===SURVEY263_NATIVE_CLI.path)callback(null,mocks.generatedSource)
+          else if (file === 'git') callback(null,mocks.remaining269&&args.includes('HEAD')?(args.includes('--show-toplevel')?`${head}\n${surveyNative.SURVEY_269_COMPONENT_ROOTS.product}\n`:args.includes('HEAD^{tree}')?`${head}\n${head}\n`:head):args[1] === '--show-toplevel' ? (_options as { cwd: string }).cwd : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
+          else if(remainingManifest&&input===remainingManifest.cancellation.frames.restoreAfterDispatch)callback(null,JSON.stringify({stage:'restored',descriptorSha256:remainingManifest.cancellation.descriptorSha256,stateSha256:'a'.repeat(64),catalogSha256:'b'.repeat(64),backendObserved:true,nativeVerified:false}))
+          else if(remainingManifest&&input===remainingManifest.wire.frames.restore){
+            const cid=remainingManifest.fixture.classes[1].id
+            const cl=surveyGraph!['public.classrooms'].find(r=>r.id===cid)!,ar=surveyGraph!['public.classroom_archive_revisions'].find(r=>r.classroom_id===cid)!
+            cl.blueprint_source_revision=Number(cl.blueprint_source_revision)+2;ar.revision=Number(ar.revision)+4;cl.updated_at=ar.updated_at=new Date().toISOString()
+            callback(null,JSON.stringify({stage:'wire-restored',descriptorSha256:remainingManifest.wire.descriptorSha256,stateSha256:'a'.repeat(64),archiveRevisionDelta:4,blueprintRevisionDelta:2,nativeVerified:false}))
+          }
           else if (input === learnerManifest?.cancellation.restore) {
             if (restorationFails) callback(Error('private cancellation restore failure'), '')
             // The actual fixed restoration SQL includes its full guard, which
@@ -329,6 +353,10 @@ describe('native persistent-session transport with offline child mocks', () => {
             database: 'postgres' as const, user: 'postgres' as const }
           surveyBackends.set(name, owned); response = JSON.stringify(owned)
         }
+        else if(surveyManifest&&sql===surveyManifest.snapshot&&surveySnapshot){
+          const rows=[...Object.entries(surveySnapshot()).map(([table,rows])=>JSON.stringify({table,rows})),JSON.stringify({metadata:{}}),JSON.stringify({cron:[]})]
+          queueMicrotask(()=>child.stdout.write(rows.join('\n')+'\n'+end+'\n'));done();return
+        }
         else if (surveyManifest && 'committed' in surveyManifest && surveyPositive) {
           const m = surveyManifest.committed, now = new Date().toISOString()
           const emit = (value: unknown, marker = end) => queueMicrotask(() => child.stdout.write(`${value === undefined ? '' : JSON.stringify(value) + '\n'}${marker}\n`))
@@ -336,8 +364,14 @@ describe('native persistent-session transport with offline child mocks', () => {
             surveySeedStamp = now
             const helpers = surveyCommittedCpuFixtures(surveyManifest.fixture, { seedStamp: now })
             surveyGraph = helpers.capturedSeed(m)
-            emit({ before: helpers.seedBefore(surveyGraph), after: surveyGraph, seedTimestamp: now }); done(); return
+            const before=helpers.seedBefore(surveyGraph)
+            if(surveyOriginalBase)for(const [key,rows]of Object.entries(surveyOriginalBase)){surveyGraph[key]??=[];before[key]??=[];surveyGraph[key].push(...structuredClone(rows));before[key].push(...structuredClone(rows))}
+            emit({ before, after: surveyGraph, seedTimestamp: now }); done(); return
           }
+          if(remainingManifest&&sql===remainingManifest.cancellation.frames.prepare){surveyEvents.push('cancel-prepare');emit({stage:'prepared',descriptorSha256:remainingManifest.cancellation.descriptorSha256,nativeVerified:false});done();return}
+          if(remainingManifest&&sql===remainingManifest.cancellation.frames.observer){surveyEvents.push('cancel-observer');emit({stage:'pending',descriptorSha256:remainingManifest.cancellation.descriptorSha256,nativeVerified:false,
+            backend:{pid:9999,started:new Date(Date.now()-1).toISOString(),database:'postgres',sessionUser:'authenticator',name:remainingManifest.cancellation.binding.marker,state:'active',waitType:'Timeout',waitEvent:'PgSleep',transactionStartedAt:now,queryStartedAt:now,observedAt:now,poll:1}});done();return}
+          if(remainingManifest&&sql===remainingManifest.wire.frames.prepare){surveyEvents.push('wire-prepare');emit({stage:'wire-prepared',descriptorSha256:remainingManifest.wire.descriptorSha256,innerBytes:8388608,minimumWireBytes:8388609,sqlWireBytes:8388700,nativeVerified:false});done();return}
           const current = surveyDirection?.schedule
           const s = current && (sql === current.frames.release || sql === current.frames.settle) ? current
             : m.schedules.find(s => sql === s.frames.holder || sql === s.frames.contender || sql === s.frames.retry || sql === s.frames.terminal)
@@ -479,7 +513,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     })
   })
   afterEach(() => { vi.useRealTimers(); mocks.snapshotSqlReads = false; mocks.sourceDrift = false;
-    mocks.driftMigration = '249_contextual_test_draft_owner_save.sql'; mocks.socketInode = 2; mocks.sqlFileCache.clear() })
+    mocks.remaining269=false;mocks.driftMigration = '249_contextual_test_draft_owner_save.sql'; mocks.socketInode = 2; mocks.sqlFileCache.clear() })
   function holdInitialGuard() {
     const implementation = mocks.execFile.getMockImplementation()!
     let holding = true
@@ -627,6 +661,100 @@ describe('native persistent-session transport with offline child mocks', () => {
       // These synthetic transports exercise private production control flow.
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
+  })
+  it('runs actual remaining269 child engine30directions + original joined probes + installed SDK14 on one198-action/16-request ledger (offline)',async()=>{
+    vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
+    const started=Date.now(),legacy=surveyNative.surveyRemainingNativePlan(original,head,repository),f=legacy.fixture
+    const binding={product:{head,tree:head},carrier:{head,tree:head},sharedSources:Object.fromEntries(surveyNative.SURVEY_269_SHARED_FILES.map(file=>[file,'a'.repeat(64)]))} as surveyNative.Survey269ComponentBinding
+    const plan={...legacy,kind:'survey269-remaining-only' as const,binding,repository:surveyNative.SURVEY_269_COMPONENT_ROOTS.product,migrations:[],
+      migrationManifestSha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.manifestSha256,sourceSha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.sourceSha256,
+      sources:{...legacy.sources,migration:{file:'supabase/migrations/269_contextual_surveys_workflow.sql',sha256:surveyNative.SURVEY_269_COMPONENT_SCHEMA.sourceSha256}},
+      concurrency:{...legacy.concurrency,schedules:[]},caps:{...legacy.caps,controls:6000,sdkMs:60000},
+      cancellation:surveyCancellationProofDescriptor(f),wire:surveyWireProofDescriptor(f),remainingCaps:{},inventory:{nativeActions:198},inventoryComplete:true,requiredBeforeAcceptance:[]}
+    const originalMigrationDigest=draftGuards.draftSaveMigrationManifestSha256
+    const spies=[vi.spyOn(surveyNative,'survey269RemainingPlan').mockReturnValue(plan as unknown as ReturnType<typeof surveyNative.survey269RemainingPlan>),
+      vi.spyOn(surveyNative,'verifySurvey269ComponentSources').mockImplementation(()=>{}),
+      vi.spyOn(draftGuards,'draftSaveMigrationManifestSha256').mockImplementation(repo=>repo===surveyNative.SURVEY_269_COMPONENT_ROOTS.product?plan.migrationManifestSha256:originalMigrationDigest(repo)),
+      vi.spyOn(surveyNative,'validateSurvey269ComponentSql').mockImplementation((_plan,sql)=>[plan.setup,plan.snapshot,plan.contracts.sql,plan.concurrency.close].includes(sql)),
+      // The actual private driver/SQL/frame/close mechanism runs; only the
+      // source-seal phase oracle is synthetic, not dispatch or settlement.
+      vi.spyOn(surveyNative,'runSurvey269ComponentRollback').mockImplementation(async(p,t,d)=>{
+        expect(await d.verifyTarget()).toEqual(t);const session=await d.openSession(`${p.projectId}_draft_contracts`)
+        try{await session.execute(p.contracts.sql,35000)}finally{await session.rollbackAndClose(12000)}
+        return{kind:'survey269-rollback-component-only',nativeVerified:false}
+      }),
+      vi.spyOn(surveyPlatform,'survey269RemainingDockerInventory').mockImplementation(async run=>{
+        await Promise.all([['ps','-aq','--no-trunc'],['volume','ls','-q'],['network','ls','-q','--no-trunc']].map(a=>run('docker',a)))
+        await Promise.all([['inspect'],['volume','inspect'],['network','inspect']].map(a=>run('docker',a)));return resources
+      })]
+    const stamp='2026-10-12T00:00:00+00:00',id=(n:number)=>`aabbccdd-0000-4000-8000-${String(n).padStart(12,'0')}`
+    const primarySurveys=f.surveys.map((s,n)=>({...s,classroom_id:s.classroomId,created_by:s.owner,title:f.tag,status:'active',show_results:true,dynamic_responses:false,opens_at:stamp,created_at:stamp,updated_at:stamp,position:n===2?1:0,artifact_id:id(n+1),source_artifact_id:null,source_blueprint_version_id:null,blueprint_archived_at:null})).map(({classroomId:_c,owner:_o,...s})=>s)
+    surveyOriginalBase={'public.surveys':primarySurveys,'public.survey_questions':[f.question,f.aggregateQuestion],
+      'public.survey_responses':[{id:f.aggregateResponse.id,survey_id:f.aggregateResponse.surveyId,question_id:f.aggregateResponse.questionId,student_id:f.aggregateResponse.actorId,response_text:f.aggregateResponse.text,selected_option:null,submitted_at:stamp,updated_at:stamp}],
+      'public.classrooms':f.classes.map(c=>({id:c.id,teacher_id:c.owner,archived_at:null,title:f.tag,blueprint_source_revision:4,updated_at:stamp})),
+      'public.classroom_archive_revisions':f.classes.map(c=>({classroom_id:c.id,revision:10,updated_at:stamp})),
+      'public.classroom_enrollments':f.enrollments.map(e=>({id:e.id,classroom_id:e.classroomId,student_id:e.actorId,created_at:stamp,manual_attendance_marks:{}})),
+      'private.pal_membership_generations':f.enrollments.map((e,n)=>({generation_id:e.id,scope_digest:testOwnerDigest(`pika-membership-scope-v1:${e.classroomId}:${e.actorId}`),state:'active',pal_reference:'pika-membership-v1-'+String(n).padStart(32,'0')}))}
+    let snapshotCount=0
+    surveySnapshot=()=>{
+      if(snapshotCount++===1){
+        surveyGraph!['public.surveys']=surveyGraph!['public.surveys'].filter(s=>s.id!==f.surveys[0].id)
+        surveyGraph!['public.survey_questions']=surveyGraph!['public.survey_questions'].filter(s=>s.survey_id!==f.surveys[0].id)
+        surveyGraph!['public.survey_responses']=surveyGraph!['public.survey_responses'].filter(s=>s.survey_id!==f.surveys[0].id)
+        const cl=surveyGraph!['public.classrooms'].find(r=>r.id===f.classes[0].id)!,ar=surveyGraph!['public.classroom_archive_revisions'].find(r=>r.classroom_id===f.classes[0].id)!
+        cl.blueprint_source_revision=Number(cl.blueprint_source_revision)+5;ar.revision=Number(ar.revision)+11;cl.updated_at=ar.updated_at=new Date().toISOString()
+      }return structuredClone(surveyGraph!)
+    }
+    let ordinaryCalls=0,resolveCancel:((response:Response)=>void)|undefined,actualFetches=0
+    const reply=(v:unknown,status=200)=>new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json'}})
+    const wire=vi.fn<typeof fetch>(async(resource,init)=>{
+      actualFetches++;expect(init?.redirect).toBe('error');expect(init?.signal).toBeInstanceOf(AbortSignal)
+      const url=String(resource)
+      if(actualFetches===1){expect(url).toBe(plan.cancellation.request.origin+plan.cancellation.request.path);return new Promise<Response>(resolve=>{resolveCancel=resolve})}
+      if(actualFetches===2){expect(url).toBe(plan.wire.request.origin+plan.wire.request.path);let chunks=0;return new Response(new ReadableStream<Uint8Array>({pull(c){c.enqueue(new Uint8Array(chunks++<128?65536:1))},cancel(){return Promise.resolve()}}),{headers:{'content-type':'application/json'}})}
+      const i=ordinaryCalls++,owner=f.actors[0].id,member=f.actors[1].id,cid=f.classes[0].id,sid=f.surveys[0].id,now=new Date().toISOString(),classroom={id:cid,teacher_id:owner,archived_at:null}
+      const created={...f.question,id:id(91),artifact_id:id(92),question_text:'Added?',position:1,created_at:now,updated_at:now}
+      const response={response_id:id(93),response_text:'SDK response',submitted_at:now,updated_at:now},result={question_id:f.question.id,question_type:'short_text',question_text:f.question.question_text,options:[],counts:[],total_responses:1,responses:[response]}
+      const summary={id:sid,title:f.tag,status:'active',show_results:true,dynamic_responses:false}
+      if(i===0||i===4)return reply({classroom,survey:primarySurveys[0],questions:[f.question],responses:[]})
+      if(i===1||i===5)return reply({classroom,surveys:[primarySurveys[0],primarySurveys[2]]})
+      if(i===2||i===3)return reply({code:'PT403',message:'Synthetic denial',details:null,hint:null},403)
+      if(i===6)return reply({success:true,updated:false})
+      if(i===7)return reply({classroom,survey:summary,results:[result]})
+      if(i===8)return reply({classroom,survey:summary,questions:[{id:f.question.id,question_type:'short_text',question_text:f.question.question_text,options:[],response_max_chars:500,position:0}],results:[{...result,responses:[{...response,student_id:member,name:null,email:f.actors[1].email}]}],responders:[{student_id:member,name:null,email:f.actors[1].email}],stats:{total_students:2,responded:1}})
+      if(i===9)return reply({survey:{...primarySurveys[0],title:'SDK renamed',updated_at:now}})
+      if(i===10)return reply({question:created})
+      if(i===11)return reply({question:{...created,question_type:'link',question_text:'URL?',response_max_chars:2048}})
+      return reply({success:true})
+    })
+    vi.stubGlobal('fetch',wire)
+    try{
+      const adapters=surveyPlatform.createAssignmentListNativeAdapters(original,{survey263Endpoint:{kind:'survey263',host:'unix:///private/tmp/pika-test-native-docker.sock',identity:[1,2,3,4]},survey263Budget:{startedAt:started,workDeadline:started+720000,cleanupDeadline:started+900000},survey263NativeCli:SURVEY263_NATIVE_CLI,survey269Remaining:true})
+      remainingManifest=buildSurvey269RemainingManifest(original,binding);surveyManifest=remainingManifest as unknown as typeof surveyManifest
+      const adapter=createSurvey269RemainingNativeContracts({original,binding,capturedResources:resources,containerId:resources.find(r=>r.name===`supabase_db_${project}`)!.id,acceptedManifestSha256:testOwnerDigest(JSON.stringify(remainingManifest)),absoluteDeadline:started+720000,
+        statusTarget:{API_URL:'http://127.0.0.1:54331',DB_URL:'postgresql://postgres:offline@127.0.0.1:54332/postgres',SERVICE_ROLE_KEY:`header.${Buffer.from(JSON.stringify({iss:'supabase-demo',role:'service_role'})).toString('base64url')}.signature`},survey263Endpoint:surveyPlatform.requireSurvey263AdapterEndpoint(adapters)})
+      await adapter.setup();const run=adapter.runRemainingCommitted()
+      for(let n=0;n<30000&&!surveyEvents.includes('cancel-observer');n++)await Promise.resolve()
+      expect(surveyEvents).toContain('cancel-observer');for(let n=0;n<100;n++)await Promise.resolve()
+      vi.setSystemTime(Date.now()+8000);resolveCancel!(reply({code:'57014',message:'cancelled',details:null,hint:null},500))
+      const committed=await run;expect(committed).toMatchObject({kind:'survey269-committed-cancellation-wire',actions:194,remainingSessions:0,requests:2,observerFrames:14,primaryMembershipUnchanged:true})
+      const cutoff=committed.phaseDeadline;expect(cutoff).toBeTypeOf('number')
+      const terminal=await adapter.runSdkCommitted();expect(terminal).toMatchObject({actions:198,controls:3953,remainingSessions:0,sdk:{calls:14,absoluteDeadline:cutoff}})
+      expect(actualFetches).toBe(16);expect(ordinaryCalls).toBe(14);expect(children).toHaveLength(6)
+      expect(surveyEvents.filter(e=>e.startsWith('holder:'))).toHaveLength(30)
+      const token=surveyPlatform.requireSurvey263AdapterEndpoint(adapters).componentExchange!,ledger=surveyPlatform.survey269ComponentExchangeReceipt(token)
+      expect(ledger.requests).toBe(16);expect(ledger.controls).toBe(3959);expect(ledger.bytes).toBeLessThan(67108864)
+      const workdir='/private/tmp/pika-assignment-list-'+project.slice(-12)
+      mocks.config=assignmentListEphemeralPlan({projectId:project,workdir}).config
+      const jsonNames=new Set(['p_patch','p_question','p_expected_question','p_expected_questions','p_responses'])
+      mocks.generatedSource=`type Json=string|null;export type Database = {public:{Functions:{snapshot_test_draft_save_for_owner_v1:{Args:{};Returns:Json};finish_test_draft_save_for_owner_v1:{Args:{};Returns:Json};set_classroom_hot_archive_for_owner_v1:{Args:{p_actor_id:string;p_classroom_id:string;p_archived:boolean};Returns:Json};${Object.entries(surveyNative.SURVEY_RPC_ARGUMENTS).map(([name,args])=>`${name}:{Args:{${args.map(a=>`${a}:${jsonNames.has(a)?'Json':'string'}`).join(';')}};Returns:Json}`).join(';')}}}}`
+      const types=await adapter.generateTypes269();expect(types).toMatchObject({validatedRpcContracts:12,validatedFoundationHotArchiveRpc:true,migrationManifestSha256:plan.migrationManifestSha256,nativeVerified:false})
+      expect(mocks.syntheticArtifacts.size).toBe(1)
+      const finalLedger=surveyPlatform.survey269ComponentExchangeReceipt(token)
+      expect(finalLedger.controls).toBe(4008);expect(finalLedger.requests).toBe(16);expect(finalLedger.bytes).toBeLessThan(67108864)
+      process.stdout.write(`DIAG offline remaining trace actions=198 controls=${finalLedger.controls} requests=${finalLedger.requests} bytes=${finalLedger.bytes} nativeVerified=false.\n`)
+      expect(adapter.inventoryComplete).toBe(true);expect(adapter.nativeVerified).toBe(false)
+    }finally{spies.forEach(s=>s.mockRestore());vi.unstubAllGlobals()}
   })
   it('measures8s wire separately from14s guarded cancellation action', async () => {
     const adapter = learnerFactory(); await adapter.setup()
@@ -898,7 +1026,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     // Offline driver doubles isolate the private clock. They do not claim SQL
     // or race acceptance, which requires the actual disposable lifecycle.
     const contracts = vi.spyOn(publicationContracts, 'runTestOwnerPublicationDbContracts').mockResolvedValue(Object.freeze({
-      kind: 'rollback-test-owner-publication-contracts', sourceSha256: publicationManifest!.sourceSha256,
+      kind: 'rollback-test-owner-publication-contracts', sourceSha256: publicationContracts.TEST_OWNER_PUBLICATION_SOURCE_SHA256,
       manifestSha256: testOwnerDigest(JSON.stringify(publicationManifest!.contracts)), checks: publicationManifest!.contracts.expectedResult.checks,
     }))
     const races = vi.spyOn(publicationRaces, 'runTestOwnerPublicationConcurrency').mockResolvedValue(Object.freeze({

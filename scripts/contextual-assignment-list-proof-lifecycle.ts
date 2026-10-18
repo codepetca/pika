@@ -8,8 +8,10 @@ import { assignmentListFixtureSetupSql, type AssignmentListProofFixture } from '
 import { assignmentListRevocationDiagnostic, assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
 import { validateSurveyNativeLifecycleWorkload, consumeSurveyNativeLifecycleWorkload, surveyRemainingNativePlan, type SurveyNativeLifecycleWorkload, validateSurvey269ComponentWorkload, consumeSurvey269ComponentWorkload, type Survey269ComponentWorkload } from './contextual-surveys-native-contracts'
+import { validateSurvey269RemainingWorkload, consumeSurvey269RemainingWorkload, type Survey269RemainingWorkload } from './contextual-surveys-native-contracts'
 import { buildSurveyNativeContractsManifest, createContextualSurveysNativeContracts, buildSurvey269ComponentManifest, createSurvey269ComponentNativeContracts } from './contextual-test-draft-save-native-contracts'
-import { requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup, checkSurvey263AdapterTotal, Survey263UnjoinedChildError, survey269ComponentExchangeReceipt } from './contextual-assignment-list-proof-platform'
+import { buildSurvey269RemainingManifest, createSurvey269RemainingNativeContracts } from './contextual-test-draft-save-native-contracts'
+import { requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup, checkSurvey263AdapterTotal, Survey263UnjoinedChildError, survey269ComponentExchangeReceipt, assertSurvey269RemainingExchange } from './contextual-assignment-list-proof-platform'
 
 export function validateAssignmentListEphemeralIdentity(input: { projectId: string; workdir: string }) {
   assert.match(input.projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
@@ -126,6 +128,8 @@ export type AssignmentListLifecycleInput = {
   surveyWorkload?: SurveyNativeLifecycleWorkload;
   /** Closed prerequisite only; never remaining-proof acceptance. */
   survey269ComponentWorkload?: Survey269ComponentWorkload;
+  /** Separate source-owned committed/cancellation/wire profile and original budget. */
+  survey269RemainingWorkload?: Survey269RemainingWorkload;
   /** Source-only progression selector. Incomplete inventory refuses admission. */
   surveyRemainingOnly?: true;
 }
@@ -173,7 +177,8 @@ export function assignmentListExpectedResources(projectId: string): Pick<Assignm
 /** No CLI/DB dispatch at import. All platform authority stays in supplied hooks. */
 export async function runAssignmentListEphemeralLifecycle(input: AssignmentListLifecycleInput, adapters: AssignmentListLifecycleAdapters) {
   // Admission and later dispatch must use the same caller-independent bindings.
-  const { surveyWorkload, surveyRemainingOnly, survey269ComponentWorkload } = input
+  const { surveyWorkload, surveyRemainingOnly, survey269ComponentWorkload, survey269RemainingWorkload } = input
+  assert(!(survey269RemainingWorkload && (survey269ComponentWorkload || surveyWorkload || surveyRemainingOnly)), 'Survey profiles cannot be combined')
   assert(!(survey269ComponentWorkload && (surveyWorkload || surveyRemainingOnly)), 'Survey profiles cannot be combined')
   const identity = validateAssignmentListEphemeralIdentity(input); const plan = assignmentListEphemeralPlan(identity)
   const { fixture, migrations } = input; const manifest = decodeAssignmentListProofManifest(fixture.manifest)
@@ -185,22 +190,31 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   assert.equal(expected.size, input.expectedResources.length)
   for (const r of input.expectedResources) assert.match(r.name, new RegExp(`^supabase_[a-z0-9_-]+_${identity.projectId}$`))
   assert.deepEqual([...expected].sort(), assignmentListExpectedResources(identity.projectId).map(resourceKey).sort())
-  const surveyPlan = survey269ComponentWorkload ? validateSurvey269ComponentWorkload(survey269ComponentWorkload, fixture) : surveyWorkload ? validateSurveyNativeLifecycleWorkload(surveyWorkload, fixture) : undefined
+  const surveyPlan = survey269RemainingWorkload ? validateSurvey269RemainingWorkload(survey269RemainingWorkload, fixture)
+    : survey269ComponentWorkload ? validateSurvey269ComponentWorkload(survey269ComponentWorkload, fixture) : surveyWorkload ? validateSurveyNativeLifecycleWorkload(surveyWorkload, fixture) : undefined
   if (surveyRemainingOnly !== undefined) {
     assert(surveyRemainingOnly === true && surveyWorkload)
     const remaining = surveyRemainingNativePlan(fixture, surveyWorkload.reviewedHead, surveyWorkload.repository)
     assert(remaining.inventoryComplete, 'Survey remaining-only complete native inventory is absent')
   }
   const survey263Endpoint = surveyPlan ? requireSurvey263AdapterEndpoint(adapters) : undefined
-  if (survey269ComponentWorkload) assert(survey263Endpoint?.componentExchange, 'Survey269 shared exchange ledger is absent')
+  if (survey269RemainingWorkload) {
+    assert(survey263Endpoint?.componentExchange, 'Survey269 shared exchange ledger is absent')
+    assertSurvey269RemainingExchange(survey263Endpoint.componentExchange)
+  } else if (survey269ComponentWorkload) {
+    assert(survey263Endpoint?.componentExchange, 'Survey269 shared exchange ledger is absent')
+    const receipt = survey269ComponentExchangeReceipt(survey263Endpoint.componentExchange)
+    assert(receipt.controlLimit === 4000 && receipt.requests === undefined, 'Survey269 component ledger profile differs')
+  }
   else assert(!survey263Endpoint?.componentExchange, 'Survey269 transport requires the closed component profile')
-  if (surveyWorkload || survey269ComponentWorkload) {
-    assert.equal(survey263Endpoint?.budget.workDeadline, (survey269ComponentWorkload ?? surveyWorkload)!.absoluteDeadline, 'Survey original work deadline differs')
+  if (surveyWorkload || survey269ComponentWorkload || survey269RemainingWorkload) {
+    assert.equal(survey263Endpoint?.budget.workDeadline, (survey269RemainingWorkload ?? survey269ComponentWorkload ?? surveyWorkload)!.absoluteDeadline, 'Survey original work deadline differs')
     adapters.checkWork!()
   }
   if (surveyPlan) assert.equal(sha(JSON.stringify(migrations.map(({ name, sha256 }) => ({ name, sha256 })))), surveyPlan.migrationManifestSha256)
   if (surveyWorkload) consumeSurveyNativeLifecycleWorkload(surveyWorkload)
   if (survey269ComponentWorkload) consumeSurvey269ComponentWorkload(survey269ComponentWorkload)
+  if (survey269RemainingWorkload) consumeSurvey269RemainingWorkload(survey269RemainingWorkload)
   const revocations = surveyPlan ? [] : assignmentListRevocationPlans(fixture)
   assert.equal(input.restorationPolicies.length, revocations.length)
   const policyKeys = new Set(input.restorationPolicies.map(p => `${p.transition}:${p.boundary}`)); assert.equal(policyKeys.size, revocations.length)
@@ -224,6 +238,8 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   let baseline: Canonical | undefined; let before: Inventory | undefined; let target: Target | undefined
   let prepared: Awaited<ReturnType<AssignmentListLifecycleAdapters['prepare']>> | undefined
   let surveyTypes: Awaited<ReturnType<ReturnType<typeof createContextualSurveysNativeContracts>['generateTypes263']>> | undefined
+  let surveyRemaining: Awaited<ReturnType<ReturnType<typeof createSurvey269RemainingNativeContracts>['runRemainingCommitted']>> | undefined
+  let surveySdk: Awaited<ReturnType<ReturnType<typeof createSurvey269RemainingNativeContracts>['runSdkCommitted']>> | undefined
   let prepareAttempted = false; let startAttempted = false; let stage = 'canonical-before'; let primary: Failure | undefined
   let currentRevocation: AssignmentListRevocationPlan | undefined
   // Only the closed source-owned269 factory can provide this getter. It is not
@@ -297,7 +313,24 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     await adapters.command({ args: ['start', '--workdir', identity.workdir, '-x', 'analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'], workdir: identity.workdir, timeoutMs: 180000 })
     if (input.mode !== 'before-capture') { stage = 'capture'; checkWork(); await capture() }
     stage = 'status'; checkWork(); target = validateAssignmentListProofTarget(await adapters.command({ args: ['status', '--workdir', identity.workdir, '-o', 'json'], workdir: identity.workdir, timeoutMs: 15000 }), identity.projectId)
-    if (survey269ComponentWorkload) {
+    if (survey269RemainingWorkload) {
+      const workload = survey269RemainingWorkload
+      stage = 'survey-binding'; checkWork(); validateSurvey269RemainingWorkload(workload, fixture)
+      const s = await session(); const resources = (await inspectFresh()).selected
+      const nativeManifest = buildSurvey269RemainingManifest(fixture, workload.binding)
+      const native = createSurvey269RemainingNativeContracts({ original: fixture, binding: workload.binding,
+        capturedResources: resources, containerId: s.containerId, acceptedManifestSha256: sha(JSON.stringify(nativeManifest)),
+        absoluteDeadline: workload.absoluteDeadline, statusTarget: target, survey263Endpoint: survey263Endpoint! })
+      survey269NativeDiagnostic = native.diagnostic
+      stage = 'fixture'; checkWork(); await native.setup()
+      if (input.mode !== 'normal') { stage = input.mode; throw new Error('Forced isolated lifecycle failure') }
+      // The closed remaining phase owns its one rollback contract before the
+      // persistent pair. Replaying the component phase would double that work.
+      stage = 'survey-remaining-committed'; checkWork(); surveyRemaining = await native.runRemainingCommitted(); checkWork(); assert(surveyRemaining)
+      stage = 'survey-sdk-terminal'; checkWork(); surveySdk = await native.runSdkCommitted(); checkWork(); assert(surveySdk)
+      assert.equal(survey269ComponentExchangeReceipt(survey263Endpoint!.componentExchange!).requests, 16, 'Survey remaining request inventory differs')
+      stage = 'survey-types'; checkWork(); surveyTypes = await native.generateTypes269(); checkWork()
+    } else if (survey269ComponentWorkload) {
       const workload = survey269ComponentWorkload
       stage = 'survey-binding'; checkWork(); validateSurvey269ComponentWorkload(workload, fixture)
       const s = await session(); const resources = (await inspectFresh()).selected
@@ -394,10 +427,15 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     if (survey269ComponentWorkload) await check('survey-source-after', async () => {
       checkSurvey263AdapterTotal(adapters); validateSurvey269ComponentWorkload(survey269ComponentWorkload, fixture); checkSurvey263AdapterTotal(adapters)
     })
+    if (survey269RemainingWorkload) await check('survey-source-after', async () => {
+      checkSurvey263AdapterTotal(adapters); validateSurvey269RemainingWorkload(survey269RemainingWorkload, fixture); checkSurvey263AdapterTotal(adapters)
+    })
   }
   if (primary || cleanupFailures.length) throw new AssignmentListLifecycleError(primary, cleanupFailures)
   return { projectId: identity.projectId, mode: input.mode, cases: surveyPlan ? 0 : manifest.cases.length, revocations: revocations.length,
-    ...(surveyPlan ? { surveyProofScope: survey269ComponentWorkload ? 'source-compatibility-and-genuine-types-prerequisite' as const : 'rollback-and-sdk-terminal' as const,
+    ...(surveyPlan ? { surveyProofScope: survey269RemainingWorkload ? 'remaining-survey-native-proof' as const : survey269ComponentWorkload ? 'source-compatibility-and-genuine-types-prerequisite' as const : 'rollback-and-sdk-terminal' as const,
       nativeVerified: false as const, surveyTypes,
-      ...(survey269ComponentWorkload ? { inventoryComplete: false as const, exchange: survey269ComponentExchangeReceipt(survey263Endpoint!.componentExchange!) } : {}) } : {}) }
+      ...(survey269RemainingWorkload ? { surveyRemaining, surveySdk } : {}),
+      // Counted source inventory is distinct from coordinator native acceptance.
+      ...(survey269ComponentWorkload || survey269RemainingWorkload ? { inventoryComplete: Boolean(survey269RemainingWorkload), exchange: survey269ComponentExchangeReceipt(survey263Endpoint!.componentExchange!) } : {}) } : {}) }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs, assignmentListDockerInventory, assignmentListSnapshotSql, decodeAssignmentListSnapshot } from '../../scripts/contextual-assignment-list-proof-platform'
+import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs, assignmentListDockerInventory, survey269RemainingDockerInventory, assignmentListSnapshotSql, decodeAssignmentListSnapshot } from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { parseAssignmentListLifecycleArgs } from '../../scripts/check-contextual-assignment-list-lifecycle'
@@ -101,6 +101,21 @@ describe('assignment-list native platform proof contracts (offline)', () => {
       const output = await run(file, args)
       return args[0] === 'volume' && args[1] === 'inspect' ? JSON.stringify(JSON.parse(output).slice(1)) : output
     })).rejects.toThrow()
+  })
+  it('remaining profile rejects a full global list above128 instead of truncating it or opening more batches', async () => {
+    const { run } = inventoryRunner()
+    // A sibling may observe the latched refusal first; both errors deny admission.
+    await expect(survey269RemainingDockerInventory(run)).rejects.toThrow(/inventory capacity|inventory admission stopped/)
+    expect(run.mock.calls.filter(([, args]) => args[0] === 'volume' && args[1] === 'inspect')).toHaveLength(0)
+    expect(run.mock.calls.some(([, args]) => args.includes('--filter'))).toBe(false)
+  })
+  it('remaining inventory accepts exactly128 complete identities and fresh empty global lists', async () => {
+    const volumes = Array.from({ length: 128 }, (_, index) => ({ Name: `offline_${index}`, CreatedAt: 'offline', Labels: {} }))
+    const run = vi.fn(async (_file: string, args: string[]) => args[0] === 'volume'
+      ? args[1] === 'ls' ? volumes.map(row => row.Name).join('\n') : JSON.stringify(volumes) : '')
+    expect(await survey269RemainingDockerInventory(run)).toHaveLength(128)
+    expect(run).toHaveBeenCalledTimes(4)
+    expect(await survey269RemainingDockerInventory(async () => '')).toEqual([])
   })
   it('keeps startup error output in one private no-overwrite receipt, not the console', () => {
     const project = `pika_assignment_list_${randomUUID().replaceAll('-', '').slice(0, 12)}`

@@ -198,19 +198,44 @@ async function command(file: string, args: string[], options: { input?: string; 
  * assign DOCKER_HOST to process.env (the existing native engine forbids it). */
 type Survey263Endpoint = Readonly<{ kind: 'survey263'; host: string; identity: readonly [number, number, number, number] }>
 export type Survey269ComponentExchange = Readonly<{ kind: 'survey269-component-exchange' }>
-const componentExchanges = new WeakMap<Survey269ComponentExchange, { bytes: number; controls: number }>()
-function newComponentExchange(): Survey269ComponentExchange {
-  const token = Object.freeze({ kind: 'survey269-component-exchange' as const }); componentExchanges.set(token, { bytes: 0, controls: 0 }); return token
+const componentExchanges = new WeakMap<Survey269ComponentExchange, {
+  bytes: number; controls: number; profile: 'component' | 'remaining'; requests: number;
+  workDeadline: number; cleaning: boolean;
+}>()
+function newComponentExchange(profile: 'component' | 'remaining', budget: Survey263Budget): Survey269ComponentExchange {
+  const token = Object.freeze({ kind: 'survey269-component-exchange' as const })
+  componentExchanges.set(token, { bytes: 0, controls: 0, profile, requests: 0, workDeadline: budget.workDeadline, cleaning: false })
+  return token
 }
 export function survey269ComponentExchangeReceipt(token: Survey269ComponentExchange) {
   const ledger = componentExchanges.get(token); assert(ledger, 'Unbound Survey269 exchange ledger')
-  return Object.freeze({ bytes: ledger.bytes, limit: 64 * 1024 * 1024, controls: ledger.controls, controlLimit: 4000,
+  return Object.freeze({ bytes: ledger.bytes, limit: 64 * 1024 * 1024, controls: ledger.controls, controlLimit: ledger.profile === 'remaining' ? 6000 : 4000,
+    ...(ledger.profile === 'remaining' ? { requests: ledger.requests, requestLimit: 16 } : {}),
     channels: ['platform-command-stdin-stdout-stderr', 'engine-command-stdin-stdout-stderr', 'engine-session-stdin-stdout-stderr', 'sdk-request-response-bodies'] as const })
 }
+export function assertSurvey269RemainingExchange(token: Survey269ComponentExchange): void {
+  assert.equal(componentExchanges.get(token)?.profile, 'remaining', 'Survey269 remaining requires its own exchange ledger')
+}
+/** Count at original HTTP dispatch, never at receipt decoding or a retry. */
+export function chargeSurvey269RemainingRequest(token: Survey269ComponentExchange): number {
+  assertSurvey269RemainingExchange(token)
+  const ledger = componentExchanges.get(token)!
+  assert(!ledger.cleaning && Date.now() < ledger.workDeadline, 'Survey269 remaining request deadline expired')
+  assert(ledger.bytes <= 64 * 1024 * 1024, 'Survey269 cumulative exchange limit exceeded')
+  ledger.requests++
+  assert(ledger.requests <= 16, 'Survey269 remaining request limit exceeded')
+  return ledger.requests
+}
+// 169 outer cleanup/preservation children + 48 owned-session/probe settlement
+// children + the one counted refused work dispatch. No later refusal consumes
+// this reserve; cleanup is still accounted and final overflow rejects success.
+export const SURVEY269_REMAINING_CLEANUP_CONTROLS = 218
 export function chargeSurvey269ComponentControl(token: Survey269ComponentExchange, cleanup = false) {
   const ledger = componentExchanges.get(token); assert(ledger, 'Unbound Survey269 exchange ledger')
+  const workLimit = ledger.profile === 'remaining' ? 6000 - SURVEY269_REMAINING_CLEANUP_CONTROLS : 4000 - 32
+  if (ledger.profile === 'remaining' && !cleanup) assert(ledger.controls <= workLimit, 'Survey269 control reserve exhausted')
   ledger.controls++
-  assert(cleanup || ledger.controls <= 4000 - 32, 'Survey269 control reserve exhausted')
+  assert(cleanup || ledger.controls <= workLimit, 'Survey269 control reserve exhausted')
   return ledger.controls
 }
 export function chargeSurvey269ComponentExchange(token: Survey269ComponentExchange, bytes: number, cleanup = false) {
@@ -275,16 +300,24 @@ export function checkSurvey263AdapterTotal(adapters: AssignmentListLifecycleAdap
     const receipt = survey269ComponentExchangeReceipt(binding.componentExchange)
     assert(receipt.bytes <= receipt.limit, 'Survey269 cumulative exchange limit exceeded')
     assert(receipt.controls <= receipt.controlLimit, 'Survey269 control limit exceeded')
+    if (receipt.requests !== undefined) assert(receipt.requests <= 16, 'Survey269 remaining request limit exceeded')
   }
 }
-function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBudget: Survey263Budget, nativeCli: Survey263NativeCli, component = false) {
+function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBudget: Survey263Budget, nativeCli: Survey263NativeCli, profile?: 'component' | 'remaining') {
   surveyData(binding, ['host', 'identity', 'kind'])
   const budget = validateSurvey263Budget(originalBudget)
   nativeCli = verifySurvey263NativeCli(nativeCli)
   let cleaning = false, poisoned = false
-  const componentExchange = component ? newComponentExchange() : undefined
+  const componentExchange = profile ? newComponentExchange(profile, budget) : undefined
   const checkTotal = () => { assert(!poisoned, 'Survey child closure unconfirmed'); assert(Date.now() < budget.cleanupDeadline, 'Survey total deadline expired') }
-  const checkWork = () => { checkTotal(); assert(!cleaning && Date.now() < budget.workDeadline, 'Survey work deadline expired'); if (componentExchange) chargeSurvey269ComponentExchange(componentExchange, 0) }
+  const checkWork = () => {
+    checkTotal(); assert(!cleaning && Date.now() < budget.workDeadline, 'Survey work deadline expired')
+    if (componentExchange) {
+      chargeSurvey269ComponentExchange(componentExchange, 0)
+      const receipt = survey269ComponentExchangeReceipt(componentExchange)
+      if (receipt.requests !== undefined) assert(receipt.requests <= 16, 'Survey269 remaining request limit exceeded')
+    }
+  }
   const cutoff = (settling = false) => { checkTotal(); return cleaning || settling ? budget.cleanupDeadline : budget.workDeadline }
   const remaining = (settling = false) => { const time = cutoff(settling) - Date.now(); assert(time > 0, 'Survey original deadline expired'); return time }
   assert.deepEqual(Object.keys(binding).sort(), ['host', 'identity', 'kind'])
@@ -331,6 +364,8 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBu
         ...options, timeout, survey: { nativeCli, dispatchDeadline: cutoff(), closeDeadline: Math.min(budget.cleanupDeadline, Date.now() + timeout + 12000), componentExchange, cleanup: cleaning },
         ...(file === 'supabase' ? { env: { ...process.env, DOCKER_HOST: endpoint.host } } : {}),
       })
+      if (profile === 'remaining' && file === 'docker' && (args[0] === 'ps' || ((args[0] === 'volume' || args[0] === 'network') && args[1] === 'ls')))
+        assert(result.split(/\s+/).filter(Boolean).length <= 128, 'Survey269 remaining global inventory capacity exceeded')
       assert(Date.now() < cutoff()); return result
     } catch (error) { dispatchFailure = error; if (error instanceof Survey263UnjoinedChildError) poisoned = true; throw error }
     finally {
@@ -343,7 +378,10 @@ function createSurvey263PlatformTransport(binding: Survey263Endpoint, originalBu
       }
     } // fixed original reserve, never a renewed clock
   }
-  return Object.freeze({ run, observe, checkWork, checkTotal, cleanup: () => { cleaning = true }, poison: () => { poisoned = true },
+  return Object.freeze({ run, observe, checkWork, checkTotal, cleanup: () => {
+    cleaning = true
+    if (componentExchange) componentExchanges.get(componentExchange)!.cleaning = true
+  }, poison: () => { poisoned = true },
     endpoint: Object.freeze({ kind: 'survey263' as const, host: endpoint.host,
       identity: endpoint.identity as readonly [number, number, number, number], budget, nativeCli, ...(componentExchange ? { componentExchange } : {}) }) })
 }
@@ -358,7 +396,12 @@ export async function assignmentListDockerInventory(run: (file: string, args: st
 export async function survey269ComponentDockerInventory(run: (file: string, args: string[]) => Promise<string>): Promise<AssignmentListResource[]> {
   return readAssignmentListDockerInventory(run, true)
 }
-async function readAssignmentListDockerInventory(run: (file: string, args: string[]) => Promise<string>, component: boolean): Promise<AssignmentListResource[]> {
+/** Read complete global lists and fail closed above the reviewed single-batch
+ * capacity. Never truncate identities or omit foreign attachment users. */
+export async function survey269RemainingDockerInventory(run: (file: string, args: string[]) => Promise<string>): Promise<AssignmentListResource[]> {
+  return readAssignmentListDockerInventory(run, true, true)
+}
+async function readAssignmentListDockerInventory(run: (file: string, args: string[]) => Promise<string>, component: boolean, remaining = false): Promise<AssignmentListResource[]> {
   let stopped = false
   const dispatch = component ? async (file: string, args: string[]) => {
     assert(!stopped, 'Component inventory admission stopped')
@@ -367,6 +410,7 @@ async function readAssignmentListDockerInventory(run: (file: string, args: strin
   const ids = async (args: string[]) => {
     try {
       const values = (await dispatch('docker', args)).split(/\s+/).filter(Boolean)
+      if (remaining) assert(values.length <= 128, 'Survey269 remaining global inventory capacity exceeded')
       assert.equal(new Set(values).size, values.length)
       assert(values.every(value => args[0] === 'volume' ? /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(value) : /^[a-f0-9]{64}$/.test(value)))
       return values
@@ -488,7 +532,7 @@ export function prepareAssignmentListProjectFiles(
 }
 
 export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture, options: { ephemeralSnapshot?: 'digests' | 'metadata'; survey263Endpoint?: Survey263Endpoint;
-  survey263Budget?: Survey263Budget; survey263NativeCli?: Survey263NativeCli; survey269Component?: true; nativeCommand?: typeof command } = {}): AssignmentListLifecycleAdapters {
+  survey263Budget?: Survey263Budget; survey263NativeCli?: Survey263NativeCli; survey269Component?: true; survey269Remaining?: true; nativeCommand?: typeof command } = {}): AssignmentListLifecycleAdapters {
   const descriptor = Object.getOwnPropertyDescriptor(options, 'survey263Endpoint')
   if (!descriptor) assert(!('survey263Endpoint' in options), 'Survey options must be own data')
   if (descriptor) assert('value' in descriptor, 'Survey options must be data')
@@ -505,7 +549,10 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
   const workdir = assignmentListProofWorkdir(projectId)
   assert(Boolean(options.survey263Endpoint) === Boolean(options.survey263Budget) && Boolean(options.survey263Endpoint) === Boolean(options.survey263NativeCli))
   if (options.survey269Component !== undefined) assert(options.survey269Component === true && options.survey263Endpoint)
-  const transport = options.survey263Endpoint ? createSurvey263PlatformTransport(options.survey263Endpoint, options.survey263Budget!, options.survey263NativeCli!, options.survey269Component) : undefined
+  if (options.survey269Remaining !== undefined) assert(options.survey269Remaining === true && options.survey263Endpoint)
+  assert(!(options.survey269Component && options.survey269Remaining), 'Survey269 profiles cannot be combined')
+  const profile = options.survey269Remaining ? 'remaining' : options.survey269Component ? 'component' : undefined
+  const transport = options.survey263Endpoint ? createSurvey263PlatformTransport(options.survey263Endpoint, options.survey263Budget!, options.survey263NativeCli!, profile) : undefined
   const run: typeof command = transport?.run ?? nativeCommand?.value ?? command
   const inventory = () => assignmentListDockerInventory(run)
   const snapshot = (project: string, scope: AssignmentListSnapshotScope) => databaseSnapshot(project, scope, run)

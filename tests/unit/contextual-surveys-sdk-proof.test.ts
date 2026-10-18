@@ -53,6 +53,28 @@ const firstRequest = () => ({ method: 'POST', headers, body: JSON.stringify({ p_
 const firstUrl = 'http://127.0.0.1:54331/rest/v1/rpc/get_survey_for_owner_v1'
 
 describe('finite installed-SDK Survey transport (offline only)', () => {
+  it.each(['headers','chunk'] as const)('owns actual %s fulfillment before component post-await expiry, including bytes and body cancellation',async boundary=>{
+    vi.useFakeTimers();const started=Date.now(),charged:number[]=[],cancel=vi.fn()
+    let releaseCancel:()=>void=()=>{}
+    cancel.mockImplementation(()=>new Promise<void>(resolve=>{releaseCancel=resolve}))
+    const wire=vi.fn<typeof fetch>(async()=>{
+      if(boundary==='headers')queueMicrotask(()=>vi.setSystemTime(started+60000))
+      let pulls=0
+      return new Response(new ReadableStream<Uint8Array>({pull(controller){controller.enqueue(new Uint8Array([1,2,3]));if(++pulls>1&&boundary==='chunk')vi.setSystemTime(started+60000)},cancel}),{headers:{'content-type':'application/json'}})
+    })
+    try{
+      const transport=createSurveySdkProofTransport(f,target,wire,async()=>{},n=>charged.push(n),{cleanupDeadline:started+900000})
+      transport.start(started+60000)
+      await expect(transport.fetch(firstUrl,firstRequest())).rejects.toThrow()
+      expect(cancel).toHaveBeenCalledTimes(1)
+      if(boundary==='chunk')expect(charged).toContain(3)
+      let settled=false;const joining=transport.settle().finally(()=>{settled=true})
+      for(let n=0;n<100;n++)await Promise.resolve()
+      expect(settled).toBe(false);expect(wire).toHaveBeenCalledTimes(1)
+      releaseCancel();await joining
+      await expect(transport.fetch(firstUrl,firstRequest())).rejects.toThrow();expect(wire).toHaveBeenCalledTimes(1)
+    }finally{releaseCancel();vi.useRealTimers()}
+  })
   it('advertises the approved closed60s component cap while preserving legacy20s',()=>{
     const legacy=createSurveySdkProofTransport(f,target,server(),async()=>{})
     const component=createSurveySdkProofTransport(f,target,server(),async()=>{},()=>{},{cleanupDeadline:Date.now()+900000})

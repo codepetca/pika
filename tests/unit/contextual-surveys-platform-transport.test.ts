@@ -52,7 +52,8 @@ vi.mock('node:net', async original => {
 })
 import { createAssignmentListNativeAdapters, requireSurvey263AdapterEndpoint, beginSurvey263AdapterCleanup,
   SURVEY263_NATIVE_CLI, verifySurvey263NativeCli, chargeSurvey269ComponentExchange, survey269ComponentExchangeReceipt,
-  checkSurvey263AdapterTotal, chargeSurvey269ComponentControl } from '../../scripts/contextual-assignment-list-proof-platform'
+  checkSurvey263AdapterTotal, chargeSurvey269ComponentControl, assertSurvey269RemainingExchange,
+  chargeSurvey269RemainingRequest, SURVEY269_REMAINING_CLEANUP_CONTROLS } from '../../scripts/contextual-assignment-list-proof-platform'
 import { AssignmentListStartupError, assignmentListStartupDiagnostic, Survey263UnjoinedChildError,
   writeAssignmentListStartupDiagnostic } from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
@@ -76,6 +77,55 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 describe('sealed Survey platform factory (offline actual seams)', () => {
+  it('binds remaining6000 and sixteen requests only to the separate opaque profile', () => {
+    const options = { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI }
+    const adapters = createAssignmentListNativeAdapters(fixture, { ...options, survey269Remaining: true })
+    const token = requireSurvey263AdapterEndpoint(adapters).componentExchange!
+    expect(() => assertSurvey269RemainingExchange(token)).not.toThrow()
+    expect(survey269ComponentExchangeReceipt(token)).toMatchObject({ controlLimit: 6000, requests: 0, requestLimit: 16 })
+    expect(() => assertSurvey269RemainingExchange({ ...token })).toThrow()
+    const component = requireSurvey263AdapterEndpoint(createAssignmentListNativeAdapters(fixture, { ...options, survey269Component: true })).componentExchange!
+    expect(survey269ComponentExchangeReceipt(component).controlLimit).toBe(4000)
+    expect(() => chargeSurvey269RemainingRequest(component)).toThrow()
+    expect(() => createAssignmentListNativeAdapters(fixture, { ...options, survey269Remaining: true, survey269Component: true })).toThrow()
+    expect(() => createAssignmentListNativeAdapters(fixture, { survey269Remaining: true })).toThrow()
+    expect(seam.calls).toHaveLength(0)
+  })
+  it('charges all sixteen remaining requests once and retains a refused seventeenth in final accounting', () => {
+    const adapters = createAssignmentListNativeAdapters(fixture, { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI, survey269Remaining: true })
+    const token = requireSurvey263AdapterEndpoint(adapters).componentExchange!
+    for (let index = 0; index < 16; index++) expect(chargeSurvey269RemainingRequest(token)).toBe(index + 1)
+    expect(survey269ComponentExchangeReceipt(token)).toMatchObject({ requests: 16, requestLimit: 16 })
+    expect(() => chargeSurvey269RemainingRequest(token)).toThrow('request limit')
+    expect(() => adapters.checkWork!()).toThrow('request limit')
+    beginSurvey263AdapterCleanup(adapters)
+    expect(() => checkSurvey263AdapterTotal(adapters)).toThrow('request limit')
+    expect(() => chargeSurvey269RemainingRequest(token)).toThrow()
+    expect(seam.calls).toHaveLength(0)
+  })
+  it.each(['expiry', 'cleanup'] as const)('refuses remaining HTTP admission after %s without dispatch', stage => {
+    const adapters = createAssignmentListNativeAdapters(fixture, { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI, survey269Remaining: true })
+    const token = requireSurvey263AdapterEndpoint(adapters).componentExchange!
+    if (stage === 'expiry') seam.now = budget().workDeadline
+    else beginSurvey263AdapterCleanup(adapters)
+    expect(() => chargeSurvey269RemainingRequest(token)).toThrow()
+    expect(survey269ComponentExchangeReceipt(token).requests).toBe(0)
+    expect(seam.calls).toHaveLength(0)
+  })
+  it('reserves217 cleanup controls plus one counted refusal without spending reserve on later refused work', () => {
+    const adapters = createAssignmentListNativeAdapters(fixture, { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI, survey269Remaining: true })
+    const token = requireSurvey263AdapterEndpoint(adapters).componentExchange!
+    expect(SURVEY269_REMAINING_CLEANUP_CONTROLS).toBe(218)
+    for (let index = 0; index < 5782; index++) chargeSurvey269ComponentControl(token)
+    for (let index = 0; index < 8; index++) expect(() => chargeSurvey269ComponentControl(token)).toThrow('control reserve')
+    expect(survey269ComponentExchangeReceipt(token).controls).toBe(5783)
+    beginSurvey263AdapterCleanup(adapters)
+    for (let index = 0; index < 217; index++) chargeSurvey269ComponentControl(token, true)
+    expect(survey269ComponentExchangeReceipt(token).controls).toBe(6000)
+    expect(() => checkSurvey263AdapterTotal(adapters)).not.toThrow()
+    chargeSurvey269ComponentControl(token, true)
+    expect(() => checkSurvey263AdapterTotal(adapters)).toThrow('control limit')
+  })
   it('joins component command input, untrimmed stdout/stderr and external bytes without renewing the ledger', async () => {
     const adapters = createAssignmentListNativeAdapters(fixture, { survey263Endpoint: endpoint(), survey263Budget: budget(), survey263NativeCli: SURVEY263_NATIVE_CLI, survey269Component: true })
     const token = requireSurvey263AdapterEndpoint(adapters).componentExchange!

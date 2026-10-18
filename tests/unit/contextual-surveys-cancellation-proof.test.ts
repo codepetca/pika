@@ -19,12 +19,12 @@ function pending(d: ReturnType<typeof make>) {
 describe('inert source-owned Survey cancellation descriptor', () => {
   it('counts the fixed remaining candidate without granting admission or inventing missing wire/restoration execution',()=>{
     const r=surveyRemainingScheduleLowerBound(f,{containers:1,volumes:1,networks:1})
-    expect(r).toMatchObject({guardCommands:15,baseGuards:254,baseControls:3822,typeControls:49,rootGitControls:18,
-      proposedActions:199,proposedRequests:16,proposedObservers:14,candidateControlLowerBound:4039,controlDeficit:0,partialControlHeadroom:1961,
-      cleanupReserve:32,completeControls:null,completeFailureControls:null,completeExchangeBytes:null,inventoryComplete:false,executionEnabled:false,nativeVerified:false})
+    expect(r).toMatchObject({guardCommands:15,baseGuards:254,baseControls:3822,typeControls:49,rootGitControls:28,
+      proposedActions:198,proposedRequests:16,proposedObservers:14,candidateControlLowerBound:4036,controlDeficit:0,partialControlHeadroom:1964,
+      cleanupReserve:218,completeControls:null,completeFailureControls:null,completeExchangeBytes:null,inventoryComplete:false,executionEnabled:false,nativeVerified:false})
     expect(r.frames.cancellation).toEqual(Object.fromEntries(Object.entries(make().frames).map(([key,sql])=>[key,{sha256:createHash('sha256').update(sql).digest('hex'),bytes:Buffer.byteLength(sql)}])))
     expect(r.frames.wire).toEqual({implemented:false,sqlBytes:null})
-    expect(r.frames.membership).toEqual({source:'surveyMembershipRestoreSql',bound:false,sqlBytes:null})
+    expect(r.frames.membership).toEqual({source:'verifySurveyPrimaryMembership',bound:true,sqlBytes:0})
     expect(r.caps).toMatchObject({nativeControls:6000,sdkMs:60000,nativeActions:200,totalBytes:67108864,sdkRequests:16,nativeSessions:2,workMs:720000,cleanupMs:180000})
     expect(make().caps.nativeControls).toBe(4000)
     expect(r.failureCases.every(row=>row.completeControls===null && row.completeActions===null)).toBe(true)
@@ -33,7 +33,7 @@ describe('inert source-owned Survey cancellation descriptor', () => {
     const a=surveyRemainingScheduleLowerBound(f,{containers:128,volumes:128,networks:128})
     const b=surveyRemainingScheduleLowerBound(f,{containers:129,volumes:128,networks:128})
     expect(a.guardCommands).toBe(15);expect(b.guardCommands).toBe(16)
-    expect(b.candidateControlLowerBound-a.candidateControlLowerBound).toBe(268)
+    expect(b.candidateControlLowerBound-a.candidateControlLowerBound).toBe(267)
     expect(a.listCountUpperBounds).toEqual({containers:129055,volumes:4194304,networks:129055})
     expect(a.maximumListBatches).toBe(34786)
     expect(a.maximumGuardCommands).toBe(34798)

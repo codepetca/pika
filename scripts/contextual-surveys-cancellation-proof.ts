@@ -19,7 +19,7 @@ export const SURVEY_CANCELLATION_CAPS = Object.freeze({ sqlBytes: 262144, respon
 /** New human-approved remaining269 allowance, inert until full inventory/review.
  * Existing cancellation/component/legacy execution profiles are not widened. */
 export const SURVEY_269_REMAINING_CANDIDATE_CAPS = Object.freeze({ ...SURVEY_CANCELLATION_CAPS,
-  nativeControls:6000,sdkMs:60000,observerFrames:14,cleanupReserve:32 })
+  nativeControls:6000,sdkMs:60000,observerFrames:14,cleanupReserve:218 })
 
 function fixture(f: SurveyNativeFixture) {
   assert(Object.isFrozen(f)); assert.match(f.tag, /^surveynative_[a-f0-9]{12}$/)
@@ -201,6 +201,18 @@ export function surveyCancellationProofDescriptor(f: SurveyNativeFixture) {
   issued.add(descriptor); return descriptor
 }
 export type SurveyCancellationProofDescriptor = ReturnType<typeof surveyCancellationProofDescriptor>
+/** One closed reuse of the reviewed full-state SQL for the wire fixture. The
+ * temporary JSONB function cannot be a trigger function or public/private row,
+ * so its OID excludes no public/private/storage function/trigger from catalog. */
+export function surveyWirePrivateStateSql(f: SurveyNativeFixture) {
+  const d=surveyCancellationProofDescriptor(f),start='create or replace function pg_temp.survey_cancel_state()',end='end;$state$;'
+  const offset=d.frames.prepare.indexOf(start),last=d.frames.prepare.indexOf(end,offset)
+  assert(offset>=0&&last>offset&&d.frames.prepare.indexOf(start,offset+1)===-1)
+  const sql=d.frames.prepare.slice(offset,last+end.length)
+  assert(sql.includes(q(d.baselineTable))&&sql.includes(q(d.functionName+'()')))
+  return sql.replaceAll(q(d.baselineTable),q(`private.${f.tag}_wire_baseline`))
+    .replaceAll(q(d.functionName+'()'),q('pg_temp.survey_cancel_state()'))
+}
 /** Inert arithmetic for one fixed proposed remaining schedule, NOT a workload,
  * executor, complete inventory or an allowance to dispatch missing frames.
  * Counts describe the existing v3 predicates after fixed Git batching. Resource
@@ -228,28 +240,29 @@ export function surveyRemainingScheduleLowerBound(f: SurveyNativeFixture, counts
   const baseGuards=committedGuards+auxiliaryGuards+sdkGuards+rollbackTargetGuards
   const baseControls=baseGuards*guardCommands+6+6 // positive termination commands and native process spawns
   const typeControls=2*guardCommands+4+2*(3+inspectBatches)+2+1 // two guards, source Git, inventories, contexts, genuine CLI
-  const rootGitControls=18 // current private before/after source preservation; other outer commands remain uncounted
+  const rootGitControls=28 // seven Git children/root ×two roots ×before/after
   // Candidate reuses the existing pair before its final closes. Cancellation
-  // prepare/observe/restore3, wire fixture prepare/restore2, membership restore1.
+  // prepare/observe/restore3, wire fixture prepare/restore2. The primary was
+  // never removed: no fabricated primary restore/INSERT is scheduled.
   // The two extra original HTTP probes retain pre/post guards (four in total).
   // This is a stated candidate choice, not a lower bound on every possible
   // semantics-preserving future integration or an implemented dispatch path.
-  const proposedSqlActions=3+2+1,probeGuards=2*2
-  const candidateControlLowerBound=baseControls+(proposedSqlActions+probeGuards)*guardCommands+typeControls+rootGitControls
+  const proposedSqlActions=3+2,probeGuards=2*2
+  const candidateControlLowerBound=baseControls+(proposedSqlActions+probeGuards)*guardCommands+2+typeControls+rootGitControls // two fixed restoration command children
   return freeze({kind:'survey269-remaining-candidate-accounting-only' as const,caps:SURVEY_269_REMAINING_CANDIDATE_CAPS,guardCommands,inspectBatches,baseGuards,baseControls,typeControls,rootGitControls,
     proposedActions:m.inventory.minActions+8+proposedSqlActions,proposedRequests:14+2,proposedObservers:13+1,
     candidateControlLowerBound,controlDeficit:Math.max(0,candidateControlLowerBound-SURVEY_269_REMAINING_CANDIDATE_CAPS.nativeControls),
     partialControlHeadroom:Math.max(0,SURVEY_269_REMAINING_CANDIDATE_CAPS.nativeControls-candidateControlLowerBound),
-    cleanupReserve:32,listCountUpperBounds,maximumListBatches:batches(listCountUpperBounds),maximumGuardCommands:12+batches(listCountUpperBounds),
+    cleanupReserve:218,listCountUpperBounds,maximumListBatches:batches(listCountUpperBounds),maximumGuardCommands:12+batches(listCountUpperBounds),
     frames:{cancellation:Object.fromEntries(Object.entries(c.frames).map(([key,sql])=>[key,{sha256:hash(sql),bytes:Buffer.byteLength(sql)}])),
-      wire:{implemented:false as const,sqlBytes:null},membership:{source:'surveyMembershipRestoreSql',bound:false as const,sqlBytes:null}},
-    failureCases:['ambiguous-cancellation-prepare','pending-observation','unjoined-original-http','cancellation-restore','wire-prepare','wire-overflow','wire-restore','membership-restore','type-command','final-preservation']
+      wire:{implemented:false as const,sqlBytes:null},membership:{source:'verifySurveyPrimaryMembership',bound:true as const,sqlBytes:0}},
+    failureCases:['ambiguous-cancellation-prepare','pending-observation','unjoined-original-http','cancellation-restore','wire-prepare','wire-overflow','wire-restore','primary-membership-drift','type-command','final-preservation']
       .map(stage=>({stage,completeControls:null,completeActions:null})),
     completeControls:null,completeFailureControls:null,completeExchangeBytes:null,
-    unresolved:['Wire fixture/restore and private original-request probe carriers are not implemented.',
-      'Membership restoration requires captured exact source rows and a bound dispatch mechanism.',
+    unresolved:['This historical arithmetic does not certify the new runtime wire/probe path or its output bytes.',
+      'Primary equality and both retired cohort generations replace the impossible primary restoration.',
       'Other platform/canonical/global/helper/finally command counts and outputs are not sealed.',
-      'Failure-specific restoration/positive-close maxima are not sealed;32 reserved controls are not proof of fit.',
+      'Failure-specific restoration/positive-close maxima must include the complete outer inventory;218 is not standalone proof of fit.',
       candidateControlLowerBound>SURVEY_269_REMAINING_CANDIDATE_CAPS.nativeControls
         ? 'This candidate exceeds6000 before omitted outer controls; no complete success/failure or byte fit is claimed.'
         : 'This partial lower bound is not a complete success/failure, resource-validity or byte-fit certificate.'],

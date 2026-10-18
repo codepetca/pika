@@ -64,7 +64,8 @@ function sdkProofManifest(f: SurveyNativeFixture, caps: typeof SURVEY_SDK_PROOF_
     caps, executionEnabled: false as const, nativeVerified: false as const })
 }
 export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget: unknown, original: typeof fetch, guard: () => Promise<void>,
-  chargeComponentBytes?: (bytes: number) => void, componentSettlement?: Readonly<{ cleanupDeadline: number }>) {
+  chargeComponentBytes?: (bytes: number) => void, componentSettlement?: Readonly<{ cleanupDeadline: number }>,chargeRemainingRequest?:()=>void) {
+  assert(chargeRemainingRequest===undefined||componentSettlement!==undefined)
   if (componentSettlement) {
     assert.deepEqual(Object.keys(componentSettlement), ['cleanupDeadline'])
     assert(Number.isSafeInteger(componentSettlement.cleanupDeadline) && componentSettlement.cleanupDeadline > Date.now())
@@ -204,7 +205,9 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       bytes += Buffer.byteLength(init.body); assert(bytes <= SURVEY_SDK_PROOF_CAPS.totalBytes)
       chargeComponentBytes?.(Buffer.byteLength(init.body))
       stage = 'exchange'; response = await bounded(async () => {
+        chargeRemainingRequest?.()
         const received = await original(String(resource), { method: 'POST', headers, body: init.body, redirect: 'error', signal: controller.signal })
+        if(cleanupDeadline!==undefined)response=received
         if (cleanupDeadline !== undefined && controller.signal.aborted) {
           try { await received.body?.cancel() } catch { throw new Survey263UnjoinedChildError() }
         }
@@ -215,9 +218,12 @@ export function createSurveySdkProofTransport(f: SurveyNativeFixture, rawTarget:
       const declared = response.headers.get('content-length')
       assert(declared === null || /^\d+$/.test(declared) && Number(declared) <= SURVEY_SDK_PROOF_CAPS.responseBytes)
       reader = response.body.getReader(); const chunks: Uint8Array[] = []; let count = 0, reads = 0
-      for (;;) { assert(++reads <= SURVEY_SDK_PROOF_CAPS.responseBytes + 1); const part = await bounded(() => reader!.read(), 'body'); if (part.done) break
-        count += part.value.byteLength; bytes += part.value.byteLength
-        chargeComponentBytes?.(part.value.byteLength)
+      for (;;) { assert(++reads <= SURVEY_SDK_PROOF_CAPS.responseBytes + 1); const part = await bounded(async() => {
+        const part=await reader!.read()
+        if(cleanupDeadline!==undefined&&!part.done){count+=part.value.byteLength;bytes+=part.value.byteLength;chargeComponentBytes?.(part.value.byteLength)}
+        return part
+      }, 'body'); if (part.done) break
+        if(cleanupDeadline===undefined){count += part.value.byteLength; bytes += part.value.byteLength;chargeComponentBytes?.(part.value.byteLength)}
         assert(count <= SURVEY_SDK_PROOF_CAPS.responseBytes && bytes <= SURVEY_SDK_PROOF_CAPS.totalBytes); chunks.push(part.value) }
       const body = Buffer.concat(chunks), text = new TextDecoder('utf-8', { fatal: true }).decode(body)
       validateReply(parse(text), response.status)

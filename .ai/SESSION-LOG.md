@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 Native socket argument compatibility
-
-Confirmed Node24.12 net.connect passes an already-normalized tuple, while the
-runner normalized it again and lost its effective destination. Inert native-source
-CPU reproduction matches api1/denied+uncertain with zero connector dispatches.
-Fix43 recognizes the actual native marker and validates stable data options before
-preserving original arguments. Malformed tuples, forged markers, foreign hosts,
-wrong ports, Unix paths, accessors, proxies, coercible ports and contradictory
-hostnames remain rejected. No auth, origin allowlist, dependency or app changes.
-Author103 focused tests, TypeScript and targeted lint pass after9 RED regressions.
-Reviews78/79 found one shared P1: custom lookup can redirect an admitted localhost
-tuple externally. Fix44 initially passes106 checks; review80 finds descriptor-map
-inheritance leaves the accepted native-prototype case open. Root reproduces it
-locally before Fix45: null-prototype maps/own-data checks, actual same-realm direct
-and marked native-prototype/getter/value cases. Two RED regressions then110
-focused checks/lint pass; earlier108 also passes TypeScript. Source review and
-full gate precede ONE newly authorized bounded rehearsal; no new
-admission/clock/token allocated. Historical exact failing action remains
-unattested; production/shared-local/provider/activation holds unchanged.
-Final acad53e3 passes3252focused/8skip plus all policies/TSC/lint. Review81 failed
-with a provider safety refusal, no report; final independent P1 closure is not
-accepted. No rephrase/reroute or native dispatch. Fresh rehearsal remains unspent;
-review access must legitimately resolve before advancing. PR1581 stays draft.
-
 ## 2026-10-15 Human review and fresh rehearsal result
 
 Human reviewed exactacad53e3f against the supplied final-correction checklist,
@@ -984,3 +960,7 @@ native attempt, acceptance, release or full-goal completion is claimed yet.
 ## 2026-10-17 — Remaining Survey proof source accounting
 
 Correction125 keeps fresh guard predicates/positive joins while batching built-in Git reads18→15 child commands. Counted offline candidate4039known controls/199actions/16requests/14observations is not complete admission: outer/failure/bytes and probe integration remain missing. Owner approved remaining-only6000controls/60sSDK; component/legacy and all other caps remain. Exact shared SQL now prepares49 payload/count/shape cases with full scoped rollback equality and compact receipts; native35s fit unproved. Passed prerequisite v3/type artifact retained separately; no replay, production/shared-local/provider/account/activation or broad1581 merge. Independent review/full gates precede further integration.
+
+## 2026-10-18 — Closed remaining Survey verification integration
+
+Correction126 integrates the existing committed engine, two owned cancellation/wire probes and ordinary14-call SDK sequence under one60-second deadline,16-request ledger and approved6000-command ceiling. Primary membership remains unchanged; only the two isolated removal cohorts retain retired generations. The original200actions/64MiB/two sessions/12+3-minute limits remain. Complete global inventories reject above128 resources per kind rather than truncate; derived outer cleanup plus owned-session/probe settlement reserves218 controls including one counted refused dispatch. Deadline regressions retain received bodies and count delivered chunks before post-await checks, then positively join cancellation before SQL restoration. Root72 coordination/platform checks and targeted strict TypeScript pass; full integration/accounting and independent review precede any new native attempt. Production/shared-local/provider/account/activation holds and spent attempts remain unchanged; no full-goal acceptance or rollout is claimed.

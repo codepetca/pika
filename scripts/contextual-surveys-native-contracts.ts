@@ -13,13 +13,15 @@ import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check
 import type { Database } from '../src/types/database'
 import { surveySdkProofManifest, survey269ComponentSdkProofManifest, SURVEY_269_COMPONENT_SDK_CAPS } from './contextual-surveys-sdk-proof'
 import { surveyCommittedProofManifest } from './contextual-surveys-committed-proof'
+import { surveyCancellationProofDescriptor, SURVEY_269_REMAINING_CANDIDATE_CAPS } from './contextual-surveys-cancellation-proof'
+import { surveyWireProofDescriptor } from './contextual-surveys-wire-proof'
 
 export const SURVEY_NATIVE_SOURCES = freeze({
   migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9' },
   contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: '723a7260c6e3a78d3c223d132292578688da7a7a2c5cc7e001b99b8773a8c3d7' },
   sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: '755a3c10c8e51b501b05c3e8ee71f15ea2c45a588205f4f2fff6179525a77491' },
   races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
-  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'fea6313bddbee03e26d33cdcf257015f8e05d0d04443f0bd2aeb0debaf7ac5c1' },
+  sdkProof: { file: 'scripts/contextual-surveys-sdk-proof.ts', sha256: 'ae8735b7995438a0b9017e3024c750a8c168fc4a26411a380acfd904f6ad6075' },
 })
 export const SURVEY_NATIVE_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   schedules: 30, sessions: 2, actionMs: 35000, closeMs: 12000, sdkRequests: 16, sdkMs: 20000 })
@@ -86,7 +88,7 @@ function checked(repository: string, source: { file: string; sha256: string }) {
   return bytes.toString('utf8')
 }
 const sourcePlans = new WeakMap<object, object>()
-function sealed(plan: SurveyNativePlan | Survey269ComponentPlan) {
+function sealed(plan: SurveyNativePlan | Survey269ComponentPlan | Survey269RemainingPlan) {
   const original = sourcePlans.get(plan.contracts)
   return original !== undefined && Object.isFrozen(plan) && Object.keys(original).every(key =>
     plan[key as keyof SurveyNativePlan] === (original as SurveyNativePlan)[key as keyof SurveyNativePlan])
@@ -264,6 +266,53 @@ export function survey269ComponentPlan(original: AssignmentListProofFixture, sou
   sourcePlans.set(plan.contracts, plan);return plan
 }
 export type Survey269ComponentPlan = ReturnType<typeof survey269ComponentPlan>
+/** Closed source-counted remaining schedule. Its opaque workload still requires
+ * exact reviewed manifest/dual Git identities, one-shot and fresh-capacity gates.
+ * Source completeness is not native verification or execution authorization. */
+export function survey269RemainingPlan(original: AssignmentListProofFixture, binding: Survey269ComponentBinding) {
+  const component=survey269ComponentPlan(original,binding)
+  verifySurveyRemainingSources(SURVEY_269_COMPONENT_ROOTS.carrier)
+  const committed=surveyCommittedProofManifest(component.fixture),cancellation=surveyCancellationProofDescriptor(component.fixture),wire=surveyWireProofDescriptor(component.fixture)
+  const plan=freeze({...component,kind:'survey269-remaining-only' as const,committed,cancellation,wire,
+    caps:{...component.caps,controls:6000,sdkMs:60000},
+    remainingCaps:SURVEY_269_REMAINING_CANDIDATE_CAPS,
+    inventory:{nativeActions:198,sdkRequests:16,observerFrames:14,nativeSessions:2,
+      maximumCompleteGlobalIdentitiesPerKind:128,maximumGuardControls:15,
+      nativeControls:4008,outerSuccessControls:358,outerPartialTeardownControls:379,outerGitControls:28,
+      completeControls:4366,partialTeardownControls:4387,
+      maximumOrdinaryControls:5782,maximumCountedRefusals:1,maximumMandatoryCleanupControls:217,
+      cleanupReserve:218,completeFailureControlCeiling:6000,
+      allExchangeChannelsCounted:true,exchangeByteCeiling:67108864,actualExchangeBytes:null,
+      countedChannels:['root-git-stdout-stderr','platform-command-stdin-stdout-stderr','engine-command-stdin-stdout-stderr',
+        'engine-framed-session-stdin-stdout-stderr','all16-original-request-and-observed-response-body-bytes'],
+      originalClock:{workMs:720000,cleanupMs:180000,sdkPhaseMs:60000,sqlContractMs:35000,rpcMs:8000}},
+    inventoryComplete:true as const,executionEnabled:false as const,
+    requiredBeforeAcceptance:['independent-full-remaining-review','private-original-http-and-body-settlement',
+      'genuine57014-and-pending-backend','actual-wire-overflow-and-restoration','all30-direction-oracles',
+      'ordinary14-sdk-genuine269-types','complete-canonical-global-source-dependency-preservation']})
+  sourcePlans.set(plan.contracts,plan);return plan
+}
+export type Survey269RemainingPlan=ReturnType<typeof survey269RemainingPlan>
+const remaining269Workloads=new WeakSet<object>(),consumedRemaining269=new WeakSet<object>()
+export function bindSurvey269RemainingWorkload(input:Parameters<typeof bindSurvey269ComponentWorkload>[0]) {
+  assert.deepEqual(Object.keys(input).sort(),['absoluteDeadline','binding','freshCapacityChecked','oneAttemptAuthorized','original','reviewedManifestSha256','rootReviewed'])
+  assert(input.rootReviewed===true&&input.oneAttemptAuthorized===true&&input.freshCapacityChecked===true)
+  const plan=survey269RemainingPlan(input.original,input.binding)
+  assert.equal(input.reviewedManifestSha256,digest(JSON.stringify(plan)))
+  assert(plan.inventoryComplete,'Survey269 remaining complete native inventory is absent')
+  assert(Number.isSafeInteger(input.absoluteDeadline)&&input.absoluteDeadline>Date.now()&&input.absoluteDeadline<=Date.now()+900000)
+  const workload=freeze({kind:plan.kind,binding:plan.binding,projectId:plan.projectId,reviewedManifestSha256:input.reviewedManifestSha256,absoluteDeadline:input.absoluteDeadline,nativeVerified:false as const})
+  remaining269Workloads.add(workload);return workload
+}
+export type Survey269RemainingWorkload=ReturnType<typeof bindSurvey269RemainingWorkload>
+export function validateSurvey269RemainingWorkload(workload:Survey269RemainingWorkload,original:AssignmentListProofFixture){
+  assert(remaining269Workloads.has(workload)&&Object.isFrozen(workload),'Survey269 remaining workload is not source-bound')
+  const plan=survey269RemainingPlan(original,workload.binding);assert.equal(workload.kind,plan.kind);assert.equal(workload.projectId,plan.projectId)
+  assert.equal(workload.reviewedManifestSha256,digest(JSON.stringify(plan)));assert(plan.inventoryComplete);return plan
+}
+export function consumeSurvey269RemainingWorkload(workload:Survey269RemainingWorkload){
+  assert(remaining269Workloads.has(workload)&&!consumedRemaining269.has(workload)&&Date.now()<workload.absoluteDeadline);consumedRemaining269.add(workload)
+}
 const componentWorkloads = new WeakSet<object>(), consumedComponents = new WeakSet<object>()
 export function bindSurvey269ComponentWorkload(input: { original: AssignmentListProofFixture; binding: Survey269ComponentBinding;
   reviewedManifestSha256: string; absoluteDeadline: number; rootReviewed: true; oneAttemptAuthorized: true; freshCapacityChecked: true }) {
@@ -287,11 +336,11 @@ export function consumeSurvey269ComponentWorkload(workload: Survey269ComponentWo
   assert(componentWorkloads.has(workload) && !consumedComponents.has(workload));assert(Date.now() < workload.absoluteDeadline)
   consumedComponents.add(workload)
 }
-export function validateSurvey269ComponentSql(plan: Survey269ComponentPlan, sql: string) {
+export function validateSurvey269ComponentSql(plan: Survey269ComponentPlan | Survey269RemainingPlan, sql: string) {
   return sealed(plan) && typeof sql === 'string' && Buffer.byteLength(sql) <= SURVEY_NATIVE_CAPS.sqlBytes
     && [plan.setup, plan.snapshot, plan.contracts.sql, plan.concurrency.close].includes(sql)
 }
-export async function runSurvey269ComponentRollback(plan: Survey269ComponentPlan, target: DraftSaveTarget, driver: DraftSaveDriver) {
+export async function runSurvey269ComponentRollback(plan: Survey269ComponentPlan | Survey269RemainingPlan, target: DraftSaveTarget, driver: DraftSaveDriver) {
   await validateTarget(plan, target, driver, 'contracts')
   const session = await driver.openSession(`${plan.projectId}_draft_contracts`)
   try {await session.execute(plan.contracts.sql, SURVEY_NATIVE_CAPS.actionMs)} finally {await session.rollbackAndClose(SURVEY_NATIVE_CAPS.closeMs)}
@@ -379,7 +428,7 @@ export function validateSurveyNativeSql(plan: SurveyNativePlan, sql: string) {
     && [plan.setup, plan.snapshot, plan.contracts.sql, plan.concurrency.close,
       ...plan.concurrency.schedules.flatMap(row => [row.holder, row.contender])].includes(sql)
 }
-async function validateTarget(plan: SurveyNativePlan | Survey269ComponentPlan, target: DraftSaveTarget, driver: DraftSaveDriver, phase: 'contracts' | 'concurrency') {
+async function validateTarget(plan: SurveyNativePlan | Survey269ComponentPlan | Survey269RemainingPlan, target: DraftSaveTarget, driver: DraftSaveDriver, phase: 'contracts' | 'concurrency') {
   assert(sealed(plan), 'Survey native plan is not source-sealed')
   assert.equal(target.projectId, plan.projectId)
   assert.equal(target.reviewedHead, plan.reviewedHead)

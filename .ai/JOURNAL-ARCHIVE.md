@@ -48087,3 +48087,28 @@ both labels/name, workdir absent, four ports clear. Private evidence retained;
 no canonical-database equality or native acceptance inferred. No retry or new
 full clock: next isolate the server guard rejection without widening egress.
 Production/shared-local/provider-Survey/account/billing/activation holds unchanged.
+
+<!-- pika-session-log-archive-batch:76aeb10c99ad192ffab447f8242e76e96ab6f1f45e1497db673f6648d0a80301 -->
+## 2026-10-14 Native socket argument compatibility
+
+Confirmed Node24.12 net.connect passes an already-normalized tuple, while the
+runner normalized it again and lost its effective destination. Inert native-source
+CPU reproduction matches api1/denied+uncertain with zero connector dispatches.
+Fix43 recognizes the actual native marker and validates stable data options before
+preserving original arguments. Malformed tuples, forged markers, foreign hosts,
+wrong ports, Unix paths, accessors, proxies, coercible ports and contradictory
+hostnames remain rejected. No auth, origin allowlist, dependency or app changes.
+Author103 focused tests, TypeScript and targeted lint pass after9 RED regressions.
+Reviews78/79 found one shared P1: custom lookup can redirect an admitted localhost
+tuple externally. Fix44 initially passes106 checks; review80 finds descriptor-map
+inheritance leaves the accepted native-prototype case open. Root reproduces it
+locally before Fix45: null-prototype maps/own-data checks, actual same-realm direct
+and marked native-prototype/getter/value cases. Two RED regressions then110
+focused checks/lint pass; earlier108 also passes TypeScript. Source review and
+full gate precede ONE newly authorized bounded rehearsal; no new
+admission/clock/token allocated. Historical exact failing action remains
+unattested; production/shared-local/provider/activation holds unchanged.
+Final acad53e3 passes3252focused/8skip plus all policies/TSC/lint. Review81 failed
+with a provider safety refusal, no report; final independent P1 closure is not
+accepted. No rephrase/reroute or native dispatch. Fresh rehearsal remains unspent;
+review access must legitimately resolve before advancing. PR1581 stays draft.
