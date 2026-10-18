@@ -199,6 +199,8 @@ describe('native persistent-session transport with offline child mocks', () => {
   let surveyOriginalBase:SurveyCpuGraph|undefined,surveySnapshot:(()=>SurveyCpuGraph)|undefined
   let remainingManifest:ReturnType<typeof buildSurvey269RemainingManifest>|undefined
   let remainingProbeFrameFault:'prepare-close'|'observer-close'|'observer-timeout'|'contract-timeout'|'contract-cutoff'|undefined
+  let waitTiming:'wait-release'|'wait-observer-late'|'wait-pre-expired'|'wait-post-expired'|'wait-outer-cutoff'|'wait-statement-timeout'|undefined
+  let waitStarted=0,waitGuardDelayed=false,waitReleased=false,waitTimer:ReturnType<typeof setTimeout>|undefined
   function surveyAfter() {
     const state = surveyDirection!, s = state.schedule
     // Select the actual closed legacy-writer frame, independently of the
@@ -284,6 +286,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     surveyBackends.clear(); surveyDirection = undefined; pendingSurveyContender = undefined
     surveyLateFrame = undefined; surveyWorkDeadline = 0; surveyUnjoinedHolder = false
     surveyOriginalBase=undefined;surveySnapshot=undefined;remainingManifest=undefined;remainingProbeFrameFault=undefined
+    waitTiming=undefined;waitStarted=0;waitGuardDelayed=false;waitReleased=false;waitTimer=undefined
     cancellationRestoreOutput = 'ok'
     cancellationCatalogChanged = false
     bulkDispatched = undefined
@@ -298,7 +301,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       child.kill = vi.fn(() => true)
       child.stdin = new Writable({ write(chunk, _encoding, done) { input += String(chunk); done() }, final(done) {
         sqlControls.push({ args: [...args], sql: input })
-        queueMicrotask(() => {
+        const deliver=() => {
           if(remainingManifest&&[remainingManifest.cancellation.frames.restoreBeforeDispatch,remainingManifest.cancellation.frames.restoreAfterDispatch,remainingManifest.wire.frames.restore].includes(input)){
             const expected=[...input.matchAll(/current_setting\('application_name'\)<>'([^']+)'/g)]
             const actual=args.find(a=>a.startsWith('PGAPPNAME='))?.slice(10)
@@ -332,7 +335,12 @@ describe('native persistent-session transport with offline child mocks', () => {
           else if (input === manifest.snapshot || input === createManifest?.snapshot || input === discardManifest?.snapshot || input === publicationManifest?.snapshot || input === reorderManifest?.snapshot || input === learnerManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
           else callback(null, 'ok')
           if (surveyManifest) child.emit('close', 0)
-        }); done()
+        }
+        if(waitTiming&&waitTiming!=='wait-pre-expired'&&waitTiming!=='wait-observer-late'&&waitStarted&&surveyEvents.includes('observer:owner_replacement_after_snapshot:forward')&&!waitGuardDelayed&&input===surveyManifest?.guard){
+          waitGuardDelayed=true;surveyEvents.push('wait-release-guard')
+          setTimeout(deliver,waitTiming==='wait-post-expired'?7301:waitTiming==='wait-statement-timeout'?7400:400)
+        }else queueMicrotask(deliver)
+        done()
       } })
       return child
     })
@@ -413,11 +421,17 @@ describe('native persistent-session transport with offline child mocks', () => {
             surveyEvents.push(`holder:${s.label}`); vi.setSystemTime(started + 3); emit(value); done(); return
           }
           if (s && sql === s.frames.contender) {
+            if(waitTiming&&s.index===2&&s.direction==='forward')waitStarted=Date.now()
             surveyDirection!.contenderAt = now
             const result = surveyAfter()
             const value = { label: s.label, operation: result.receipts.contender, writerTimestamp: now,
               ...(s.index === 3 && sql.includes('archived_at=clock_timestamp()') ? { archiveReceipt: result.times.archiveReceipt } : {}) }
             surveyEvents.push(`contender:${s.label}`); vi.setSystemTime(Date.now() + 3)
+            if(waitTiming&&s.index===2&&s.direction==='forward'){
+              const lock=Number(sql.match(/set local lock_timeout='(\d+)s'/)![1])*1000
+              const delayed=waitTiming==='wait-pre-expired'||waitTiming==='wait-post-expired'
+              waitTimer=setTimeout(()=>{if(waitReleased)return;surveyEvents.push('wait-backend-timeout');if(!child.stderr.destroyed)child.stderr.write(`ERROR:  ${lock<8000?'55P03':'57014'}\n`);child.emit('close',1)},(delayed?9000:Math.min(lock,8000))-(Date.now()-waitStarted))
+            }
             const finish = () => {
               // A blocked archive's wall-clock write occurs after release;
               // transaction_timestamp still belongs to its original dispatch.
@@ -435,6 +449,7 @@ describe('native persistent-session transport with offline child mocks', () => {
             done(); return
           }
           if (s && sql === s.frames.release) {
+            if(waitTiming&&s.index===2&&s.direction==='forward'){waitReleased=true;clearTimeout(waitTimer);surveyEvents.push('wait-release-written')}
             surveyEvents.push(`release:${s.label}`); emit(undefined)
             pendingSurveyContender?.(); pendingSurveyContender = undefined; done(); return
           }
@@ -459,6 +474,15 @@ describe('native persistent-session transport with offline child mocks', () => {
             const pair = { holder: surveyBackends.get(`${project}_draft_holder`)!, contender: surveyBackends.get(`${project}_draft_contender`)! }
             const direction = surveyDirection.schedule
             if (sql === surveyCommittedProof.surveyCommittedObservationSql(m, direction.label, pair)) {
+              if(waitTiming&&direction.index===2&&direction.direction==='forward'){
+                const delay=waitTiming==='wait-observer-late'?751:700
+                setTimeout(()=>{
+                  surveyEvents.push(`observer:${direction.label}`)
+                  const observation={label:direction.label,observedAt:new Date().toISOString(),poll:1,holder:pair.holder,contender:pair.contender,held:surveyDirection!.held!.heldWitness,blockers:[pair.holder.pid],waiter:{wait_event_type:'Lock',wait_event:'transactionid',state:'active'}}
+                  if(waitTiming==='wait-pre-expired')setTimeout(()=>emit(observation),7300)
+                  else emit(observation)
+                },delay-(Date.now()-waitStarted));done();return
+              }
               surveyEvents.push(`observer:${direction.label}`)
               if (surveyLateFrame === 'observer') vi.setSystemTime(surveyWorkDeadline)
               emit({ label: direction.label, observedAt: surveyLateFrame === 'observer' ? new Date().toISOString() : now, poll: 1, holder: pair.holder, contender: pair.contender,
@@ -687,9 +711,10 @@ describe('native persistent-session transport with offline child mocks', () => {
       // They prove no real PID, SQL execution, target/auth or native acceptance.
     } finally { seedCheck.mockRestore() }
   })
-  it.each(['normal','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
+  it.each(['normal','prepare-close','observer-close','observer-timeout','contract-timeout','contract-cutoff','wait-release','wait-observer-late','wait-pre-expired','wait-post-expired','wait-outer-cutoff','wait-statement-timeout'] as const)('runs actual remaining269 child engine/probe ownership on one198-action/16-request ledger (offline %s)',async mode=>{
     vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-18T04:00:00Z'));mocks.remaining269=true;surveyPositive='normal'
-    remainingProbeFrameFault=mode==='normal'?undefined:mode
+    if(mode==='wait-release'||mode==='wait-observer-late'||mode==='wait-pre-expired'||mode==='wait-post-expired'||mode==='wait-outer-cutoff'||mode==='wait-statement-timeout')waitTiming=mode
+    else remainingProbeFrameFault=mode==='normal'?undefined:mode
     const started=Date.now(),legacy=surveyNative.surveyRemainingNativePlan(original,head,repository),f=legacy.fixture
     const binding={product:{head,tree:head},carrier:{head,tree:head},sharedSources:Object.fromEntries(surveyNative.SURVEY_269_SHARED_FILES.map(file=>[file,'a'.repeat(64)]))} as surveyNative.Survey269ComponentBinding
     const plan={...legacy,kind:'survey269-remaining-only' as const,binding,repository:surveyNative.SURVEY_269_COMPONENT_ROOTS.product,migrations:[],
@@ -762,7 +787,33 @@ describe('native persistent-session transport with offline child mocks', () => {
         statusTarget:{API_URL:'http://127.0.0.1:54331',DB_URL:'postgresql://postgres:offline@127.0.0.1:54332/postgres',SERVICE_ROLE_KEY:`header.${Buffer.from(JSON.stringify({iss:'supabase-demo',role:'service_role'})).toString('base64url')}.signature`},survey263Endpoint:surveyPlatform.requireSurvey263AdapterEndpoint(adapters)})
       await adapter.setup()
       if(mode==='contract-cutoff')vi.setSystemTime(started+680000)
+      if(mode==='wait-outer-cutoff')vi.setSystemTime(started+719100)
       const run=adapter.runRemainingCommitted();void run.catch(()=>{})
+      if(waitTiming){
+        const result=run.catch(e=>e)
+        for(let n=0;n<30000&&!waitStarted;n++)await Promise.resolve()
+        expect(waitStarted).toBeGreaterThan(0)
+        await vi.advanceTimersByTimeAsync(waitTiming==='wait-pre-expired'||waitTiming==='wait-post-expired'||waitTiming==='wait-statement-timeout'?8100:1100)
+        if(waitTiming!=='wait-release'){
+          expect(await result).toBeInstanceOf(Error)
+          expect(surveyEvents).not.toContain('wait-release-written')
+          expect(surveyEvents).not.toContain('holder:owner_replacement_after_snapshot:reverse')
+          expect(surveyEvents).not.toContain('cancel-prepare');expect(actualFetches).toBe(0)
+          expect(adapter.diagnostic()).toContain('remainingSessions=0')
+          if(waitTiming==='wait-pre-expired'||waitTiming==='wait-post-expired')expect(adapter.diagnostic()).toContain('failure=timeout role=holder')
+          if(waitTiming==='wait-pre-expired')expect(adapter.diagnostic()).toContain('actions=34')
+          if(waitTiming==='wait-post-expired')expect(adapter.diagnostic()).toContain('actions=35')
+          if(waitTiming==='wait-statement-timeout')expect(adapter.diagnostic()).toContain('role=contender sqlstate=57014')
+          const frozen=adapter.diagnostic(),writes=surveyWrites.length,controls=mocks.execFile.mock.calls.length
+          await vi.advanceTimersByTimeAsync(10000)
+          expect(adapter.diagnostic()).toBe(frozen);expect(surveyWrites).toHaveLength(writes);expect(mocks.execFile).toHaveBeenCalledTimes(controls)
+          await expect(adapter.runSdkCommitted()).rejects.toThrow();expect(actualFetches).toBe(0)
+          return
+        }
+        expect(surveyEvents).toContain('wait-release-guard')
+        expect(surveyEvents).toContain('wait-release-written')
+        expect(surveyEvents).not.toContain('wait-backend-timeout')
+      }
       if(mode==='contract-timeout'||mode==='contract-cutoff'){
         let settled=false;const result=run.catch(e=>e).finally(()=>{settled=true})
         for(let n=0;n<30000&&!surveyEvents.includes('contract-hanging');n++)await Promise.resolve()
@@ -778,7 +829,7 @@ describe('native persistent-session transport with offline child mocks', () => {
         expect(children).toHaveLength(spawned)
         return
       }
-      if(mode!=='normal'){
+      if(mode!=='normal'&&mode!=='wait-release'){
         let settled=false;const failure=run.catch(e=>e).finally(()=>{settled=true})
         for(let n=0;n<30000&&!surveyEvents.includes(mode==='prepare-close'?'cancel-prepare':'cancel-observer');n++)await Promise.resolve()
         for(let n=0;n<100;n++)await Promise.resolve()

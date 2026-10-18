@@ -48283,3 +48283,28 @@ CPU PASS; type/lint/audit and independent review precede the single fresh attemp
 Private launcher records binding/import/preparation before runtime handoff. No
 full-app approval or product acceptance; production/shared-local/provider holds
 unchanged. Existing review counters/waiver retained; no repeated broad review.
+
+<!-- pika-session-log-archive-batch:8a71148b27e309788e74e5dcbd16b9b05315b6bf902395ac96ecf0f8a1c45417 -->
+## 2026-10-15 — Pre-navigation original-body barrier and socket closure
+
+Corrected launcher ran once: synthetic original body pending8s while navigation
+paused, then rejected on abort; descendant executable changed with unchanged
+start/PGID. Context/server closed, socket counter1; ownership uncertainty retained.
+Sources/dependencies preserved and current process candidates0; not acceptance.
+New authorized slice moves the timing barrier before the app receives the native
+fetch Response, with original Playwright bytes still checked once. Premature
+navigation now rejects immediately; no replay/clone/substitute body. Shared helper
+used by diagnostic and full-app runner; original deadlines/boundaries retained.
+Socket cleanup awaits each actual close event within the original end; missing
+closure fails. Behavioral socket RED1→GREEN; helper missing-module RED retained.
+Executable classes are sealed fixed metadata only; exact rejection/poison/signals
+and kernel helper unchanged. Read-only Astra/high investigation supports possible
+spawn/exec, not this exact transition. Focused227CPU PASS before final type fix;
+lintPASS, type narrowing corrected. Review and ONE fresh diagnostic pending.
+All production/shared-local/provider/rollout holds unchanged; no full-app run.
+
+Review92 complete: oneP2 late-cleanup deadline gap accepted; full local gate at
+d0790e6ab PASS3411/8skip plus static/type/lint. Regression reproduces late positive
+closure flags with failure=false; correction latches original-end expiry without
+skipping cleanup. Targeted re-review/final checked SHA precede the unused browser
+attempt. No safety predicate weakened; existing counters/waiver retained.

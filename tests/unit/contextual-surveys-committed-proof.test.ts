@@ -26,6 +26,17 @@ function compact(g: Graph) {
   }])) )
 }
 describe('source-only Survey committed directions', () => {
+  it('aligns only13 successful WAIT contenders with the existing8s statement ceiling',()=>{
+    const m=manifest()
+    expect(m.schedules.filter(s=>s.mode==='wait')).toHaveLength(13)
+    for(const s of m.schedules){
+      expect(s.frames.contender).toContain(`set local lock_timeout='${s.mode==='wait'?8:1}s'`)
+      expect(s.frames.contender).toContain("set local statement_timeout='8s'")
+      for(const frame of ['holder','retry','terminal','cache'] as const)expect(s.frames[frame]).toContain("set local lock_timeout='1s'")
+      if(s.mode==='wait')expect(s.frames.contender).not.toContain('r:=public.')
+    }
+    expect(m.caps.observationMs).toBe(750);expect(m.caps.legacyLockMs).toBe(1000);expect(m.caps.waitContenderMs).toBe(8000)
+  })
   it.each([8,9,10,11])('keeps the reverse%d stale-question probe eligible without changing the original responder',index=>{
     const m=manifest(),s=m.schedules.find(s=>s.index===index&&s.direction==='reverse')!,before=capturedSeed(m),{after}=changedCase(s,before)
     const cached=before['public.survey_questions'].filter(r=>r.survey_id===s.cohort.surveyId)

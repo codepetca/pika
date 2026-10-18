@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Pre-navigation original-body barrier and socket closure
-
-Corrected launcher ran once: synthetic original body pending8s while navigation
-paused, then rejected on abort; descendant executable changed with unchanged
-start/PGID. Context/server closed, socket counter1; ownership uncertainty retained.
-Sources/dependencies preserved and current process candidates0; not acceptance.
-New authorized slice moves the timing barrier before the app receives the native
-fetch Response, with original Playwright bytes still checked once. Premature
-navigation now rejects immediately; no replay/clone/substitute body. Shared helper
-used by diagnostic and full-app runner; original deadlines/boundaries retained.
-Socket cleanup awaits each actual close event within the original end; missing
-closure fails. Behavioral socket RED1→GREEN; helper missing-module RED retained.
-Executable classes are sealed fixed metadata only; exact rejection/poison/signals
-and kernel helper unchanged. Read-only Astra/high investigation supports possible
-spawn/exec, not this exact transition. Focused227CPU PASS before final type fix;
-lintPASS, type narrowing corrected. Review and ONE fresh diagnostic pending.
-All production/shared-local/provider/rollout holds unchanged; no full-app run.
-
-Review92 complete: oneP2 late-cleanup deadline gap accepted; full local gate at
-d0790e6ab PASS3411/8skip plus static/type/lint. Regression reproduces late positive
-closure flags with failure=false; correction latches original-end expiry without
-skipping cleanup. Targeted re-review/final checked SHA precede the unused browser
-attempt. No safety predicate weakened; existing counters/waiver retained.
-
 ## 2026-10-15 — Isolated fixture recovery and two guard repairs
 
 Latest full-app attempt completed real login twice, then failed origin and owned
@@ -813,3 +789,7 @@ Review201 and4396 carrier/940 product checks passed. Remaining-v2 localized the3
 ## 2026-10-18 — Survey committed-probe eligibility correction
 
 Review202/full4405 checks passed at372e07f8. Fresh remaining-v3 completed all49 rollback cases in74,899ms, then failed a later committed terminal assertion. Exact cleanup/immediate preservation passed; alias remains spent. Source mapping identifies reverse question-edit probes using an already-answered static-Survey actor, whose duplicate PT400 correctly precedes stale-question PT409. Correction131 retains strict freshness checking with the existing unanswered enrolled reader only in those four terminal probes; original concurrent operations/actors are byte-identical. Same-frame eligibility, exact fixed denial causes and full graph/effect equality remain mandatory. Independent graph-derived CPU fixtures reproduce9 old-source failures; corrected281 focused tests/strict TypeScript pass. No product/rawSQL/migration/cap changes. Native cumulative64MiB fit and remaining full acceptance are unproved; review/fullgate precede another separately spent attempt. All serious holds remain.
+
+## 2026-10-18 — Bound successful Survey waits to their existing operation ceiling
+
+Review203/full4411 checks passed at503847f1. Remaining-v4 again completed49 SQL cases, then a contender lock timeout occurred while holder release was still passing fresh guards. Cleanup/immediate preservation passed; alias spent. Correction132 explicitly aligns only13 successful-WAIT legacy fixture lock deadlines1s→their existing8s statement ceiling. Product/holder/NOWAIT/negative/retry/terminal1s settings and≤750ms positive observation remain. Private original-contender dispatch+8s, clamped to global work end, now gates release before/after guards and immediately before write; expired ordinary COMMIT is refused and the frame timer cannot renew. Actual-engine offline700ms observation+400ms guard regression fails old source and passes corrected source; expiry/late-callback negatives and332 focused checks/strict TypeScript pass. All guards/joins, normal198actions/4008controls/16requests and SQL bytes unchanged. No product/migration/rawSQL/global-budget change. Independent review/fullgate and real runtime acceptance remain required; production holds retained.

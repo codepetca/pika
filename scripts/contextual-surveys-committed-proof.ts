@@ -16,7 +16,7 @@ const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{1
 const id = (tag: string, label: string) => { const h = hash(`${tag}:${label}`); return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}` }
 function freeze<T>(v: T): T { if (v && typeof v === 'object') { Object.values(v).forEach(freeze); Object.freeze(v) }; return v }
 export const SURVEY_COMMITTED_CAPS = Object.freeze({ actions: 200, controls: 4000, sessions: 2, workMs: 720000,
-  cleanupMs: 180000, sqlBytes: 262144, responseBytes: 8388608, polls: 3, observationMs: 750, legacyLockMs: 1000 })
+  cleanupMs: 180000, sqlBytes: 262144, responseBytes: 8388608, polls: 3, observationMs: 750, legacyLockMs: 1000, waitContenderMs: 8000 })
 type Side = 'holder' | 'contender'
 const FULL_TABLES = ['public.classrooms', 'public.classroom_archive_revisions', 'public.classroom_enrollments',
   'public.surveys', 'public.survey_questions', 'public.survey_responses', 'public.gradebook_categories', 'private.pal_membership_generations'] as const
@@ -47,7 +47,8 @@ function fixture(f: SurveyNativeFixture) {
   const expected = newSurveyNativeFixture({ manifest: { syntheticTag: `assignmentlist_${f.tag.slice(-12)}` }, allocatedIds: [] } as unknown as AssignmentListProofFixture)
   assert(isDeepStrictEqual(f, expected), 'Survey actor/cohort source differs')
 }
-function guard(f: SurveyNativeFixture, side: Side, begin: boolean) {
+function guard(f: SurveyNativeFixture, side: Side, begin: boolean, successfulWait = false) {
+  assert(!successfulWait || begin && side === 'contender')
   const prefix = "begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
   const terminal = "end;$guard$;select 'ok';rollback;"
   const original = testOwnerGuardSql(f.projectId)
@@ -55,7 +56,7 @@ function guard(f: SurveyNativeFixture, side: Side, begin: boolean) {
   const identity = `current_setting('application_name')<>${q(f.projectId + '_fixture')}`
   assert.equal(original.split(identity).length, 2)
   const inherited = original.slice(prefix.length, -terminal.length).replace(identity, `current_setting('application_name')<>${q(f.projectId + '_draft_' + side)}`)
-  return `${begin ? "begin;set local lock_timeout='1s';set local statement_timeout='8s';set local idle_in_transaction_session_timeout='180s';" : ''}${inherited}
+  return `${begin ? `begin;set local lock_timeout='${successfulWait ? 8 : 1}s';set local statement_timeout='8s';set local idle_in_transaction_session_timeout='180s';` : ''}${inherited}
  if current_database()<>'postgres' or current_user<>'postgres' or to_regprocedure('public.respond_to_survey_for_member_v1(uuid,uuid,uuid,jsonb,jsonb)') is null then raise exception 'Survey263 committed source differs';end if;end;$guard$;`
 }
 function graphFunctions() {
@@ -160,7 +161,7 @@ export function surveyCommittedProofManifest(f: SurveyNativeFixture) {
  'responses',(select coalesce(jsonb_agg(to_jsonb(r) order by question_id),'[]'::jsonb) from public.survey_responses r where survey_id=${q(c.surveyId)} and student_id=${q(f.actors[1].id)})${archiveReceiptSql(first, label, c)}) as result;`
     // Blocking contender begins and executes BEFORE its holder releases; its
     // promise remains outstanding. No sleep is used to establish that state.
-    const contender = `${guard(f, 'contender', true)}${attempted(second, mode === 'nowait' ? 'PT409' : null)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()${archiveReceiptSql(second, label, c)}) as result;`
+    const contender = `${guard(f, 'contender', true, mode === 'wait')}${attempted(second, mode === 'nowait' ? 'PT409' : null)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()${archiveReceiptSql(second, label, c)}) as result;`
     const retry = `${guard(f, 'contender', true)}${attempted(second, retryCode)}select jsonb_build_object('label',${q(label)},'operation',(select result from survey_committed_operation),'writerTimestamp',transaction_timestamp()${archiveReceiptSql(second, label, c)}) as result;commit;`
     const read = index === 5 ? `select public.get_survey_results_for_member_v1(${q(f.actors[3].id)},${q(c.resultSurveyId)});`
       : `select public.get_survey_for_${[0, 1, 2, 6, 7].includes(index) ? 'owner' : 'member'}_v1(${q(f.actors[[0, 1, 2, 6, 7].includes(index) ? 0 : 1].id)},${q(c.surveyId)});`

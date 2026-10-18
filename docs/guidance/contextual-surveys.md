@@ -264,6 +264,26 @@ The committed static SQL inventory grows864,383→874,891 bytes (+10,508): eight
 freshness terminals add eligibility/cause checks and four close/duplicate terminals
 add exact cause checks. Only four reverse terminals change responder identity.
 
+Correction132 addresses the fourth remaining attempt's timing failure, not a
+product change. Its49-case frame completed211 valid markers in75,231ms; direction5
+then failed with contender55P03 while action35 was attempting holder release.
+A valid≤750ms waiter observation preceded a full fresh release guard, which can
+outlast the successful-WAIT fixture's former1s lock wait. This fourth attempt is
+also permanently spent; full remaining acceptance and cumulative byte fit remain
+unproved.
+
+Only the13 successful-WAIT direct legacy contenders now use fixed8s lock_timeout,
+aligned to their unchanged8s statement ceiling. This explicitly changes that
+internal fixture contract; holders, NOWAIT/negative cases, retries, terminals and
+product function1s settings remain unchanged. The release carrier privately binds
+its original contender; ordinary release is checked before/after the full fresh
+guard and immediately before dispatch against original dispatch+8s, clamped to
+the global work cutoff. Its frame timer uses only that remaining time. No renewed
+clock, late ordinary COMMIT, cached guard or weakened≤750ms observation is allowed.
+Guard child APIs/joins and original cleanup remain unchanged. Normal198actions,
+4008nativecontrols,16HTTP and874,891 static SQL bytes remain unchanged; all user
+overall budgets, product RPC8s behavior and production holds remain in force.
+
 The original cancellation and wire probes,30 committed directions, ordinary
 14 SDK calls, genuine269 types, restoration/preservation and screen proof remain
 required. No nativeVerified flag is raised, no spent attempt is replayed, and
