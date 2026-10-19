@@ -226,6 +226,17 @@ clean; carrier4733 tests/static checks and product1000 tests/static checks pass.
 
 Remaining gates are independent cumulative review, stable reviewed-SHA CI/PR Gate
 and normal main merge. These bounded receipts do not complete batch2 or rollout.
+
+The first ready candidate `95d9a7c46` passed final local1000 checks and integration
+review234, but CI39296868148 failed the existing Test reorder runner before native
+dispatch. Offline reproduction identified its explicit migration-profile ceiling
+at268; six peer runners and the historical learner fixture helper shared that
+boundary. The PR returned to draft before correction. The source-only follow-up
+admits exact269 name/supplied digest/recomputed bytes, retains every older seal
+(including268 when269 is present), and rejects unknown270 or altered tails.
+Its focused regressions and proportional independent review precede new stable-
+head CI. Survey application/SQL and the proven native contracts remain unchanged;
+existing v11/v8 evidence is not replayed or rebound as new execution.
 No nativeVerified flag is raised.
 No production/shared-local migration, provider/account/billing action,
 admission/home/page/cohort/cutover activation or phase exit is authorized.

@@ -1,5 +1,6 @@
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from './classroom-hot-lifecycle-reviewed-migration'
+import { validateSurveyWorkflowReviewedMigration } from './survey-workflow-reviewed-migration'
 import { validateGradebookZeroWeightStudentVisibilityReviewedMigration } from './gradebook-zero-weight-student-visibility-reviewed-migration'
 import { validateTestReturnUngradedWorkReviewedMigration } from './test-return-ungraded-work-reviewed-migration'
 import { validateTestAiGradingSavedWorkReviewedMigration } from './test-ai-grading-saved-work-reviewed-migration'
@@ -36,7 +37,7 @@ export function testOwnerRecoveryNativePlan(original: AssignmentListProofFixture
   })
   assert.notEqual(observed[0].attemptId, observed[1].attemptId)
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([260,261,262,263, 264, 265, 266, 267, 268].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
+  assert([260,261,262,263, 264, 265, 266, 267, 268, 269].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258]); validateTestOwnerRecoveryReviewedMigration(inventory[259]); if (inventory.length >= 261) validateTestOwnerUnpublicationReviewedMigration(inventory[260])
   if (inventory.length >= 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
   if (inventory.length >= 263) validateTestCalendarDateReviewedMigration(inventory[262])
@@ -44,7 +45,8 @@ export function testOwnerRecoveryNativePlan(original: AssignmentListProofFixture
   if (inventory.length >= 265) validateTestReturnUngradedWorkReviewedMigration(inventory[264])
   if (inventory.length >= 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(inventory[265])
   if (inventory.length >= 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(inventory[266])
-  if (inventory.length === 268) validateClassroomHotLifecycleReviewedMigration(inventory[267])
+  if (inventory.length >= 268) validateClassroomHotLifecycleReviewedMigration(inventory[267])
+  if (inventory.length === 269) validateSurveyWorkflowReviewedMigration(inventory[268])
   const source = readFileSync(resolve(repository, 'supabase/migrations', TEST_OWNER_RECOVERY_REVIEWED_MIGRATION.name), 'utf8')
   validateTestOwnerRecoveryReviewedMigration({ name: TEST_OWNER_RECOVERY_REVIEWED_MIGRATION.name, sql: source, sha256: hash(source) })
   assert.equal(source, inventory[259].sql)
