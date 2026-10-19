@@ -17,6 +17,31 @@ for (const role of ['teacher', 'student'] as const) {
     await expect(page.locator('#pika-tab-color')).toHaveAttribute('content', theme === 'dark' ? '#fb7185' : '#f43f5e')
     await testInfo.attach('classroom-tab-branding', { body: await page.screenshot(), contentType: 'image/png' })
 
+    const longTitle = 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design'
+    await page.getByRole('button', { name: 'Long classroom name', exact: true }).click()
+    const title = page.getByRole('banner').getByTitle(longTitle, { exact: true })
+    await expect(title).toHaveText(longTitle)
+    await expect(page).toHaveTitle(longTitle)
+    await expect(title).toHaveCSS('text-overflow', 'clip')
+    await expect.poll(() => title.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+    expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await testInfo.attach('classroom-title-fade', { body: await page.screenshot(), contentType: 'image/png' })
+
+    // An unchanged name must be remeasured when the available header width changes.
+    await page.getByRole('button', { name: 'Short classroom name', exact: true }).click()
+    const shortTitle = page.getByRole('banner').getByTitle('ICS4U', { exact: true })
+    await expect(shortTitle).toHaveCSS('mask-image', 'none')
+    const wideViewport = page.viewportSize()!
+    const narrowViewport = { width: 280, height: wideViewport.height }
+    await page.setViewportSize(narrowViewport)
+    await page.getByRole('button', { name: 'Classroom 1', exact: true }).click()
+    const mediumTitle = page.getByRole('banner').getByTitle('PPZ3C — Health for Life', { exact: true })
+    await expect.poll(() => mediumTitle.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await expect(mediumTitle).toHaveCSS('mask-image', 'none')
+    await page.setViewportSize(wideViewport)
+
     await page.getByRole('link', { name: 'Switch role route', exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`userRole=${role === 'teacher' ? 'student' : 'teacher'}$`))
     await expect(page).toHaveTitle('PPZ3C — Health for Life')

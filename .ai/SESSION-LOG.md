@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Ungraded Return integrates latest Gradebook visibility
-
-Final ea751496c CI38635910213 passed every selected job and PRGate. Beforemerge, main advanced to e2db6c57e (PR1592 teacherGradebook marks only after per-student Return), producing continuity conflicts. Draft restored, all six own commits rebased on e2db; preserved both archive marker/history sides in four conflict chunks. No own product/SQL/UI/E2E blob changed; migration265 filename/digest remain aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. No migration resequencing or stash creation/restoration; pre-existing shared stashes untouched.
-
-Newbase Gradebook still requires every question score before publishing numeric Test totals. Added two integration cases for returned unsubmitted work with all-null and partialzero/null scores: cells, totals and summaries stay pending/null and inspector excludes numeric Test entry. 204 targeted Gradebook/visibility/teacher/gallery tests PASS. Reused prior20visual states and actual265 DB/browser receipts because own behavior/UI unchanged; final focused and detached integrationreview cover newbase before fresh exact-head CI. Cumulative7actualreviewturns/5batches before this sixth syncbatch; explicitowner review-budgetextension retained without reset. No production deployment or canonical migration authority.
-
 ## 2026-10-14 — Saved Test work production release
 
 Owner requested production deployment and explicitly approved one application of migrations264/265 to production. Preview38649440242 at merged main9aa3d5e82c96a7f8cbac3047b894d51a88cb161f verified001–263 applied and exactpending264/265; apply38653530319 reported applied-verified and complete265-version history. Read-only production catalog verification matched all six function body hashes, postgres owners, definer modes, empty search paths and intended role ACLs; no student fixtures or write canary. Approval consumed; no retry or further migration authority.
@@ -596,3 +590,7 @@ Bounded native GPT-6.1-sol/high analysis delivered a reproduced race and test-on
 ## 2026-10-19 — Classroom-only browser titles
 
 User requests removing the Pika suffix and asks about truncation. BrowserTabProvider now supplies the full classroom name alone; no app-added ellipsis, hard character cap or inferred course-code shortening. Existing authorized state, color/icon behavior and home Pika title remain. UI brief: browser chrome, existing AppHeader/PatternLab identity reference; extend the existing metadata owner only; both roles, desktop/mobile, light/dark, class switch/edit/exit and long names. Current main attendance changes inherited; feature source preserved during history-only conflict resolution. Focused and browser verification plus proportional independent review and stable-head CI follow in PR1615. Risk none; no dependencies, new primitives, auth/schema/runtime policy changes.
+
+## 2026-10-19 — Classroom header overflow fade
+
+User requested a subtle fade instead of the classroom header ellipsis. Extended AppHeader only: preserve full text/title, apply a 24px alpha mask only while overflowing, observe resize and loaded fonts, disconnect on cleanup. Reference: existing header and Pattern Lab application-header references; reuse geometry/palette/controls, extend classroom title, no new primitive or composite behavior. Teacher/student, desktop/mobile, light/dark, long/short names, rename and resize checked with screenshots; browser metadata cases retained. Added a deterministic long-name Pattern Lab reference. Risk none; no dependencies or schema changes. Focused checks, independent delta review and final-head CI tracked in PR1615; retained ignored artifacts/browser-tab-branding/header-fade. Weekly remaining2%; DeepSeek pause honored.

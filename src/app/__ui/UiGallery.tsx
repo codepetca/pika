@@ -224,6 +224,13 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
         <AppHeader
           initialNow={HEADER_REFERENCE_INITIAL_NOW}
           user={{ email: `${role}@example.invalid`, role }}
+          classrooms={[{ id: 'header-reference', title: 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design', code: 'ICS4U', themeColor: 'violet' }]}
+          currentClassroomId="header-reference"
+          onOpenSidebar={() => {}}
+        />
+        <AppHeader
+          initialNow={HEADER_REFERENCE_INITIAL_NOW}
+          user={{ email: `${role}@example.invalid`, role }}
           examModeHeader={{ testTitle: 'Exam header reference', exitsCount: 0, awayTotalSeconds: 0 }}
         />
       </section>
