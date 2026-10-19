@@ -6,6 +6,7 @@ import ts from 'typescript'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
 import { validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
+import { validateSurveyWorkflowReviewedMigration } from './survey-workflow-reviewed-migration'
 import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import type { DraftSaveDriver,DraftSaveTarget,DraftSaveSession } from './check-contextual-test-draft-save-db-contracts'
 import { newClassroomHotLifecycleFixture,hotLifecycleDigest as hash,freezeHot as freeze,hotQuote as q,
@@ -19,10 +20,11 @@ const plans=new WeakSet<object>()
 const checks=freeze(['owner-roles','restore-admission','full-row-content-revision','fences','strict-legacy','trigger-fault-rollback'] as const)
 export function classroomHotLifecycleNativePlan(original:AssignmentListProofFixture,reviewedHead:string,repository:string) {
   assert.match(reviewedHead,/^[a-f0-9]{40}$/)
-  const inventory=loadAssignmentListReviewedMigrations(repository);validateAssignmentListMigrationChain(inventory);assert.equal(inventory.length,268)
+  const inventory=loadAssignmentListReviewedMigrations(repository);validateAssignmentListMigrationChain(inventory);assert([268,269].includes(inventory.length))
   const migrations=inventory.map(({name,sha256})=>({name,sha256}))
   assert.equal(hash(JSON.stringify(migrations.slice(0,267))),'9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd')
   assert.equal(inventory[267].name,SOURCE);assert.equal(inventory[267].sha256,SOURCE_HASH);assert.equal(hash(inventory[267].sql),SOURCE_HASH)
+  if(inventory.length===269)validateSurveyWorkflowReviewedMigration(inventory[268])
   const f=newClassroomHotLifecycleFixture(original),projectId=f.projectId
   const source=readFileSync(resolve(repository,'scripts/check-contextual-classroom-hot-lifecycle-database.sql'),'utf8');assert.equal(hash(source),CONTRACT_HASH)
   const terminal="select 'PASS hot lifecycle rollback-only owner policy, archive/restore admission, full-row/content/revision preservation and fault rollback';"

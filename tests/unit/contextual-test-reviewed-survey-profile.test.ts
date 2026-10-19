@@ -12,6 +12,7 @@ import { testOwnerGradingNativePlan } from '../../scripts/contextual-test-owner-
 import { testOwnerRecoveryNativePlan } from '../../scripts/contextual-test-owner-recovery-native-contracts'
 import { testOwnerUnpublicationNativePlan } from '../../scripts/contextual-test-owner-unpublication-native-contracts'
 import { testOwnerDeletionNativePlan } from '../../scripts/contextual-test-owner-deletion-native-contracts'
+import { classroomHotLifecycleNativePlan } from '../../scripts/contextual-classroom-hot-lifecycle-native-contracts'
 import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
 
 // Source-only construction: no runner, native adapter or database is invoked.
@@ -32,6 +33,7 @@ const profiles = [
   { name: 'owner recovery', validate: () => testOwnerRecoveryNativePlan(original, recovery, head, repository) },
   { name: 'owner unpublication', validate: () => testOwnerUnpublicationNativePlan(original, head, repository) },
   { name: 'owner deletion', validate: () => testOwnerDeletionNativePlan(original, head, repository) },
+  { name: 'hot archive restore', validate: () => classroomHotLifecycleNativePlan(original, head, repository) },
 ]
 afterEach(() => vi.restoreAllMocks())
 

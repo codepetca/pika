@@ -237,6 +237,14 @@ admits exact269 name/supplied digest/recomputed bytes, retains every older seal
 Its focused regressions and proportional independent review precede new stable-
 head CI. Survey application/SQL and the proven native contracts remain unchanged;
 existing v11/v8 evidence is not replayed or rebound as new execution.
+
+The expanded local gate then exposed the separate hot archive/restore proof's
+exact268 ceiling: all19 failures arose at that one source check, while2155 tests
+passed. Its small follow-up admits only268/269, retains its exact001–267 prefix
+and268 source hash, and checks the same269 seal. The regression matrix now also
+executes this eighth profile, with retained268/269 positive coverage. All299
+targeted tests across the hot-proof, shared native transport and profile matrix
+pass; the full gate and proportional review still precede a fresh CI candidate.
 No nativeVerified flag is raised.
 No production/shared-local migration, provider/account/billing action,
 admission/home/page/cohort/cutover activation or phase exit is authorized.
