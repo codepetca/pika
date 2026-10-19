@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Approved unsent-read navigation fence implemented
-
-Owner explicitly approved cancelling verified not-yet-sent GET/HEAD reads during
-navigation, superseding only the narrow policy-choice hold. Departure now arms
-before drain and preserves sent transports/original body work. Requests remain
-admitted/counted; only exact owned held reads with no response can be cancelled.
-Both abort acknowledgement and matching failed terminal event are required under
-the original deadline. Mutations, sent work, body failures and missing signals
-remain fatal. Exact main-navigation/redirect identities bind a source-pinned
-new-document commit; destination assets then proceed. Fragment-only navigation
-has no cancellation exception. No second abort is attempted after abort failure.
-
-Astra/high native implementation worker owned only the new helper/tests; root
-verified and integrated boundary/runtime/pins. Six targeted suites229 PASS,
-tsc/eslint/audit PASS; canonical focused gate and independent fixed-SHA review
-pending. Cumulative ledger enters this fix at115reviews/69fixbatches; existing
-routine-budget waiver/clocks carry. No fresh native attempt, SDK disk edit,
-dependency, app/auth/schema change, merge or production rollout. All holds remain.
-
 ## 2026-10-16 — Navigation review catches false abort acknowledgement
 
 Reviews116(Astra/high security) and117(Sol6.1/high compatibility) completed at
@@ -499,3 +480,14 @@ Correction145 prepares a sealed login-only selection inside the existing Survey 
 ## 2026-10-18 — Complete the diagnostic helper's source inventories
 
 Reviews223/224 are clean at66888744 with404 affected CPU checks. Fullfocused60298 failed two concrete source-closure checks (4673PASS/8skip): the existing synthetic diagnostic inventory omitted the new inert receipt helper, and the actual installed Playwright compiler graph now contains33 modules instead of32. No runtime was admitted. Correction146 adds that exact helper to the fixed source-hash inventory and the compiler test's required files, and adjusts only its CPU graph bound to33. Native clocks, request/byte/action/control/session limits, network/auth policies and all production/shared-local/provider/account/rollout holds are unchanged. Both regression suites now pass30 tests. One targeted compatibility review and the full gate follow this small delta; failed full-run evidence remains failed, prior coverage/counters and human routine-stop waiver carry forward.
+
+## 2026-10-19 — Survey response-check diagnostic separation
+
+Full isolated Survey v4 passed both owner logins and four create/publish flows,
+then failed at the first submission's broad response-body stage. Immediate
+independent preservation and exact disposable cleanup passed; no screenshot or
+workflow acceptance. Read-only source diagnosis found no deterministic product
+contract bug. Carrier-only checks now distinguish body reading, allowlisted HTTP
+status assertions and request JSON decoding, preserving order and all assertions.
+TDD18newRED→74PASS; full focused and independent targeted review pending. No
+product/schema change, native replay, CI/merge or production action; holds unchanged.

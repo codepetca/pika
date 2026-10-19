@@ -71,6 +71,25 @@ function textRow(results: SurveyResults, actorId: string): SurveyTextResult {
   return { response_id, response_text, submitted_at, updated_at }
 }
 
+/** Observe the existing checks in their original order; never retain raw errors,
+ * response content or arbitrary status text in failure diagnostics. */
+export async function readContextualSurveyScreenExchange(r: Pick<SurveyRuntime, 'response'>, page: Page, response: Response,
+  method: SurveyExchange['method'], expectedStatus: number, setStage: (stage: SurveyStage) => void): Promise<{ body: unknown; request: unknown }> {
+  setStage('response-body-read')
+  const body = await r.response(page, response)
+  const status = response.status()
+  const statusStages: Readonly<Record<number, SurveyStage>> = {
+    200: 'response-status-200', 201: 'response-status-201', 400: 'response-status-400', 401: 'response-status-401',
+    403: 'response-status-403', 404: 'response-status-404', 409: 'response-status-409', 413: 'response-status-413',
+    429: 'response-status-429', 500: 'response-status-500', 503: 'response-status-503',
+  }
+  setStage(statusStages[status] ?? 'response-status-other')
+  assert.equal(status, expectedStatus)
+  setStage('response-request')
+  const request = method === 'GET' || method === 'DELETE' ? null : response.request().postDataJSON()
+  return { body, request }
+}
+
 export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<SurveyWorkflowResult> {
   let stage: SurveyStage = 'admission'
   const exchanges: SurveyExchange[] = [], submissions: SurveyWorkflowResult['submissions'] = []
@@ -80,11 +99,13 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
   const record = async (label: string, actor: ActorLabel, via: SurveyExchange['via'], method: SurveyExchange['method'], path: string,
     page: Page, expectedStatus: number, request: unknown, response?: Response) => {
     r.check()
-    const body = response ? await r.response(page, response) : await r.api(page, method, path, request === null ? undefined : request, expectedStatus)
-    if (response) assert.equal(response.status(), expectedStatus)
+    const previousStage = stage
+    const observed = response ? await readContextualSurveyScreenExchange(r, page, response, method, expectedStatus, next => { stage = next })
+      : { body: await r.api(page, method, path, request === null ? undefined : request, expectedStatus), request }
     exchanges.push({ label, actor, via, method, path, status: expectedStatus,
-      request: response ? method === 'GET' || method === 'DELETE' ? null : response.request().postDataJSON() : request, response: body })
-    return body
+      request: observed.request, response: observed.body })
+    stage = previousStage
+    return observed.body
   }
   const selected = async (page: Page, identity: SurveyIdentity, owner: boolean, freshDocument = false) => {
     await selectContextualSurvey(r, page, identity, owner, freshDocument)

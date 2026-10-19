@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { markdownToSurvey } from '../../src/lib/survey-markdown'
-import { surveyFailureStage, assertSurveySubmissionPreserved, surveyText, assertSurveyResults } from '../../e2e/helpers/contextual-survey-contract'
+import { surveyFailureStage, assertSurveySubmissionPreserved, surveyText, assertSurveyResults, type SurveyStage } from '../../e2e/helpers/contextual-survey-contract'
 import { surveyMarkdown, openContextualSurveyEditor, openContextualSurveyClasswork, selectContextualSurvey,
-  selectContextualSurveyForResponse, selectContextualSurveyForCapture, chooseContextualSurveyOption } from '../../e2e/helpers/contextual-survey-workflow'
+  selectContextualSurveyForResponse, selectContextualSurveyForCapture, chooseContextualSurveyOption,
+  readContextualSurveyScreenExchange } from '../../e2e/helpers/contextual-survey-workflow'
 import { contextualSurveyWitnessSql, validateContextualSurveyReceipt, assertContextualSurveyDatabase } from '../../scripts/contextual-survey-workflow-proof'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { contextualSurveyFixture } from '../helpers/contextual-survey-fixture'
@@ -66,6 +67,49 @@ function surveyMountedViews() {
 }
 
 describe('Survey successor source contracts (no browser/database execution)', () => {
+  it.each(['body', 'status', 'request', 'success'] as const)('separates the actual screen exchange checks without accepting a failure: %s', async failure => {
+    const calls: string[] = [], stages: SurveyStage[] = [], appended: unknown[] = []
+    const body = { success: true, updated: false }, request = { responses: {} }
+    const runtime = { async response() {
+      calls.push('body'); if (failure === 'body') throw Error('private body content'); return body
+    } }
+    const response = { status() { calls.push('status'); return failure === 'status' ? 503 : 201 },
+      request() { return { postDataJSON() {
+        calls.push('request'); if (failure === 'request') throw Error('private request content'); return request
+      } } } }
+    let stage: SurveyStage = 'response-body'
+    const operation = async () => {
+      const exchange = await readContextualSurveyScreenExchange(runtime as never, {} as never, response as never, 'POST', 201,
+        next => { stage = next; stages.push(next) })
+      appended.push(exchange)
+    }
+    if (failure === 'success') {
+      await operation()
+      expect(appended).toEqual([{ body, request }])
+    } else {
+      await expect(operation()).rejects.toThrow()
+      expect(appended).toEqual([])
+    }
+    expect(calls).toEqual(failure === 'body' ? ['body'] : failure === 'status' ? ['body', 'status'] : ['body', 'status', 'request'])
+    expect(stages).toEqual(failure === 'body' ? ['response-body-read'] : failure === 'status'
+      ? ['response-body-read', 'response-status-503'] : ['response-body-read', 'response-status-201', 'response-request'])
+    expect(surveyFailureStage(new Error(`Contextual Survey failed: ${stage}`))).toBe(stage)
+  })
+  it.each([200, 201, 400, 401, 403, 404, 409, 413, 429, 500, 503, 418])('records only an allowlisted HTTP status label: %s', async status => {
+    let stage: SurveyStage = 'response-body'
+    const runtime = { async response() { return {} } }
+    const response = { status: () => status, request() { throw Error('must not decode unexpected response request') } }
+    await expect(readContextualSurveyScreenExchange(runtime as never, {} as never, response as never, 'POST', 999,
+      next => { stage = next })).rejects.toThrow()
+    expect(stage).toBe(status === 418 ? 'response-status-other' : `response-status-${status}`)
+    expect(surveyFailureStage(new Error(`Contextual Survey failed: ${stage}`))).toBe(stage)
+  })
+  it.each(['GET', 'DELETE'] as const)('does not decode a %s request body', async method => {
+    const runtime = { async response() { return { success: true } } }
+    const response = { status: () => 200, request() { throw Error('request decoding must not run') } }
+    await expect(readContextualSurveyScreenExchange(runtime as never, {} as never, response as never, method, 200, () => {}))
+      .resolves.toEqual({ body: { success: true }, request: null })
+  })
   it.each([true, false])('uses the visible named option surface and verifies actual checked state: labelActivates=%s', async labelActivates => {
     let checked = false
     const calls: string[] = []

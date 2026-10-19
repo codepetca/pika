@@ -48689,3 +48689,23 @@ changes the current every-request-failure-is-fatal rule, so owner direction is
 needed before implementing that acceptance-policy change under the unchanged-
 safety-check instruction. No source fix, native attempt or duplicate review.
 Reviewed head remains a755e771; original115reviews/69fixbatches and holds carry.
+
+<!-- pika-session-log-archive-batch:ba1d21b7f04394a563644e6c7c065b0b40a38364a0edaf8d8257cb296047b5dd -->
+## 2026-10-16 — Approved unsent-read navigation fence implemented
+
+Owner explicitly approved cancelling verified not-yet-sent GET/HEAD reads during
+navigation, superseding only the narrow policy-choice hold. Departure now arms
+before drain and preserves sent transports/original body work. Requests remain
+admitted/counted; only exact owned held reads with no response can be cancelled.
+Both abort acknowledgement and matching failed terminal event are required under
+the original deadline. Mutations, sent work, body failures and missing signals
+remain fatal. Exact main-navigation/redirect identities bind a source-pinned
+new-document commit; destination assets then proceed. Fragment-only navigation
+has no cancellation exception. No second abort is attempted after abort failure.
+
+Astra/high native implementation worker owned only the new helper/tests; root
+verified and integrated boundary/runtime/pins. Six targeted suites229 PASS,
+tsc/eslint/audit PASS; canonical focused gate and independent fixed-SHA review
+pending. Cumulative ledger enters this fix at115reviews/69fixbatches; existing
+routine-budget waiver/clocks carry. No fresh native attempt, SDK disk edit,
+dependency, app/auth/schema change, merge or production rollout. All holds remain.
