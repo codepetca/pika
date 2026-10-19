@@ -4,6 +4,45 @@ import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
 
+for (const role of ['teacher', 'student'] as const) {
+  test(`${role} browser tab follows classroom identity and theme`, async ({ page }, testInfo) => {
+    const theme = testInfo.project.metadata.theme === 'dark' ? 'dark' : 'light'
+    await page.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark' })
+    await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+    await page.goto(`/e2e-fixtures/browser-tab-branding?userRole=${role}`)
+    await expect(page).toHaveTitle('PPZ3C — Health for Life · Pika')
+    await expect(page.locator('link[rel="icon"]')).toHaveCount(1)
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/rose')
+    await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1)
+    await expect(page.locator('#pika-tab-color')).toHaveAttribute('content', theme === 'dark' ? '#fb7185' : '#f43f5e')
+    await testInfo.attach('classroom-tab-branding', { body: await page.screenshot(), contentType: 'image/png' })
+
+    await page.getByRole('link', { name: 'Switch role route', exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`userRole=${role === 'teacher' ? 'student' : 'teacher'}$`))
+    await expect(page).toHaveTitle('PPZ3C — Health for Life · Pika')
+    await page.getByRole('button', { name: 'Classroom 2', exact: true }).click()
+    await expect(page).toHaveTitle('ICS4U — Computer Science · Pika')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/violet')
+    await page.getByRole('button', { name: 'Edit classroom', exact: true }).click()
+    await expect(page).toHaveTitle('Renamed classroom · Pika')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/teal')
+
+    await page.getByRole('button', { name: 'Home', exact: true }).click()
+    await expect(page).toHaveTitle('Pika')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    const toggledIcon = `/pika-icon-${theme === 'dark' ? 'light' : 'dark'}.svg`
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', toggledIcon)
+    await page.getByRole('button', { name: 'Classroom 1', exact: true }).click()
+    await expect(page).toHaveTitle('PPZ3C — Health for Life · Pika')
+    await page.getByRole('link', { name: 'Leave classroom', exact: true }).click()
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveTitle('Pika')
+    await expect(page.locator('link[rel="icon"]')).toHaveCount(1)
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', toggledIcon)
+  })
+}
+
 test.describe('selected tab visibility', () => {
   for (const role of ['teacher', 'student'] as const) {
     for (const reducedMotion of ['no-preference', 'reduce'] as const) {
