@@ -48709,3 +48709,23 @@ tsc/eslint/audit PASS; canonical focused gate and independent fixed-SHA review
 pending. Cumulative ledger enters this fix at115reviews/69fixbatches; existing
 routine-budget waiver/clocks carry. No fresh native attempt, SDK disk edit,
 dependency, app/auth/schema change, merge or production rollout. All holds remain.
+
+<!-- pika-session-log-archive-batch:81922d2ec088a1c12c93ad5b0e967c15526ef6c05292e906470e0b7ca3a57a0e -->
+## 2026-10-16 — Navigation review catches false abort acknowledgement
+
+Reviews116(Astra/high security) and117(Sol6.1/high compatibility) completed at
+a2aae101. One accepted P1: pinned Playwright swallowed native abort rejection
+and separately treated target closure as a resolved client abort. Actual SDK
+CPU experiments reproduced false success. One remediation batch makes both
+layers propagate/await the real command reply, retains normal handling state,
+and pins the intermediate source chain. Dependencies on disk remain unchanged.
+Native-abort regression RED before correction; new client regressions require a
+real reply and reject closed-target channel failure. No browser run performed.
+
+First canonical run3651PASS/8skip/4fail: startup doc budget33chars over, two
+existing navigation diagnostic cases exposed an extra microtask from drain
+refactoring, and one unchanged offline transport test hit15s under heavy load.
+Trimmed CURRENT and restored the original drain continuation (no test/timeout
+relaxation). Two targeted SDK/parser CPU timeouts passed serially. Final focused
+gate and targeted review pending; cumulative117reviews/71fixbatches, original
+clocks/task waiver retained. Production and all prior attempt holds unchanged.

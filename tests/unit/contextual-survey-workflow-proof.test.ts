@@ -3,7 +3,7 @@ import { markdownToSurvey } from '../../src/lib/survey-markdown'
 import { surveyFailureStage, assertSurveySubmissionPreserved, surveyText, assertSurveyResults, type SurveyStage } from '../../e2e/helpers/contextual-survey-contract'
 import { surveyMarkdown, openContextualSurveyEditor, openContextualSurveyClasswork, selectContextualSurvey,
   selectContextualSurveyForResponse, selectContextualSurveyForCapture, chooseContextualSurveyOption,
-  readContextualSurveyScreenExchange } from '../../e2e/helpers/contextual-survey-workflow'
+  readContextualSurveyScreenExchange, setContextualSurveyTheme } from '../../e2e/helpers/contextual-survey-workflow'
 import { contextualSurveyWitnessSql, validateContextualSurveyReceipt, assertContextualSurveyDatabase } from '../../scripts/contextual-survey-workflow-proof'
 import { createContextualTestPlan } from '../../e2e/helpers/contextual-test-rehearsal'
 import { contextualSurveyFixture } from '../helpers/contextual-survey-fixture'
@@ -67,6 +67,39 @@ function surveyMountedViews() {
 }
 
 describe('Survey successor source contracts (no browser/database execution)', () => {
+  it.each(['light', 'dark'] as const)('applies %s through the real user menu, without a document reload or DOM/storage injection', async theme => {
+    let dark = theme === 'light', stored: string | null = null, menuOpen = false
+    const calls: string[] = []
+    vi.stubGlobal('document', { documentElement: { classList: { contains: () => dark } } })
+    vi.stubGlobal('localStorage', { getItem: () => stored, setItem() { throw Error('runner must not write theme') } })
+    const page = { async evaluate<T>(fn: (value: typeof theme) => T, value: typeof theme) { return fn(value) },
+      getByRole(role: string, options: { name: string; exact: boolean }) {
+        calls.push(`${role}:${options.name}:${options.exact}`)
+        return { async click() {
+          if (role === 'button') menuOpen = !menuOpen
+          if (role === 'menuitem') { dark = theme === 'dark'; stored = theme }
+        }, async getAttribute(name: string) { expect(name).toBe('aria-expanded'); return String(menuOpen) } }
+      }, async goto() { throw Error('theme must not reload a document') } }
+    try {
+      await setContextualSurveyTheme(page as never, theme)
+      expect(calls).toEqual(['button:User menu:true', `menuitem:${theme === 'dark' ? 'Dark mode' : 'Light mode'}:true`, 'button:User menu:true', 'button:User menu:true'])
+      expect(menuOpen).toBe(false)
+      expect(dark).toBe(theme === 'dark'); expect(stored).toBe(theme)
+      await setContextualSurveyTheme(page as never, theme)
+      expect(calls).toHaveLength(4)
+    } finally { vi.unstubAllGlobals() }
+  })
+  it.each(['root', 'storage'] as const)('rejects a theme click that fails to apply its %s state', async missing => {
+    let dark = false, stored: string | null = null
+    vi.stubGlobal('document', { documentElement: { classList: { contains: () => dark } } })
+    vi.stubGlobal('localStorage', { getItem: () => stored })
+    const page = { async evaluate<T>(fn: (value: 'dark') => T, value: 'dark') { return fn(value) },
+      getByRole(role: string) { return { async click() {
+        if (role === 'menuitem') { if (missing !== 'root') dark = true; if (missing !== 'storage') stored = 'dark' }
+      } } } }
+    try { await expect(setContextualSurveyTheme(page as never, 'dark')).rejects.toThrow() }
+    finally { vi.unstubAllGlobals() }
+  })
   it.each(['body', 'status', 'request', 'success'] as const)('separates the actual screen exchange checks without accepting a failure: %s', async failure => {
     const calls: string[] = [], stages: SurveyStage[] = [], appended: unknown[] = []
     const body = { success: true, updated: false }, request = { responses: {} }
@@ -220,20 +253,18 @@ describe('Survey successor source contracts (no browser/database execution)', ()
     expect(model.ownerText()).toBe('Original response')
     await selectContextualSurvey(model.runtime as never, model.page as never, model.identity, true)
     expect(model.ownerText()).toBe('Original response')
-    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, true, true, false)
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, true, true)
     expect(model.ownerText()).toBe(model.server.text)
     expect(model.documents).toEqual([summary])
-    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, true, false, false)
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, true, false)
     expect(model.documents).toEqual([summary])
     expect(model.ownerText()).toBe(model.server.text)
   })
-  it('refreshes first member capture and each theme change but not the following viewport-only cell', async () => {
+  it('keeps first member capture freshness while reusing the selected view for the remaining three theme/viewport cells', async () => {
     const model = surveyMountedViews()
-    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, true, false)
-    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, false, false)
-    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, false, true)
-    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, false, false)
-    expect(model.documents).toEqual([summary, summary])
+    await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, true)
+    for (let scene = 0; scene < 3; scene++) await selectContextualSurveyForCapture(model.runtime as never, model.page as never, model.identity, false, false)
+    expect(model.documents).toEqual([summary])
   })
   it('witness SQL is fixed and includes all Survey work and membership/revision evidence', () => {
     const plan = createContextualTestPlan('pika_assignment_list_123456abcdef', 'survey-workflow-v1')

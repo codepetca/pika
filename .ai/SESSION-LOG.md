@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Navigation review catches false abort acknowledgement
-
-Reviews116(Astra/high security) and117(Sol6.1/high compatibility) completed at
-a2aae101. One accepted P1: pinned Playwright swallowed native abort rejection
-and separately treated target closure as a resolved client abort. Actual SDK
-CPU experiments reproduced false success. One remediation batch makes both
-layers propagate/await the real command reply, retains normal handling state,
-and pins the intermediate source chain. Dependencies on disk remain unchanged.
-Native-abort regression RED before correction; new client regressions require a
-real reply and reject closed-target channel failure. No browser run performed.
-
-First canonical run3651PASS/8skip/4fail: startup doc budget33chars over, two
-existing navigation diagnostic cases exposed an extra microtask from drain
-refactoring, and one unchanged offline transport test hit15s under heavy load.
-Trimmed CURRENT and restored the original drain continuation (no test/timeout
-relaxation). Two targeted SDK/parser CPU timeouts passed serially. Final focused
-gate and targeted review pending; cumulative117reviews/71fixbatches, original
-clocks/task waiver retained. Production and all prior attempt holds unchanged.
-
 ## 2026-10-16 — Unsent-read fence reviewed; fresh rehearsal stopped safely
 
 Reviews118/119 cleared final0b485 security/compatibility; PR1581 stays draft at
@@ -480,6 +461,19 @@ Correction145 prepares a sealed login-only selection inside the existing Survey 
 ## 2026-10-18 — Complete the diagnostic helper's source inventories
 
 Reviews223/224 are clean at66888744 with404 affected CPU checks. Fullfocused60298 failed two concrete source-closure checks (4673PASS/8skip): the existing synthetic diagnostic inventory omitted the new inert receipt helper, and the actual installed Playwright compiler graph now contains33 modules instead of32. No runtime was admitted. Correction146 adds that exact helper to the fixed source-hash inventory and the compiler test's required files, and adjusts only its CPU graph bound to33. Native clocks, request/byte/action/control/session limits, network/auth policies and all production/shared-local/provider/account/rollout holds are unchanged. Both regression suites now pass30 tests. One targeted compatibility review and the full gate follow this small delta; failed full-run evidence remains failed, prior coverage/counters and human routine-stop waiver carry forward.
+
+## 2026-10-19 — Reuse the real theme control in Survey verification
+
+Full isolated v5 passed the earlier submission step and produced all16 visually
+checked owner/member desktop/mobile light/dark captures. It failed at the final
+fresh revoked-member login after hitting the unchanged request cap; full native
+and DB acceptance remain false. Immediate preservation and exact cleanup passed.
+Read-only diagnosis found four theme-only document reloads. Source148 replaces
+only those reloads with the existing User menu theme action, checks actual theme
+and persistence, dismisses its still-open menu, and retains first-capture/dynamic
+freshness, seven sessions, all52 exchanges, all16 visual cells and unchanged caps.
+TDD4newRED→78PASS; menu-dismissal regression2RED→78PASS. Full focused and targeted
+independent review pending. No product/schema/gateway change or production action.
 
 ## 2026-10-19 — Survey response-check diagnostic separation
 

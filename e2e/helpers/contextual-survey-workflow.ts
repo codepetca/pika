@@ -54,11 +54,23 @@ export async function selectContextualSurveyForResponse(r: Pick<SurveyRuntime, '
   identity: SurveyIdentity, updated: boolean): Promise<void> {
   await selectContextualSurvey(r, page, identity, false, updated)
 }
+/** Use the existing application control: it updates theme state and persistence
+ * immediately, without injecting DOM/storage state or reloading dev bundles. */
+export async function setContextualSurveyTheme(page: Page, theme: 'light' | 'dark'): Promise<void> {
+  if (await page.evaluate(value => document.documentElement.classList.contains('dark') === (value === 'dark'), theme)) return
+  await page.getByRole('button', { name: 'User menu', exact: true }).click()
+  await page.getByRole('menuitem', { name: theme === 'dark' ? 'Dark mode' : 'Light mode', exact: true }).click()
+  assert(await page.evaluate(value => document.documentElement.classList.contains('dark') === (value === 'dark')
+    && localStorage.getItem('theme') === value, theme))
+  await page.getByRole('button', { name: 'User menu', exact: true }).click()
+  assert.equal(await page.getByRole('button', { name: 'User menu', exact: true }).getAttribute('aria-expanded'), 'false')
+}
 /** API readback does not refresh mounted owner results when counts are equal.
- * Establish freshness on each actor's first capture and on theme reloads. */
+ * Establish freshness on each actor's first capture. Theme/viewport changes do
+ * not change the server data; the real theme control updates the mounted view. */
 export async function selectContextualSurveyForCapture(r: Pick<SurveyRuntime, 'plan' | 'navigate'>, page: Page,
-  identity: SurveyIdentity, owner: boolean, firstCapture: boolean, themeChanged: boolean): Promise<void> {
-  await selectContextualSurvey(r, page, identity, owner, firstCapture || themeChanged)
+  identity: SurveyIdentity, owner: boolean, firstCapture: boolean): Promise<void> {
+  await selectContextualSurvey(r, page, identity, owner, firstCapture)
 }
 function waitFor(page: Page, method: string, path: string): Promise<Response> {
   const pending = page.waitForResponse(response => response.request().method() === method && new URL(response.url()).pathname === path)
@@ -274,9 +286,8 @@ export async function runContextualSurveyWorkflow(r: SurveyRuntime): Promise<Sur
               const identity = scene.actor === 'ownerTeacher' || scene.actor === 'memberStudent' ? mainA : mainB
               await page.setViewportSize(scene.viewport === 'mobile' ? { width: 390, height: 844 } : { width: 1440, height: 900 })
               await page.emulateMedia({ colorScheme: scene.theme })
-              const themeChanged = await page.evaluate(theme => document.documentElement.classList.contains('dark') !== (theme === 'dark'), scene.theme)
-              await page.evaluate(theme => localStorage.setItem('theme', theme), scene.theme)
-              await selectContextualSurveyForCapture(r, page, identity, scene.actor.startsWith('owner'), !capturedActors.has(scene.actor), themeChanged)
+              await setContextualSurveyTheme(page, scene.theme)
+              await selectContextualSurveyForCapture(r, page, identity, scene.actor.startsWith('owner'), !capturedActors.has(scene.actor))
               await expect(page.getByText(surveyText(scene.actor === 'ownerTeacher' ? 'memberStudent' : scene.actor === 'ownerStudent' ? 'memberTeacher' : scene.actor,
                 scene.actor === 'ownerTeacher' || scene.actor === 'memberStudent'), { exact: true })).toBeVisible()
               const editor = scene.actor.startsWith('owner') ? await openContextualSurveyEditor(page) : null
