@@ -137,6 +137,24 @@ describe('StudentAttendanceStatus', () => {
     }, new Date('2026-08-24T04:00:00.000Z'))).toBeNull()
   })
 
+  it('never revives yesterday’s confirmation when a status GET arrives after Toronto midnight', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-24T03:59:59.000Z'))
+    let finish!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>((resolve) => { finish = resolve })))
+    render(<HookHarness />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000) })
+    await act(async () => finish(statusResponse({
+      classrooms: [{ classroomId: classroomOne, state: 'confirmed', classDate: '2026-08-23',
+        opensAt: '2026-08-23T13:00:00.000Z', closesAt: '2026-08-23T14:00:00.000Z',
+        confirmedAt: '2026-08-23T13:07:00.000Z', attendanceStatus: 'present',
+        validUntil: '2026-08-24T04:00:00.000Z' }],
+      nextRefreshAt: '2026-08-24T04:00:00.000Z', serverNow: '2026-08-24T03:59:59.000Z',
+    })))
+    await flushAsyncState()
+    expect(screen.queryByText(/^Checked in/)).not.toBeInTheDocument()
+  })
+
   it('forces a timed network refresh when a scheduled session opens inside the cache TTL', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-23T13:00:00.000Z'))

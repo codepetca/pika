@@ -562,4 +562,8 @@ healthy; per-worker tokens unavailable. Teacher behavior unchanged.
 Playwright16 captures: student390/1440 light/dark success/verifying/failure/expired;
 4initialPOST,8GET,0resume/retryPOST; guarded teacher fixture PASS.
 Visual evidence: output/playwright/attendance-confirmation/; Pattern Lab statuses
-reference inspected. Independent review and focused/CI gates pending.
+reference inspected. Focused gate83files1004tests, policies,TypeScript,lint PASS. Review1 at9bb59abd
+accepted one P2: GET request latency could revive pre-midnight confirmation.
+Added deferred-GET regression (red then green), advanced server clock by elapsed
+request time;40related tests PASS. Budget:2planned turns/7,1fix batch/4;
+per-review tokens/elapsed unknown. Targeted cumulative review/CI next; PR1616draft.

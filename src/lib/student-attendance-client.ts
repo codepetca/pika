@@ -146,6 +146,8 @@ export async function fetchStudentAttendanceStatus(
   const cached = await fetchJSONWithCache<CachedStudentAttendanceStatus>(
     `${STUDENT_ATTENDANCE_CACHE_PREFIX}${studentId}`,
     async () => {
+      const startedAtMonotonicMs = monotonicNow()
+      const startedAtWallMs = Date.now()
       const response = await fetch('/api/student/attendance/status', { cache: 'no-store' })
       if (response.headers.get('x-pika-student-id') !== studentId) {
         clearAuthoritativeStudentAttendanceConfirmation(studentId)
@@ -158,10 +160,21 @@ export async function fetchStudentAttendanceStatus(
         clearAuthoritativeStudentAttendanceConfirmation(studentId)
         throw new StudentAttendanceIdentityMismatchError()
       }
+      const receivedAtMonotonicMs = monotonicNow()
+      const receivedAtWallMs = Date.now()
+      // A response generated before Toronto midnight can arrive afterward.
+      // Conservatively include the full request duration before cache aging.
+      const requestElapsedMs = Math.max(0,
+        receivedAtMonotonicMs - startedAtMonotonicMs,
+        receivedAtWallMs - startedAtWallMs,
+      )
       return {
-        view,
-        receivedAtMonotonicMs: monotonicNow(),
-        receivedAtWallMs: Date.now(),
+        view: {
+          ...view,
+          serverNow: new Date(Date.parse(view.serverNow) + requestElapsedMs).toISOString(),
+        },
+        receivedAtMonotonicMs,
+        receivedAtWallMs,
       }
     },
     STUDENT_ATTENDANCE_CACHE_TTL_MS,
