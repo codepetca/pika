@@ -47407,3 +47407,12 @@ Batch2 final focused check2213tests/119files plus architecture/UI/design/TypeScr
 ## 2026-10-14 — Clean TypeScript CI remediation
 
 Ready CI38594807708 at dfbbd56d2 found TS2589 in the existing Test unpublication RPC result annotation; PR1590 returned draft before correction. Batch3 replaces generic ReturnType expansion with the narrow data/error/status fields consumed by the helper, retaining typed RPC invocation and runtime result validation. 21 existing unpublication unit/API tests passed. Clean nonincremental TypeScript and focused lint/audit recorded externally; product grading SQL/UI/reopening unchanged. Review ledger5turns/3batches before targeted review; original15:20UTC review clock retained.
+
+<!-- pika-session-log-archive-batch:473279615125f6b847bcecdad2a4149573d5e6f8a8549f97bc966fb4f807e679 -->
+## 2026-10-14 — Gradebook marks require student return
+
+Teacher Gradebook now projects assignment/Test marks only after the student's document/attempt has `returned_at`; unreturned manual overrides also stay blank. Calculated totals, class summaries, and the inspector use the same eligible cells. Standalone items and explicit final overrides retain their contracts. Branch: `codex/gradebook-returned-marks`; owner: current Codex chat. Risk profile: none (established read projection; no grading writes/migrations).
+
+UI brief: reuse Gradebook blank/status cells and Pattern Lab Gradebook composition; extend the server projection. Teacher/student, desktop/mobile, light/dark, returned/unreturned matrix; selected teacher inspector included. No new composite widget or shared component; no extraction/refactor candidate. Deterministic browser evidence uses teacher payloads from the mocked API regression and synthetic student Grades data with production UI owners: `output/playwright/returned-marks/receipt.json`. Student disclosure remains server-side and independently covered by existing student Grades tests.
+
+Targeted teacher/student tests passed (86 before final saved-unsubmitted regression); focused gate and draft-first independent review follow. On this Mac, unrelated sub-second Tart-host tests fail with Python3.14; installed Python3.13 passes the isolated51-test file. Rebased onto main's saved-unsubmitted Test grading change before final checks. Weekly allowance71% remaining at start; storage healthy312GB. Direct implementation; one bounded native reviewer planned; DeepSeek paused through Dec31. Worker/coordination token usage unknown.

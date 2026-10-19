@@ -67,7 +67,7 @@ describe('student confirmation freshness', () => {
     await act(async () => finish(statusView()))
     expect(screen.getByText('You are checked in')).toBeVisible()
     expect(fetcher).toHaveBeenCalledTimes(1)
-    expect(client.read).toHaveBeenCalledWith(confirmation.studentId, { forceNetwork: true })
+    expect(client.read).toHaveBeenCalledWith(confirmation.studentId, { requireServerConfirmation: true })
   })
 
   it.each(['pageshow', 'visibilitychange'])('rejects an old page after %s without making a new check-in', async (eventName) => {

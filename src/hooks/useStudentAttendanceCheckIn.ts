@@ -50,7 +50,7 @@ export function useStudentAttendanceCheckIn({ entryToken, canCheckIn, mode }: {
     const startedAt = anchorAttendanceConfirmation(new Date().toISOString())
     setView({ kind: 'loading', verifying: true })
     try {
-      const status = await fetchStudentAttendanceStatus(previous.studentId, { forceNetwork: true })
+      const status = await fetchStudentAttendanceStatus(previous.studentId, { requireServerConfirmation: true })
       if (request !== generation.current) return
       const next = matchRefreshedAttendanceConfirmation(previous, status)
       if (next) acceptConfirmation(next, attendanceConfirmationNow(startedAt) - startedAt.serverMs)
