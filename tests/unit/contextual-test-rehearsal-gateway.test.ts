@@ -30,7 +30,7 @@ function harness(now = () => 1000, proofScope?: ContextualTestProofScope) {
   }
   const input = { plan: proofScope ? createContextualTestPlan(plan.projectId,proofScope) : plan, deadline: 2_701_000, proofScope }
   const gateways = createContextualTestGateways(input, edges)
-  function incoming(kind: 'app' | 'api', path: string, method = 'GET', body = '', extra: http.IncomingHttpHeaders = {}) {
+  function incoming(kind: 'app' | 'api', path: string, method = 'GET', body = '', extra: http.IncomingHttpHeaders = {}, endBody = true) {
     const request = Object.assign(new PassThrough(), { method, url: path, headers: { host: kind === 'app' ? 'localhost:3117' : '127.0.0.1:54340', ...extra }, rawHeaders: [] })
     const done = deferred<void>()
     const response = Object.assign(new EventEmitter(), { destroyed: false, writableEnded: false, status: 0, headers: {} as http.OutgoingHttpHeaders, bytes: Buffer.alloc(0),
@@ -38,7 +38,7 @@ function harness(now = () => 1000, proofScope?: ContextualTestProofScope) {
       end(bytes?: Buffer) { response.bytes = bytes ?? Buffer.alloc(0); response.writableEnded = true; done.resolve(); return response },
       destroy() { response.destroyed = true; done.resolve(); return response } })
     servers[kind === 'app' ? 0 : 1].handler(request as unknown as http.IncomingMessage, response as unknown as http.ServerResponse)
-    request.end(body); return { request, response, done: done.promise }
+    if (endBody) request.end(body); return { request, response, done: done.promise }
   }
   function respond(index: number, body: string | Buffer, headers: http.IncomingHttpHeaders = { 'content-type': 'application/json' }, status = 200) {
     const response = Object.assign(new PassThrough(), { headers, statusCode: status, rawHeaders: [] })
@@ -306,6 +306,75 @@ describe('fixed contextual Test HTTP gateway policy', () => {
 })
 
 describe('contextual Test gateway original-byte ownership with fake HTTP I/O', () => {
+  it.each(['request-body', 'upstream-headers', 'response-body'] as const)('observes the first %s deadline at the unchanged 30 second end', async phase => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(1000); const h = harness(Date.now); await h.gateways.start()
+      expect(h.gateways.receipt().firstDeadline).toBeNull()
+      const call = h.incoming('app', '/api/auth/login', 'POST', '{"private-password":"secret"}',
+        { 'content-type': 'application/json', cookie: 'private-cookie' }, phase !== 'request-body')
+      await vi.advanceTimersByTimeAsync(0)
+      if (phase === 'response-body') {
+        const response = Object.assign(new PassThrough(), { statusCode: 200, headers: { 'content-type': 'application/json' } })
+        h.upstreams[0].callback(response as unknown as http.IncomingMessage); response.write('{"private-response":')
+      }
+      await vi.advanceTimersByTimeAsync(29999)
+      expect(h.gateways.receipt().firstDeadline).toBeNull()
+      expect(call.response.destroyed).toBe(false)
+      await vi.advanceTimersByTimeAsync(1); await call.done
+      const first = h.gateways.receipt().firstDeadline
+      expect(first).toEqual({ kind: 'app', method: 'POST', route: 'auth-login', phase,
+        observedAt: 31000, elapsedMs: 30000, detached: false, closing: false })
+      expect(Object.isFrozen(first)).toBe(true)
+      expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'deadline', pending: 0, sockets: 0, responses: 0 })
+      await h.gateways.close(32000)
+      expect(h.gateways.receipt().firstDeadline).toBe(first)
+      expect(JSON.stringify(h.gateways.receipt())).not.toMatch(/private|secret|password|cookie|\/api\//)
+      expect(h.gateways.receipt()).toMatchObject({ closed: true, pending: 0, sockets: 0 })
+    } finally { vi.useRealTimers() }
+  })
+  it.each(['request-body', 'upstream-headers', 'response-validation', 'active-check'] as const)('observes a late %s callback before its existing rejection', async point => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(1000); const h = harness(Date.now); await h.gateways.start()
+      const call = h.incoming('api', '/rest/v1/tests?private=secret', 'GET', '', {}, point !== 'request-body'); await vi.advanceTimersByTimeAsync(0)
+      const response = Object.assign(new PassThrough(), { statusCode: 200, headers: { 'content-type': 'application/json' } })
+      if (point !== 'request-body' && point !== 'upstream-headers') h.upstreams[0].callback(response as unknown as http.IncomingMessage)
+      vi.setSystemTime(31000)
+      if (point === 'active-check') expect(() => h.gateways.check()).toThrow()
+      else if (point === 'request-body') { call.request.end(); await vi.advanceTimersByTimeAsync(0) }
+      else if (point === 'upstream-headers') h.upstreams[0].callback(response as unknown as http.IncomingMessage)
+      else { response.end('{}'); await vi.advanceTimersByTimeAsync(0) }
+      expect(h.gateways.receipt().firstDeadline).toEqual({ kind: 'api', method: 'GET', route: 'rest',
+        phase: point === 'active-check' ? 'response-body' : point, observedAt: 31000, elapsedMs: 30000, detached: false, closing: false })
+      await vi.advanceTimersByTimeAsync(30000); await call.done; await h.gateways.close(62000)
+      expect(h.gateways.receipt()).toMatchObject({ closed: true, pending: 0, sockets: 0 })
+    } finally { vi.useRealTimers() }
+  })
+  it('records detachment and closing without replacing an earlier mutation failure or first observation', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(1000); const h = harness(Date.now); await h.gateways.start()
+      const call = h.incoming('app', '/api/auth/login', 'POST', '{}', { 'content-type': 'application/json' })
+      await vi.advanceTimersByTimeAsync(0); call.response.emit('close')
+      const close = h.gateways.close(32000)
+      await vi.advanceTimersByTimeAsync(30000); await call.done; await close
+      expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'mutation-cancelled', firstDeadline: {
+        kind: 'app', method: 'POST', route: 'auth-login', phase: 'upstream-headers', observedAt: 31000,
+        elapsedMs: 30000, detached: true, closing: true }, closed: true, pending: 0, sockets: 0 })
+      const first = h.gateways.receipt().firstDeadline
+      vi.setSystemTime(2_701_000); expect(() => h.gateways.check()).toThrow()
+      expect(h.gateways.receipt().firstDeadline).toBe(first)
+    } finally { vi.useRealTimers() }
+  })
+  it.each(['receipt', 'check', 'close'] as const)('records a bounded global observation from %s', async point => {
+    let now = 1000; const h = harness(() => now); await h.gateways.start(); now = 2_701_001
+    if (point === 'check') expect(() => h.gateways.check()).toThrow()
+    if (point === 'close') await h.gateways.close(2_702_000)
+    expect(h.gateways.receipt().firstDeadline).toEqual({ kind: 'control', method: 'other', route: 'global', phase: 'global',
+      observedAt: now, elapsedMs: 2_700_000, detached: false, closing: point === 'close' })
+    if (point !== 'close') await h.gateways.close(2_702_000)
+  })
   it.each([undefined,'vertical-v1','vertical-grade-return-v1','lifecycle-permissions-v1'] as const)('lets the installed Next overlay fall back after the real empty diagnostic denial for %s', async scope => {
     const { getOriginalStackFrames } = createRequire(import.meta.url)('next/dist/next-devtools/shared/stack-frame.js')
     const h = harness(undefined,scope); await h.gateways.start()
@@ -538,7 +607,9 @@ describe('contextual Test gateway original-byte ownership with fake HTTP I/O', (
       })
       const start = gateways.start(), rejected = expect(start).rejects.toThrow('Private contextual Test gateway')
       await vi.advanceTimersByTimeAsync(30000); await rejected
-      expect(gateways.receipt()).toMatchObject({ firstFailure: 'deadline', started: false }); await gateways.close(32000)
+      expect(gateways.receipt()).toMatchObject({ firstFailure: 'deadline', started: false, firstDeadline: {
+        kind: 'control', method: 'other', route: 'startup', phase: 'startup', observedAt: 31000,
+        elapsedMs: 30000, detached: false, closing: false } }); await gateways.close(32000)
     } finally { vi.useRealTimers() }
   })
 })

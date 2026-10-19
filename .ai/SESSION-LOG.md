@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Redirect interception correction before full rehearsal
-
-Prior1a558233 review112 CLEAN,3573CPU PASS; one synthetic navigation run5cw7pq
-PASS with3requests/1originalbody and exact body-before-navigation proof. Native
-closure and immediate independent preservation PASS; sources/dependencies unchanged.
-Historical jfeIB9 rejection remains unattributed. Production holds unchanged.
-
-User requests redirect-gap fix/regression/review. Astra/high source investigation
-confirmed SDK1.58 bypass and downstream normal-route compatibility. Runner-only
-Node24.12 synchronous load hook binds full upstream source SHA; redirected hops
-now enter existing guards using Chromium's actual URL/method/body. No installed
-dependency rewrite, HTTP replay, new dependency or page-only CDP fence. Uncorrelated
-pauses fail closed; request overrides prohibited. CLI/worker preload CPU proof
-passes; seven actual-adapter regressions RED before fix, GREEN after. Existing
-body, login, navigation, reservation, cap and deadline guards remain unchanged.
-Added separately admitted six-case loopback native regression (14HTTP max,5denied
-hops,1original body); not dispatched before independent review. Full-app/provider/
-shared-local/account/migration/production/rollout holds remain. Original review112/
-fix68 counters and task waiver carry. Risk runtime-platform; final gate/review next.
-
 ## 2026-10-16 — Reviewed redirect fix passes narrow test; full app isolates navigation rejection
 
 Runner a755e771: reviews113/114 CLEAN0,201targeted and3598canonical PASS/8skip.
@@ -541,3 +521,9 @@ Review218 is clean at3646f3e3. Fullfocused then had4569PASS/8skip and one differ
 Correction142 review219 and full4570PASS/8skip/allstatic PASS at e90cae37; published to existing draft1581. One fresh Survey screen attempt authenticated both cross-role owners and created/published four Surveys, then failed member-respond before any capture. It remains failed/spent. No gateway violation/page error; owned cleanup passed, exact resources/tempdir absent. Immediate independent preservation first matched pnpm/tsx launcher ancestors; unchanged direct-Node checker then passed before source edits/tests. A bounded process-only reproduction confirms launcher self-matching; no filter weakened or rehearsal replayed.
 
 Read-only diagnosis found a concrete pointer incompatibility: installed Playwright clicks the clipped sr-only radio input, not its visible label. Historical failure substep was not retained, so attribution remains unproved. Correction143 uses the named radiogroup's visible Beta label plus checked-state assertion, and closed response-selection/form/option/text/submit/ack/body/validation labels without raw errors. CPU selector regressions reproduce old behavior; actual component label activation and all62 focused checks pass, not native geometry proof. Product/schema/dependencies/caps remain unchanged. Final gate and proportional independent review next; no new runtime admission. All production/shared-local/provider/account/billing/cohort/home/cutover holds remain.
+
+## 2026-10-18 — Identify login and gateway deadline phases without another full run
+
+Correction143 passed review220/full4586 checks and stayed draft. The next authorized isolated Survey attempt failed before completing its first login (zero creates/screens); gateway recorded only deadline, not the request or phase. Immediate source/dependency preservation and owned cleanup passed; failed/spent evidence remains. Production unchanged.
+
+Correction144 adds first immutable gateway deadline labels for request/header/body/validation/startup/global timing, detached/closing state and safe times; failed browser receipts retain the real login phase and first caught-failure time without error text, user identifiers or credentials. Existing timers, request/byte limits, allowlists, body/navigation order and successful proof receipt schema are unchanged. Actual gateway fake-clock and actual vertical-runtime CPU doubles reproduce missing observations before correction. These are not native diagnosis or an app fix. Independent source review and full checks follow. Existing synthetic login-body cannot verify real Pika login; no admitted login-only selector exists in the current real-app runner. No new mode, fabricated Survey success, native launch, cap extension, shared schema or production/rollout operation is implied.

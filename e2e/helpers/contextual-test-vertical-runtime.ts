@@ -42,6 +42,13 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
   const actors: string[] = []
   const contextActors = new WeakMap<BrowserContext,string>()
   let pageErrors = 0, closed = false, step = 'startup'
+  type LoginPhase = 'context' | 'page' | 'login-document' | 'hydration-preset' | 'hydration-ready' | 'email' | 'password'
+    | 'login-click' | 'login-ack' | 'redirect' | 'identity-request' | 'identity-check' | 'verified'
+  let loginDiagnostic: Readonly<{ phase: LoginPhase; observedAt: number; actorIndex: number; verified: boolean; failureObservedAt: number | null }> | null = null
+  const markLogin = (phase: LoginPhase) => { loginDiagnostic = Object.freeze({ phase, observedAt: Date.now(), actorIndex: actors.length, verified: phase === 'verified', failureObservedAt: null }) }
+  const markFailure = () => {
+    if (loginDiagnostic && loginDiagnostic.failureObservedAt === null) loginDiagnostic = Object.freeze({ ...loginDiagnostic, failureObservedAt: Date.now() })
+  }
   const output = join(binding.outputDir, 'playwright'); mkdirSync(output, { mode: 0o700 })
   const check = () => { assert(!closed && Date.now() < binding.deadline, 'Narrow Test deadline') }
   const timeout = () => { check(); return Math.min(30000, binding.deadline - Date.now()) }
@@ -71,28 +78,42 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
       step = 'login'; check(); assert(survey || lifecycle || ['ownerStudent','memberTeacher','nonmember'].includes(actorLabel))
       assert(successor || lifecycle || survey ? actorLabel === expectedActors[actors.length] : actors.length < 5)
       const actor = plan.actors[actorLabel === 'ownerTeacherPeer' ? 'ownerTeacher' : actorLabel]
+      markLogin('context')
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...(lifecycle || survey ? {colorScheme:'light' as const}:{}), serviceWorkers: 'block', acceptDownloads: false })
       contexts.add(context)
       context.on('page', page => { page.on('pageerror', () => { pageErrors++ }) })
       context.setDefaultTimeout(timeout()); context.setDefaultNavigationTimeout(timeout())
       try {
+        markLogin('page')
         const page = await context.newPage()
+        markLogin('login-document')
         await page.goto(plan.appOrigin + '/login', { waitUntil: 'load', timeout: timeout() })
         // Existing public preset is only a React-hydration barrier, not fixture auth.
+        markLogin('hydration-preset')
         await page.getByRole('button', { name: 'Teacher', exact: true }).click()
+        markLogin('hydration-ready')
         await page.waitForFunction(verticalLoginReady)
+        markLogin('email')
         await page.getByLabel('School Email').fill(actor.email)
+        markLogin('password')
         await page.getByLabel(/^Password(?:\s*\*)?$/).fill(binding.password)
         const ack = page.waitForResponse(r => r.url() === plan.appOrigin + '/api/auth/login' && r.request().method() === 'POST')
         void ack.catch(() => {})
+        markLogin('login-click')
         await page.getByRole('button', { name: 'Login', exact: true }).click()
+        markLogin('login-ack')
         assert.equal((await ack).status(), 200)
+        markLogin('redirect')
         await page.waitForURL(url => url.origin === plan.appOrigin && url.pathname === '/classrooms')
+        markLogin('identity-request')
         const identity = await runtime.api<{ user: { id: string; role: string; email: string } }>(page, 'GET', '/api/auth/me')
+        markLogin('identity-check')
         assert.equal(identity.user.id, actor.id); assert.equal(identity.user.role, actor.role); assert.equal(identity.user.email, actor.email)
+        markLogin('verified')
         contextActors.set(context,actorLabel==='ownerTeacherPeer'?'ownerTeacher':actorLabel)
         actors.push(actorLabel); step = 'workflow'; await callback(page); check()
-      } finally { await context.close(); contexts.delete(context) }
+      } catch (error) { markFailure(); throw error }
+      finally { await context.close(); contexts.delete(context) }
     },
     async snapshot(label, page) {
       step = 'screenshot'; owned(page)
@@ -120,7 +141,9 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
     const receipt = { version: 1, proofScope: binding.proofScope, projectId: binding.projectId, nonce: binding.nonce,
       sourceSha: binding.sourceSha, sourceTree: binding.sourceTree, appOverlaySha256: binding.appOverlaySha256,
       deadline: binding.deadline, endedAt: Date.now(), outcome, contextsClosed, pageErrors, actors, result,
-      failureStage: outcome === 'passed' ? null : (survey ? surveyFailureStage(error) : lifecycle ? lifecycleFailureStage(error) : verticalWorkflowFailureStage(error)) ?? step, artifacts }
+      failureStage: outcome === 'passed' ? null : (survey ? surveyFailureStage(error) : lifecycle ? lifecycleFailureStage(error) : verticalWorkflowFailureStage(error)) ?? step, artifacts,
+      // Failed-only observation cannot alter any successful proof receipt schema.
+      ...(outcome === 'failed' ? { loginDiagnostic } : {}) }
     writeFileSync(join(binding.outputDir, 'playwright-receipt.json'), JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
     assert.equal(outcome, 'passed', 'Narrow Test workflow failed')
   } }

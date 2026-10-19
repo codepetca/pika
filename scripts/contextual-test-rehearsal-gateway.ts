@@ -68,10 +68,26 @@ function endpointLabel(path: string) {
   return 'unknown'
 }
 type EndpointFailure = Readonly<{ kind: Kind; method: 'GET' | 'HEAD' | 'POST' | 'PATCH' | 'DELETE' | 'other'; route: ReturnType<typeof endpointLabel> }>
+/** Closed diagnostic labels only; never retain a request target or exception. */
+function deadlineLabel(target: string) {
+  const path = target.split('?')[0]
+  if (path === '/api/auth/login') return 'auth-login'
+  if (path === '/api/auth/me') return 'auth-me'
+  if (path === '/login') return 'login-document'
+  if (path === '/classrooms') return 'classrooms-document'
+  if (path.startsWith('/_next/static/') || path.startsWith('/fonts/') || ['/favicon.ico', '/pika-icon-light.svg', '/pika-icon-dark.svg'].includes(path)) return 'framework-asset'
+  return endpointLabel(path)
+}
+export type ContextualTestGatewayDeadline = Readonly<{
+  kind: Kind | 'control'; method: EndpointFailure['method']; route: ReturnType<typeof deadlineLabel> | 'startup' | 'global'
+  phase: 'request-body' | 'upstream-headers' | 'response-body' | 'response-validation' | 'startup' | 'global'
+  observedAt: number; elapsedMs: number; detached: boolean; closing: boolean
+}>
 type OwnerRpcRejection = Readonly<{ operation: 'inspect' | 'results' | 'other'; reason: 'invalid-deadline' | 'invalid-input' | 'other' }>
 type PolicyReceipt = { firstFailure: ContextualTestGatewayFailure | null; firstEndpointFailure: EndpointFailure | null; firstOwnerRpcRejection: OwnerRpcRejection | null; appRequests: number; apiRequests: number; creates: number; rejectedHmr: number; rejectedDiagnostics: number }
 export type ContextualTestGatewayReceipt = Readonly<PolicyReceipt & {
   version: 1; started: boolean; closing: boolean; closed: boolean; pending: number; sockets: number
+  firstDeadline: ContextualTestGatewayDeadline | null
   jsonResponses: number; responses: number; requestBytes: number; responseBytes: number
 }>
 
@@ -476,34 +492,55 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
   const deadline = input.deadline
   const policy = new ContextualTestGatewayPolicy(input.plan, deadline, edges.now, input.proofScope)
   const sockets = new Set<Socket>(), pending = new Set<Promise<void>>()
-  const active = new Map<Promise<void>, { end: number; abort(): void }>()
+  const active = new Map<Promise<void>, { end: number; abort(): void; observeDeadline(): void }>()
   const listeners = new Set<Server>()
   let started = false, closing = false, closed = false, startAttempted = false
   let jsonResponses = 0, responses = 0, requestBytes = 0, responseBytes = 0
+  const createdAt = edges.now()
+  let firstDeadline: ContextualTestGatewayDeadline | null = null
+  function observeDeadline(kind: ContextualTestGatewayDeadline['kind'], method: string,
+    route: ContextualTestGatewayDeadline['route'], phase: ContextualTestGatewayDeadline['phase'], beganAt: number, detached = false) {
+    // Observational only: invalid diagnostic clocks cannot affect denial or cleanup.
+    try {
+      if (firstDeadline) return
+      const observedAt = edges.now()
+      if (!Number.isSafeInteger(observedAt) || !Number.isSafeInteger(beganAt)) return
+      const safeMethod = ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'].includes(method) ? method as EndpointFailure['method'] : 'other'
+      firstDeadline = Object.freeze({ kind, method: safeMethod, route, phase, observedAt,
+        elapsedMs: Math.max(0, Math.min(2_700_000, observedAt - beganAt)), detached, closing })
+    } catch { /* Diagnostics never interfere with the existing terminal action. */ }
+  }
+  const observeGlobalDeadline = () => observeDeadline('control', 'other', 'global', 'global', createdAt)
   function trackSocket(socket: Socket) {
     sockets.add(socket); socket.once('close', () => sockets.delete(socket))
     if (sockets.size > 128) { policy.latch('request-cap'); socket.destroy() }
   }
   const receipt = (): ContextualTestGatewayReceipt => {
-    if (!closed && edges.now() >= deadline) policy.latch('deadline')
-    return Object.freeze({ version: 1, ...policy.receipt(), started, closing, closed,
+    if (!closed && edges.now() >= deadline) { observeGlobalDeadline(); policy.latch('deadline') }
+    return Object.freeze({ version: 1, ...policy.receipt(), firstDeadline, started, closing, closed,
       pending: pending.size, sockets: sockets.size, jsonResponses, responses, requestBytes, responseBytes })
   }
   const check = () => {
+    if (edges.now() >= deadline) observeGlobalDeadline()
     policy.check()
     if (closing || closed) policy.reject('closed')
-    if ([...active.values()].some(task => edges.now() >= task.end)) policy.reject('deadline')
+    if ([...active.values()].some(task => { if (edges.now() >= task.end) { task.observeDeadline(); return true } return false })) policy.reject('deadline')
   }
   function handler(kind: Kind): RequestListener {
     return (incoming, outgoing) => {
       let upstream: ReturnType<typeof request> | undefined, original: IncomingMessage | undefined
       let ended = false, dispatched = false, detached = false, resolve!: () => void
       const work = new Promise<void>(done => { resolve = done })
-      const end = Math.min(deadline, edges.now() + 30000)
+      const beganAt = edges.now(), end = Math.min(deadline, beganAt + 30000)
+      let phase: ContextualTestGatewayDeadline['phase'] = 'request-body'
+      const observeOperationDeadline = () => {
+        try { observeDeadline(kind, incoming.method ?? '', deadlineLabel(incoming.url ?? ''), phase, beganAt, detached) }
+        catch { /* Label observation cannot interrupt abort/finish. */ }
+      }
       const failResponse = () => { if (!outgoing.destroyed && !outgoing.writableEnded) outgoing.destroy() }
       const abort = () => { upstream?.destroy(); original?.destroy(); incoming.destroy(); failResponse() }
-      pending.add(work); active.set(work, { end, abort })
-      const timer = setTimeout(() => { policy.latch('deadline'); abort(); finish() }, Math.max(0, end - edges.now()))
+      pending.add(work); active.set(work, { end, abort, observeDeadline: observeOperationDeadline })
+      const timer = setTimeout(() => { observeOperationDeadline(); policy.latch('deadline'); abort(); finish() }, Math.max(0, end - edges.now()))
       const finish = () => { if (ended) return; ended = true; clearTimeout(timer); pending.delete(work); active.delete(work); resolve() }
       const failed = (category: ContextualTestGatewayFailure) => { policy.latch(category); abort(); finish() }
       outgoing.on('error', () => { detached = true; if (dispatched && !['GET', 'HEAD'].includes(incoming.method ?? '')) policy.latch('mutation-cancelled') })
@@ -541,7 +578,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
           }).catch(() => policy.reject(policy.receipt().firstFailure ?? 'request-body'))
           requestBytes += bytes.length
           if (ended) return
-          if (edges.now() >= end) policy.reject('deadline')
+          if (edges.now() >= end) { observeOperationDeadline(); policy.reject('deadline') }
           if (closing) { if (!['GET', 'HEAD'].includes(method)) policy.latch('mutation-cancelled'); finish(); return }
           let body: unknown
           const developmentRead = kind === 'app' && blockedDevelopmentRead(target, method)
@@ -561,11 +598,13 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
           headers.host = hosts[kind]; headers['accept-encoding'] = 'identity'; headers['content-length'] = String(bytes.length)
           delete headers.expect
           dispatched = true
+          phase = 'upstream-headers'
           upstream = edges.request({ hostname: '127.0.0.1', port: kind === 'app' ? 3118 : 54331, method, path: target, headers, agent: false }, response => {
             original = response
             if (ended) { response.destroy(); return }
             try {
-              if (edges.now() >= end) policy.reject('deadline')
+              if (edges.now() >= end) { observeOperationDeadline(); policy.reject('deadline') }
+              phase = 'response-body'
               const mime = String(response.headers['content-type'] ?? ''), json = isJson(mime)
               const cap = contextualTestGatewayBodyLimit(kind, mime)
               const responseLength = response.headers['content-length']
@@ -587,7 +626,8 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
                 complete = true
                 if (ended) return
                 try {
-                  if (edges.now() >= end) policy.reject('deadline')
+                  phase = 'response-validation'
+                  if (edges.now() >= end) { observeOperationDeadline(); policy.reject('deadline') }
                   const originalBytes = Buffer.concat(chunks, size)
                   if (method !== 'HEAD' && ![204, 304].includes(response.statusCode ?? 0)
                     && responseLength !== undefined && Number(responseLength) !== size) policy.reject('response-body')
@@ -621,6 +661,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
     check()
     if (startAttempted) policy.reject('startup')
     startAttempted = true
+    const startupAt = edges.now()
     let servers: Array<{ kind: Kind; server: Server }> = []
     try {
       servers = (['app', 'api'] as const).map(kind => {
@@ -644,7 +685,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
           server.listen(kind === 'app' ? 3117 : 54340, '127.0.0.1', resolve)
         }))),
         new Promise<never>((_resolve, reject) => { timer = setTimeout(() => {
-          policy.latch('deadline'); reject(failure())
+          observeDeadline('control', 'other', 'startup', 'startup', startupAt); policy.latch('deadline'); reject(failure())
         }, Math.max(0, Math.min(deadline, edges.now() + 30000) - edges.now())) }),
       ])
       check(); started = true
@@ -655,7 +696,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
   function close(cleanupDeadline: number): Promise<void> {
     if (closure) return closure
     closing = true
-    if (edges.now() >= deadline) policy.latch('deadline')
+    if (edges.now() >= deadline) { observeGlobalDeadline(); policy.latch('deadline') }
     closure = (async () => {
       if (!Number.isSafeInteger(cleanupDeadline) || cleanupDeadline <= edges.now()) { policy.latch('cleanup'); throw failure() }
       const listenerClosures = [...listeners].map(server => new Promise<void>((resolve, reject) => {

@@ -66,7 +66,7 @@ function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
   const acceptedReceipt = survey?.receipt ?? lifecycle?.receipt ?? raw
   let bound: ContextualTestRunBinding | undefined, witnessReads = 0
   const gateway: ContextualTestGatewayReceipt = { version: 1, firstFailure: null, appRequests: 50, apiRequests: 100, creates: proofScope === 'survey-workflow-v1' ? 4 : lifecycle ? 2 : 1,
-    rejectedHmr: 0, rejectedDiagnostics: 0, firstEndpointFailure: null, firstOwnerRpcRejection: null, started: true, closing: true, closed: true, pending: 0, sockets: 0,
+    rejectedHmr: 0, rejectedDiagnostics: 0, firstEndpointFailure: null, firstOwnerRpcRejection: null, firstDeadline: null, started: true, closing: true, closed: true, pending: 0, sockets: 0,
     jsonResponses: 50, responses: 50, requestBytes: 100, responseBytes: 100 }
   const gateways = { async start() { events.push('gateway-start') }, check() { events.push('gateway-check') },
     async close(end: number) { events.push('gateway-close'); expect(end).toBe(31001) }, receipt: () => gateway }

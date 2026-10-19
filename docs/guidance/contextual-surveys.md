@@ -568,3 +568,21 @@ injection, raw errors or relaxed actionability is added. CPU selector and real
 component label-activation checks do not substitute for native geometry or the
 still-required workflow and visual proof. No fresh attempt is implied by this
 source correction; all execution limits and production holds remain unchanged.
+
+A subsequent corrected attempt failed before its first completed login and
+recorded only a gateway deadline. It did not reach the Survey interaction.
+The retained observations cannot identify that historical expired operation or
+prove whether it initiated the browser failure or followed it during cleanup.
+The carrier now records its first deadline's fixed route family, method, phase,
+time and detached/closing state, plus failed-only real-login phase/timing markers.
+No request URL, query, identifier, cookie, credential, body or error text is copied.
+Timers, allowlists, ordering and success acceptance stay unchanged. CPU regressions
+prove observation behavior, not a native root cause or product fix.
+
+The older browser `login-body` diagnostic is synthetic and has no real Pika
+app/database. The real vertical spec currently dispatches only complete workflows;
+it has no admitted login-only selector. Do not substitute the synthetic result,
+force a failure as a stop condition, forge workflow results, or bypass the native
+launch guards to claim real-login verification. A concrete reviewed login-only
+execution selection is a prerequisite to that narrower native diagnostic; this
+observation-only correction does not add or admit one. Production holds remain.
