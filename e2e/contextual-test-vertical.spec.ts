@@ -8,6 +8,14 @@ test('one real mixed-role Test: create publish submit inspect and deny', async (
   try {
     startup.stage('spec-entry'); test.setTimeout(Math.max(1, binding!.deadline - Date.now()))
     const { createContextualTestVerticalRuntime } = require('./helpers/contextual-test-vertical-runtime') as typeof import('./helpers/contextual-test-vertical-runtime')
+    if (binding!.diagnostic === 'login-only') {
+      const owned = await createContextualTestVerticalRuntime(browser)
+      let failure: unknown
+      try { startup.stage('workflow'); await owned.runtime.withActor('ownerTeacher', async () => {}) }
+      catch (error) { failure = error; startup.failure(error) }
+      finally { startup.stage('teardown'); await owned.closeLoginDiagnostic(failure) }
+      return
+    }
     const { runContextualTestVerticalWorkflow } = require('./helpers/contextual-test-vertical-workflow') as typeof import('./helpers/contextual-test-vertical-workflow')
     const { runContextualTestGradeReturnWorkflow } = require('./helpers/contextual-test-grade-return-workflow') as typeof import('./helpers/contextual-test-grade-return-workflow')
     const { runContextualTestLifecycleWorkflow } = require('./helpers/contextual-test-lifecycle-workflow') as typeof import('./helpers/contextual-test-lifecycle-workflow')

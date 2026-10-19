@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Reviewed redirect fix passes narrow test; full app isolates navigation rejection
-
-Runner a755e771: reviews113/114 CLEAN0,201targeted and3598canonical PASS/8skip.
-ONE six-case native redirect run8I31Hj PASS: five forbidden hops blocked before
-arrival, one original signed-read body, contexts/servers/sockets closed. Independent
-24source/49485dependency preservation PASS. No full-app acceptance inferred.
-
-Human then authorized ONE full-app attempt; wrapper-only review115 CLEAN0.
-Fresh6YnJaL/projectc2ba1f0f914d at same runner/frozen21e755d3, migrations001–262,
-45min work/6min cleanup and all original caps. Attempt FAILED/SPENT after261.421s:
-teacher login/body/session/identity completed; browser firstFailure endpoint,
-reason navigation-pending with1transport/0bodies,31app/0storage requests,0captures.
-This identifies the rejection branch, not the pending request identity or its
-timing. No body-read failure or native identity mismatch observed this attempt.
-All cleanup gates PASS, ownedSettledtrue; isolated containers/volumes/network/temp
-app absent. Immediate independent preservation PASS:7654source files and49485
-dependencies unchanged, currentprocesscandidates0. No shared DB equality claim.
-Evidence retained privately; no retry, fix, merge or deployment. Next: isolate
-navigation/transport coordination before another full run; no weakened guards.
-Original review115/fix69 clocks and task waiver carry. Production/shared-local/
-provider/account/migration/cutover holds unchanged. No goal/phase exit claimed.
-
 ## 2026-10-16 — Pending-request investigation reaches a verification-policy decision
 
 Read-only Astra/high SDK investigation and coordinator source checks confirm the
@@ -527,3 +505,9 @@ Read-only diagnosis found a concrete pointer incompatibility: installed Playwrig
 Correction143 passed review220/full4586 checks and stayed draft. The next authorized isolated Survey attempt failed before completing its first login (zero creates/screens); gateway recorded only deadline, not the request or phase. Immediate source/dependency preservation and owned cleanup passed; failed/spent evidence remains. Production unchanged.
 
 Correction144 adds first immutable gateway deadline labels for request/header/body/validation/startup/global timing, detached/closing state and safe times; failed browser receipts retain the real login phase and first caught-failure time without error text, user identifiers or credentials. Existing timers, request/byte limits, allowlists, body/navigation order and successful proof receipt schema are unchanged. Actual gateway fake-clock and actual vertical-runtime CPU doubles reproduce missing observations before correction. These are not native diagnosis or an app fix. Independent source review and full checks follow. Existing synthetic login-body cannot verify real Pika login; no admitted login-only selector exists in the current real-app runner. No new mode, fabricated Survey success, native launch, cap extension, shared schema or production/rollout operation is implied.
+
+## 2026-10-18 — Separate a real login diagnostic from Survey acceptance
+
+Correction144 review222 is clean and full serial gate passes4611 tests/8skip plus all static checks at4c71fd65. The first parallel run remains failed with three unchanged CPU watchdog timeouts under high host load; the existing single-worker option changes no assertions or native limits. This does not establish the browser failure cause.
+
+Correction145 prepares a sealed login-only selection inside the existing Survey runner, not a new proof scope or product flag. Admission digest, binding and native launches agree on the selection; the real spec runs one existing owner login/session check and emits only a separate strict diagnostic receipt. The app gateway additionally denies every mutation except the exact login POST. A diagnostic-passed controller result leaves full Playwright/Survey database validation false and retains normal startup, clocks, cleanup and preservation. TDD and focused CPU verification precede independent fixed-SHA review and full checks; no new native attempt has been admitted. Historical attempts remain failed/spent; production/shared-local/provider/account/billing/quota/cohort/home/page/cutover holds remain. Routine-stop waiver and cumulative222 reviews/144 completed corrections carry forward;145 in progress.

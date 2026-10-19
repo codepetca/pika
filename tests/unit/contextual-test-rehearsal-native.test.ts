@@ -551,6 +551,13 @@ describe('fresh execution seal (CPU only, no admission)', () => {
     expect(first).not.toBe(createHash('sha256').update(JSON.stringify({ ...projection, appOverlaySha256: undefined })).digest('hex'))
     expect(contextualTestExecutionDigest(admission, pins, seal)).toBe(first)
     expect(contextualTestExecutionDigest({ ...admission, proofScope: 'vertical-v1' }, pins, seal)).not.toBe(first)
+    const survey = { ...admission, proofScope: 'survey-workflow-v1' as const }
+    expect(contextualTestExecutionDigest({ ...survey, diagnostic: 'login-only' }, pins, seal)).not.toBe(contextualTestExecutionDigest(survey, pins, seal))
+    for (const diagnostic of [undefined, null, 'unknown', true]) {
+      expect(() => contextualTestExecutionDigest({ ...survey, diagnostic } as never, pins, seal)).toThrow()
+      expect(() => createContextualTestExecutionControls({ ...survey, diagnostic } as never, pins, seal)).toThrow()
+    }
+    expect(() => contextualTestExecutionDigest({ ...admission, diagnostic: 'login-only' }, pins, seal)).toThrow()
     for (const changed of [{ ...admission, deadline: admission.deadline + 1 }, { ...admission, runner: { ...admission.runner, sha256: '1'.repeat(64) } },
       { ...admission, dependencies: { ...admission.dependencies, sha256: '2'.repeat(64) } }]) expect(contextualTestExecutionDigest(changed, pins, seal)).not.toBe(first)
     expect(contextualTestExecutionDigest(admission, { ...pins, dockerHost: 'unix:///cpu/other.sock' }, seal)).not.toBe(first)
@@ -658,12 +665,12 @@ describe('fresh execution seal (CPU only, no admission)', () => {
       await expect(command.run('git', ['status'])).rejects.toThrow()
     } finally { for (const spy of spies.reverse()) spy.mockRestore() }
   })
-  it.each(['stable', 'source', 'dependencies', 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1', 'survey-workflow-v1'] as const)('checks actual native admission, launch controls and unchanged state; %s', async change => {
+  it.each(['stable', 'source', 'dependencies', 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1', 'survey-workflow-v1', 'login-only'] as const)('checks actual native admission, launch controls and unchanged state; %s', async change => {
     vi.useFakeTimers()
     const { admission, seal } = sealFixture(), node = realpathSync(process.execPath), imageId = 'sha256:' + 'a'.repeat(64)
     const actualPins = { ...pins, node: pin(node), chrome: { path: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', sha256: '63ee57066ef61169445ded279701d974ad23c805a60b8f77a4b8776183ac58fb' } }
-    const proofScope = change === 'stable' || change === 'source' || change === 'dependencies' ? undefined : change
-    const base = { ...admission, ...(proofScope ? { proofScope } : {}), outputDir: '/private/cpu-output', appDir: process.cwd(), runner: { ...admission.runner, repository: process.cwd() },
+    const proofScope = change === 'stable' || change === 'source' || change === 'dependencies' ? undefined : change === 'login-only' ? 'survey-workflow-v1' : change
+    const base = { ...admission, ...(proofScope ? { proofScope } : {}), ...(change === 'login-only' ? { diagnostic: 'login-only' as const } : {}), outputDir: '/private/cpu-output', appDir: process.cwd(), runner: { ...admission.runner, repository: process.cwd() },
       dependencies: { ...admission.dependencies, root: resolve('node_modules') } }
     actualPins.outputDir = base.outputDir
     base.transportPins = { ...base.transportPins, outputDir: base.outputDir }
@@ -723,12 +730,14 @@ describe('fresh execution seal (CPU only, no admission)', () => {
           expect(native.spawn.mock.calls.some(([file, args]) => file === pins.sandbox.path && JSON.stringify(args) === JSON.stringify([
             '-p', profile, node, '-e', contextualTestVerticalNetworkProbe(role, '/cpu/docker.sock'),
           ]))).toBe(true)
-          const valid = { binding: { projectId: input.projectId, outputDir: input.outputDir, proofScope }, cwd: process.cwd(),
+          const valid = { binding: { projectId: input.projectId, outputDir: input.outputDir, proofScope, ...(change === 'login-only' ? { diagnostic: 'login-only' } : {}) }, cwd: process.cwd(),
             listenerPort: 3118, args: role === 'app' ? commands.app : commands.runner, dependencySandboxProfile: profile,
             env: { TMPDIR: join(input.workdir, 'tmp'), MAC_CHROMIUM_TMPDIR: join(input.workdir, 'tmp') } }
           const execute = role === 'app' ? controls.launchApp : controls.launchPlaywright
           const invalid = [ { ...valid, dependencySandboxProfile: '(allow default)' }, { ...valid, args: ['/cpu/spec.js'] },
             { ...valid, env: { ...valid.env, NODE_OPTIONS: '--require=/foreign.js' } },
+            ...[undefined, null, 'unknown', ...(change === 'login-only' ? [] : ['login-only'])].map(diagnostic => ({ ...valid, binding: { ...valid.binding, diagnostic } })),
+            ...(change === 'login-only' ? [{ ...valid, binding: { projectId: input.projectId, outputDir: input.outputDir, proofScope } }] : []),
             ...[undefined, 'unknown', proofScope === 'vertical-v1' ? 'survey-workflow-v1' : 'vertical-v1'].map(scope => ({ ...valid, binding: { ...valid.binding, proofScope: scope } })),
             ...(role === 'app' ? [{ ...valid, listenerPort: 3117 }] : [
               { ...valid, binding: { ...valid.binding, sqlControl: {} } },

@@ -105,7 +105,48 @@ function fixture(proofScope: ContextualTestProofScope = 'vertical-v1') {
     raw: acceptedReceipt, admission, control, edges, bound: () => bound! }
 }
 
+function loginFixture() {
+    const f = fixture('survey-workflow-v1')
+    Object.assign(f.admission, { diagnostic: 'login-only' }); f.gateway.creates = 0
+    Object.assign(f.edges, { readLoginDiagnosticReceipt: () => ({ version: 1, kind: 'pika-login-only-v1', diagnostic: 'login-only',
+      proofScope: 'survey-workflow-v1', projectId, nonce: f.admission.nonce, sourceSha: f.admission.frozen.head,
+      sourceTree: f.admission.frozen.tree, appOverlaySha256: f.raw.appOverlaySha256, deadline: f.admission.deadline,
+      endedAt: 2000, outcome: 'diagnostic-passed', actors: ['ownerTeacher'], contextsClosed: true, pageErrors: 0,
+      loginDiagnostic: { phase: 'verified', actorIndex: 0, verified: true, observedAt: 1900, failureObservedAt: null } }) })
+    f.edges.readPlaywrightReceipt = () => { throw Error('Full proof read forbidden') }
+    return f
+}
 describe('vertical controller integration (CPU seams only, no native proof)', () => {
+  it('login-only cannot count as Survey/full proof and retains bootstrap, gateway and lifecycle cleanup', async () => {
+    const f = loginFixture()
+    const gatewayFactory = vi.spyOn(f.edges, 'createGateways')
+    const receipt = await f.run()
+    expect(gatewayFactory.mock.calls[0][0]).toMatchObject({ diagnostic: 'login-only', proofScope: 'survey-workflow-v1' })
+    expect(receipt).toMatchObject({ outcome: 'diagnostic-passed', diagnosticValidated: true, playwrightValidated: false,
+      databaseValidated: false, ownedSettled: true, lifecycleCompleted: true })
+    expect(f.bound()).toHaveProperty('diagnostic', 'login-only')
+    expect(f.events.filter(e => e.startsWith('sql-'))).toEqual(['sql-bootstrap'])
+    expect(f.events).toContain('disposal'); expect(f.events).not.toContain('artifacts')
+  })
+  it.each(['creates', 'failure', 'closure', 'preservation'] as const)('diagnostic refuses %s failure despite valid login evidence', async issue => {
+    const f = loginFixture()
+    if (issue === 'creates') f.gateway.creates = 1
+    if (issue === 'failure') f.gateway.firstFailure = 'endpoint'
+    if (issue === 'closure') f.gateways.close = async () => { throw Error('private') }
+    if (issue === 'preservation') f.control.assertUnchanged = async () => { throw Error('private') }
+    await expect(f.run()).rejects.toThrow()
+    expect(f.receipts[0]).toMatchObject({ outcome: 'failed', playwrightValidated: false, databaseValidated: false })
+    expect(f.events).toContain('settle')
+  })
+  it.each([undefined, null, 'unknown', true])('rejects present malformed diagnostic %s before I/O', async diagnostic => {
+    const f = fixture('survey-workflow-v1'); Object.assign(f.admission, { diagnostic })
+    const ready = vi.spyOn(f.control, 'assertReady')
+    await expect(f.run()).rejects.toThrow(); expect(ready).not.toHaveBeenCalled(); expect(f.events).toEqual([])
+  })
+  it('rejects diagnostic attached to another proof scope before I/O', async () => {
+    const f = fixture(); Object.assign(f.admission, { diagnostic: 'login-only' })
+    await expect(f.run()).rejects.toThrow(); expect(f.events).toEqual([])
+  })
   it('dispatches Survey validation, root-only witnesses and gateway-first closure through the existing controller', async () => {
     const receiptCheck = vi.spyOn(surveyProof, 'validateContextualSurveyReceipt')
     const databaseCheck = vi.spyOn(surveyProof, 'assertContextualSurveyDatabase')

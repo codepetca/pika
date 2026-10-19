@@ -488,7 +488,9 @@ function headersWithoutHop(headers: IncomingMessage['headers']): Record<string, 
 }
 function parseJson(bytes: Buffer): unknown { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) }
 
-export function createContextualTestGateways(input: { plan: RehearsalPlan; deadline: number; proofScope?: ContextualTestProofScope }, edges: ContextualTestGatewayEdges = defaultEdges) {
+export function createContextualTestGateways(input: { plan: RehearsalPlan; deadline: number; proofScope?: ContextualTestProofScope; diagnostic?: 'login-only' }, edges: ContextualTestGatewayEdges = defaultEdges) {
+  const loginOnly = 'diagnostic' in input
+  if (loginOnly && (input.diagnostic !== 'login-only' || input.proofScope !== 'survey-workflow-v1')) throw failure()
   const deadline = input.deadline
   const policy = new ContextualTestGatewayPolicy(input.plan, deadline, edges.now, input.proofScope)
   const sockets = new Set<Socket>(), pending = new Set<Promise<void>>()
@@ -554,6 +556,10 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
           try { contextualTestGatewayTarget(kind, target, incoming.headers.host) } catch { policy.reject('target') }
           if (incoming.headers.origin !== undefined && incoming.headers.origin !== origins.app) policy.reject('target')
           policy.reserve(kind, target, incoming.headers.host, method, incoming.headers.cookie)
+          // This selection only narrows the existing app policy. Backend REST
+          // capabilities and all normal login/body/session validation remain.
+          if (loginOnly && kind === 'app' && !['GET', 'HEAD'].includes(method)
+            && !(method === 'POST' && target === '/api/auth/login')) policy.reject('endpoint')
           if (pending.size > 64) policy.reject('request-cap')
           const seen = new Set<string>()
           for (let i = 0; i < incoming.rawHeaders.length; i += 2) {

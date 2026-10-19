@@ -48649,3 +48649,26 @@ Added separately admitted six-case loopback native regression (14HTTP max,5denie
 hops,1original body); not dispatched before independent review. Full-app/provider/
 shared-local/account/migration/production/rollout holds remain. Original review112/
 fix68 counters and task waiver carry. Risk runtime-platform; final gate/review next.
+
+<!-- pika-session-log-archive-batch:37bc2f446fd3461981e28d1b84cfc590c53b93150e2c432a6c58085f8655c084 -->
+## 2026-10-16 — Reviewed redirect fix passes narrow test; full app isolates navigation rejection
+
+Runner a755e771: reviews113/114 CLEAN0,201targeted and3598canonical PASS/8skip.
+ONE six-case native redirect run8I31Hj PASS: five forbidden hops blocked before
+arrival, one original signed-read body, contexts/servers/sockets closed. Independent
+24source/49485dependency preservation PASS. No full-app acceptance inferred.
+
+Human then authorized ONE full-app attempt; wrapper-only review115 CLEAN0.
+Fresh6YnJaL/projectc2ba1f0f914d at same runner/frozen21e755d3, migrations001–262,
+45min work/6min cleanup and all original caps. Attempt FAILED/SPENT after261.421s:
+teacher login/body/session/identity completed; browser firstFailure endpoint,
+reason navigation-pending with1transport/0bodies,31app/0storage requests,0captures.
+This identifies the rejection branch, not the pending request identity or its
+timing. No body-read failure or native identity mismatch observed this attempt.
+All cleanup gates PASS, ownedSettledtrue; isolated containers/volumes/network/temp
+app absent. Immediate independent preservation PASS:7654source files and49485
+dependencies unchanged, currentprocesscandidates0. No shared DB equality claim.
+Evidence retained privately; no retry, fix, merge or deployment. Next: isolate
+navigation/transport coordination before another full run; no weakened guards.
+Original review115/fix69 clocks and task waiver carry. Production/shared-local/
+provider/account/migration/cutover holds unchanged. No goal/phase exit claimed.

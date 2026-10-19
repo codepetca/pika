@@ -10,7 +10,7 @@ import { ContextualTestGatewayPolicy, createContextualTestGateways, contextualTe
 const plan = createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f')
 const testId = '50000000-0000-4000-8000-000000000044'
 function deferred<T>() { let resolve!: (v: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
-function harness(now = () => 1000, proofScope?: ContextualTestProofScope) {
+function harness(now = () => 1000, proofScope?: ContextualTestProofScope, selection: { diagnostic?: 'login-only' } = {}) {
   const servers: Array<EventEmitter & { handler: http.RequestListener; listen: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> }> = []
   const upstreams: Array<{ options: http.RequestOptions; callback: (response: http.IncomingMessage) => void; request: Writable; bytes: Buffer[] }> = []
   const edges: ContextualTestGatewayEdges = {
@@ -28,7 +28,7 @@ function harness(now = () => 1000, proofScope?: ContextualTestProofScope) {
       upstreams.push({ options, callback, request, bytes }); return request as http.ClientRequest
     },
   }
-  const input = { plan: proofScope ? createContextualTestPlan(plan.projectId,proofScope) : plan, deadline: 2_701_000, proofScope }
+  const input = { plan: proofScope ? createContextualTestPlan(plan.projectId,proofScope) : plan, deadline: 2_701_000, proofScope, ...selection }
   const gateways = createContextualTestGateways(input, edges)
   function incoming(kind: 'app' | 'api', path: string, method = 'GET', body = '', extra: http.IncomingHttpHeaders = {}, endBody = true) {
     const request = Object.assign(new PassThrough(), { method, url: path, headers: { host: kind === 'app' ? 'localhost:3117' : '127.0.0.1:54340', ...extra }, rawHeaders: [] })
@@ -47,6 +47,114 @@ function harness(now = () => 1000, proofScope?: ContextualTestProofScope) {
   return { gateways, input, servers, upstreams, incoming, respond }
 }
 const flush = async () => { await new Promise<void>(resolve => setImmediate(resolve)) }
+
+describe('gateway login-only diagnostic selection', () => {
+  const scope = 'survey-workflow-v1' as const
+  const selected = () => harness(undefined, scope, { diagnostic: 'login-only' })
+  async function login(h: ReturnType<typeof harness>) {
+    const actor = h.input.plan.actors.ownerTeacher
+    const call = h.incoming('app', '/api/auth/login', 'POST', JSON.stringify({ email: actor.email, password: 'synthetic-password' }), { 'content-type': 'application/json' })
+    await flush()
+    h.respond(h.upstreams.length - 1, JSON.stringify({ user: actor }), { 'content-type': 'application/json', 'set-cookie': ['pika_session=private-session; Path=/; HttpOnly'] })
+    await call.done
+    expect(call.response.status).toBe(200)
+    return 'pika_session=private-session'
+  }
+  it.each([undefined, null, '', 'other', true, {}, []])('rejects explicitly present invalid selection %j before any edge access', diagnostic => {
+    const now = vi.fn(() => 1000), createServer = vi.fn(), request = vi.fn()
+    expect(() => createContextualTestGateways({ plan: createContextualTestPlan(plan.projectId, scope), deadline: 2_701_000,
+      proofScope: scope, diagnostic } as never, { now, createServer, request })).toThrow('Private contextual Test gateway')
+    expect(now).not.toHaveBeenCalled(); expect(createServer).not.toHaveBeenCalled(); expect(request).not.toHaveBeenCalled()
+  })
+  it.each([undefined, 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const)('rejects selection in mismatched scope %s before edge access', proofScope => {
+    const now = vi.fn(() => 1000), createServer = vi.fn(), request = vi.fn()
+    expect(() => createContextualTestGateways({ plan: createContextualTestPlan(plan.projectId, proofScope), deadline: 2_701_000,
+      proofScope, diagnostic: 'login-only' } as never, { now, createServer, request })).toThrow()
+    expect(now).not.toHaveBeenCalled(); expect(createServer).not.toHaveBeenCalled(); expect(request).not.toHaveBeenCalled()
+  })
+  it('keeps the existing plan-to-scope binding before any edge access', () => {
+    const now = vi.fn(() => 1000), createServer = vi.fn(), request = vi.fn()
+    expect(() => createContextualTestGateways({ plan, deadline: 2_701_000, proofScope: scope, diagnostic: 'login-only' },
+      { now, createServer, request })).toThrow()
+    expect(now).not.toHaveBeenCalled(); expect(createServer).not.toHaveBeenCalled(); expect(request).not.toHaveBeenCalled()
+  })
+  it('keeps initial auth-me and the exact real login request available without a fabricated acknowledgement', async () => {
+    const h = selected(); await h.gateways.start()
+    const initial = h.incoming('app', '/api/auth/me'); await flush(); h.respond(0, '{}', { 'content-type': 'application/json' }, 401); await initial.done
+    expect(initial.response.status).toBe(401)
+    await login(h)
+    expect(h.upstreams).toHaveLength(2)
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: null, creates: 0, responses: 2, pending: 0 })
+    await h.gateways.close(2000)
+  })
+  it.each(['malformed-json', 'missing-password', 'foreign-actor', 'oversize', 'query', 'method', 'foreign-origin'] as const)('retains selected login %s denial', async defect => {
+    const h = selected(); await h.gateways.start()
+    const body = defect === 'malformed-json' ? '{' : defect === 'oversize' ? 'x'.repeat(1048577)
+      : JSON.stringify({ email: defect === 'foreign-actor' ? 'private@example.invalid' : h.input.plan.actors.ownerTeacher.email,
+        ...(defect === 'missing-password' ? {} : { password: 'synthetic-password' }) })
+    const call = h.incoming('app', '/api/auth/login' + (defect === 'query' ? '?extra=1' : ''), defect === 'method' ? 'PATCH' : 'POST', body,
+      { 'content-type': 'application/json', ...(defect === 'foreign-origin' ? { origin: 'http://foreign.invalid' } : {}) })
+    await call.done; expect(h.upstreams).toHaveLength(0)
+    expect(h.gateways.receipt().firstFailure).not.toBeNull(); await h.gateways.close(2000)
+  })
+  it.each(['survey-create', 'classroom-archive', 'roster-remove', 'classwork-reorder', 'other-auth', 'development-post'] as const)('denies selected %s mutation before upstream dispatch', async mutation => {
+    const h = selected(); await h.gateways.start(); const cookie = await login(h)
+    const c = h.input.plan.classrooms
+    const paths = { 'survey-create': ['/api/teacher/surveys', 'POST', { classroom_id: c.classA.id }],
+      'classroom-archive': [`/api/teacher/classrooms/${c.classB.id}`, 'PATCH', { archived: true }],
+      'roster-remove': [`/api/teacher/classrooms/${c.classA.id}/roster/remove`, 'POST', { roster_ids: [] }],
+      'classwork-reorder': [`/api/teacher/classrooms/${c.classA.id}/classwork/reorder`, 'POST', { items: [] }],
+      'other-auth': ['/api/auth/logout', 'POST', {}], 'development-post': ['/__nextjs_original-stack-frames', 'POST', {}] } as const
+    const [path, method, body] = paths[mutation]
+    const call = h.incoming('app', path, method, JSON.stringify(body), { 'content-type': 'application/json', cookie }); await call.done
+    expect(h.upstreams).toHaveLength(1)
+    expect(call.response.status).toBe(0)
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'endpoint', creates: 0, pending: 0 })
+    await h.gateways.close(2000)
+  })
+  it.each(['/api/auth/me', '/api/classrooms/home', '/classrooms', '/login', '/_next/static/chunks/private.js'] as const)('keeps selected GET/HEAD %s within the old policy', async path => {
+    const h = selected(); await h.gateways.start(); const cookie = await login(h)
+    for (const method of ['GET', 'HEAD']) {
+      const call = h.incoming('app', path, method, '', { cookie }); await flush(); h.respond(h.upstreams.length - 1, method === 'HEAD' ? '' : '{}'); await call.done
+      expect(call.response.status).toBe(200); expect(h.gateways.receipt().firstFailure).toBeNull()
+    }
+    await h.gateways.close(2000)
+  })
+  it('retains the prior session guard on home and denies new read capabilities', async () => {
+    const h = selected(); await h.gateways.start(); await h.incoming('app', '/api/classrooms/home').done
+    expect(h.upstreams).toHaveLength(0); expect(h.gateways.receipt().firstFailure).toBe('protocol'); await h.gateways.close(2000)
+    const other = selected(); await other.gateways.start(); await other.incoming('app', '/api/auth/unknown').done
+    expect(other.upstreams).toHaveLength(0); expect(other.gateways.receipt().firstFailure).toBe('endpoint'); await other.gateways.close(2000)
+  })
+  it.each(['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'])('keeps fixed API REST %s capability unchanged', async method => {
+    const h = selected(); await h.gateways.start()
+    const call = h.incoming('api', '/rest/v1/rpc/private_auth_operation', method, ['GET', 'HEAD'].includes(method) ? '' : '{}', { 'content-type': 'application/json' })
+    await flush(); h.respond(0, method === 'HEAD' ? '' : '{}'); await call.done
+    expect(call.response.status).toBe(200); expect(h.gateways.receipt().firstFailure).toBeNull(); await h.gateways.close(2000)
+  })
+  it.each([undefined, 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const)('keeps absent-selection %s app creation available', async proofScope => {
+    const h = harness(undefined, proofScope); await h.gateways.start()
+    const call = h.incoming('app', '/api/teacher/tests', 'POST', JSON.stringify({ classroom_id: h.input.plan.classrooms.classA.id }), { 'content-type': 'application/json' })
+    await flush(); expect(h.upstreams).toHaveLength(1); h.respond(0, '{}'); await call.done
+    expect(h.gateways.receipt().creates).toBe(1); await h.gateways.close(2000)
+  })
+  it('keeps absent-selection Survey creation available with the existing login binding', async () => {
+    const h = harness(undefined, scope); await h.gateways.start(); const cookie = await login(h)
+    const call = h.incoming('app', '/api/teacher/surveys', 'POST', JSON.stringify({ classroom_id: h.input.plan.classrooms.classA.id }),
+      { 'content-type': 'application/json', cookie })
+    await flush(); expect(h.upstreams).toHaveLength(2)
+    h.respond(1, '{}'); await call.done
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: null, creates: 1 }); await h.gateways.close(2000)
+  })
+  it('cannot disable selected narrowing by changing caller metadata after construction', async () => {
+    const h = selected(); await h.gateways.start(); const cookie = await login(h)
+    delete h.input.diagnostic
+    const call = h.incoming('app', '/api/teacher/surveys', 'POST', JSON.stringify({ classroom_id: h.input.plan.classrooms.classA.id }),
+      { 'content-type': 'application/json', cookie })
+    await call.done; expect(h.upstreams).toHaveLength(1)
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'endpoint', creates: 0 }); await h.gateways.close(2000)
+  })
+})
 
 describe('Survey successor browser capability', () => {
   const scope = 'survey-workflow-v1' as const

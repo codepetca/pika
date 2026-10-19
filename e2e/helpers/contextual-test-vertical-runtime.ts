@@ -12,6 +12,7 @@ import type { runContextualTestGradeReturnWorkflow } from './contextual-test-gra
 import { lifecycleActors, lifecycleLabels, lifecycleScreens, lifecycleFailureStage, type LifecycleResult } from './contextual-test-lifecycle-contract'
 import type { LifecycleRuntime } from './contextual-test-lifecycle-workflow'
 import { surveyActors, surveyLabels, surveyScreens, surveyFailureStage, type SurveyRuntime, type SurveyWorkflowResult } from './contextual-survey-contract'
+import { assertContextualTestLoginSelection, validateContextualTestLoginDiagnosticReceipt } from '../../scripts/contextual-test-login-diagnostic-proof'
 
 // Public DOM hydration check, without importing the former interception runtime.
 export function verticalLoginReady(): boolean {
@@ -31,17 +32,19 @@ export function verticalScreenshotOptions(lifecycle: boolean, timeout: number) {
 
 export async function createContextualTestVerticalRuntime(browser: Browser) {
   const binding = contextualTestStartupBinding()
+  assertContextualTestLoginSelection(binding)
+  const loginOnly = binding.diagnostic === 'login-only'
   assert(isContextualTestNarrowScope(binding.proofScope)); assert(!binding.sqlControl)
   const successor = binding.proofScope === 'vertical-grade-return-v1'
   const lifecycle = binding.proofScope === 'lifecycle-permissions-v1'
   const survey = binding.proofScope === 'survey-workflow-v1'
   const plan = createContextualTestPlan(binding.projectId, binding.proofScope)
-  const expectedActors = survey ? surveyActors : lifecycle ? lifecycleActors : successor ? gradeReturnActors : ['ownerStudent','memberTeacher','nonmember','ownerStudent'] as const
+  const expectedActors = loginOnly ? ['ownerTeacher'] as const : survey ? surveyActors : lifecycle ? lifecycleActors : successor ? gradeReturnActors : ['ownerStudent','memberTeacher','nonmember','ownerStudent'] as const
   const expectedLabels = survey ? surveyLabels : lifecycle ? lifecycleLabels : successor ? gradeReturnLabels : ['vertical-owner-author','vertical-member-submitted','vertical-owner-results'] as const
   const contexts = new Set<BrowserContext>(), artifacts: Array<{ label: string; kind: 'png'; bytes: number; sha256: string; actor?: string; viewport?: string; theme?: string }> = []
   const actors: string[] = []
   const contextActors = new WeakMap<BrowserContext,string>()
-  let pageErrors = 0, closed = false, step = 'startup'
+  let pageErrors = 0, closed = false, step = 'startup', loginAttempts = 0, diagnosticViolation = false
   type LoginPhase = 'context' | 'page' | 'login-document' | 'hydration-preset' | 'hydration-ready' | 'email' | 'password'
     | 'login-click' | 'login-ack' | 'redirect' | 'identity-request' | 'identity-check' | 'verified'
   let loginDiagnostic: Readonly<{ phase: LoginPhase; observedAt: number; actorIndex: number; verified: boolean; failureObservedAt: number | null }> | null = null
@@ -75,6 +78,10 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
       await page.goto(url, { waitUntil: 'load', timeout: timeout() }); check()
     },
     async withActor(actorLabel, callback) {
+      if (loginOnly) {
+        if (actorLabel !== 'ownerTeacher' || loginAttempts !== 0) diagnosticViolation = true
+        assert(!diagnosticViolation); loginAttempts++
+      }
       step = 'login'; check(); assert(survey || lifecycle || ['ownerStudent','memberTeacher','nonmember'].includes(actorLabel))
       assert(successor || lifecycle || survey ? actorLabel === expectedActors[actors.length] : actors.length < 5)
       const actor = plan.actors[actorLabel === 'ownerTeacherPeer' ? 'ownerTeacher' : actorLabel]
@@ -113,7 +120,10 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
         contextActors.set(context,actorLabel==='ownerTeacherPeer'?'ownerTeacher':actorLabel)
         actors.push(actorLabel); step = 'workflow'; await callback(page); check()
       } catch (error) { markFailure(); throw error }
-      finally { await context.close(); contexts.delete(context) }
+      finally {
+        try { await context.close(); contexts.delete(context) }
+        catch (error) { if (loginOnly) markFailure(); throw error }
+      }
     },
     async snapshot(label, page) {
       step = 'screenshot'; owned(page)
@@ -133,7 +143,23 @@ export async function createContextualTestVerticalRuntime(browser: Browser) {
         ...(scene?{actor:scene.actor,viewport:scene.viewport,theme:scene.theme}:{}) })
     },
   }
-  return { runtime: runtime as VerticalTestRuntime & LifecycleRuntime & SurveyRuntime, async close(result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow>> | LifecycleResult | SurveyWorkflowResult | null, error?: unknown) {
+  return { runtime: runtime as VerticalTestRuntime & LifecycleRuntime & SurveyRuntime,
+  async closeLoginDiagnostic(error?: unknown) {
+    assert(loginOnly && !closed)
+    const settled = await Promise.allSettled([...contexts].map(async context => { await context.close(); contexts.delete(context) }))
+    const contextsClosed = contexts.size === 0 && settled.every(r => r.status === 'fulfilled')
+    const endedAt = Date.now()
+    const passed = !error && !diagnosticViolation && contextsClosed && pageErrors === 0 && endedAt < binding.deadline
+      && actors.length === 1 && actors[0] === 'ownerTeacher' && loginDiagnostic?.verified && loginDiagnostic.failureObservedAt === null
+    closed = true
+    const receipt = { version: 1, kind: 'pika-login-only-v1', diagnostic: binding.diagnostic, proofScope: binding.proofScope,
+      projectId: binding.projectId, nonce: binding.nonce, sourceSha: binding.sourceSha, sourceTree: binding.sourceTree,
+      appOverlaySha256: binding.appOverlaySha256, deadline: binding.deadline, endedAt,
+      outcome: passed ? 'diagnostic-passed' : 'failed', contextsClosed, pageErrors, actors, loginDiagnostic }
+    writeFileSync(join(binding.outputDir, 'login-only-receipt.json'), JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
+    validateContextualTestLoginDiagnosticReceipt(receipt, binding)
+  }, async close(result: Awaited<ReturnType<typeof runContextualTestVerticalWorkflow | typeof runContextualTestGradeReturnWorkflow>> | LifecycleResult | SurveyWorkflowResult | null, error?: unknown) {
+    assert(!loginOnly)
     const settled = await Promise.allSettled([...contexts].map(async context => { await context.close(); contexts.delete(context) }))
     const contextsClosed = contexts.size === 0 && settled.every(r => r.status === 'fulfilled')
     const outcome = result && !error && contextsClosed && pageErrors === 0 && Date.now() < binding.deadline ? 'passed' : 'failed'

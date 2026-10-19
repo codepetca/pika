@@ -21,6 +21,26 @@ const binding = () => ({ version: 1, projectId, ...Object.fromEntries(['sourceSh
   docker: { path: '/usr/local/bin/docker', sha256: 'b'.repeat(64), host: 'unix:///private/tmp/docker.sock', socketIdentity: [1,2,3,4], containerId: 'c'.repeat(64) } })
 
 describe('Tests rehearsal binding and fixed SQL', () => {
+  it('seals login-only into a strict immutable Survey binding and rejects stripped or malformed selection', () => {
+    const proofScope = 'survey-workflow-v1' as const, survey = createContextualTestPlan(projectId, proofScope)
+    const candidate = { ...binding(), proofScope, diagnostic: 'login-only', sourceSha: survey.sourceSha, sourceTree: survey.sourceTree,
+      migrationChainSha256: survey.migrationChainSha256, planSha256: sha(JSON.stringify(survey)) }
+    const selected = validateContextualTestRunBinding(candidate, now)
+    expect(Object.isFrozen(selected)).toBe(true); expect(selected.diagnostic).toBe('login-only')
+    for (const diagnostic of [undefined, null, true, 'other']) expect(() => validateContextualTestRunBinding({ ...candidate, diagnostic }, now)).toThrow()
+    for (const proofScope of [undefined, 'vertical-v1', 'lifecycle-permissions-v1', 'vertical-grade-return-v1'])
+      expect(() => validateContextualTestRunBinding({ ...candidate, proofScope }, now)).toThrow()
+    const outputDir = realpathSync(mkdtempSync(join(tmpdir(), 'pika-binding-login-cpu-')))
+    try {
+      chmodSync(outputDir, 0o700)
+      const file = join(outputDir, 'run-binding.json'), content = JSON.stringify({ ...candidate, outputDir })
+      writeFileSync(file, content, { mode: 0o600 })
+      expect(readContextualTestBinding(file, sha(content)).diagnostic).toBe('login-only')
+      const stripped = JSON.parse(content); delete stripped.diagnostic
+      writeFileSync(file, JSON.stringify(stripped), { mode: 0o600 })
+      expect(() => readContextualTestBinding(file, sha(content))).toThrow()
+    } finally { rmSync(outputDir, { recursive: true, force: true }) }
+  })
   it('binds Survey269 and rejects downgraded, forged, expired or SQL-capable Survey bindings', () => {
     const proofScope = 'survey-workflow-v1' as const
     const survey = createContextualTestPlan(projectId, proofScope)

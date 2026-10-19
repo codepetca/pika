@@ -2,6 +2,7 @@
  * Importing this module cannot inspect a process, launch a child or signal one.
  */
 import assert from 'node:assert/strict'
+import { assertContextualTestLoginSelection } from './contextual-test-login-diagnostic-proof'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, realpathSync } from 'node:fs'
@@ -353,8 +354,10 @@ export type ContextualTestExecutionSeal = Readonly<{
  * before accepting this digest; source checks alone cannot grant admission. */
 export function contextualTestExecutionDigest(admission: ContextualTestControllerAdmission, pins: ContextualTestNativePins,
   seal: Omit<ContextualTestExecutionSeal, 'manifestSha256'>) {
+  assertContextualTestLoginSelection(admission)
   return sha(Buffer.from(JSON.stringify({ version: 1, projectId: admission.projectId, nonce: admission.nonce,
     ...(admission.proofScope ? { proofScope: admission.proofScope } : {}),
+    ...(admission.diagnostic ? { diagnostic: admission.diagnostic } : {}),
     startedAt: admission.startedAt, deadline: admission.deadline, cleanupDeadline: admission.cleanupDeadline,
     frozen: admission.frozen, runner: admission.runner, dependencies: admission.dependencies,
     transportPins: admission.transportPins, nativePins: pins,
@@ -368,6 +371,7 @@ export function contextualTestExecutionDigest(admission: ContextualTestControlle
 export function createContextualTestExecutionControls(admission: ContextualTestControllerAdmission,
   pins: ContextualTestNativePins, seal: ContextualTestExecutionSeal): ContextualTestControllerControls {
   admission = immutableContextualTestData(admission); pins = immutableContextualTestData(pins); seal = immutableContextualTestData(seal)
+  assertContextualTestLoginSelection(admission)
   const vertical = isContextualTestNarrowScope(admission.proofScope)
   const native = createContextualTestNativeControls(pins, admission.cleanupDeadline)
   const command = createContextualTestPinnedCommand(admission.transportPins, admission, { settle: native.settleCommand })
@@ -405,6 +409,7 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
     },
     async assertUnchanged() { assert(admitted); await unchanged(); command.assertClosed(); native.assertClosed() },
     async launchApp(input) {
+      assertContextualTestLoginSelection(input.binding); assert.equal(input.binding.diagnostic, admission.diagnostic)
       assert(admitted && input.binding.projectId === admission.projectId && input.cwd === admission.appDir)
       if (vertical) {
         assert.equal(input.binding.proofScope, admission.proofScope); assert.equal(input.listenerPort, 3118)
@@ -416,6 +421,7 @@ export function createContextualTestExecutionControls(admission: ContextualTestC
         ...(input.listenerPort ? { listenerPort: input.listenerPort } : {}) })
     },
     async launchPlaywright(input) {
+      assertContextualTestLoginSelection(input.binding); assert.equal(input.binding.diagnostic, admission.diagnostic)
       assert(admitted && input.binding.projectId === admission.projectId && input.cwd === admission.runner.repository)
       assert.equal(input.binding.outputDir, admission.outputDir)
       if (vertical) {

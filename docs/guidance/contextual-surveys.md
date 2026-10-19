@@ -580,9 +580,21 @@ Timers, allowlists, ordering and success acceptance stay unchanged. CPU regressi
 prove observation behavior, not a native root cause or product fix.
 
 The older browser `login-body` diagnostic is synthetic and has no real Pika
-app/database. The real vertical spec currently dispatches only complete workflows;
-it has no admitted login-only selector. Do not substitute the synthetic result,
-force a failure as a stop condition, forge workflow results, or bypass the native
-launch guards to claim real-login verification. A concrete reviewed login-only
-execution selection is a prerequisite to that narrower native diagnostic; this
-observation-only correction does not add or admit one. Production holds remain.
+app/database. It cannot establish real-login verification. The existing sealed
+runner now has a separate `diagnostic: 'login-only'` execution selection, valid
+only with the Survey profile. It is included in admission/binding digests and
+native equality checks, not a new proof scope or product rollout flag. Malformed
+or mismatched selections reject before launch. The selected spec calls the same
+real owner login, redirect and session-identity checks once, then closes normally;
+it never reads the login Playwright response body or manufactures a Survey result.
+The browser-facing gateway additionally denies mutations other than the exact
+login POST while retaining existing body/session checks and backend containment.
+
+An exclusive private `login-only-receipt.json` and controller `diagnostic-passed`
+outcome require the exact binding, one verified owner, no page errors, closed
+contexts, gateway drain, zero creates, normal lifecycle cleanup and preservation.
+Full Playwright and Survey database validation stay false; their success validators
+are unchanged. Source/CPU tests do not establish native login success. Independent
+review, current pins/readiness and one fresh bounded admission remain necessary
+before execution. No forced failure, forged full receipt, launch bypass, automatic
+retry, timer/cap increase or production activation is implied. All holds remain.

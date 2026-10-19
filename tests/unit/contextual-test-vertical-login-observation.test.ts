@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Browser } from '@playwright/test'
@@ -17,14 +17,14 @@ afterEach(() => { vi.useRealTimers(); for (const directory of directories.splice
 const phases = ['context', 'page', 'login-document', 'hydration-preset', 'hydration-ready', 'email', 'password',
   'login-click', 'login-ack', 'redirect', 'identity-request', 'identity-check'] as const
 
-async function setup(failAt?: typeof phases[number]) {
+async function setup(failAt?: typeof phases[number], diagnostic = false) {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(1_000_000)
   const outputDir = mkdtempSync(join(tmpdir(), 'pika-login-observation-cpu-')); directories.push(outputDir)
   const plan = createContextualTestPlan('pika_assignment_list_123456abcdef', 'survey-workflow-v1')
   startup.binding = { version: 1, proofScope: plan.proofScope, projectId: plan.projectId, outputDir,
     sourceSha: plan.sourceSha, sourceTree: plan.sourceTree, appOverlaySha256: plan.appOverlaySha256,
     nonce: '0'.repeat(20) + '123456abcdef', startedAt: Date.now(), deadline: Date.now() + 2_700_000,
-    password: 'PRIVATE-CREDENTIAL-DO-NOT-RECORD' }
+    password: 'PRIVATE-CREDENTIAL-DO-NOT-RECORD', ...(diagnostic ? { diagnostic: 'login-only' } : {}) }
   const calls: string[] = []
   const at = (phase: typeof phases[number]) => {
     calls.push(phase); vi.setSystemTime(Date.now() + 1)
@@ -65,6 +65,44 @@ async function setup(failAt?: typeof phases[number]) {
 }
 
 describe('actual vertical login observation through CPU browser doubles (not native proof)', () => {
+  it('diagnostic performs exactly one real login path and writes only its exclusive private receipt', async () => {
+    const s = await setup(undefined, true)
+    await s.runtime.withActor('ownerTeacher', async () => {})
+    await s.closeLoginDiagnostic()
+    expect(s.calls).toEqual(phases)
+    expect(s.loginBody).not.toHaveBeenCalled()
+    expect(s.context.close).toHaveBeenCalledOnce()
+    expect(existsSync(join(s.outputDir, 'playwright-receipt.json'))).toBe(false)
+    expect(JSON.parse(readFileSync(join(s.outputDir, 'login-only-receipt.json'), 'utf8'))).toMatchObject({
+      kind: 'pika-login-only-v1', outcome: 'diagnostic-passed', actors: ['ownerTeacher'], contextsClosed: true, pageErrors: 0,
+      loginDiagnostic: { phase: 'verified', actorIndex: 0, verified: true, failureObservedAt: null },
+    })
+    await expect(s.closeLoginDiagnostic()).rejects.toThrow()
+  })
+  it('a forbidden extra actor latches diagnostic failure even if caught', async () => {
+    const s = await setup(undefined, true)
+    await s.runtime.withActor('ownerTeacher', async () => {})
+    await expect(s.runtime.withActor('ownerStudent', async () => {})).rejects.toThrow()
+    await expect(s.closeLoginDiagnostic()).rejects.toThrow()
+    expect(s.calls).toEqual(phases)
+  })
+  it('a context closure failure cannot be laundered by later successful closure', async () => {
+    const s = await setup(undefined, true)
+    s.context.close.mockRejectedValueOnce(Error('private'))
+    await expect(s.runtime.withActor('ownerTeacher', async () => {})).rejects.toThrow()
+    await expect(s.closeLoginDiagnostic()).rejects.toThrow()
+  })
+  it.each(['identity-check', 'deadline', 'closure'] as const)('diagnostic fails on %s', async issue => {
+    const s = await setup(issue === 'identity-check' ? issue : undefined, true)
+    let failure: unknown
+    if (issue === 'closure') s.context.close.mockRejectedValue(Error('private'))
+    try { await s.runtime.withActor('ownerTeacher', async () => {}) } catch (error) { failure = error }
+    if (issue === 'deadline') vi.setSystemTime(Number(startup.binding.deadline))
+    await expect(s.closeLoginDiagnostic(failure)).rejects.toThrow()
+    const receipt = JSON.parse(readFileSync(join(s.outputDir, 'login-only-receipt.json'), 'utf8'))
+    expect(receipt.outcome).toBe('failed')
+    expect(existsSync(join(s.outputDir, 'playwright-receipt.json'))).toBe(false)
+  })
   it.each(phases)('retains the exact failed %s phase without credentials, identifiers or error text', async phase => {
     const s = await setup(phase)
     await expect(s.runtime.withActor('ownerTeacher', async () => { throw Error('Callback must not run') })).rejects.toThrow()

@@ -11,6 +11,7 @@ import { contextualTestGradeReturnWitnessSql } from './contextual-test-grade-ret
 import { contextualTestLifecycleWitnessSql } from './contextual-test-lifecycle-proof'
 import { contextualSurveyWitnessSql } from './contextual-survey-workflow-proof'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
+import { assertContextualTestLoginSelection } from './contextual-test-login-diagnostic-proof'
 import { createContextualTestPinnedCommand, type ContextualTestTransportPins } from './contextual-test-rehearsal-launch'
 import { createContextualTestNativeControls, type ContextualTestNativePins } from './contextual-test-rehearsal-native'
 
@@ -34,14 +35,17 @@ export type ContextualTestRunBinding = Readonly<{
   sqlControl?: Readonly<{ nativePins: ContextualTestNativePins; transportPins: ContextualTestTransportPins }>
   /** Narrow success never satisfies the full lifecycle/matrix receipt. */
   proofScope?: ContextualTestProofScope
+  diagnostic?: 'login-only'
 }>
 
 /** Data validation preserves the original clock; it never manufactures an attempt. */
 export function validateContextualTestRunBinding(value: unknown, now = Date.now()): ContextualTestRunBinding {
   const hasSqlControl = !!value && typeof value === 'object' && Object.hasOwn(value, 'sqlControl')
   const hasScope = !!value && typeof value === 'object' && Object.hasOwn(value, 'proofScope')
+  const hasDiagnostic = !!value && typeof value === 'object' && Object.hasOwn(value, 'diagnostic')
   exactData(value, ['version','projectId','appOrigin','apiOrigin','sourceSha','sourceTree','appOverlaySha256','migrationChainSha256','planSha256',
-    'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : []), ...(hasScope ? ['proofScope'] : [])])
+    'nonce','startedAt','deadline','cleanupDeadline','password','workdir','appDir','outputDir','dependencyManifestSha256','docker', ...(hasSqlControl ? ['sqlControl'] : []), ...(hasScope ? ['proofScope'] : []), ...(hasDiagnostic ? ['diagnostic'] : [])])
+  assertContextualTestLoginSelection(value)
   if (hasScope) { assert(isContextualTestNarrowScope(value.proofScope)); assert(!hasSqlControl, 'Narrow browser receives no SQL controls') }
   assert.equal(value.version, 1); assert(typeof value.projectId === 'string')
   const plan = createContextualTestPlan(value.projectId, value.proofScope as ContextualTestProofScope | undefined)
