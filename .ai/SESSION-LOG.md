@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Pinpointing navigation guard rejection
-
-Split existing compound guard failures into fixed allowlisted subcondition
-labels without changing acceptance predicates, evaluation order or deadlines.
-Unknown metadata is never coerced or exposed; the first failure remains latched.
-Five new CPU tests use actual installed Playwright client objects and wire
-decoding: first navigation, redirect, fragment reload and wrong/missing commit
-identity. All pass; this is not proof of native event ordering or the historical
-cause. No dependency changes.
-
-Extended the existing browser-only synthetic navigation diagnostic to exercise
-the actual fence: one held original JSON body, one unsent read that must receive
-both abort acknowledgement and its matching failed terminal event, then one
-destination. The server still permits exactly three requests and rejects a sent
-late read. Failure disposal closes only its held synthetic response; sockets,
-ownership, strict receipts and original deadlines remain required. Combined236
-targeted tests and TypeScript pass. Independent review and final focused gate
-are next before one fresh browser-only run. No native attempt yet, no app/DB or
-production change. PR1581 stays draft; all holds and spent attempts carry.
-
 ## 2026-10-17 — Full-app rehearsal pinpoints commit-request rejection
 
 Previous slice completed at59e4: review121 clean,3671 focused tests/8skip plus
@@ -475,3 +455,9 @@ contract bug. Carrier-only checks now distinguish body reading, allowlisted HTTP
 status assertions and request JSON decoding, preserving order and all assertions.
 TDD18newRED→74PASS; full focused and independent targeted review pending. No
 product/schema change, native replay, CI/merge or production action; holds unchanged.
+
+## 2026-10-19 — Pin reviewed Survey contention correction and stronger proof
+
+FullSurveyv7 failed preciseHTTP409 after a successful JSONread; gatewayfirstFailure/firstProtocol/deadline/endpointnull,313app/441API/fourcreates/twoowners/noPNGs. Invocation85590 failed; FIRSTnexttool preservation81840PASS and exactownedcleanupPASS. No nativeacceptance or historicalSQLcause claimed. Source diagnosis confirmed ordinaryread lockcontention and lifecycle55000 masking. Product44daed9d now preserves55000/unknown40001 and retries only exactpositivePT409/survey_operation_busy once, sharedpreflight/writer20msbackoff/100msmonotonicadmission. Product1000tests/72files/allstaticPASS; Sol6.1/high implementation178targetedPASS/rootfullinspection+auditPASS.
+
+Carrier pins only the new269 leaf/complete001–269 manifest and producthead/tree; legacy263/sourceprefix immutable. DBscript byte-matchedproduct, strengthens subjectfence causes and adds real persisteddecommission55000 rollbackassertions without newframes/actions/49payloadcases. Existing30-direction remaining contenders now assert exact transientcause, not generic409; legacyframe output unchanged. TDDinitialtestfieldmistake corrected, intendedRED then186tests/7filesPASS; 70initialpin/engine/payloadPASS. Fullgate/independentreview and fresh isolatedproof pending. Privateunusedv8browser wrappers are identity-onlyv7delta; newv11remainingwrapper/preservation reviewed beforeadmission. No caps, permission/locking/payload predicates, dependencies/UI or activation change. Counters231actualreviews/149acceptedcarrierbatches retained,150pending. Production/shared-local/provider/account/cohort/home/page/cutover holds remain. PR1581neverwholemerge; PR1614staysdraft.

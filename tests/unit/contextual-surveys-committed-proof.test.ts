@@ -26,6 +26,19 @@ function compact(g: Graph) {
   }])) )
 }
 describe('source-only Survey committed directions', () => {
+  it('requires the exact transient abort cause for existing remaining NOWAIT contenders', () => {
+    const current = survey269RemainingCommittedProofManifest(f), legacy = manifest()
+    expect(current.schedules).toHaveLength(30)
+    for (const [index, schedule] of current.schedules.entries()) {
+      const cause = "if message is distinct from 'survey_operation_busy' then raise exception 'Survey exact denial cause differs';end if;"
+      expect(schedule.frames.contender.includes(cause)).toBe(schedule.mode === 'nowait')
+      expect(legacy.schedules[index].frames.contender).not.toContain(cause)
+      if (schedule.mode === 'nowait') {
+        expect(schedule.frames.contender).toContain('get stacked diagnostics code=returned_sqlstate,message=message_text;')
+        expect(schedule.frames.contender.indexOf(cause)).toBeLessThan(schedule.frames.contender.indexOf('insert into survey_committed_operation'))
+      }
+    }
+  })
   it('separates only remaining WAIT database750 from orchestration and checks after the final actual read', () => {
     const m=survey269RemainingCommittedProofManifest(f),legacy=manifest(),before=capturedSeed(m);admitSeed(m,before)
     for(const [n,s] of m.schedules.entries()){

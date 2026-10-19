@@ -18,7 +18,7 @@ import { surveyWireProofDescriptor } from './contextual-surveys-wire-proof'
 
 export const SURVEY_NATIVE_SOURCES = freeze({
   migration: { file: 'supabase/migrations/263_contextual_surveys_workflow.sql', sha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9' },
-  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: 'da600baaff7aadb4e634395a7299aa4b629dcb6cc9b69eb9935bbb9546c86872' },
+  contracts: { file: 'scripts/contextual-surveys-db-contracts.sql', sha256: '554c0fcad9577603c3dd50f9ee556c0909f197026cad1ec47ae625b8610be642' },
   progress: { file: 'scripts/contextual-surveys-progress.ts', sha256: '4bb8c0dfa7f34006682a3f5ac4b94d5ed1ed4effdff34a296548befcea75472d' },
   sdk: { file: 'scripts/contextual-surveys-sdk-contracts.ts', sha256: '755a3c10c8e51b501b05c3e8ee71f15ea2c45a588205f4f2fff6179525a77491' },
   races: { file: 'scripts/contextual-surveys-concurrency-cases.ts', sha256: 'cb4e300bbbc4f8bae32144775a57912ff9e3d524af2b9fb9a8d1e7a3c2ab3e53' },
@@ -211,8 +211,8 @@ export const SURVEY_269_COMPONENT_ROOTS = Object.freeze({
 })
 export const SURVEY_269_COMPONENT_SCHEMA = Object.freeze({ count: 269, file: '269_contextual_surveys_workflow.sql',
   prefixSha256: '16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0',
-  sourceSha256: '1db152f8c33d239bf18b9fc61bab6da8896f2d9c88fa0fdce12c8671c30770c9',
-  manifestSha256: '8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf',
+  sourceSha256: 'f67a65eb3e7017c44ae0f595e19d6aaa1d42a8af36f82b62ea499fdb616290c2',
+  manifestSha256: 'dbecac4c459bf8a514ef83bd69dec7246d0a2546f0e311ae02e90593b66a6fe8',
 })
 export const SURVEY_269_SHARED_FILES = Object.freeze(['scripts/contextual-surveys-db-contracts.sql',
   'scripts/contextual-surveys-sdk-contracts.ts', 'src/lib/validations/contextual-surveys.ts'] as const)
@@ -370,7 +370,7 @@ export function validateSurvey269ComponentGeneratedTypes(source: string, sha256:
 }
 /** Fixed reviewed leaf; this is an external source pin, not a recomputed approval. */
 export const SURVEY_COMMITTED_SOURCE = Object.freeze({ file: 'scripts/contextual-surveys-committed-proof.ts',
-  sha256: '21112b7657d407e01ae2dd921fcc769082ebd3381d0c6134745824742dd3e886' })
+  sha256: 'd1e2142b590594de5d857e4bde8ab40f4e23f7768d55655281557c4dfad0042f' })
 export function surveyRemainingNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   const plan = surveyNativePlan(original, reviewedHead, repository)
   checked(repository, SURVEY_COMMITTED_SOURCE)

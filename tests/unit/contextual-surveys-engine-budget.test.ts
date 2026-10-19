@@ -39,7 +39,7 @@ vi.mock('../../scripts/contextual-test-owner-list-proof-inventory', () => ({ tes
 vi.mock('../../scripts/check-contextual-test-draft-save-db-contracts', async original=>{
   const actual=await original<typeof import('../../scripts/check-contextual-test-draft-save-db-contracts')>()
   return {...actual,draftSaveMigrationManifestSha256:(repository:string)=>seam.component && repository==='/Users/stew/.codex/worktrees/pika/contextual-surveys-current-main'
-    ? '8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf' : actual.draftSaveMigrationManifestSha256(repository)}
+    ? 'dbecac4c459bf8a514ef83bd69dec7246d0a2546f0e311ae02e90593b66a6fe8' : actual.draftSaveMigrationManifestSha256(repository)}
 })
 vi.mock('../../scripts/contextual-surveys-native-contracts', async original => ({
   ...await original<typeof import('../../scripts/contextual-surveys-native-contracts')>(),
@@ -194,8 +194,10 @@ describe('actual Survey engine budget composition (offline)', () => {
     const sourceBinding = {product:{head:seam.head,tree:seam.head},carrier:{head:seam.head,tree:seam.head},sharedSources:Object.fromEntries(surveyContracts.SURVEY_269_SHARED_FILES.map(file=>[file,'a'.repeat(64)]))} as surveyContracts.Survey269ComponentBinding
     const legacy = surveyNativePlan(original,seam.head,repository)
     const plan = {...legacy,kind:'survey269-source-compatibility-and-genuine-types' as const,binding:sourceBinding,repository:surveyContracts.SURVEY_269_COMPONENT_ROOTS.product,
-      migrationManifestSha256:surveyContracts.SURVEY_269_COMPONENT_SCHEMA.manifestSha256,sourceSha256:surveyContracts.SURVEY_269_COMPONENT_SCHEMA.sourceSha256,
-      sources:{...legacy.sources,migration:{file:'supabase/migrations/269_contextual_surveys_workflow.sql',sha256:surveyContracts.SURVEY_269_COMPONENT_SCHEMA.sourceSha256}},
+      // This engine-budget test's offline source seam deliberately supplies
+      // immutable263 bytes; it does not certify the current269 SQL source.
+      migrationManifestSha256:surveyContracts.SURVEY_269_COMPONENT_SCHEMA.manifestSha256,sourceSha256:legacy.sourceSha256,
+      sources:{...legacy.sources,migration:{file:'supabase/migrations/269_contextual_surveys_workflow.sql',sha256:legacy.sourceSha256}},
       caps:{...legacy.caps,sdkMs:60000 as const},sdkProofPreparation:{...legacy.sdkProofPreparation,caps:{...legacy.sdkProofPreparation.caps,totalMs:60000 as const}},
       migrations:[],concurrency:{...legacy.concurrency,schedules:[]},inventoryComplete:false as const}
     // Only source inventory/phase oracles are synthetic. The actual guarded

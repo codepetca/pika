@@ -22,10 +22,10 @@ export function createContextualTestPlan(projectId: string, proofScope?: Context
   const lifecycle = proofScope === 'lifecycle-permissions-v1'
   const survey = proofScope === 'survey-workflow-v1'
   const sourceBinding = Object.freeze({ projectId,
-    sourceSha: survey ? 'db1fb5f12d2b45fda345735e30d9e4fdb18215cd' : lifecycle ? '4e9c809d1c905a0482fb67880e056e5b8bc5f786' : successor ? 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' : '050699bb0f889a533a349b6af415b821ac56d0e3',
-    sourceTree: survey ? 'aac63aefbe7d5adbf01819087ef2fdb857e74ab3' : lifecycle ? '4d225a92b8d9dcfb8cc7118e989c63a46a3c5fbb' : successor ? 'ffec2cc82fd88e9819c147b2ab6246f95c28798e' : 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
+    sourceSha: survey ? '44daed9da68b28af1d36c0bcc4610e36842396e7' : lifecycle ? '4e9c809d1c905a0482fb67880e056e5b8bc5f786' : successor ? 'eb4fa32b237d45f500ea4a67ade9a9e5290ea1c0' : '050699bb0f889a533a349b6af415b821ac56d0e3',
+    sourceTree: survey ? 'c80c76193766a8007fbf26da22a26cb9d1cee00b' : lifecycle ? '4d225a92b8d9dcfb8cc7118e989c63a46a3c5fbb' : successor ? 'ffec2cc82fd88e9819c147b2ab6246f95c28798e' : 'f44d726966f322e4e3eb0ef637c6f2c711544d77',
     appOverlaySha256: contextualTestFontOverlaySha256,
-    migrationChainSha256: survey ? '8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf' : lifecycle ? '16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0' : successor ? '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' : 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
+    migrationChainSha256: survey ? 'dbecac4c459bf8a514ef83bd69dec7246d0a2546f0e311ae02e90593b66a6fe8' : lifecycle ? '16dfffc916b245a55e7f6750ff26ae274b5f76b696404c6c9995401b38a1c2e0' : successor ? '9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd' : 'ecd31cace5f9dbc892570ebcdb79617b5b7a5bf8a02b98e7283d769a9da840ac',
     appOrigin: 'http://localhost:3117' as const, apiOrigin: 'http://127.0.0.1:54331' as const,
   })
   const actors = Object.freeze({

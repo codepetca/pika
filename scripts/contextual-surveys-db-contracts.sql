@@ -184,13 +184,43 @@ begin
   insert into public.student_purge_fences(classroom_id,student_id,operation_id,teacher_id)
     values(v_classroom,v_member,v_purge,v_owner);
   execute 'set local role service_role';
-  begin perform public.get_survey_for_member_v1(v_member,v_survey); raise exception 'purge member read failed'; exception when sqlstate 'PT409' then null; end;
-  begin perform public.get_survey_results_for_member_v1(v_member,v_survey); raise exception 'purge member results failed'; exception when sqlstate 'PT409' then null; end;
-  begin perform public.get_survey_results_for_member_v1(v_other,v_survey); raise exception 'purge classmate response disclosure failed'; exception when sqlstate 'PT409' then null; end;
-  begin perform public.get_survey_results_for_owner_v1(v_owner,v_survey); raise exception 'purge owner aggregate failed'; exception when sqlstate 'PT409' then null; end;
+  begin perform public.get_survey_for_member_v1(v_member,v_survey); raise exception 'purge member read failed';
+    exception when sqlstate 'PT409' then get stacked diagnostics v_message=message_text; assert v_message='survey_subject_fenced'; end;
+  begin perform public.get_survey_results_for_member_v1(v_member,v_survey); raise exception 'purge member results failed';
+    exception when sqlstate 'PT409' then get stacked diagnostics v_message=message_text; assert v_message='survey_subject_fenced'; end;
+  begin perform public.get_survey_results_for_member_v1(v_other,v_survey); raise exception 'purge classmate response disclosure failed';
+    exception when sqlstate 'PT409' then get stacked diagnostics v_message=message_text; assert v_message='survey_subject_fenced'; end;
+  begin perform public.get_survey_results_for_owner_v1(v_owner,v_survey); raise exception 'purge owner aggregate failed';
+    exception when sqlstate 'PT409' then get stacked diagnostics v_message=message_text; assert v_message='survey_subject_fenced'; end;
   execute 'reset role';
   delete from public.student_purge_fences where operation_id=v_purge;
   delete from public.student_purge_operations where id=v_purge;
+  -- A real persisted lifecycle fence must escape BOTH common and results
+  -- handlers as 55000, never the retry-eligible PT409/survey_operation_busy.
+  -- Reuse the cleaned synthetic id; no global gate or guard is changed.
+  assert not exists(select 1 from public.attendance_decommission_operations where id=v_purge or classroom_id=v_classroom);
+  v_before:=pg_temp.survey_payload_state(v_classroom);
+  insert into public.attendance_decommission_operations(id,classroom_id,teacher_id,installation_ref,roster_ref,actor_principal_ref)
+    values(v_purge,v_classroom,v_owner,'survey-contract',v_purge::text,'survey-contract');
+  execute 'set local role service_role';
+  foreach v_case in array array['detail-owner','detail-member','results-owner','results-member'] loop
+    begin
+      case v_case
+        when 'detail-owner' then perform public.get_survey_for_owner_v1(v_owner,v_survey);
+        when 'detail-member' then perform public.get_survey_for_member_v1(v_member,v_survey);
+        when 'results-owner' then perform public.get_survey_results_for_owner_v1(v_owner,v_survey);
+        when 'results-member' then perform public.get_survey_results_for_member_v1(v_member,v_survey);
+      end case;
+      raise exception 'persisted lifecycle fence failed';
+    exception when sqlstate '55000' then
+      get stacked diagnostics v_message=message_text;
+      assert v_message='attendance_decommission_active','Lifecycle fence classification differs';
+    end;
+  end loop;
+  execute 'reset role';
+  delete from public.attendance_decommission_operations where id=v_purge and classroom_id=v_classroom;
+  assert not exists(select 1 from public.attendance_decommission_operations where id=v_purge or classroom_id=v_classroom);
+  assert pg_temp.survey_payload_state(v_classroom)=v_before,'Lifecycle denial changed Survey work';
   execute 'set local role service_role';
   v_payload:=public.get_survey_results_for_member_v1(v_other,v_survey);
   assert v_payload->'results'->0->'total_responses'='1';

@@ -17,9 +17,9 @@ describe('closed narrow-scope recognition', () => {
 describe('contextual Test rehearsal fixture contract', () => {
   it('binds Survey269 separately with smaller resource ceilings and CLASSWORK only in that profile', () => {
     const plan = createContextualTestPlan('pika_assignment_list_1a2b3c4d5e6f', 'survey-workflow-v1')
-    expect(plan.sourceSha).toBe('db1fb5f12d2b45fda345735e30d9e4fdb18215cd')
-    expect(plan.sourceTree).toBe('aac63aefbe7d5adbf01819087ef2fdb857e74ab3')
-    expect(plan.migrationChainSha256).toBe('8f04596017722989202df72acd5cc38f9b705b09b941da4c32d3315070808baf')
+    expect(plan.sourceSha).toBe('44daed9da68b28af1d36c0bcc4610e36842396e7')
+    expect(plan.sourceTree).toBe('c80c76193766a8007fbf26da22a26cb9d1cee00b')
+    expect(plan.migrationChainSha256).toBe('dbecac4c459bf8a514ef83bd69dec7246d0a2546f0e311ae02e90593b66a6fe8')
     expect(plan.surveyLimits).toEqual({ surveys: 4, questionsPerSurvey: 2, uploads: 0, screenshots: 16 })
     expect(bootstrapContextualTestFixtureSql(plan, '$2b$10$' + 'A'.repeat(53))).toContain('"classwork":true')
     for (const scope of [undefined, 'vertical-v1', 'vertical-grade-return-v1', 'lifecycle-permissions-v1'] as const) {

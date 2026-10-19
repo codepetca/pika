@@ -48753,3 +48753,24 @@ pinpoint the guarded subcondition with fixed privacy-safe labels and a small
 reproduction before another full rehearsal. No code fix, fresh retry, visual
 acceptance, merge or production action. Cumulative120reviewturns/71fixbatches;
 original clocks/task waiver and production/shared-local/provider holds remain.
+
+<!-- pika-session-log-archive-batch:10f9485f4446f198802d7e5475b4f147c7b86d179d2fd2980dd3ff5e98fddc6b -->
+## 2026-10-16 — Pinpointing navigation guard rejection
+
+Split existing compound guard failures into fixed allowlisted subcondition
+labels without changing acceptance predicates, evaluation order or deadlines.
+Unknown metadata is never coerced or exposed; the first failure remains latched.
+Five new CPU tests use actual installed Playwright client objects and wire
+decoding: first navigation, redirect, fragment reload and wrong/missing commit
+identity. All pass; this is not proof of native event ordering or the historical
+cause. No dependency changes.
+
+Extended the existing browser-only synthetic navigation diagnostic to exercise
+the actual fence: one held original JSON body, one unsent read that must receive
+both abort acknowledgement and its matching failed terminal event, then one
+destination. The server still permits exactly three requests and rejects a sent
+late read. Failure disposal closes only its held synthetic response; sockets,
+ownership, strict receipts and original deadlines remain required. Combined236
+targeted tests and TypeScript pass. Independent review and final focused gate
+are next before one fresh browser-only run. No native attempt yet, no app/DB or
+production change. PR1581 stays draft; all holds and spent attempts carry.
