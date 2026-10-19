@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Return browser lifecycle correction and authorized review extension
-
-Owner instruction: “yes go ahead, extend the budget, fix the browser test and finish the PR.” Task-scoped review-budget extension acknowledged under override-task-stops; cumulative5reviewturns/3fixbatches preserved, not reset; low-usage/provider/production permissions unchanged. Ready16e02f4a4 CI38622964403 passed all database/SDK/TestBuild/dark browser/PatternLab lanes; main browser failed stale real lifecycle assertions refusing ungradedReturn (actualreturned1/skipped0 vs expected0/1), three other tests passed retries,292passed. Draft restored. Fourthbatch keeps existing unopenedReturn403/reopen/open-access409 regression, moves newungraded/unsubmittedReturn to separate ownedfixture real-browser case, requires Start/Save/Submit403 plus unchanged attempt/results, studentprovenancefalse/null, Pendinggrading/noeditingcontrols and idempotence. Gradeclear now preserves explicitReturn and exposes pendingresults. Canonicalbrowser inventory exactcounts578/580 reflect one added desktop case; partition/duplication guards retained.
-
-Playwrightcollection3cases,125workflow/lifecycle tests, cleanTypeScript/lint/auditPASS. Localsetup GPT6.1-sol/medium boundedread-only worker found no supportedcandidateDB browser binding; do not bypass dedicatedLinux local-CI guards or apply244+ tocanonical243. RequiredfreshCI will provide actualbrowser/PostgREST proof; no newinfrastructure added. Prior20visual states and SQL265 receipts remain valid because product/SQL/UI bytes unchanged. Initialfocused run superseded after exactinventory count detected, ownprocess tree stopped before corrected rerun. Finalfocused and detached targeted independentreview precede ready. Weekly65%remaining/storagehealthy307GB; automaticDeepSeek pause retained. No deployment/production/sharedschema operation.
-
 ## 2026-10-14 — Returned Submit browser status contract
 
 C4d312c0a CI38629854794 passed TestBuild, all database/SDK and darkbrowser/PatternLab jobs. Mainbrowser failed newvalidSubmit rejection assertion: expected403, actual400; four othercases passed retries,292passed. Existinggraded/reopen/gradeclear lifecycle passed. Draft restored. Fifthfixbatch aligns only the newSubmit browserassertion with existingclosed-access nativeSQL22023 -> API400 and exact “Test is not active” message; Start/Save403, provenance, unchangedattempt/results, Pendinggrading/noeditingcontrols and idempotence remain strict. Product/API/migration/UI bytes unchanged.
@@ -627,3 +621,26 @@ Gradebook1619 merged b13e5d404 after all ten39335017417 checks/PRGate; canonical
 Source TDD reproduced missing archive boundary and four SSR Pal-selection failures;215 focused tests across13suites, full nonincremental TypeScript, focusedlint and architecture/UI/design policies pass. Source-only SQL/types prerequisite is frozen separately from uncommitted UI selection; temporary narrow RPC signatures must be removed after genuine isolated metadata generation. Pal worker Sol6.1/high delivered bounded implementation; another Sol6.1/high worker extended only the existing disposable component with a closed272 profile. Requested configuration recorded; effective/attributable token and active-time telemetry unavailable. Cumulative262 independent reviews retained, workers are not reviews. Weekly2% remains with ordinary execution allowed/task waiver; DeepSeek pause retained, storagehealthy286GB.
 
 SQL/native/SDK/stored-byte/visual acceptance and independent review/final-head CI remain pending; no source-only result closes batch3 or the goal. Production/shared-local249+, real accounts/plans/provider/billing/AI and admission/home/page/cohort/cutover holds remain unchanged. No actual new attempt, migration application, provider call or deployment.
+
+## 2026-10-19 — Genuine lifecycle metadata and exact SDK contracts
+
+Independent263/264 cleared C1 source and the closed disposable prerequisite;
+targeted265 cleared the verified signed Chrome update without relaxed admission.
+The one disposable001–272 SQL/type component passed both post-rollback contracts
+and generated442674B artifact4d8833b9. Global/canonical cleanup and internal
+preservation passed; exact owned resources are absent. Immediate outer observer
+failed only after its source/dependency comparisons, at process observation.
+Read-only diagnostics reproduce its own tsxCLI parent matching the filter; direct
+Node loader invocation of the unchanged observer passes7837sources/98965deps and
+zero current matches. Historical matching rows were not retained. Review266
+accepts SQL/generated-artifact evidence but NOT a successful complete FIRST gate;
+that failed observation remains failed, with no native attempt retry or criteria
+relaxation. Complete native acceptance remains unclaimed.
+
+Installed the exact genuine artifact byte-for-byte (same SHA256), added only
+nullable default-filter refinement, and removed both prerequisite RPC casts.
+Nonincremental application TypeScript,141 focused tests/six suites and focused
+eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source is
+unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
+successful preservation and closure gates using direct Node loading. Production,
+shared-local249+, real-account/provider/billing and all activation holds persist.

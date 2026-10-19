@@ -62,6 +62,8 @@ failure bounds, not subscription classroom quotas. Purge presentation IDs are
 intersected with the verified snapshot by identity sets.
 
 Current implementation evidence: installed SDK with isolated transport plus API
-and SSR-focused regression checks pass; this is not actual PostgreSQL/Storage
-acceptance. Genuine generated RPC metadata, rollback/native/SDK/stored-byte
-verification, visual checks, independent review and exact-head CI remain gates.
+and SSR-focused regression checks pass. The rollback SQL contract passed against
+an isolated complete001–272 replay, and genuine generated metadata is installed;
+the prerequisite RPC cast is removed. This is not complete native/Storage
+acceptance. Native SDK/stored-byte and preservation verification, visual checks,
+independent final review and exact-head CI remain gates.

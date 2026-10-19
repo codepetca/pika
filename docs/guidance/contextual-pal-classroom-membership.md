@@ -1,7 +1,8 @@
 # Contextual classroom Pal membership
 
-Status: dormant source implementation; isolated SQL, genuine metadata, native
-SDK/lock verification, browser visuals, independent review and CI remain gates.
+Status: dormant implementation; isolated rollback SQL and genuine generated
+metadata verified, with the prerequisite RPC cast removed. Complete native
+SDK/lock/preservation verification, browser visuals, final review and CI remain gates.
 No provider operation or production/shared-local application has occurred.
 
 The existing shared experience admission selects current membership rather than

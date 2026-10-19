@@ -11,13 +11,6 @@ import { listColdClassroomPurgeEnabledIds, listHotClassroomPurgeEnabledIds } fro
 import { contextualArchiveIdentitySchema, contextualArchiveSnapshotEnvelopeSchema, contextualArchiveExportResultSchema } from '@/lib/validations/contextual-classroom-archive-recovery'
 
 type ServiceClient = ReturnType<typeof getServiceRoleClient>
-// Prerequisite-only signature until isolated271 replay produces genuine metadata.
-// Remove this adapter once generated metadata and nullable argument refinements land.
-type ArchiveRecoveryPrerequisiteClient = {
-  rpc(name: 'read_classroom_archive_recovery_for_owner_v1', args: {
-    p_actor_id: string; p_classroom_id: string | null; p_operation_id: string | null
-  }): { abortSignal(signal: AbortSignal): PromiseLike<unknown> }
-}
 const unavailable = () => new ApiError(503, 'Classroom archive recovery is unavailable; refresh to reconcile its outcome')
 
 /** Admission selects a boundary only; ownership is independently established by SQL. */
@@ -33,7 +26,7 @@ export async function readContextualClassroomArchiveSnapshot(input: {
   const identity = contextualArchiveIdentitySchema.parse({ actorId: input.actorId, classroomId: input.classroomId, operationId: input.operationId })
   let response: unknown
   try {
-    response = await (input.supabase as unknown as ArchiveRecoveryPrerequisiteClient).rpc('read_classroom_archive_recovery_for_owner_v1', {
+    response = await input.supabase.rpc('read_classroom_archive_recovery_for_owner_v1', {
       p_actor_id: identity.actorId, p_classroom_id: identity.classroomId ?? null, p_operation_id: identity.operationId ?? null,
     }).abortSignal(AbortSignal.timeout(10_000))
   } catch { throw unavailable() }

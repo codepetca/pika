@@ -17,12 +17,6 @@ const visitSchema = z.object({ status: z.enum(['recorded', 'disabled', 'forbidde
 const inputSchema = z.object({ studentId: z.string().uuid(), classroomId: z.string().uuid() })
 type MembershipInput = z.infer<typeof inputSchema>
 type ContextualPalRpc = 'resolve_pal_classroom_context_for_member_v1' | 'record_pal_classroom_visit_for_member_v1'
-// Isolated until migration272 is replayed and the coordinator generates DB types.
-type ContextualPalClient = {
-  rpc(name: ContextualPalRpc, args: { p_actor_id: string; p_classroom_id: string }): {
-    abortSignal(signal: AbortSignal): PromiseLike<unknown>
-  }
-}
 const sdkEnvelopeSchema = z.object({
   data: z.unknown(),
   error: z.object({ code: z.string(), message: z.string(), details: z.string().nullable(), hint: z.string().nullable() }).strict().nullable(),
@@ -45,7 +39,7 @@ async function invoke(name: ContextualPalRpc, input: MembershipInput): Promise<u
   if (!parsedInput.success) throw new ApiError(400, 'Invalid classroom achievements request')
   let raw: unknown
   try {
-    const client = getServiceRoleClient() as unknown as ContextualPalClient
+    const client = getServiceRoleClient()
     raw = await client.rpc(name, { p_actor_id: parsedInput.data.studentId, p_classroom_id: parsedInput.data.classroomId })
       .abortSignal(AbortSignal.timeout(10_000))
   } catch { throw unavailable() }
