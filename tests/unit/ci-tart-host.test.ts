@@ -627,7 +627,7 @@ describe('serial Tart host admission (offline)', { timeout: 15_000 }, () => {
 `)
   })
 
-  it('kills a descendant after its group leader exits and handles an actual signal', () => {
+  it('kills a descendant after its group leader exits', () => {
     offline(String.raw`
     backend=h.Backend(root)
     original=h.subprocess.Popen; children=[]
@@ -648,32 +648,36 @@ describe('serial Tart host admission (offline)', { timeout: 15_000 }, () => {
     finally: h.subprocess.Popen=original
     assert children[0].returncode==0
     assert not h.Backend.group_running(children[0].pid), 'orphan descendant survived'
-    def interrupted(*args): raise h.Refusal('signal')
+`)
+  })
+
+  it('contains its owned child when interrupted by an actual signal', () => {
+    offline(String.raw`
+    backend=h.Backend(root)
+    original=h.subprocess.Popen; delivered=[]; signaled_children=[]
+    def interrupted(*args):
+        delivered.append(True)
+        raise h.Refusal('signal')
     previous=signal.signal(signal.SIGTERM, interrupted)
-    # Send the actual signal only after command() owns the child inside its communicate try.
-    ready=threading.Event(); cancelled=threading.Event(); delivered=[]; signaled_children=[]
+    # Deliver synchronously inside command()'s protected communicate call. A
+    # timed sender can abandon delivery before a loaded worker owns its child.
     def capture_signal(*args,**kwargs):
         proc=original(*args,**kwargs)
         if not signaled_children:
             signaled_children.append(proc); communicate=proc.communicate
             def started(*args,**kwargs):
-                ready.set()
+                os.kill(os.getpid(),signal.SIGTERM)
                 return communicate(*args,**kwargs)
             proc.communicate=started
         return proc
-    def deliver_signal():
-        if ready.wait(timeout=5) and not cancelled.is_set():
-            delivered.append(True); os.kill(os.getpid(),signal.SIGTERM)
     h.subprocess.Popen=capture_signal
-    timer=threading.Thread(target=deliver_signal); timer.start()
     try:
         backend.command([sys.executable,'-c','import time; time.sleep(60)'])
     except h.Refusal as error: assert str(error)=='signal'
     else: raise AssertionError('signal not handled')
     finally:
-        cancelled.set(); timer.join(timeout=5)
         h.subprocess.Popen=original; signal.signal(signal.SIGTERM,previous)
-    assert not timer.is_alive() and delivered==[True]
+    assert delivered==[True]
     assert signaled_children[0].poll() is not None
     assert not h.Backend.group_running(signaled_children[0].pid), 'signaled child group survived'
 `)
