@@ -40,11 +40,11 @@ describe('AuthKit middleware matcher', () => {
     expect(matchesPath('/_next/imageevil')).toBe(true)
 
     const layout = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
-    expect(layout).toContain("url: '/pika-icon-light.svg'")
+    expect(layout).toContain('id="pika-tab-icon" rel="icon" type="image/svg+xml" href="/pika-icon-light.svg"')
     expect(layout).toMatch(
       /<script\s+nonce=\{nonce\}\s+suppressHydrationWarning\s+dangerouslySetInnerHTML=/,
     )
-    expect(layout).not.toContain("url: '/pika-icon-dark.svg'")
+    expect(layout).not.toContain('href="/pika-icon-dark.svg"')
     expect(layout).not.toContain("media: '(prefers-color-scheme")
 
     for (const filename of ['pika-icon-light.svg', 'pika-icon-dark.svg']) {
