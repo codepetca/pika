@@ -501,6 +501,30 @@ the consolidated [Gradebook and returned Grades group](contextual-gradebook.md)
 without routine approval stops, with production and activation holds unchanged.
 This is batch-2 implementation work, not a batch or full-goal exit.
 
+2026-10-19 Gradebook landing: PR #1619 merged normally as
+`b13e5d404e40529ec0a8a195eb4f8c80ec6ac107` after all ten final-head CI checks,
+including PR Gate, passed in39335017417. Accepted SQL/types, native SDK/concurrency,
+complete browser workflow and sixteen inspected visuals remain recorded in the
+Gradebook contract and private coordinator evidence; no failed attempt was replayed
+or relabeled. Canonical main fast-forwarded cleanly. Production and shared-local
+migrations, provider/account/billing and admission/home/page/cohort/cutover holds
+remain unchanged. This is the Gradebook integration landing, not the overall exit.
+
+The owner authorized the next lifecycle/attached-service integration without
+routine approval stops. The first current-base group reuses the prepared
+[owner archived recovery/export boundary](contextual-classroom-archive-recovery.md)
+as additive271 and adds [contextual classroom Pal membership](contextual-pal-classroom-membership.md)
+as272. Existing hot archive/restore268 is retained, not reimplemented. Prepared
+source/offline checks are not native or rollout acceptance. Genuine metadata,
+current-base SQL/SDK/lock/stored-byte proofs, UI matrix, independent review and
+final-head CI remain gates before the next main merge.
+
+Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
+operations, cold restore/purge/export recovery, retained grouped-removal/provider
+compatibility, the wider attendance/Bara principal and status contracts, and the
+historical Pal fact/token lifecycle policy. Do not merely remove global role
+checks or discard retained history. Batches4–5 remain separately dormant.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
