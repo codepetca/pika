@@ -1,3 +1,4 @@
+import { validateGradebookWorkflowReviewedMigration } from '../../scripts/gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from '../../scripts/gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from '../../scripts/classroom-hot-lifecycle-reviewed-migration'
 import { validateSurveyWorkflowReviewedMigration } from '../../scripts/survey-workflow-reviewed-migration'
@@ -23,7 +24,7 @@ export function createOfflineTestLearnerRepository(repository: string, count: 25
   // Validate the complete source inventory before taking an explicit historical
   // prefix; malformed, duplicate or unknown-numeric source must not disappear.
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269].includes(inventory.length), 'Unreviewed offline learner source profile')
+  assert([257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270].includes(inventory.length), 'Unreviewed offline learner source profile')
   if (inventory.length >= 258) validateStudentTestSessionStatusReviewedMigration(inventory[257])
   if (inventory.length >= 259) validateTestOwnerGradingReviewedMigration(inventory[258])
   if (inventory.length >= 260) validateTestOwnerRecoveryReviewedMigration(inventory[259])
@@ -35,7 +36,8 @@ export function createOfflineTestLearnerRepository(repository: string, count: 25
   if (inventory.length >= 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(inventory[265])
   if (inventory.length >= 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(inventory[266])
   if (inventory.length >= 268) validateClassroomHotLifecycleReviewedMigration(inventory[267])
-  if (inventory.length === 269) validateSurveyWorkflowReviewedMigration(inventory[268])
+  if (inventory.length >= 269) validateSurveyWorkflowReviewedMigration(inventory[268])
+  if (inventory.length === 270) validateGradebookWorkflowReviewedMigration(inventory[269])
   const names = inventory.slice(0, count).map(migration => migration.name)
   assert.deepEqual(names.map(name => Number(name.slice(0, 3))), Array.from({ length: count }, (_, index) => index + 1))
   assert.equal(names.at(-1), count === 257 ? '257_contextual_test_learner_workflow.sql' : '258_student_test_session_status_projection.sql')
