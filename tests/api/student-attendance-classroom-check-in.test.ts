@@ -17,7 +17,7 @@ vi.mock('@/lib/server/classroom-attendance-qr', async (importOriginal) => {
 import { POST } from '@/app/api/student/attendance/classroom-check-in/route'
 import { ClassroomAttendanceQrError } from '@/lib/server/classroom-attendance-qr'
 
-const user = { id: 'student-1', email: 'student@example.com', role: 'student' }
+const user = { id: '30000000-0000-4000-8000-000000000001', email: 'student@example.com', role: 'student' }
 const classroomQrToken = 'a'.repeat(43)
 const attemptId = '11111111-1111-4111-8111-111111111111'
 
@@ -34,6 +34,10 @@ describe('POST /api/student/attendance/classroom-check-in', () => {
     mocks.execute.mockResolvedValue({
       state: 'checked_in', title: 'You are checked in', description: 'Recorded',
       classroomName: 'PPZ3C — Health for Life',
+      studentId: user.id, classroomId: '20000000-0000-4000-8000-000000000001',
+      attendanceStatus: 'present', recordedAt: '2026-09-02T13:01:00.000Z',
+      occurrenceBinding: 'a'.repeat(32), classDate: '2026-09-02',
+      serverNow: '2026-09-02T13:02:00.000Z', validUntil: '2026-09-03T04:00:00.000Z',
     })
   })
 

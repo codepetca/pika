@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — AI grading CI profile remediation
-
-ReadyCI38591388369 atfc6cb9f8f failed before native execution: reorder proof finite migration profile stopped at263. PR1590 immediately returned draft; ready-event run ultimately canceled by the draft transition, with lifecycle lane and PR Gate failed. Batch2 adds the exact independentlyreviewed264 filename/source digest to all7 Test lifecycle/native profiles and offline helper, retains every prior seal (263 checked for264), preserves budgets/cleanup/authorization, rejects265. Positive263/264 and altered-name/hash/bytes/self-hashed-source cases added. Latest legacy-grading source assertion now recognizes264 replacement and its two exact complete cohort contracts. Product264SQL/app/UI/types unchanged; eight focused suites535PASS and7source-only preflightsPASS, no native/shared/canonical/provider operation. Lifecycle logs private under /tmp/pika-ci-profile-verified.log and /tmp/pika-ai-ci-lifecycle-failure.log. Bounded read-only diagnosis then scoped GPT-6.1-sol/high implementation accepted after diff/test checks. Reviewledger4turns/2batches; proportional profile/source-seal review and fresh final checks precede one new ready-event CI candidate. Originalreviewclock15:20UTC retained; no merge/deployment/migration application or reopening change.
-
-Batch2 final focused check2213tests/119files plus architecture/UI/design/TypeScript/lint and auditPASS; product/SQL/schema/signatures unchanged from reviewedfc6cb9f8f. Exact-profile review follows before readiness.
-
-## 2026-10-14 — Clean TypeScript CI remediation
-
-Ready CI38594807708 at dfbbd56d2 found TS2589 in the existing Test unpublication RPC result annotation; PR1590 returned draft before correction. Batch3 replaces generic ReturnType expansion with the narrow data/error/status fields consumed by the helper, retaining typed RPC invocation and runtime result validation. 21 existing unpublication unit/API tests passed. Clean nonincremental TypeScript and focused lint/audit recorded externally; product grading SQL/UI/reopening unchanged. Review ledger5turns/3batches before targeted review; original15:20UTC review clock retained.
-
 ## 2026-10-14 — Gradebook marks require student return
 
 Teacher Gradebook now projects assignment/Test marks only after the student's document/attempt has `returned_at`; unreturned manual overrides also stay blank. Calculated totals, class summaries, and the inspector use the same eligible cells. Standalone items and explicit final overrides retain their contracts. Branch: `codex/gradebook-returned-marks`; owner: current Codex chat. Risk profile: none (established read projection; no grading writes/migrations).
@@ -560,6 +550,46 @@ Prepared49 exact byte/count/shape SQL cases in the existing35s rollback dispatch
 The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
 
 The first product gate exposed two stale source assertions still expecting the old single fixture and forbidding every INFO marker. Synced only the same fixed-code/family assertions already tested in the carrier, preserving the269 migration path. All13 payload tests/audit pass; a fresh complete product gate remains required. No runtime or SQL change in this follow-up.
+
+## 2026-10-19 — Attendance check-in mismatch diagnosis
+
+Read-only investigation at f88b06a5e; relevant attendance paths match production
+af519aa54. Reported Oct19 sample first fact14:10:06 Toronto; imported0.585s later.
+All24 class facts imported within1.400s; active mapping and no manual override.
+Confirmed two defects: scan success persists across days/resume without fresh
+validation and shows time without date; teacher Daily does not refresh student
+check-ins until explicit reload/scope change. Scratch diagnostics reproduce both
+(2student+1teacher tests PASS); sources/logs at
+/tmp/pika-attendance-diagnosis-20261019/. No product/production writes or release.
+Earlier phone state unknown; stale prior confirmation likely, not incident-proven.
+Next: expiry/read-only revalidation/date on phone and bounded active teacher refresh.
+Orchestrate native GPT6.1-sol/high teacher trace delivered/verified;1launch plus
+follow-up diagnostic, no rework/conflict. Worker/coordinator tokens unknown;
+weekly remaining17%, DeepSeek dated pause honored; storage healthy295GB.
+
+## 2026-10-19 — Student attendance confirmation freshness
+
+Requested student-only fix on codex/attendance-confirmation-freshness. POST waits
+for actual accepted/already-accepted backend record and binds success to today's
+Toronto class date; adds server time/deadline and dated display. Old success
+expires at midnight; resume uses authenticated reads only and hides success
+until same student/classroom/occurrence is confirmed. Failed reads stay neutral.
+Server/read-model worker GPT6.1-sol/high delivered70 tests PASS, verified against
+source; no conflicts/rework. Coordinator added51 frontend/helper tests PASS
+plus delayed-response boundary regression. Usage17% weekly remaining; storage
+healthy; per-worker tokens unavailable. Teacher behavior unchanged.
+Playwright16 captures: student390/1440 light/dark success/verifying/failure/expired;
+4initialPOST,8GET,0resume/retryPOST; guarded teacher fixture PASS.
+Visual evidence: output/playwright/attendance-confirmation/; Pattern Lab statuses
+reference inspected. Focused gate83files1004tests, policies,TypeScript,lint PASS. Review1 at9bb59abd
+accepted one P2: GET request latency could revive pre-midnight confirmation.
+Added deferred-GET regression (red then green), advanced server clock by elapsed
+request time;40related tests PASS. Budget:2planned turns/7,1fix batch/4;
+per-review tokens/elapsed unknown. Targeted cumulative review clean at257f2e20; focused1005+allchecks PASS.
+Final fixture audit updated existing browser acknowledgements/status mocks and
+new uncertain-result copy;6Playwright flows PASS(40s) desktop-light/mobile-dark,
+normal/reduced motion, no dependency/auth setup runs. Product source unchanged.
+Reviewturn3/7planned for test delta, fixbatch2/4; CI next; PR1616draft.
 
 ## 2026-10-19 — Distinguish Survey contention from lifecycle fences
 

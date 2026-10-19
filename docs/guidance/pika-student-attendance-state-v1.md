@@ -60,16 +60,24 @@ revalidates at most every five seconds, and is cleared immediately unless the
 read projection still reports that classroom occurrence open (including when it
 becomes closed, cancelled, scheduled, unavailable, unenrolled, archived, or
 projection-confirmed). It cannot survive a reload, contain a token, or mutate
-attendance. A confirmed state may remain visible for the current occurrence after close;
-only the stale open prompt must disappear. Closed confirmations revalidate at
-the next Toronto midnight, while an occurrence that legitimately closes the
-next day remains current until its close. The server response includes a
+attendance. A confirmed state may remain visible for the current occurrence after close.
+Confirmation is restricted to today's Toronto class date and expires at the
+next Toronto midnight, including when an old occurrence closes the next day. The server response includes a
 bounded next-refresh hint and a confirmation validity boundary. The client
 suppresses an open prompt at the known close instant and confirmation at its
 validity boundary. Every response includes validated server time; the client
-anchors it and its original cache receipt to a monotonic timer so a skewed phone
+anchors it and its original cache receipt to elapsed monotonic and wall time so a skewed phone
 clock or a cache-backed remount cannot leave stale
 instructions or a prior occurrence's confirmation visible.
+
+The QR result page waits for a real attendance-service acknowledgement, never
+an optimistic mutation result. Success requires the mapped class date, accepted
+record time, response server time, student, classroom and occurrence binding.
+The page displays the date and time. It suppresses success when hidden and on
+focus/pageshow/visibility resume until an authenticated read confirms that same
+current-day occurrence. Resume and verification retries perform reads only;
+they cannot create a new check-in. Read failure removes confirmation and offers
+Check again. A response delayed across midnight cannot restore stale success.
 
 ## Minimum safe read model
 
@@ -80,9 +88,8 @@ instructions or a prior occurrence's confirmation visible.
   a bounded number of classrooms. Archived classrooms are excluded.
 - Apply the existing exact-canary or teacher-entitlement gate before reading an
   attendance projection. Entitlement and Pika IDs never cross into Bara.
-- Batch-read at most 100 occurrence/session projections across the current and
-  immediately preceding Toronto class dates, supporting bounded next-day close
-  windows, and records whose `student_id` is the signed-in student. Return Pika
+- Batch-read bounded occurrence/session projections for the current Toronto
+  class date, and records whose `student_id` is the signed-in student. Return Pika
   classroom IDs, public state, session times, own status, own confirmation time,
   a refresh hint, the GET-authenticated student ID as a response binding, and a
   student-scoped one-way occurrence binding for occurrence-backed states.
