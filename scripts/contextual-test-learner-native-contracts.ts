@@ -1,3 +1,4 @@
+import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from './classroom-hot-lifecycle-reviewed-migration'
 import { validateSurveyWorkflowReviewedMigration } from './survey-workflow-reviewed-migration'
@@ -44,7 +45,7 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
   })
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const reviewedMigrations=loadAssignmentListReviewedMigrations(repository)
-  assert([257,258,259,260,261,262,263, 264, 265, 266, 267, 268, 269].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
+  assert([257,258,259,260,261,262,263, 264, 265, 266, 267, 268, 269,270].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
   if(reviewedMigrations.length>=258)validateStudentTestSessionStatusReviewedMigration(reviewedMigrations[257])
   if(reviewedMigrations.length>=259)validateTestOwnerGradingReviewedMigration(reviewedMigrations[258])
   if(reviewedMigrations.length>=260)validateTestOwnerRecoveryReviewedMigration(reviewedMigrations[259])
@@ -56,7 +57,8 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
   if (reviewedMigrations.length >= 266) validateGradebookZeroWeightStudentVisibilityReviewedMigration(reviewedMigrations[265])
   if (reviewedMigrations.length >= 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(reviewedMigrations[266])
   if (reviewedMigrations.length >= 268) validateClassroomHotLifecycleReviewedMigration(reviewedMigrations[267])
-  if (reviewedMigrations.length === 269) validateSurveyWorkflowReviewedMigration(reviewedMigrations[268])
+  if (reviewedMigrations.length >= 269) validateSurveyWorkflowReviewedMigration(reviewedMigrations[268])
+  if (reviewedMigrations.length === 270) validateGradebookWorkflowReviewedMigration(reviewedMigrations[269])
   const migrations=reviewedMigrations.map(({name,sha256})=>({name,sha256}))
   assert.deepEqual(migrations[256],{name:'257_contextual_test_learner_workflow.sql',sha256:TEST_LEARNER_NATIVE_SOURCE_SHA256})
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`, guard=testOwnerGuardSql(projectId)

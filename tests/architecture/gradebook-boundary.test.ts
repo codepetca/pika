@@ -26,6 +26,18 @@ describe('gradebook feature boundary', () => {
     expect(source).not.toContain("from '@/lib/api-handler'")
   })
 
+  it.each(['src/lib/gradebook-projection.ts', 'src/lib/gradebook-member-projection.ts'])('keeps extracted calculation projection pure: %s', file => {
+    const source = read(file)
+    expect(source).not.toContain('getServiceRoleClient')
+    expect(source).not.toContain("from '@/lib/server/")
+    expect(source).not.toContain("from 'next/server'")
+    expect(source).not.toContain('process.env')
+    expect(source).not.toContain('.from(')
+    expect(source).not.toContain('.rpc(')
+    expect(source).not.toMatch(/\bimport\s*\(/)
+    expect(source).not.toMatch(/\brequire\s*\(/)
+  })
+
   it('keeps retired Quiz contracts out of the active gradebook workflow', () => {
     const serverSource = read('src/lib/server/gradebook.ts')
     const calculationSource = read('src/lib/gradebook.ts')
@@ -36,17 +48,13 @@ describe('gradebook feature boundary', () => {
 
     expect(serverImports).toEqual([
       '@/lib/api-error',
-      '@/lib/assignments',
-      '@/lib/gradebook',
-      '@/lib/gradebook-display',
-      '@/lib/gradebook-maximum',
+      '@/lib/gradebook-projection',
       '@/lib/server/diagnostics',
       '@/lib/server/gradebook-maximum',
       '@/lib/server/query-chunks',
       '@/lib/supabase',
       '@/lib/validations/gradebook',
       '@/lib/validations/gradebook-score-overrides',
-      '@/types',
     ])
     expect(serverSource).not.toMatch(/\bimport\s*\(/)
     expect(serverSource).not.toMatch(/\bimport\s*['"]/)

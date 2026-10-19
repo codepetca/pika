@@ -112,6 +112,34 @@ describe('current assignment list statements using the installed SDK offline', (
       expect(url.searchParams.get('select')).not.toMatch(/authenticity_score|authenticity_flags|ai_feedback|teacher_feedback|ai_grading/)
     }
   })
+  it.each(['teacher', otherId, null, 'deepseek'])('reads canonical returned attribution %s without disclosing unreturned grades', async gradedBy => {
+    // Return clears submission state but retains its submission timestamp and canonical attribution.
+    const returned = { ...doc(1, true), is_submitted: false, returned_at: stamp, teacher_cleared_at: stamp, updated_at: stamp }
+    const unreturned = { ...doc(2, true), assignment_id: id(2) }
+    const grade = { id: returned.id, assignment_id: id(1), student_id: actorId, returned_at: stamp,
+      score_completion: 0, score_thinking: 2, score_workflow: null, graded_at: stamp, graded_by: gradedBy }
+    const feedback = { id: returned.id, assignment_id: id(1), student_id: actorId, returned_at: stamp, feedback_returned_at: null, feedback: 'Released' }
+    const f = fixture({ member: true, assignments: [assignment(1), assignment(2)], docs: [returned, unreturned],
+      grades: [grade, { ...grade, id: unreturned.id, assignment_id: id(2), score_completion: 99 }], feedback: [feedback] })
+    const result = await f.read()
+    expect(result.assignments[0]).toMatchObject({ doc: { is_submitted: false, submitted_at: stamp, returned_at: stamp,
+      teacher_cleared_at: stamp, score_completion: 0, score_thinking: 2, score_workflow: null, graded_at: stamp, graded_by: gradedBy, feedback: 'Released' } })
+    expect(result.assignments[1]).toMatchObject({ doc: { returned_at: null, score_completion: null, score_thinking: null,
+      score_workflow: null, graded_at: null, graded_by: null, feedback: null, authenticity_score: null, authenticity_flags: null, ai_feedback_suggestion: null } })
+    const gradeQueries = f.urls.filter(url => url.searchParams.get('select')?.includes('score_completion'))
+    expect(gradeQueries).not.toHaveLength(0)
+    for (const url of gradeQueries) {
+      expect(url.searchParams.get('assignments.id')).toBe(`in.(${id(1)})`)
+      expect(url.searchParams.get('assignments.docs.student_id')).toBe(`eq.${actorId}`)
+      expect(url.searchParams.get('assignments.docs.returned_at')).toBe('not.is.null')
+    }
+  })
+  it.each([{ graded_by: {} }, { graded_by: 42 }, { private_feedback: 'private' }, { student_id: otherId }])('rejects malformed, widened or peer returned grades %#', async patch => {
+    const returned = { ...doc(1, true), is_submitted: false, returned_at: stamp, teacher_cleared_at: stamp }
+    const grade = { id: returned.id, assignment_id: id(1), student_id: actorId, returned_at: stamp,
+      score_completion: 0, score_thinking: null, score_workflow: null, graded_at: stamp, graded_by: 'teacher', ...patch }
+    await expect(fixture({ member: true, docs: [returned], grades: [grade] }).read()).rejects.toMatchObject({ statusCode: 503 })
+  })
   it('releases feedback independently while leaving blank unreturned rubric fields null', async () => {
     const base = { ...doc(1, true), feedback_returned_at: stamp }
     const f = fixture({ member: true, docs: [base], feedback: [{ id: base.id, assignment_id: id(1), student_id: actorId, returned_at: null, feedback_returned_at: stamp, feedback: 'Comment' }] })

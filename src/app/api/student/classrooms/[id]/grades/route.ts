@@ -1,3 +1,4 @@
+import { authorizeSharedGradebookActor, readContextualGradebookMember } from '@/lib/server/contextual-gradebook'
 import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
@@ -8,8 +9,9 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetStudentGrades', async (_request, context) => {
-  const user = await requireRole('student')
+  const access = await authorizeSharedGradebookActor()
+  const user = access.mode === 'shared' ? access.user : await requireRole('student')
   const { id } = studentGradesParamsSchema.parse(await context.params)
-  const grades = await getStudentGrades(user.id, id)
+  const grades = access.mode === 'shared' ? await readContextualGradebookMember({ actorId: user.id, classroomId: id, view: 'grades', signal: _request.signal }) : await getStudentGrades(user.id, id)
   return NextResponse.json(grades, { headers: { 'Cache-Control': 'private, no-store' } })
 })
