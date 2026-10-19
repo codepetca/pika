@@ -42,20 +42,32 @@ export async function authorizeSharedGradebookActor() {
 /** Bounds parsed SDK objects before Zod clones them. The separate fetch below
  * bounds wire allocation; this traversal is not a transport allocation guard. */
 function boundedJson(value: unknown, maximumBytes: number): boolean {
-  const stack = [{ value, depth: 0 }], seen = new Set<object>()
-  let nodes = 0
+  const stack: Array<{ value: unknown; depth: number; leave?: boolean }> = [{ value, depth: 0 }]
+  const ancestors = new Set<object>()
+  let nodes = 0, bytes = 0
   while (stack.length) {
     const current = stack.pop()!
-    if (++nodes > 6_000_000 || current.depth > 12) return false
-    if (current.value === null || typeof current.value === 'boolean') continue
-    if (typeof current.value === 'string') { if (Buffer.byteLength(current.value, 'utf8') > GRADEBOOK_LIMITS.stringBytes) return false; continue }
-    if (typeof current.value === 'number') { if (!Number.isFinite(current.value)) return false; continue }
-    if (typeof current.value !== 'object' || seen.has(current.value)) return false
-    seen.add(current.value)
+    if (current.leave && current.value !== null && typeof current.value === 'object') { ancestors.delete(current.value); continue }
+    if (++nodes > 6_000_000 || current.depth > 12 || bytes > maximumBytes) return false
+    if (current.value === null || typeof current.value === 'boolean') { bytes += current.value === false ? 5 : 4; continue }
+    if (typeof current.value === 'string') {
+      if (Buffer.byteLength(current.value, 'utf8') > GRADEBOOK_LIMITS.stringBytes) return false
+      bytes += Buffer.byteLength(JSON.stringify(current.value), 'utf8'); continue
+    }
+    if (typeof current.value === 'number') { if (!Number.isFinite(current.value)) return false; bytes += Buffer.byteLength(JSON.stringify(current.value), 'utf8'); continue }
+    if (typeof current.value !== 'object' || ancestors.has(current.value)) return false
     if (Array.isArray(current.value)) { if (current.value.length > GRADEBOOK_LIMITS.test_responses) return false }
     else if (Object.getPrototypeOf(current.value) !== Object.prototype || Object.keys(current.value).length > 32) return false
+    const keys = Object.keys(current.value)
+    bytes += 2 + Math.max(0, (Array.isArray(current.value) ? current.value.length : keys.length) - 1)
+    if (!Array.isArray(current.value)) for (const key of keys) bytes += Buffer.byteLength(JSON.stringify(key), 'utf8') + 1
+    // JSON serializes an acyclic shared value at every occurrence. Only a
+    // reference to an active ancestor is a cycle; count repeated branches fully.
+    ancestors.add(current.value)
+    stack.push({ value: current.value, depth: current.depth, leave: true })
     for (const child of Object.values(current.value)) stack.push({ value: child, depth: current.depth + 1 })
   }
+  if (bytes > maximumBytes) return false
   try { return Buffer.byteLength(JSON.stringify(value), 'utf8') <= maximumBytes } catch { return false }
 }
 

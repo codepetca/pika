@@ -35,6 +35,23 @@ describe('contextual Gradebook routes', () => {
     expect(response.status).toBe(200); expect((await response.json()).students).toEqual([])
     expect(rpc).toHaveBeenCalledTimes(1); expect(mocks.role).not.toHaveBeenCalled(); expect(mocks.legacy).not.toHaveBeenCalled()
   })
+  it('returns the selected enrolled student inspector with saved marks through the actual contextual service', async () => {
+    const date = '2026-10-10T12:00:00Z'
+    const rpc = reply({ ...owner, operation: 'owner-read', selected_student_id: student, source: {
+      ...empty, roster: [{ student_id: student, email: 'synthetic@example.invalid' }],
+      categories: [{ id: resource, classroom_id: classroom, name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
+      items: [{ id: resource, classroom_id: classroom, title: 'Saved mark', points_possible: 10, gradebook_weight: 1, gradebook_category_id: resource, include_in_final: true, created_at: date, gradebook_maximum_override: null, gradebook_score_scale: 1 }],
+      item_scores: [{ item_id: resource, classroom_id: classroom, student_id: student, earned: 7, returned_at: null, updated_at: date }],
+    } })
+    const response = await ownerGet(new NextRequest(`http://localhost/api/teacher/gradebook?classroom_id=${classroom}&student_id=${student}`), { params: Promise.resolve({}) })
+    expect(response.status).toBe(200)
+    const result = await response.json()
+    expect(result.students).toHaveLength(1)
+    expect(result.selected_student).toMatchObject({ student_id: student, assessment_scores: [{ assessment_type: 'item', assessment_id: resource, earned: 7, possible: 10, percent: 70 }] })
+    expect(result.selected_student.assessment_scores).toEqual(result.students[0].assessment_scores)
+    expect(rpc).toHaveBeenCalledTimes(1); expect(mocks.role).not.toHaveBeenCalled(); expect(mocks.legacy).not.toHaveBeenCalled()
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  })
   it.each([
     [PATCH, { classroom_id: classroom, assessment_type: 'assignment', assessment_id: resource, gradebook_weight: 0 }, 'assessment_weight', { assessment_type: 'assignment', assessment_id: resource }, { assessment: { assessment_type: 'assignment', assessment_id: resource, weight: 0 } }],
     [overridePut, { classroom_id: classroom, student_id: student, assessment_type: 'assignment', assessment_id: resource, earned: 0 }, 'override_save', { assessment_type: 'assignment', assessment_id: resource, student_id: student }, { saved: true }],

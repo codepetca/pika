@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({ auth: vi.fn(), client: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireAuth: mocks.auth }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: mocks.client }))
 import { authorizeSharedGradebookActor, readContextualGradebookOwner, readContextualGradebookMember, mutateContextualGradebook } from '@/lib/server/contextual-gradebook'
+import { contextualGradebookOwnerEnvelopeSchema } from '@/lib/validations/contextual-gradebook'
 
 const actor = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const classroom = '22222222-2222-4222-8222-222222222222'
@@ -42,6 +43,34 @@ describe('contextual Gradebook trust boundary', () => {
     expect(result.students).toEqual([])
     expect(transport.rpc).toHaveBeenCalledTimes(1)
     expect(transport.abortSignal).toHaveBeenCalledWith(expect.any(AbortSignal))
+  })
+  it('returns the enrolled selected student and its marks through the actual projector with one RPC', async () => {
+    const transport = client({ actor_id: actor, classroom: { id: classroom, teacher_id: actor, archived_at: null }, operation: 'owner-read', selected_student_id: peer,
+      source: { ...empty, roster: [{ student_id: peer, email: 'synthetic@example.invalid' }], categories: [category], items: [savedItem], item_scores: [{ ...savedScore, student_id: peer, earned: 7 }] } })
+    const result = await readContextualGradebookOwner({ actorId: actor, classroomId: classroom, selectedStudentId: peer })
+    expect(result.students).toHaveLength(1)
+    expect(result.selected_student).toMatchObject({ student_id: peer, assessment_scores: [{ assessment_type: 'item', assessment_id: resource, earned: 7, possible: 10, percent: 70 }] })
+    expect(result.selected_student?.assessment_scores).toBe(result.students[0].assessment_scores)
+    expect(transport.rpc).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(JSON.stringify(result)).selected_student.assessment_scores).toEqual(result.students[0].assessment_scores)
+  })
+  it('rejects actual cycles before schema cloning', async () => {
+    const cyclic: { loop?: unknown } = {}; cyclic.loop = cyclic
+    const schema = vi.spyOn(contextualGradebookOwnerEnvelopeSchema, 'safeParse')
+    client(cyclic)
+    try {
+      await expect(readContextualGradebookOwner({ actorId: actor, classroomId: classroom, selectedStudentId: null })).rejects.toMatchObject({ statusCode: 503 })
+      expect(schema).not.toHaveBeenCalled()
+    } finally { schema.mockRestore() }
+  })
+  it('counts every serialized occurrence of a shared object against the byte cap', async () => {
+    const shared = { text: 'x'.repeat(16384) }
+    const schema = vi.spyOn(contextualGradebookOwnerEnvelopeSchema, 'safeParse')
+    client({ repeated: Array(1600).fill(shared) })
+    try {
+      await expect(readContextualGradebookOwner({ actorId: actor, classroomId: classroom, selectedStudentId: null })).rejects.toMatchObject({ statusCode: 503 })
+      expect(schema).not.toHaveBeenCalled()
+    } finally { schema.mockRestore() }
   })
   it.each([
     { actor_id: classroom }, { operation: 'member-grades' }, { selected_student_id: actor },
