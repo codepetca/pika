@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { authorizeSharedSurveyActor, readContextualSurveyResults } from '@/lib/server/contextual-surveys'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { aggregateSurveyResults } from '@/lib/surveys'
@@ -68,6 +69,11 @@ async function loadResponderProfiles(
 }
 
 export const GET = withErrorHandler('GetTeacherSurveyResults', async (_request, context) => {
+  const shared = await authorizeSharedSurveyActor()
+  if (shared.mode === 'shared') {
+    const { id: surveyId } = await context.params
+    return NextResponse.json(await readContextualSurveyResults({ actorId: shared.user.id, surveyId, permission: 'owner' }))
+  }
   const user = await requireRole('teacher')
   const { id: surveyId } = await context.params
 

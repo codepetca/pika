@@ -117,18 +117,6 @@ function nextTorontoDayBoundary(now: Date): string {
   )
 }
 
-function confirmedValidityBoundary(
-  occurrence: OccurrenceRow | null,
-  closesAt: string | null,
-  now: Date,
-): string {
-  const dayBoundary = occurrence
-    ? toTorontoStartOfDayIso(addDaysToDateString(occurrence.class_date, 1))
-    : nextTorontoDayBoundary(now)
-  if (!closesAt || !Number.isFinite(Date.parse(closesAt))) return dayBoundary
-  return new Date(Math.max(Date.parse(dayBoundary), Date.parse(closesAt))).toISOString()
-}
-
 export function buildStudentAttendanceClassroomState(input: {
   classroomId: string
   occurrence: OccurrenceRow | null
@@ -138,7 +126,11 @@ export function buildStudentAttendanceClassroomState(input: {
   now: Date
 }): { state: StudentAttendanceClassroomState; nextRefreshAt: string | null } {
   const { classroomId, occurrence, session, checkIn, statusOverride, now } = input
-  const automaticStatus = checkIn && !checkIn.invalidated_at && occurrence?.present_through_at
+  const automaticStatus = checkIn && !checkIn.invalidated_at
+    && checkIn.classroom_id === classroomId
+    && checkIn.occurrence_ref === occurrence?.occurrence_ref
+    && formatDateInToronto(new Date(checkIn.accepted_at)) === occurrence.class_date
+    && occurrence.present_through_at
     ? Date.parse(checkIn.accepted_at) <= Date.parse(occurrence.present_through_at)
       ? 'present' as const
       : 'late' as const
@@ -155,10 +147,12 @@ export function buildStudentAttendanceClassroomState(input: {
   const opensAt = session?.opens_at ?? occurrence?.opens_at ?? null
   const closesAt = session?.closes_at ?? occurrence?.closes_at ?? null
 
-  if (ownConfirmedStatus && confirmedAt) {
+  if (occurrence?.class_date === formatDateInToronto(now) && ownConfirmedStatus && confirmedAt
+    && formatDateInToronto(new Date(confirmedAt)) === occurrence.class_date
+    && Date.parse(confirmedAt) <= now.getTime()) {
     const closesTime = closesAt ? Date.parse(closesAt) : Number.NaN
     const shouldRefreshBeforeClose = Number.isFinite(closesTime) && now.getTime() < closesTime
-    const validUntil = confirmedValidityBoundary(occurrence, closesAt, now)
+    const validUntil = toTorontoStartOfDayIso(addDaysToDateString(occurrence.class_date, 1))
     return {
       state: {
         classroomId,
@@ -167,10 +161,11 @@ export function buildStudentAttendanceClassroomState(input: {
         closesAt,
         attendanceStatus: ownConfirmedStatus,
         confirmedAt,
+        classDate: occurrence.class_date,
         validUntil,
       },
       nextRefreshAt: shouldRefreshBeforeClose
-        ? new Date(Math.min(now.getTime() + OPEN_REFRESH_MS, closesTime)).toISOString()
+        ? new Date(Math.min(now.getTime() + OPEN_REFRESH_MS, closesTime, Date.parse(validUntil))).toISOString()
         : validUntil,
     }
   }
@@ -312,12 +307,11 @@ export async function loadStudentAttendanceStatusView(input: {
   }
 
   const today = formatDateInToronto(now)
-  const previousDay = addDaysToDateString(today, -1)
   const occurrenceResult = await input.supabase
     .from('attendance_occurrence_mappings')
     .select('classroom_id, class_date, occurrence_ref, opens_at, closes_at, present_through_at, absent_at, desired_state')
     .in('classroom_id', readyClassroomIds)
-    .in('class_date', [previousDay, today])
+    .in('class_date', [today])
     .limit(MAX_STUDENT_OCCURRENCES)
   assertRead(occurrenceResult)
   const occurrences = parseRows(occurrenceRowsSchema, occurrenceResult.data)
@@ -380,25 +374,7 @@ export async function loadStudentAttendanceStatusView(input: {
   const states = classrooms.map((classroom) => {
     if (!readySet.has(classroom.id)) return unavailableState(classroom.id)
     const classroomOccurrences = occurrencesByClassroom.get(classroom.id) ?? []
-    const overnightOccurrence = classroomOccurrences.find((occurrence) => {
-      if (occurrence.class_date !== previousDay || occurrence.desired_state === 'cancelled') {
-        return false
-      }
-      const session = sessionByOccurrence.get(occurrence.occurrence_ref)
-      const effectiveClosesAt = session?.closes_at ?? occurrence.closes_at
-      const closesTime = effectiveClosesAt ? Date.parse(effectiveClosesAt) : Number.NaN
-      if (!Number.isFinite(closesTime) || now.getTime() >= closesTime) return false
-      const checkIn = checkInByOccurrence.get(occurrence.occurrence_ref) ?? null
-      const statusOverride = overrideByOccurrence.get(occurrence.occurrence_ref) ?? null
-      const derived = buildStudentAttendanceClassroomState({
-        classroomId: classroom.id, occurrence, session: session ?? null,
-        checkIn, statusOverride, now,
-      })
-      return session?.status === 'open' || derived.state.state === 'confirmed'
-    })
-    const occurrence = overnightOccurrence
-      ?? classroomOccurrences.find((row) => row.class_date === today)
-      ?? null
+    const occurrence = classroomOccurrences.find((row) => row.class_date === today) ?? null
     const built = buildStudentAttendanceClassroomState({
       classroomId: classroom.id,
       occurrence,
@@ -412,6 +388,7 @@ export async function loadStudentAttendanceStatusView(input: {
     try {
       return {
         ...built.state,
+        classDate: occurrence.class_date,
         occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
           studentId: input.studentId,
           occurrenceRef: occurrence.occurrence_ref,

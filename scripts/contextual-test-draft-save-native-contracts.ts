@@ -17,6 +17,8 @@ import {
   type DraftSaveDriver, type DraftSaveSession, type DraftSaveTarget,
 } from './check-contextual-test-draft-save-db-contracts'
 import { draftSaveConcurrencyManifest, runDraftSaveConcurrency } from './check-contextual-test-draft-save-concurrency'
+import { classroomHotLifecycleNativePlan,validateClassroomHotLifecycleNativeSql,runClassroomHotLifecycleNativeContracts,
+  runClassroomHotLifecycleRollbackRaces,runClassroomHotLifecycleNativeRaces } from './contextual-classroom-hot-lifecycle-native-contracts'
 import { newTestOwnerCreateFixture, testOwnerCreateSnapshotSql, type TestOwnerCreateFixture } from './contextual-test-owner-create-proof-fixture'
 import { testOwnerCreateContractsManifest, TEST_OWNER_CREATE_FAILURE_LABELS } from './contextual-test-owner-create-db-contracts'
 import { testOwnerCreateConcurrencyManifest, validateTestOwnerCreateConcurrencySql, validateOwnerCreateTarget, runTestOwnerCreateConcurrency } from './check-contextual-test-create-concurrency'
@@ -61,6 +63,8 @@ const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503',
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
+type ProtocolReason = 'none' | 'stdout-type' | 'partial-cap' | 'unframed-output' | 'frame-cap' | 'exchange-cap' | 'decode' | 'stdin-error' | 'stderr-cap'
+type ProtocolObservation = Readonly<{ reason: ProtocolReason; frame: number; frameBytes: number; exchangeBytes: number; stderrBytes: number }>
 // Retain only one allowlisted code. Untrusted stderr lines are bounded and
 // discarded; neither their text nor an exception is part of the diagnostic.
 function captureSqlstate() {
@@ -97,13 +101,14 @@ function freeze<T>(value: T): T {
   return value
 }
 type PublicationPrivilegeKind = 'snapshot247' | 'publication252' | 'legacy139' | 'activation134'
-function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | 'learner' | 'owner-grading' | 'owner-recovery' | 'owner-unpublication' | 'owner-deletion' | PublicationPrivilegeKind = 'snapshot') {
+function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | 'reorder' | 'learner' | 'owner-grading' | 'owner-recovery' | 'owner-unpublication' | 'owner-deletion' | 'classroom-hot-lifecycle' | PublicationPrivilegeKind = 'snapshot') {
   const signature = kind === 'snapshot' ? 'public.snapshot_test_draft_save_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'create' ? 'public.create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)'
     : kind === 'discard' ? 'public.discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)'
     : kind === 'discard-inner' ? 'public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)'
     : kind === 'reorder' ? 'public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)'
     : kind === 'learner' ? 'public.test_learner_workflow_v1(uuid,uuid,uuid,text,jsonb,timestamp with time zone)'
+    : kind === 'classroom-hot-lifecycle' ? 'public.set_classroom_hot_archive_for_owner_v1(uuid,uuid,boolean)'
     : kind === 'owner-grading' || kind === 'owner-recovery' || kind === 'owner-unpublication' || kind === 'owner-deletion' ? 'public.test_owner_workflow_v1(uuid,uuid,uuid,text,jsonb,jsonb,timestamp with time zone)'
     : kind === 'snapshot247' ? 'public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'publication252' ? 'public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)'
@@ -536,8 +541,8 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '259_contextual_test_owner_grading.sql' | '260_contextual_test_owner_recovery.sql' | '261_contextual_test_owner_unpublish.sql' | '262_contextual_test_owner_delete.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading' | 'test-owner-recovery' | 'test-owner-unpublication' | 'test-owner-deletion';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '254_contextual_test_owner_reorder.sql' | '257_contextual_test_learner_workflow.sql' | '259_contextual_test_owner_grading.sql' | '260_contextual_test_owner_recovery.sql' | '261_contextual_test_owner_unpublish.sql' | '262_contextual_test_owner_delete.sql' | '268_contextual_classroom_hot_lifecycle.sql';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic' | 'test-learner' | 'test-owner-grading' | 'test-owner-recovery' | 'test-owner-unpublication' | 'test-owner-deletion' | 'classroom-hot-lifecycle';
   learnerCancellation?: TestLearnerNativePlan['cancellation'];
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
@@ -557,6 +562,27 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
 
 /** One fixed grading profile reuses the native engine; there is no public SQL,
  * resource selector, migration callback or programmable cleanup surface. */
+export function buildClassroomHotLifecycleNativeContractsManifest(original:AssignmentListProofFixture,reviewedHead:string,repository:string) {
+  const plan=classroomHotLifecycleNativePlan(original,reviewedHead,repository)
+  return freeze({...plan,bootstrap:boot,termination:draftSaveNativeTerminationSql(),close:'rollback;',
+    capabilities:CAPS,framing:'psql-echo-monotonic-v1',contextTemplate,privilege:snapshotPrivilegeSql('classroom-hot-lifecycle')})
+}
+export function createClassroomHotLifecycleNativeContracts(input:NativeOwnerInput&{absoluteDeadline:number}) {
+  const now=Date.now();assert(Number.isSafeInteger(input.absoluteDeadline)&&input.absoluteDeadline>now&&input.absoluteDeadline<=now+CAPS.totalMs)
+  const plan=classroomHotLifecycleNativePlan(input.original,input.reviewedHead,input.repository)
+  const manifest=buildClassroomHotLifecycleNativeContractsManifest(input.original,input.reviewedHead,input.repository)
+  const engine=createNativeOwnerContracts(input,{manifest,project:manifest.projectId,
+    sourceFile:'268_contextual_classroom_hot_lifecycle.sql',label:'classroom-hot-lifecycle',absoluteDeadline:input.absoluteDeadline,
+    singleMs:12000,committedOuterPrivilege:true,
+    committedSha256:testOwnerDigest(JSON.stringify(manifest.committed)),
+    runCommitted:(target,driver)=>runClassroomHotLifecycleNativeRaces(plan,target,driver),
+    validateSql:sql=>[manifest.bootstrap,manifest.close,manifest.privilege.catalog,manifest.privilege.revoke].includes(sql)||validateClassroomHotLifecycleNativeSql(plan,sql),
+    contractsSha256:testOwnerDigest(JSON.stringify(manifest.contracts)),racesSha256:testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    runContracts:(target,driver)=>runClassroomHotLifecycleNativeContracts(plan,target,driver),
+    runRaces:(target,driver)=>runClassroomHotLifecycleRollbackRaces(plan,target,driver)})
+  const {manifest:sealed,setup,verifyTarget,diagnostic,run,runCommittedTransitions,probeSnapshotPrivilegeDrift}=engine
+  return Object.freeze({manifest:sealed,setup,verifyTarget,diagnostic,run,runCommittedTransitions,probeHotLifecyclePrivilegeDrift:probeSnapshotPrivilegeDrift})
+}
 export function buildTestOwnerGradingNativeContractsManifest(original: AssignmentListProofFixture,
   observed: readonly TestLearnerObservedAttempt[], reviewedHead: string, repository: string) {
   const plan = testOwnerGradingNativePlan(original, observed, reviewedHead, repository)
@@ -847,6 +873,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let phase: Phase = 'idle'
   let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
   let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
+  let protocolObservation: ProtocolObservation | undefined
   let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number;
     progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified' }> | undefined
   function role(name: string): Role {
@@ -981,7 +1008,14 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private cleaning = false
     progressObservation() { return { scope: this.progressScope, snapshot: this.progress.snapshot() } }
     diagnosticObservation() { return { enabled: this.diagnosticEnabled, snapshot: this.timing.snapshot() } }
-    private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
+    private fault(kind: Fault, reason: ProtocolReason = 'none', frameBytes = this.active?.bytes ?? 0) {
+      if (!this.cleaning) {
+        if (kind === 'protocol' && !firstFault) protocolObservation = Object.freeze({ reason,
+          frame: Math.min(this.frame, CAPS.actions + 1), frameBytes: Math.min(frameBytes, CAPS.outputBytes + 1),
+          exchangeBytes: Math.min(exchanged, CAPS.totalBytes + 1), stderrBytes: Math.min(this.stderr, CAPS.stderrBytes + 1) })
+        record(kind, role(this.name), this.sqlstate.code())
+      }
+    }
     constructor(name: string) {
       this.name = name
       this.child = spawn('docker', dockerArgs(name), { cwd: input.repository, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -990,26 +1024,31 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         this.ended = true; this.reject(); resolveClose()
       }))
       this.child.on('error', () => { this.fault('child-exit'); this.reject(); void closeAll().catch(() => {}) })
-      this.child.stdin.on('error', () => { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) })
+      this.child.stdin.on('error', () => { this.fault('protocol', 'stdin-error'); this.reject(); void closeAll().catch(() => {}) })
       this.child.stdout.on('data', (chunk: Buffer) => {
+        let reason: ProtocolReason = 'stdout-type'
+        let observedBytes = this.active?.bytes ?? 0
         try {
-          assert(Buffer.isBuffer(chunk)); assert(chunk.length <= CAPS.outputBytes - Buffer.byteLength(this.partial))
+          assert(Buffer.isBuffer(chunk)); reason = 'partial-cap'
+          observedBytes += Buffer.byteLength(this.partial) + chunk.length
+          assert(chunk.length <= CAPS.outputBytes - Buffer.byteLength(this.partial))
           this.partial += this.decoder.write(chunk)
           for (;;) {
             const newline = this.partial.indexOf('\n'); if (newline < 0) break
             const line = this.partial.slice(0, newline).replace(/\r$/, ''); this.partial = this.partial.slice(newline + 1)
-            assert(this.active)
+            reason = 'unframed-output'; assert(this.active)
             if (line === this.active.end) { this.active.finish(); continue }
             this.active.bytes += Buffer.byteLength(line); exchanged += Buffer.byteLength(line)
-            assert(this.active.bytes <= CAPS.outputBytes && exchanged <= CAPS.totalBytes)
+            observedBytes = this.active.bytes; reason = 'frame-cap'; assert(this.active.bytes <= CAPS.outputBytes)
+            reason = 'exchange-cap'; assert(exchanged <= CAPS.totalBytes)
             if (line) this.active.lines.push(line)
           }
-        } catch { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        } catch { this.fault('protocol', reason, observedBytes); this.reject(); void closeAll().catch(() => {}) }
       })
       this.child.stderr.on('data', (chunk: Buffer) => {
         this.stderr += chunk.length
         if (profile.reorderDiagnosticSql) exchanged += chunk.length
-        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol', this.stderr > CAPS.stderrBytes ? 'stderr-cap' : 'exchange-cap'); this.reject(); void closeAll().catch(() => {}) }
         else {
           this.sqlstate.push(chunk)
           if (!this.cleaning && !firstFault && this.active) this.progress.push(chunk)
@@ -1042,7 +1081,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
           try { resolveRows(active.lines.map(line => {
             try { return { result: JSON.parse(line) as unknown } }
             catch { assert(/^[a-f0-9-]{36}$/.test(line) || /^-?[0-9]+$/.test(line) || line === 'ok'); return { result: line } }
-          })) } catch { this.fault('protocol'); reject(failure()); void closeAll().catch(() => {}) }
+          })) } catch { this.fault('protocol', 'decode', active.bytes); reject(failure()); void closeAll().catch(() => {}) }
         } }
         this.child.stdin.write(`${sql}\n\\echo ${marker}\n`)
       })
@@ -1170,6 +1209,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1),
         progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
       return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
+        + (profile.label === 'classroom-hot-lifecycle' ? `DIAG classroom-hot-lifecycle protocol reason=${protocolObservation?.reason ?? 'none'} frame=${protocolObservation?.frame ?? 0} frameBytes=${protocolObservation?.frameBytes ?? 0} exchangeBytes=${protocolObservation?.exchangeBytes ?? Math.min(exchanged, CAPS.totalBytes + 1)} stderrBytes=${protocolObservation?.stderrBytes ?? 0}.\n` : '')
         + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
         + (profile.learnerCancellation ? `DIAG learner cancellationStage=${cancellationFirstFailure ?? cancellationStage} cancellationRestore=${cancellationRestoreFailure ?? 'none'}.\n` : '')
     },

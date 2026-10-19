@@ -33,7 +33,8 @@ import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, 
   createTestOwnerPristineDiscardNativeContracts, buildTestOwnerPublicationNativeContractsManifest,
   createTestOwnerPublicationNativeContracts, buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts,
   buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts,
-  buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+  buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts,
+  buildClassroomHotLifecycleNativeContractsManifest, createClassroomHotLifecycleNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 import { newTestLearnerWorkflowFixture } from '../../scripts/contextual-test-learner-proof-fixture'
 import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../../src/lib/validations/contextual-test-create'
 import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
@@ -166,6 +167,8 @@ describe('native persistent-session transport with offline child mocks', () => {
   let publicationManifest: ReturnType<typeof buildTestOwnerPublicationNativeContractsManifest> | undefined
   let reorderManifest: ReturnType<typeof buildTestOwnerReorderNativeContractsManifest> | undefined
   let learnerManifest: ReturnType<typeof buildTestLearnerNativeContractsManifest> | undefined
+  let hotManifest: ReturnType<typeof buildClassroomHotLifecycleNativeContractsManifest> | undefined
+  let protocolReply: ((child: typeof children[number], sql: string, end: string, response: string) => boolean) | undefined
   let cancellationInstalled = false
   let cancellationRestoreOutput = 'ok'
   let cancellationCatalogChanged = false
@@ -216,6 +219,12 @@ describe('native persistent-session transport with offline child mocks', () => {
       capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(learnerManifest)), absoluteDeadline: Date.now() + 900000 })
   }
+  const hotFactory = () => {
+    hotManifest = buildClassroomHotLifecycleNativeContractsManifest(original, head, repository)
+    return createClassroomHotLifecycleNativeContracts({ repository, reviewedHead: head, original,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(hotManifest)), absoluteDeadline: Date.now() + 900000 })
+  }
   const diagnosticFactory = () => {
     // Presence/bootstrap/snapshot SQL is shared with the ordinary reorder
     // profile, while only the two diagnostic frame replies are new here.
@@ -231,7 +240,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined; publicationManifest = undefined
     reorderManifest = undefined; bulkChunks = []; bulkHang = false; bulkExit = false; emitCalibration = true
-    learnerManifest = undefined; cancellationInstalled = false
+    learnerManifest = undefined; hotManifest = undefined; protocolReply = undefined; cancellationInstalled = false
     cancellationRestoreOutput = 'ok'
     cancellationCatalogChanged = false
     bulkDispatched = undefined
@@ -257,7 +266,7 @@ describe('native persistent-session transport with offline child mocks', () => {
           }
           else if (input === learnerManifest?.cancellation.catalog) callback(null, JSON.stringify({ function: cancellationInstalled || cancellationCatalogChanged ? 'unexpected' : null, triggers: [] }))
           else if (input === manifest.privilege.restore || input === createManifest?.privilege.restore
-            || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore || input === reorderManifest?.privilege.restore || input === learnerManifest?.privilege.restore || publicationSql(input, 'restore')) {
+            || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore || input === reorderManifest?.privilege.restore || input === learnerManifest?.privilege.restore || input === hotManifest?.privilege.restore || publicationSql(input, 'restore')) {
             if (restorationFails) callback(Error('private grant restore failure'), '')
             else { serviceExecute = true; callback(null, '') }
           }
@@ -327,9 +336,9 @@ describe('native persistent-session transport with offline child mocks', () => {
           response = JSON.stringify(batch.expectedResult)
         }
         else if (sql === manifest.privilege.catalog || sql === createManifest?.privilege.catalog
-          || sql === discardManifest?.privilege.catalog || sql === discardManifest?.innerPrivilege.catalog || sql === reorderManifest?.privilege.catalog || sql === learnerManifest?.privilege.catalog || publicationSql(sql, 'catalog')) response = JSON.stringify(catalog())
+          || sql === discardManifest?.privilege.catalog || sql === discardManifest?.innerPrivilege.catalog || sql === reorderManifest?.privilege.catalog || sql === learnerManifest?.privilege.catalog || sql === hotManifest?.privilege.catalog || publicationSql(sql, 'catalog')) response = JSON.stringify(catalog())
         else if (sql === manifest.privilege.revoke || sql === createManifest?.privilege.revoke
-          || sql === discardManifest?.privilege.revoke || sql === discardManifest?.innerPrivilege.revoke || sql === reorderManifest?.privilege.revoke || sql === learnerManifest?.privilege.revoke || publicationSql(sql, 'revoke')) serviceExecute = false
+          || sql === discardManifest?.privilege.revoke || sql === discardManifest?.innerPrivilege.revoke || sql === reorderManifest?.privilege.revoke || sql === learnerManifest?.privilege.revoke || sql === hotManifest?.privilege.revoke || publicationSql(sql, 'revoke')) serviceExecute = false
         else if (sql.includes('select public.snapshot_test_draft_save_for_owner_v1')) {
           const testId = sql.match(/_v1\('[a-f0-9-]+','([a-f0-9-]+)'/)![1]
           response = JSON.stringify({ version: 1, actor_id: manifest.fixture.owner, classroom: { id: manifest.fixture.classroom, teacher_id: manifest.fixture.owner },
@@ -340,6 +349,7 @@ describe('native persistent-session transport with offline child mocks', () => {
         } else if (sql.startsWith('do $race$') && failContender) {
           queueMicrotask(() => child.emit('close', 1)); done(); return
         }
+        if (protocolReply?.(child, sql, end, response)) { done(); return }
         queueMicrotask(() => child.stdout.write(`${response ? `${response}\n` : ''}${end}\n`)); done()
       } })
       children.push(child); return child
@@ -736,6 +746,68 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(adapter.diagnostic()).toContain('phase=setup failure=protocol role=fixture sqlstate=unknown')
     expect(adapter.diagnostic()).not.toContain('PRIVATE')
     expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+  })
+  it.each(['stdout-type', 'partial-cap', 'unframed-output', 'frame-cap', 'decode', 'stdin-error', 'stderr-cap'] as const)(
+    'keeps a bounded hot-profile protocol reason for %s without retaining private content', async reason => {
+      const adapter = hotFactory()
+      protocolReply = (child, sql, end) => {
+        if (sql !== hotManifest!.setup) return false
+        queueMicrotask(() => {
+          const emit = (value: Buffer | string) => child.stdout.emit('data', value)
+          if (reason === 'stdout-type') emit('PRIVATE synthetic row')
+          if (reason === 'partial-cap') { emit(Buffer.alloc(8 * 1024 * 1024, 32)); emit(Buffer.from('x')) }
+          if (reason === 'frame-cap') {
+            const line = Buffer.from(' '.repeat(4 * 1024 * 1024) + 'null\n')
+            emit(line); emit(line)
+          }
+          if (reason === 'unframed-output') emit(Buffer.from(`null\n${end}\nPRIVATE synthetic row\n`))
+          if (reason === 'decode') emit(Buffer.from(`PRIVATE synthetic row\n${end}\n`))
+          if (reason === 'stdin-error') child.stdin.emit('error', Error('PRIVATE synthetic error'))
+          if (reason === 'stderr-cap') child.stderr.emit('data', Buffer.alloc(65537, 65))
+        })
+        return true
+      }
+      // A trailing output violation can follow the resolved end marker; its
+      // first fault must still survive closure and cannot authorize more work.
+      await adapter.setup().catch(() => {})
+      const diagnostic = adapter.diagnostic()
+      expect(diagnostic).toContain(`protocol reason=${reason} frame=2 `)
+      expect(diagnostic).toContain('failure=protocol role=fixture')
+      const counters = diagnostic.match(/frameBytes=(\d+) exchangeBytes=(\d+) stderrBytes=(\d+)/)!
+      expect(counters).not.toBeNull()
+      expect(Number(counters[1])).toBeLessThanOrEqual(8 * 1024 * 1024 + 1)
+      expect(Number(counters[2])).toBeLessThanOrEqual(64 * 1024 * 1024 + 1)
+      expect(Number(counters[3])).toBeLessThanOrEqual(65537)
+      for (const child of children) {
+        expect(child.kill).toHaveBeenCalledWith('SIGKILL')
+        child.stderr.emit('data', Buffer.from('PRIVATE late error\n'))
+      }
+      expect(adapter.diagnostic()).toBe(diagnostic)
+      expect(diagnostic).not.toMatch(/PRIVATE|synthetic|row|error\n/)
+      await expect(adapter.verifyTarget()).rejects.toThrow()
+    })
+  it('distinguishes the shared exchange cap from the frame cap through real fake-child frames', async () => {
+    const adapter = hotFactory()
+    protocolReply = (child, _sql, end, response) => {
+      // Each valid frame remains below8MiB. Repeated frames share the real
+      // engine counter; no internal budget or production cap is replaced.
+      const payload = Buffer.from(' '.repeat(7 * 1024 * 1024) + (response || 'null') + '\n')
+      queueMicrotask(() => {
+        child.stdout.emit('data', payload)
+        if (child.stdout.listenerCount('data')) child.stdout.emit('data', Buffer.from(end + '\n'))
+      })
+      return true
+    }
+    await adapter.setup()
+    await expect(adapter.probeHotLifecyclePrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))).rejects.toThrow()
+    const diagnostic = adapter.diagnostic()
+    expect(diagnostic).toContain('failure=protocol')
+    expect(diagnostic).toContain('protocol reason=exchange-cap')
+    const counters = diagnostic.match(/frameBytes=(\d+) exchangeBytes=(\d+) stderrBytes=(\d+)/)!
+    expect(Number(counters[1])).toBeLessThan(8 * 1024 * 1024)
+    expect(Number(counters[2])).toBe(64 * 1024 * 1024 + 1)
+    expect(diagnostic).not.toContain('PRIVATE')
+    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
   })
   it('retains the existing stderr cap and emits no raw stderr during rejection', async () => {
     const adapter = factory(); setupExit = true; stderrChunks = ['PRIVATE'.repeat(10000)]

@@ -152,7 +152,7 @@ function parseStep(lines) {
 // sentinels; today's inventories apply only to the explicit split layout.
 const databaseProofInventories = {
   database: [53, 'c1a9b76baedff767805250f8e2ede044ba1392cf3b40b783fde091044d287d39'],
-  'database-lifecycle': [86, '5cfe4e6f6cae186ffd8dbbbcac8635792dfa89399e0e62d3d3c7e9a245cfd77f'],
+  'database-lifecycle': [87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18'],
 }
 function databaseProofs(job) {
   const start = job.steps.findIndex(step => step.id === 'supabase-start')

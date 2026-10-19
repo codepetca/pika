@@ -105,6 +105,12 @@ describe('Bara attendance scan load measurement', () => {
         description: 'Your teacher can see this check-in.',
         attendanceStatus: 'present',
         recordedAt: '2026-08-18T13:00:00.000Z',
+        studentId: '30000000-0000-4000-8000-000000000001',
+        classroomId: '20000000-0000-4000-8000-000000000001',
+        occurrenceBinding: 'a'.repeat(32),
+        classDate: '2026-08-18',
+        serverNow: '2026-08-18T13:00:01.000Z',
+        validUntil: '2026-08-19T04:00:00.000Z',
       })
     })
 

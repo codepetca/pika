@@ -10,6 +10,7 @@ import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contex
 import { createSurveyForOwner } from '@/lib/server/contextual-classwork-creation'
 import { surveyCreateSchema } from '@/lib/validations/surveys'
 import { contextualSurveyCreateSchema } from '@/lib/validations/classwork-authoring'
+import { authorizeSharedSurveyActor, readContextualSurveyList } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -99,6 +100,11 @@ async function getNextClassworkPosition(classroomId: string) {
 }
 
 export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
+  const shared = await authorizeSharedSurveyActor()
+  if (shared.mode === 'shared') {
+    const classroomId = new URL(request.url).searchParams.get('classroom_id') || ''
+    return NextResponse.json(await readContextualSurveyList({ actorId: shared.user.id, classroomId, permission: 'owner' }))
+  }
   const user = await requireRole('teacher')
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')

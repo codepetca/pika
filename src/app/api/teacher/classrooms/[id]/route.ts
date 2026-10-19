@@ -12,7 +12,9 @@ import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import { authorizeSharedClassroomDetailReadActor, readContextualClassroomDetail } from '@/lib/server/contextual-classroom-detail'
 import { contextualClassroomDetailParamsSchema } from '@/lib/validations/contextual-classroom-detail'
 import { authorizeSharedClassroomMetadataActor, updateContextualClassroomMetadata } from '@/lib/server/contextual-classroom-metadata'
-import { contextualClassroomMetadataParamsSchema, contextualClassroomMetadataPatchSchema } from '@/lib/validations/contextual-classroom-metadata'
+import { contextualClassroomMetadataParamsSchema } from '@/lib/validations/contextual-classroom-metadata'
+import { contextualClassroomUpdatePatchSchema } from '@/lib/validations/contextual-classroom-hot-lifecycle'
+import { setContextualClassroomHotArchive } from '@/lib/server/contextual-classroom-hot-lifecycle'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -64,7 +66,15 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   const actor = await authorizeSharedClassroomMetadataActor()
   if (actor.mode === 'shared') {
     const { id: classroomId } = contextualClassroomMetadataParamsSchema.parse(await context.params)
-    const patch = contextualClassroomMetadataPatchSchema.parse(await request.json())
+    const patch = contextualClassroomUpdatePatchSchema.parse(await request.json())
+    if ('archived' in patch) {
+      const outcome = await setContextualClassroomHotArchive({ supabase: getServiceRoleClient(), actorId: actor.user.id, classroomId, archived: patch.archived })
+      if (outcome.kind === 'denied') {
+        const { denial } = outcome
+        return NextResponse.json({ error: denial.message, error_code: denial.errorCode, retryable: denial.retryable }, { status: denial.status })
+      }
+      return NextResponse.json({ classroom: outcome.classroom })
+    }
     const classroom = await updateContextualClassroomMetadata({ supabase: getServiceRoleClient(), actorId: actor.user.id, classroomId, patch })
     return NextResponse.json({ classroom })
   }

@@ -20,7 +20,15 @@ const detailedStudentAttendanceCheckInViewSchema = z.object({
   classroomName: z.string().optional(),
   studentId: z.string().uuid().optional(),
   occurrenceBinding: z.string().regex(/^[A-Za-z0-9_-]{32}$/).optional(),
-}).strict()
+  classDate: z.string().date().optional(),
+  serverNow: z.string().datetime({ offset: true }).optional(),
+  validUntil: z.string().datetime({ offset: true }).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.state !== 'checked_in' && value.state !== 'already_checked_in') return
+  for (const field of ['attendanceStatus', 'recordedAt', 'classroomId', 'studentId', 'occurrenceBinding', 'classDate', 'serverNow', 'validUntil'] as const) {
+    if (!value[field]) context.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: 'Required for confirmed attendance' })
+  }
+})
 
 const revokedClassroomQrViewSchema = z.object({
   state: z.literal('invalid'),
@@ -43,6 +51,7 @@ export const studentAttendanceClassroomStateSchema = z.object({
   closesAt: z.string().datetime({ offset: true }).nullable(),
   attendanceStatus: z.enum(['present', 'late']).optional(),
   confirmedAt: z.string().datetime({ offset: true }).optional(),
+  classDate: z.string().date().optional(),
   validUntil: z.string().datetime({ offset: true }).optional(),
   occurrenceBinding: z.string().regex(/^[A-Za-z0-9_-]{32}$/).optional(),
 }).strict()

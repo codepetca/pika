@@ -736,6 +736,9 @@ jobs:
           grep -Fx 'FAIL Forced metadata post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$metadata_cleanup_log"
           grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts' "$metadata_cleanup_log"
 
+      - name: Verify contextual hot classroom lifecycle rollback contracts
+        run: bash scripts/check-contextual-classroom-hot-lifecycle-database.sh
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |

@@ -27,19 +27,13 @@ const attemptId = '11111111-1111-4111-8111-111111111111'
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const classroomName = 'PPZ3C — Health for Life'
 const classroomRead = vi.fn()
+const occurrenceRead = vi.fn()
 const supabase = {
   from: vi.fn((table: string) => {
-    expect(table).toBe('classrooms')
-    const query = {
-      select: vi.fn((columns: string) => {
-        expect(columns).toBe('title')
-        return query
-      }),
-      eq: vi.fn((column: string, value: string) => {
-        expect([column, value]).toEqual(['id', classroomId])
-        return query
-      }),
-      maybeSingle: classroomRead,
+    const query: any = {
+      select: vi.fn(() => query),
+      eq: vi.fn(() => query),
+      maybeSingle: table === 'classrooms' ? classroomRead : occurrenceRead,
     }
     return query
   }),
@@ -58,12 +52,15 @@ function entryToken() {
 describe('native Pika student attendance check-in', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-02T13:02:00.000Z'))
+    occurrenceRead.mockResolvedValue({ data: { class_date: '2026-09-02', present_through_at: '2026-09-02T13:05:00.000Z' }, error: null })
     classroomRead.mockResolvedValue({ data: { title: classroomName }, error: null })
     resolveGeneration.mockReset().mockResolvedValue({ status: 'legacy' })
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', entrySecret)
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'pika_test')
   })
-  afterEach(() => vi.unstubAllEnvs())
+  afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers() })
 
   it('uses the exact current participant on enabled scans and checks the same generation after the response', async () => {
     vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'true')
@@ -99,7 +96,7 @@ describe('native Pika student attendance check-in', () => {
         acceptedAt: '2026-09-02T13:01:00.000Z' } })
     const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
       integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send,
-      loadPresentThroughAt: vi.fn().mockResolvedValue('2026-09-02T13:05:00.000Z') })
+      loadOccurrenceMetadata: vi.fn().mockResolvedValue({ classDate: '2026-09-02', presentThroughAt: '2026-09-02T13:05:00.000Z' }) })
     expect(result).toMatchObject({ state: 'needs_staff' })
     expect(result).not.toHaveProperty('recordedAt')
     expect(result).not.toHaveProperty('classroomName')
@@ -121,12 +118,78 @@ describe('native Pika student attendance check-in', () => {
     const send = vi.fn().mockResolvedValue({
       outcome: 'applied', resultCode: 'check_in_accepted',
       occurrenceRef: 'occurrence_one', sessionRevision: 1,
+      checkIn: { checkInRef: 'check_in_one', participantRef: 'participant_one', checkInRevision: 1, acceptedAt: '2026-09-02T13:01:00.000Z' },
     })
     await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser,
       entryToken: entryToken(), attemptId, integrationState: 'ready',
       resolveActor: vi.fn().mockResolvedValue(actor), send,
     })).resolves.toMatchObject({ state: 'checked_in', classroomName: title })
     expect(send).toHaveBeenCalledTimes(1)
+  })
+
+
+  it.each([
+    ['2026-09-02', '2026-09-03T03:30:00.000Z', '2026-09-03T04:00:00.000Z'],
+    ['2026-03-08', '2026-03-08T07:30:00.000Z', '2026-03-09T04:00:00.000Z'],
+    ['2026-11-01', '2026-11-01T07:30:00.000Z', '2026-11-02T05:00:00.000Z'],
+  ])('returns Toronto date %s and its DST-safe midnight', async (classDate, serverNow, validUntil) => {
+    vi.setSystemTime(new Date(serverNow))
+    occurrenceRead.mockResolvedValue({ data: { class_date: classDate, present_through_at: serverNow }, error: null })
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor),
+      send: vi.fn().mockResolvedValue({ outcome: 'applied', resultCode: 'check_in_accepted', occurrenceRef: 'occurrence_one', sessionRevision: 1,
+        checkIn: { checkInRef: 'check_in_one', participantRef: 'participant_one', checkInRevision: 1, acceptedAt: serverNow } }) })
+    expect(result).toMatchObject({ state: 'checked_in', classDate, serverNow, validUntil })
+  })
+
+  it('does not send when occurrence metadata is unavailable', async () => {
+    occurrenceRead.mockResolvedValue({ data: null, error: { message: 'unavailable' } })
+    const send = vi.fn()
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send }))
+      .rejects.toEqual(new StudentAttendanceCheckInError('upstream_unavailable'))
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it.each(['missing_record', 'different_occurrence'])('does not confirm a success with %s', async invalid => {
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor),
+      send: vi.fn().mockResolvedValue({ outcome: 'applied', resultCode: 'check_in_accepted',
+        occurrenceRef: invalid === 'different_occurrence' ? 'occurrence_other' : 'occurrence_one', sessionRevision: 1,
+        ...(invalid === 'missing_record' ? {} : { checkIn: { checkInRef: 'check_in_one', participantRef: 'participant_one', checkInRevision: 1, acceptedAt: '2026-09-02T13:01:00.000Z' } }) }) })
+    expect(result.state).toBe('closed')
+    expect(result).not.toHaveProperty('recordedAt')
+  })
+
+  it('refuses yesterday occurrence before sending even when its QR entry has not expired', async () => {
+    occurrenceRead.mockResolvedValue({ data: { class_date: '2026-09-01', present_through_at: '2026-09-01T13:05:00.000Z' }, error: null })
+    const send = vi.fn()
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })
+    expect(result.state).toBe('closed')
+    expect(result).not.toHaveProperty('recordedAt')
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it.each(['check_in_accepted', 'already_checked_in'] as const)('does not confirm %s with an older accepted event', async resultCode => {
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor),
+      send: vi.fn().mockResolvedValue({ outcome: 'duplicate', resultCode, occurrenceRef: 'occurrence_one', sessionRevision: 1,
+        checkIn: { checkInRef: 'check_in_old', participantRef: 'participant_one', checkInRevision: 1, acceptedAt: '2026-09-01T13:01:00.000Z' } }) })
+    expect(result.state).toBe('closed')
+    expect(result).not.toHaveProperty('recordedAt')
+  })
+
+  it('rechecks Toronto today after the command crosses midnight', async () => {
+    vi.setSystemTime(new Date('2026-09-03T03:59:59.000Z'))
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor),
+      send: vi.fn().mockImplementation(async () => {
+        vi.setSystemTime(new Date('2026-09-03T04:00:00.000Z'))
+        return { outcome: 'duplicate', resultCode: 'already_checked_in', occurrenceRef: 'occurrence_one', sessionRevision: 1,
+          checkIn: { checkInRef: 'check_in_old', participantRef: 'participant_one', checkInRevision: 1, acceptedAt: '2026-09-02T13:01:00.000Z' } }
+      }) })
+    expect(result.state).toBe('closed')
   })
 
   it('maps the verified local WorkOS link to an opaque Pika principal', async () => {
@@ -187,7 +250,7 @@ describe('native Pika student attendance check-in', () => {
       integrationState: 'ready',
       resolveActor,
       send,
-      loadPresentThroughAt: vi.fn().mockResolvedValue('2026-09-02T13:05:00.000Z'),
+      loadOccurrenceMetadata: vi.fn().mockResolvedValue({ classDate: '2026-09-02', presentThroughAt: '2026-09-02T13:05:00.000Z' }),
     })
 
     expect(resolveActor).toHaveBeenCalledWith({ supabase, pikaUser })
@@ -208,6 +271,9 @@ describe('native Pika student attendance check-in', () => {
       description: 'Your attendance was recorded.',
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
+      classDate: '2026-09-02',
+      serverNow: '2026-09-02T13:02:00.000Z',
+      validUntil: '2026-09-03T04:00:00.000Z',
       classroomId,
       classroomName,
       studentId,
@@ -227,6 +293,7 @@ describe('native Pika student attendance check-in', () => {
         resultCode: 'already_checked_in',
         occurrenceRef: 'occurrence_one',
         sessionRevision: 2,
+        checkIn: { checkInRef: 'check_in_one', participantRef: 'participant_one', checkInRevision: 1, acceptedAt: '2026-09-02T13:01:00.000Z' },
       })
 
     await expect(executeStudentAttendanceCheckIn({

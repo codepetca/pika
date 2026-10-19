@@ -2200,10 +2200,16 @@ test('shows the History join retry delay in empty and enrolled states', async ({
 test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
   let state: 'open' | 'duplicate' | 'closed' | 'revoked' | 'not_joined' | 'not_on_roster' | 'ambiguous' | 'error' = 'open'
+  const confirmationMetadata = {
+    classDate: '2026-08-29', serverNow: '2026-08-29T13:05:01.000Z',
+    validUntil: '2026-08-30T04:00:00.000Z', attendanceStatus: 'present',
+    studentId: '40000000-0000-4000-8000-000000000001', occurrenceBinding: 'a'.repeat(32),
+  }
   await page.route('**/api/student/attendance/classroom-check-in', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const bodies = {
       open: {
+        ...confirmationMetadata,
         state: 'checked_in', title: 'You are checked in', description: 'Your attendance was recorded.',
         attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
@@ -2212,6 +2218,7 @@ test('resolves permanent classroom attendance QR states after student authentica
         occurrenceBinding: 'a'.repeat(32),
       },
       duplicate: {
+        ...confirmationMetadata,
         state: 'already_checked_in', title: 'You are already checked in',
         description: 'No additional attendance record was created.',
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
@@ -2251,7 +2258,7 @@ test('resolves permanent classroom attendance QR states after student authentica
   await expect(page.getByRole('heading', { name: 'You are checked in' })).toBeVisible()
 
   await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
-  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('Aug 29, 2026, 9:05 AM', { exact: true })).toBeVisible()
   await expect(page.getByText('Your attendance was recorded.', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
   await expect(page.locator('time')).toHaveAttribute('datetime', '2026-08-29T13:05:00.000Z')
@@ -2265,7 +2272,7 @@ test('resolves permanent classroom attendance QR states after student authentica
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'You are already checked in' })).toBeVisible()
   await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
-  await expect(page.getByText('9:05 AM', { exact: true })).toBeVisible()
+  await expect(page.getByText('Aug 29, 2026, 9:05 AM', { exact: true })).toBeVisible()
   await expect(page.getByText('No additional attendance record was created.', { exact: true })).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-duplicate.png`),
@@ -2299,7 +2306,7 @@ test('resolves permanent classroom attendance QR states after student authentica
 
   state = 'error'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: 'Not checked-in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Unable to confirm check-in' })).toBeVisible()
   await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
   await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
   await expect(page.getByText(/It is safe to retry/)).toHaveCount(0)
@@ -3655,7 +3662,7 @@ test.describe('student experience matrix', () => {
     const occurrenceBinding = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     let attendanceState: 'isolated' | 'open' | 'closed' | 'confirmed' = 'isolated'
     await page.route('**/api/student/attendance/status', async (route) => {
-      const common = { opensAt: null, closesAt: null }
+      const common = { opensAt: null, closesAt: null, classDate: '2026-08-23' }
       const classrooms = attendanceState === 'isolated'
         ? [
             { classroomId: classroom.id, state: 'unavailable', ...common },
@@ -3665,6 +3672,7 @@ test.describe('student experience matrix', () => {
           ? [{
               classroomId: classroom.id,
               state: 'open',
+              classDate: '2026-08-23',
               occurrenceBinding,
               opensAt: '2026-08-23T13:00:00.000Z',
               closesAt: '2099-08-23T14:00:00.000Z',
@@ -3727,6 +3735,8 @@ test.describe('student experience matrix', () => {
           description: 'No additional attendance record was created.',
           attendanceStatus: 'present',
           recordedAt: '2026-08-23T13:01:00.000Z',
+          classDate: '2026-08-23', serverNow: '2026-08-23T13:30:00.000Z',
+          validUntil: '2026-08-24T04:00:00.000Z',
           classroomId: classroom.id,
           studentId: authPayload.user.id,
           occurrenceBinding,

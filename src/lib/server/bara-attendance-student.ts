@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
+import { addDaysToDateString } from '@/lib/date-string'
+import { formatDateInToronto, toTorontoStartOfDayIso } from '@/lib/timezone'
 import {
   BaraAttendanceClientError,
   getBaraAttendanceIntegrationState,
@@ -44,6 +46,12 @@ export interface StudentAttendanceCheckInView {
   attendanceStatus?: 'present' | 'late'
   recordedAt?: string
   classroomName?: string
+  classroomId?: string
+  studentId?: string
+  occurrenceBinding?: string
+  classDate?: string
+  serverNow?: string
+  validUntil?: string
 }
 
 export class StudentAttendanceCheckInError extends Error {
@@ -151,6 +159,11 @@ function mapResult(
   }
 }
 
+function checkInClosed(): StudentAttendanceCheckInView {
+  return { state: 'closed', title: 'Check-in is closed',
+    description: 'Ask your teacher if your attendance needs to be corrected.' }
+}
+
 function membershipUnavailable(): StudentAttendanceCheckInView {
   return { state: 'needs_staff', title: 'Your teacher needs to help',
     description: 'Ask your teacher to check your roster and attendance.' }
@@ -164,7 +177,11 @@ export async function executeStudentAttendanceCheckIn(input: {
   integrationState?: 'disabled' | 'not_configured' | 'ready'
   resolveActor?: typeof resolveVerifiedPikaAttendanceStudent
   send?: (payload: V1StudentCheckIn) => Promise<BaraStudentCheckInResult>
-  loadPresentThroughAt?: (input: { classroomId: string; occurrenceRef: string }) => Promise<string>
+  now?: () => Date
+  loadOccurrenceMetadata?: (input: { classroomId: string; occurrenceRef: string }) => Promise<{
+    classDate: string
+    presentThroughAt: string
+  }>
   verifyCanaryClassroom?: (input: { supabase: any; classroomId: string }) => Promise<void>
   resolveGeneration?: typeof resolveAttendanceScanGeneration
 }) {
@@ -240,6 +257,27 @@ export async function executeStudentAttendanceCheckIn(input: {
   if (classroomError || !parsedClassroom.success) {
     throw new StudentAttendanceCheckInError('upstream_unavailable')
   }
+  const now = input.now ?? (() => new Date())
+  let occurrenceMetadata: { classDate: string; presentThroughAt: string }
+  if (input.loadOccurrenceMetadata) {
+    occurrenceMetadata = await input.loadOccurrenceMetadata({
+      classroomId: entry.classroomId, occurrenceRef: entry.occurrenceRef,
+    })
+  } else {
+    const { data, error } = await input.supabase
+      .from('attendance_occurrence_mappings')
+      .select('class_date, present_through_at')
+      .eq('classroom_id', entry.classroomId)
+      .eq('occurrence_ref', entry.occurrenceRef)
+      .maybeSingle()
+    const parsed = z.object({
+      class_date: z.string().date(),
+      present_through_at: z.string().datetime({ offset: true }),
+    }).strict().safeParse(data)
+    if (error || !parsed.success) throw new StudentAttendanceCheckInError('upstream_unavailable')
+    occurrenceMetadata = { classDate: parsed.data.class_date, presentThroughAt: parsed.data.present_through_at }
+  }
+  if (occurrenceMetadata.classDate !== formatDateInToronto(now())) return checkInClosed()
   // Emit the new optional wire field only under the explicit rollout gate.
   // Current-state checks still run when that gate is paused.
   const participantRef = generation.status === 'active' && process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true'
@@ -286,33 +324,27 @@ export async function executeStudentAttendanceCheckIn(input: {
   }
   if (participantRef && result.checkIn && result.checkIn.participantRef !== participantRef)
     throw new StudentAttendanceCheckInError('upstream_unavailable')
-  let presentThroughAt: string | undefined
-  if (result.checkIn) {
-    if (input.loadPresentThroughAt) {
-      presentThroughAt = await input.loadPresentThroughAt({
-        classroomId: entry.classroomId, occurrenceRef: entry.occurrenceRef,
-      })
-    } else {
-    const { data, error } = await input.supabase
-      .from('attendance_occurrence_mappings')
-      .select('present_through_at')
-      .eq('classroom_id', entry.classroomId)
-      .eq('occurrence_ref', entry.occurrenceRef)
-      .maybeSingle()
-    const parsed = z.object({ present_through_at: z.string().datetime({ offset: true }) })
-      .strict().safeParse(data)
-    if (error || !parsed.success) throw new StudentAttendanceCheckInError('upstream_unavailable')
-    presentThroughAt = parsed.data.present_through_at
-    }
-  }
   if (!sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
-  const mapped = mapResult(result, presentThroughAt)
+  const responseNow = now()
+  const successful = result.resultCode === 'check_in_accepted' || result.resultCode === 'already_checked_in'
+  if (successful && (
+    result.occurrenceRef !== entry.occurrenceRef
+    || !result.checkIn
+    || !Number.isFinite(Date.parse(result.checkIn.acceptedAt))
+    || formatDateInToronto(new Date(result.checkIn.acceptedAt)) !== occurrenceMetadata.classDate
+    || occurrenceMetadata.classDate !== formatDateInToronto(responseNow)
+    || Date.parse(result.checkIn.acceptedAt) > responseNow.getTime()
+  )) return checkInClosed()
+  const mapped = mapResult(result, occurrenceMetadata.presentThroughAt)
   return mapped.state === 'checked_in' || mapped.state === 'already_checked_in'
     ? {
         ...mapped,
         classroomId: entry.classroomId,
         classroomName: parsedClassroom.data.title,
         studentId: input.pikaUser.id,
+        classDate: occurrenceMetadata.classDate,
+        serverNow: responseNow.toISOString(),
+        validUntil: toTorontoStartOfDayIso(addDaysToDateString(occurrenceMetadata.classDate, 1)),
         occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
           studentId: input.pikaUser.id,
           occurrenceRef: entry.occurrenceRef,

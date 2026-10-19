@@ -7,14 +7,23 @@ import StudentClassroomAttendanceFixturePage from '@/app/e2e-fixtures/student-cl
 const attendanceClientMocks = vi.hoisted(() => ({
   invalidate: vi.fn(),
   preserve: vi.fn(),
+  read: vi.fn(),
 }))
 
 vi.mock('@/lib/student-attendance-client', () => ({
+  fetchStudentAttendanceStatus: attendanceClientMocks.read,
   invalidateStudentAttendanceStatus: attendanceClientMocks.invalidate,
   preserveAuthoritativeStudentAttendanceConfirmation: attendanceClientMocks.preserve,
 }))
 
 const studentId = '30000000-0000-4000-8000-000000000001'
+const confirmationMetadata = {
+  studentId, classroomId: '20000000-0000-4000-8000-000000000001',
+  occurrenceBinding: 'a'.repeat(32), attendanceStatus: 'present',
+  classDate: '2026-09-02', serverNow: '2026-09-02T13:10:00.000Z',
+  recordedAt: '2026-09-02T13:01:00.000Z', validUntil: '2026-09-03T04:00:00.000Z',
+}
+
 const occurrenceBinding = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 
 describe('StudentAttendanceCheckIn', () => {
@@ -25,6 +34,7 @@ describe('StudentAttendanceCheckIn', () => {
 
   it('binds the handoff to the POST-authenticated student returned by the server', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ...confirmationMetadata,
       state: 'checked_in',
       title: 'You are checked in',
       description: 'Your attendance was recorded.',
@@ -41,7 +51,7 @@ describe('StudentAttendanceCheckIn', () => {
 
     expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeInTheDocument()
     expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
-    expect(screen.getByText('9:01 AM')).toBeInTheDocument()
+    expect(screen.getByText('Sep 2, 2026, 9:01 AM')).toBeInTheDocument()
     expect(screen.queryByText('Pika attendance')).not.toBeInTheDocument()
     expect(screen.queryByText('Your attendance was recorded.')).not.toBeInTheDocument()
     expect(screen.queryByText(/Confirmed|EDT|EST/)).not.toBeInTheDocument()
@@ -61,6 +71,7 @@ describe('StudentAttendanceCheckIn', () => {
       occurrenceBinding,
       attendanceStatus: 'present',
       confirmedAt: '2026-09-02T13:01:00.000Z',
+      classDate: '2026-09-02',
     })
     expect(attendanceClientMocks.invalidate).toHaveBeenCalledWith(studentId)
   })
@@ -68,14 +79,15 @@ describe('StudentAttendanceCheckIn', () => {
   it('shows a classroom name longer than 200 characters without losing the confirmation', async () => {
     const classroomName = 'Health and Wellness '.repeat(20).trim()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ...confirmationMetadata,
       state: 'checked_in', title: 'You are checked in',
       description: 'Your attendance was recorded.', classroomName,
-      recordedAt: '2026-10-08T13:06:00.000Z',
+      recordedAt: '2026-09-02T13:06:00.000Z',
     }), { status: 200 })))
     render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
     expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeVisible()
     expect(screen.getByText(classroomName)).toBeVisible()
-    expect(screen.getByText('9:06 AM')).toBeVisible()
+    expect(screen.getByText('Sep 2, 2026, 9:06 AM')).toBeVisible()
   })
 
   it('retains keyboard focus on the semantic return link as confirmation updates its destination', async () => {
@@ -92,6 +104,7 @@ describe('StudentAttendanceCheckIn', () => {
     expect(loadingReturn).toHaveFocus()
 
     await act(async () => resolveCheckIn(new Response(JSON.stringify({
+      ...confirmationMetadata,
       state: 'checked_in',
       title: 'You are checked in',
       description: 'Your attendance was recorded.',
@@ -108,18 +121,19 @@ describe('StudentAttendanceCheckIn', () => {
     const fetcher = vi.fn()
       .mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce(new Response(JSON.stringify({
+        ...confirmationMetadata,
         state: 'already_checked_in',
         title: 'You are already checked in',
         description: 'No additional attendance record was created.',
         attendanceStatus: 'present',
         classroomId: '20000000-0000-4000-8000-000000000001',
         classroomName: 'PPZ3C — Health for Life',
-        recordedAt: '2026-01-08T14:06:00.000Z',
+        recordedAt: '2026-09-02T13:06:00.000Z',
       }), { status: 200 }))
     vi.stubGlobal('fetch', fetcher)
 
     render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn classroomName="PPZ3C — Health for Life" />)
-    expect(await screen.findByRole('heading', { name: 'Not checked-in' }))
+    expect(await screen.findByRole('heading', { name: 'Unable to confirm check-in' }))
       .toBeInTheDocument()
     expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
     expect(screen.queryByText(/It is safe to retry/)).not.toBeInTheDocument()
@@ -130,7 +144,7 @@ describe('StudentAttendanceCheckIn', () => {
       .toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to classroom' })).toBeInTheDocument()
     expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
-    expect(screen.getByText('9:06 AM')).toBeInTheDocument()
+    expect(screen.getByText('Sep 2, 2026, 9:06 AM')).toBeInTheDocument()
     expect(screen.queryByText('No additional attendance record was created.')).not.toBeInTheDocument()
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
     const firstBody = JSON.parse(fetcher.mock.calls[0][1].body)
@@ -204,6 +218,7 @@ describe('StudentAttendanceCheckIn', () => {
     expect(region).toHaveFocus()
     expect(fetcher).toHaveBeenCalledTimes(2)
     await act(async () => settle(new Response(JSON.stringify({
+      ...confirmationMetadata,
       state: 'checked_in', title: 'You are checked in', description: 'Recorded.',
       classroomId: '20000000-0000-4000-8000-000000000001',
     }), { status: 200 })))

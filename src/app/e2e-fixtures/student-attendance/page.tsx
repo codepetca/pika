@@ -33,6 +33,7 @@ export default function StudentAttendanceFixturePage() {
             state={{
               classroomId,
               state: 'confirmed',
+              classDate: '2026-08-28',
               opensAt: '2026-08-28T12:50:00.000Z',
               closesAt: '2026-08-28T13:50:00.000Z',
               attendanceStatus: 'late',

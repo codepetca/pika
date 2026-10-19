@@ -1,11 +1,14 @@
-import { createHash } from 'node:crypto'
+import { createHash,randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it,vi } from 'vitest'
+import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
+import { testOwnerRecoveryNativePlan } from '../../scripts/contextual-test-owner-recovery-native-contracts'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerRecoveryFixture, recoveryUnsubmitPayload, validateTestOwnerRecoveryResult,
   TEST_OWNER_RECOVERY_PROOF_CHECKS } from '../../scripts/contextual-test-owner-recovery-proof-fixture'
 
-const f = newTestOwnerRecoveryFixture(newAssignmentListProofFixture(new Date('2026-10-11T12:00:00Z')))
+const original=newAssignmentListProofFixture(new Date('2026-10-11T12:00:00Z'))
+const f = newTestOwnerRecoveryFixture(original)
 const plan = { student_ids: [f.actors[1].id, f.actors[3].id], eligible_student_ids: [f.actors[1].id],
   attempts: [{ id: f.attemptIds[0], student_id: f.actors[1].id, draft_revision: 19,
     responses: { [f.questions[0].id]: 'Synthetic recovery answer' } }] }
@@ -58,5 +61,21 @@ describe('inert recovery proof and exact selected-work projections', () => {
     expect(sql).toContain('history_fault260')
     expect(sql).toContain("exception when sqlstate 'ZX260'")
     expect(createHash('sha256').update(sql).digest('hex')).toMatch(/^[a-f0-9]{64}$/)
+  })
+})
+
+describe('recovery current269 sealed source profile',()=>{
+  const observed=Object.freeze([1,2].map(i=>Object.freeze({actorId:f.actors[i].id,attemptId:randomUUID(),revision:1})))
+  const nativePlan=()=>testOwnerRecoveryNativePlan(original,observed,'a'.repeat(40),process.cwd())
+  it('retains the complete current269 tail',()=>{expect(nativePlan().migrations).toHaveLength(269)})
+  it.each(['name','digest','bytes','self-hashed-bytes','unknown270'])('refuses changed268 or future tail %s',defect=>{
+    const migrations=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m})),tail=migrations[267]
+    if(defect==='name')tail.name='268_unknown.sql'
+    if(defect==='digest')tail.sha256='f'.repeat(64)
+    if(defect==='bytes'||defect==='self-hashed-bytes')tail.sql+='\n'
+    if(defect==='self-hashed-bytes')tail.sha256=createHash('sha256').update(tail.sql).digest('hex')
+    if(defect==='unknown270')migrations.push({name:'270_unknown.sql',sql:'select 1;',sha256:createHash('sha256').update('select 1;').digest('hex')})
+    const loader=vi.spyOn(platform,'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
+    try {expect(nativePlan).toThrow()}finally{loader.mockRestore()}
   })
 })
