@@ -41,6 +41,21 @@ describe('student attendance status view', () => {
 
   afterEach(() => vi.unstubAllEnvs())
 
+  it.each([
+    ['2026-03-08', '2026-03-08T07:30:00.000Z', '2026-03-09T04:00:00.000Z'],
+    ['2026-11-01', '2026-11-01T07:30:00.000Z', '2026-11-02T05:00:00.000Z'],
+  ])('caps %s confirmation at Toronto midnight across DST', (classDate, now, validUntil) => {
+    const result = buildStudentAttendanceClassroomState({
+      classroomId: classroomOne,
+      occurrence: { classroom_id: classroomOne, class_date: classDate, occurrence_ref: 'occurrence_one',
+        opens_at: null, closes_at: '2026-11-03T05:00:00.000Z', present_through_at: now, absent_at: null, desired_state: 'scheduled' },
+      session: null,
+      checkIn: { classroom_id: classroomOne, occurrence_ref: 'occurrence_one', check_in_ref: 'check_in_one', check_in_revision: 1, accepted_at: now, invalidated_at: null },
+      statusOverride: null, now: new Date(now),
+    })
+    expect(result.state).toMatchObject({ state: 'confirmed', classDate, validUntil })
+  })
+
   it('turns an open session into a QR-only prompt and expires it at close', () => {
     const occurrence = {
       classroom_id: classroomOne,
@@ -186,7 +201,7 @@ describe('student attendance status view', () => {
     expect(JSON.stringify(result)).not.toContain(teacherOne)
   })
 
-  it('selects an open previous-day occurrence through its next-day close', async () => {
+  it('selects today even while yesterday occurrence is still open', async () => {
     const { client, calls } = queryClient({
       classroom_enrollments: [{ classroom_id: classroomOne }],
       classrooms: [{ id: classroomOne, teacher_id: teacherOne }],
@@ -242,18 +257,18 @@ describe('student attendance status view', () => {
     expect(result.classrooms).toEqual([
       expect.objectContaining({
         classroomId: classroomOne,
-        state: 'open',
-        closesAt: '2026-08-24T05:00:00.000Z',
+        state: 'scheduled',
+        closesAt: '2026-08-24T14:00:00.000Z',
       }),
     ])
     expect(calls).toContainEqual({
       table: 'attendance_occurrence_mappings',
       method: 'in',
-      args: ['class_date', ['2026-08-23', '2026-08-24']],
+      args: ['class_date', ['2026-08-24']],
     })
   })
 
-  it('keeps an overnight confirmation until close, then selects today', async () => {
+  it('selects today instead of confirming yesterday overnight', async () => {
     const rows = {
       classroom_enrollments: [{ classroom_id: classroomOne }],
       classrooms: [{ id: classroomOne, teacher_id: teacherOne }],
@@ -312,9 +327,8 @@ describe('student attendance status view', () => {
       integrationState: 'ready',
     })
     expect(beforeClose.classrooms[0]).toEqual(expect.objectContaining({
-      state: 'confirmed',
-      confirmedAt: '2026-08-24T03:15:00.000Z',
-      validUntil: '2026-08-24T05:00:00.000Z',
+      state: 'scheduled',
+      opensAt: '2026-08-24T13:00:00.000Z',
     }))
 
     const afterClose = await loadStudentAttendanceStatusView({

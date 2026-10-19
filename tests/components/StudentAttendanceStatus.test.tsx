@@ -13,6 +13,9 @@ import {
   preserveAuthoritativeStudentAttendanceConfirmation,
 } from '@/lib/student-attendance-client'
 
+import { formatDateInToronto } from '@/lib/timezone'
+import type { StudentAttendanceClassroomState } from '@/lib/validations/student-attendance'
+
 const classroomOne = '20000000-0000-4000-8000-000000000001'
 const studentOne = '30000000-0000-4000-8000-000000000001'
 const studentTwo = '30000000-0000-4000-8000-000000000002'
@@ -46,11 +49,15 @@ describe('StudentAttendanceStatus', () => {
   }
 
   function statusResponse(body: unknown) {
-    const payload = {
-      studentId: studentOne,
-      ...(body as Record<string, unknown>),
+    const fixture = body as { studentId?: string; serverNow: string; classrooms?: StudentAttendanceClassroomState[] }
+    const payload = { studentId: studentOne, ...fixture }
+    const dated = {
+      ...payload,
+      classrooms: payload.classrooms?.map((state) => ({
+        classDate: formatDateInToronto(new Date(payload.serverNow)), ...state,
+      })),
     }
-    return new Response(JSON.stringify(payload), {
+    return new Response(JSON.stringify(dated), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -99,11 +106,13 @@ describe('StudentAttendanceStatus', () => {
       state={{
         classroomId: classroomOne,
         state: 'confirmed',
+        classDate: '2026-08-23',
         opensAt: null,
         closesAt: null,
         attendanceStatus: 'late',
         confirmedAt: '2026-08-23T13:07:00.000Z',
       }}
+      now={new Date('2026-08-23T13:10:00.000Z')}
       variant="banner"
     />)
 
@@ -118,6 +127,14 @@ describe('StudentAttendanceStatus', () => {
       opensAt: '2026-08-23T13:00:00.000Z',
       closesAt: '2026-08-23T14:00:00.000Z',
     }, new Date('2026-08-23T14:00:00.000Z'))).toBeNull()
+  })
+
+  it('hides yesterday’s confirmation even if an old response claims an overnight validity', () => {
+    expect(resolveVisibleStudentAttendanceState({
+      classroomId: classroomOne, state: 'confirmed', classDate: '2026-08-23',
+      opensAt: '2026-08-23T13:00:00.000Z', closesAt: '2026-08-24T05:00:00.000Z',
+      confirmedAt: '2026-08-23T13:07:00.000Z', validUntil: '2026-08-24T05:00:00.000Z',
+    }, new Date('2026-08-24T04:00:00.000Z'))).toBeNull()
   })
 
   it('forces a timed network refresh when a scheduled session opens inside the cache TTL', async () => {
@@ -275,7 +292,8 @@ describe('StudentAttendanceStatus', () => {
 
     finishFirst(statusResponse({
       classrooms: [{
-        classroomId: classroomOne, state: 'confirmed', opensAt: null, closesAt: null,
+        classroomId: classroomOne, state: 'confirmed',
+        classDate: '2026-08-23', opensAt: null, closesAt: null,
         attendanceStatus: 'present', confirmedAt: '2026-08-23T13:00:00.000Z',
       }],
       nextRefreshAt: null,
@@ -292,7 +310,8 @@ describe('StudentAttendanceStatus', () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(statusResponse({
         classrooms: [{
-          classroomId: classroomOne, state: 'confirmed', opensAt: null,
+          classroomId: classroomOne, state: 'confirmed',
+        classDate: '2026-08-23', opensAt: null,
           closesAt: '2026-08-24T05:00:00.000Z', attendanceStatus: 'present',
           confirmedAt: '2026-08-23T13:07:00.000Z', validUntil: '2026-08-24T04:00:00.000Z',
         }],
@@ -363,7 +382,8 @@ describe('StudentAttendanceStatus', () => {
 
     finishFirst(statusResponse({
       classrooms: [{
-        classroomId: classroomOne, state: 'confirmed', opensAt: null, closesAt: null,
+        classroomId: classroomOne, state: 'confirmed',
+        classDate: '2026-08-23', opensAt: null, closesAt: null,
         attendanceStatus: 'present', confirmedAt: '2026-08-23T13:07:00.000Z',
       }],
       nextRefreshAt: null,
@@ -416,12 +436,6 @@ describe('StudentAttendanceStatus', () => {
       validUntil: '2026-08-24T04:00:00.000Z',
       closesAt: '2026-08-23T14:00:00.000Z',
     },
-    {
-      name: 'an overnight close',
-      now: '2026-08-24T04:59:59.900Z',
-      validUntil: '2026-08-24T05:00:00.000Z',
-      closesAt: '2026-08-24T05:00:00.000Z',
-    },
   ])('hides an expired confirmation at $name even when refreshes fail', async ({
     now,
     validUntil,
@@ -434,6 +448,7 @@ describe('StudentAttendanceStatus', () => {
         classrooms: [{
           classroomId: classroomOne,
           state: 'confirmed',
+          classDate: '2026-08-23',
           opensAt: '2026-08-23T13:00:00.000Z',
           closesAt,
           attendanceStatus: 'present',
@@ -536,6 +551,7 @@ describe('StudentAttendanceStatus', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2036-08-23T13:00:00.000Z'))
     preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
       studentId: studentOne,
       classroomId: classroomOne,
       occurrenceBinding: occurrenceOneBinding,
@@ -568,6 +584,7 @@ describe('StudentAttendanceStatus', () => {
   it('bounds projection-convergence reads to one refresh per five seconds', async () => {
     vi.useFakeTimers()
     preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
       studentId: studentOne,
       classroomId: classroomOne,
       occurrenceBinding: occurrenceOneBinding,
@@ -589,6 +606,7 @@ describe('StudentAttendanceStatus', () => {
 
     expect(view.classrooms[0]).toEqual(expect.objectContaining({
       state: 'confirmed',
+      classDate: '2026-08-23',
       attendanceStatus: 'present',
     }))
     expect(view.nextRefreshAt).toBe('2026-08-23T13:01:06.000Z')
@@ -596,6 +614,7 @@ describe('StudentAttendanceStatus', () => {
 
   it('never transfers a handoff to a different open occurrence in the classroom', async () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
       studentId: studentOne,
       classroomId: classroomOne,
       occurrenceBinding: occurrenceOneBinding,
@@ -641,6 +660,7 @@ describe('StudentAttendanceStatus', () => {
   it('caps a positive handoff at the open occurrence close', async () => {
     vi.useFakeTimers()
     preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
       studentId: studentOne,
       classroomId: classroomOne,
       occurrenceBinding: occurrenceOneBinding,
@@ -662,6 +682,7 @@ describe('StudentAttendanceStatus', () => {
 
     expect(view.classrooms[0]).toEqual(expect.objectContaining({
       state: 'confirmed',
+      classDate: '2026-08-23',
       validUntil: '2026-08-23T14:00:00.000Z',
     }))
     expect(view.nextRefreshAt).toBe('2026-08-23T14:00:00.000Z')
@@ -671,6 +692,7 @@ describe('StudentAttendanceStatus', () => {
     'clears a prior-occurrence handoff when the projection becomes %s',
     async (state) => {
       preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
         studentId: studentOne,
         classroomId: classroomOne,
         occurrenceBinding: occurrenceOneBinding,
@@ -695,6 +717,7 @@ describe('StudentAttendanceStatus', () => {
 
   it('never transfers an authoritative confirmation to another student', async () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
       studentId: '30000000-0000-4000-8000-000000000002',
       classroomId: classroomOne,
       occurrenceBinding: occurrenceOneBinding,
@@ -726,6 +749,7 @@ describe('StudentAttendanceStatus', () => {
         classrooms: [{
           classroomId: classroomOne,
           state: 'confirmed',
+          classDate: '2026-08-23',
           opensAt: '2026-08-23T13:00:00.000Z',
           closesAt: '2026-08-23T14:00:00.000Z',
           attendanceStatus: 'present',
@@ -760,6 +784,7 @@ describe('StudentAttendanceStatus', () => {
   it('clears a visible view and overlay on a differently authenticated failure', async () => {
     vi.useFakeTimers()
     preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
       studentId: studentOne,
       classroomId: classroomOne,
       occurrenceBinding: occurrenceOneBinding,
@@ -806,6 +831,7 @@ describe('StudentAttendanceStatus', () => {
 
   it('clears the handoff when attendance becomes unavailable for the classroom', async () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
+      classDate: '2026-08-23',
       studentId: studentOne,
       classroomId: classroomOne,
       occurrenceBinding: occurrenceOneBinding,

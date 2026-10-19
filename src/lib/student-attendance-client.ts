@@ -1,4 +1,5 @@
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { formatDateInToronto } from '@/lib/timezone'
 import {
   studentAttendanceStatusViewSchema,
   type StudentAttendanceStatusView,
@@ -13,6 +14,7 @@ type AuthoritativeConfirmation = {
   classroomId: string
   occurrenceBinding: string
   attendanceStatus: 'present' | 'late'
+  classDate: string
   confirmedAt?: string
   expiresAtMonotonicMs: number
 }
@@ -25,6 +27,7 @@ const authoritativeConfirmations = new Map<
 type CachedStudentAttendanceStatus = {
   view: StudentAttendanceStatusView
   receivedAtMonotonicMs: number
+  receivedAtWallMs: number
 }
 
 export class StudentAttendanceIdentityMismatchError extends Error {
@@ -65,6 +68,8 @@ function reconcileAuthoritativeConfirmation(
       remainingMs <= 0
       || state.state !== 'open'
       || state.occurrenceBinding !== confirmation.occurrenceBinding
+      || state.classDate !== confirmation.classDate
+      || confirmation.classDate !== formatDateInToronto(new Date(serverNowMs))
       || !Number.isFinite(closesAtMs)
       || closesAtMs <= serverNowMs
     ) {
@@ -88,6 +93,8 @@ function reconcileAuthoritativeConfirmation(
       opensAt: state.opensAt,
       closesAt: state.closesAt,
       attendanceStatus: confirmation.attendanceStatus,
+      classDate: confirmation.classDate,
+      occurrenceBinding: confirmation.occurrenceBinding,
       ...(confirmation.confirmedAt ? { confirmedAt: confirmation.confirmedAt } : {}),
       validUntil,
     }
@@ -109,6 +116,7 @@ export function preserveAuthoritativeStudentAttendanceConfirmation(input: {
   classroomId: string
   occurrenceBinding: string
   attendanceStatus: 'present' | 'late'
+  classDate: string
   confirmedAt?: string
 }) {
   const studentConfirmations = authoritativeConfirmations.get(input.studentId) ?? new Map()
@@ -116,6 +124,7 @@ export function preserveAuthoritativeStudentAttendanceConfirmation(input: {
     classroomId: input.classroomId,
     occurrenceBinding: input.occurrenceBinding,
     attendanceStatus: input.attendanceStatus,
+    classDate: input.classDate,
     confirmedAt: input.confirmedAt,
     expiresAtMonotonicMs: monotonicNow() + AUTHORITATIVE_CONFIRMATION_TTL_MS,
   })
@@ -152,6 +161,7 @@ export async function fetchStudentAttendanceStatus(
       return {
         view,
         receivedAtMonotonicMs: monotonicNow(),
+        receivedAtWallMs: Date.now(),
       }
     },
     STUDENT_ATTENDANCE_CACHE_TTL_MS,
@@ -159,6 +169,7 @@ export async function fetchStudentAttendanceStatus(
   const elapsedSinceReceiptMs = Math.max(
     0,
     monotonicNow() - cached.receivedAtMonotonicMs,
+    Date.now() - cached.receivedAtWallMs,
   )
   const currentView = elapsedSinceReceiptMs === 0
     ? cached.view

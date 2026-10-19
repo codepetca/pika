@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Calendar remove hatching
-
-- Same chat/PR #1591, codex/calendar-week-alignment. Owner requested removing hatching now that class days share a uniform background. Removed the feature CSS module; non-class bg-surface-3, hidden status, today's outline, content centering and click-to-edit remain.
-- Local/visual verification underway. PR is draft. Five prior review launches (one initial/four targeted); current 60-minute/four-targeted-wave review budget reached. No further reviewer launch without explicit extension under pr-review; finish authorized implementation and verification first.
-
-## 2026-10-14 — AI grading submission investigation
-
-Read-only at main71f49d963. User redirected investigation to chat Investigate AI grading count (01a13acf-92db-7e82-9ec7-6addc22d14bc); reused its production evidence: seven teacher-closed/unsubmitted attempts,33 nonblank written responses skipped. Verified TS submitted-only admission and094 RPC admission against248 closure/return semantics. Teacher closure materializes saved responses and freezes attempts via closed_for_grading_at while retaining is_submitted=false; merely opening Grading does not close attempts. Fix should admit submitted OR teacher-closed work, preserving the distinction; automatic closure on AI action would be an additional behavior change. No product/schema/grade edits, provider calls or live DB mutation.
-
-Native GPT-6.1-sol/medium bounded contract worker interrupted after user redirect to avoid duplicate investigation; no findings accepted, worker usage unknown. Coordinator reused other chat evidence and verified focused source; elapsed/coordination tokens unknown. Startup orient-only PASS; storage315GB healthy; weekly77% remaining; automatic DeepSeek paused. Detached investigation worktree retained with this handoff; no PR.
-
 ## 2026-10-14 — Proposed unsubmitted Test AI grading fix
 
 User requests plan only and explicitly defers post-grading reopening behavior. Proposed contract: AI grade finalizes selected existing unsubmitted attempts from persisted draft answers using teacher-closure semantics before preflight, then accepts submitted OR closed_for_grading attempts. Preserve is_submitted and original student timestamps; skip never-started students; retain blank-answer zero and ungraded/all behavior. Check no-open-question and active-run resume/conflict before closure. Coordinate TS source preparation and new SQL migration for create_test_ai_grading_run_atomic plus save_test_unanswered_grades_atomic and relevant finalization/revision validation, preserving lifecycle locks and164/236 archive wrappers. Race guarantees must cover autosave/submit/closure/reopen/run resume; no provider call on empty answers or stale source. Update confirmation/summary only as needed to disclose selected-attempt closure and answer units; use governed UI workflow and visual QA if changed. Require focused app tests plus rollback DB contracts, reviewed draft-first PR, then separately authorized migration-first rollout. No implementation or schema/data changes performed. Existing reopen behavior is out of scope.
@@ -542,3 +531,35 @@ canonical equality and independent source/dependency equality PASS. Genuine268
 generated types installed byte-identically from private artifact1230d8e1…;
 temporary RPC signature removed. Targeted integration review and consolidated
 browser/CI gates remain. No shared-local/production migration or activation.
+
+## 2026-10-19 — Attendance check-in mismatch diagnosis
+
+Read-only investigation at f88b06a5e; relevant attendance paths match production
+af519aa54. Reported Oct19 sample first fact14:10:06 Toronto; imported0.585s later.
+All24 class facts imported within1.400s; active mapping and no manual override.
+Confirmed two defects: scan success persists across days/resume without fresh
+validation and shows time without date; teacher Daily does not refresh student
+check-ins until explicit reload/scope change. Scratch diagnostics reproduce both
+(2student+1teacher tests PASS); sources/logs at
+/tmp/pika-attendance-diagnosis-20261019/. No product/production writes or release.
+Earlier phone state unknown; stale prior confirmation likely, not incident-proven.
+Next: expiry/read-only revalidation/date on phone and bounded active teacher refresh.
+Orchestrate native GPT6.1-sol/high teacher trace delivered/verified;1launch plus
+follow-up diagnostic, no rework/conflict. Worker/coordinator tokens unknown;
+weekly remaining17%, DeepSeek dated pause honored; storage healthy295GB.
+
+## 2026-10-19 — Student attendance confirmation freshness
+
+Requested student-only fix on codex/attendance-confirmation-freshness. POST waits
+for actual accepted/already-accepted backend record and binds success to today's
+Toronto class date; adds server time/deadline and dated display. Old success
+expires at midnight; resume uses authenticated reads only and hides success
+until same student/classroom/occurrence is confirmed. Failed reads stay neutral.
+Server/read-model worker GPT6.1-sol/high delivered70 tests PASS, verified against
+source; no conflicts/rework. Coordinator added51 frontend/helper tests PASS
+plus delayed-response boundary regression. Usage17% weekly remaining; storage
+healthy; per-worker tokens unavailable. Teacher behavior unchanged.
+Playwright16 captures: student390/1440 light/dark success/verifying/failure/expired;
+4initialPOST,8GET,0resume/retryPOST; guarded teacher fixture PASS.
+Visual evidence: output/playwright/attendance-confirmation/; Pattern Lab statuses
+reference inspected. Independent review and focused/CI gates pending.

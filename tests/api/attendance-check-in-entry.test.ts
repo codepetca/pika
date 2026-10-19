@@ -18,7 +18,7 @@ vi.mock('@/lib/server/bara-attendance-student', async () => {
 
 import { POST } from '@/app/api/student/attendance/check-in/route'
 
-const user = { id: 'student-one', email: 'student@example.com', role: 'student' }
+const user = { id: '30000000-0000-4000-8000-000000000001', email: 'student@example.com', role: 'student' }
 const entryToken = 'A'.repeat(100)
 const attemptId = '11111111-1111-4111-8111-111111111111'
 
@@ -38,8 +38,11 @@ describe('POST /api/student/attendance/check-in', () => {
       state: 'checked_in',
       title: 'You are checked in',
       description: 'Your attendance was recorded.',
-      attendanceStatus: 'present',
       classroomName: 'PPZ3C — Health for Life',
+      studentId: user.id, classroomId: '20000000-0000-4000-8000-000000000001',
+      attendanceStatus: 'present', recordedAt: '2026-09-02T13:01:00.000Z',
+      occurrenceBinding: 'a'.repeat(32), classDate: '2026-09-02',
+      serverNow: '2026-09-02T13:02:00.000Z', validUntil: '2026-09-03T04:00:00.000Z',
     })
   })
 

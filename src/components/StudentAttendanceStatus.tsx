@@ -11,6 +11,7 @@ import type {
   StudentAttendanceClassroomState,
   StudentAttendanceStatusView,
 } from '@/lib/validations/student-attendance'
+import { formatDateInToronto } from '@/lib/timezone'
 
 const MIN_REFRESH_DELAY_MS = 1_000
 const MAX_REFRESH_DELAY_MS = 24 * 60 * 60 * 1_000
@@ -19,6 +20,7 @@ const FAILED_REFRESH_RETRY_MS = 15_000
 type ServerClockAnchor = {
   serverEpochMs: number
   monotonicEpochMs: number
+  wallEpochMs: number
 }
 
 function monotonicNow(): number {
@@ -27,7 +29,7 @@ function monotonicNow(): number {
 
 function anchoredServerNow(anchor: ServerClockAnchor | null): number {
   if (!anchor) return Date.now()
-  return anchor.serverEpochMs + Math.max(0, monotonicNow() - anchor.monotonicEpochMs)
+  return anchor.serverEpochMs + Math.max(0, monotonicNow() - anchor.monotonicEpochMs, Date.now() - anchor.wallEpochMs)
 }
 
 function formatTorontoTime(value: string): string {
@@ -44,6 +46,8 @@ export function resolveVisibleStudentAttendanceState(
   now = new Date(),
 ): StudentAttendanceClassroomState | null {
   if (!state) return null
+  if (state.state === 'confirmed'
+    && (!state.classDate || state.classDate !== formatDateInToronto(now))) return null
   if (
     state.state === 'open'
     && state.closesAt
@@ -130,7 +134,7 @@ export function useStudentAttendanceStatusView(studentId?: string, isActive = tr
         && identityGenerationRef.current === identityGeneration
       ) {
         const serverEpochMs = Date.parse(next.serverNow)
-        serverClockRef.current = { serverEpochMs, monotonicEpochMs: monotonicNow() }
+        serverClockRef.current = { serverEpochMs, monotonicEpochMs: monotonicNow(), wallEpochMs: Date.now() }
         viewStudentIdRef.current = studentId
         setNowMs(serverEpochMs)
         setView(next)
