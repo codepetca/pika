@@ -7,6 +7,17 @@ begin;
 set local statement_timeout='8s';
 set local lock_timeout='1s';
 
+-- Safe verdict carrier survives a failed DO subtransaction. No fixture values,
+-- exception message/context or raw PostgreSQL output are copied into it.
+create temporary table gradebook_contract_verdict (
+  singleton boolean primary key default true check (singleton),
+  outcome text not null check (outcome in ('passed','failed')),
+  stage text not null check (stage in ('catalog','fixture','owner-read','member-read','item-create','item-update','item-score','categories','category-rollback','maximum','write-rollback','overrides','membership-fence','visibility','score-delete','lifecycle','archive','complete')),
+  sqlstate text,
+  check ((outcome='passed' and stage='complete' and sqlstate is null)
+    or (outcome='failed' and sqlstate is not null and sqlstate ~ '^[0-9A-Z]{5}$'))
+) on commit drop;
+
 create function pg_temp.gradebook_contract_state(p_classroom uuid)
 returns text language sql volatile set search_path='' as $state$
   select encode(sha256(convert_to(jsonb_build_object(
@@ -65,7 +76,9 @@ declare
   v_item uuid:=gen_random_uuid(); v_category uuid; v_purge uuid:=gen_random_uuid(); v_mismatch_category uuid:=gen_random_uuid();
   v_payload jsonb; v_snapshot jsonb; v_source jsonb; v_result jsonb; v_before text; v_message text;
   v_function regprocedure; v_relation text; v_guc text; v_categories jsonb; v_foreign_before text;
+  v_stage text; v_sqlstate text;
 begin
+  v_stage:='catalog';
   foreach v_function in array array[
     'public.get_gradebook_for_owner_v1(uuid,uuid,uuid,timestamptz)'::regprocedure,
     'public.get_gradebook_for_member_v1(uuid,uuid,text,timestamptz)'::regprocedure,
@@ -84,6 +97,7 @@ begin
       and t.tgfoid='public.bump_classroom_archive_revision_from_resource()'::regprocedure
       and (t.tgtype::integer & 2)=2 and t.tgenabled<>'D'), 'Missing BEFORE archive revision fence';
   end loop;
+  v_stage:='fixture';
   insert into public.users(id,email,role) values
     (v_owner,v_owner::text||'@gradebook.invalid','student'),
     (v_member,v_member::text||'@gradebook.invalid','teacher'),
@@ -104,6 +118,7 @@ begin
   insert into public.test_questions(id,test_id,question_type,question_text,points,position) values(v_question,v_test,'open_response','Private answer prompt',10,0);
   insert into public.test_responses(test_id,question_id,student_id,response_text,score) values(v_test,v_question,v_member,'PRIVATE RESPONSE',7),(v_test,v_question,v_other,'PEER RESPONSE',9);
   insert into public.test_attempts(test_id,student_id,returned_at) values(v_test,v_member,clock_timestamp()),(v_test,v_other,clock_timestamp());
+  v_stage:='owner-read';
   execute 'set local role service_role';
   v_snapshot:=public.get_gradebook_for_owner_v1(v_owner,v_classroom,v_member,clock_timestamp()+interval '8 seconds');
   assert v_snapshot->>'selected_student_id'=v_member::text;
@@ -112,6 +127,7 @@ begin
   assert not jsonb_path_exists(v_snapshot,'$.source.assignment_docs[*].content');
   assert not jsonb_path_exists(v_snapshot,'$.source.test_questions[*].question_text');
   assert not jsonb_path_exists(v_snapshot,'$.source.test_responses[*].response_text');
+  v_stage:='member-read';
   begin perform public.get_gradebook_for_member_v1(v_owner,v_classroom,'grades',clock_timestamp()+interval '8 seconds'); raise exception 'Owner precedence failed'; exception when sqlstate 'PT403' then null; end;
   begin perform public.get_gradebook_for_owner_v1(v_member,v_classroom,null,clock_timestamp()+interval '8 seconds'); raise exception 'Member owner authority failed'; exception when sqlstate 'PT403' then null; end;
   begin perform public.get_gradebook_for_member_v1(v_other,v_foreign,'grades',clock_timestamp()+interval '8 seconds'); raise exception 'Foreign membership failed'; exception when sqlstate 'PT403' then null; end;
@@ -123,12 +139,45 @@ begin
   assert v_source->'test_responses'->0->>'student_id'=v_member::text;
   assert (v_source->'assignment_docs'->0->'score_workflow')='null'::jsonb, 'Source must preserve partial rows for existing projector';
 
+  v_stage:='item-create';
   v_payload:=jsonb_build_object('item_id',v_item,'title','Standalone','points_possible',10,'gradebook_category_id',v_category,'gradebook_weight',0,'include_in_final',true);
   v_result:=public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_create',v_payload,clock_timestamp()+interval '8 seconds');
   assert v_result->'target'=jsonb_build_object('item_id',v_item);
   assert v_result->'result'->'item'->>'id'=v_item::text;
   assert v_result=public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_create',v_payload,clock_timestamp()+interval '8 seconds');
-  begin perform public.mutate_gradebook_for_owner_v1(v_owner,v_foreign,'item_create',v_payload,clock_timestamp()+interval '8 seconds'); raise exception 'Create parent conflict failed'; exception when sqlstate 'PT409' then null; end;
+  execute 'reset role';
+  v_before:=pg_temp.gradebook_contract_state(v_classroom);
+  v_foreign_before:=pg_temp.gradebook_contract_state(v_foreign);
+  execute 'set local role service_role';
+  -- Reject the foreign category before the existing item's ID conflict. This
+  -- distinct privacy-boundary probe must not be mistaken for writer207's409.
+  begin
+    perform public.mutate_gradebook_for_owner_v1(v_owner,v_foreign,'item_create',v_payload,clock_timestamp()+interval '8 seconds');
+    raise exception 'Foreign category accepted';
+  exception when sqlstate 'PT400' then
+    get stacked diagnostics v_message=message_text;
+    assert v_message='gradebook_category_not_found';
+  end;
+  execute 'reset role';
+  assert v_before=pg_temp.gradebook_contract_state(v_classroom),'Foreign category denial changed source payload/revision';
+  assert v_foreign_before=pg_temp.gradebook_contract_state(v_foreign),'Foreign category denial changed foreign payload/revision';
+  assert not exists(select 1 from public.gradebook_items where classroom_id=v_foreign);
+  execute 'set local role service_role';
+  -- A null category is valid for the foreign classroom, reaching the unchanged
+  --207 same-ID/cross-classroom conflict instead of the category precheck.
+  begin
+    perform public.mutate_gradebook_for_owner_v1(v_owner,v_foreign,'item_create',v_payload||jsonb_build_object('gradebook_category_id',null),clock_timestamp()+interval '8 seconds');
+    raise exception 'Create parent conflict failed';
+  exception when sqlstate 'PT409' then
+    get stacked diagnostics v_message=message_text;
+    assert v_message='gradebook_item_create_conflict';
+  end;
+  execute 'reset role';
+  assert v_before=pg_temp.gradebook_contract_state(v_classroom),'Item-ID conflict changed source payload/revision';
+  assert v_foreign_before=pg_temp.gradebook_contract_state(v_foreign),'Item-ID conflict changed foreign payload/revision';
+  assert not exists(select 1 from public.gradebook_items where classroom_id=v_foreign);
+  execute 'set local role service_role';
+  v_stage:='item-update';
   v_payload:=v_payload||jsonb_build_object('title','Standalone updated','points_possible',20);
   v_result:=public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_update',v_payload,clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.gradebook_items where id=v_item and title='Standalone updated' and points_possible=20);
@@ -136,6 +185,7 @@ begin
   assert exists(select 1 from public.gradebook_items where id=v_item and gradebook_weight=1);
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_weight',jsonb_build_object('item_id',v_item,'gradebook_weight',0),clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.gradebook_items where id=v_item and gradebook_weight=0);
+  v_stage:='item-score';
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_score',jsonb_build_object('item_id',v_item,'student_id',v_member,'earned',0),clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.gradebook_item_scores where item_id=v_item and student_id=v_member and earned=0 and returned_at is null);
   v_source:=public.get_gradebook_for_member_v1(v_member,v_classroom,'items',clock_timestamp()+interval '8 seconds')->'source';
@@ -143,12 +193,14 @@ begin
   assert jsonb_array_length(v_source->'assignments')=0 and jsonb_array_length(v_source->'tests')=0 and jsonb_array_length(v_source->'score_overrides')=0;
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_return_marks',jsonb_build_object('item_id',v_item),clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.gradebook_item_scores where item_id=v_item and returned_at is not null);
+  v_stage:='categories';
   v_categories:=jsonb_build_array(jsonb_build_object('id',v_category,'name','Replacement','percentage',100,'default_assessment_weight',1,'position',0,'is_default',true));
   v_result:=public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'categories_replace',jsonb_build_object('categories',v_categories),clock_timestamp()+interval '8 seconds');
   assert v_result->'target'=jsonb_build_object('category_ids',jsonb_build_array(v_category));
   assert jsonb_array_length(v_result->'result'->'categories')=1;
   assert exists(select 1 from public.gradebook_categories where classroom_id=v_classroom and id=v_category and name='Replacement' and percentage=100 and is_default);
   begin perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'categories_replace',jsonb_build_object('categories',jsonb_set(v_categories,'{0,percentage}','99')),clock_timestamp()+interval '8 seconds'); raise exception 'Invalid categories accepted'; exception when sqlstate 'PT400' then null; end;
+  v_stage:='category-rollback';
   execute 'reset role';
   v_before:=pg_temp.gradebook_contract_state(v_classroom);
   v_foreign_before:=pg_temp.gradebook_contract_state(v_foreign);
@@ -174,6 +226,7 @@ begin
     jsonb_set(v_categories,'{0,name}','"  Replacement  "')),clock_timestamp()+interval '8 seconds');
   assert v_result->'result'->'categories'->0->>'name'='Replacement';
 
+  v_stage:='maximum';
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'maximum',jsonb_build_object('assessment_type','assignment','assessment_id',v_assignment,'maximum',60,'mode','preserve_percentages','expected_maximum',30,'expected_scale',1),clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.assignments where id=v_assignment and gradebook_maximum_override=60 and gradebook_score_scale=2);
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'override_save',jsonb_build_object('assessment_type','assignment','assessment_id',v_assignment,'student_id',v_member,'earned',50),clock_timestamp()+interval '8 seconds');
@@ -185,6 +238,7 @@ begin
   begin perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'maximum',jsonb_build_object('assessment_type','assignment','assessment_id',v_assignment,'maximum',20,'mode','keep_marks','expected_maximum',30,'expected_scale',1),clock_timestamp()+interval '8 seconds'); raise exception 'Stale maximum CAS failed'; exception when sqlstate 'PT409' then null; end;
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'maximum',jsonb_build_object('assessment_type','assignment','assessment_id',v_assignment,'maximum',null,'mode','reset','expected_maximum',60,'expected_scale',2),clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.assignments where id=v_assignment and gradebook_maximum_override is null and gradebook_score_scale=1);
+  v_stage:='write-rollback';
   execute 'reset role';
   v_before:=pg_temp.gradebook_contract_state(v_classroom);
   perform set_config('pika.gradebook_contract_fault',v_assignment::text,true);
@@ -198,6 +252,7 @@ begin
   assert exists(select 1 from public.assignments where id=v_assignment and gradebook_weight=0);
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'assessment_details',jsonb_build_object('assessment_type','assignment','assessment_id',v_assignment,'gradebook_weight',0,'gradebook_category_id',null),clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.assignments where id=v_assignment and gradebook_weight=0 and gradebook_category_id is null);
+  v_stage:='overrides';
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'override_delete_one',jsonb_build_object('assessment_type','final','assessment_id',v_classroom,'student_id',v_member),clock_timestamp()+interval '8 seconds');
   assert not exists(select 1 from public.gradebook_score_overrides where assessment_type='final' and classroom_id=v_classroom);
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'override_delete_all','{}',clock_timestamp()+interval '8 seconds');
@@ -206,6 +261,7 @@ begin
   begin perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'override_delete_all',jsonb_build_object('actor_id',v_member),clock_timestamp()+interval '8 seconds'); raise exception 'Extra actor payload failed'; exception when sqlstate 'PT400' then null; end;
 
   -- A removed affected score subject must still block broad mutations.
+  v_stage:='membership-fence';
   execute 'reset role';
   delete from public.classroom_enrollments where classroom_id=v_classroom and student_id=v_member;
   insert into public.student_purge_operations(id,teacher_id,classroom_id,student_id,student_binding_sha256,request_sha256,source_revision)
@@ -219,6 +275,7 @@ begin
   delete from public.student_purge_fences where operation_id=v_purge;
   delete from public.student_purge_operations where id=v_purge;
   insert into public.classroom_enrollments(classroom_id,student_id) values(v_classroom,v_member);
+  v_stage:='visibility';
   update public.test_attempts set returned_at=null where test_id=v_test and student_id=v_member;
   execute 'set local role service_role';
   assert jsonb_array_length(public.get_gradebook_for_member_v1(v_member,v_classroom,'grades',clock_timestamp()+interval '8 seconds')->'source'->'tests')=0;
@@ -227,12 +284,14 @@ begin
   execute 'set local role service_role';
   begin perform public.get_gradebook_for_member_v1(v_member,v_classroom,'grades',clock_timestamp()+interval '8 seconds'); raise exception 'Hidden Grades failed'; exception when sqlstate 'PT403' then null; end;
   assert jsonb_array_length(public.get_gradebook_for_member_v1(v_member,v_classroom,'items',clock_timestamp()+interval '8 seconds')->'source'->'items')=1;
+  v_stage:='score-delete';
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_score',jsonb_build_object('item_id',v_item,'student_id',v_member,'earned',null),clock_timestamp()+interval '8 seconds');
   assert not exists(select 1 from public.gradebook_item_scores where item_id=v_item and student_id=v_member);
   assert jsonb_array_length(public.get_gradebook_for_member_v1(v_member,v_classroom,'items',clock_timestamp()+interval '8 seconds')->'source'->'items')=0;
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'item_delete',jsonb_build_object('item_id',v_item),clock_timestamp()+interval '8 seconds');
   assert not exists(select 1 from public.gradebook_items where id=v_item);
   execute 'reset role';
+  v_stage:='lifecycle';
   insert into public.attendance_decommission_operations(id,classroom_id,teacher_id,installation_ref,roster_ref,actor_principal_ref)
     values(v_purge,v_classroom,v_owner,'gradebook-contract',v_purge::text,'gradebook-contract');
   execute 'set local role service_role';
@@ -241,6 +300,7 @@ begin
   execute 'reset role';
   delete from public.attendance_decommission_operations where id=v_purge and classroom_id=v_classroom;
   execute 'reset role';
+  v_stage:='archive';
   update public.classrooms set archived_at=clock_timestamp() where id=v_classroom;
   execute 'set local role service_role';
   assert public.get_gradebook_for_owner_v1(v_owner,v_classroom,null,clock_timestamp()+interval '8 seconds')->'classroom'->'archived_at'<>'null'::jsonb;
@@ -253,7 +313,17 @@ begin
     perform set_config(v_guc,'off',true);
   end loop;
   execute 'reset role';
-  raise info 'Gradebook rollback contract assertions passed; concurrency and SDK proof remain separate';
+  -- Complete success only; concurrency and SDK proof remain separate.
+  v_stage:='complete';
+  insert into pg_temp.gradebook_contract_verdict(outcome,stage,sqlstate) values('passed','complete',null);
+exception when others or assert_failure or query_canceled then
+  -- The entire DO fixture subtransaction has rolled back before this handler.
+  -- Keep only fixed stage and SQLSTATE; never message/context or fixture data.
+  get stacked diagnostics v_sqlstate=returned_sqlstate;
+  execute 'reset role';
+  insert into pg_temp.gradebook_contract_verdict(outcome,stage,sqlstate) values('failed',v_stage,v_sqlstate);
 end;
 $contract$;
+select jsonb_build_object('version',1,'scope','gradebook-rollback-contract-v1','outcome',outcome,'stage',stage,'sqlstate',sqlstate)
+from pg_temp.gradebook_contract_verdict;
 rollback;

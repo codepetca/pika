@@ -80,4 +80,31 @@ describe('contextual Gradebook SQL boundary', () => {
     expect(contract).toContain('Stale maximum CAS failed')
     expect(contract).toContain('concurrency and SDK proof remain separate')
   })
+  it('separates category disclosure rejection from the existing item-ID conflict without durable fixture changes', () => {
+    const contract = readFileSync(resolve(process.cwd(), 'scripts/contextual-gradebook-db-contracts.sql'), 'utf8')
+    const probes = contract.split("assert v_result=public.mutate_gradebook_for_owner_v1")[1]?.split("v_payload:=v_payload||")[0]
+    expect(probes).toContain("assert v_message='gradebook_category_not_found'")
+    expect(probes).toContain("v_payload||jsonb_build_object('gradebook_category_id',null)")
+    expect(probes).toContain("assert v_message='gradebook_item_create_conflict'")
+    expect(probes!.indexOf("gradebook_category_not_found")).toBeLessThan(probes!.indexOf("gradebook_item_create_conflict"))
+    expect(probes).toContain('Foreign category denial changed source payload/revision')
+    expect(probes).toContain('Foreign category denial changed foreign payload/revision')
+    expect(probes).toContain('Item-ID conflict changed source payload/revision')
+    expect(probes).toContain('Item-ID conflict changed foreign payload/revision')
+  })
+  it('emits only fixed safe native verdicts after success or full-DO exception rollback', () => {
+    const contract = readFileSync(resolve(process.cwd(), 'scripts/contextual-gradebook-db-contracts.sql'), 'utf8')
+    expect(contract.indexOf('create temporary table gradebook_contract_verdict')).toBeLessThan(contract.indexOf('do $contract$'))
+    expect(contract).toContain('exception when others or assert_failure or query_canceled then')
+    expect(contract).toContain('get stacked diagnostics v_sqlstate=returned_sqlstate;')
+    expect(contract).toContain("values('passed','complete',null)")
+    expect(contract).toContain("values('failed',v_stage,v_sqlstate)")
+    expect(contract).toContain("'version',1,'scope','gradebook-rollback-contract-v1','outcome',outcome,'stage',stage,'sqlstate',sqlstate")
+    const failureHandler = contract.split('exception when others or assert_failure or query_canceled then')[1]
+    expect(failureHandler).not.toMatch(/get stacked diagnostics[^;]*(?:message_text|pg_exception_context)/)
+    for (const stage of ['catalog','fixture','owner-read','member-read','item-create','item-update','item-score','categories','category-rollback','maximum','write-rollback','overrides','membership-fence','visibility','score-delete','lifecycle','archive','complete']) {
+      expect(contract).toContain(`v_stage:='${stage}'`)
+    }
+    expect(contract.trim()).toMatch(/rollback;$/)
+  })
 })
