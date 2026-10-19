@@ -377,7 +377,7 @@ set lock_timeout='1s' set statement_timeout='8s' as $function$
 declare
   v_classroom public.classrooms; v_deadline timestamptz; v_result jsonb; v_inner jsonb;
   v_type text; v_id uuid; v_student uuid; v_category uuid; v_found uuid; v_archived timestamptz;
-  v_item jsonb; v_message text; v_target jsonb;
+  v_item jsonb; v_message text; v_target jsonb; v_expected_categories jsonb;
 begin
   v_deadline:=private.gradebook_deadline_v1(p_deadline);
   perform private.validate_gradebook_payload_v1(p_action,p_payload);
@@ -438,6 +438,19 @@ begin
       'default_assessment_weight',c.default_assessment_weight,'position',c.position,'is_default',c.is_default)
       order by c.position,c.id),'[]'::jsonb)) into v_result
       from public.replace_gradebook_categories(p_classroom_id,p_payload->'categories') c;
+    -- The legacy147 ON CONFLICT(id) writer may lose to a foreign-classroom
+    -- insertion after our precheck. Verify every returned field, including the
+    -- authorized parent, before accepting; a mismatch rolls back all effects.
+    select jsonb_agg(jsonb_build_object(
+      'id',(category->>'id')::uuid,'classroom_id',p_classroom_id,'name',btrim(category->>'name'),
+      'percentage',(category->>'percentage')::numeric,
+      'default_assessment_weight',(category->>'default_assessment_weight')::integer,
+      'position',(ordinality-1)::integer,'is_default',(category->>'is_default')::boolean)
+      order by ordinality) into v_expected_categories
+      from jsonb_array_elements(p_payload->'categories') with ordinality as submitted(category,ordinality);
+    if v_result->'categories' is distinct from v_expected_categories then
+      raise exception using errcode='PT409', message='gradebook_categories_changed';
+    end if;
   elsif p_action='override_save' then
     if v_type='final' then
       insert into public.gradebook_score_overrides(classroom_id,student_id,assessment_type,assessment_id,earned,created_by)

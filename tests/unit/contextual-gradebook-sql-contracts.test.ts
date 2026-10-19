@@ -56,6 +56,21 @@ describe('contextual Gradebook SQL boundary', () => {
     expect(sql).not.toContain("'item',to_jsonb(v_item)")
     expect(sql).not.toMatch(/create (?:or replace )?function public\.(?:mutate_gradebook_item|set_gradebook_maximum_override|save_gradebook_effective_mark|replace_gradebook_categories)/)
   })
+  it('rolls back a category replacement unless the complete legacy result matches the normalized authorized request', () => {
+    const replacement = sql.split("elsif p_action='categories_replace' then")[1]?.split("elsif p_action='override_save' then")[0]
+    expect(replacement).toBeDefined()
+    expect(replacement).toContain("v_result->'categories' is distinct from v_expected_categories")
+    expect(replacement).toContain("errcode='PT409', message='gradebook_categories_changed'")
+    expect(replacement).toContain("'classroom_id',p_classroom_id")
+    expect(replacement).toContain("'name',btrim(category->>'name')")
+    expect(replacement).toContain("'position',(ordinality-1)::integer")
+    for (const key of ['id', 'percentage', 'default_assessment_weight', 'is_default']) expect(replacement).toContain(`'${key}',(category->>'${key}')::`)
+    expect(replacement!.indexOf('from public.replace_gradebook_categories(')).toBeLessThan(replacement!.indexOf("v_result->'categories' is distinct from v_expected_categories"))
+    const contract = readFileSync(resolve(process.cwd(), 'scripts/contextual-gradebook-db-contracts.sql'), 'utf8')
+    expect(contract).toContain('Category mismatch changed authorized payload/revision')
+    expect(contract).toContain('Category mismatch changed foreign payload/revision')
+    expect(contract).toContain('Not a concurrent race proof')
+  })
   it('ships a rollback-only synthetic native contract without claiming concurrency', () => {
     const contract = readFileSync(resolve(process.cwd(), 'scripts/contextual-gradebook-db-contracts.sql'), 'utf8')
     expect(contract.trim()).toMatch(/rollback;$/)

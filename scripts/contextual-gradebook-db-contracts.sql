@@ -40,14 +40,31 @@ $fault$;
 create trigger gradebook_contract_after_write after update on public.assignments
 for each row execute function pg_temp.gradebook_contract_fail_after_write();
 
+-- Not a concurrent race proof: inject a147 result mismatch after the wrapper's
+-- precheck, with real writes in both fixture Classrooms, then prove rollback.
+-- This transaction-local trigger never changes the existing147 writer itself.
+create function pg_temp.gradebook_contract_mismatch_category()
+returns trigger language plpgsql set search_path='' as $category_fault$
+begin
+  if current_setting('pika.gradebook_contract_category_fault',true)=new.id::text then
+    new.classroom_id:=current_setting('pika.gradebook_contract_foreign_classroom',true)::uuid;
+    new.is_default:=false;
+    new.name:='Injected foreign category';
+  end if;
+  return new;
+end;
+$category_fault$;
+create trigger gradebook_contract_category_mismatch before insert on public.gradebook_categories
+for each row execute function pg_temp.gradebook_contract_mismatch_category();
+
 do $contract$
 declare
   v_owner uuid:=gen_random_uuid(); v_member uuid:=gen_random_uuid(); v_other uuid:=gen_random_uuid();
   v_classroom uuid:=gen_random_uuid(); v_foreign uuid:=gen_random_uuid();
   v_assignment uuid:=gen_random_uuid(); v_draft uuid:=gen_random_uuid(); v_test uuid:=gen_random_uuid(); v_question uuid:=gen_random_uuid();
-  v_item uuid:=gen_random_uuid(); v_category uuid; v_purge uuid:=gen_random_uuid();
+  v_item uuid:=gen_random_uuid(); v_category uuid; v_purge uuid:=gen_random_uuid(); v_mismatch_category uuid:=gen_random_uuid();
   v_payload jsonb; v_snapshot jsonb; v_source jsonb; v_result jsonb; v_before text; v_message text;
-  v_function regprocedure; v_relation text; v_guc text; v_categories jsonb;
+  v_function regprocedure; v_relation text; v_guc text; v_categories jsonb; v_foreign_before text;
 begin
   foreach v_function in array array[
     'public.get_gradebook_for_owner_v1(uuid,uuid,uuid,timestamptz)'::regprocedure,
@@ -132,6 +149,30 @@ begin
   assert jsonb_array_length(v_result->'result'->'categories')=1;
   assert exists(select 1 from public.gradebook_categories where classroom_id=v_classroom and id=v_category and name='Replacement' and percentage=100 and is_default);
   begin perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'categories_replace',jsonb_build_object('categories',jsonb_set(v_categories,'{0,percentage}','99')),clock_timestamp()+interval '8 seconds'); raise exception 'Invalid categories accepted'; exception when sqlstate 'PT400' then null; end;
+  execute 'reset role';
+  v_before:=pg_temp.gradebook_contract_state(v_classroom);
+  v_foreign_before:=pg_temp.gradebook_contract_state(v_foreign);
+  perform set_config('pika.gradebook_contract_category_fault',v_mismatch_category::text,true);
+  perform set_config('pika.gradebook_contract_foreign_classroom',v_foreign::text,true);
+  execute 'set local role service_role';
+  begin
+    perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'categories_replace',jsonb_build_object('categories',
+      jsonb_build_array(jsonb_build_object('id',v_mismatch_category,'name','  Normalized request  ','percentage',100,'default_assessment_weight',1,'position',0,'is_default',true))),clock_timestamp()+interval '8 seconds');
+    raise exception 'Mismatched category result accepted';
+  exception when sqlstate 'PT409' then
+    get stacked diagnostics v_message=message_text;
+    assert v_message='gradebook_categories_changed';
+  end;
+  execute 'reset role';
+  assert v_before=pg_temp.gradebook_contract_state(v_classroom),'Category mismatch changed authorized payload/revision';
+  assert v_foreign_before=pg_temp.gradebook_contract_state(v_foreign),'Category mismatch changed foreign payload/revision';
+  assert not exists(select 1 from public.gradebook_categories where id=v_mismatch_category);
+  perform set_config('pika.gradebook_contract_category_fault','',true);
+  perform set_config('pika.gradebook_contract_foreign_classroom','',true);
+  execute 'set local role service_role';
+  v_result:=public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'categories_replace',jsonb_build_object('categories',
+    jsonb_set(v_categories,'{0,name}','"  Replacement  "')),clock_timestamp()+interval '8 seconds');
+  assert v_result->'result'->'categories'->0->>'name'='Replacement';
 
   perform public.mutate_gradebook_for_owner_v1(v_owner,v_classroom,'maximum',jsonb_build_object('assessment_type','assignment','assessment_id',v_assignment,'maximum',60,'mode','preserve_percentages','expected_maximum',30,'expected_scale',1),clock_timestamp()+interval '8 seconds');
   assert exists(select 1 from public.assignments where id=v_assignment and gradebook_maximum_override=60 and gradebook_score_scale=2);
