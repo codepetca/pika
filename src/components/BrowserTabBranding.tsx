@@ -16,7 +16,7 @@ export function BrowserTabProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!mounted) return
     const color = classroom ? getClassroomThemeDefinition(classroom.theme_color) : null
-    document.title = classroom ? `${classroom.title} · Pika` : 'Pika'
+    document.title = classroom ? classroom.title : 'Pika'
     // These nodes belong to the persistent root layout, outside Next's route metadata.
     document.getElementById('pika-tab-icon')?.setAttribute('href', color
       ? `/classroom-icons/${color.value}`

@@ -531,7 +531,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
         </BrowserTabProvider>
       </ThemeProvider>,
     )
-    await waitFor(() => expect(document.title).toBe('Physics · Pika'))
+    await waitFor(() => expect(document.title).toBe('Physics'))
     view.unmount()
   })
 

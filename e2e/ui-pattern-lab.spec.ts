@@ -10,7 +10,7 @@ for (const role of ['teacher', 'student'] as const) {
     await page.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark' })
     await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
     await page.goto(`/e2e-fixtures/browser-tab-branding?userRole=${role}`)
-    await expect(page).toHaveTitle('PPZ3C — Health for Life · Pika')
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
     await expect(page.locator('link[rel="icon"]')).toHaveCount(1)
     await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/rose')
     await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1)
@@ -19,12 +19,12 @@ for (const role of ['teacher', 'student'] as const) {
 
     await page.getByRole('link', { name: 'Switch role route', exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`userRole=${role === 'teacher' ? 'student' : 'teacher'}$`))
-    await expect(page).toHaveTitle('PPZ3C — Health for Life · Pika')
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
     await page.getByRole('button', { name: 'Classroom 2', exact: true }).click()
-    await expect(page).toHaveTitle('ICS4U — Computer Science · Pika')
+    await expect(page).toHaveTitle('ICS4U — Computer Science')
     await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/violet')
     await page.getByRole('button', { name: 'Edit classroom', exact: true }).click()
-    await expect(page).toHaveTitle('Renamed classroom · Pika')
+    await expect(page).toHaveTitle('Renamed classroom')
     await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/teal')
 
     await page.getByRole('button', { name: 'Home', exact: true }).click()
@@ -34,7 +34,7 @@ for (const role of ['teacher', 'student'] as const) {
     const toggledIcon = `/pika-icon-${theme === 'dark' ? 'light' : 'dark'}.svg`
     await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', toggledIcon)
     await page.getByRole('button', { name: 'Classroom 1', exact: true }).click()
-    await expect(page).toHaveTitle('PPZ3C — Health for Life · Pika')
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
     await page.getByRole('link', { name: 'Leave classroom', exact: true }).click()
     await expect(page).toHaveURL(/\/login$/)
     await expect(page).toHaveTitle('Pika')
