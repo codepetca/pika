@@ -11984,6 +11984,24 @@ export type Database = {
         Args: { p_blueprint_id: string; p_teacher_id: string }
         Returns: Json
       }
+      get_gradebook_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_view: string
+        }
+        Returns: Json
+      }
+      get_gradebook_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_selected_student_id: string
+        }
+        Returns: Json
+      }
       get_hot_archived_classroom_purge_inventory: {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
@@ -12333,6 +12351,16 @@ export type Database = {
       }
       mark_announcements_read_for_member_v1: {
         Args: { p_actor_id: string; p_classroom_id: string; p_cutoff: string }
+        Returns: Json
+      }
+      mutate_gradebook_for_owner_v1: {
+        Args: {
+          p_action: string
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_payload: Json
+        }
         Returns: Json
       }
       mutate_gradebook_item: {

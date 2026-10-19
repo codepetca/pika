@@ -279,6 +279,16 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  //270 accepts SQLNULL to return the owner table without a selected inspector.
+  // Preserve every genuine generated key; PostgreSQL omits input nullability.
+  get_gradebook_for_owner_v1: FunctionContract<
+    'get_gradebook_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['get_gradebook_for_owner_v1']['Args'], {
+      p_selected_student_id: string | null
+    }>
+  >
+
   // Inspect discovers the fixed parent and accepts SQLNULL for that argument.
   // PostgreSQL metadata omits input nullability; keep all other generated keys.
   test_owner_workflow_v1: FunctionContract<
