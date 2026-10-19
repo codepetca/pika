@@ -1,3 +1,4 @@
+import { authorizeSharedGradebookActor, saveContextualGradebookOverride, deleteContextualGradebookOverride } from '@/lib/server/contextual-gradebook'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -22,15 +23,17 @@ async function readJson(request: NextRequest): Promise<unknown> {
 }
 
 export const PUT = withErrorHandler('PutGradebookManualScore', async (request: NextRequest) => {
-  const user = await requireRole('teacher')
+  const access = await authorizeSharedGradebookActor()
+  const user = access.mode === 'shared' ? access.user : await requireRole('teacher')
   const command = gradebookScoreOverridePutSchema.parse(await readJson(request))
-  const result = await saveTeacherGradebookScoreOverride({ teacherId: user.id, command })
+  const result = access.mode === 'shared' ? await saveContextualGradebookOverride(user.id, command, request.signal) : await saveTeacherGradebookScoreOverride({ teacherId: user.id, command })
   return NextResponse.json(result)
 })
 
 export const DELETE = withErrorHandler('DeleteGradebookManualScore', async (request: NextRequest) => {
-  const user = await requireRole('teacher')
+  const access = await authorizeSharedGradebookActor()
+  const user = access.mode === 'shared' ? access.user : await requireRole('teacher')
   const command = gradebookScoreOverrideDeleteSchema.parse(await readJson(request))
-  const result = await deleteTeacherGradebookScoreOverride({ teacherId: user.id, command })
+  const result = access.mode === 'shared' ? await deleteContextualGradebookOverride(user.id, command, request.signal) : await deleteTeacherGradebookScoreOverride({ teacherId: user.id, command })
   return NextResponse.json(result)
 })
