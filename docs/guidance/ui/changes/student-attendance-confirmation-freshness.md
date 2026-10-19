@@ -7,6 +7,8 @@ current America/Toronto class date. A successful mutation still waits for the
 attendance service's accepted/already-accepted result. Resuming a success page
 uses an authenticated read; it must never submit another attendance mutation.
 An uncertain or expired result cannot retain green confirmation.
+Resume reads bypass and retire the temporary backend-acknowledgement handoff
+overlay; a fresh server `open` result cannot be converted back to confirmation.
 
 Reference: existing student QR confirmation card and retry region,
 StudentAttendanceStatus, and Pattern Lab's semantic status/page-state examples.
@@ -53,3 +55,11 @@ tests. Browser checked four initial POSTs and eight GETs with zero resume/retry
 mutations, and the teacher guard. Teacher workflow n/a; no teacher code changes.
 In-app banner geometry unchanged; its current-day fixture remains covered by
 component tests. No new shared contract or Pattern Lab catalogue change.
+
+Release follow-up: the real-client focus regression reproduces a fresh `open`
+response hidden by the two-minute acknowledgement overlay, then passes with
+strict server revalidation. Four viewport/theme contexts captured again at
+output/playwright/attendance-server-read; inspected the denied-result captures
+in all four contexts. Existing success/verifying/failure layouts are unchanged.
+Browser receipt: four POSTs, eight GETs, no resume/retry mutations, teacher guard
+and overflow checks pass. The denied response uses the same current class date.

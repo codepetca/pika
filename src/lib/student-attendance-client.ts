@@ -138,9 +138,9 @@ export function clearAuthoritativeStudentAttendanceConfirmation(studentId?: stri
 
 export async function fetchStudentAttendanceStatus(
   studentId: string,
-  options: { forceNetwork?: boolean } = {},
+  options: { forceNetwork?: boolean; requireServerConfirmation?: boolean } = {},
 ): Promise<StudentAttendanceStatusView> {
-  if (options.forceNetwork) {
+  if (options.forceNetwork || options.requireServerConfirmation) {
     invalidateCachedJSONMatching(`${STUDENT_ATTENDANCE_CACHE_PREFIX}${studentId}`)
   }
   const cached = await fetchJSONWithCache<CachedStudentAttendanceStatus>(
@@ -192,6 +192,12 @@ export async function fetchStudentAttendanceStatus(
           Date.parse(cached.view.serverNow) + elapsedSinceReceiptMs,
         ).toISOString(),
       }
+  if (options.requireServerConfirmation) {
+    // A resumed QR page must use this read's server state. Retire the handoff
+    // acknowledgement so later banner reads cannot restore a denied result.
+    clearAuthoritativeStudentAttendanceConfirmation(studentId)
+    return currentView
+  }
   return reconcileAuthoritativeConfirmation(studentId, currentView)
 }
 
