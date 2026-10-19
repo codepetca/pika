@@ -58,7 +58,7 @@ export const contextualAssignmentListMemberDocSchema = docIdentity.extend({
 }).strict()
 export const contextualAssignmentListReturnedGradeSchema = docIdentity.extend({
   returned_at: timestamp, score_completion: z.number().finite().nullable(), score_thinking: z.number().finite().nullable(), score_workflow: z.number().finite().nullable(),
-  graded_at: timestamp.nullable(), graded_by: uuid.nullable(),
+  graded_at: timestamp.nullable(), graded_by: z.string().nullable(),
 }).strict()
 export const contextualAssignmentListReleasedFeedbackSchema = docIdentity.extend({
   returned_at: timestamp.nullable(), feedback_returned_at: timestamp.nullable(), feedback: z.string().nullable(),
