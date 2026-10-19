@@ -11,6 +11,12 @@ const failureCategories = ['deadline', 'target', 'endpoint', 'request-cap', 'cre
   'request-body', 'request-size', 'request-json', 'response-body', 'response-size', 'response-json',
   'redirect', 'upstream', 'mutation-cancelled', 'startup', 'cleanup', 'closed'] as const
 export type ContextualTestGatewayFailure = typeof failureCategories[number]
+const protocolLoci = ['other', 'http-client-error', 'http-connect', 'http-upgrade', 'hmr-shape', 'duplicate-protected-header',
+  'survey-session-ack', 'survey-session-cookie', 'survey-create-owner', 'survey-read-body', 'survey-login-body',
+  'survey-roster-body', 'survey-roster-repeat', 'survey-archive-body', 'survey-reorder-body', 'survey-reorder-items',
+  'survey-request-parent', 'survey-delete-body', 'survey-respond-body', 'survey-respond-answers', 'survey-question-body',
+  'survey-settings-body', 'survey-create-ack', 'survey-response-parent', 'survey-response-question-parent', 'survey-question-ack'] as const
+export type ContextualTestGatewayProtocol = Readonly<{ locus: typeof protocolLoci[number]; observedAt: number | null }>
 const failure = () => new Error('Private contextual Test gateway')
 const mib = 1048576
 const hosts = { app: 'localhost:3117', api: '127.0.0.1:54340' } as const
@@ -84,7 +90,7 @@ export type ContextualTestGatewayDeadline = Readonly<{
   observedAt: number; elapsedMs: number; detached: boolean; closing: boolean
 }>
 type OwnerRpcRejection = Readonly<{ operation: 'inspect' | 'results' | 'other'; reason: 'invalid-deadline' | 'invalid-input' | 'other' }>
-type PolicyReceipt = { firstFailure: ContextualTestGatewayFailure | null; firstEndpointFailure: EndpointFailure | null; firstOwnerRpcRejection: OwnerRpcRejection | null; appRequests: number; apiRequests: number; creates: number; rejectedHmr: number; rejectedDiagnostics: number }
+type PolicyReceipt = { firstFailure: ContextualTestGatewayFailure | null; firstProtocol: ContextualTestGatewayProtocol | null; firstEndpointFailure: EndpointFailure | null; firstOwnerRpcRejection: OwnerRpcRejection | null; appRequests: number; apiRequests: number; creates: number; rejectedHmr: number; rejectedDiagnostics: number }
 export type ContextualTestGatewayReceipt = Readonly<PolicyReceipt & {
   version: 1; started: boolean; closing: boolean; closed: boolean; pending: number; sockets: number
   firstDeadline: ContextualTestGatewayDeadline | null
@@ -94,6 +100,9 @@ export type ContextualTestGatewayReceipt = Readonly<PolicyReceipt & {
 /** Endpoint policy only: no framework, browser-navigation, or body-task state. */
 export class ContextualTestGatewayPolicy {
   private firstFailure: ContextualTestGatewayFailure | null = null
+  private firstProtocol: ContextualTestGatewayProtocol | null = null
+  // Scope/plan binding rejects before the constructor may touch any clock edge.
+  private protocolClockReady = false
   private firstEndpointFailure: EndpointFailure | null = null
   private firstOwnerRpcRejection: OwnerRpcRejection | null = null
   private appRequests = 0
@@ -120,6 +129,7 @@ export class ContextualTestGatewayPolicy {
     this.classIds = new Set(Object.values(plan.classrooms).map(c => c.id))
     if (plan.appOrigin !== origins.app || plan.apiOrigin !== 'http://127.0.0.1:54331' || plan.retiredTestIds.length !== 2
       || !Number.isSafeInteger(deadline) || deadline <= now() || deadline - now() > 2_700_000) this.reject('deadline')
+    this.protocolClockReady = true
   }
   /** Only a successful real create acknowledgement can name the successor parent. */
   observeAppResponse(kind: Kind, target: string, method: string, status: number, body: unknown, requestBody?: unknown,
@@ -130,14 +140,14 @@ export class ContextualTestGatewayPolicy {
         const actor = Object.values(this.plan.actors).find(a => a.email === (requestBody as { email?: unknown })?.email)
         const tokens = setCookie?.map(value => /^pika_session=([^;]+);/.exec(value)?.[1]).filter((value): value is string => !!value)
         if (!actor || user?.id !== actor.id || user.email !== actor.email || user.role !== actor.role || tokens?.length !== 1
-          || this.surveySessions.has(tokens[0]) || this.surveySessions.size >= 7) this.reject('protocol')
+          || this.surveySessions.has(tokens[0]) || this.surveySessions.size >= 7) this.reject('protocol', 'survey-session-ack')
         this.surveySessions.set(tokens[0], actor.id); return
       }
       if (target === '/api/teacher/surveys' && method === 'POST' && status === 201) {
         const row = (body as { survey?: { created_by?: unknown; classroom_id?: unknown } })?.survey
         const actor = this.surveySessionActor(cookie)
         const classroom = Object.values(this.plan.classrooms).find(c => c.id === row?.classroom_id)
-        if (!classroom || row?.created_by !== actor || this.plan.actors[classroom.owner as keyof RehearsalPlan['actors']].id !== actor) this.reject('protocol')
+        if (!classroom || row?.created_by !== actor || this.plan.actors[classroom.owner as keyof RehearsalPlan['actors']].id !== actor) this.reject('protocol', 'survey-create-owner')
       }
       this.observeSurveyResponse(target, method, status, body, requestBody); return
     }
@@ -153,10 +163,20 @@ export class ContextualTestGatewayPolicy {
       || test.classroom_id !== this.plan.classrooms.classB.id || this.plan.retiredTestIds.includes(test.id)) this.reject('protocol')
     this.createdTestId = test.id
   }
-  reject(category: ContextualTestGatewayFailure): never { this.latch(category); throw failure() }
-  latch(category: ContextualTestGatewayFailure): void { this.firstFailure ??= failureCategories.includes(category) ? category : 'protocol' }
+  reject(category: ContextualTestGatewayFailure, locus: ContextualTestGatewayProtocol['locus'] = 'other'): never { this.latch(category, locus); throw failure() }
+  latch(category: ContextualTestGatewayFailure, locus: ContextualTestGatewayProtocol['locus'] = 'other'): void {
+    if (this.firstFailure !== null) return
+    this.firstFailure = failureCategories.includes(category) ? category : 'protocol'
+    if (this.firstFailure === 'protocol') {
+      let observedAt: number | null = null
+      // Observational only: latch first, and never let a diagnostic clock replace
+      // the original denial or prevent socket destruction and cleanup.
+      try { if (this.protocolClockReady) { const value = this.now(); if (Number.isSafeInteger(value)) observedAt = value } } catch { /* Keep explicit null. */ }
+      this.firstProtocol = Object.freeze({ locus: typeof locus === 'string' && protocolLoci.includes(locus) ? locus : 'other', observedAt })
+    }
+  }
   check(): void { if (this.now() >= this.deadline) this.reject('deadline'); if (this.firstFailure) throw failure() }
-  receipt(): PolicyReceipt { return { firstFailure: this.firstFailure, firstEndpointFailure: this.firstEndpointFailure, firstOwnerRpcRejection: this.firstOwnerRpcRejection, appRequests: this.appRequests, apiRequests: this.apiRequests, creates: this.creates, rejectedHmr: this.rejectedHmr, rejectedDiagnostics: this.rejectedDiagnostics } }
+  receipt(): PolicyReceipt { return { firstFailure: this.firstFailure, firstProtocol: this.firstProtocol, firstEndpointFailure: this.firstEndpointFailure, firstOwnerRpcRejection: this.firstOwnerRpcRejection, appRequests: this.appRequests, apiRequests: this.apiRequests, creates: this.creates, rejectedHmr: this.rejectedHmr, rejectedDiagnostics: this.rejectedDiagnostics } }
   /** Observe only fixed labels from already bounded/parsed JSON; forwarding and
    * acceptance are unchanged. Never retain identities, payloads or error text. */
   observeOwnerRpc(kind: Kind, target: string, method: string, status: number, requestBody: unknown, responseBody: unknown): void {
@@ -176,7 +196,7 @@ export class ContextualTestGatewayPolicy {
   hmr(target: string, host: unknown, method: string): void {
     this.check()
     try { contextualTestGatewayTarget('app', target, host) } catch { this.reject('target') }
-    if (target !== '/_next/webpack-hmr' || method !== 'GET') this.reject('protocol')
+    if (target !== '/_next/webpack-hmr' || method !== 'GET') this.reject('protocol', 'hmr-shape')
     this.charge('app'); this.rejectedHmr++
   }
   admit(kind: Kind, target: string, host: unknown, method: string, body?: unknown, cookie?: string): void {
@@ -247,7 +267,7 @@ export class ContextualTestGatewayPolicy {
   private surveySessionActor(cookie?: string): string {
     const matches = cookie?.split(';').map(value => value.trim()).filter(value => value.startsWith('pika_session='))
     const actor = matches?.length === 1 ? this.surveySessions.get(matches[0].slice('pika_session='.length)) : undefined
-    if (!actor) this.reject('protocol')
+    if (!actor) this.reject('protocol', 'survey-session-cookie')
     return actor
   }
   validateBody(kind: Kind, target: string, method: string, body?: unknown): void {
@@ -325,10 +345,10 @@ export class ContextualTestGatewayPolicy {
     const keys = (value: unknown, allowed: string[], required: string[] = []): value is Record<string, unknown> => object(value)
       && Object.keys(value).every(key => allowed.includes(key)) && required.every(key => Object.hasOwn(value, key))
     const text = (value: unknown, limit = 2000) => typeof value === 'string' && value.length > 0 && value.length <= limit
-    if (['GET','HEAD'].includes(method)) { if (raw !== undefined) this.reject('protocol'); return }
+    if (['GET','HEAD'].includes(method)) { if (raw !== undefined) this.reject('protocol', 'survey-read-body'); return }
     if (path === '/api/auth/login') {
       if (!keys(raw, ['email','password'], ['email','password']) || !Object.values(this.plan.actors).some(actor => actor.email === raw!.email)
-        || !text(raw!.password,128)) this.reject('protocol')
+        || !text(raw!.password,128)) this.reject('protocol', 'survey-login-body')
       return
     }
     if (path === '/api/teacher/surveys') {
@@ -338,32 +358,32 @@ export class ContextualTestGatewayPolicy {
       this.creates++; return
     }
     if (path.endsWith('/roster/remove')) {
-      if (!keys(raw,['roster_ids'],['roster_ids']) || JSON.stringify(raw!.roster_ids) !== JSON.stringify([this.plan.lifecycleRoster?.id])) this.reject('protocol')
-      const n = this.lifecycleCounts.get('remove') ?? 0; if (n) this.reject('protocol'); this.lifecycleCounts.set('remove',1); return
+      if (!keys(raw,['roster_ids'],['roster_ids']) || JSON.stringify(raw!.roster_ids) !== JSON.stringify([this.plan.lifecycleRoster?.id])) this.reject('protocol', 'survey-roster-body')
+      const n = this.lifecycleCounts.get('remove') ?? 0; if (n) this.reject('protocol', 'survey-roster-repeat'); this.lifecycleCounts.set('remove',1); return
     }
     if (path === `/api/teacher/classrooms/${this.plan.classrooms.classB.id}`) {
       const n = this.lifecycleCounts.get('archive') ?? 0
-      if (!keys(raw,['archived'],['archived']) || n >= 2 || raw!.archived !== (n === 0)) this.reject('protocol')
+      if (!keys(raw,['archived'],['archived']) || n >= 2 || raw!.archived !== (n === 0)) this.reject('protocol', 'survey-archive-body')
       this.lifecycleCounts.set('archive', n + 1); return
     }
     if (path.endsWith('/classwork/reorder')) {
       const classroomId = path.split('/')[4]
-      if (!keys(raw,['items'],['items']) || !Array.isArray(raw!.items) || raw!.items.length > 4 || raw!.items.length < 1) this.reject('protocol')
+      if (!keys(raw,['items'],['items']) || !Array.isArray(raw!.items) || raw!.items.length > 4 || raw!.items.length < 1) this.reject('protocol', 'survey-reorder-body')
       const items = raw!.items as unknown[]
       if (new Set(items.map(item => object(item) ? item.id : null)).size !== items.length || !items.every(item => keys(item,['type','id'],['type','id'])
-        && item!.type === 'survey' && typeof item!.id === 'string' && this.surveys.get(item!.id)?.classroomId === classroomId && !this.surveys.get(item!.id)?.deleted)) this.reject('protocol')
+        && item!.type === 'survey' && typeof item!.id === 'string' && this.surveys.get(item!.id)?.classroomId === classroomId && !this.surveys.get(item!.id)?.deleted)) this.reject('protocol', 'survey-reorder-items')
       return
     }
     const match = new RegExp(`^/api/(teacher|student)/surveys/(${uuid})(?:/(respond|questions)(?:/(${uuid}))?)?$`).exec(path)
-    if (!match) this.reject('protocol')
+    if (!match) this.reject('protocol', 'survey-request-parent')
     const [, , id, action] = match
-    if (method === 'DELETE') { if (raw !== undefined && raw !== null) this.reject('protocol'); return }
+    if (method === 'DELETE') { if (raw !== undefined && raw !== null) this.reject('protocol', 'survey-delete-body'); return }
     if (action === 'respond') {
-      if (!keys(raw,['responses'],['responses']) || !object(raw!.responses)) this.reject('protocol')
+      if (!keys(raw,['responses'],['responses']) || !object(raw!.responses)) this.reject('protocol', 'survey-respond-body')
       const answers = raw!.responses as Record<string,unknown>
       if (Object.keys(answers).length !== 2 || !Object.entries(answers).every(([question, answer]) => this.surveyQuestions.get(question) === id
         && (keys(answer,['question_type','selected_option'],['question_type','selected_option']) && answer!.question_type === 'multiple_choice' && answer!.selected_option === 1
-          || keys(answer,['question_type','response_text'],['question_type','response_text']) && ['short_text','link'].includes(String(answer!.question_type)) && text(answer!.response_text,2000)))) this.reject('protocol')
+          || keys(answer,['question_type','response_text'],['question_type','response_text']) && ['short_text','link'].includes(String(answer!.question_type)) && text(answer!.response_text,2000)))) this.reject('protocol', 'survey-respond-answers')
       return
     }
     if (action === 'questions') {
@@ -372,7 +392,7 @@ export class ContextualTestGatewayPolicy {
         || raw!.question_text !== undefined && !text(raw!.question_text)
         || raw!.options !== undefined && (!Array.isArray(raw!.options) || raw!.options.length > 2 || !raw!.options.every(value => text(value,200)))
         || raw!.response_max_chars !== undefined && raw!.response_max_chars !== 500
-        || raw!.position !== undefined && (typeof raw!.position !== 'number' || ![0,1].includes(raw!.position))) this.reject('protocol')
+        || raw!.position !== undefined && (typeof raw!.position !== 'number' || ![0,1].includes(raw!.position))) this.reject('protocol', 'survey-question-body')
       if (method === 'POST') {
         const n = this.surveyQuestionCreates.get(id) ?? 0; if (n >= 2) this.reject('create-cap'); this.surveyQuestionCreates.set(id,n+1)
       }
@@ -382,7 +402,7 @@ export class ContextualTestGatewayPolicy {
       || raw!.title !== undefined && !text(raw!.title,200)
       || raw!.status !== undefined && !['draft','active','closed'].includes(String(raw!.status))
       || ['show_results','dynamic_responses'].some(key => raw![key] !== undefined && typeof raw![key] !== 'boolean')
-      || raw!.opens_at !== undefined && raw!.opens_at !== null && raw!.opens_at !== '2099-01-01T00:00:00.000Z') this.reject('protocol')
+      || raw!.opens_at !== undefined && raw!.opens_at !== null && raw!.opens_at !== '2099-01-01T00:00:00.000Z') this.reject('protocol', 'survey-settings-body')
   }
   private observeSurveyResponse(target: string, method: string, status: number, raw: unknown, requestBody: unknown): void {
     // A read admitted while a resource was live may finish after its DELETE.
@@ -392,21 +412,21 @@ export class ContextualTestGatewayPolicy {
     if (target === '/api/teacher/surveys' && method === 'POST' && status === 201) {
       const row = body?.survey, requested = requestBody as { classroom_id?: unknown }
       if (!row || typeof row.id !== 'string' || !new RegExp(`^${uuid}$`).test(row.id) || this.surveys.has(row.id)
-        || row.classroom_id !== requested?.classroom_id || !this.classIds.has(String(row.classroom_id)) || this.surveys.size >= 4) this.reject('protocol')
+        || row.classroom_id !== requested?.classroom_id || !this.classIds.has(String(row.classroom_id)) || this.surveys.size >= 4) this.reject('protocol', 'survey-create-ack')
       this.surveys.set(row.id, { classroomId: String(row.classroom_id), questions: new Set(), deleted: false }); return
     }
     const match = new RegExp(`^/api/teacher/surveys/(${uuid})(?:/questions(?:/(${uuid}))?)?$`).exec(target)
     if (!match) return
     const [, id, questionId] = match, parent = this.surveys.get(id)
-    if (!parent || parent.deleted) this.reject('protocol')
+    if (!parent || parent.deleted) this.reject('protocol', 'survey-response-parent')
     if (questionId && this.surveyQuestions.get(questionId) !== id) {
-      if (status !== 404) this.reject('protocol'); return
+      if (status !== 404) this.reject('protocol', 'survey-response-question-parent'); return
     }
     if (status < 200 || status >= 300) return
     if (method === 'POST' && target.endsWith('/questions')) {
       const row = body?.question
       if (!row || typeof row.id !== 'string' || !new RegExp(`^${uuid}$`).test(row.id) || row.survey_id !== id
-        || this.surveyQuestions.has(row.id) || parent.questions.size >= 2) this.reject('protocol')
+        || this.surveyQuestions.has(row.id) || parent.questions.size >= 2) this.reject('protocol', 'survey-question-ack')
       parent.questions.add(row.id); this.surveyQuestions.set(row.id,id)
     }
     if (method === 'DELETE') {
@@ -564,7 +584,7 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
           const seen = new Set<string>()
           for (let i = 0; i < incoming.rawHeaders.length; i += 2) {
             const name = incoming.rawHeaders[i].toLowerCase()
-            if (['host', 'origin', 'content-length', 'transfer-encoding'].includes(name) && seen.has(name)) policy.reject('protocol')
+            if (['host', 'origin', 'content-length', 'transfer-encoding'].includes(name) && seen.has(name)) policy.reject('protocol', 'duplicate-protected-header')
             seen.add(name)
           }
           const length = incoming.headers['content-length']
@@ -673,11 +693,11 @@ export function createContextualTestGateways(input: { plan: RehearsalPlan; deadl
       servers = (['app', 'api'] as const).map(kind => {
         const server = edges.createServer(handler(kind)); listeners.add(server)
         server.on('connection', (socket: Socket) => { trackSocket(socket); if (closing) socket.destroy() })
-        server.on('clientError', (_error, socket: Socket) => { policy.latch('protocol'); socket.destroy() })
-        server.on('connect', (_incoming, socket: Socket) => { policy.latch('protocol'); socket.destroy() })
+        server.on('clientError', (_error, socket: Socket) => { policy.latch('protocol', 'http-client-error'); socket.destroy() })
+        server.on('connect', (_incoming, socket: Socket) => { policy.latch('protocol', 'http-connect'); socket.destroy() })
         server.on('upgrade', (incoming: IncomingMessage, socket: Socket) => {
-          try { if (kind !== 'app') policy.reject('protocol'); policy.hmr(incoming.url ?? '', incoming.headers.host, incoming.method ?? '') }
-          catch { policy.latch('protocol') }
+          try { if (kind !== 'app') policy.reject('protocol', 'http-upgrade'); policy.hmr(incoming.url ?? '', incoming.headers.host, incoming.method ?? '') }
+          catch { policy.latch('protocol', 'http-upgrade') }
           socket.destroy()
         })
         return { kind, server }

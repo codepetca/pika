@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Unsent-read fence reviewed; fresh rehearsal stopped safely
-
-Reviews118/119 cleared final0b485 security/compatibility; PR1581 stays draft at
-that head. Prior canonical runs timed out under severe machine load. With load
-lower, unchanged full focused gate passed3658/8skip in94.9s plus architecture,
-UI/design, TypeScript and lint. Original test timeouts remained unchanged.
-
-Review120 Sol/high cleared name/token-only fresh invocation wrappers. Corrected
-the coordinator's ESM-only loader selection before preparation entered; no
-fixture or native attempt existed at that point. One admitted full-app attempt
-then ran with frozen21e755 and isolated001–262. Login completed identity; browser
-stopped at endpoint route-inspection, pending1, before screenshots. This differs
-from the prior navigation-pending label but does not identify its subcondition
-or prove navigation acceptance. Do not infer a request URL from the receipt.
-
-All owned cleanup and immediate independent preservation passed:7656 sourcefiles,
-49485 dependencyfiles unchanged, no matching live processes or remaining fixture
-resources. Private Cztsnp receipts retained; attempt permanently spent. Next:
-pinpoint the guarded subcondition with fixed privacy-safe labels and a small
-reproduction before another full rehearsal. No code fix, fresh retry, visual
-acceptance, merge or production action. Cumulative120reviewturns/71fixbatches;
-original clocks/task waiver and production/shared-local/provider holds remain.
-
 ## 2026-10-16 — Pinpointing navigation guard rejection
 
 Split existing compound guard failures into fixed allowlisted subcondition
@@ -461,6 +438,19 @@ Correction145 prepares a sealed login-only selection inside the existing Survey 
 ## 2026-10-18 — Complete the diagnostic helper's source inventories
 
 Reviews223/224 are clean at66888744 with404 affected CPU checks. Fullfocused60298 failed two concrete source-closure checks (4673PASS/8skip): the existing synthetic diagnostic inventory omitted the new inert receipt helper, and the actual installed Playwright compiler graph now contains33 modules instead of32. No runtime was admitted. Correction146 adds that exact helper to the fixed source-hash inventory and the compiler test's required files, and adjusts only its CPU graph bound to33. Native clocks, request/byte/action/control/session limits, network/auth policies and all production/shared-local/provider/account/rollout holds are unchanged. Both regression suites now pass30 tests. One targeted compatibility review and the full gate follow this small delta; failed full-run evidence remains failed, prior coverage/counters and human routine-stop waiver carry forward.
+
+## 2026-10-19 — Attribute the first protocol rejection safely
+
+Full Survey v6 failed at response selection before theme captures, with a broad
+gateway protocol label. Immediate independent preservation and exact cleanup
+passed. No initiating cause is established: that label may reflect teardown after
+the browser failed. Source149 adds only immutable firstProtocol closed-locus/time
+evidence, preserving every guard, cap, rejection and cleanup action. Earlier
+nonprotocol failures cannot gain later protocol attribution; invalid clocks
+cannot suppress denial. No raw exception, request or identity data is retained.
+TDD20RED/206PASS→263 focused gateway/controller PASS; configured tsc/eslint and
+source-normalization invariants pass. Full focused and independent review pending.
+All production/shared-local/provider/account/rollout holds remain unchanged.
 
 ## 2026-10-19 — Reuse the real theme control in Survey verification
 

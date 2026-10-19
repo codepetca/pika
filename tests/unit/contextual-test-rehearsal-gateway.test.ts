@@ -48,6 +48,90 @@ function harness(now = () => 1000, proofScope?: ContextualTestProofScope, select
 }
 const flush = async () => { await new Promise<void>(resolve => setImmediate(resolve)) }
 
+describe('first protocol observation', () => {
+  const socket = () => Object.assign(new EventEmitter(), { destroy: vi.fn() })
+  const upgrade = { method: 'GET', url: '/private-upgrade', headers: { host: 'localhost:3117' } }
+  it.each([
+    ['clientError', 'http-client-error'], ['connect', 'http-connect'], ['upgrade', 'hmr-shape'],
+  ] as const)('records the actual %s guard once and preserves fatal socket destruction', async (event, locus) => {
+    let now = 1000
+    const h = harness(() => now); await h.gateways.start(); now = 1234
+    const firstSocket = socket(), read = vi.fn(() => { throw Error('private-accessor') })
+    const arbitrary = new Proxy(Object.defineProperty({}, 'code', { get: read }), { get: read, getOwnPropertyDescriptor: read })
+    h.servers[0].emit(event, event === 'upgrade' ? upgrade : arbitrary, firstSocket)
+    expect(firstSocket.destroy).toHaveBeenCalledOnce()
+    const first = h.gateways.receipt().firstProtocol
+    expect(first).toEqual({ locus, observedAt: 1234 }); expect(Object.isFrozen(first)).toBe(true)
+    expect(read).not.toHaveBeenCalled(); now = 1500
+    h.servers[1].emit('connect', {}, socket())
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'protocol', firstProtocol: first })
+    expect(h.gateways.receipt().firstProtocol).toBe(first)
+    await h.gateways.close(2000); expect(h.gateways.receipt().firstProtocol).toBe(first)
+    expect(JSON.stringify(first)).not.toMatch(/private|stack|cookie|headers|payload/)
+  })
+  it('records API upgrades separately from app HMR shape failures', async () => {
+    const h = harness(); await h.gateways.start(); const s = socket()
+    h.servers[1].emit('upgrade', upgrade, s)
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'protocol', firstProtocol: { locus: 'http-upgrade', observedAt: 1000 } })
+    expect(s.destroy).toHaveBeenCalledOnce(); await h.gateways.close(2000)
+  })
+  it('keeps benign exact HMR and optional diagnostics unattributed', async () => {
+    const h = harness(); await h.gateways.start(); const s = socket()
+    h.servers[0].emit('upgrade', { ...upgrade, url: '/_next/webpack-hmr' }, s)
+    await h.incoming('app', '/__nextjs_original-stack-frames', 'POST', '{}', { 'content-type': 'application/json' }).done
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: null, firstProtocol: null, rejectedHmr: 1, rejectedDiagnostics: 1 })
+    await h.gateways.close(2000); expect(h.gateways.receipt().firstProtocol).toBeNull()
+  })
+  it('does not attribute a later protocol guard after an earlier nonprotocol failure', async () => {
+    const h = harness(); await h.gateways.start(); await h.incoming('app', '/private-endpoint').done
+    const s = socket(); h.servers[0].emit('clientError', Error('private'), s)
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'endpoint', firstProtocol: null })
+    expect(s.destroy).toHaveBeenCalledOnce(); await h.gateways.close(2000)
+  })
+  it.each([NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1, 'throw'] as const)('cannot suppress a fatal client error with observational clock %s', async invalid => {
+    let observing = false
+    const h = harness(() => { if (observing) { if (invalid === 'throw') throw Error('private-clock'); return invalid } return 1000 })
+    await h.gateways.start(); observing = true; const s = socket()
+    expect(() => h.servers[0].emit('clientError', Error('private'), s)).not.toThrow()
+    expect(s.destroy).toHaveBeenCalledOnce(); observing = false
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'protocol', firstProtocol: { locus: 'http-client-error', observedAt: null } })
+    await h.gateways.close(2000)
+  })
+  it('sanitizes arbitrary runtime loci without reading their properties', () => {
+    const p = new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000), read = vi.fn(() => { throw Error('private') })
+    const locus = new Proxy({}, { get: read, getOwnPropertyDescriptor: read })
+    expect(() => p.reject('protocol', locus as never)).toThrow('Private contextual Test gateway')
+    expect(p.receipt().firstProtocol).toEqual({ locus: 'other', observedAt: 1000 }); expect(read).not.toHaveBeenCalled()
+  })
+  it.each(['unrecognized-private-locus', undefined] as const)('uses a fixed fallback for runtime locus %s', locus => {
+    const p = new ContextualTestGatewayPolicy(plan, 2_701_000, () => 1000)
+    p.latch('protocol', locus as never)
+    expect(p.receipt().firstProtocol).toEqual({ locus: 'other', observedAt: 1000 })
+  })
+  it.each(['session', 'login-body', 'session-ack', 'create-owner', 'create-ack'] as const)('observes the real Survey %s guard after legitimate HTTP login', async defect => {
+    const h = harness(undefined, 'survey-workflow-v1'); await h.gateways.start()
+    const actor = h.input.plan.actors.ownerTeacher, cookie = 'pika_session=owned-private-session'
+    const login = h.incoming('app', '/api/auth/login', 'POST', JSON.stringify({ email: actor.email, password: 'synthetic-password' }), { 'content-type': 'application/json' })
+    await flush(); h.respond(0, JSON.stringify({ user: actor }), { 'content-type': 'application/json', 'set-cookie': [cookie + '; Path=/; HttpOnly'] }); await login.done
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: null, firstProtocol: null })
+    const body = { classroom_id: h.input.plan.classrooms.classA.id }
+    if (defect === 'session') await h.incoming('app', '/api/classrooms/home', 'GET', '', { cookie: 'pika_session=forged-private-session' }).done
+    else if (defect === 'login-body') await h.incoming('app', '/api/auth/login', 'POST', JSON.stringify({ email: actor.email }), { 'content-type': 'application/json' }).done
+    else {
+      const ack = defect === 'session-ack'
+      const call = h.incoming('app', ack ? '/api/auth/login' : '/api/teacher/surveys', 'POST', JSON.stringify(ack ? { email: actor.email, password: 'synthetic-password' } : body), { 'content-type': 'application/json', cookie })
+      await flush()
+      h.respond(1, JSON.stringify(ack ? { user: actor } : { survey: { ...body, created_by: defect === 'create-owner' ? 'private-foreign-owner' : actor.id } }),
+        { 'content-type': 'application/json', ...(ack ? { 'set-cookie': [cookie + '; Path=/; HttpOnly'] } : {}) }, ack ? 200 : 201)
+      await call.done
+    }
+    const loci = { session: 'survey-session-cookie', 'login-body': 'survey-login-body', 'session-ack': 'survey-session-ack', 'create-owner': 'survey-create-owner', 'create-ack': 'survey-create-ack' }
+    expect(h.gateways.receipt()).toMatchObject({ firstFailure: 'protocol', firstProtocol: { locus: loci[defect], observedAt: 1000 }, pending: 0 })
+    expect(JSON.stringify(h.gateways.receipt().firstProtocol)).not.toMatch(/private|cookie=|classroom_id|user/)
+    await h.gateways.close(2000)
+  })
+})
+
 describe('gateway login-only diagnostic selection', () => {
   const scope = 'survey-workflow-v1' as const
   const selected = () => harness(undefined, scope, { diagnostic: 'login-only' })
@@ -181,6 +265,41 @@ describe('Survey successor browser capability', () => {
     }
     return {p,gateway,admit,create,question}
   }
+  it.each(['read-body', 'roster-body', 'roster-repeat', 'archive-body', 'reorder-body', 'reorder-items',
+    'request-parent', 'delete-body', 'respond-body', 'respond-answers', 'question-body', 'settings-body',
+    'response-parent', 'response-question-parent', 'question-ack'] as const)('identifies the exact Survey %s protocol guard', locus => {
+    const h = policy(), parent = h.create(), path = `/api/teacher/surveys/${parent}`
+    expect(h.gateway.receipt()).toMatchObject({ firstFailure: null, firstProtocol: null })
+    const roster = `/api/teacher/classrooms/${h.p.classrooms.classA.id}/roster/remove`
+    const reorder = `/api/teacher/classrooms/${h.p.classrooms.classA.id}/classwork/reorder`
+    const run = () => {
+      switch (locus) {
+        case 'read-body': return h.gateway.validateBody('app', '/api/auth/me', 'GET', {})
+        case 'roster-body': return h.admit(roster, 'POST', { roster_ids: [] })
+        case 'roster-repeat': {
+          const body = { roster_ids: [h.p.lifecycleRoster?.id] }
+          h.admit(roster, 'POST', body); return h.admit(roster, 'POST', body)
+        }
+        case 'archive-body': return h.admit(`/api/teacher/classrooms/${h.p.classrooms.classB.id}`, 'PATCH', { archived: false })
+        case 'reorder-body': return h.admit(reorder, 'POST', { items: [] })
+        case 'reorder-items': return h.admit(reorder, 'POST', { items: [{ type: 'survey', id: id(99) }] })
+        case 'request-parent': return h.gateway.validateBody('app', '/private-unknown', 'POST', {})
+        case 'delete-body': return h.admit(path, 'DELETE', {})
+        case 'respond-body': return h.admit(`/api/student/surveys/${parent}/respond`, 'POST', { responses: [] })
+        case 'respond-answers': return h.admit(`/api/student/surveys/${parent}/respond`, 'POST', { responses: {} })
+        case 'question-body': return h.admit(path + '/questions', 'POST', { question_type: 'private-unknown' })
+        case 'settings-body': return h.admit(path, 'PATCH', { title: '' })
+        case 'response-parent': return h.gateway.observeAppResponse('app', `/api/teacher/surveys/${id(99)}`, 'PATCH', 200, {})
+        case 'response-question-parent': {
+          const foreign = h.question(h.create(2), 12)
+          return h.gateway.observeAppResponse('app', `${path}/questions/${foreign}`, 'PATCH', 200, {})
+        }
+        case 'question-ack': return h.gateway.observeAppResponse('app', path + '/questions', 'POST', 201, { question: { id: id(11), survey_id: id(99) } })
+      }
+    }
+    expect(run).toThrow('Private contextual Test gateway')
+    expect(h.gateway.receipt()).toMatchObject({ firstFailure: 'protocol', firstProtocol: { locus: 'survey-' + locus, observedAt: 1000 } })
+  })
   it('rejects absent/forged scope and changed fixture ceilings', () => {
     expect(() => new ContextualTestGatewayPolicy(surveyPlan(),2_701_000,()=>1000)).toThrow()
     expect(() => new ContextualTestGatewayPolicy(surveyPlan(),2_701_000,()=>1000,'forged' as never)).toThrow()
@@ -687,6 +806,7 @@ describe('contextual Test gateway original-byte ownership with fake HTTP I/O', (
     const response = Object.assign(new EventEmitter(), { destroyed: false, writableEnded: false, destroy: vi.fn() })
     h.servers[0].handler(request as unknown as http.IncomingMessage, response as unknown as http.ServerResponse); request.end(); await flush()
     expect(h.upstreams).toHaveLength(0); expect(h.gateways.receipt().firstFailure).toBe('protocol')
+    expect(h.gateways.receipt().firstProtocol).toEqual({ locus: 'duplicate-protected-header', observedAt: 1000 })
     expect(JSON.stringify(h.gateways.receipt())).not.toContain('private-secret'); await h.gateways.close(2000)
   })
   it('retains the first failure and performs no retry or later dispatch', async () => {

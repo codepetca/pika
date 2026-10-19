@@ -48729,3 +48729,27 @@ Trimmed CURRENT and restored the original drain continuation (no test/timeout
 relaxation). Two targeted SDK/parser CPU timeouts passed serially. Final focused
 gate and targeted review pending; cumulative117reviews/71fixbatches, original
 clocks/task waiver retained. Production and all prior attempt holds unchanged.
+
+<!-- pika-session-log-archive-batch:93991a617e35349171d1674a5b64e61a636f0dd4b701e4ab4397b58d31a715e7 -->
+## 2026-10-16 — Unsent-read fence reviewed; fresh rehearsal stopped safely
+
+Reviews118/119 cleared final0b485 security/compatibility; PR1581 stays draft at
+that head. Prior canonical runs timed out under severe machine load. With load
+lower, unchanged full focused gate passed3658/8skip in94.9s plus architecture,
+UI/design, TypeScript and lint. Original test timeouts remained unchanged.
+
+Review120 Sol/high cleared name/token-only fresh invocation wrappers. Corrected
+the coordinator's ESM-only loader selection before preparation entered; no
+fixture or native attempt existed at that point. One admitted full-app attempt
+then ran with frozen21e755 and isolated001–262. Login completed identity; browser
+stopped at endpoint route-inspection, pending1, before screenshots. This differs
+from the prior navigation-pending label but does not identify its subcondition
+or prove navigation acceptance. Do not infer a request URL from the receipt.
+
+All owned cleanup and immediate independent preservation passed:7656 sourcefiles,
+49485 dependencyfiles unchanged, no matching live processes or remaining fixture
+resources. Private Cztsnp receipts retained; attempt permanently spent. Next:
+pinpoint the guarded subcondition with fixed privacy-safe labels and a small
+reproduction before another full rehearsal. No code fix, fresh retry, visual
+acceptance, merge or production action. Cumulative120reviewturns/71fixbatches;
+original clocks/task waiver and production/shared-local/provider holds remain.
