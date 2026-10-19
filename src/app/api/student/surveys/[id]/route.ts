@@ -8,11 +8,17 @@ import {
   isSurveyVisibleToStudents,
 } from '@/lib/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { authorizeSharedSurveyActor, readContextualSurveyDetail } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetStudentSurvey', async (_request, context) => {
+  const shared = await authorizeSharedSurveyActor()
+  if (shared.mode === 'shared') {
+    const { id: surveyId } = await context.params
+    return NextResponse.json(await readContextualSurveyDetail({ actorId: shared.user.id, surveyId, permission: 'member' }))
+  }
   const user = await requireRole('student')
   const { id: surveyId } = await context.params
 

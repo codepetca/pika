@@ -5,11 +5,17 @@ import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import { canStudentViewSurveyResults, getStudentSurveyStatus, isSurveyVisibleToStudents } from '@/lib/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { authorizeSharedSurveyActor, readContextualSurveyList } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetStudentSurveys', async (request) => {
+  const shared = await authorizeSharedSurveyActor()
+  if (shared.mode === 'shared') {
+    const classroomId = new URL(request.url).searchParams.get('classroom_id') || ''
+    return NextResponse.json(await readContextualSurveyList({ actorId: shared.user.id, classroomId, permission: 'member' }))
+  }
   const user = await requireRole('student')
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')

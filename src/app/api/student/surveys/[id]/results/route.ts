@@ -7,6 +7,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 import type { SurveyQuestion, SurveyResponse } from '@/types'
+import { authorizeSharedSurveyActor, readContextualSurveyResults } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -52,6 +53,11 @@ async function loadSurveyResponsesForStudents(
 }
 
 export const GET = withErrorHandler('GetStudentSurveyResults', async (_request, context) => {
+  const shared = await authorizeSharedSurveyActor()
+  if (shared.mode === 'shared') {
+    const { id: surveyId } = await context.params
+    return NextResponse.json(await readContextualSurveyResults({ actorId: shared.user.id, surveyId, permission: 'member' }))
+  }
   const user = await requireRole('student')
   const { id: surveyId } = await context.params
 

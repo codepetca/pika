@@ -11264,6 +11264,10 @@ export type Database = {
         }
         Returns: Json
       }
+      create_survey_question_for_owner_v1: {
+        Args: { p_actor_id: string; p_question: Json; p_survey_id: string }
+        Returns: Json
+      }
       create_test_ai_grading_run_atomic: {
         Args: {
           p_eligible_student_count: number
@@ -11332,6 +11336,14 @@ export type Database = {
       }
       delete_student_test_attempts_atomic: {
         Args: { p_student_ids: string[]; p_test_id: string }
+        Returns: Json
+      }
+      delete_survey_for_owner_v1: {
+        Args: { p_actor_id: string; p_survey_id: string }
+        Returns: Json
+      }
+      delete_survey_question_for_owner_v1: {
+        Args: { p_actor_id: string; p_question_id: string; p_survey_id: string }
         Returns: Json
       }
       delete_test_atomic: {
@@ -12017,6 +12029,30 @@ export type Database = {
       }
       get_student_test_session_status_projection: {
         Args: { p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
+      get_survey_for_member_v1: {
+        Args: { p_actor_id: string; p_survey_id: string }
+        Returns: Json
+      }
+      get_survey_for_owner_v1: {
+        Args: { p_actor_id: string; p_survey_id: string }
+        Returns: Json
+      }
+      get_survey_results_for_member_v1: {
+        Args: { p_actor_id: string; p_survey_id: string }
+        Returns: Json
+      }
+      get_survey_results_for_owner_v1: {
+        Args: { p_actor_id: string; p_survey_id: string }
+        Returns: Json
+      }
+      get_surveys_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
+      get_surveys_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
       get_teacher_log_history_preview: {
@@ -12974,6 +13010,16 @@ export type Database = {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: Json
       }
+      respond_to_survey_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_expected_questions: Json
+          p_responses: Json
+          p_survey_id: string
+        }
+        Returns: Json
+      }
       restore_assignment_doc_for_member_v1: {
         Args: {
           p_actor_id: string
@@ -13917,6 +13963,20 @@ export type Database = {
           p_classroom_id: string
           p_material_id: string
           p_patch: Json
+        }
+        Returns: Json
+      }
+      update_survey_for_owner_v1: {
+        Args: { p_actor_id: string; p_patch: Json; p_survey_id: string }
+        Returns: Json
+      }
+      update_survey_question_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_expected_question: Json
+          p_question: Json
+          p_question_id: string
+          p_survey_id: string
         }
         Returns: Json
       }
