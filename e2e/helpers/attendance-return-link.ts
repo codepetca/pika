@@ -20,6 +20,18 @@ export async function verifyAttendanceReturnLink(page: Page, testInfo: TestInfo,
     if (!['GET', 'HEAD', 'OPTIONS'].includes(route.request().method())) unexpectedWrites.push(new URL(route.request().url()).pathname)
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
   })
+  await page.route('**/api/student/attendance/status', async route => {
+    const studentId = '40000000-0000-4000-8000-000000000001'
+    await route.fulfill({
+      status: 200, headers: { 'X-Pika-Student-Id': studentId },
+      json: { studentId, serverNow: '2026-10-19T13:01:01.000Z', nextRefreshAt: null,
+        classrooms: [{ classroomId, state: 'confirmed', opensAt: null, closesAt: null,
+          occurrenceBinding: 'a'.repeat(32), attendanceStatus: 'present',
+          confirmedAt: '2026-10-19T13:01:00.000Z', classDate: '2026-10-19',
+          validUntil: '2026-10-20T04:00:00.000Z' }],
+      },
+    })
+  })
   await page.route('**/api/student/attendance/classroom-check-in', async route => {
     const body = route.request().postDataJSON() as { attemptId: string }
     expect(body.attemptId).toEqual(expect.any(String))
@@ -29,7 +41,11 @@ export async function verifyAttendanceReturnLink(page: Page, testInfo: TestInfo,
       ? { error: 'Controlled unavailable response' }
       : outcome === 'closed'
         ? { state: 'closed', title: 'Attendance is not open', description: 'This classroom poster works when your teacher opens attendance.' } satisfies StudentAttendanceCheckInView
-        : { state: outcome, title: outcome === 'checked_in' ? 'You are checked in' : 'You are already checked in', description: 'Your attendance was recorded.', classroomId } satisfies StudentAttendanceCheckInView
+        : { state: outcome, title: outcome === 'checked_in' ? 'You are checked in' : 'You are already checked in', description: 'Your attendance was recorded.', classroomId,
+          studentId: '40000000-0000-4000-8000-000000000001', occurrenceBinding: 'a'.repeat(32),
+          attendanceStatus: 'present', recordedAt: '2026-10-19T13:01:00.000Z',
+          classDate: '2026-10-19', serverNow: '2026-10-19T13:01:01.000Z', validUntil: '2026-10-20T04:00:00.000Z',
+        } satisfies StudentAttendanceCheckInView
     await route.fulfill({ status: outcome === 'unavailable' ? 503 : 200, contentType: 'application/json', body: JSON.stringify(result) })
   })
   async function verifyReturn(state: string, successful: boolean) {
@@ -65,14 +81,14 @@ export async function verifyAttendanceReturnLink(page: Page, testInfo: TestInfo,
   await verifyReturn('checked_in', true)
   for (outcome of ['already_checked_in', 'closed', 'unavailable'] as const) {
     await page.reload({ waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('heading', { name: outcome === 'already_checked_in' ? 'You are already checked in' : outcome === 'closed' ? 'Attendance is not open' : 'Not checked-in', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: outcome === 'already_checked_in' ? 'You are already checked in' : outcome === 'closed' ? 'Attendance is not open' : 'Unable to confirm check-in', exact: true })).toBeVisible()
     await verifyReturn(outcome, outcome === 'already_checked_in')
   }
   const uncertainAttempt = requests.at(-1)!.attemptId
   const previousCount = requests.length
   await page.getByRole('button', { name: 'Try again', exact: true }).click()
   await expect.poll(() => requests.length).toBe(previousCount + 1)
-  await expect(page.getByRole('heading', { name: 'Not checked-in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Unable to confirm check-in' })).toBeVisible()
   expect(requests.at(-1)!.attemptId).toBe(uncertainAttempt)
   expect(unexpectedWrites).toEqual([])
   await writeFile(testInfo.outputPath('receipt.json'), JSON.stringify({ theme, viewport, motion, measurements, uncertainRetrySameAttempt: true, unexpectedWrites, responses: 'controlled existing classroom fixture' }, null, 2))

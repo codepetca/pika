@@ -566,4 +566,8 @@ reference inspected. Focused gate83files1004tests, policies,TypeScript,lint PASS
 accepted one P2: GET request latency could revive pre-midnight confirmation.
 Added deferred-GET regression (red then green), advanced server clock by elapsed
 request time;40related tests PASS. Budget:2planned turns/7,1fix batch/4;
-per-review tokens/elapsed unknown. Targeted cumulative review/CI next; PR1616draft.
+per-review tokens/elapsed unknown. Targeted cumulative review clean at257f2e20; focused1005+allchecks PASS.
+Final fixture audit updated existing browser acknowledgements/status mocks and
+new uncertain-result copy;6Playwright flows PASS(40s) desktop-light/mobile-dark,
+normal/reduced motion, no dependency/auth setup runs. Product source unchanged.
+Reviewturn3/7planned for test delta, fixbatch2/4; CI next; PR1616draft.
