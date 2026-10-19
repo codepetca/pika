@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Pending-request investigation reaches a verification-policy decision
-
-Read-only Astra/high SDK investigation and coordinator source checks confirm the
-host departure call cannot exclude later renderer traffic: Playwright awaits
-instrumentation before native navigation. Existing CPU regression reproduces the
-same navigation-pending transport rejection. Ordinary navigation-self identity
-or prior redirect completion mismatch is unsupported by the installed SDK chain.
-The retained full-app receipt lacks request identity/type; its historical URL
-cannot be recovered, and first Pattern Lab navigation versus reload is unproved.
-Proposed departure fence would preserve all in-flight/body validation but cancel
-only exact never-dispatched GET/HEAD requests and join their termination. That
-changes the current every-request-failure-is-fatal rule, so owner direction is
-needed before implementing that acceptance-policy change under the unchanged-
-safety-check instruction. No source fix, native attempt or duplicate review.
-Reviewed head remains a755e771; original115reviews/69fixbatches and holds carry.
-
 ## 2026-10-16 — Approved unsent-read navigation fence implemented
 
 Owner explicitly approved cancelling verified not-yet-sent GET/HEAD reads during
@@ -511,3 +495,7 @@ Correction144 adds first immutable gateway deadline labels for request/header/bo
 Correction144 review222 is clean and full serial gate passes4611 tests/8skip plus all static checks at4c71fd65. The first parallel run remains failed with three unchanged CPU watchdog timeouts under high host load; the existing single-worker option changes no assertions or native limits. This does not establish the browser failure cause.
 
 Correction145 prepares a sealed login-only selection inside the existing Survey runner, not a new proof scope or product flag. Admission digest, binding and native launches agree on the selection; the real spec runs one existing owner login/session check and emits only a separate strict diagnostic receipt. The app gateway additionally denies every mutation except the exact login POST. A diagnostic-passed controller result leaves full Playwright/Survey database validation false and retains normal startup, clocks, cleanup and preservation. TDD and focused CPU verification precede independent fixed-SHA review and full checks; no new native attempt has been admitted. Historical attempts remain failed/spent; production/shared-local/provider/account/billing/quota/cohort/home/page/cutover holds remain. Routine-stop waiver and cumulative222 reviews/144 completed corrections carry forward;145 in progress.
+
+## 2026-10-18 — Complete the diagnostic helper's source inventories
+
+Reviews223/224 are clean at66888744 with404 affected CPU checks. Fullfocused60298 failed two concrete source-closure checks (4673PASS/8skip): the existing synthetic diagnostic inventory omitted the new inert receipt helper, and the actual installed Playwright compiler graph now contains33 modules instead of32. No runtime was admitted. Correction146 adds that exact helper to the fixed source-hash inventory and the compiler test's required files, and adjusts only its CPU graph bound to33. Native clocks, request/byte/action/control/session limits, network/auth policies and all production/shared-local/provider/account/rollout holds are unchanged. Both regression suites now pass30 tests. One targeted compatibility review and the full gate follow this small delta; failed full-run evidence remains failed, prior coverage/counters and human routine-stop waiver carry forward.

@@ -48672,3 +48672,20 @@ Evidence retained privately; no retry, fix, merge or deployment. Next: isolate
 navigation/transport coordination before another full run; no weakened guards.
 Original review115/fix69 clocks and task waiver carry. Production/shared-local/
 provider/account/migration/cutover holds unchanged. No goal/phase exit claimed.
+
+<!-- pika-session-log-archive-batch:a2e2ba069ef9b68f6816f0c9dd85a2dc1aca527604ad242aa2ed57b95c710cc0 -->
+## 2026-10-16 — Pending-request investigation reaches a verification-policy decision
+
+Read-only Astra/high SDK investigation and coordinator source checks confirm the
+host departure call cannot exclude later renderer traffic: Playwright awaits
+instrumentation before native navigation. Existing CPU regression reproduces the
+same navigation-pending transport rejection. Ordinary navigation-self identity
+or prior redirect completion mismatch is unsupported by the installed SDK chain.
+The retained full-app receipt lacks request identity/type; its historical URL
+cannot be recovered, and first Pattern Lab navigation versus reload is unproved.
+Proposed departure fence would preserve all in-flight/body validation but cancel
+only exact never-dispatched GET/HEAD requests and join their termination. That
+changes the current every-request-failure-is-fatal rule, so owner direction is
+needed before implementing that acceptance-policy change under the unchanged-
+safety-check instruction. No source fix, native attempt or duplicate review.
+Reviewed head remains a755e771; original115reviews/69fixbatches and holds carry.

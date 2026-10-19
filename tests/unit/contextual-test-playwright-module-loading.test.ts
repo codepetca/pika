@@ -48,7 +48,9 @@ describe('actual installed Playwright CommonJS module-loading compatibility, CPU
     const visited = new Set<string>(), external = new Set<string>(), pending = seeds.map(file => join(repository, file))
     while (pending.length) {
       const file = pending.pop()!; if (visited.has(file)) continue; visited.add(file)
-      expect(visited.size).toBeLessThanOrEqual(32)
+      // The original 32-source closure plus the inert strict login receipt helper;
+      // this CPU graph bound does not change any native execution allowance.
+      expect(visited.size).toBeLessThanOrEqual(33)
       const compiled = compile(file)
       // Compiles/parses only: do not run Script or require any carrier module,
       // config binding, native function, filesystem SQL edge or old attempt.
@@ -62,7 +64,7 @@ describe('actual installed Playwright CommonJS module-loading compatibility, CPU
     const files = [...visited].map(file => relative(repository, file))
     for (const needed of [...seeds, 'e2e/helpers/contextual-test-admission.ts', 'e2e/helpers/contextual-test-workflow.ts',
       'scripts/contextual-test-rehearsal-binding.ts', 'scripts/contextual-test-rehearsal-native.ts', 'scripts/contextual-test-rehearsal-launch.ts',
-      'scripts/contextual-test-process-ownership.ts']) expect(files).toContain(needed)
+      'scripts/contextual-test-process-ownership.ts', 'scripts/contextual-test-login-diagnostic-proof.ts']) expect(files).toContain(needed)
     for (const excluded of ['scripts/contextual-test-rehearsal-platform.ts', 'scripts/contextual-assignment-list-proof-platform.ts',
       'scripts/contextual-assignment-list-proof-lifecycle.ts', 'scripts/check-contextual-assignment-list-reads.ts',
       'scripts/contextual-test-rehearsal-controller.ts']) expect(files).not.toContain(excluded)
