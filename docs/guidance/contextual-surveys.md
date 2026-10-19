@@ -7,8 +7,9 @@ Classroom archive/restore migration268. The additive Survey migration is now
 reviewed Survey263 source; the current contention correction preserves distinct
 nontransient lifecycle errors as described below. The original current-base
 compatibility/types prerequisite and remaining database proof passed as recorded
-below. Changed-SQL verification and complete application acceptance, PR readiness,
-batch2 exit and activation remain incomplete.
+below. Changed-SQL and complete application/visual verification now pass as
+recorded below. Final cumulative review, stable-head CI/PR Gate, main merge,
+batch2 exit and activation remain separate gates.
 
 The existing teacher/student Survey URLs and legacy branches remain. The shared
 experience admission contract is the sole cohort selector. Admitted users use
@@ -197,9 +198,34 @@ Every failed attempt remains spent; immediate independent preservation and exact
 cleanup receipts are retained separately. No failed partial workflow is accepted
 as complete.
 
-Remaining gates are changed-SQL database verification, one complete existing-screen
-mixed-role Survey workflow with the current product/runner and required visuals,
-independent cumulative review and stable reviewed-SHA CI/PR Gate.
+2026-10-19 superseding verification at product `44daed9da` and runner `759cf299d`:
+the fresh v11 disposable001–269 proof passed all49 SQL cases,30 committed
+concurrency directions, genuine57014 cancellation/original HTTP-body settlement,
+native wire overflow/restoration,14 SDK operations+2 probes and genuine types.
+Accounting:198 actions,4366 controls,76481525 bytes,16 requests; all original
+limits held. Migration-chain digest is
+`dbecac4c459bf8a514ef83bd69dec7246d0a2546f0e311ae02e90593b66a6fe8`.
+Generated types remain byte-identical to the artifact above. Canonical/global
+resource equality, exact isolated teardown and immediate independent source/
+dependency preservation passed. The v11 token is spent and cannot be replayed.
+
+The fresh v8 complete existing-screen mixed-role Survey workflow passed all52
+exchanges across seven authenticated actor contexts, including author/publish/
+submit/dynamic update/results, privacy and foreign-parent denials, archive/restore
+with retained-work equality, and cached/fresh-login membership revocation.
+All16 owner/member × historical teacher/student × desktop/mobile × light/dark
+PNGs were hash/dimension-checked and actually visually inspected; no blocking
+layout issue or horizontal overflow. Mobile editor scrolling is intentional.
+App863/950 and API1185/4000 requests;0 page errors or gateway failures; all
+cleanup fields passed with no remaining processes/pending requests/sockets.
+Canonical equality and immediate independent source/dependency preservation
+passed. No UI change or additional keyboard/accessibility audit is claimed.
+Private versioned v11/v8 receipts retain provenance; historical failed attempts
+remain spent, not relabeled. Source review232 and timestamp-only review233 are
+clean; carrier4733 tests/static checks and product1000 tests/static checks pass.
+
+Remaining gates are independent cumulative review, stable reviewed-SHA CI/PR Gate
+and normal main merge. These bounded receipts do not complete batch2 or rollout.
 No nativeVerified flag is raised.
 No production/shared-local migration, provider/account/billing action,
 admission/home/page/cohort/cutover activation or phase exit is authorized.

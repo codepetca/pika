@@ -476,6 +476,21 @@ Changed SQL requires fresh isolated proof before final Survey review/CI/merge.
 This checkpoint does not complete batch2 or authorize production/shared-local
 migrations, release promotion or any activation; batches3–5 remain separate exits.
 
+2026-10-19 superseding Survey verification: corrected product `44daed9da` and
+runner `759cf299d` passed the fresh disposable269 SQL proof (49 cases,30 committed
+directions, real cancellation/wire boundaries/restoration,14 SDK calls+2 probes,
+genuine unchanged types) and the complete existing-screen mixed-role browser
+workflow (52 exchanges/seven actor contexts). All16 required PNGs were
+hash/dimension-verified and actually visually inspected. Exact cleanup,
+canonical/global-resource equality and immediate source/dependency preservation
+passed for both attempts, under unchanged limits. Product1000 and carrier4733
+tests plus static checks pass. Final cumulative review and stable-head CI/PR Gate
+precede normal1614 main merge; this is not yet merged, a batch2 exit, or production
+authority. Continue next with Gradebook/returned Grades and existing Assignment
+grading entrypoint integration after Survey lands, then remaining lifecycle,
+navigation and integrated-release gates. All production/shared-local/account/
+provider/billing/cohort/home/page/cutover holds stay unchanged.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

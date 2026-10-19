@@ -25,6 +25,9 @@ No exit; `docs/guidance/contextual-test-publication.md`.
 253#1524 OFF (CI37715526569 PASS).
 Quota notices: upgrade/tier only; creation-error deferred.
 Batch2 open.
+Oct19 Survey1614 draft:44daed SQLv11/fullappv8/16visuals PASS;
+49SQL/30directions/52exchanges, cleanup/preservation PASS. Final review/CI/mainmerge
+pending; production/shared-local/activation holds unchanged. Batch2 still open.
 
 Worktrees: $HOME/.codex/worktrees/pika/; $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; .env.example.
