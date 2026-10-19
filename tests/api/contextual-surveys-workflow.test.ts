@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET as ownerList } from '@/app/api/teacher/surveys/route'
 import { GET as ownerDetail, PATCH as ownerPatch, DELETE as ownerDelete } from '@/app/api/teacher/surveys/[id]/route'
@@ -43,7 +43,7 @@ function legacyResponseFixture(activeQuestion: typeof question) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks(); vi.unstubAllEnvs()
+  vi.clearAllMocks(); mocks.rpc.mockReset(); vi.unstubAllEnvs()
   vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
   mocks.requireAuth.mockResolvedValue({ id: actorId, role: 'student' })
   mocks.rpc.mockImplementation(async (name: string) => {
@@ -57,6 +57,134 @@ beforeEach(() => {
     if (name === 'get_survey_results_for_member_v1') return success({ classroom: { ...classroom, teacher_id: otherId }, survey: { id: surveyId, title: survey.title, status: survey.status, show_results: true, dynamic_responses: true }, results: [] })
     if (name === 'get_survey_results_for_owner_v1') return success({ classroom, survey: { id: surveyId, title: survey.title, status: survey.status, show_results: true, dynamic_responses: true }, results: [], questions: [question], responders: [], stats: { total_students: 1, responded: 0 } })
     return success({ success: true })
+  })
+})
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
+
+describe('Survey mutation contention budget across authorization and persistence', () => {
+  const busy = { data: null, error: { code: 'PT409', message: 'survey_operation_busy' } }
+  const detail = success({ classroom: { ...classroom, teacher_id: otherId }, survey, questions: [question], responses: [] })
+
+  it.each(['preflight', 'writer'])('returns first-response 201 after one %s busy abort', async phase => {
+    vi.useFakeTimers()
+    const body = request('POST', { responses: { [questionId]: ' Fine ' } })
+    const parseBody = vi.spyOn(body, 'json')
+    if (phase === 'preflight') mocks.rpc.mockResolvedValueOnce(busy).mockResolvedValueOnce(detail)
+    else mocks.rpc.mockResolvedValueOnce(detail).mockResolvedValueOnce(busy)
+    const pending = memberRespond(body, context)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(parseBody).toHaveBeenCalledTimes(phase === 'writer' ? 1 : 0)
+    await vi.advanceTimersByTimeAsync(20)
+    const response = await pending
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual({ success: true, updated: false })
+    expect(mocks.rpc.mock.calls.map(call => call[0])).toEqual(phase === 'preflight'
+      ? ['get_survey_for_member_v1', 'get_survey_for_member_v1', 'respond_to_survey_for_member_v1']
+      : ['get_survey_for_member_v1', 'respond_to_survey_for_member_v1', 'respond_to_survey_for_member_v1'])
+    expect(parseBody).toHaveBeenCalledOnce()
+    expect(mocks.from).not.toHaveBeenCalled()
+    expect(mocks.requireRole).not.toHaveBeenCalled()
+  })
+
+  it('does not renew the retry token for the writer after retrying preflight', async () => {
+    vi.useFakeTimers()
+    mocks.rpc.mockResolvedValueOnce(busy).mockResolvedValueOnce(detail).mockResolvedValue(busy)
+    const pending = memberRespond(request('POST', { responses: { [questionId]: 'Fine' } }), context)
+    await vi.runAllTimersAsync()
+    expect((await pending).status).toBe(409)
+    expect(mocks.rpc).toHaveBeenCalledTimes(3)
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it('does not renew the 100ms deadline after a slow successful preflight', async () => {
+    vi.useFakeTimers()
+    let now = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    mocks.rpc.mockImplementationOnce(async () => { now = 85; return detail }).mockResolvedValueOnce(busy)
+    expect((await memberRespond(request('POST', { responses: { [questionId]: 'Fine' } }), context)).status).toBe(409)
+    expect(mocks.rpc).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [{ code: 'PT403', message: 'survey_not_enrolled' }, 403],
+    [{ code: 'PT404', message: 'survey_not_found' }, 404],
+    [{ code: 'PT400', message: 'survey_already_answered' }, 400],
+    [{ code: 'PT409', message: 'survey_questions_changed' }, 409],
+    [{ code: 'PT409', message: 'survey_parent_changed' }, 409],
+    [{ code: 'PT409', message: 'survey_response_changed' }, 409],
+    [{ code: 'PT409', message: 'survey_subject_fenced' }, 409],
+    [{ code: 'PT409', message: 'survey_classroom_fenced' }, 409],
+    [{ code: '55000', message: 'classroom_purge_active' }, 409],
+    [{ code: '55000', message: 'attendance_decommission_active' }, 409],
+  ] as const)('returns the current writer denial %j after busy without a third writer call', async (error, status) => {
+    vi.useFakeTimers()
+    mocks.rpc.mockResolvedValueOnce(detail).mockResolvedValueOnce(busy).mockResolvedValueOnce({ data: null, error })
+    const pending = memberRespond(request('POST', { responses: { [questionId]: 'Fine' } }), context)
+    await vi.runAllTimersAsync()
+    const response = await pending
+    expect(response.status).toBe(status)
+    expect(mocks.rpc).toHaveBeenCalledTimes(3)
+    expect(mocks.rpc.mock.calls[2][1]).toBe(mocks.rpc.mock.calls[1][1])
+    expect(JSON.stringify(await response.json())).not.toContain(error.message)
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it('returns 503 for an uncertain writer transport outcome after busy with no replay', async () => {
+    vi.useFakeTimers()
+    mocks.rpc.mockResolvedValueOnce(detail).mockResolvedValueOnce(busy).mockRejectedValueOnce(new Error('private transport text'))
+    const pending = memberRespond(request('POST', { responses: { [questionId]: 'Fine' } }), context)
+    await vi.runAllTimersAsync()
+    const response = await pending
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Survey operation unavailable' })
+    expect(mocks.rpc).toHaveBeenCalledTimes(3)
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it('never replays a malformed successful writer acknowledgment', async () => {
+    mocks.rpc.mockResolvedValueOnce(detail).mockResolvedValueOnce(success({ success: true }))
+    expect((await memberRespond(request('POST', { responses: { [questionId]: 'Fine' } }), context)).status).toBe(503)
+    expect(mocks.rpc).toHaveBeenCalledTimes(2)
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it('authenticates before body access or any RPC', async () => {
+    mocks.requireAuth.mockRejectedValueOnce(Object.assign(new Error('Unauthorized'), { name: 'AuthenticationError' }))
+    const body = request('POST', { responses: { [questionId]: 'Fine' } })
+    const parseBody = vi.spyOn(body, 'json')
+    expect((await memberRespond(body, context)).status).toBe(401)
+    expect(parseBody).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalled()
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it('does not parse a body or dispatch a writer when a preflight retry sees membership revoked', async () => {
+    vi.useFakeTimers()
+    mocks.rpc.mockResolvedValueOnce(busy).mockResolvedValueOnce({ data: null, error: { code: 'PT403', message: 'survey_not_enrolled' } })
+    const body = request('POST', null)
+    const parseBody = vi.spyOn(body, 'json')
+    const pending = memberRespond(body, context)
+    await vi.runAllTimersAsync()
+    expect((await pending).status).toBe(403)
+    expect(parseBody).not.toHaveBeenCalled()
+    expect(mocks.rpc.mock.calls.map(call => call[0])).toEqual(['get_survey_for_member_v1', 'get_survey_for_member_v1'])
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [ownerPatch, 'PATCH', { title: 'Changed' }, 'update_survey_for_owner_v1'],
+    [questionCreate, 'POST', { question_type: 'short_text', question_text: 'Thoughts?' }, 'create_survey_question_for_owner_v1'],
+    [questionPatch, 'PATCH', { position: 1 }, 'update_survey_question_for_owner_v1'],
+  ] as const)('shares the one retry token in owner mutation %#', async (handler, method, body, writer) => {
+    vi.useFakeTimers()
+    mocks.rpc.mockResolvedValueOnce(busy).mockResolvedValueOnce(success({ classroom, survey, questions: [question], responses: [] })).mockResolvedValue(busy)
+    const pending = handler(request(method, body), context)
+    await vi.runAllTimersAsync()
+    expect((await pending).status).toBe(409)
+    expect(mocks.rpc.mock.calls.map(call => call[0])).toEqual(['get_survey_for_owner_v1', 'get_survey_for_owner_v1', writer])
+    expect(mocks.from).not.toHaveBeenCalled()
   })
 })
 

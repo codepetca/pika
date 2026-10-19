@@ -3,10 +3,12 @@
 Prepared from completion-plan source `466c16abcb313e20defea1502162dd2108641de9`
 on main `f88b06a5e52da64f182fa31ec1e7ba2258438c02`, including reviewed hot
 Classroom archive/restore migration268. The additive Survey migration is now
-`269_contextual_surveys_workflow.sql`; its SQL bytes match the earlier reviewed
-Survey263 source. The current-base compatibility/types prerequisite passed on
-2026-10-17 as recorded below. Full remaining native and application acceptance,
-PR readiness, batch2 exit and activation remain incomplete.
+`269_contextual_surveys_workflow.sql`. Its original SQL matched the earlier
+reviewed Survey263 source; the current contention correction preserves distinct
+nontransient lifecycle errors as described below. The original current-base
+compatibility/types prerequisite and remaining database proof passed as recorded
+below. Changed-SQL verification and complete application acceptance, PR readiness,
+batch2 exit and activation remain incomplete.
 
 The existing teacher/student Survey URLs and legacy branches remain. The shared
 experience admission contract is the sole cohort selector. Admitted users use
@@ -27,6 +29,23 @@ row before Survey/question/response changes, so snapshots and aggregates fence
 direct legacy writers too. The revision is locked, never manually bumped.
 Existing archive and Blueprint revision triggers remain authoritative. Row-lock
 inversions fail retryably; current-base native race proof remains required.
+
+Ordinary Survey reads take these same nonblocking locks and can contend with
+submission preflight or writing even without a data edit. The adapter permits
+one extra complete RPC call only after the exact database-returned
+`PT409/survey_operation_busy` transaction abort. A mutation's preflight and writer
+share that one retry token and a100ms monotonic retry-admission window, with a20ms
+backoff. This window bounds admission of another call, not a dispatched RPC's
+runtime; existing statement/request deadlines still apply. Retries retain the
+same validated arguments and expected question snapshot, rerunning all original
+database checks. Successful or uncertain operations are never replayed.
+
+SQL keeps persisted purge/decommission errors distinct from transient contention;
+only known advisory-lock failures or database lock/deadlock aborts become the
+eligible busy message. Lifecycle fences, changed questions, parents or response
+vectors, permissions, missing functions, thrown transport failures,
+cancellation/timeouts and malformed successes are not retried. Public error
+statuses/messages remain generic; raw database text is not disclosed.
 
 Owner reads retain archived Classroom inspection. Owner mutations and all member
 operations deny archived Classrooms. Member detail denies drafts and retains
@@ -128,8 +147,10 @@ current001–269 base or be retried/rebound as a new acceptance attempt.
 
 The rollback SQL's original nineteen payload cases passed the component
 prerequisite. Its expanded49-case matrix failed the first remaining attempt at
-the unchanged35-second frame deadline without case telemetry. That attempt is
-permanently spent; current49-case acceptance and deadline fit remain unproved.
+the original35-second frame deadline without case telemetry. That attempt is
+permanently spent. A later separately admitted v10 passed the complete49-case
+matrix under the explicitly approved120-second SQL-suite ceiling; this historical
+proof applies to the prior SQL, not the new contention correction.
 The matrix retains valid8MiB answer vectors, list/results byte pairs, all reachable
 10,000/10,001 count pairs, cardinality denials and complete row/revision equality.
 The member response-count pair remains joint with question count.
@@ -150,15 +171,35 @@ existing exchange ledger.
 The integrated remaining269 source inventory counts198 native actions,4008
 native controls,4366 normal-completion or4387 partial-teardown controls,
 16 original HTTP requests and14 observer frames. The owner-approved6000 controls,
-60-second SDK phase,200-action ceiling,64MiB exchange cap, two persistent sessions,
-35-second SQL frame,8-second RPC behavior and original12-minute work plus3-minute
-cleanup clocks remain. Actual complete exchange bytes and native fit require a
-separately admitted new attempt. Earlier component/legacy profiles are unchanged.
+60-second SDK phase,200-action ceiling,128MiB exchange cap, two persistent sessions,
+120-second remaining-only SQL-suite frame,8-second RPC behavior and original
+12-minute work plus3-minute cleanup clocks remain. Earlier component/legacy
+profiles retain their original limits.
 
-Remaining gates are the full native proof:30 committed directions with observed
-blocking, original HTTP cancellation/wire boundaries and finally restoration,
-ordinary14 SDK operations, genuine269 types, exact global/source/dependency
-preservation; existing-screen mixed-role Survey rehearsal; independent cumulative
-review and stable reviewed-SHA CI/PR Gate. No nativeVerified flag is raised.
+The prior frozen product `db1fb5f12d2b45fda345735e30d9e4fdb18215cd` passed v10's
+49 SQL cases,30 committed concurrency directions, real57014 cancellation with
+original HTTP/body settlement, native wire overflow, exact restoration,14 ordinary
+SDK operations plus2 probes, genuine types and source/dependency preservation.
+Actual accounting was198 actions,4366 controls,76506129 bytes and16 HTTP requests;
+exact isolated cleanup passed. This does not certify changed SQL or the browser
+workflow, and the spent attempt is not replayed or rebound.
+
+The fifth full-app Survey attempt produced all16 owner/member × historical-role ×
+desktop/mobile × light/dark images, all hash/dimension-verified and visually
+inspected, but failed the final fresh revoked-member login at the unchanged950
+app-request cap. The runner now uses the existing theme control rather than four
+theme-only document reloads, retaining all freshness/denial checks and caps.
+The seventh full-app attempt identified a real HTTP409 at the first submission
+after successfully reading its JSON body, with no gateway violation. Its precise
+SQL cause is unproved; source analysis established the ordinary-read contention
+path and the need to distinguish persistent lifecycle errors before retrying.
+Every failed attempt remains spent; immediate independent preservation and exact
+cleanup receipts are retained separately. No failed partial workflow is accepted
+as complete.
+
+Remaining gates are changed-SQL database verification, one complete existing-screen
+mixed-role Survey workflow with the current product/runner and required visuals,
+independent cumulative review and stable reviewed-SHA CI/PR Gate.
+No nativeVerified flag is raised.
 No production/shared-local migration, provider/account/billing action,
 admission/home/page/cohort/cutover activation or phase exit is authorized.

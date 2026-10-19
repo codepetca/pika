@@ -6,7 +6,7 @@ import { assertTeacherOwnsSurvey } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { surveyPatchSchema } from '@/lib/validations/surveys'
 import type { SurveyStatus } from '@/types'
-import { authorizeSharedSurveyActor, deleteContextualSurvey, patchContextualSurvey, readContextualSurveyDetail, readContextualSurveyOwnerForMutation } from '@/lib/server/contextual-surveys'
+import { authorizeSharedSurveyActor, createContextualSurveyRetryBudget, deleteContextualSurvey, patchContextualSurvey, readContextualSurveyDetail, readContextualSurveyOwnerForMutation } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,9 +48,10 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
   const shared = await authorizeSharedSurveyActor()
   if (shared.mode === 'shared') {
     const { id: surveyId } = await context.params
-    await readContextualSurveyOwnerForMutation({ actorId: shared.user.id, surveyId })
+    const retryBudget = createContextualSurveyRetryBudget()
+    await readContextualSurveyOwnerForMutation({ actorId: shared.user.id, surveyId, retryBudget })
     const patch = surveyPatchSchema.parse(await request.json())
-    return NextResponse.json(await patchContextualSurvey({ actorId: shared.user.id, surveyId, patch }))
+    return NextResponse.json(await patchContextualSurvey({ actorId: shared.user.id, surveyId, patch, retryBudget }))
   }
   const user = await requireRole('teacher')
   const { id } = await context.params

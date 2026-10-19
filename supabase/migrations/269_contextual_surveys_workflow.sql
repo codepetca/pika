@@ -12,6 +12,7 @@ declare
   v_classroom public.classrooms%rowtype;
   v_survey public.surveys%rowtype;
   v_subject uuid;
+  v_conflict_message text;
 begin
   if p_actor_id is null or p_member is null or p_mutating is null
     or (p_classroom_id is null and p_survey_id is null) then
@@ -73,7 +74,12 @@ begin
     end if;
   end if;
   return v_classroom;
-exception when sqlstate '40001' or sqlstate '40P01' or sqlstate '55P03' or sqlstate '55000' then
+-- Keep persisted purge/decommission 55000 distinct from transient contention.
+exception when sqlstate '40001' or sqlstate '40P01' or sqlstate '55P03' then
+  get stacked diagnostics v_conflict_message=message_text;
+  if sqlstate='40001' and v_conflict_message not in ('classroom_operation_busy','student_operation_busy') then
+    raise;
+  end if;
   raise exception using errcode='PT409', message='survey_operation_busy';
 end;
 $function$;
@@ -172,6 +178,7 @@ declare
   v_classroom public.classrooms; v_survey public.surveys; v_results jsonb; v_questions jsonb;
   v_responders jsonb; v_total integer; v_responded integer; v_result jsonb; v_now timestamptz:=clock_timestamp();
   v_subject uuid;
+  v_conflict_message text;
 begin
   v_classroom:=private.lock_survey_context_v1(p_actor_id,null,p_survey_id,p_member,false);
   v_now:=clock_timestamp();
@@ -240,7 +247,12 @@ begin
     raise exception using errcode='PT503', message='survey_payload_limit';
   end if;
   return v_result;
-exception when sqlstate '40001' or sqlstate '40P01' or sqlstate '55P03' or sqlstate '55000' then
+-- The outer results handler must preserve the same lifecycle distinction.
+exception when sqlstate '40001' or sqlstate '40P01' or sqlstate '55P03' then
+  get stacked diagnostics v_conflict_message=message_text;
+  if sqlstate='40001' and v_conflict_message not in ('classroom_operation_busy','student_operation_busy') then
+    raise;
+  end if;
   raise exception using errcode='PT409', message='survey_operation_busy';
 end;
 $function$;

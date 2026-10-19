@@ -18,11 +18,18 @@ type SurveyRpcName = 'get_surveys_for_owner_v1' | 'get_surveys_for_member_v1' | 
   | 'get_survey_results_for_owner_v1' | 'get_survey_results_for_member_v1' | 'update_survey_for_owner_v1' | 'delete_survey_for_owner_v1'
   | 'create_survey_question_for_owner_v1' | 'update_survey_question_for_owner_v1' | 'delete_survey_question_for_owner_v1' | 'respond_to_survey_for_member_v1'
 type SurveyRpcClient = {
-  rpc<Name extends SurveyRpcName>(name: Name, args: Database['public']['Functions'][Name]['Args']): PromiseLike<{ data: unknown; error: { code?: string } | null }>
+  rpc<Name extends SurveyRpcName>(name: Name, args: Database['public']['Functions'][Name]['Args']): PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
 }
-type Context = { actorId: string; surveyId: string; supabase?: SurveyRpcClient }
+type SurveyRetryBudget = { readonly deadline: number; retriesRemaining: number }
+type Context = { actorId: string; surveyId: string; supabase?: SurveyRpcClient; retryBudget?: SurveyRetryBudget }
 type Permission = 'owner' | 'member'
 const unavailable = () => new ApiError(503, 'Survey operation unavailable')
+
+/** Share across a mutation's preflight and writer: one extra call total.
+ * This bounds retry admission, never the runtime of an already dispatched RPC. */
+export function createContextualSurveyRetryBudget(): SurveyRetryBudget {
+  return { deadline: performance.now() + 100, retriesRemaining: 1 }
+}
 
 export async function authorizeSharedSurveyActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
@@ -30,10 +37,21 @@ export async function authorizeSharedSurveyActor(): Promise<{ mode: 'existing' }
   return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
-async function invoke<Name extends SurveyRpcName, T extends z.ZodType>(client: SurveyRpcClient | undefined, name: Name, args: Database['public']['Functions'][Name]['Args'], schema: T): Promise<z.infer<T>> {
-  let result: { data: unknown; error: { code?: string } | null }
+async function invoke<Name extends SurveyRpcName, T extends z.ZodType>(client: SurveyRpcClient | undefined, name: Name, args: Database['public']['Functions'][Name]['Args'], schema: T, retryBudget = createContextualSurveyRetryBudget()): Promise<z.infer<T>> {
+  let result: { data: unknown; error: { code?: string; message?: string } | null }
   const rpcClient: SurveyRpcClient = client ?? getServiceRoleClient()
   try { result = await rpcClient.rpc(name, args) } catch { throw unavailable() }
+  // SQL269 reserves this exact tuple for a positively returned transaction abort.
+  // Lifecycle 55000, snapshot/fence conflicts and uncertain transport outcomes
+  // must never enter this branch. Replay the full RPC with its original args.
+  if (result.error?.code === 'PT409' && result.error.message === 'survey_operation_busy'
+    && retryBudget.retriesRemaining > 0 && performance.now() + 20 < retryBudget.deadline) {
+    retryBudget.retriesRemaining--
+    await new Promise<void>(resolve => setTimeout(resolve, 20))
+    if (performance.now() < retryBudget.deadline) {
+      try { result = await rpcClient.rpc(name, args) } catch { throw unavailable() }
+    }
+  }
   if (result.error) {
     const code = result.error.code
     if (code === 'PT400' || code === '22023' || code === '23505') throw new ApiError(400, 'Invalid Survey operation')
@@ -61,14 +79,14 @@ function verifyClassroom(classroom: { id: string; teacher_id: string; archived_a
   if (permission === 'owner' ? classroom.teacher_id !== actorId : classroom.teacher_id === actorId || classroom.archived_at !== null) throw unavailable()
 }
 
-export async function readContextualSurveyList(input: { actorId: string; classroomId: string; permission: Permission; supabase?: SurveyRpcClient }) {
+export async function readContextualSurveyList(input: { actorId: string; classroomId: string; permission: Permission; supabase?: SurveyRpcClient; retryBudget?: SurveyRetryBudget }) {
   const parsed = contextualSurveyClassroomIdentitySchema.safeParse(input)
   if (!parsed.success) throw new ApiError(400, 'Invalid Survey identifiers')
   const actorId = parsed.data.actorId.toLowerCase()
   const classroomId = parsed.data.classroomId.toLowerCase()
   const data = await invoke(input.supabase, input.permission === 'owner' ? 'get_surveys_for_owner_v1' : 'get_surveys_for_member_v1', {
     p_actor_id: actorId, p_classroom_id: classroomId,
-  }, contextualSurveyListSchema)
+  }, contextualSurveyListSchema, input.retryBudget)
   verifyClassroom(data.classroom, actorId, input.permission)
   if (data.classroom.id !== classroomId) throw unavailable()
   const seen = new Set<string>()
@@ -89,7 +107,7 @@ export async function readContextualSurveyList(input: { actorId: string; classro
 
 export async function readContextualSurveyDetail(input: Context & { permission: Permission }) {
   const ids = identity(input)
-  const data = await invoke(input.supabase, input.permission === 'owner' ? 'get_survey_for_owner_v1' : 'get_survey_for_member_v1', ids, contextualSurveyDetailSchema)
+  const data = await invoke(input.supabase, input.permission === 'owner' ? 'get_survey_for_owner_v1' : 'get_survey_for_member_v1', ids, contextualSurveyDetailSchema, input.retryBudget)
   verifyClassroom(data.classroom, ids.p_actor_id, input.permission)
   if (data.survey.id !== ids.p_survey_id || data.survey.classroom_id !== data.classroom.id) throw unavailable()
   const seen = new Set<string>()
@@ -122,8 +140,8 @@ export async function readContextualSurveyOwnerForMutation(input: Context) {
 export async function readContextualSurveyResults(input: Context & { permission: Permission }) {
   const ids = identity(input)
   const data = input.permission === 'owner'
-    ? await invoke(input.supabase, 'get_survey_results_for_owner_v1', ids, contextualSurveyOwnerResultsSchema)
-    : await invoke(input.supabase, 'get_survey_results_for_member_v1', ids, contextualSurveyMemberResultsSchema)
+    ? await invoke(input.supabase, 'get_survey_results_for_owner_v1', ids, contextualSurveyOwnerResultsSchema, input.retryBudget)
+    : await invoke(input.supabase, 'get_survey_results_for_member_v1', ids, contextualSurveyMemberResultsSchema, input.retryBudget)
   verifyClassroom(data.classroom, ids.p_actor_id, input.permission)
   if (data.survey.id !== ids.p_survey_id) throw unavailable()
   const { classroom: _classroom, ...payload } = data
@@ -133,13 +151,13 @@ export async function readContextualSurveyResults(input: Context & { permission:
 export async function patchContextualSurvey(input: Context & { patch: z.infer<typeof surveyPatchSchema> }) {
   const ids = identity(input)
   const patch = { ...input.patch, ...(input.patch.opens_at ? { opens_at: new Date(input.patch.opens_at).toISOString() } : {}) }
-  const data = await invoke(input.supabase, 'update_survey_for_owner_v1', { ...ids, p_patch: patch }, contextualSurveyMutationSchema)
+  const data = await invoke(input.supabase, 'update_survey_for_owner_v1', { ...ids, p_patch: patch }, contextualSurveyMutationSchema, input.retryBudget)
   if (data.survey.id !== ids.p_survey_id) throw unavailable()
   return data
 }
 
 export async function deleteContextualSurvey(input: Context) {
-  return invoke(input.supabase, 'delete_survey_for_owner_v1', identity(input), contextualSurveyDeleteSchema)
+  return invoke(input.supabase, 'delete_survey_for_owner_v1', identity(input), contextualSurveyDeleteSchema, input.retryBudget)
 }
 
 export async function createContextualSurveyQuestion(input: Context & { question: z.infer<typeof surveyQuestionSchema> }) {
@@ -147,7 +165,7 @@ export async function createContextualSurveyQuestion(input: Context & { question
   const normalized = normalizeSurveyQuestionInput(input.question)
   if (!normalized.valid) throw new ApiError(400, normalized.error)
   const position = input.question.position === undefined ? undefined : Math.max(0, Math.floor(input.question.position))
-  const data = await invoke(input.supabase, 'create_survey_question_for_owner_v1', { ...ids, p_question: { ...normalized.question, ...(position === undefined ? {} : { position }) } }, contextualSurveyQuestionMutationSchema)
+  const data = await invoke(input.supabase, 'create_survey_question_for_owner_v1', { ...ids, p_question: { ...normalized.question, ...(position === undefined ? {} : { position }) } }, contextualSurveyQuestionMutationSchema, input.retryBudget)
   if (data.question.survey_id !== ids.p_survey_id) throw unavailable()
   return data
 }
@@ -159,13 +177,13 @@ export async function patchContextualSurveyQuestion(input: Context & { questionI
   const normalized = normalizeSurveyQuestionInput({ ...input.existing, ...input.question })
   if (!normalized.valid) throw new ApiError(400, normalized.error)
   const position = input.question.position === undefined ? input.existing.position : Math.max(0, Math.floor(input.question.position))
-  const data = await invoke(input.supabase, 'update_survey_question_for_owner_v1', { ...ids, p_question_id: questionId, p_expected_question: z.json().parse(input.existing), p_question: { ...normalized.question, position } }, contextualSurveyQuestionMutationSchema)
+  const data = await invoke(input.supabase, 'update_survey_question_for_owner_v1', { ...ids, p_question_id: questionId, p_expected_question: z.json().parse(input.existing), p_question: { ...normalized.question, position } }, contextualSurveyQuestionMutationSchema, input.retryBudget)
   if (data.question.id !== questionId || data.question.survey_id !== ids.p_survey_id) throw unavailable()
   return data
 }
 
 export async function deleteContextualSurveyQuestion(input: Context & { questionId: string }) {
-  return invoke(input.supabase, 'delete_survey_question_for_owner_v1', { ...identity(input), p_question_id: z.string().uuid().parse(input.questionId).toLowerCase() }, contextualSurveyDeleteSchema)
+  return invoke(input.supabase, 'delete_survey_question_for_owner_v1', { ...identity(input), p_question_id: z.string().uuid().parse(input.questionId).toLowerCase() }, contextualSurveyDeleteSchema, input.retryBudget)
 }
 
 export async function respondToContextualSurvey(input: Context & { detail: { survey: { classroom_id: string }; questions: SurveyQuestion[] }; responses: Record<string, unknown> }) {
@@ -182,5 +200,5 @@ export async function respondToContextualSurvey(input: Context & { detail: { sur
     return [question.id, { ...answer, raw_utf16_length: text.trim().length }]
   }))
   return invoke(input.supabase, 'respond_to_survey_for_member_v1', { ...identity(input), p_classroom_id: input.detail.survey.classroom_id,
-    p_expected_questions: z.json().parse(input.detail.questions), p_responses: responses }, contextualSurveyRespondSchema)
+    p_expected_questions: z.json().parse(input.detail.questions), p_responses: responses }, contextualSurveyRespondSchema, input.retryBudget)
 }

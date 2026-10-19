@@ -10,7 +10,7 @@ import {
 import { surveyResponseSchema } from '@/lib/validations/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { SurveyQuestion } from '@/types'
-import { authorizeSharedSurveyActor, readContextualSurveyDetail, respondToContextualSurvey } from '@/lib/server/contextual-surveys'
+import { authorizeSharedSurveyActor, createContextualSurveyRetryBudget, readContextualSurveyDetail, respondToContextualSurvey } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -19,9 +19,10 @@ export const POST = withErrorHandler('PostStudentSurveyRespond', async (request,
   const shared = await authorizeSharedSurveyActor()
   if (shared.mode === 'shared') {
     const { id: surveyId } = await context.params
-    const detail = await readContextualSurveyDetail({ actorId: shared.user.id, surveyId, permission: 'member' })
+    const retryBudget = createContextualSurveyRetryBudget()
+    const detail = await readContextualSurveyDetail({ actorId: shared.user.id, surveyId, permission: 'member', retryBudget })
     const { responses } = surveyResponseSchema.parse(await request.json())
-    const result = await respondToContextualSurvey({ actorId: shared.user.id, surveyId,
+    const result = await respondToContextualSurvey({ actorId: shared.user.id, surveyId, retryBudget,
       detail: { survey: detail.survey, questions: detail.questions as SurveyQuestion[] }, responses })
     return NextResponse.json(result, { status: result.updated ? 200 : 201 })
   }

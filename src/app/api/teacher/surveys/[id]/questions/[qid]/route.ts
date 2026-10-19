@@ -6,7 +6,7 @@ import { assertTeacherOwnsSurvey } from '@/lib/server/surveys'
 import { surveyQuestionSchema } from '@/lib/validations/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { ApiError } from '@/lib/api-error'
-import { authorizeSharedSurveyActor, deleteContextualSurveyQuestion, patchContextualSurveyQuestion, readContextualSurveyOwnerForMutation } from '@/lib/server/contextual-surveys'
+import { authorizeSharedSurveyActor, createContextualSurveyRetryBudget, deleteContextualSurveyQuestion, patchContextualSurveyQuestion, readContextualSurveyOwnerForMutation } from '@/lib/server/contextual-surveys'
 import type { SurveyQuestion } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -16,11 +16,12 @@ export const PATCH = withErrorHandler('PatchTeacherSurveyQuestion', async (reque
   const shared = await authorizeSharedSurveyActor()
   if (shared.mode === 'shared') {
     const { id: surveyId, qid: questionId } = await context.params
-    const detail = await readContextualSurveyOwnerForMutation({ actorId: shared.user.id, surveyId })
+    const retryBudget = createContextualSurveyRetryBudget()
+    const detail = await readContextualSurveyOwnerForMutation({ actorId: shared.user.id, surveyId, retryBudget })
     const existing = detail.questions.find(question => question.id === questionId.toLowerCase())
     if (!existing) throw new ApiError(404, 'Question not found')
     const question = surveyQuestionSchema.parse(await request.json())
-    return NextResponse.json(await patchContextualSurveyQuestion({ actorId: shared.user.id, surveyId, questionId, question, existing: existing as SurveyQuestion }))
+    return NextResponse.json(await patchContextualSurveyQuestion({ actorId: shared.user.id, surveyId, questionId, question, existing: existing as SurveyQuestion, retryBudget }))
   }
   const user = await requireRole('teacher')
   const { id: surveyId, qid: questionId } = await context.params

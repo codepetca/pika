@@ -5,7 +5,7 @@ import { normalizeSurveyQuestionInput } from '@/lib/surveys'
 import { assertTeacherOwnsSurvey } from '@/lib/server/surveys'
 import { surveyQuestionSchema } from '@/lib/validations/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { authorizeSharedSurveyActor, createContextualSurveyQuestion, readContextualSurveyOwnerForMutation } from '@/lib/server/contextual-surveys'
+import { authorizeSharedSurveyActor, createContextualSurveyRetryBudget, createContextualSurveyQuestion, readContextualSurveyOwnerForMutation } from '@/lib/server/contextual-surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,9 +14,10 @@ export const POST = withErrorHandler('PostTeacherSurveyQuestion', async (request
   const shared = await authorizeSharedSurveyActor()
   if (shared.mode === 'shared') {
     const { id: surveyId } = await context.params
-    await readContextualSurveyOwnerForMutation({ actorId: shared.user.id, surveyId })
+    const retryBudget = createContextualSurveyRetryBudget()
+    await readContextualSurveyOwnerForMutation({ actorId: shared.user.id, surveyId, retryBudget })
     const question = surveyQuestionSchema.parse(await request.json())
-    return NextResponse.json(await createContextualSurveyQuestion({ actorId: shared.user.id, surveyId, question }), { status: 201 })
+    return NextResponse.json(await createContextualSurveyQuestion({ actorId: shared.user.id, surveyId, question, retryBudget }), { status: 201 })
   }
   const user = await requireRole('teacher')
   const { id: surveyId } = await context.params

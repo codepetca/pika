@@ -19,6 +19,14 @@ function asciiJsonbText(value: unknown): string {
 }
 
 describe('bounded rollback-only Survey SQL payload subset', () => {
+  it('keeps real lifecycle and subject fence classification assertions within the existing rollback frame', () => {
+    expect(sql).toContain("foreach v_case in array array['detail-owner','detail-member','results-owner','results-member'] loop")
+    expect(sql).toContain('insert into public.attendance_decommission_operations(id,classroom_id,teacher_id,installation_ref,roster_ref,actor_principal_ref)')
+    expect(sql).toMatch(/exception when sqlstate '55000' then\s+get stacked diagnostics v_message=message_text;\s+assert v_message='attendance_decommission_active'/)
+    expect(sql).toContain('delete from public.attendance_decommission_operations where id=v_purge and classroom_id=v_classroom')
+    expect(sql).toContain("assert pg_temp.survey_payload_state(v_classroom)=v_before,'Lifecycle denial changed Survey work'")
+    expect(sql.match(/assert v_message='survey_subject_fenced'/g)).toHaveLength(4)
+  })
   it('keeps the existing one-dispatch transaction, statement deadline and compact output', () => {
     expect(sql).toMatch(/^--[\s\S]*?\nbegin;\nset local statement_timeout = '35s';\nset local lock_timeout = '1s';/)
     expect(sql.match(/do \$contract\$/g)).toHaveLength(1)

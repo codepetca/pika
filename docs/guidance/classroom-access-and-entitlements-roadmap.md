@@ -461,6 +461,21 @@ cancellation/restoration and payload/count/wire proof, existing-screen mixed-rol
 workflow, final review and CI remain. No production/shared-local writes, provider,
 account/billing or home/admission/page/cohort/cutover activation is authorized.
 
+2026-10-19 Survey checkpoint: the prior frozen product `db1fb5f12` passed the
+full remaining database proof (49 SQL cases,30 committed concurrency directions,
+real cancellation/wire boundaries, restoration,14 SDK operations+2 probes and
+genuine types), with immediate preservation and exact isolated cleanup. All16
+required Survey visuals passed in a partial full-app attempt; the complete
+workflow still has not passed. The latest attempt read the first submission's
+JSON successfully and observed HTTP409, without a gateway violation. Source
+analysis identified ordinary-read contention and a database error classification
+that also masks persistent lifecycle fences. A narrow contention correction is
+being prepared with one bounded retry only after a positively aborted transient
+RPC, no changed locks/permissions/fences/snapshots, and no uncertain retries.
+Changed SQL requires fresh isolated proof before final Survey review/CI/merge.
+This checkpoint does not complete batch2 or authorize production/shared-local
+migrations, release promotion or any activation; batches3–5 remain separate exits.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
