@@ -4,6 +4,7 @@ import { createContextualTestLearnerWorkflow,type TestLearnerRpcClient } from '.
 import assert from 'node:assert/strict'
 import { ApiError } from '../../src/lib/api-error'
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
+import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newClassroomHotLifecycleFixture,hotLifecycleDigest,hotGraphFunctions,assertHotLifecycleGraphChange,parseHotLifecycleGraph,type HotGraph } from '../../scripts/contextual-classroom-hot-lifecycle-proof-fixture'
 import { classroomHotLifecycleNativePlan,validateClassroomHotLifecycleNativeSql,runClassroomHotLifecycleNativeContracts,
@@ -86,8 +87,11 @@ describe('closed268 hot lifecycle proof; CPU evidence is not native acceptance',
     expect(f.actors.map(a=>a.role)).toEqual(['teacher','student','student','teacher'])
     expect(f.classes).toHaveLength(6);expect(f.allocatedIds.every(id=>!(original.allocatedIds as readonly string[]).includes(id))).toBe(true)
   })
-  it('binds exact001–268 and exposes only finite source SQL',()=>{
-    const m=plan();expect(m.migrations).toHaveLength(268);expect(m.nativeVerified).toBe(false)
+  it.each([268,269])('binds exact001–%i and exposes only finite source SQL',count=>{
+    const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).slice(0,count)
+    const loader=vi.spyOn(platform,'loadAssignmentListReviewedMigrations').mockReturnValue(inventory)
+    try {
+    const m=plan();expect(m.migrations).toEqual(inventory.map(({name,sha256})=>({name,sha256})));expect(m.nativeVerified).toBe(false)
     expect(validateClassroomHotLifecycleNativeSql(m,m.setup)).toBe(true)
     expect(validateClassroomHotLifecycleNativeSql(m,'select 1;')).toBe(false)
     expect(validateClassroomHotLifecycleNativeSql(structuredClone(m),m.setup)).toBe(false)
@@ -96,6 +100,7 @@ describe('closed268 hot lifecycle proof; CPU evidence is not native acceptance',
     const engine=buildClassroomHotLifecycleNativeContractsManifest(original,head,process.cwd())
     expect(engine.capabilities.sessions).toBe(2);expect(engine.capabilities.totalMs).toBe(900000)
     expect(engine.privilege.catalog).toContain('set_classroom_hot_archive_for_owner_v1')
+    } finally {loader.mockRestore()}
   })
   it('closes the rollback session on malformed completion',async()=>{
     const m=plan(),t=target(m,'contracts'),close=vi.fn(async()=>{})

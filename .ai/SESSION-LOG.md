@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Proposed unsubmitted Test AI grading fix
-
-User requests plan only and explicitly defers post-grading reopening behavior. Proposed contract: AI grade finalizes selected existing unsubmitted attempts from persisted draft answers using teacher-closure semantics before preflight, then accepts submitted OR closed_for_grading attempts. Preserve is_submitted and original student timestamps; skip never-started students; retain blank-answer zero and ungraded/all behavior. Check no-open-question and active-run resume/conflict before closure. Coordinate TS source preparation and new SQL migration for create_test_ai_grading_run_atomic plus save_test_unanswered_grades_atomic and relevant finalization/revision validation, preserving lifecycle locks and164/236 archive wrappers. Race guarantees must cover autosave/submit/closure/reopen/run resume; no provider call on empty answers or stale source. Update confirmation/summary only as needed to disclose selected-attempt closure and answer units; use governed UI workflow and visual QA if changed. Require focused app tests plus rollback DB contracts, reviewed draft-first PR, then separately authorized migration-first rollout. No implementation or schema/data changes performed. Existing reopen behavior is out of scope.
-
-## 2026-10-14 — Saved-work Test AI grading and answer/student reporting
-
-Implemented both owner-authorized fixes on codex/test-ai-grade-saved-work at base71f49d963. New264 start RPC atomically closes only selected existing unfinished attempts, materializes saved answers and creates the run; submitted-or-closed eligibility in both creation/unanswered-zero contracts. Retains student submission provenance, skips never-started students, preserves all/ungraded behavior, and checks active runs before closure. Reopening behavior deliberately unchanged. Summary derives distinct completed-student and skipped-student counts; progress labels answers; confirmation discloses closure. Generated types from disposable schema add only the start RPC. Adding that signature exposed TS generic.bind depth; receiver-safe cast-before-bind fixes inference, with existing receiver regression green. Fresh grading-row reads use canonical request helper atTTL0 and request identity, preserving freshness/stale guards.
-
-Verification: actual new rollbackSQL plus full legacy atomic grading/concurrency suite PASS on disposable schema-only pika_ai_grade_contract_20261014 (243 clone then244–264 replay; config/ACL/ownership clone gaps repaired in isolate only). Canonical local/production untouched;264 not applied there. Focused1316tests/staticPASS; targeted source-start/architecture/host70PASS and latest UI122PASS. Visual matrix16 teacher states (desktop/mobile,light/dark,confirm/progress/completed/noop) captured and inspected through PlaywrightCLI; student visuals n/a, DB guards prove closure. Existing AppMessage truncates long transient messages at narrow widths, full counts retained in accessible status text; no owner geometry change. PatternLab reference inspected. Screenshot receipt/script under /tmp/pika-ai-visual-*; check logs /tmp/pika-ai-*. AuditPASS. No provider calls or real grades changed.
-
-Native workers: GPT-6.1-sol/high database and GPT-6.1-sol/medium UI; deliveries verified. DB test setup failures corrected (empty clone configuration/ACLs and fixture submitting blanks), no source migration execution failure. Worker/coordinator tokens and effective configuration unknown; storage315GB healthy and weekly76% remaining. High-risk independent review planned:2fresh reviewers, security/correctness and architecture/compatibility, max7launches/4fixbatches/60min; no launches yet. Migration-first activation remains separate exact-target authorization. Draft PR follows after final focused check.
-
-## 2026-10-14 — AI saved-work grading review remediation
-
-PR1590 draft at2c0c35054, rebased onto0aef139fc with own source byte-identical and parent history retained. Final focused1316/staticPASS withmaxworkers1 (parallel host timing flake diagnosed; targethost70PASS and serialfullPASS). Independent GPT-6.1-sol/high security/correctness review clean; compatibility review accepted oneP2: migration-first olderTS sends submitted-only cohort, so widened legacyRPC rejected mixed selections. Batch1 accepts exactly either full submitted-only or full submitted-or-closed cohort, rejects arbitrary subsets, and retains094 SQLSTATE40001. Newstarter still captures every selected saved attempt. Actual older-generation input, unchanged excludedclosedrows, widenednewstarter, partial-cohort and stalerevision contracts plus full grading/concurrency suite PASS in isolatedDB; /tmp/pika-ai264-remediation-full-suite.log. Fixturevariable-shadow correction required; product SQL correction passed. No canonical/shared/prod change, providercall or reopeningbehavior change. Review ledger2launches/1batch; targeted and final cumulative review still pending. Usage/time components unknown; receipts in external lifecycle log.
-
-## 2026-10-14 — AI grading CI profile remediation
-
-ReadyCI38591388369 atfc6cb9f8f failed before native execution: reorder proof finite migration profile stopped at263. PR1590 immediately returned draft; ready-event run ultimately canceled by the draft transition, with lifecycle lane and PR Gate failed. Batch2 adds the exact independentlyreviewed264 filename/source digest to all7 Test lifecycle/native profiles and offline helper, retains every prior seal (263 checked for264), preserves budgets/cleanup/authorization, rejects265. Positive263/264 and altered-name/hash/bytes/self-hashed-source cases added. Latest legacy-grading source assertion now recognizes264 replacement and its two exact complete cohort contracts. Product264SQL/app/UI/types unchanged; eight focused suites535PASS and7source-only preflightsPASS, no native/shared/canonical/provider operation. Lifecycle logs private under /tmp/pika-ci-profile-verified.log and /tmp/pika-ai-ci-lifecycle-failure.log. Bounded read-only diagnosis then scoped GPT-6.1-sol/high implementation accepted after diff/test checks. Reviewledger4turns/2batches; proportional profile/source-seal review and fresh final checks precede one new ready-event CI candidate. Originalreviewclock15:20UTC retained; no merge/deployment/migration application or reopening change.
-
-Batch2 final focused check2213tests/119files plus architecture/UI/design/TypeScript/lint and auditPASS; product/SQL/schema/signatures unchanged from reviewedfc6cb9f8f. Exact-profile review follows before readiness.
-
-## 2026-10-14 — Clean TypeScript CI remediation
-
-Ready CI38594807708 at dfbbd56d2 found TS2589 in the existing Test unpublication RPC result annotation; PR1590 returned draft before correction. Batch3 replaces generic ReturnType expansion with the narrow data/error/status fields consumed by the helper, retaining typed RPC invocation and runtime result validation. 21 existing unpublication unit/API tests passed. Clean nonincremental TypeScript and focused lint/audit recorded externally; product grading SQL/UI/reopening unchanged. Review ledger5turns/3batches before targeted review; original15:20UTC review clock retained.
-
 ## 2026-10-14 — Gradebook marks require student return
 
 Teacher Gradebook now projects assignment/Test marks only after the student's document/attempt has `returned_at`; unreturned manual overrides also stay blank. Calculated totals, class summaries, and the inspector use the same eligible cells. Standalone items and explicit final overrides retain their contracts. Branch: `codex/gradebook-returned-marks`; owner: current Codex chat. Risk profile: none (established read projection; no grading writes/migrations).
@@ -532,6 +506,51 @@ generated types installed byte-identically from private artifact1230d8e1…;
 temporary RPC signature removed. Targeted integration review and consolidated
 browser/CI gates remain. No shared-local/production migration or activation.
 
+## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
+
+PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
+passed. Consolidated manual Test lifecycle/permissions proof passed40exchanges and
+eight inspected captures, retained-work/canonical equality, exact cleanup and
+immediate independent source/dependency preservation. No production changes.
+
+Current-main Survey extraction carries the nine existing-route branches, current
+server/validation/SQL privacy fixes and focused tests, resequencing only filename
+263→269. Root verified17 donor files byte-identical, including SQL1db152f8…;
+package/CI/current generated types and legacy branches remain.119focused tests,
+lint/architecture/diff checks pass. Five TypeScript diagnostics are unresolved
+because the twelve new RPCs are not in the retained genuine generated artifact;
+no hand-written metadata/casts/stubs were added. This is source preparation, not
+ready for PR/merge. Genuine cumulative001–269 types, remaining native/app proof,
+independent cumulative review and final CI remain. All existing serious holds
+unchanged; private extraction map and proof receipts retained by coordinator.
+
+## 2026-10-17 — Survey UUID compatibility correction
+
+Independent current-base security review184 completed with no findings;
+compatibility review185 found accepted uppercase UUIDs were compared against
+canonical database IDs as raw strings. Reproduced ten failures, then normalized
+validated actor/parent/child identifiers before RPC arguments and comparisons,
+including the question route's child lookup. Kept output validation, ownership,
+owner-precedence and foreign-parent checks strict.102 focused tests/11 suites,
+lint/audit/diff PASS; genuine001–269 metadata is still required for the same five
+TypeScript diagnostics. Source correction only: no DB/production/activation.
+The user lifted the disposable-local Survey verification hold only. A closed
+current-schema compatibility/types prerequisite runner is being prepared under
+the unchanged bounds; full remaining-proof acceptance is not implied.
+- The owner approved only the disposable269 SDK proof allowance20→60 seconds. Its inert shared SDK companion now has a closed component entrypoint with the same14 calls and the original absolute deadline; the legacy entrypoint remains20 seconds. Carrier regressions cover actual controller expiry, early root deadline and unchanged cleanup. No application, SQL, generated-type or production change; a newly pinned reviewed one-shot prerequisite remains required.
+- Targeted review191 found the controller's own timeout could lose its causal label. The shared proof leaf now emits a fixed component-only deadline type; malformed inputs and unrelated errors stay distinct. Carrier regression checks cover pre/post-guard, own-timer and terminal expiry without dispatch or join changes. The fresh attempt is still unspent; all production and rollout holds remain.
+- After clean review192 and4303 carrier checks, the single fresh269 prerequisite PASSED: cumulative001–269 replay, rollback/effect equality, all14 real SDK calls and genuine CLI types. Exact cleanup, canonical/global resources and immediate source/dependency preservation passed. Generated metadata is mechanically copied from the verified artifact (SHAf5657479); the only delta is12 Survey RPC contracts/60lines. Full remaining concurrency/cancellation/payload proof and existing-screen role workflow remain incomplete; no production/cutover or whole-goal acceptance is implied. Private v3 receipts and outcome are retained by coordinator.
+
+## 2026-10-17 — Complete Survey payload matrix source preparation
+
+Prepared49 exact byte/count/shape SQL cases in the existing35s rollback dispatch, retaining real RPCs, literal-bounded fixtures, complete scoped row/revision restoration and compact versioned receipts.15 CPU/syntax checks pass; native acceptance and timing remain unproved. Product runtime/migration/generated types unchanged. Owner approved remaining-only6000controls/60sSDK; other caps and production/shared-local/cutover holds remain. Draft1614 stays draft; no spent proof replay.
+
+## 2026-10-18 — Preserve Survey coverage while diagnosing rollback timing
+
+The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
+
+The first product gate exposed two stale source assertions still expecting the old single fixture and forbidding every INFO marker. Synced only the same fixed-code/family assertions already tested in the carrier, preserving the269 migration path. All13 payload tests/audit pass; a fresh complete product gate remains required. No runtime or SQL change in this follow-up.
+
 ## 2026-10-19 — Attendance check-in mismatch diagnosis
 
 Read-only investigation at f88b06a5e; relevant attendance paths match production
@@ -571,3 +590,15 @@ Final fixture audit updated existing browser acknowledgements/status mocks and
 new uncertain-result copy;6Playwright flows PASS(40s) desktop-light/mobile-dark,
 normal/reduced motion, no dependency/auth setup runs. Product source unchanged.
 Reviewturn3/7planned for test delta, fixbatch2/4; CI next; PR1616draft.
+
+## 2026-10-19 — Distinguish Survey contention from lifecycle fences
+
+Expanded profile gate:219eadf8 passed800 targeted checks and clean review235, but its larger related suite found19 failures from one separate hot-archive profile's exact268 ceiling (2155PASS). Follow-up152 changes only that source admission and regressions: exact268/269, original001–267 prefix/268 seal retained,269 exactseal reused,unknown270/tampering rejected. Three targeted files299PASS including actual eighth-profile matrix and legacy268 positive; no SQL/app/runtime/control change. Full gate/proportional review/fresh CI remain; original Survey native44 proof is not rerun or claimed as modified-profile native acceptance.
+
+CI follow-up: final95d9a7c local1000/static and cumulative review234 passed; ready CI39296868148 failed existing owner-reorder migration admission before native dispatch. PR returned draft; seven other heavy jobs canceled by that transition, not independent defects. Offline real269 chain reproduces exact unreviewed-profile denial. Source-only correction151 extends seven Test runners and immediate historical learner helper with exact269 filename/digest/actualbytes seal, retained268-at269 validation and unknown270/tamper regressions. Product src/SQL/UI/config and Survey proof leaves remain unchanged. Targeted checks/proportional independent review/final gate precede fresh ready CI; prior v11/v8 native evidence remains historical execution of identical application/SQL, not replayed. All production/shared-local/provider/account/activation holds remain.
+
+Superseding verification: product44daed/runner759cf passed freshSQLv11 and complete appv8.49SQL cases/30committed directions/real57014/wireoverflow/restoration/14SDK+2probes/types PASS;198actions/4366controls/76481525bytes/16requests under original limits. Full browser52exchanges/7actor contexts/16hash-checked and actually inspected visuals passed with863app/1185API/0errors. Immediate independent source/dependency preservation and exact cleanup/canonical equality PASS for both attempts. Product1000 and carrier4733 tests/static checks PASS; defaultparallel CPUtimeout resolved using one worker, no assertion/deadline change. Review232source and233timestamp-only clean;233actualreviews/150acceptedsourcebatches, no counter reset. Evidence retained in private v11/v8 outcomes; tokens spent, no replay. This facts-only follow-up changes no runtime/SQL/test/UI/dependency bytes. Final cumulative review, stable-head CI/PRGate and normal1614 main merge remain; batch2/full-goal exit and all production/shared-local/provider/account/cohort/home/cutover holds remain unchanged.
+
+Prior frozen db1fb passed the complete bounded remaining DB proof; all16 visuals passed in a partial app workflow, not complete acceptance. FullSurveyv7 read JSON successfully and failed an exact HTTP409 assertion, with no gateway violation. Its SQL cause is unproved. Source confirms ordinary Survey reads contend with preflight/writer locks; old269 also masked persisted55000 lifecycle fences and a special40001 as genericbusy.
+
+SQL269 now preserves55000 and unknown40001; only known helper contention or engine lock/deadlock aborts map exactPT409/survey_operation_busy. Adapter permits one extra completeRPC after that exact positive abort,20ms backoff/100ms monotonic admission window, one shared token across preflight/writer. Auth-before-body, lock order, relationship/fence/snapshot/final-vector checks, identical write args and generic public errors remain. No replay of transport/timeout/ambiguous outcome or successful/malformed success. Existing rollback DO gains real persisteddecommission denial/classification and exactsubjectfence assertions, with no new nativeframe/action or payloadcase. Sol6.1/high implementation delivered178 focused tests, nonincrementalTS/eslintPASS; root inspected complete delta/hash and auditPASS. Cumulative231reviews/149acceptedcarrierbatches retained; source150, independent review, fresh changedSQL/native app proof and finalhead gates pending. Routine approvals waived by owner; all production/shared-local/account/provider/cohort/home/cutover holds unchanged. No UI/dependency change or migration application.

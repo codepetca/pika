@@ -438,6 +438,59 @@ Keep the strict metadata contract and legacy branch intact. Focused native
 verification precedes another full Test rehearsal. This moves only the concrete
 lifecycle dependency forward; production and activation holds remain unchanged.
 
+2026-10-17 superseding lifecycle checkpoint: PR1613 merged normally as
+`f88b06a5e52da64f182fa31ec1e7ba2258438c02` after all exact-head CI jobs and PR Gate
+`39080973530` passed. Its merge tree equals reviewed application `4e9c809d1`.
+The separate consolidated Test proof passed all40 exchanges and eight inspected
+owner/member desktop/mobile light/dark captures, including actual archive/restore,
+retained-work equality, cached/fresh revocation and archive denials. Exact cleanup,
+canonical equality and immediate independent source/dependency preservation passed.
+This closes that consolidated manual Test lifecycle/permissions check, not the
+full assessments/grades batch or rollout. Current-main Survey workflow extraction
+is next; its former001–263 component cannot substitute for new-base verification
+or genuine generated types. Production/shared-local, provider/Survey execution,
+account and admission/home/page/cohort/cutover holds remain unchanged.
+
+2026-10-17 superseding Survey prerequisite: the owner released disposable-local
+Survey verification only. The current001–269 compatibility/types check passed
+rollback/row equality, all14 SDK operations, terminal effects and genuine types,
+with exact cleanup and canonical/global/source/dependency preservation. Generated
+metadata adds only12 RPC contracts; product TypeScript and937 focused checks pass.
+This is not complete Survey acceptance: the fully accounted remaining concurrency,
+cancellation/restoration and payload/count/wire proof, existing-screen mixed-role
+workflow, final review and CI remain. No production/shared-local writes, provider,
+account/billing or home/admission/page/cohort/cutover activation is authorized.
+
+2026-10-19 Survey checkpoint: the prior frozen product `db1fb5f12` passed the
+full remaining database proof (49 SQL cases,30 committed concurrency directions,
+real cancellation/wire boundaries, restoration,14 SDK operations+2 probes and
+genuine types), with immediate preservation and exact isolated cleanup. All16
+required Survey visuals passed in a partial full-app attempt; the complete
+workflow still has not passed. The latest attempt read the first submission's
+JSON successfully and observed HTTP409, without a gateway violation. Source
+analysis identified ordinary-read contention and a database error classification
+that also masks persistent lifecycle fences. A narrow contention correction is
+being prepared with one bounded retry only after a positively aborted transient
+RPC, no changed locks/permissions/fences/snapshots, and no uncertain retries.
+Changed SQL requires fresh isolated proof before final Survey review/CI/merge.
+This checkpoint does not complete batch2 or authorize production/shared-local
+migrations, release promotion or any activation; batches3–5 remain separate exits.
+
+2026-10-19 superseding Survey verification: corrected product `44daed9da` and
+runner `759cf299d` passed the fresh disposable269 SQL proof (49 cases,30 committed
+directions, real cancellation/wire boundaries/restoration,14 SDK calls+2 probes,
+genuine unchanged types) and the complete existing-screen mixed-role browser
+workflow (52 exchanges/seven actor contexts). All16 required PNGs were
+hash/dimension-verified and actually visually inspected. Exact cleanup,
+canonical/global-resource equality and immediate source/dependency preservation
+passed for both attempts, under unchanged limits. Product1000 and carrier4733
+tests plus static checks pass. Final cumulative review and stable-head CI/PR Gate
+precede normal1614 main merge; this is not yet merged, a batch2 exit, or production
+authority. Continue next with Gradebook/returned Grades and existing Assignment
+grading entrypoint integration after Survey lands, then remaining lifecycle,
+navigation and integrated-release gates. All production/shared-local/account/
+provider/billing/cohort/home/page/cutover holds stay unchanged.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
