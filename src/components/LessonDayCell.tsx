@@ -1,8 +1,9 @@
 'use client'
 
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
+import { useLessonCellMotion } from './useLessonCellMotion'
 import { MarkdownContentEditor } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/announcements'
@@ -53,6 +54,8 @@ interface LessonDayCellProps {
   plainTextOnly?: boolean
   layout?: 'grid' | 'agenda'
   onPresentDay?: () => void
+  onEditingStart?: () => void
+  onEditingEnd?: () => void
   onContentChange?: (date: string, contentMarkdown: string) => void
   onTestClick?: (test: TestAssessment) => void
   onAssignmentClick?: (assignment: Assignment) => void
@@ -74,6 +77,8 @@ export const LessonDayCell = memo(function LessonDayCell({
   plainTextOnly = false,
   layout = 'grid',
   onPresentDay,
+  onEditingStart,
+  onEditingEnd,
   onContentChange,
   onTestClick,
   onAssignmentClick,
@@ -81,9 +86,10 @@ export const LessonDayCell = memo(function LessonDayCell({
 }: LessonDayCellProps) {
   const markdown = useMemo(() => getLessonPlanMarkdown(lessonPlan).markdown, [lessonPlan])
   const { showMarkdown } = useMarkdownPreference()
-  const [isEditing, setIsEditing] = useState(false)
+  const [editingDate, setEditingDate] = useState<string | null>(null)
+  const isEditing = editingDate === date && editable && !isWeekend
+  const { outerRef, innerRef, prepare, settle: settleMotion } = useLessonCellMotion(isEditing, `${date}:${layout}:${editable}`, compact)
   const [localMarkdown, setLocalMarkdown] = useState(markdown)
-  const cellRef = useRef<HTMLDivElement | null>(null)
   const agendaHeadingId = useId()
   const editActionRef = useRef<HTMLButtonElement | null>(null)
   const renderPlainText = plainTextOnly || !showMarkdown
@@ -94,26 +100,39 @@ export const LessonDayCell = memo(function LessonDayCell({
     }
   }, [markdown, isEditing])
 
-  useEffect(() => {
-    if (
-      isEditing
-      && cellRef.current
-      && typeof cellRef.current.scrollIntoView === 'function'
-    ) {
-      cellRef.current.scrollIntoView({ block: 'nearest', inline: 'center' })
+  const focusReturnRef = useRef(false)
+  useLayoutEffect(() => {
+    setEditingDate(null)
+    focusReturnRef.current = false
+  }, [date, layout, editable])
+  useLayoutEffect(() => {
+    if (!isEditing && focusReturnRef.current) {
+      focusReturnRef.current = false
+      editActionRef.current?.focus({ preventScroll: true })
     }
   }, [isEditing])
 
   const handleStartEditing = useCallback(() => {
-    if (!editable) return
+    if (!editable || isWeekend || isEditing) return
+    focusReturnRef.current = false
+    prepare()
     setLocalMarkdown(markdown)
-    setIsEditing(true)
-  }, [editable, markdown])
+    setEditingDate(date)
+    onEditingStart?.()
+  }, [date, editable, isEditing, isWeekend, markdown, onEditingStart, prepare])
+
+  const finishEditing = (restoreFocus = false) => {
+    prepare()
+    setEditingDate(null)
+    onEditingEnd?.()
+    focusReturnRef.current = restoreFocus
+  }
 
   const handleMarkdownChange = useCallback((nextMarkdown: string) => {
+    settleMotion()
     setLocalMarkdown(nextMarkdown)
     onContentChange?.(date, nextMarkdown)
-  }, [date, onContentChange])
+  }, [date, onContentChange, settleMotion])
 
   const hasContent = markdown.trim().length > 0
   const plainText = useMemo(() => {
@@ -147,10 +166,6 @@ export const LessonDayCell = memo(function LessonDayCell({
   if (layout === 'agenda') {
     const nonClassDay = isWeekend || isClassDay === false
     const canEdit = editable && !isWeekend
-    const finishEditing = () => {
-      setIsEditing(false)
-      requestAnimationFrame(() => editActionRef.current?.focus({ preventScroll: true }))
-    }
 
     return (
       <article
@@ -175,9 +190,10 @@ export const LessonDayCell = memo(function LessonDayCell({
           </Button>
         </div>
 
-        <div ref={cellRef} className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div
-            className={`calendar-day-text relative min-w-0 flex-1 break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''}`}
+            ref={outerRef}
+            className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 flex-none break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''}`}
             onClick={event => {
               if (canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
             }}
@@ -192,29 +208,31 @@ export const LessonDayCell = memo(function LessonDayCell({
                 className="absolute inset-0 h-full w-full cursor-text p-0"
               />
             )}
-            {isEditing && canEdit ? (
-              <MarkdownContentEditor
-                markdown={localMarkdown}
-                onMarkdownChange={handleMarkdownChange}
-                onBlur={() => setIsEditing(false)}
-                onEscape={finishEditing}
-                toolbarPreset="brief"
-                autoFocus
-                placeholder=""
-                aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
-                className="[&_.ProseMirror]:min-h-control [&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-relaxed"
-              />
-            ) : hasContent ? (
-              renderPlainText ? <div className={canEdit ? 'relative whitespace-pre-wrap' : 'whitespace-pre-wrap'}>{plainText}</div> : (
-                <LimitedMarkdown
-                  content={markdown}
-                  className={`space-y-3 text-sm leading-relaxed [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-base ${canEdit ? 'relative' : ''}`}
-                  emptyPlaceholder={null}
+            <div ref={innerRef} className="relative min-w-0">
+              {isEditing && canEdit ? (
+                <MarkdownContentEditor
+                  markdown={localMarkdown}
+                  onMarkdownChange={handleMarkdownChange}
+                  onBlur={() => finishEditing()}
+                  onEscape={() => finishEditing(true)}
+                  toolbarPreset="brief"
+                  autoFocus
+                  placeholder=""
+                  aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
+                  className="[&_.ProseMirror]:min-h-control [&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-relaxed"
                 />
-              )
-            ) : !nonClassDay ? (
-              <p className={`text-sm text-text-muted ${canEdit ? 'relative' : ''}`}>{canEdit ? 'No lesson planned' : 'No lesson posted'}</p>
-            ) : null}
+              ) : hasContent ? (
+                renderPlainText ? <div className={canEdit ? 'relative whitespace-pre-wrap' : 'whitespace-pre-wrap'}>{plainText}</div> : (
+                  <LimitedMarkdown
+                    content={markdown}
+                    className={`space-y-3 text-sm leading-relaxed [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-base ${canEdit ? 'relative' : ''}`}
+                    emptyPlaceholder={null}
+                  />
+                )
+              ) : !nonClassDay ? (
+                <p className={`text-sm text-text-muted ${canEdit ? 'relative' : ''}`}>{canEdit ? 'No lesson planned' : 'No lesson posted'}</p>
+              ) : null}
+            </div>
           </div>
 
           {(assignments.length > 0 || announcements.length > 0 || tests.length > 0) && (
@@ -322,10 +340,10 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   return (
     <div
-      ref={cellRef}
-      onClick={() => {
-        if (!isEditing) {
-          handleStartEditing()
+      onClick={event => {
+        if (editable) {
+          event.stopPropagation()
+          if (!isEditing) handleStartEditing()
         }
       }}
       className={`
@@ -412,42 +430,48 @@ export const LessonDayCell = memo(function LessonDayCell({
       )}
 
       {/* Content area */}
-      <div className={`calendar-day-text flex-1 min-h-0 ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
-        {isEditing ? (
-          <MarkdownContentEditor
-            markdown={localMarkdown}
-            onMarkdownChange={handleMarkdownChange}
-            onBlur={() => setIsEditing(false)}
-            onEscape={() => setIsEditing(false)}
-            toolbarPreset="brief"
-            autoFocus
-            placeholder=""
-            aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
-            className={`h-full [&_.simple-editor-content]:overflow-hidden [&_.ProseMirror]:!min-h-0 [&_.ProseMirror]:!p-0 ${
-              compact ? '[&_.ProseMirror]:text-[10px] [&_.ProseMirror]:leading-tight' : '[&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-snug'
-            }`}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={handleStartEditing}
-            className={`w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
-          >
-            {hasContent ? (
-              renderPlainText ? (
-                <div className={plainTextClassName}>
-                  {plainText}
-                </div>
-              ) : (
-                <LimitedMarkdown
-                  content={markdown}
-                  className={`${previewClassName} text-text-muted`.trim()}
-                  emptyPlaceholder={null}
-                />
-              )
-            ) : null}
-          </button>
-        )}
+      <div className={`calendar-day-text min-h-0 ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
+        <div ref={outerRef} className="transition-[height] duration-standard ease-standard motion-reduce:transition-none">
+          <div ref={innerRef}>
+            {isEditing ? (
+              <MarkdownContentEditor
+                markdown={localMarkdown}
+                onMarkdownChange={handleMarkdownChange}
+                onBlur={() => finishEditing()}
+                onEscape={() => finishEditing(true)}
+                toolbarPreset="brief"
+                autoFocus
+                placeholder=""
+                aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
+                className={`[&_.simple-editor-content]:overflow-hidden [&_.ProseMirror]:!min-h-0 [&_.ProseMirror]:!p-0 ${
+                  compact ? '[&_.ProseMirror]:text-[10px] [&_.ProseMirror]:leading-tight' : '[&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-snug'
+                }`}
+              />
+            ) : (
+              <button
+                ref={editActionRef}
+                type="button"
+                aria-label={editable ? `${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}` : undefined}
+                onClick={handleStartEditing}
+                className={`w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
+              >
+                {hasContent ? (
+                  renderPlainText ? (
+                    <div className={plainTextClassName}>
+                      {plainText}
+                    </div>
+                  ) : (
+                    <LimitedMarkdown
+                      content={markdown}
+                      className={`${previewClassName} text-text-muted`.trim()}
+                      emptyPlaceholder={null}
+                    />
+                  )
+                ) : null}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

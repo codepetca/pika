@@ -174,3 +174,79 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   await testInfo.attach('calendar-day-native-evidence', { body: Buffer.from(JSON.stringify({ role, theme, motion,
     viewport: page.viewportSize(), verifiedDate, liveClock, consoleDiagnostics, media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
 }
+
+/** Empty non-class weekdays must not let the lesson overlay intercept event clicks. */
+export async function verifyEmptyCalendarLessonTargets(page: Page, testInfo: TestInfo) {
+  const classroomId = '30000000-0000-4000-8000-000000000011'
+  const writes: string[] = []
+  const unknown: string[] = []
+  const errors: string[] = []
+  await page.clock.setFixedTime(new Date('2026-10-05T16:00:00Z'))
+  await page.addInitScript(theme => localStorage.setItem('theme', theme), testInfo.project.metadata.theme)
+  page.on('pageerror', error => errors.push(error.message))
+  await page.route('**/api/**', async route => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const path = url.pathname
+    if (request.method() !== 'GET') {
+      writes.push(`${request.method()} ${path}`)
+      return route.abort()
+    }
+    if ([...url.searchParams.keys()].some(key => !['start', 'end', 'classroom_id'].includes(key))) {
+      unknown.push(request.url())
+      return route.abort()
+    }
+    let body: unknown
+    if (path === '/api/auth/me') body = { user: { id: '30000000-0000-4000-8000-000000000012',
+      role: 'teacher', email: 'teacher@example.invalid', first_name: 'Fixture' } }
+    else if (path === `/api/classrooms/${classroomId}/class-days`) body = {
+      class_days: Array.from({ length: 31 }, (_, index) => ({ id: `day-${index}`, classroom_id: classroomId,
+        date: `2026-10-${String(index + 1).padStart(2, '0')}`, is_class_day: index !== 5, prompt_text: '' })),
+    }
+    else if (path === `/api/teacher/classrooms/${classroomId}/lesson-plans`) body = { lesson_plans: [] }
+    else if (path === `/api/teacher/classrooms/${classroomId}/announcements`) body = { announcements: [{
+      id: 'empty-day-event', classroom_id: classroomId, title: 'Blank day event', content: 'Event content',
+      is_draft: false, scheduled_for: null, published_at: '2026-10-06T12:00:00Z',
+      created_at: '2026-10-05T12:00:00Z', updated_at: '2026-10-05T12:00:00Z',
+      created_by: '30000000-0000-4000-8000-000000000012',
+    }] }
+    else if (path === `/api/teacher/classrooms/${classroomId}/materials`) body = { materials: [] }
+    else if (path === '/api/teacher/assignments') body = { assignments: [] }
+    else if (path === '/api/teacher/tests') body = { tests: [] }
+    else if (path === '/api/teacher/classrooms') body = { classrooms: [] }
+    else {
+      unknown.push(request.url())
+      return route.abort()
+    }
+    await route.fulfill({ json: body })
+  })
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=calendar', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Week', exact: true }).click()
+  const add = page.getByRole('button', { name: 'Add lesson for October 6, 2026', exact: true })
+  const event = page.getByRole('button', { name: 'Blank day event', exact: true })
+  await event.scrollIntoViewIfNeeded()
+  const bounds = await add.evaluate(element => {
+    const button = element.getBoundingClientRect()
+    const region = element.closest('.calendar-day-text')!.getBoundingClientRect()
+    return { top: button.top - region.top, bottom: button.bottom - region.bottom, height: button.height }
+  })
+  expect(bounds.top).toBeGreaterThanOrEqual(-1)
+  expect(bounds.bottom).toBeLessThanOrEqual(1)
+  expect(bounds.height).toBeGreaterThanOrEqual(44)
+  await add.click()
+  await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(add).toBeFocused()
+  await event.scrollIntoViewIfNeeded()
+  expect(await event.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    return document.elementFromPoint(box.left + 10, box.top + 5)?.closest('button') === element
+  })).toBe(true)
+  await testInfo.attach('empty-nonclass-lesson-and-event', { body: await page.screenshot(), contentType: 'image/png' })
+  await event.click({ position: { x: 10, y: 5 } })
+  await expect(page.getByRole('region', { name: 'Calendar workspace' })).toBeHidden()
+  await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toHaveCount(0)
+  expect(writes).toEqual([])
+  expect(unknown).toEqual([])
+  expect(errors).toEqual([])
+}

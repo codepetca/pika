@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Gradebook native proof and component-owned pending marks read
-
-Reviewed native remaining proof42079c96 passed in fresh disposable6716351ab23b: category collision, current-context concurrency, all16 installed-SDK requests, real server cancellation with exact restoration, positive early-stream closure, expanded-source rejection and rollback equality. Independent preservation and exact resource absence passed. Its128-byte early-abort mechanism does not claim crossing the24MiB production wire cap. BrowserC5 component completed51exchanges/16captures once, but final database proof failed without retained witnesses; later reviewed evidence retention does not relax assertions. Latest spent attempt stopped earlier at mobile marks error; it is not acceptance evidence.
-
-Focused actual-component StrictMode test reproduced duplicate pending reads and newer409/stale200 error persistence. Component-owned unfinished promise now deduplicates only that active classroom owner; completed values are not cached, and real inactivity, classroom changes, remounts and explicit Retry preserve fresh reads. Existing fetchJSON/no-store, request-id/stale-class guards and all presentation/SQL/permissions remain unchanged.33 focused tests including both historical-role Classwork integration, lint/audit/UI/design policies and nonincremental TypeScript pass. UI brief records production-owner reuse and unchanged presentation; independent review/new fixed app checkpoint/fresh visual+database proof and final-head CI remain pending. No production, shared-local migration, real-account, provider or activation change.
-
 ## 2026-10-19 — Classroom browser tab branding
 
 Added classroom titles, palette-colored Pika favicons and browser theme-color hints; home uses the existing white/black mark for the app theme. Reused authorized classroom state and the original logo/palette; extended the root head owner to avoid streamed metadata replacing classroom titles. No dependencies or schema changes. Risk: none.
@@ -733,6 +727,12 @@ Final geometry review found the new name-only selectable rows inherited28px text
 
 All exact-head CI lanes and PR Gate passed at8a4b5082 (run39460032658). Main then advanced to e53401520 via1633 and produced archive-only conflicts. Rebased onto that main, retaining its complete continuity and the byte-identical six feature source/test files; regenerated normal session-log trimming. No migration applied or database touched. Targeted integration review, focused checks and fresh exact-head CI precede owner-authorized squash merge; production promotion remains outside scope.
 
+## 2026-10-20 — Calendar cell disclosure continuity
+
+User-requested Calendar refinement on codex/calendar-cell-motion: only the selected date expands; Week/Month/Term cell geometry uses semantic standard motion and reduced-motion policy. Editor clicks preserve the live caret owner, Escape returns focus without deferred work, outside blur keeps its destination, and closing an older editor cannot collapse a new same-week selection. Removed whole-cell entry scrolling; existing autosave/data owners retained. One Sol medium implementation worker plus root native acceptance; three bounded native/visual correction batches, no dependency/schema changes. Final component57 and hook7 tests PASS; native16-context matrix PASS (98 PNGs/16 videos, synthetic API only), representative originals/reference inspected. Required focused/static/goldens and exact-head independent review/CI are recorded externally before main landing. Broad fluidity goal open; production and old PR1217 holds retained.
+
+Calendar review correction: one accepted P2 anchored the empty non-class Week edit overlay to its full lesson region; actual fixture reproduced22px escape before fix. Added native event-upper-edge regression, PASS8 viewport/theme/motion cases plus4 unchanged goldens. Synced main Gradebook landing with only continuity conflicts; preserved all40 main recent entries once and main archive as exact prefix before normal trim. Grid/hook/data source remains byte-identical; targeted motion/focused checks and delta review qualify final head.
+
 ## 2026-10-20 — production migrations266–282 verified
 
 Owner approved production266–282 and acknowledged281's existing destructive
@@ -759,3 +759,24 @@ Continuity-only receipt: startup79 tests PASS and prompt budget restored. The
 required focused run remains blocked by unchanged Mac process/timing fixtures
 in ci-tart-host and focused-checks; no test/control weakening or runtime fix.
 Keep the receipt PR draft until the complete focused gate passes.
+
+
+Owner-authorized PR1638 fixture repair supersedes the draft checkpoint above.
+The exit2 process fixture now allows the existing sibling2s startup budget,
+retains all finite containment watchdogs, and injects0.6s startup delay while
+requiring exact idle-timeout, one attempt and empty group. Focused-runner default/
+limited assertions are four single-run cases with exact command arrays; no
+production code, global timeout or dependency changed. Sol6.1/high worker
+reproduced both old failures and passed82 tests, including controlled latency.
+Coordinator inspected both diffs; full focused gate and final review recorded
+in PR1638 before merge. Main's unrelated Calendar changes retained exactly.
+HQ plan is proposed only: recover lineage, compare full catalog and independently
+prove historical effects; choose reconstruction or honest present-state adoption
+before an exact separately approved history action. No75-version execution claim,
+HQ query/write, hosted resume or grant application. Private plan: same receipt
+folder/hq-baseline-plan.json. Weekly remaining74%; worker/coordinator time and
+tokens not fully attributable; bounded delegation outcomes verified.
+
+Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
+policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
+unchanged after these checks; final independent review/CI recorded in PR1638.
