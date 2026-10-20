@@ -1,6 +1,8 @@
 'use client'
 
-import type { Ref } from 'react'
+import { useCallback, useRef, useState, type Ref } from 'react'
+import { useElementRect } from '@/hooks/use-element-rect'
+import { useComposedRef } from '@/hooks/use-composed-ref'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 import {
   Button, DataTable, DataTableCell, DataTableHead,
@@ -23,6 +25,8 @@ export interface GradebookTableProps {
   columns: GradebookAssessmentColumn[]
   displayMode: ScoreDisplayMode
   lastNameFirst: boolean
+  /** Collapse to a name roster when the open inspector leaves less than 420px. */
+  allowNamesOnly?: boolean
   showGridlines?: boolean
   showStudentIds: boolean
   compactZeroWeightAssessments?: boolean
@@ -71,8 +75,17 @@ export function GradebookTable({
   weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, itemScoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
   onMaxMarkOpen, maximumEditsEnabled = true, savingMaxMarkKeys = new Set(), onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
   toggleSelectAll, selectedStudentId, onStudentSelect, onStudentDeselect,
-  sortColumn, sortDirection, onSort, scrollContainerRef, onScroll,
+  sortColumn, sortDirection, onSort, scrollContainerRef, onScroll, allowNamesOnly = false,
 }: GradebookTableProps) {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null)
+  const localRef = useRef<HTMLDivElement>(null)
+  const composedRef = useComposedRef(localRef, scrollContainerRef)
+  const setScrollContainer = useCallback((element: HTMLDivElement | null) => {
+    composedRef(element)
+    setContainer(element)
+  }, [composedRef])
+  const { width } = useElementRect({ element: container, enabled: allowNamesOnly && container !== null })
+  const namesOnly = allowNamesOnly && width > 0 && width < 420
   const orderedNames: Array<{ key: GradebookIdentityColumn; label: string }> = lastNameFirst
     ? [{ key: 'last_name', label: 'Last' }, { key: 'first_name', label: 'First' }]
     : [{ key: 'first_name', label: 'First' }, { key: 'last_name', label: 'Last' }]
@@ -93,7 +106,7 @@ export function GradebookTable({
 
   return (
     <KeyboardNavigableTable
-      ref={scrollContainerRef}
+      ref={setScrollContainer}
       ariaLabel="Gradebook students"
       rowKeys={students.map((student) => student.student_id)}
       selectedKey={selectedStudentId}
@@ -104,6 +117,25 @@ export function GradebookTable({
       data-testid="gradebook-student-scroll-pane"
       onScroll={onScroll}
     >
+      {namesOnly ? (
+        <DataTable density="tight" className="table-fixed">
+          <DataTableHead sticky dividers={false}>
+            <DataTableRow>
+              {orderedNames.map((column) => <SortableHeaderCell key={column.key} label={column.label}
+                isActive={sortColumn === column.key} direction={sortDirection} onClick={() => onSort(column.key)} className="bg-surface-3" />)}
+            </DataTableRow>
+          </DataTableHead>
+          <tbody>
+            {students.map((student) => <DataTableRow key={student.student_id} id={getGradebookStudentRowId(student.student_id)}
+              tabIndex={-1} aria-selected={selectedStudentId === student.student_id}
+              className={cn('cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', selectedStudentId === student.student_id ? 'bg-surface-3' : 'hover:bg-surface-hover')}
+              onClick={() => onStudentSelect(student)}>
+              {orderedNames.map((column) => <DataTableCell key={column.key} className="truncate" title={getStudentIdentityValue(student, column.key)}>{getStudentIdentityValue(student, column.key)}</DataTableCell>)}
+            </DataTableRow>)}
+            {!students.length ? <EmptyStateRow colSpan={2} message="No students enrolled yet" /> : null}
+          </tbody>
+        </DataTable>
+      ) : (
       <div style={{ minWidth }}>
         <DataTable density="tight" className="table-fixed border-separate border-spacing-0">
           <colgroup>
@@ -306,6 +338,7 @@ export function GradebookTable({
           ) : null}
         </DataTable>
       </div>
+      )}
     </KeyboardNavigableTable>
   )
 }

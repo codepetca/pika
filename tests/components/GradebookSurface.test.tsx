@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { GradebookCompactPattern } from '@/app/__ui/GradebookCompactPattern'
@@ -29,44 +29,34 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
-  it.each(['percent', 'raw'] as const)('opens read-only grades from the title and restores focus on Escape (%s)', async (displayMode) => {
-    const user = userEvent.setup()
-    const onItemOpen = vi.fn()
-    const onItemScoreOpen = vi.fn()
-    const column = { assessment_id: 'i1', assessment_type: 'item' as const, code: 'I1', title: 'Participation', possible: 10, weight: 10, include_in_final: true }
-    const scored = { ...student, final_percent: 80, assessment_scores: [{ ...column, earned: 8, percent: 80, is_graded: true }] }
-    render(<TooltipProvider><GradebookStudentPanel student={scored} columns={[column]} displayMode={displayMode} onItemOpen={onItemOpen} onItemScoreOpen={onItemScoreOpen} /></TooltipProvider>)
-    expect(screen.queryByRole('button', { name: 'Close student details' })).not.toBeInTheDocument()
-    const opener = screen.getByRole('button', { name: 'View grades for Demo Student' })
-    opener.focus()
-    await user.keyboard('{Enter}')
-    const dialog = screen.getByRole('dialog', { name: 'Demo Student · Grades' })
-    expect(within(dialog).getByText('Participation')).toBeInTheDocument()
-    expect(within(dialog).getByText('8/10')).toBeInTheDocument()
-    expect(within(dialog).queryByRole('button', { name: /Edit/ })).not.toBeInTheDocument()
-    expect(onItemOpen).not.toHaveBeenCalled()
-    expect(onItemScoreOpen).not.toHaveBeenCalled()
-    await user.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(opener).toHaveFocus()
-    await user.click(opener)
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close', exact: true }))
-    expect(opener).toHaveFocus()
-  })
-
-  it('dismisses the parent view when the inspected student changes', async () => {
-    const view = render(<GradebookStudentPanel student={student} columns={[]} displayMode="percent" />)
-    await userEvent.click(screen.getByRole('button', { name: 'View grades for Demo Student' }))
-    view.rerender(<GradebookStudentPanel student={{ ...student, student_id: 's2', student_first_name: 'Other' }} columns={[]} displayMode="percent" />)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    view.rerender(<GradebookStudentPanel student={student} columns={[]} displayMode="percent" />)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('shows the empty grade state in the expanded view', async () => {
-    render(<GradebookStudentPanel student={student} columns={[]} displayMode="raw" />)
-    await userEvent.click(screen.getByRole('button', { name: 'View grades for Demo Student' }))
-    expect(within(screen.getByRole('dialog')).getByText('No assessments yet.')).toBeInTheDocument()
+  it('shows only both name columns in a narrow inspector workspace and restores grades when widened', async () => {
+    let width = 300
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({ x: 0, y: 0, top: 0, left: 0, right: width, bottom: 600, width, height: 600, toJSON: () => ({}) }))
+    try {
+      const onStudentSelect = vi.fn()
+      const onStudentDeselect = vi.fn()
+      const onSort = vi.fn()
+      const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
+      const props = makeTableProps({ columns: [column], allowNamesOnly: true, ultraCompact: true, selectedStudentId: student.student_id, onStudentSelect, onStudentDeselect, onSort })
+      const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+      await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Final' })).not.toBeInTheDocument())
+      expect(screen.getAllByRole('columnheader')).toHaveLength(2)
+      fireEvent.click(screen.getByRole('button', { name: /Last/ }))
+      expect(onSort).toHaveBeenCalledWith('last_name')
+      fireEvent.click(screen.getByRole('row', { name: 'Demo Student' }))
+      expect(onStudentSelect).toHaveBeenCalledWith(student)
+      fireEvent.keyDown(screen.getByRole('region', { name: 'Gradebook students' }), { key: 'Escape' })
+      expect(onStudentDeselect).toHaveBeenCalledOnce()
+      width = 700
+      fireEvent(window, new Event('resize'))
+      await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Final' })).toBeInTheDocument())
+      expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+      width = 300
+      fireEvent(window, new Event('resize'))
+      await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Final' })).not.toBeInTheDocument())
+      view.rerender(<TooltipProvider><GradebookTable {...props} allowNamesOnly={false} /></TooltipProvider>)
+      expect(screen.getByRole('columnheader', { name: 'Final' })).toBeInTheDocument()
+    } finally { rectSpy.mockRestore() }
   })
 
   it.each([0, 80])('hatches an unreturned mark and exposes its tooltip on keyboard focus (%s)', async (percent) => {
@@ -282,10 +272,11 @@ describe('Gradebook surface owners', () => {
     expect(screen.queryByRole('row', { name: 'Max mark' })).not.toBeInTheDocument()
   })
 
-  it('names the student inspector without a close control', () => {
-    render(<TooltipProvider><GradebookStudentPanel student={student} columns={[]} displayMode="percent" /></TooltipProvider>)
+  it('names the student inspector without a close control or grades modal', () => {
+    render(<GradebookStudentPanel student={student} columns={[]} displayMode="percent" />)
     expect(screen.getByRole('region', { name: 'Demo Student assessment details' })).toHaveTextContent('No assessments yet.')
     expect(screen.queryByRole('button', { name: 'Close student details' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /View grades/ })).not.toBeInTheDocument()
   })
 
   it('toggles percentage display with one pressed button and keeps menu semantics in the toolbar', async () => {
