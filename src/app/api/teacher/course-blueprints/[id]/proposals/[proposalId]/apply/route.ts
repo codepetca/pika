@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
+import { authorizeClassroomReuseActor, assertContextualReuseProposal, isContextualReuseProposal } from '@/lib/server/contextual-classroom-reuse'
+import { contextualClassroomReuseProposalParamsSchema } from '@/lib/validations/contextual-classroom-reuse'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getCourseBlueprintDetail } from '@/lib/server/course-blueprints'
@@ -18,8 +20,11 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintProposalApply', 
   _request,
   context
 ) => {
-  const user = await requireRole('teacher')
-  const { id, proposalId } = await context.params
+  const { user, contextual } = await authorizeClassroomReuseActor()
+  const allowActiveLegacy = contextual && user.role === 'teacher'
+  if (allowActiveLegacy) await requireRole('teacher')
+  const params = await context.params
+  const { id, proposalId } = contextual ? contextualClassroomReuseProposalParamsSchema.parse(params) : params
   const detailResult = await getCourseBlueprintDetail(user.id, id)
   if (!detailResult.detail) {
     throw new ApiError(detailResult.status || 500, detailResult.error || 'Failed to load Blueprint')
@@ -37,6 +42,15 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintProposalApply', 
   if (error) throw new ApiError(500, 'Failed to load Blueprint proposal')
 
   const proposal = data as unknown as CourseBlueprintProposalRecord
+  if (contextual) {
+    if (isContextualReuseProposal(proposal)) {
+      await assertContextualReuseProposal(supabase, user.id, id, proposal,
+        ...(allowActiveLegacy ? [{ allowActiveLegacy: true }] : []))
+    } else if (!allowActiveLegacy) {
+      // Adjacent package/AI and inverse-Classroom writers keep their legacy guard.
+      await requireRole('teacher')
+    }
+  }
   if (proposal.target_kind === 'classroom') {
     const plan = classroomBlueprintUpdateWritePlanSchema.safeParse(
       proposal.diff_json.classroom_plan,

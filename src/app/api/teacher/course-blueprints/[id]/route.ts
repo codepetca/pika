@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
+import { authorizeClassroomReuseActor } from '@/lib/server/contextual-classroom-reuse'
+import { contextualClassroomReuseParamsSchema } from '@/lib/validations/contextual-classroom-reuse'
 import { withErrorHandler } from '@/lib/api-handler'
 import { updateCourseBlueprintSchema } from '@/lib/validations/course-blueprints'
 import {
@@ -11,8 +13,9 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetTeacherCourseBlueprint', async (_request, context) => {
-  const user = await requireRole('teacher')
-  const { id } = await context.params
+  const { user, contextual } = await authorizeClassroomReuseActor()
+  const params = await context.params
+  const { id } = contextual ? contextualClassroomReuseParamsSchema.parse(params) : params
   const result = await getCourseBlueprintDetail(user.id, id)
   if (!result.detail) {
     return NextResponse.json({ error: result.error }, { status: result.status || 500 })
