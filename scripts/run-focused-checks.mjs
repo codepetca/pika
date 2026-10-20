@@ -60,12 +60,12 @@ function run(command, args, dryRun, label) {
 function readChangedPaths(base) {
   const committed = execFileSync(
     'git',
-    ['diff', '--name-only', '--diff-filter=ACMRD', `${base}...HEAD`],
+    ['diff', '--no-renames', '--name-only', '--diff-filter=ACMRD', `${base}...HEAD`],
     { encoding: 'utf8' },
   )
   const workingTree = execFileSync(
     'git',
-    ['diff', '--name-only', '--diff-filter=ACMRD', 'HEAD'],
+    ['diff', '--no-renames', '--name-only', '--diff-filter=ACMRD', 'HEAD'],
     { encoding: 'utf8' },
   )
   const untracked = execFileSync(

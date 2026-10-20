@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Independent Gradebook zero-weight visibility
-
-Owner requested More actions toggles “Hide 0-weight teacher” and “Hide 0-weight student”, both off by default. Coordinator owns codex/gradebook-zero-weight-filters. Teacher choice persists locally and filters table/inspector/mobile/export columns; student choice persists per classroom and filters server projections for Grades and standalone Classwork marks. Configured assessment weight0 only; positive-weight exclusions and earned0 remain visible, calculations unchanged. Student saves share the existing visibility mutation, rollback on failure, invalidate both caches and fence late classroom responses. Older metadata clients preserve the setting.
-
-UI brief: production Gradebook More actions/Pattern Lab gradebook-compact reference; extend toolbar/display preferences/classroom setting, reuse shared menu semantics and StudentGradesView. Teacher+student production owners, desktop1440/mobile390, light/dark, default/open/checked and all four toggle combinations PASS in16 Playwright captures under output/playwright/gradebook-zero-weight; Escape returns focus, no page overflow, student grade unchanged. No new shared visual pattern or promotion; no unrelated refactor. Composite checklist reviewed, semantic tests and keyboard coverage pass. Targeted behavior115 tests and previously failing Gallery87 tests PASS with bounded workers; architecture/UI/design policies PASS.
-
-Migration266 only extends the dormant metadata writer allowlist and preserves omitted student setting, retaining238 publication/ownership/lifecycle guards, signature and ACLs. Active legacy metadata supports the JSON setting without schema rollout;266 must precede enabling the dormant writer with this app. SQL rollback harness expanded; no canonical local/production migration applied. Initial broad check exposed finite265 proof inventories and concurrent Gallery timeouts; one GPT6.1-sol/high read-only worker mapped the eight exact profile consumers. Coordinator verified map and adds fixed filename/hash/bytes266 admission, retained historical profiles and future-tail/mutation tests. Worker effective model/time/token telemetry unknown; no edits delegated. Weekly99% remaining at startup; storage healthy. Final focused checks, fixed-SHA independent review and CI evidence follow in PR/lifecycle log. No merge, release, activation or migration application authorized.
-
 ## 2026-10-15 — Test publication date menus
 
 Owner requested Publish today / Schedule test instead of the standalone date field, a published-date menu for changes/valid Unpublish, and future Tests hidden from the student Tests list while remaining on Calendar. Implemented one feature-owned control in selected workspace and authoring, reusing the existing menu, date-save acknowledgement and publication/unpublish APIs. Access remains separately teacher-controlled. Worked Tests cannot ordinarily move into the future; manual open access and submitted/returned work stay visible. Added Toronto-midnight reveal, friendly scheduled Calendar selections, editor-save and owner-change guards. No schema, migration, dependency or scheduler changes.
@@ -680,3 +672,14 @@ changes. All26 runner regressions pass. Root combined focused gate passes2,495
 tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
 271/272 bytes still match accepted native proofs, which were not rerun. Targeted
 independent review and corrected-head CI remain required. All holds persist.
+
+## 2026-10-19 — Preserve rename-source evidence in local and CI selection
+
+Review277 identified a rename-out edge in migration test discovery. Real staged
+and committed SQL-to-docs moves reproduced false-green docs-only checks. Local
+committed/working diffs now disable rename collapsing; the existing CI classifier
+does the same. A separate real-Git API/SQL/browser-to-docs counterexample failed
+before this correction. All40 focused/classifier tests and root combined2,498/94
+focused checks plus policies, TypeScript, lint and audit pass. No workflow,
+application, schema, dependency, native capability or activation change. Targeted
+review and exact-head CI are still required; production and rollout stay held.

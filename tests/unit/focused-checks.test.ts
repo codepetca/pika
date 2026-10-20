@@ -40,8 +40,8 @@ console.log(' Tests  12 passed (12)');
   git('add', 'package.json')
   git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'baseline')
   const callsPath = join(root, 'calls.jsonl')
-  function run(args: string[] = [], fail = false, realVitest = false) {
-    const result = spawnSync(process.execPath, [script, '--base', 'HEAD', ...args], {
+  function run(args: string[] = [], fail = false, realVitest = false, base = 'HEAD') {
+    const result = spawnSync(process.execPath, [script, '--base', base, ...args], {
       cwd: root,
       env: { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, FOCUSED_CALLS: callsPath, FOCUSED_FAIL: fail ? '1' : '0', FOCUSED_REAL_VITEST: realVitest ? '1' : '0' },
       encoding: 'utf8',
@@ -163,6 +163,28 @@ describe('focused local checks', () => {
     f.write('supabase/migrations/271_unreviewed.sql', '-- new migration')
     if (related) f.write('src/changed.ts', 'export const changed = true')
     const result = f.run(['--max-workers', '2'], false, true)
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.calls).toHaveLength(1)
+    expect(result.calls[0]).toContain(profile)
+    expect(result.output).toContain('closed current schema')
+    expect(result.output).toMatch(/1 failed/)
+  }, 15_000)
+
+  it.each([false, true])('detects a migration renamed into documentation (committed=%s)', committed => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\nnode_modules/\n')
+    symlinkSync(resolve('node_modules'), join(f.root, 'node_modules'), 'dir')
+    f.write('vitest.config.mjs', "export default { test: { globals: true, environment: 'node', include: ['tests/**/*.test.ts'] } }")
+    for (const file of workflowTests) f.write(file, "it('workflow', () => expect(true).toBe(true))")
+    const profile = 'tests/unit/contextual-test-reviewed-gradebook-profile.test.ts'
+    f.write(profile, "import { existsSync, readdirSync } from 'node:fs'; it('closed current schema', () => expect(existsSync('supabase/migrations') ? readdirSync('supabase/migrations') : []).toHaveLength(1))")
+    f.write('supabase/migrations/270_current.sql', '-- baseline')
+    f.write('docs/.keep', '')
+    f.git('add', '.')
+    f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'closed schema baseline')
+    f.git('mv', 'supabase/migrations/270_current.sql', 'docs/retired.md')
+    if (committed) f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'move migration outside inventory')
+    const result = f.run(['--max-workers', '2'], false, true, committed ? 'HEAD~1' : 'HEAD')
     expect(result.status, result.output).not.toBe(0)
     expect(result.calls).toHaveLength(1)
     expect(result.calls[0]).toContain(profile)
