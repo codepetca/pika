@@ -700,3 +700,21 @@ row/byte/teardown assertions; authored SDK/source checks are not native evidence
 Independent review, final-head CI and that real drill remain gates. Current-
 membership-only learner attendance remains separate; owners retain old records.
 All production, account/provider/billing and cutover holds remain unchanged.
+## 2026-10-20 — Dormant contextual purge workflows
+
+Prepared the eight existing hot/cold impact/start/status/tick methods behind the
+existing admission selector. Actual ownership and durable actor/class/archive/
+operation/scope bindings authorize shared callers of either label; legacy
+guards, confirmations/digests, independent gates and SQL state machines remain.
+Completed audit/replay survives parent removal. Malformed/lost results fail
+closed without automatic retries, compensation or rollback claims. Root found
+and fixed exact generated-lease binding before any Storage request: two wrong-
+lease regressions failed before the fix; root independently passed156 tests/6
+suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
+pass. The existing rollback matrices are extended to both current owner labels
+after fixture capture, retaining historical actors and all prior assertions;
+not yet native evidence. Source-only rebase onto1630's actual main merge had no
+conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
+Final focused checks, independent review, real CI matrices and main merge remain.
+No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
+activation change. Production/shared-local249+ and cutover holds remain.

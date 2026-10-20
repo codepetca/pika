@@ -900,6 +900,24 @@ Independent review and successful final-head CI/drill remain required. Purge,
 learner attendance history, remaining services and batch3 exit are still separate;
 all production and activation holds remain unchanged.
 
+The next prepared owner group covers the eight existing hot/cold purge methods
+as complete impact/start/status/tick workflows, not a new deletion engine.
+Shared admission selects owner-based authorization for either account label;
+legacy dispatch, current owner/representation checks, typed confirmation,
+digests and independent purge gates remain. Completed actor-bound audit/replay
+survives parent deletion, while exact class/archive/operation/scope binding
+prevents substitution. A verified begin result and one claim bound to its exact
+operation and generated lease are required before native advancement/Storage.
+Unknown outcomes fail closed without automatic retry, compensation or rollback
+claims. Existing SQL, durable leases, archive-last processing and cron remain.
+The existing rollback-only SQL matrices are extended to both current owner
+labels after fixture capture without changing historical actors or assertions.
+Source/SDK tests pass; these authored matrices are not yet native acceptance.
+Independent review, actual final-head CI matrices and normal main merge remain
+required. No migration, real deletion, provider/gate/account change, UI or rollout
+activation is authorized. Learner attendance generation integration remains
+separate and earlier records remain owner-visible under the approved policy.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
