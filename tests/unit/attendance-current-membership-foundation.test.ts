@@ -43,6 +43,21 @@ describe('dormant attendance membership foundation', () => {
     expect(resolve).not.toContain('public.users')
   })
 
+  it('prevents standalone mapping retargets from orphaning any captured historical scope', () => {
+    const guard = body('private.guard_attendance_participant_mapping_scope')
+    expect(guard).toContain('new.classroom_id is not distinct from old.classroom_id')
+    expect(guard).toContain('new.student_id is not distinct from old.student_id')
+    expect(guard).toContain("current_setting('transaction_isolation')<>'read committed'")
+    expect(guard).toContain('private.try_lock_classroom_membership_change(old.classroom_id,old.student_id)')
+    expect(guard).toContain('private.pal_membership_scope(old.classroom_id,old.student_id)')
+    expect(guard).toContain('private.attendance_participant_associations where scope_digest=v_scope')
+    expect(guard).toContain("message='attendance_participant_association_immutable'")
+    expect(guard).not.toContain('participant_ref=old.participant_ref')
+    expect(sql).toContain('create trigger protect_attendance_participant_association_scope')
+    expect(sql).toContain('before update on public.attendance_participant_mappings')
+    expect(sql).toContain('revoke all on function private.guard_attendance_participant_mapping_scope()')
+  })
+
   it('checks exact uncovered references on pending reservation, retry and completion reads', () => {
     const coverage = body('private.assert_attendance_cleanup_reference_coverage')
     expect(coverage).toContain('private.attendance_participant_associations')

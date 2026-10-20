@@ -155,7 +155,7 @@ describe('fixed lifecycle271–282 reviewed migration seals', () => {
       ['279_contextual_classroom_guidance_preview.sql','7542ae0d907691a0e46044790c73523dcff2782821c0a7370a86b4342a898bf3'],
       ['280_contextual_classroom_guidance_adoption.sql','5786e1b83b3caed6a369f4a497aab5b296cdcee6fc918c12a7e031fcfce29555'],
       ['281_attendance_decommission_retained_generations.sql','99dac4f2bc3324f92fbd30ba0bc75dc6458e5c699cdc07613f0d5aeb37ad302e'],
-      ['282_attendance_current_membership_foundation.sql','5f47ec59d8ff11680b3ddc237d6359242518972b07ab0dc0b1da4504445cac0b'],
+      ['282_attendance_current_membership_foundation.sql','a464c8285cbc08755fa03d6b33b08342310089226d6ea0517c82fcd0271012ab'],
     ])
   })
   it.each([271,272,273,274,275,276,277,278,279,280,281,282].flatMap(number => ['name','digest','bytes','self-hashed-bytes'].map(defect => ({number,defect}))))(

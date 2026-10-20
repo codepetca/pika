@@ -147,6 +147,7 @@ begin
   foreach v_signature in array array[
     'private.guard_attendance_override_event_generation()',
     'private.guard_attendance_participant_association()',
+    'private.guard_attendance_participant_mapping_scope()',
     'private.scrub_deleted_attendance_participant_associations()',
     'private.capture_attendance_participant_association(uuid,uuid,text)',
     'private.resolve_attendance_participant_subject(uuid,text)',
@@ -183,7 +184,8 @@ $attendance_foundation_acl$;
 insert into public.users(id,email,role) values
  ('a2820000-0000-4000-8000-000000000001','foundation-owner@example.test','teacher'),
  ('a2820000-0000-4000-8000-000000000002','foundation-legacy@example.test','student'),
- ('a2820000-0000-4000-8000-000000000003','foundation-bound@example.test','student');
+ ('a2820000-0000-4000-8000-000000000003','foundation-bound@example.test','student'),
+ ('a2820000-0000-4000-8000-000000000004','foundation-retarget@example.test','student');
 insert into public.classrooms(id,teacher_id,title,class_code) values
  ('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000001','Foundation scope','A28210'),
  ('a2820000-0000-4000-8000-000000000011','a2820000-0000-4000-8000-000000000001','Other foundation scope','A28211');
@@ -199,7 +201,7 @@ insert into private.attendance_membership_generations(generation_id,participant_
  values('a2820000-0000-4000-8000-000000000021','participant_28200000000000000000000000000021',
  private.pal_membership_scope('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000003'));
 do $attendance_foundation_capture$
-declare v_before jsonb; v_sql text;
+declare v_before jsonb; v_mapping_before jsonb; v_sql text; v_ref text;
 begin
   perform private.capture_attendance_participant_association('a2820000-0000-4000-8000-000000000010',
     'a2820000-0000-4000-8000-000000000002','participant_28200000000000000000000000000020');
@@ -214,16 +216,53 @@ begin
   if v_before is distinct from (select to_jsonb(association) from private.attendance_participant_associations association
     where participant_ref='participant_28200000000000000000000000000020') then
     raise exception 'Duplicate association capture changed evidence'; end if;
-  begin
-    update public.attendance_participant_mappings set classroom_id='a2820000-0000-4000-8000-000000000011'
-      where classroom_id='a2820000-0000-4000-8000-000000000010'
-      and student_id='a2820000-0000-4000-8000-000000000002';
-    perform private.capture_attendance_participant_association('a2820000-0000-4000-8000-000000000011',
-      'a2820000-0000-4000-8000-000000000002','participant_28200000000000000000000000000020');
-    raise exception 'Captured reference was reassigned to another scope';
-  exception when others then
-    if sqlerrm<>'attendance_participant_association_conflict' then raise;end if;
-  end;
+  -- Standalone public scope updates must fail before any follow-up capture.
+  -- Repeat with an uncaptured current pointer so a historical association for
+  -- the old scope is sufficient to protect its public erasure lifecycle.
+  foreach v_ref in array array['participant_28200000000000000000000000000020',
+    'participant_28200000000000000000000000000022'] loop
+    if v_ref='participant_28200000000000000000000000000022' then
+      update public.attendance_participant_mappings set participant_ref=v_ref
+        where classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002';
+      if not exists(select 1 from public.attendance_participant_mappings where participant_ref=v_ref)
+        or exists(select 1 from private.attendance_participant_associations where participant_ref=v_ref) then
+        raise exception 'Same-scope legacy reference rotation was blocked';end if;
+    end if;
+    select to_jsonb(mapping) into strict v_mapping_before from public.attendance_participant_mappings mapping
+      where mapping.classroom_id='a2820000-0000-4000-8000-000000000010'
+      and mapping.student_id='a2820000-0000-4000-8000-000000000002';
+    foreach v_sql in array array[
+      $q$update public.attendance_participant_mappings set classroom_id='a2820000-0000-4000-8000-000000000011'
+        where classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002'$q$,
+      $q$update public.attendance_participant_mappings set student_id='a2820000-0000-4000-8000-000000000004'
+        where classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002'$q$] loop
+      begin
+        execute v_sql;
+        raise exception 'Standalone captured scope update was accepted';
+      exception when sqlstate '55000' then
+        if sqlerrm<>'attendance_participant_association_immutable' then raise;end if;
+      end;
+      if v_mapping_before is distinct from (select to_jsonb(mapping) from public.attendance_participant_mappings mapping
+          where mapping.classroom_id='a2820000-0000-4000-8000-000000000010'
+          and mapping.student_id='a2820000-0000-4000-8000-000000000002')
+        or v_before is distinct from (select to_jsonb(association) from private.attendance_participant_associations association
+          where participant_ref='participant_28200000000000000000000000000020') then
+        raise exception 'Rejected scope update changed mapping or association';end if;
+    end loop;
+    if v_ref='participant_28200000000000000000000000000022' and (
+      not exists(select 1 from public.attendance_participant_mappings where participant_ref=v_ref
+        and classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002')
+      or exists(select 1 from private.attendance_participant_associations where participant_ref=v_ref)) then
+      raise exception 'Historical association did not protect uncaptured current pointer';end if;
+  end loop;
+  -- Restore the original pointer before adding exact171 proof.
+  update public.attendance_participant_mappings set participant_ref='participant_28200000000000000000000000000020'
+    where classroom_id='a2820000-0000-4000-8000-000000000010'
+    and student_id='a2820000-0000-4000-8000-000000000002';
   insert into private.attendance_membership_generations(generation_id,participant_ref,scope_digest)
     values('a2820000-0000-4000-8000-000000000020','participant_28200000000000000000000000000020',
       private.pal_membership_scope('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000002'));

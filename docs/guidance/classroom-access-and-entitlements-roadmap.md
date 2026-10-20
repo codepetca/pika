@@ -963,6 +963,10 @@ An existing cleanup read rejects uncovered historical participant references;
 authorized mapping erasure scrubs scope and generation from the new association
 directory, retaining closed reference tombstones. Existing immutable168/171
 evidence and exact provider-receipt requirements remain unchanged.
+Captured scopes also reject standalone classroom/student retargets of their
+public pointer, including when only historical references were captured;
+same-scope unbound reference changes remain available. This closes an orphaned
+association erasure gap found by independent source review, not a live incident.
 
 The membership-bound confirmation HMAC is also prepared without active callers;
 shared class QR tokens and legacy confirmations remain unchanged. This slice

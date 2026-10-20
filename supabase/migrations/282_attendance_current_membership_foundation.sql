@@ -114,6 +114,33 @@ $$;
 revoke all on function private.capture_attendance_participant_association(uuid,uuid,text)
   from public,anon,authenticated,service_role;
 
+-- An unbound legacy pointer may rotate within its existing scope, but moving
+-- that pointer to another identity would orphan any captured historical refs.
+-- Check the entire old scope, including refs other than the current pointer.
+create function private.guard_attendance_participant_mapping_scope()
+returns trigger language plpgsql security definer set search_path='' as $$
+declare v_scope text;
+begin
+  if new.classroom_id is not distinct from old.classroom_id
+    and new.student_id is not distinct from old.student_id then return new; end if;
+  if current_setting('transaction_isolation')<>'read committed' then
+    raise exception using errcode='55000',message='attendance_membership_isolation_required';
+  end if;
+  perform private.try_lock_classroom_membership_change(old.classroom_id,old.student_id);
+  v_scope:=private.pal_membership_scope(old.classroom_id,old.student_id);
+  if exists(select 1 from private.attendance_participant_associations where scope_digest=v_scope) then
+    raise exception using errcode='55000',message='attendance_participant_association_immutable';
+  end if;
+  return new;
+end;
+$$;
+-- Preserve the existing171 guard's error for independently bound references.
+create trigger protect_attendance_participant_association_scope
+  before update on public.attendance_participant_mappings
+  for each row execute function private.guard_attendance_participant_mapping_scope();
+revoke all on function private.guard_attendance_participant_mapping_scope()
+  from public,anon,authenticated,service_role;
+
 create function private.resolve_attendance_participant_subject(
   p_classroom_id uuid,p_participant_ref text
 ) returns uuid language plpgsql security definer set search_path='' as $$

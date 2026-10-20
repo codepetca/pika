@@ -855,9 +855,17 @@ Prepared unused membership-bound confirmation HMAC; shared QR/legacy functions
 unchanged. Native rollback fixtures cover ACL/capture/conflicts and phase12
 forgery/rollback/scrub/tombstone behavior; not yet executed. Extended exact source
 profiles with282 seal and whole private-table fingerprints; historical seals
-retained. Integrated1113 tests/6files PASS; full gate/review/native CI pending.
+retained. Initial full gate3259tests/117files plus policies/TS/lint PASS; PR1636
+draft. Independent346Astra/high and347Sol/high found one P2: standalone legacy
+mapping scope updates could orphan captured associations. Added old-scope-wide,
+read-committed/locked UPDATE guard and direct classroom/student retarget native
+fixtures, including uncaptured current pointer/history. Same-scope rotation stays
+allowed;171 guard retains precedence. Root RED1failed/7pass→GREEN8; fixture
+RED1failed/12pass→GREEN13. Corrected-source gate/targeted review/native CI pending.
 Orchestrated Astra/high SQL plus two Sol6.1/high helper/fixture assignments,
-delivered and source-inspected without overlapping writers; no formal review
-turns yet. Weekly81% remaining, storage healthy280GB; per-worker tokens unknown.
+delivered and source-inspected without overlapping writers. Cumulative347formal
+reviews;19prior accepted correction passes, one new batch prepared. Weekly81%
+remaining at start,78% at review; global usage not attributable cost. Storage
+healthy280GB; per-worker tokens unknown.
 Current-membership runtime adoption and batch3 exit remain separate. No DB,
 provider, production/shared-local migration, configuration or activation change.
