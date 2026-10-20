@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useWindowSize } from '@/hooks/use-window-size'
+import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { Button } from '@/ui'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
@@ -42,6 +44,7 @@ const noop = () => {}
 
 /** Deterministic evidence using the production toolbar and table owners. */
 export function GradebookCompactPattern() {
+  const { width: viewportWidth } = useWindowSize()
   const [compactZeroWeightAssessments, setCompactZeroWeightAssessments] = useState(true)
   const [inspectorWidth, setInspectorWidth] = useState(32)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>('0')
@@ -86,7 +89,7 @@ export function GradebookCompactPattern() {
           <GradebookStudentPanel student={selectedStudent} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)}
             compactZeroWeightAssessments={compactZeroWeightAssessments} displayMode={preferences.scoreDisplayMode} />
         </div> : undefined}
-        primary={<GradebookTable allowNamesOnly={Boolean(selectedStudent)} compactZeroWeightAssessments={compactZeroWeightAssessments} showGridlines={preferences.showGridlines} students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)} displayMode={preferences.scoreDisplayMode}
+        primary={<GradebookTable allowNamesOnly={Boolean(selectedStudent) && viewportWidth >= DESKTOP_BREAKPOINT} compactZeroWeightAssessments={compactZeroWeightAssessments} showGridlines={preferences.showGridlines} students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)} displayMode={preferences.scoreDisplayMode}
         ultraCompact={preferences.ultraCompact} lastNameFirst={preferences.lastNameFirst}
         showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
         keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
