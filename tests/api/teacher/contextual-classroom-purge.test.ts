@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest } from 'next/server'
 import type { Database } from '@/types/database'
+import { ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE } from '@/lib/validations/attendance-decommission'
 import { GET as hotStatus } from '@/app/api/teacher/classrooms/[id]/purge/[operationId]/route'
 import { POST as hotTick } from '@/app/api/teacher/classrooms/[id]/purge/[operationId]/tick/route'
 import { GET as hotImpact, POST as hotStart } from '@/app/api/teacher/classrooms/[id]/purge/route'
@@ -37,7 +38,7 @@ const coldImpact = () => ({ classroom_id: classroom, archive_id: archive, classr
 function transport(cold: boolean, patch: Record<string, unknown> = {}, options: {
   loss?: boolean; missing?: boolean; spoof?: boolean; fresh?: boolean; owner?: boolean; active?: boolean; tombstone?: boolean;
   inventory?: Record<string, unknown>; begin?: unknown; beginLoss?: boolean; claim?: unknown; beginDenied?: boolean;
-  root?: Record<string, unknown>; progress?: unknown; claimLease?: 'exact' | 'wrong'
+  root?: Record<string, unknown>; progress?: unknown; claimLease?: 'exact' | 'wrong'; beginDecommission?: boolean
 } = {}) {
   let exists = !options.fresh
   const fetch = vi.fn(async (raw: RequestInfo | URL, init?: RequestInit) => {
@@ -61,6 +62,9 @@ function transport(cold: boolean, patch: Record<string, unknown> = {}, options: 
       }), ...options.inventory })
     }
     if (url.pathname.includes('/rpc/begin_')) {
+      if (options.beginDecommission) return Response.json({
+        code: '55000', message: 'attendance_classroom_decommission_required', details: null, hint: null,
+      }, { status: 400 })
       exists = true
       if (options.beginLoss) throw new Error('private/path acknowledgment lost')
       if (options.beginDenied) return Response.json({ ok: false, status: 409, error: 'private/path attendance_decommission_active' })
@@ -204,6 +208,14 @@ describe('admitted classroom purge routes with native coordinators and isolated 
       expect(JSON.stringify(await response.json())).not.toContain('private/path')
       expect(requests.filter(r => r.url.pathname.includes('/rpc/begin_'))).toHaveLength(1)
       expect(requests.every(r => !r.url.pathname.includes('/rpc/claim_') && !r.url.pathname.includes('/rpc/finalize_'))).toBe(true)
+    })
+    it(`${cold ? 'cold' : 'hot'} retains the fixed attendance prerequisite signal from an actual PostgREST error envelope`, async () => {
+      transport(cold, {}, { fresh: true, beginDecommission: true })
+      const response = await start(req('POST', startBody(cold)), context)
+      expect(response.status).toBe(409)
+      expect((await response.json()).error).toBe(ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE)
+      expect(requests.filter(r => r.url.pathname.includes('/rpc/begin_'))).toHaveLength(1)
+      expect(requests.every(r => !/\/(claim|finalize|complete|fail)_/.test(r.url.pathname) && !r.url.pathname.includes('/storage/'))).toBe(true)
     })
     it(`${cold ? 'cold' : 'hot'} preserves native decommission/ownership race denial at begin`, async () => {
       transport(cold, {}, { fresh: true, beginDenied: true })

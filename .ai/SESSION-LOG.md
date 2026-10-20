@@ -718,3 +718,10 @@ conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknow
 Final focused checks, independent review, real CI matrices and main merge remain.
 No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
 activation change. Production/shared-local249+ and cutover holds remain.
+
+Full security334 review was clean; compatibility335 found the generic409 mapping
+hid the existing fixed attendance-decommission prerequisite signal. Two real-
+PostgREST-envelope regressions failed, then passed after preserving only the
+recognized typed public constant; arbitrary errors remain sanitized. All158
+targeted tests/6 suites pass. Source correction, targeted re-review and final CI
+remain distinct from any provider change or native acceptance.

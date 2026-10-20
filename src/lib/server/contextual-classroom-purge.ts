@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import {
+  ClassroomPurgeError,
   advanceClassroomPurge, getActiveClassroomPurgeStatus, getClassroomPurgeImpact,
   getClassroomPurgeStatus, startClassroomPurge,
 } from '@/lib/server/classroom-purge'
@@ -10,6 +11,8 @@ import {
 } from '@/lib/server/cold-classroom-purge'
 import { classroomPurgeImpactSchema, classroomPurgeStatusSchema } from '@/lib/validations/classroom-purge'
 import { coldClassroomPurgeImpactSchema } from '@/lib/validations/cold-classroom-purge'
+import { ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED } from '@/lib/server/attendance-decommission'
+import { ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE } from '@/lib/validations/attendance-decommission'
 
 const uuid = z.string().uuid().transform(value => value.toLowerCase())
 const targetSchema = z.object({ actorId: uuid, classroomId: uuid, archiveId: uuid.optional() }).strict()
@@ -22,6 +25,12 @@ const contextualStatusSchema = classroomPurgeStatusSchema.extend({
 // Only the admitted boundary sanitizes native failures. Uncertainty never starts a retry or cleanup.
 async function checked<T>(work: () => Promise<T>): Promise<T> {
   try { return await work() } catch (error) {
+    // This fixed public signal drives the existing linked-attendance prerequisite UI.
+    if (error instanceof ClassroomPurgeError && error.statusCode === 409
+      && error.code === ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED
+      && error.message === ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE) {
+      throw new ApiError(409, ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE)
+    }
     if (error instanceof ApiError && [400, 403, 404, 409].includes(error.statusCode)) {
       throw new ApiError(error.statusCode, error.statusCode === 404
         ? 'Permanent deletion not found' : 'Permanent deletion could not continue; review its impact and current state')

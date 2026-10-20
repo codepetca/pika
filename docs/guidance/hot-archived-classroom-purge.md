@@ -13,7 +13,9 @@ operation to actor, classroom and hot scope. A completed actor-bound audit remai
 readable after deletion removes its classroom; it is not a reason to require a
 now-missing parent or to grant access to another operation.
 
-The adapter validates returned identities and privacy-safe statuses. The existing
+The adapter validates returned identities and privacy-safe statuses, preserving
+the fixed attendance-decommission prerequisite signal used by the existing dialog.
+Arbitrary native errors remain sanitized. The existing
 coordinator verifies its begin acknowledgment before ticking, and binds a single
 claimed object to the requested operation and generated lease token before any
 Storage request. Missing, malformed or lost evidence fails closed; uncertainty
