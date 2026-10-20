@@ -49,7 +49,22 @@ describe('frozen guidance actual adapter/installed SDK leaf (CPU only)',()=>{
     await expect(proof.sdk()).rejects.toThrow();await expect(proof.settle()).rejects.toThrow();expect(proof.receipt().poisoned).toBe(true);expect(h.original).not.toHaveBeenCalled()
   })
   it('does not restore while physical fetch is unclosed, retaining original cleanup deadline',async()=>{
-    const h=harness(),now=Date.now(),original:typeof fetch=vi.fn(()=>new Promise<Response>(()=>{})),proof=createClassroomAuthoringGuidanceSdkProof(f,target,original,{...h.controls,deadline:now+80,cleanupDeadline:now+160})
-    await expect(proof.sdk()).rejects.toThrow();expect(proof.receipt()).toMatchObject({failed:true,poisoned:true,complete:false,sessions:1,restoreState:'prepared'});expect(h.events).not.toContain('sql:restore-baseline');expect(original).toHaveBeenCalledTimes(1)
+    vi.useFakeTimers()
+    try {
+      const h=harness(),now=Date.now()
+      let signalDispatch!:()=>void
+      const dispatched=new Promise<void>(resolve=>{signalDispatch=resolve})
+      const original:typeof fetch=vi.fn(()=>{signalDispatch();return new Promise<Response>(()=>{})})
+      const proof=createClassroomAuthoringGuidanceSdkProof(f,target,original,{...h.controls,deadline:now+80,cleanupDeadline:now+160})
+      const rejected=expect(proof.sdk()).rejects.toThrow()
+      // Exercise an actually dispatched, unclosed fetch, not coverage-induced
+      // expiry during preflight. Both original deadlines remain unchanged.
+      await dispatched
+      expect(proof.receipt()).toMatchObject({requests:1,sessions:1,restoreState:'prepared'})
+      await vi.advanceTimersByTimeAsync(160)
+      await rejected
+      expect(proof.receipt()).toMatchObject({failed:true,poisoned:true,complete:false,sessions:1,restoreState:'prepared'})
+      expect(h.events).not.toContain('sql:restore-baseline');expect(original).toHaveBeenCalledTimes(1)
+    } finally { vi.useRealTimers() }
   })
 })

@@ -12607,6 +12607,17 @@ export type Database = {
         Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
+      read_classroom_guidance_adoption_source_v1: {
+        Args: {
+          p_actor_id: string
+          p_blueprint_id: string
+          p_classroom_id: string
+          p_expected_content_version_id: string
+          p_expected_draft_revision: number
+          p_expected_guidance_version_id: string
+        }
+        Returns: Json
+      }
       read_gradebook_maximum_state: {
         Args: { p_classroom_id: string }
         Returns: Json
@@ -13219,6 +13230,20 @@ export type Database = {
       }
       return_test_to_draft_atomic: {
         Args: { p_teacher_id: string; p_test_id: string }
+        Returns: Json
+      }
+      save_and_adopt_classroom_guidance_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_blueprint_id: string
+          p_classroom_id: string
+          p_expected_content_version_id: string
+          p_expected_draft_revision: number
+          p_expected_guidance_version_id: string
+          p_snapshot_canonical: string
+          p_snapshot_sha256: string
+          p_source_sha256: string
+        }
         Returns: Json
       }
       save_assignment_ai_grade_atomic: {

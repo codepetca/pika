@@ -750,16 +750,104 @@ canonical read-only/global-resource equality and positive owned teardown passed.
 unsettled retain original bounds. Immediate NEXT-TOOL FIRST verified7948source and
 98970dependency files unchanged/zero matching processes before any post-run action.
 Genuine279 adds only the required two-UUID Json RPC; removing it reconstructs the
-entire278 artifact. Current-main rebase preserves the exercised source tree; final
-checks, integration review and exact-head CI/normal merge remain. Shared-local249+,
+entire278 artifact. Current-main rebase preserves the exercised source tree;
+final checks passed2884tests/99files and review314 was clean. All ten exact-head
+CI39392011940 checks, including PR Gate, passed; PR1628 merged normally as
+cd3876dfaf45f949b9dfc769d16562daf17303aa at2026-10-20T08:52:50Z. Reviewed/squash
+treeb3df6d46 is identical and canonical clean main fast-forwarded. The earlier
+CI startup port collision remains a separate failed receipt, not an app proof.
+Shared-local249+,
 production, activation and all provider/account/billing holds remain unchanged;
 no phase exit is implied.
+
+The next prepared write is POST classroom `authoring-guidance/update`. Additive280
+requires BOTH current active-classroom ownership and current linked Blueprint
+ownership, regardless of account label. Its admitted path reads a complete scalar
+Draft source, uses the unchanged canonical snapshot builder, then saves and adopts
+in one database transaction under the existing lifecycle and parent locks. A raw
+source digest also catches parent-only child moves omitted from the older Draft
+revision triggers. A database-rejected operation leaves no new Version; a lost or
+invalid post-commit response is uncertain and must never cause an automatic retry
+or compensating Version deletion. Existing immutable Versions and their original
+provenance remain untouched, including a legitimate deduplicated Version. The
+legacy POST helper and GET path are unchanged. Private8MiB bounds reject rather
+than truncate complete collections; these are not editor or subscription quotas.
+Source/API/unit and rollback contracts are prepared, not runtime acceptance. The
+isolated proof will verify exact allowed committed graph changes and preserve
+all previous history and complement rows. Temporary synthetic owner/parent
+restoration must retain legitimate timestamp and archive-revision history rather
+than fabricate old byte equality. Independent source/composition review, a fresh
+isolated full-chain proof, genuine metadata, final checks and exact-head CI remain
+gates. Shared-local249+, production, provider/account/billing and activation holds
+remain unchanged; learner attendance history and batch3 exit are not implemented
+or claimed by this write.
+
+The isolated280 SQL rollback suite and genuine metadata generation now pass.
+The full SDK proof is still incomplete: a failed first read/write transition
+exposed a rehearsal timer that incorrectly included pre-request SQL and safety
+checks in its network window. A CPU reproduction confirmed that boundary; the
+prepared fix times only physical transport/body work while preserving the actual
+adapter's continuous ten-second abort, all guards and all existing limits. Slow
+bookkeeping, expired caller signals and physical timeout regressions pass. Both
+failed attempts remain recorded with positive cleanup and immediate independent
+source/dependency preservation; no successful native SDK/concurrency or merge
+claim is made. Review and a fresh separately bound proof remain gates.
+
+A later isolated attempt identified the remaining failure precisely: the actual
+SDK caller timeout expired during rehearsal-only writer preflight, before writer
+dispatch. Do not extend or suppress that application timeout. The next prepared
+verification scheduling uses genuine SDK result settlement as the boundary:
+after a complete, parsed source response, run the existing guards and source-N
+SQL before delivering that identical result back to the unchanged adapter. Its
+canonicalization and next request's normal timeout then follow. Writer postguards
+likewise follow genuine settlement. All58 guards,17 SQL descriptors,12 actual SDK
+requests and all limits remain; no request/result substitution is permitted.
+This proves interventions after source capture and before canonicalization,
+not the narrower old after-canonicalization timing. Review and native acceptance
+remain pending; no production, account, provider or activation hold is released.
+
+The fresh C5 isolated001–280 proof now passes. All six actual-adapter flows
+and twelve genuine SDK HTTP requests succeeded with the exact success/409/403
+vector, complete5005-child source, two new immutable Versions, retained dedup
+provenance and exact denied-write graph preservation. All17 SQL descriptors and
+58 full guards completed. Three genuine two-session contention pairs passed:
+classroom-operation advisory, Blueprint-purge advisory and classroom-row NOWAIT;
+fresh authorization and rolled-back postflight preserved the post-SDK checkpoint.
+This does not claim a separate Blueprint-row NOWAIT denial test. Accounting was
+112 actions/1851 controls/58573054 bytes/12 HTTP/max2 sessions/final0 unsettled or
+uncertain operations, within every original limit. Positive owned teardown and
+reviewed canonical read-only/global-resource equality gates passed; immediate
+next-tool FIRST independently checked7973 source and98970 dependency files and
+zero matching processes before post-run work. Full before/after preservation
+records match, the temporary workdir is absent and no project Docker resources
+remain. Genuine280 metadata adds only the two required RPCs over the entire279
+artifact. Source scheduling322 and carrier323 reviews are clean. Final focused
+checks pass3215 tests/127 files, TypeScript, lint and architecture/UI/design
+policies. Final metadata/evidence review, exact-head CI and normal main merge
+remain; no learner-history, batch3 exit, deployment or activation is claimed.
 
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
 historical Pal fact/token lifecycle policy. Do not merely remove global role
 checks or discard retained history. Batches4–5 remain separately dormant.
+
+PR1629 final metadata/evidence review324 completed clean. Its first ready-head
+CI run39406928092 reached the strict database lint gate and rejected the private
+280 helper's untyped empty-object initializer. The draft correction explicitly
+casts that constant to JSONB and updates only the reviewed migration digest;
+the source regression is RED→GREEN. Public signatures, runtime flow and genuine
+metadata are unchanged. Earlier isolated C5 proof remains bound to its original
+source; targeted delta review and fresh final-head replay/lint are required
+before normal main merge. No deployment, shared-local migration or activation.
+
+The corrected-head coverage run39408286862 subsequently found an inherited
+CPU cleanup test expiring its80ms deadline during preflight, before its intended
+unclosed fetch was dispatched. The draft test-only correction awaits dispatch
+before advancing a fake clock through the same80ms/160ms deadlines and retains
+all poisoned/session/restoration assertions. Runtime proof, application and
+SQL are unchanged. All20 leaf tests pass; targeted review and fresh exact-head
+CI remain gates. Cancelled lanes are not passing evidence.
 
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
