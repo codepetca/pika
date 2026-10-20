@@ -540,7 +540,7 @@ success assumes a pre-existing grant, not the still-teacher-only132 admin flow.
 PR1622 remains in exact-head CI39361093628; no production/shared-local249+/provider/
 real account/billing/AI/admission/home/page/cohort/cutover change is authorized.
 
-## 2026-10-20 — Prepare contextual owner attendance day-view reads
+## 2026-10-20 — Verify contextual owner attendance day-view reads
 
 Dependent worktree starts from reviewed owner-write218d7b2a; startup/environment
 verified and existing dependencies reused. Prepared275 is service-only, invoker,
@@ -559,3 +559,18 @@ learner rule remains recorded; earlier records preserved for owner, not implemen
 by this owner read. Parent PR1623 exact-head CI39366937586 still running. Production,
 shared-local249+, provider/real-account/billing/AI and activation holds unchanged.
 Weekly remaining93%; storage healthy287GB; per-worker time/tokens unknown.
+Superseding checkpoint: initial security291/compat292 CLEAN. Composition293 found
+pending postguard cleanup bookkeeping; five composed RED cases became GREEN and
+targeted294 accepted the terminal-only reconciliation with closure/caps intact.
+One fresh94934b01/626f6a74 proof passed001–275 replay/rollback, genuine metadata,
+16SDK requests/26SQL/84guards, committed scope/fence denial/restoration and exact
+fixture/complement/canonical/global cleanup.136actions/2224controls/67593566bytes,
+max1session/final0open/uncertain/unsettled. Immediate NEXT TOOL FIRST passed before
+postchecks/copies/edits:7887source/98970dependency files unchanged, zero processes.
+Genuine275443624bytes SHAe29502a2 installed exact after FIRST. PR1623 all ten
+CI39366937586 gates passed; normal squash4f57a94c5 retains reviewed5847tree and
+canonical main fast-forwarded. Clean session rebase949→2ef95168 keeps identical
+84d6tree. Final focused checks pass2610tests/97files plus TypeScript/lint and
+policies, resolving only the two generated275 gaps. Metadata/evidence review
+and session PR/CI remain;
+no production/shared-local249+/provider/activation or learner-history change.
