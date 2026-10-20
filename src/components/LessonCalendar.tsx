@@ -98,7 +98,7 @@ export function LessonCalendar({
 }: LessonCalendarProps) {
   const currentTorontoDate = useTorontoToday()
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [currentTorontoDate])
-  const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
+  const [expandedDate, setExpandedDate] = useState<string | null>(null)
   const [presentedDay, setPresentedDay] = useState<Date | null>(null)
   const handlePresentedDayPrev = useCallback(() => {
     setPresentedDay((d) => (d ? addDays(d, -1) : d))
@@ -239,7 +239,7 @@ export function LessonCalendar({
 
   // Don't auto-expand any week in month/all views - let user click to expand
   useEffect(() => {
-    setExpandedWeekIdx(null)
+    setExpandedDate(null)
   }, [viewMode])
 
   useEffect(() => {
@@ -470,14 +470,14 @@ export function LessonCalendar({
 
         {/* Calendar grid - in all mode, includes header row */}
         <div
-          className={`grid ${viewMode !== 'all' ? 'overflow-visible' : ''}`}
+          className={`grid transition-[grid-template-rows] duration-standard ease-standard motion-reduce:transition-none ${viewMode !== 'all' ? 'overflow-visible' : ''}`}
           style={{
             gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
             gridTemplateRows: viewMode === 'all'
                 // First row is sticky header, rest are auto
                 ? `auto ${weeks.map(() => 'auto').join(' ')}`
-                : weeks.map((_, idx) => {
-                    const isExpanded = expandedWeekIdx === idx
+                : weeks.map(week => {
+                    const isExpanded = week.some(day => format(day, 'yyyy-MM-dd') === expandedDate)
                     if (isExpanded) return `minmax(${MONTH_ROW_EXPANDED_MIN_HEIGHT}, auto)`
                     return `minmax(${MONTH_ROW_MIN_HEIGHT}, auto)`
                   }).join(' '),
@@ -532,12 +532,12 @@ export function LessonCalendar({
 
         {/* Render all day cells */}
         {weeks.map((week, weekIdx) => {
-          const isExpanded = expandedWeekIdx === weekIdx
           // In all mode, rows start at 2 (row 1 is header)
           const rowStart = viewMode === 'all' ? weekIdx + 2 : weekIdx + 1
 
           return week.map((day, dayIdx) => {
             const dateString = format(day, 'yyyy-MM-dd')
+            const isExpanded = expandedDate === dateString
             const lessonPlan = plansByDate.get(dateString) || null
             const isToday = isSameDay(day, today)
             const isWeekendDay = isWeekend(day)
@@ -554,7 +554,7 @@ export function LessonCalendar({
                   gridColumn: colStart,
                   gridRow: rowStart,
                 }}
-                onClick={() => setExpandedWeekIdx(isExpanded ? null : weekIdx)}
+                onClick={() => setExpandedDate(current => current === dateString ? null : dateString)}
               >
                 <LessonDayCell
                   date={dateString}
@@ -568,6 +568,8 @@ export function LessonCalendar({
                   isClassDay={isClassDay}
                   editable={editable && !isWeekendDay}
                   compact={!isExpanded}
+                  onEditingStart={() => setExpandedDate(dateString)}
+                  onEditingEnd={() => setExpandedDate(current => current === dateString ? null : current)}
                   plainTextOnly={viewMode === 'all'}
                   onContentChange={onContentChange}
                   onTestClick={onTestClick}

@@ -64,6 +64,31 @@ function renderWithTooltip(ui: ReactElement) {
 }
 
 describe('LessonDayCell', () => {
+  it('opens without scrolling the whole cell and restores the grid edit action on Escape', async () => {
+    const scrollIntoView = vi.fn()
+    const { container } = renderWithTooltip(<LessonDayCell date={lessonPlan.date}
+      day={new Date('2026-03-13T12:00:00')} lessonPlan={lessonPlan} isWeekend={false} isToday={false} editable />)
+    container.firstElementChild!.scrollIntoView = scrollIntoView
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    const editor = screen.getByRole('textbox')
+    editor.focus()
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })).toHaveFocus())
+  })
+
+  it('retires the editor immediately when editing permission is removed', () => {
+    const props = { date: lessonPlan.date, day: new Date('2026-03-13T12:00:00'), lessonPlan,
+      isWeekend: false, isToday: false, editable: true }
+    const { rerender } = renderWithTooltip(<LessonDayCell {...props} />)
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    rerender(<TooltipProvider><LessonDayCell {...props} editable={false} /></TooltipProvider>)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    rerender(<TooltipProvider><LessonDayCell {...props} /></TooltipProvider>)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
   it.each([
     { layout: 'agenda' as const, isWeekend: false },
     { layout: 'agenda' as const, isWeekend: true },
