@@ -100,6 +100,19 @@ describe('new public table migration policy', () => {
   it('retains ordinary routine strings and function EXECUTE grants with comments', () => {
     expect(checkDataApiMigration("do $$ begin raise notice '-- data, not a SQL comment'; grant/* review */ execute on /* reviewed */ function public.rpc() to service_role; end $$;")).toEqual([])
   })
+  it.each([
+    "do $$ begin raise notice 'cannot create user''s record'; end $$;",
+    "do $$ begin raise exception 'cannot alter user''s record'; end $$;",
+    "do $$ begin message := 'grant on user''s data'; end $$;",
+    "do $$ begin execute 'select $1' using 'cannot create user''s record'; end $$;",
+    "do $$ begin execute format('select %L', 'cannot create user''s record'); end $$;",
+  ])('preserves notice, error, assignment and SQL data literals: %s', sql => {
+    expect(checkDataApiMigration(sql)).toEqual([])
+  })
+  it('inspects only the executable command template of EXECUTE format', () => {
+    expect(checkDataApiMigration("do $$ begin execute pg_catalog.format('grant/* review */ select on table public.%I to authenticated', 'example'); end $$;")).toContain('routine-body relation/default ACLs require top-level policy decisions')
+    expect(() => checkDataApiMigration("do $$ begin execute format('%s', 'grant select on public.example to authenticated'); end $$;")).toThrow('literal command template')
+  })
   it('rejects unsupported executable body delimiters instead of ignoring them', () => {
     expect(() => checkDataApiMigration('do $é$ begin grant truncate on public.example to authenticated; end $é$;')).toThrow('Use ASCII dollar-quote tags')
     expect(checkDataApiMigration('create procedure public.p() language sql begin atomic grant truncate on public.example to authenticated; end;')).toContain('use dollar-quoted routine bodies instead of inline BEGIN ATOMIC')

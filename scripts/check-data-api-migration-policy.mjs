@@ -40,7 +40,10 @@ function statements(sql, depth = 0) {
       if (!closed) throw new Error('Unterminated SQL string')
       let value = sql.slice(literalStart, i - 1).replaceAll("''", "'")
       if (escaped) value = value.replace(/\\([btnrfv\\'])/g, (_, c) => ({ b: '\b', t: '\t', n: '\n', r: '\r', f: '\f', v: '\v', '\\': '\\', "'": "'" }[c]))
-      literals.push(value)
+      // Only the command expression's leading literal (or format template) is
+      // executable SQL. RAISE/assignment strings, USING values, and format data
+      // arguments remain data even when they contain SQL words or apostrophes.
+      if (/(?:^|\s)execute\b\s*(?:\(\s*)*(?:(?:pg_catalog\s*\.\s*)?format\s*\(\s*)?(?:e)?$/i.test(statement)) literals.push(value)
       statement += ' <string> '
     } else if (sql[i] === '"') {
       const end = sql.indexOf('"', i + 1)
@@ -56,9 +59,11 @@ function statements(sql, depth = 0) {
       // Apply the same lexer inside bodies and SQL-bearing literals. Removing
       // comments by regex here would mistake comment markers inside data for SQL.
       const parsedBody = statements(body, depth + 1)
-      const executable = [parsedBody, ...parsedBody.literals
-        .filter(value => /\b(?:grant|revoke|create|alter|do)\b/i.test(value))
-        .map(value => statements(value, depth + 1))]
+      const executable = [parsedBody, ...parsedBody.literals.map(value => {
+        const parsed = statements(value, depth + 1)
+        if (!/^[a-z_(]/i.test(parsed.sql.join(' ').trim())) throw new Error('Dynamic SQL needs a literal command template for migration policy review')
+        return parsed
+      })]
       const normalizedBody = executable.flatMap(parsed => parsed.sql).join('; ').replace(/\s+/g, ' ')
       dynamicPublicDdl ||= executable.some(parsed => parsed.dynamicPublicDdl)
       bodyRelationAcl ||= executable.some(parsed => parsed.bodyRelationAcl)

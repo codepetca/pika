@@ -47982,7 +47982,7 @@ generated types installed byte-identically from private artifact1230d8e1…;
 temporary RPC signature removed. Targeted integration review and consolidated
 browser/CI gates remain. No shared-local/production migration or activation.
 
-<!-- pika-session-log-archive-batch:ce3bf4b9174373200f5d849b81f2179c163cc1174ff9836177dfb073b7211d09 -->
+<!-- pika-session-log-archive-batch:2cb3d6d375a53539e2dfddc4d3db486bac0f8942481f35a13cdbdfa7fa042560 -->
 ## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
 
 PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
