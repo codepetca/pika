@@ -26,7 +26,8 @@ insert into public.users(id,email,role) values
  ('f1000000-0000-4000-8000-000000000003','attendance-stranger@example.invalid','student');
 insert into public.classrooms(id,teacher_id,title,class_code) values
  ('f2000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001','Attendance A','ATTA26'),
- ('f2000000-0000-4000-8000-000000000002','f1000000-0000-4000-8000-000000000002','Attendance B','ATTB26');
+ ('f2000000-0000-4000-8000-000000000002','f1000000-0000-4000-8000-000000000002','Attendance B','ATTB26'),
+ ('f2000000-0000-4000-8000-000000000003','f1000000-0000-4000-8000-000000000001','Attendance-free purge fence','ATTC26');
 insert into public.classroom_enrollments(classroom_id,student_id) values
  ('f2000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001'),
  ('f2000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000002');
@@ -146,12 +147,14 @@ $maintenance$;
 reset role;
 
 savepoint hot_fence;
+--127 rejects purge operations for any classroom with attendance state. Use
+--the separate owner-owned, attendance-free class so its genuine trigger runs.
 insert into public.classroom_purge_operations(id,teacher_id,classroom_id,request_sha256,source_revision,impact_summary) values
- ('f3000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001','f2000000-0000-4000-8000-000000000001',repeat('a',64),1,'{}');
+ ('f3000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001','f2000000-0000-4000-8000-000000000003',repeat('a',64),1,'{}');
 insert into public.classroom_purge_fences(classroom_id,operation_id,teacher_id) values
- ('f2000000-0000-4000-8000-000000000001','f3000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001');
+ ('f2000000-0000-4000-8000-000000000003','f3000000-0000-4000-8000-000000000001','f1000000-0000-4000-8000-000000000001');
 set local role service_role;
-do $expect$ begin perform pg_temp.expect_attendance_policy('f1000000-0000-4000-8000-000000000001','f2000000-0000-4000-8000-000000000001','teacher_entitlements','blocked'); end; $expect$;
+do $expect$ begin perform pg_temp.expect_attendance_policy('f1000000-0000-4000-8000-000000000001','f2000000-0000-4000-8000-000000000003','teacher_entitlements','blocked'); end; $expect$;
 reset role;
 rollback to hot_fence;
 

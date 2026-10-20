@@ -47570,3 +47570,18 @@ covered by component regressions. No new primitive or experimental pattern.
 Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
 verified against source, no worker corrections or conflicts; tokens/time unknown.
 Weekly usage at start: 1% used; storage healthy (~328 GB available).
+
+<!-- pika-session-log-archive-batch:5bf5146ee346f46bf508ed64b75016192d25948614d25ad6ff74de49f2280704 -->
+## 2026-10-15 — PR1596 CI diagnosis and snapshot repair
+
+Reviewed Linux CI and local Darwin Pattern Lab image differences: only the
+Assignment artifact table's intended two divider removals and resulting 2px
+vertical shift. Updated desktop/mobile light/dark baselines for both platforms.
+SDK normal proof failed after its matrix with cleanup-only evidence; existing
+output discarded the failing cleanup stage. Added fixed-label cleanup diagnostics
+and canonical-field names with redaction/accessor tests; no execution, budget,
+comparison or teardown guard changed. Offline proof suites120PASS (3RED→GREEN).
+Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementation;
+no worker edits or conflicts, attributable time/tokens unknown. Next: independent
+delta review, clean fixed-SHA native reproduction, actual cleanup correction if
+needed, final CI and authorized main merge. PR remains draft; heartbeat paused.

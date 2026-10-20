@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — PR1596 CI diagnosis and snapshot repair
-
-Reviewed Linux CI and local Darwin Pattern Lab image differences: only the
-Assignment artifact table's intended two divider removals and resulting 2px
-vertical shift. Updated desktop/mobile light/dark baselines for both platforms.
-SDK normal proof failed after its matrix with cleanup-only evidence; existing
-output discarded the failing cleanup stage. Added fixed-label cleanup diagnostics
-and canonical-field names with redaction/accessor tests; no execution, budget,
-comparison or teardown guard changed. Offline proof suites120PASS (3RED→GREEN).
-Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementation;
-no worker edits or conflicts, attributable time/tokens unknown. Next: independent
-delta review, clean fixed-SHA native reproduction, actual cleanup correction if
-needed, final CI and authorized main merge. PR remains draft; heartbeat paused.
-
 ## 2026-10-15 — PR1596 Assignment child-dialog focus correction
 
 Hosted diagnostic CI38742184503 passed updated Pattern Lab snapshots but exposed
@@ -677,3 +663,17 @@ before correction; all26 leaf checks and lint pass. Real triggers, seven frames,
 sixteen HTTP calls and original bounds remain unchanged. Source-only remediation:
 genuine metadata and fresh isolated runtime/preservation acceptance are pending.
 No product permission, migration body, provider or activation change.
+
+## 2026-10-19 — Keep attendance hot-fence fixture eligible for purge admission
+
+The first isolated273 proof failed in SQLcontract before generation or HTTP.
+Immediate independent source/dependency preservation and zero-process observation
+pass; exact isolated containers/volumes/network and temporary directory are absent.
+The failed attempt and evidence remain spent. Source diagnosis found the suite
+inserted a hot purge operation after adding attendance state, which the real127
+decommission trigger correctly rejects. Use a separate owner-owned attendance-free
+class for this fence assertion, without bypassing the trigger. A source regression
+checks that predecessor prerequisite;12 focused tests, lint and audit pass.
+Missing failure diagnostics prevent proving this was the first observed error.
+Independent review and a new bounded proof remain required. Production and shared
+local migration, provider, account and rollout holds are unchanged.
