@@ -841,6 +841,14 @@ metadata are unchanged. Earlier isolated C5 proof remains bound to its original
 source; targeted delta review and fresh final-head replay/lint are required
 before normal main merge. No deployment, shared-local migration or activation.
 
+The corrected-head coverage run39408286862 subsequently found an inherited
+CPU cleanup test expiring its80ms deadline during preflight, before its intended
+unclosed fetch was dispatched. The draft test-only correction awaits dispatch
+before advancing a fake clock through the same80ms/160ms deadlines and retains
+all poisoned/session/restoration assertions. Runtime proof, application and
+SQL are unchanged. All20 leaf tests pass; targeted review and fresh exact-head
+CI remain gates. Cancelled lanes are not passing evidence.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

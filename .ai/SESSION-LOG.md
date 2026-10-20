@@ -697,3 +697,12 @@ bound to its original source, not relabeled. Targeted correction review and a
 fresh final-head CI replay/lint remain required. Production/shared-local249+ and
 all activation holds remain unchanged. Reuse workflow mapping completed read-only;
 linked reuse retains both owners and new-classroom creation limits.
+
+The next CI coverage lane passed19810 tests but exposed one inherited guidance
+cleanup test's80ms real-wall-clock race. Its preflight could exhaust the deadline
+before fetch dispatch, correctly restore zero open sessions, and contradict the
+test's intended unclosed-request assertion. Returned PR to draft before a
+test-only correction: await a real fake-transport dispatch barrier, then advance
+fake timers through the unchanged80ms/160ms deadlines. All20 leaf tests pass;
+runtime proof/application/SQL/limits are unchanged. Targeted review and fresh CI
+remain; no native proof, migration, deployment or activation is implied.
