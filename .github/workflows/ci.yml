@@ -283,6 +283,9 @@ jobs:
       - name: Verify Bara attendance tenancy, ordering, and deletion guards
         run: pnpm run check:bara-attendance-db
 
+      - name: Verify contextual owner attendance policy snapshot and privileges
+        run: bash scripts/check-contextual-attendance-policy-database.sh
+
       - name: Verify Pal outbox claim concurrency and lease recovery
         run: bash scripts/check-pal-outbox-concurrency.sh
 

@@ -47535,3 +47535,87 @@ Owner requested More actions toggles “Hide 0-weight teacher” and “Hide 0-w
 UI brief: production Gradebook More actions/Pattern Lab gradebook-compact reference; extend toolbar/display preferences/classroom setting, reuse shared menu semantics and StudentGradesView. Teacher+student production owners, desktop1440/mobile390, light/dark, default/open/checked and all four toggle combinations PASS in16 Playwright captures under output/playwright/gradebook-zero-weight; Escape returns focus, no page overflow, student grade unchanged. No new shared visual pattern or promotion; no unrelated refactor. Composite checklist reviewed, semantic tests and keyboard coverage pass. Targeted behavior115 tests and previously failing Gallery87 tests PASS with bounded workers; architecture/UI/design policies PASS.
 
 Migration266 only extends the dormant metadata writer allowlist and preserves omitted student setting, retaining238 publication/ownership/lifecycle guards, signature and ACLs. Active legacy metadata supports the JSON setting without schema rollout;266 must precede enabling the dormant writer with this app. SQL rollback harness expanded; no canonical local/production migration applied. Initial broad check exposed finite265 proof inventories and concurrent Gallery timeouts; one GPT6.1-sol/high read-only worker mapped the eight exact profile consumers. Coordinator verified map and adds fixed filename/hash/bytes266 admission, retained historical profiles and future-tail/mutation tests. Worker effective model/time/token telemetry unknown; no edits delegated. Weekly99% remaining at startup; storage healthy. Final focused checks, fixed-SHA independent review and CI evidence follow in PR/lifecycle log. No merge, release, activation or migration application authorized.
+
+<!-- pika-session-log-archive-batch:c350d42137bec445b60ad2b836a258e27c77f9141a738cb126fc2fb81b11e712 -->
+## 2026-10-15 — Test publication date menus
+
+Owner requested Publish today / Schedule test instead of the standalone date field, a published-date menu for changes/valid Unpublish, and future Tests hidden from the student Tests list while remaining on Calendar. Implemented one feature-owned control in selected workspace and authoring, reusing the existing menu, date-save acknowledgement and publication/unpublish APIs. Access remains separately teacher-controlled. Worked Tests cannot ordinarily move into the future; manual open access and submitted/returned work stay visible. Added Toronto-midnight reveal, friendly scheduled Calendar selections, editor-save and owner-change guards. No schema, migration, dependency or scheduler changes.
+
+Validation: focused --base origin/main --max-workers 2 PASS 1214 tests/78 files, architecture/UI/design/TypeScript/lint PASS; Pika audit PASS. Playwright 8/8 teacher/student × desktop/mobile × light/dark PASS, plus teacher flow after nonvisual owner/closing safeguards PASS. Screenshots inspected against Pattern Lab controls; artifacts output/playwright/test-publication-date and test-publication-date-guard. Composite checklist reviewed; keyboard/focus and semantic states covered; no manual follow-up. Initial unconstrained runs hit existing markdown/reorder timing failures, each passed isolated; bounded final suite passed. Browser regression caught and fixed editor Unpublish eligibility and post-success navigation.
+
+Coordinator branch codex/test-publish-date from 0009d60ee. GPT-6.1-Sol/high worker supplied contract investigation and student filtering; its 71 tests/3 files were accepted and integrated without student-slice corrections. Per-worker tokens/active time and coordinator attribution unknown; account weekly remaining 94% at start, 92% before review (shared account, no task-cost inference). Storage healthy ~319 GB; DeepSeek paused. Draft-first independent review/CI receipts belong to this PR lifecycle. No main merge or production operation authorized/performed.
+
+Post-review failure check reproduced Cancel retaining a failed date for close-time retry (two PATCHes). Cancel/Escape now reset the pending date to its acknowledged value. Regression RED then GREEN; updated focused1215/78 and all static checks PASS, audit PASS, browser8/8 PASS with failed-save captures in all four role/theme viewport combinations (teacher and student scenarios per project). Artifacts: output/playwright/test-publication-date-cancellation. Initial CI38749335978 cancelled while draft for this correction; one batched correction and targeted independent follow-up, with receipts in PR1599 lifecycle.
+
+CI38750707277 exposed two existing browser contracts still using the former Publish/More-actions paths (four dark-project failures, 191 passes). PR returned to draft and the remaining obsolete run cancelled. Updated publication/unpublication contracts to exercise Publish today with the Toronto date PATCH and date-menu Unpublish; aligned the existing exam-mode scenario too. All eight targeted experience-matrix cases PASS across desktop/mobile and light/dark; no product-code change in this correction.
+
+Synced main0cfcc47cc (optional student-table gridlines). Only archive append markers conflicted; retained both archive batches/content. Test workspace/gridline source and component coverage merged automatically. Final merged-head validation and CI remain required; no merge to main or production operation.
+
+Latest sync includes main5e71c54fd and its Gradebook updates. All our archived entries already exist on main (normalized content checked), so retained the canonical main archive without duplicate appends. Test publication source unchanged by this second sync. No migration application or production operation.
+
+<!-- pika-session-log-archive-batch:0d0126e00c15bb09a5980b0d4bda3afc899a17a0ea199362b45b07403330ca28 -->
+## 2026-10-15 — Student-table gridlines toggle
+
+Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
+selected Assignment/Test grading, Gradebook and the teacher dashboard matrix.
+Reused checked work-surface menus and DataTable dividers; Gradebook uses cell
+borders for its border-separated matrix and existing saved display preferences.
+Other screens retain per-page display state. Risk profile: none.
+Reference: Attendance table canon and Pattern Lab production Gradebook owners.
+Teacher desktop/mobile, light/dark, off/on/menu and keyboard focus verified by
+Playwright: 24 surface/viewport/theme cases. Student role n/a (teacher tables only).
+Captures/repro scripts: output/playwright/gridlines* (ignored, synthetic data).
+Composite checklist reviewed; checked semantics, keyboard/focus and persistence
+covered by component regressions. No new primitive or experimental pattern.
+Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
+verified against source, no worker corrections or conflicts; tokens/time unknown.
+Weekly usage at start: 1% used; storage healthy (~328 GB available).
+
+<!-- pika-session-log-archive-batch:5bf5146ee346f46bf508ed64b75016192d25948614d25ad6ff74de49f2280704 -->
+## 2026-10-15 — PR1596 CI diagnosis and snapshot repair
+
+Reviewed Linux CI and local Darwin Pattern Lab image differences: only the
+Assignment artifact table's intended two divider removals and resulting 2px
+vertical shift. Updated desktop/mobile light/dark baselines for both platforms.
+SDK normal proof failed after its matrix with cleanup-only evidence; existing
+output discarded the failing cleanup stage. Added fixed-label cleanup diagnostics
+and canonical-field names with redaction/accessor tests; no execution, budget,
+comparison or teardown guard changed. Offline proof suites120PASS (3RED→GREEN).
+Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementation;
+no worker edits or conflicts, attributable time/tokens unknown. Next: independent
+delta review, clean fixed-SHA native reproduction, actual cleanup correction if
+needed, final CI and authorized main merge. PR remains draft; heartbeat paused.
+
+<!-- pika-session-log-archive-batch:193ad45ee8eceb9989c7b9e0d8c3aa3c3dff5cffdced89a790649abd9ad54a09 -->
+## 2026-10-15 — PR1596 Assignment child-dialog focus correction
+
+Hosted diagnostic CI38742184503 passed updated Pattern Lab snapshots but exposed
+AssignmentModal's delayed title focus racing Schedule Release. Deterministic
+fake-timer regression reproduced the title stealing focus at100ms. Extend the
+existing title-focus guard to scheduling/post/revert child dialogs; shared
+ModalLayer/DialogPanel focus ownership remains unchanged.41component testsPASS,
+new regressionRED→GREEN. Real browser pending-timer/escape verificationPASS in
+teacher desktop/mobile×light/dark; screenshots inspected. Student n/a.
+Reference: shared nested-dialog focus contract; reuse ModalLayer/DialogPanel,
+extend feature-owned focus guard. Composite focus/keyboard checklist reviewed.
+Hosted c1139b535 diagnostic CI38742184503 passed all24installed-SDK cases,
+SQL/races, normal exact teardown/canonical equality and both forced cleanup
+cases. Original cleanup-only failure did not reproduce; exact cause unknown,
+new fixed-label diagnostics retained. Superseded diagnostic cancelled after
+this evidence, before final PR CI; no guard/budget/comparison weakened.
+Rebased onto main0009d60ee (#1597); resolve Gradebook preference/reference
+conflicts by retaining both zero-weight filters and gridlines. Range-diff confirms
+only those integration lines and continuity archive markers differ. Four snapshot
+checks and four teacher desktop/mobile×light/dark combined preference/browser
+casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
+Review ledger retains3launches/2batches; final integration review/CI remain gates.
+
+<!-- pika-session-log-archive-batch:503c5f10b5c63a344e966689be9e49ac4e2e76cb16e53e7082b5645f5070e9d8 -->
+## 2026-10-15 — Shared compact zero-weight assessments
+
+- User follow-up replaces #1597's two hide actions with one **Compact 0-weight assessments**, default on. New branch `codex/gradebook-compact-zero-weight` from main `0cfcc47cc`; previous feature/release #1597/#1598 already complete.
+- Extend existing toolbar/table/inspector and student Grades/returned-marks owners. All zero-weight work stays visible, muted and compact; off restores regular presentation. Ignore retired teacher preference/student hide flag. Shared classroom JSON setting preserves old clients and unrelated updates; migration267 prepares dormant metadata RPC compatibility without applying SQL or activating flags.
+- UI brief: `docs/guidance/ui/changes/gradebook-compact-zero-weight.md`. Composite checklist reviewed: semantic checked state, Enter activation, Escape/focus return covered; 44px primary actions maintained. Both roles, desktop/mobile, light/dark, compact/expanded verified in 36 Playwright captures. Mobile desktop-table fixture additionally unfreezes/scrolls to zero column; actual mobile presentation is the inspector.
+- Local targeted checks: persistence 770 tests/12 files, student 93/7, teacher/editor/surface 84/4 PASS. TypeScript, lint (existing warnings), UI/design policy and audit PASS. Broad focused run: 6124 passed with one unchanged proof test timing out at5s; its equivalent ID-disjointness assertion now uses Set membership (no relaxed timeout/criteria), all109 file tests PASS. Final focused rerun pending at this entry.
+- Orchestration: two bounded implementation workers requested GPT-6.1-sol/high; effective config and per-worker tokens/active time unknown. Both delivered verified, zero integration conflicts; third bounded visual turn inspected36 captures. Weekly allowance at start90% remaining; storage healthy ~315GB free. Development review planned standard risk, one GPT-6.1-sol/high full-diff wave; ledger0 launches/0 fix batches before publication, cap7 launches/4 batches/60min.
+- Evidence: `~/.codex/artifacts/pika/gradebook-compact-zero-weight/`; reviewed-head/PR/check receipts to be recorded there and in lifecycle metrics. No merge/deploy for this follow-up yet; old heartbeat remains paused.

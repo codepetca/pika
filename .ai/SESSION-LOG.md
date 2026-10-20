@@ -11,85 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Test publication date menus
-
-Owner requested Publish today / Schedule test instead of the standalone date field, a published-date menu for changes/valid Unpublish, and future Tests hidden from the student Tests list while remaining on Calendar. Implemented one feature-owned control in selected workspace and authoring, reusing the existing menu, date-save acknowledgement and publication/unpublish APIs. Access remains separately teacher-controlled. Worked Tests cannot ordinarily move into the future; manual open access and submitted/returned work stay visible. Added Toronto-midnight reveal, friendly scheduled Calendar selections, editor-save and owner-change guards. No schema, migration, dependency or scheduler changes.
-
-Validation: focused --base origin/main --max-workers 2 PASS 1214 tests/78 files, architecture/UI/design/TypeScript/lint PASS; Pika audit PASS. Playwright 8/8 teacher/student × desktop/mobile × light/dark PASS, plus teacher flow after nonvisual owner/closing safeguards PASS. Screenshots inspected against Pattern Lab controls; artifacts output/playwright/test-publication-date and test-publication-date-guard. Composite checklist reviewed; keyboard/focus and semantic states covered; no manual follow-up. Initial unconstrained runs hit existing markdown/reorder timing failures, each passed isolated; bounded final suite passed. Browser regression caught and fixed editor Unpublish eligibility and post-success navigation.
-
-Coordinator branch codex/test-publish-date from 0009d60ee. GPT-6.1-Sol/high worker supplied contract investigation and student filtering; its 71 tests/3 files were accepted and integrated without student-slice corrections. Per-worker tokens/active time and coordinator attribution unknown; account weekly remaining 94% at start, 92% before review (shared account, no task-cost inference). Storage healthy ~319 GB; DeepSeek paused. Draft-first independent review/CI receipts belong to this PR lifecycle. No main merge or production operation authorized/performed.
-
-Post-review failure check reproduced Cancel retaining a failed date for close-time retry (two PATCHes). Cancel/Escape now reset the pending date to its acknowledged value. Regression RED then GREEN; updated focused1215/78 and all static checks PASS, audit PASS, browser8/8 PASS with failed-save captures in all four role/theme viewport combinations (teacher and student scenarios per project). Artifacts: output/playwright/test-publication-date-cancellation. Initial CI38749335978 cancelled while draft for this correction; one batched correction and targeted independent follow-up, with receipts in PR1599 lifecycle.
-
-CI38750707277 exposed two existing browser contracts still using the former Publish/More-actions paths (four dark-project failures, 191 passes). PR returned to draft and the remaining obsolete run cancelled. Updated publication/unpublication contracts to exercise Publish today with the Toronto date PATCH and date-menu Unpublish; aligned the existing exam-mode scenario too. All eight targeted experience-matrix cases PASS across desktop/mobile and light/dark; no product-code change in this correction.
-
-Synced main0cfcc47cc (optional student-table gridlines). Only archive append markers conflicted; retained both archive batches/content. Test workspace/gridline source and component coverage merged automatically. Final merged-head validation and CI remain required; no merge to main or production operation.
-
-Latest sync includes main5e71c54fd and its Gradebook updates. All our archived entries already exist on main (normalized content checked), so retained the canonical main archive without duplicate appends. Test publication source unchanged by this second sync. No migration application or production operation.
-
-## 2026-10-15 — Student-table gridlines toggle
-
-Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
-selected Assignment/Test grading, Gradebook and the teacher dashboard matrix.
-Reused checked work-surface menus and DataTable dividers; Gradebook uses cell
-borders for its border-separated matrix and existing saved display preferences.
-Other screens retain per-page display state. Risk profile: none.
-Reference: Attendance table canon and Pattern Lab production Gradebook owners.
-Teacher desktop/mobile, light/dark, off/on/menu and keyboard focus verified by
-Playwright: 24 surface/viewport/theme cases. Student role n/a (teacher tables only).
-Captures/repro scripts: output/playwright/gridlines* (ignored, synthetic data).
-Composite checklist reviewed; checked semantics, keyboard/focus and persistence
-covered by component regressions. No new primitive or experimental pattern.
-Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
-verified against source, no worker corrections or conflicts; tokens/time unknown.
-Weekly usage at start: 1% used; storage healthy (~328 GB available).
-
-## 2026-10-15 — PR1596 CI diagnosis and snapshot repair
-
-Reviewed Linux CI and local Darwin Pattern Lab image differences: only the
-Assignment artifact table's intended two divider removals and resulting 2px
-vertical shift. Updated desktop/mobile light/dark baselines for both platforms.
-SDK normal proof failed after its matrix with cleanup-only evidence; existing
-output discarded the failing cleanup stage. Added fixed-label cleanup diagnostics
-and canonical-field names with redaction/accessor tests; no execution, budget,
-comparison or teardown guard changed. Offline proof suites120PASS (3RED→GREEN).
-Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementation;
-no worker edits or conflicts, attributable time/tokens unknown. Next: independent
-delta review, clean fixed-SHA native reproduction, actual cleanup correction if
-needed, final CI and authorized main merge. PR remains draft; heartbeat paused.
-
-## 2026-10-15 — PR1596 Assignment child-dialog focus correction
-
-Hosted diagnostic CI38742184503 passed updated Pattern Lab snapshots but exposed
-AssignmentModal's delayed title focus racing Schedule Release. Deterministic
-fake-timer regression reproduced the title stealing focus at100ms. Extend the
-existing title-focus guard to scheduling/post/revert child dialogs; shared
-ModalLayer/DialogPanel focus ownership remains unchanged.41component testsPASS,
-new regressionRED→GREEN. Real browser pending-timer/escape verificationPASS in
-teacher desktop/mobile×light/dark; screenshots inspected. Student n/a.
-Reference: shared nested-dialog focus contract; reuse ModalLayer/DialogPanel,
-extend feature-owned focus guard. Composite focus/keyboard checklist reviewed.
-Hosted c1139b535 diagnostic CI38742184503 passed all24installed-SDK cases,
-SQL/races, normal exact teardown/canonical equality and both forced cleanup
-cases. Original cleanup-only failure did not reproduce; exact cause unknown,
-new fixed-label diagnostics retained. Superseded diagnostic cancelled after
-this evidence, before final PR CI; no guard/budget/comparison weakened.
-Rebased onto main0009d60ee (#1597); resolve Gradebook preference/reference
-conflicts by retaining both zero-weight filters and gridlines. Range-diff confirms
-only those integration lines and continuity archive markers differ. Four snapshot
-checks and four teacher desktop/mobile×light/dark combined preference/browser
-casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
-Review ledger retains3launches/2batches; final integration review/CI remain gates.
-
-## 2026-10-15 — Shared compact zero-weight assessments
-
-- User follow-up replaces #1597's two hide actions with one **Compact 0-weight assessments**, default on. New branch `codex/gradebook-compact-zero-weight` from main `0cfcc47cc`; previous feature/release #1597/#1598 already complete.
-- Extend existing toolbar/table/inspector and student Grades/returned-marks owners. All zero-weight work stays visible, muted and compact; off restores regular presentation. Ignore retired teacher preference/student hide flag. Shared classroom JSON setting preserves old clients and unrelated updates; migration267 prepares dormant metadata RPC compatibility without applying SQL or activating flags.
-- UI brief: `docs/guidance/ui/changes/gradebook-compact-zero-weight.md`. Composite checklist reviewed: semantic checked state, Enter activation, Escape/focus return covered; 44px primary actions maintained. Both roles, desktop/mobile, light/dark, compact/expanded verified in 36 Playwright captures. Mobile desktop-table fixture additionally unfreezes/scrolls to zero column; actual mobile presentation is the inspector.
-- Local targeted checks: persistence 770 tests/12 files, student 93/7, teacher/editor/surface 84/4 PASS. TypeScript, lint (existing warnings), UI/design policy and audit PASS. Broad focused run: 6124 passed with one unchanged proof test timing out at5s; its equivalent ID-disjointness assertion now uses Set membership (no relaxed timeout/criteria), all109 file tests PASS. Final focused rerun pending at this entry.
-- Orchestration: two bounded implementation workers requested GPT-6.1-sol/high; effective config and per-worker tokens/active time unknown. Both delivered verified, zero integration conflicts; third bounded visual turn inspected36 captures. Weekly allowance at start90% remaining; storage healthy ~315GB free. Development review planned standard risk, one GPT-6.1-sol/high full-diff wave; ledger0 launches/0 fix batches before publication, cap7 launches/4 batches/60min.
-- Evidence: `~/.codex/artifacts/pika/gradebook-compact-zero-weight/`; reviewed-head/PR/check receipts to be recorded there and in lifecycle metrics. No merge/deploy for this follow-up yet; old heartbeat remains paused.
-
 ## 2026-10-16 — Daily row hover synchronization
 - `codex/daily-row-hover`: removed the row-only color transition so First/Last/ID/Log and opaque sticky attendance cells highlight together; existing Daily/Attendance pattern reused, no new component or pattern. Teacher-only; student n/a. Risk profile: none.
 - Playwright reproduced the old fade frame by frame, then verified immediate matching colors on rapid row changes. Selected/unselected Daily scenario passed desktop 1440x900 and mobile 390x844, light/dark (4/4); screenshots inspected under `output/playwright/daily-hover` and `test-results`. Pattern Lab page mockups inspected as reference.
@@ -683,3 +604,79 @@ before this correction. All40 focused/classifier tests and root combined2,498/94
 focused checks plus policies, TypeScript, lint and audit pass. No workflow,
 application, schema, dependency, native capability or activation change. Targeted
 review and exact-head CI are still required; production and rollout stay held.
+
+## 2026-10-19 — Prepare contextual owner attendance-policy read
+
+Prepared admitted GET-only attendance settings with one bounded service-only273
+snapshot: current owner, lifecycle fences, unchanged attendance entitlement or
+exact canary and the existing nullable policy DTO. Legacy GET/PUT remain intact.
+Invoker gains only decommission classroom-id SELECT; provider columns/writes stay
+revoked. No provider or UI change. Feature76 checks and hardened SQL-source5,
+native-leaf15, CI/source22 and predecessor-profile1,123 checks pass (overlapping
+counts, not summed); architecture, targeted lint and shell syntax pass. Genuine
+273 metadata is pending; the only two TypeScript errors are its missing generated
+RPC keys, not hidden by casts. This source preparation is not native acceptance,
+PR readiness, a phase exit or rollout. All production/shared-local/real-state and
+activation holds persist. Sol6.1/high supplied bounded product, native leaf and
+existing-runner extension; coordinator owns integration/review and acceptance.
+
+## 2026-10-19 — Complete attendance fixture graph preservation
+
+Independent review found omitted trigger-created membership generations in the
+native fixture. Complete synthetic and untargeted row partitions now include
+generations and three conditional Free-plan/audit tables, with retained-identity
+collision checks. Existing witness positively requires exactly two active,
+scope-bound generations; zero/one/three are rejected. Six drift regressions failed
+before correction; all26 leaf checks and lint pass. Real triggers, seven frames,
+sixteen HTTP calls and original bounds remain unchanged. Source-only remediation:
+genuine metadata and fresh isolated runtime/preservation acceptance are pending.
+No product permission, migration body, provider or activation change.
+
+## 2026-10-19 — Keep attendance hot-fence fixture eligible for purge admission
+
+The first isolated273 proof failed in SQLcontract before generation or HTTP.
+Immediate independent source/dependency preservation and zero-process observation
+pass; exact isolated containers/volumes/network and temporary directory are absent.
+The failed attempt and evidence remain spent. Source diagnosis found the suite
+inserted a hot purge operation after adding attendance state, which the real127
+decommission trigger correctly rejects. Use a separate owner-owned attendance-free
+class for this fence assertion, without bypassing the trigger. A source regression
+checks that predecessor prerequisite;12 focused tests, lint and audit pass.
+Missing failure diagnostics prevent proving this was the first observed error.
+Independent review and a new bounded proof remain required. Production and shared
+local migration, provider, account and rollout holds are unchanged.
+
+## 2026-10-19 — Resolve the actual temporary schema for rollback helper usage
+
+The fresh corrected-fixture proof failed before HTTP with fixed command/3F000
+diagnostics. PostgreSQL17's GRANT resolves literal namespace names, unlike object
+lookup's pg_temp alias. The rollback suite now contains the original alias failure
+in an expected-error subtransaction, resolves only pg_my_temp_schema's actual
+catalog identity, and safely quotes that name for the session-only USAGE grant.
+Function client revocations, service-only execution and all production grants are
+unchanged. Source regression failed before correction;9 affected checks and lint
+pass. This is not yet real PostgreSQL regression acceptance. Original failed
+attempts remain spent; immediate FIRST and exact resource absence pass for both.
+Independent review and a new bounded isolated proof remain required; all holds stay.
+
+## 2026-10-19 — Complete isolated attendance owner-policy proof
+
+Fresh Bg888j actual proof passes complete001–273 replay, rollback SQL including
+the temporary-schema regression, genuine273 metadata and16 RPC reads:13 actual
+adapter plus3 exact-canary.64actions/1325controls/41887666bytes/max1final0sessions
+stay within original caps. Complete fixture/complement restoration, canonical
+read-only equality and positive owned/global cleanup pass. Immediate FIRST before
+any post-run changes preserves7853source/98970dependency files with zero matching
+processes; separate exact Docker/workdir absence passes. Earlier failures/spent
+records remain unchanged. Generated273 bytes installed exactly (SHA32368aa8ad6c),
+only the new RPC over prior272; full TypeScript now passes without casts.
+Full focused checks exposed two CI wiring omissions: closed local DB inventory
+and canonical workflow-test list. Exact54-proof current and53-proof historical
+profiles, once-only command/order and87-proof lifecycle lane are retained;
+369 affected/related tests pass. Final current-main focused checks and independent
+metadata/evidence/integration review remain before PR readiness. Native source
+reviews279–285 retained; no repeated runtime needed for metadata/docs/base sync.
+Owner selected current-membership-only learner attendance with older records and
+overrides preserved for the classroom owner; member integration remains future.
+PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
+Production/shared-local249+/provider/account/billing/AI/activation holds remain.
