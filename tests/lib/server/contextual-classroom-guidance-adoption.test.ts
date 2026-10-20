@@ -62,6 +62,17 @@ describe('contextual complete-source canonical save and atomic guidance adoption
   })
   it.each(['source', 'writer'] as const)('sanitizes%s transport failure and makes no retry', async phase => { (phase === 'source' ? readResult : writeResult).mockRejectedValue(Error('private source credentials')); await expect(run()).rejects.toMatchObject({ statusCode: 503, message: expect.not.stringContaining('private') }); expect(rpc).toHaveBeenCalledTimes(phase === 'source' ? 1 : 2) })
   it('rejects a mismatched SQL status/code rather than promoting a generic failure', async () => { readResult.mockResolvedValue({ data: null, error: { code: 'PT403', message: 'class_guidance_adoption_forbidden', details: null, hint: null }, status: 500, statusText: 'Error', count: null }); await expect(run()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce() })
+  it('sanitizes recursive source-codec exceptions before the writer without changing persisted JSON', async () => {
+    const row = source(), nested: Record<string, unknown> = {}
+    let cursor = nested
+    for (let depth = 0; depth < 3000; depth++) { const next = {}; cursor.raw = next; cursor = next }
+    row.source.blueprint.planned_site_config = nested
+    expect(Buffer.byteLength(JSON.stringify(envelope(row)))).toBeLessThan(cap)
+    readResult.mockResolvedValue(envelope(row))
+    await expect(run()).rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify classroom guidance adoption' })
+    expect(rpc).toHaveBeenCalledOnce(); expect(writeResult).not.toHaveBeenCalled()
+    expect(row.source.blueprint.planned_site_config).toBe(nested)
+  })
   it.each([{ ...input, expected_draft_revision: '9' }, { ...input, expected_draft_revision: Number.MAX_SAFE_INTEGER + 1 }, { ...input, snapshot: {} }])('rejects invalid/server-owned input%# before any RPC', async value => { await expect(run(value)).rejects.toMatchObject({ statusCode: 400 }); expect(rpc).not.toHaveBeenCalled() })
   it('normalizes UUID case before database parameters and rejects malformed identity', async () => { await expect(run(input, 'bad')).rejects.toMatchObject({ statusCode: 400 }); expect(rpc).not.toHaveBeenCalled(); await run({ ...input, blueprint_id: blueprint.toUpperCase() }, actor.toUpperCase(), classroom.toUpperCase()); expect(rpc.mock.calls[0]).toEqual(['read_classroom_guidance_adoption_source_v1', expectedArgs]) })
   it.each([0, 1])('checks exact UTF8 source transport bound plus%i without truncation', async extra => { const row = source(); const available = cap + extra - Buffer.byteLength(JSON.stringify(envelope(row))); row.source.blueprint.overview_markdown = 'é'.repeat(Math.floor(available / 2)) + (available % 2 ? 'x' : ''); expect(Buffer.byteLength(JSON.stringify(envelope(row)))).toBe(cap + extra); readResult.mockResolvedValue(envelope(row)); if (extra) { await expect(run()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce() } else expect(await run()).toEqual({ version: 3 }) })

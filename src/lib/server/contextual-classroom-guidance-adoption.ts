@@ -46,7 +46,9 @@ export async function adoptContextualClassroomGuidance(input: {
     if (!withinWire(response)) throw unavailable()
   } catch { throw unavailable() }
   checkFailure(response)
-  const source = contextualClassroomGuidanceAdoptionSourceSuccessSchema.safeParse(response)
+  // Recursive persisted JSON can throw while decoding, even within the byte bound.
+  let source: ReturnType<typeof contextualClassroomGuidanceAdoptionSourceSuccessSchema.safeParse>
+  try { source = contextualClassroomGuidanceAdoptionSourceSuccessSchema.safeParse(response) } catch { throw unavailable() }
   if (!source.success) throw unavailable()
   const row = source.data.data, classroom = row.classroom, blueprint = row.source.blueprint
   if (row.actor_id !== query.actorId || row.classroom_id !== query.classroomId || classroom.id !== query.classroomId
