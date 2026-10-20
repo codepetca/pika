@@ -64,17 +64,17 @@ describe('inert recovery proof and exact selected-work projections', () => {
   })
 })
 
-describe('recovery current274 sealed source profile',()=>{
+describe('recovery current275 sealed source profile',()=>{
   const observed=Object.freeze([1,2].map(i=>Object.freeze({actorId:f.actors[i].id,attemptId:randomUUID(),revision:1})))
   const nativePlan=()=>testOwnerRecoveryNativePlan(original,observed,'a'.repeat(40),process.cwd())
-  it('retains the complete current274 tail',()=>{expect(nativePlan().migrations).toHaveLength(274)})
-  it.each(['name','digest','bytes','self-hashed-bytes','unknown275'])('refuses changed268 or future tail %s',defect=>{
+  it('retains the complete current275 tail',()=>{expect(nativePlan().migrations).toHaveLength(275)})
+  it.each(['name','digest','bytes','self-hashed-bytes','unknown276'])('refuses changed268 or future tail %s',defect=>{
     const migrations=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m})),tail=migrations[267]
     if(defect==='name')tail.name='268_unknown.sql'
     if(defect==='digest')tail.sha256='f'.repeat(64)
     if(defect==='bytes'||defect==='self-hashed-bytes')tail.sql+='\n'
     if(defect==='self-hashed-bytes')tail.sha256=createHash('sha256').update(tail.sql).digest('hex')
-    if(defect==='unknown275')migrations.push({name:'275_unknown.sql',sql:'select 1;',sha256:createHash('sha256').update('select 1;').digest('hex')})
+    if(defect==='unknown276')migrations.push({name:'276_unknown.sql',sql:'select 1;',sha256:createHash('sha256').update('select 1;').digest('hex')})
     const loader=vi.spyOn(platform,'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
     try {expect(nativePlan).toThrow()}finally{loader.mockRestore()}
   })

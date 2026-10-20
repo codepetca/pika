@@ -118,6 +118,9 @@ const outboxRowsSchema = z.array(z.object({
   lease_expires_at: instantSchema.nullable(), updated_at: instantSchema,
 }).strict())
 
+export const teacherAttendanceSnapshotRowsSchema = z.object({ participants: participantRowsSchema, occurrence: occurrenceRowSchema, policy: policyRowSchema,
+  session: sessionRowSchema, check_ins: checkInRowsSchema, overrides: overrideRowsSchema, outbox: outboxRowsSchema }).strict()
+
 export class TeacherAttendanceViewReadError extends Error {
   constructor(readonly code: 'migration_required' | 'read_failed' | 'invalid_projection') {
     super(code)
@@ -191,12 +194,6 @@ export async function loadTeacherAttendanceView(input: {
     })
   }
   const occurrenceRow = occurrence.data
-  const acceptsAt = occurrenceRow.opens_at!
-  const stopsAcceptingAt = occurrenceRow.closes_at!
-  const sessionStartsAt = occurrenceRow.session_starts_at!
-  const sessionEndsAt = occurrenceRow.session_ends_at!
-  const presentThroughAt = occurrenceRow.present_through_at!
-  const absentAt = occurrenceRow.absent_at!
   const [sessionResult, checkInsResult, overridesResult, outboxResult] = await Promise.all([
     selectMaybeOne(input.supabase, 'attendance_session_projection',
       'occurrence_ref, status, opens_at, closes_at, session_revision, updated_at',
@@ -212,10 +209,37 @@ export async function loadTeacherAttendanceView(input: {
       .eq('classroom_id', input.classroomId).in('status', ['pending', 'processing', 'non_retryable']),
   ])
   for (const result of [sessionResult, checkInsResult, overridesResult, outboxResult]) if (result.error) readError(result.error)
-  const session = sessionRowSchema.safeParse(sessionResult.data ?? null)
-  const checkIns = checkInRowsSchema.safeParse(checkInsResult.data ?? [])
-  const overrides = overrideRowsSchema.safeParse(overridesResult.data ?? [])
-  const outbox = outboxRowsSchema.safeParse(outboxResult.data ?? [])
+  return buildTeacherAttendanceViewFromSnapshot({
+    classroomId: input.classroomId, classDate: input.classDate, integration: input.integration, students,
+    rows: { participants: participants.data, occurrence: occurrenceRow, policy: policy.data,
+      session: sessionResult.data ?? null, check_ins: checkInsResult.data ?? [], overrides: overridesResult.data ?? [], outbox: outboxResult.data ?? [] },
+  })
+}
+
+/** Feature-owned raw snapshot codec; no provider identifiers cross the DTO. */
+export function buildTeacherAttendanceViewFromSnapshot(input: {
+  classroomId: string; classDate: string; integration: TeacherAttendanceView['integration'];
+  students: BuildTeacherAttendanceViewInput['students']; rows: unknown; now?: string
+}): TeacherAttendanceView {
+  const parsed = teacherAttendanceSnapshotRowsSchema.safeParse(input.rows)
+  if (!parsed.success) throw new TeacherAttendanceViewReadError('invalid_projection')
+  const rows = parsed.data, students = input.students
+  if (input.integration !== 'ready') return buildTeacherAttendanceView({
+    classroomId: input.classroomId, classDate: input.classDate, integration: input.integration, students, occurrence: null, sessionProjection: null, now: input.now,
+  })
+  const occurrenceRow = rows.occurrence
+  if (!occurrenceRow?.opens_at || !occurrenceRow.closes_at || !occurrenceRow.session_starts_at
+    || !occurrenceRow.session_ends_at || !occurrenceRow.present_through_at || !occurrenceRow.absent_at) return buildTeacherAttendanceView({
+      classroomId: input.classroomId, classDate: input.classDate, integration: rows.policy?.enabled ? 'ready' : 'not_configured',
+      students, occurrence: null, sessionProjection: null, now: input.now,
+    })
+  const acceptsAt = occurrenceRow.opens_at, stopsAcceptingAt = occurrenceRow.closes_at,
+    sessionStartsAt = occurrenceRow.session_starts_at, sessionEndsAt = occurrenceRow.session_ends_at,
+    presentThroughAt = occurrenceRow.present_through_at, absentAt = occurrenceRow.absent_at
+  const session = sessionRowSchema.safeParse(rows.session)
+  const checkIns = checkInRowsSchema.safeParse(rows.check_ins)
+  const overrides = overrideRowsSchema.safeParse(rows.overrides)
+  const outbox = outboxRowsSchema.safeParse(rows.outbox)
   if (!session.success || !checkIns.success || !overrides.success || !outbox.success) {
     throw new TeacherAttendanceViewReadError('invalid_projection')
   }
@@ -226,7 +250,7 @@ export async function loadTeacherAttendanceView(input: {
   let failedSessionCommand = false
   const isPending = (row: z.infer<typeof outboxRowsSchema>[number]) => row.status === 'pending'
     || (row.status === 'processing' && row.lease_expires_at !== null
-      && Date.parse(row.lease_expires_at) > Date.now())
+      && Date.parse(row.lease_expires_at) > (input.now ? Date.parse(input.now) : Date.now()))
   for (const row of outbox.data) {
     const validation = validateV1Message(row.payload)
     if (!validation.ok || validation.value.message_type !== row.message_type) {
@@ -277,7 +301,7 @@ export async function loadTeacherAttendanceView(input: {
       .filter((fact) => !fact.invalidated_at && failedCheckInRefs.has(fact.check_in_ref))
       .map((fact) => fact.student_id),
     pendingSessionCommand,
-    failedSessionCommand,
+    failedSessionCommand, now: input.now,
   })
 }
 

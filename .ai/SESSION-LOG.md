@@ -11,61 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Compact selected-test student roster
-
-Task owner: current Codex chat; branch `codex/test-student-table-compact`.
-Teacher grading roster: Pending grading → Ungraded (recorded open response lacks
-score; no AI-job implication), Activity → Seen. Pane container queries prioritize
-selection, First, Last, Access, Seen and Exits below 840px; names truncate, while
-Score/Away/Status and saved resize widths return with space. Status resize moved
-to its left edge to keep the last target inside the table scroll bounds.
-UI brief: reference Attendance density + selected Test roster / Pattern Lab Daily;
-reuse shared table/sort/selection/access/tooltip owners; extend feature-local
-responsive rules. Teacher desktop/split/mobile, both themes; student n/a (teacher
-owner only). Default, long names, ungraded/numeric/empty scores, selected/sorted
-and open inspector covered. Primary signal remains table labels/status; no new
-shared primitive or experimental pattern. Nearby extraction/refactor: none.
-Composite checklist reviewed; existing keyboard/semantic tests retained; compact
-mode hides unavailable resize controls and full width restores them.
-124/124 component tests passed; first focused run hit concurrent-load timeouts;
-repeat with `--max-workers 2` passed963/963. Visual evidence under ignored
-`output/playwright`, deterministic intercepted GETs and blocked writes; no DB
-persistence claim. Final checks/review/SHA recorded in PR and lifecycle metadata.
-Implementation handled directly; one Luna/medium independent full-diff review
-clean at3c6dd36e7. Coordinator then found obsolete mobile Status-sort E2E
-expectations; returned1608 draft, cancelled first CI candidate, updated the
-existing browser scenario for compact columns/Seen sorting, retaining desktop
-Status sorting; all4 desktop/mobile light/dark cases pass (2.6m). One test-only remediation batch and final delta/cumulative
-review planned; final receipts in PR/lifecycle metadata. Weekly remaining44%; storage healthy320GB; attributable
-usage/time unknown. No database, production or merge operations authorized here.
-
-## 2026-10-16 — PR 1608 deterministic workflow tests
-
-Owner request: fix failing tests and make1608 ready to merge; leave unmerged.
-Branch `codex/test-student-table-compact`, continuation from54fcf280a.
-Test-only fixes: delayed-listener regression proves0.3s budget/startup race;
-fixture advances only the tested deadline clock after actual listener work.
-Retry-containment fixture shortens its reconnect wait, retaining real descendant
-and retry assertions. Orphan test waits for leader exit; real signal is delivered
-only after command owns its child, with child/group cleanup assertions retained.
-Python watchdog10s remains; Tart Vitest watchdog15s lets it report failures.
-Multi-worktree promotion fixture uses bounded Git commands and30s outer budget.
-No production runner limits, guards, source/UI, dependencies or SQL changed.
-Red2/3 delayed-start cases reproduced before deadline-clock correction; fixed
-Tart/promotion55/55 pass13s. Focused963/963 and architecture/UI/design/TS/lint
-pass on corrected tree; fixed-SHA delta review next. Original
-UI/browser evidence remains valid (unchanged product blobs, prior4-case pass).
-One Sol6.1/medium read-only diagnosis verified; no edits by worker. Automatic
-DeepSeek remains paused. Weekly41% remaining; storage healthy316GB. Attribution
-of coordinator/worker tokens and active time unknown. PR lifecycle carries final
-review/check/SHA receipts; prior2review turns/1test correction batch retained.
-CI on0c9 passed build, all database/SDK and dark browser lanes; cancelled while
-light browser still running after main1610 merged and conflicted at the table
-frame class. Merge1e471b7f9 retains scrollbar-stable plus container ownership;
-continuity union keeps every unique body once. Updated roster4-case browser
-matrix passes15.6s with both changes. Scrollbar geometry8-case integration passes26.4s (both themes/viewports and
-normal/reduced motion); fresh screenshots inspected. Final focused/delta review follow; no runtime or production change.
-
 ## 2026-10-16 Stable student-table scrollbar space
 
 Task/branch: `codex/student-table-scrollbar`; risk profile `none`. Extend the
@@ -567,3 +512,58 @@ no native execution or source review acceptance is claimed yet. Student owner
 success assumes a pre-existing grant, not the still-teacher-only132 admin flow.
 PR1622 remains in exact-head CI39361093628; no production/shared-local249+/provider/
 real account/billing/AI/admission/home/page/cohort/cutover change is authorized.
+
+## 2026-10-20 — Verify contextual owner attendance day-view reads
+
+Dependent worktree starts from reviewed owner-write218d7b2a; startup/environment
+verified and existing dependencies reused. Prepared275 is service-only, invoker,
+stable: current owner and all roster/day rows share one snapshot and DB clock.
+Archived/runtime-unavailable/unentitled/canary-mismatch owner responses remain
+roster-only; nonowner403 and lifecycle fence503. Pure converter retains existing
+DTO/V1 queue/override/invalidation semantics; legacy GET and every POST unchanged.
+Core Sol6.1/high delivery70tests/9suites and lint pass; two expected missing genuine
+275 metadata references remain, not cast away. Separate Sol6.1/high finite SDK
+leaf covers thirteen actual adapter plus three typed canary requests; source only.
+Root once-only CI/order checks302/5 pass, preserving historical inventories.
+Full-source seal extends exact275 and refuses changed bytes/unknown276; offline
+profile tests expose then correct the missing offline-helper tail, not a relaxed
+validator. No native execution or phase exit claimed. User current-membership-only
+learner rule remains recorded; earlier records preserved for owner, not implemented
+by this owner read. Parent PR1623 exact-head CI39366937586 still running. Production,
+shared-local249+, provider/real-account/billing/AI and activation holds unchanged.
+Weekly remaining93%; storage healthy287GB; per-worker time/tokens unknown.
+Superseding checkpoint: initial security291/compat292 CLEAN. Composition293 found
+pending postguard cleanup bookkeeping; five composed RED cases became GREEN and
+targeted294 accepted the terminal-only reconciliation with closure/caps intact.
+One fresh94934b01/626f6a74 proof passed001–275 replay/rollback, genuine metadata,
+16SDK requests/26SQL/84guards, committed scope/fence denial/restoration and exact
+fixture/complement/canonical/global cleanup.136actions/2224controls/67593566bytes,
+max1session/final0open/uncertain/unsettled. Immediate NEXT TOOL FIRST passed before
+postchecks/copies/edits:7887source/98970dependency files unchanged, zero processes.
+Genuine275443624bytes SHAe29502a2 installed exact after FIRST. PR1623 all ten
+CI39366937586 gates passed; normal squash4f57a94c5 retains reviewed5847tree and
+canonical main fast-forwarded. Clean session rebase949→2ef95168 keeps identical
+84d6tree. Final focused checks pass2610tests/97files plus TypeScript/lint and
+policies, resolving only the two generated275 gaps. Metadata/evidence review
+and session PR/CI remain;
+no production/shared-local249+/provider/activation or learner-history change.
+
+## 2026-10-20 — Correct the CI mail-service exclusion
+
+PR1624 first exact-head CI39370931599 failed on hosted lifecycle-job118458471791
+during initial Supabase startup, before SQL/proofs: mail container could not bind
+54324. Pinned CLI2.103.0 explicitly warned that inbucket is not a valid exclusion
+and listed mailpit as the recognized name. Returned PR to draft before correction;
+that transition cancelled the remaining lanes. No app/SQL failure was observed.
+Minimal fix adds mailpit to the existing seven startup commands and the identical
+local safety binding; old aliases remain to avoid unrelated component changes.
+Two source assertions RED before fix; all273 workflow/local-CI/session-CI checks
+pass after correction, including rejection of the ineffective old command.
+Full focused checks expose four legacy CI command assertions, updated to the
+same recognized exclusion;2611tests/97files plus TypeScript/lint/policies pass.
+Port preflight, cleanup conditions, proof inventories, required jobs and PR Gate
+are unchanged. Targeted CI-only review precedes a new ready SHA;
+no repeat native proof is needed for unchanged app/migration/fixture bytes.
+Existing review/runtime evidence and spent attempts remain immutable; no production,
+shared-local249+, provider, account or activation action. New report child worktree
+is independent source-only work; no migrations applied.

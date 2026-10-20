@@ -588,10 +588,38 @@ and immediate independent source/dependency/zero-process preservation passed.
 Original bounds retained:139actions,2218controls,67657342bytes,16HTTP,max2sessions,
 final0open/uncertain/unsettled. Genuine274 metadata adds only the new RPC over273;
 full current-main checks pass2628tests/98files plus TypeScript/lint and policies.
-Final independent metadata/evidence review and exact-head CI remain merge gates.
+Final independent metadata/evidence review and all ten exact-head CI gates passed;
+PR1623 normally squash-merged to main4f57a94c5 on2026-10-20 Toronto with the
+reviewed tree unchanged. Canonical clean main is fast-forwarded; no deployment.
 Shared-local and production migration/application, provider and activation holds
 remain. This is not learner-history integration, wider attendance/provider or
 batch3 exit, nor authorization to activate the cutover.
+
+The next bounded owner read is GET `/api/teacher/attendance/session`. Prepared275
+and its admitted adapter bind current ownership, server-owned runtime/scope and
+the complete roster/day projection in one database snapshot. Archived, runtime
+disabled/misconfigured, unentitled and canary-mismatched owners retain their
+existing roster-only response; nonowners disclose no roster and lifecycle fences
+fail closed. The converter retains existing V1 queue validation, overrides,
+invalidations, pending/failure precedence and browser DTO; all POST commands and
+unmatched GET remain legacy. This does not implement learner membership history,
+provide a grant, change provider/principal operations or activate admission.
+One fresh isolated001–275 proof passed rollback SQL (including1004 enrollments),
+genuine metadata generation and sixteen installed-SDK reads: thirteen actual
+adapter calls and three typed canaries, with eight complete DTO commitments.
+All26SQL frames and84guards passed, including committed entitlement/roster/fence
+denials and restoration before a final successful owner read. Full fixture and
+complement preservation, canonical read-only/global-resource equality, positive
+owned teardown and immediate independent source/dependency/zero-process checks
+passed.136actions/2224controls/67593566bytes/16HTTP/max1session/final0open,
+uncertain or unsettled; original limits retained. Initial reviews291/292 and
+targeted composition/remediation reviews293/294 retain one resolved verifier
+cleanup bookkeeping finding, corrected before this first runtime attempt.
+Genuine275 metadata adds only the new RPC over274; identical-source rebase onto
+the policy-write squash retains the exact exercised product tree. Final focused
+checks pass2610tests/97files plus TypeScript/lint and repository policies.
+Independent metadata/evidence review and exact-head CI remain merge gates.
+Shared-local and production holds are unchanged; no learner-history or batch exit.
 
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
