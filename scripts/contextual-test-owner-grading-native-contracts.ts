@@ -47,7 +47,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   // The current native harness asserts265 Return and clear-preservation behavior.
   // Historical source seals remain valid; those schemas cannot execute this proof.
   const inventory=loadAssignmentListReviewedMigrations(repository)
-  assert([265,266,267,268,269,270, 271, 272, 273].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266/267/268/269/270/271/272/273 extensions')
+  assert([265,266,267,268,269,270, 271, 272, 273, 274].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266/267/268/269/270/271/272/273/274 extensions')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
   if(inventory.length>=260)validateTestOwnerRecoveryReviewedMigration(inventory[259])

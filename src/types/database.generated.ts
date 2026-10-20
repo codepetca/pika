@@ -13330,6 +13330,17 @@ export type Database = {
         }
         Returns: Json
       }
+      save_attendance_policy_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_classroom_id: string
+          p_policy: Json
+          p_scope_mode: string
+        }
+        Returns: Json
+      }
       save_course_blueprint_version_atomic: {
         Args: {
           p_blueprint_id: string
