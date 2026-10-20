@@ -94,7 +94,15 @@ describe('focused local checks', () => {
     expect(result.calls).toContainEqual(['run', 'lint'])
   })
 
-  it.each(['workflow', 'related'])('limits only Vitest workers while preserving %s selection and later commands', mode => {
+  // Each real runner invocation starts Git and up to six fake check processes.
+  // Keep default/limited assertions separate so their startup costs do not share
+  // one test deadline, while asserting the complete command list in both modes.
+  it.each([
+    { mode: 'workflow', maxWorkers: undefined },
+    { mode: 'workflow', maxWorkers: '2' },
+    { mode: 'related', maxWorkers: undefined },
+    { mode: 'related', maxWorkers: '2' },
+  ])('preserves $mode selection and later commands with maxWorkers=$maxWorkers', ({ mode, maxWorkers }) => {
     const f = fixture()
     f.write('.git/info/exclude', 'bin/\ncalls.jsonl\n')
     f.write(mode === 'workflow' ? 'docs/change.md' : 'src/components/A panel.tsx')
@@ -103,17 +111,22 @@ describe('focused local checks', () => {
       f.write('scripts/policy.mjs', 'export const policy = 1')
       f.write('tests/unit/policy.test.ts', "import { policy } from '../../scripts/policy.mjs'")
     }
-    const defaultResult = f.run()
-    const limitedResult = f.run(['--max-workers', '2'])
-    expect(defaultResult.status).toBe(0)
-    expect(limitedResult.status).toBe(0)
-    const limitedCalls = limitedResult.calls.slice(defaultResult.calls.length)
-    expect(limitedCalls).toEqual([
-      [...defaultResult.calls[0], '--maxWorkers', '2'],
-      ...defaultResult.calls.slice(1),
+    const result = f.run(maxWorkers === undefined ? [] : ['--max-workers', maxWorkers])
+    expect(result.status, result.output).toBe(0)
+    expect(result.calls).toEqual([
+      ['exec', 'vitest', ...(mode === 'related' ? ['related', '--run'] : ['run']),
+        ...workflowTests,
+        ...(mode === 'related' ? ['tests/components/A panel.test.tsx', 'tests/unit/policy.test.ts',
+          'scripts/policy.mjs', 'src/components/A panel.tsx'] : []),
+        '--reporter=dot', ...(maxWorkers === undefined ? [] : ['--maxWorkers', maxWorkers])],
+      ...(mode === 'related' ? [
+        ['run', 'check:architecture'],
+        ['run', 'check:ui-policy'],
+        ['run', 'check:design-policy'],
+        ['exec', 'tsc', '--noEmit'],
+        ['run', 'lint'],
+      ] : []),
     ])
-    expect(defaultResult.calls.flat()).not.toContain('--maxWorkers')
-    if (mode === 'related') expect(limitedCalls[0]).toContain('scripts/policy.mjs')
   })
 
   it.each([

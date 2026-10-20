@@ -7,8 +7,8 @@ Prod `b95776cb7` LIVE Oct14 19:28Toronto; #1594 CI38650272929 PASS.
 Saved-work AI/reporting, ungraded Return and Gradebook visibility LIVE.
 Week agenda/Test date LIVE; reopening unchanged.
 Login200/me401/gallery404; savings unknown.
-Prod DB001–265 run38653530319 verified;264–265 approval consumed.
-Six bodies/owners/search paths/ACLs PASS; no write canary.
+Prod DB001–282 run39476697299 verified Oct20;266–282 approval consumed.
+47 bodies/ACLs,775 grants,281 RLS/constraints PASS; decommission DB ON.
 Poll reads5→1; fresh auth; admission absent.
 Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 

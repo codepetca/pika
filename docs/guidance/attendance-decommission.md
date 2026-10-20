@@ -53,8 +53,14 @@ recovery, plus real two-session pending-job contention. CPU/source assertions ar
 not database proof. The rollback fixture also chains a fresh, separately gated,
 object-free final Classroom purge and checks retained private history and saved
 status after the parent is gone. This is not Storage/provider erasure evidence.
-No shared-local or production migration, production rollout or live-provider
-acceptance is claimed here. Native results remain required before acceptance.
+Native PostgreSQL 17 proof passed in CI 39458606979. Production migration 281
+was installed with 266–282 on 2026-10-20 under exact owner approval, including
+acknowledgement of the existing deletion path, by rollout 39476697299. Read-only
+checks verified the installed bodies, service-only ACLs, existing trigger
+attachments and the private capability table's RLS/validated constraints. The
+decommission database gate remained enabled. This installation ran no purge,
+write canary or provider call and changed no application/provider rollout gate.
+Shared-local application and fresh live-provider acceptance are not claimed.
 
 ## Sequence
 
