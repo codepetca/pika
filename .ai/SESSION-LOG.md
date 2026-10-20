@@ -594,3 +594,10 @@ review turns/4 batches retained under standing waiver. Earlier rejoin decision
 remains current-membership-only for learners, retained history owner-only; this
 slice does not implement learner provenance. Production/shared-local249+,
 provider/accounts/billing/AI and all activation holds unchanged.
+
+Report1625 merged normally at06:02:37Z asd40b1ff90, reviewed79a4 and squash trees
+identical66e22695. All ten exact39375680181 checks/PRGate passed; clean canonical
+main ff-only, lifecycle receipts recorded. No production operation. Reorder C1
+086e60fa source reviews303Astra/high security and304Sol6.1/high compatibility
+complete CLEAN, no actionableP0–P2; cumulative304reviews/4batches. Next is isolated
+SQL/SDK plus three distinct subject/operation/row-lock paths, not activation.

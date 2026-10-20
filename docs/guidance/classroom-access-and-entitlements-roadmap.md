@@ -650,8 +650,12 @@ canonical read-only/global-resource equality and positive owned teardown.
 original limits retained. Immediate next-tool FIRST independently verified
 7901source/98970dependency files unchanged and zero matching processes before
 post-run actions. Genuine276 adds only the new two-argument RPC; removing it
-reconstructs entire275 bytes. Final metadata/current-main review, focused checks
-and exact-head CI remain acceptance gates. No learner-history or phase-exit claim. The approved
+reconstructs entire275 bytes. Final metadata/current-main review302 was clean;
+3018 focused tests/111 files, architecture/UI/design policies, full TypeScript
+and lint passed. PR1625 merged normally as `d40b1ff90bccdcffef3bd58f5af178fa29a80082`
+on2026-10-20 after all ten exact-head39375680181 CI checks/PR Gate passed on
+`79a4f6bd6813b4e10a9eab9c2455cb8982553032`; reviewed and squash trees are identical
+and clean canonical main fast-forwarded. No learner-history or phase-exit claim. The approved
 current-membership-only learner policy remains separate; earlier attendance is
 preserved for the owner. Shared-local249+, production, provider and rollout holds
 remain unchanged.
