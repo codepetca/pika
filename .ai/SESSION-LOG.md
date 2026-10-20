@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Owner removes translation exemption (PR1606)
-
-Owner explicitly revoked selected-text right-click exemption after app-switch
-loophole discussion. Returned PR1606 to draft, cancelled obsolete CI38943808374.
-Removed context-menu listener/intent/reducer exemption, browser-interaction
-metadata emission, summary fields/counting, and teacher tooltip detail. Restored
-existing incident/summary behavior; no migration/data cleanup (unmerged feature).
-Preserved Ctrl/Cmd+F blocking and accessible-frame focus observation so popup
-blur in references is recorded normally; internal focus transfers stay ignored.
-Red regression proved right-click suppressed exit before removal; green covers
-ordinary away start/end and duration after selection, parent and reference.
-A full-suite selection stub leaked from an older test; regression now uses native
-document.getSelection to avoid that stub. No production workaround added.
-8/8 browser cases pass51.6s; all8 role/theme/viewport captures visually inspected.
-Audit passes. Final focused gate and fixed-SHA delta review in progress. No
-implementation delegation (small coherent removal); one Sol/medium reviewer
-planned for standard behavioral delta, PR review turn5 (prior4), current user
-change1wave/0fix batches. Weekly46% remaining, storage healthy317GB; attributable
-worker/coordinator tokens unknown. Final reviewed SHA/checks in PR and local
-lifecycle records. No merge, deployment, database or in-app translation work.
-
 ## 2026-10-16 — Compact selected-test student roster
 
 Task owner: current Codex chat; branch `codex/test-student-table-compact`.
@@ -534,6 +513,22 @@ Owner selected current-membership-only learner attendance with older records and
 overrides preserved for the classroom owner; member integration remains future.
 PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
 Production/shared-local249+/provider/account/billing/AI/activation holds remain.
+
+## 2026-10-19 — Owner attendance write isolated proof passed
+
+Product26089ed3/carrier096d2c05 passed one fresh disposable001–274 SQL/SDK/lock/type
+proof; no retries. Sixteen HTTP requests (thirteen actual adapter, three canary),
+three real two-session pairs, full fixture/complement restoration, canonical and
+global resource equality, positive owned teardown pass. Immediate NEXT TOOL FIRST
+then confirmed7872source/98970dependency files unchanged and zero matching
+processes before any tests/copies/edits. Additional exact project labels/names and
+workdir absence checks pass.139actions/2218controls/67657342bytes/max2sessions,
+final0open/uncertain/unsettled; original limits unchanged. Generated274 metadata
+443243bytes SHAba402a75 installed exact artifact-derived patch, only one new RPC.
+Full focused checks pass2628tests/98files, architecture/UI/design/TypeScript/lint.
+Core reviews287/288 and composition289 clean; final metadata/evidence review,
+draft PR and exact-head CI remain dormant-main merge gates. No production/shared
+local249+/account/provider/billingAI/home/cohort/cutover changes or batch3 exit.
 
 ## 2026-10-19 — Owner attendance read merged; write source reviews clean
 

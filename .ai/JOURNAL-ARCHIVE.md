@@ -47768,3 +47768,25 @@ on final fixed SHA (4turns total after follow-up,2batches). Initial translation
 review17:49–17:52; exact reviewer elapsed/tokens unknown (92s final investigation
 interval only). Full local gate and targeted verdict recorded in PR/lifecycle
 metadata; no merge/deploy authority inferred. Synthetic diagnostic server stopped.
+
+<!-- pika-session-log-archive-batch:d7ac2a00ac1151692cc5da21c06ccc434ed83d476e5c4d4a1a6c913c3661749d -->
+## 2026-10-16 — Owner removes translation exemption (PR1606)
+
+Owner explicitly revoked selected-text right-click exemption after app-switch
+loophole discussion. Returned PR1606 to draft, cancelled obsolete CI38943808374.
+Removed context-menu listener/intent/reducer exemption, browser-interaction
+metadata emission, summary fields/counting, and teacher tooltip detail. Restored
+existing incident/summary behavior; no migration/data cleanup (unmerged feature).
+Preserved Ctrl/Cmd+F blocking and accessible-frame focus observation so popup
+blur in references is recorded normally; internal focus transfers stay ignored.
+Red regression proved right-click suppressed exit before removal; green covers
+ordinary away start/end and duration after selection, parent and reference.
+A full-suite selection stub leaked from an older test; regression now uses native
+document.getSelection to avoid that stub. No production workaround added.
+8/8 browser cases pass51.6s; all8 role/theme/viewport captures visually inspected.
+Audit passes. Final focused gate and fixed-SHA delta review in progress. No
+implementation delegation (small coherent removal); one Sol/medium reviewer
+planned for standard behavioral delta, PR review turn5 (prior4), current user
+change1wave/0fix batches. Weekly46% remaining, storage healthy317GB; attributable
+worker/coordinator tokens unknown. Final reviewed SHA/checks in PR and local
+lifecycle records. No merge, deployment, database or in-app translation work.

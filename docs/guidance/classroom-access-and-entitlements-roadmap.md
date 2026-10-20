@@ -576,16 +576,22 @@ entitlement. The wrapper does not provision grants or touch provider delivery,
 principal/mapping/history or outbox rows. Unmatched PUT and GET remain unchanged.
 Student-valued-owner tests assume a pre-existing synthetic grant:132's admin
 grant function still requires the teacher label, a separate remaining boundary.
-Source checks are not write/concurrency acceptance. Genuine274 types, isolated
-SQL/actual adapter writes, two-session ownership/lifecycle/entitlement contention,
-complete preservation, independent review and final CI remain gates. Shared local
-and production migration/application, provider and activation holds remain.
-Initial security and compatibility source reviews are clean on ae388842. Prepared
-three-pair contention source uses actual RPC conflicts and fresh authorization in
-a rolled-back savepoint with complete graph checks. It does not prove committed
-ownership or lifecycle transitions; native execution and composition review remain
-pending. The separate SDK plan proves committed writes and revocation denials only
-after actual execution, not from CPU tests or source receipts.
+Initial security/compatibility reviews and targeted composition review are clean.
+One fresh isolated001–274 proof passed rollback SQL, genuine metadata generation,
+sixteen installed-SDK requests (thirteen actual adapter, three exact-canary),
+committed create/update/revision conflicts and entitlement/roster denials. Three
+real two-session pairs proved operation/owner-row/132-entitlement contention,
+partial-lock release and fresh authorization with savepoint rollback. They do not
+prove committed ownership or lifecycle transitions. Complete fixture/complement
+restoration, canonical read-only/global-resource equality, positive owned cleanup
+and immediate independent source/dependency/zero-process preservation passed.
+Original bounds retained:139actions,2218controls,67657342bytes,16HTTP,max2sessions,
+final0open/uncertain/unsettled. Genuine274 metadata adds only the new RPC over273;
+full current-main checks pass2628tests/98files plus TypeScript/lint and policies.
+Final independent metadata/evidence review and exact-head CI remain merge gates.
+Shared-local and production migration/application, provider and activation holds
+remain. This is not learner-history integration, wider attendance/provider or
+batch3 exit, nor authorization to activate the cutover.
 
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
