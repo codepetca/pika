@@ -156,6 +156,7 @@ const databaseProofInventories = {
     [54, 'aea74c33146c7771e669396cf7cd0efcc06034c2d3ab61b9df6a14687c3f966b'],
     [55, '29551a6970c5d118eb2e8c3b4d6f5643b0e0113b968b3fb9297eb64c636770de'],
     [56, '3e0abee1c3953d8d6a0e15b432939ed285ccb19778f8b1af5ae10e7c072208d5'],
+    [57, '0a8b62544755aa4dd9054fcde3adfeaf7cfcb0907f14eb35620d0a8b3f0aa7fc'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -231,6 +232,15 @@ function validateDatabaseInventory(jobs) {
     || sessions[0].step.name !== sessionName || sessions[0].step.run !== `bash ${sessionScript}`
     || sessions[0].step.if || !databaseProofs(primary).includes(sessions[0].step))) {
     throw new Error('Canonical attendance session database proof is missing, duplicated or changed.')
+  }
+  const reportName = 'Verify contextual owner Daily Log attendance report snapshot and privileges'
+  const reportScript = 'scripts/check-contextual-attendance-report-database.sh'
+  const reports = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === reportName || step.run?.includes(reportScript)).map(step => ({ job, step })))
+  if (reports.length && (reports.length !== 1 || reports[0].job !== primary
+    || reports[0].step.name !== reportName || reports[0].step.run !== `bash ${reportScript}`
+    || reports[0].step.if || !databaseProofs(primary).includes(reports[0].step))) {
+    throw new Error('Canonical attendance report database proof is missing, duplicated or changed.')
   }
 }
 

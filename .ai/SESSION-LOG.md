@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 Stable student-table scrollbar space
-
-Task/branch: `codex/student-table-scrollbar`; risk profile `none`. Extend the
-shared hover-scrollbar utility with opt-in stable gutter sizing; reuse the
-existing Tests and Classwork student table owners. Only the thumb visibility
-changes on hover/focus, preserving real horizontal overflow on narrow tables.
-UI brief: teacher rosters; Attendance/Test canon and Pattern Lab work-surface
-reference; desktop1440x900/mobile390x844, light/dark, idle/hover/focus/selected,
-normal/reduced motion. Primary signal: existing scrollbar thumb; no new controls,
-columns, widget semantics or business logic. Student role n/a (teacher rosters).
-Visual evidence: 16 production-owner matrix cases passed at localhost3147,
-synthetic read-only fixtures, `/tmp/pika-scrollbar-matrix`; four Pattern Lab
-reference cases passed. UI/design policy and TypeScript passed; final focused
-checks/review tracked in PR. Initial browser cold-compile timeout and a sampling
-race with the existing split animation were corrected in verification; an
-unrelated CI-inventory timeout triggered a lower-concurrency focused retry.
-Audit heuristic flags TeacherClassroomView for missing component tests despite
-class-only changes; actual keyboard focus/geometry regression coverage is in
-the existing CI experience matrix, with no semantic changes. No new component
-or experimental pattern; no adjacent refactor needed. Coordinator implementation;
-one Luna/medium independent review planned (low-risk CSS), no implementation
-worker. Initial weekly43% remaining, storage316GB healthy; per-task tokens and
-effective reviewer configuration unknown. No merge/deployment/DB changes.
-
-## 2026-10-16 — Teacher Gradebook shows graded marks before Return
-
-Branch codex/gradebook-immediate-marks; coordinator owns implementation. User reverses PR1592 teacher-only Return restriction: fully graded assignment/Test marks and saved assessment overrides now appear immediately in cells, totals, class summaries and selected-student inspector. Student Grades keeps its per-document/attempt Return requirement, including overrides. Drafts stay blank and partially scored Tests stay pending without an override. No grading writes, migration, dependency, merge or production operation. Risk profile: none (existing read projection); standard behavioral review.
-
-UI brief: reuse production Gradebook table/inspector and Pattern Lab Gradebook composition; extend only server projection. Teacher+student,1440x900/390x844,light/dark,returned/unreturned and selected inspector; numeric marks are the signal. No new controls, treatments, shared components or experimental pattern; composite interaction changes n/a; no unrelated refactor candidate. Targeted teacher/student regression tests pass, including unreturned manual zero/nonzero overrides, drafts, partial question scores and student disclosure filters. Playwright16 role/viewport/theme/Return cases plus Pattern Lab reference PASS; receipt output/playwright/immediate-marks/receipt.json. Production owners use synthetic API fixtures (teacher payload from route regressions; student disclosure proven separately). Targeted97 tests PASS. Initial focused856 tests:851pass,3 Python3.14 timing failures and2 unchanged infrastructure timeouts; rerun uses installed Python3.13/max-workers1. Final focused gate and fixed-SHA independent review follow in PR/lifecycle evidence.
-
-Storage healthy318GB and weekly allowance43% remaining at startup (account-wide); DeepSeek paused through Dec31. One GPT6.1-Sol/medium visual-verification worker handles ignored screenshot artifacts while coordinator runs source checks. Worker effective configuration/tokens and coordinator task-specific usage unknown. Visual worker delivered in about6minutes including cold Next compile; coordinator inspected full desktop and contact sheets, no corrections or file conflicts. Final code review will use one fresh GPT6.1-Sol/medium reviewer for this bounded standard-risk diff; default7launch/4batch/60minute review caps apply.
-
 ## 2026-10-16 — Unreturned Gradebook mark hatch follow-up
 
 Owner approves adding faint diagonal hatch and hover/focus tooltip to PR1609. Same coordinator/branch codex/gradebook-immediate-marks; PR returned draft before edits. Per-student assignment/Test returned_at now projects explicit null/timestamp into cells, preserving all calculations. Table and inspector use a feature CSS module with semantic muted colour; accessible `Graded · Not returned to student` help supports keyboard/Escape and inspector tap. Returned/blank/standalone/final/average marks stay plain; unknown legacy metadata stays unasserted. Pattern Lab demonstrates both states with returned-only student examples. UI brief docs/guidance/ui/changes/gradebook-unreturned-hatch.md; both roles,1440x900/390x844,light/dark,return and help states. Risk none (existing read projection), standard behavioral review.
@@ -567,3 +535,49 @@ no repeat native proof is needed for unchanged app/migration/fixture bytes.
 Existing review/runtime evidence and spent attempts remain immutable; no production,
 shared-local249+, provider, account or activation action. New report child worktree
 is independent source-only work; no migrations applied.
+
+## 2026-10-20 — Dormant owner Daily Log attendance report preparation
+
+Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
+0bb2a2bc; owner Daily Log report GET only, no provider or learner-history change.
+276 adds a complete service-only current-owner snapshot. Existing pure attendance
+logic is unchanged (structural input types only); archived owners, full roster,
+Unicode/Toronto semantics and browser DTO preserved. Generic private response/work
+bounds fail closed without truncation or subscription notices. Source rollback
+contracts include real1004 enrollments,1001 days/entries and complete graph
+preservation; inert installed-SDK leaf specifies12 adapter reads/18SQL/60guards,
+six independent complete DTO commitments and restoration before final reads.
+Core112/7 and leaf33/2 CPU tests pass; one expected missing genuine276 RPC type
+remains until isolated generation. CI command/inventory RED then310/5GREEN;
+exact reviewed migration profile extension remains in progress. Sol6.1/high
+workers own core/seals and leaf/carrier, root integrates CI/evidence; effective
+configuration/tokens unknown. Weekly92% remaining; storage287GB healthy.
+Native verification, genuine metadata, independent security/compatibility review,
+final checks and exact-head CI remain gates. No canonical/shared-local249+,
+production, provider, real account, billing/AI or activation operations. Latest
+owner decision retains current-membership-only learner attendance with earlier
+records preserved for owner; this report does not claim learner provenance.
+
+## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
+
+Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
+c10fd9547 at05:30Z, identical7175fbe7 tree, clean canonical main fast-forwarded.
+Report297/298 source reviews clean. Composition299 settlement predicate omission
+fixed and300 clean with actual-controls RED/GREEN joins/uncertainty regressions.
+First native report6wj8mp remains failed: generated observe SQL glued numeric
+literal to OR. Tiny separate read-only PG fragment confirmed42601; regression
+RED then75/4GREEN. Minimal fixture separator/pin update and exact recovery301
+clean; removed only5containers2volumes1network, retained temp/evidence privately.
+No application permission change or softened poison/cleanup checks.
+Fresh report uTZw3f actual4140JOINED0 passed001–276 rollback SQL, genuine metadata,
+12realSDK adapters/6fullDTO/18SQL/60guards, restoration before final reads, complete
+fixture/complement and canonical/global equality plus owned teardown.100actions,
+1672controls,51235392B,12HTTP,max1session,final0sessions/uncertainSQL/unsettled.
+Immediate NEXTTOOLFIRST60593JOINED0 before any check/edit/CI query confirms7901
+source/98970deps unchanged/0process. Genuine276 fac561c3,443760B installed byte-
+exact after FIRST; deleting only newRPC reconstructs entire275e295 baseline.
+All receipts retain nativeVerified:false; private coordinator outcome records
+actual acceptance separately. Cumulative301reviews/4fix batches preserved under
+task waiver; tokens/effective config unknown. Final metadata/current-main review,
+focused checks and CI remain gates. No prod/shared-local249+, provider, real
+account/plan, billing/AI, admission or activation action; learner provenance separate.

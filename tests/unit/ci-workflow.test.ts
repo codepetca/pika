@@ -40,7 +40,7 @@ describe('CI workflow', () => {
     const primary = jobs['architecture-database-contracts'], secondary = jobs['architecture-database-contracts-lifecycle']
     const proofs = (job: typeof primary) => job.steps.slice(job.steps.findIndex(step => step.id === 'supabase-start') + 1,
       job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
-    expect(proofs(primary)).toHaveLength(56)
+    expect(proofs(primary)).toHaveLength(57)
     expect(proofs(secondary)).toHaveLength(87)
     expect(proofs(secondary).filter(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')).toHaveLength(1)
     expect(proofs(secondary).find(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')?.run).toBe('bash scripts/check-contextual-classroom-hot-lifecycle-database.sh')
@@ -50,7 +50,7 @@ describe('CI workflow', () => {
     expect(proofs(secondary).filter(step => step.name === 'Verify student Test session-status projection')).toHaveLength(1)
     expect(proofs(primary).at(-1)?.name).toBe('Verify isolated contextual Test member-list SDK reads')
     expect(proofs(secondary)[0].name).toBe('Verify isolated contextual Test owner reorder transactions')
-    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(143)
+    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(144)
     for (const job of [primary, secondary]) {
       expect(proofs(job).every(step => step.run && !step.if && !step.uses)).toBe(true)
       expect(job.steps.find(step => step.uses === 'supabase/setup-cli@v1')?.with.version).toBe('2.103.0')

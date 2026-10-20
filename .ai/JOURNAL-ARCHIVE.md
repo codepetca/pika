@@ -47847,3 +47847,37 @@ frame class. Merge1e471b7f9 retains scrollbar-stable plus container ownership;
 continuity union keeps every unique body once. Updated roster4-case browser
 matrix passes15.6s with both changes. Scrollbar geometry8-case integration passes26.4s (both themes/viewports and
 normal/reduced motion); fresh screenshots inspected. Final focused/delta review follow; no runtime or production change.
+
+<!-- pika-session-log-archive-batch:c6b479ef23c36d760c55c096eed5bf29f22714884656301e0ef2ebd43ce78cc6 -->
+## 2026-10-16 Stable student-table scrollbar space
+
+Task/branch: `codex/student-table-scrollbar`; risk profile `none`. Extend the
+shared hover-scrollbar utility with opt-in stable gutter sizing; reuse the
+existing Tests and Classwork student table owners. Only the thumb visibility
+changes on hover/focus, preserving real horizontal overflow on narrow tables.
+UI brief: teacher rosters; Attendance/Test canon and Pattern Lab work-surface
+reference; desktop1440x900/mobile390x844, light/dark, idle/hover/focus/selected,
+normal/reduced motion. Primary signal: existing scrollbar thumb; no new controls,
+columns, widget semantics or business logic. Student role n/a (teacher rosters).
+Visual evidence: 16 production-owner matrix cases passed at localhost3147,
+synthetic read-only fixtures, `/tmp/pika-scrollbar-matrix`; four Pattern Lab
+reference cases passed. UI/design policy and TypeScript passed; final focused
+checks/review tracked in PR. Initial browser cold-compile timeout and a sampling
+race with the existing split animation were corrected in verification; an
+unrelated CI-inventory timeout triggered a lower-concurrency focused retry.
+Audit heuristic flags TeacherClassroomView for missing component tests despite
+class-only changes; actual keyboard focus/geometry regression coverage is in
+the existing CI experience matrix, with no semantic changes. No new component
+or experimental pattern; no adjacent refactor needed. Coordinator implementation;
+one Luna/medium independent review planned (low-risk CSS), no implementation
+worker. Initial weekly43% remaining, storage316GB healthy; per-task tokens and
+effective reviewer configuration unknown. No merge/deployment/DB changes.
+
+<!-- pika-session-log-archive-batch:09828127b0a2726785f296b5728683bd938599d4b769c433e815021e9620f52c -->
+## 2026-10-16 — Teacher Gradebook shows graded marks before Return
+
+Branch codex/gradebook-immediate-marks; coordinator owns implementation. User reverses PR1592 teacher-only Return restriction: fully graded assignment/Test marks and saved assessment overrides now appear immediately in cells, totals, class summaries and selected-student inspector. Student Grades keeps its per-document/attempt Return requirement, including overrides. Drafts stay blank and partially scored Tests stay pending without an override. No grading writes, migration, dependency, merge or production operation. Risk profile: none (existing read projection); standard behavioral review.
+
+UI brief: reuse production Gradebook table/inspector and Pattern Lab Gradebook composition; extend only server projection. Teacher+student,1440x900/390x844,light/dark,returned/unreturned and selected inspector; numeric marks are the signal. No new controls, treatments, shared components or experimental pattern; composite interaction changes n/a; no unrelated refactor candidate. Targeted teacher/student regression tests pass, including unreturned manual zero/nonzero overrides, drafts, partial question scores and student disclosure filters. Playwright16 role/viewport/theme/Return cases plus Pattern Lab reference PASS; receipt output/playwright/immediate-marks/receipt.json. Production owners use synthetic API fixtures (teacher payload from route regressions; student disclosure proven separately). Targeted97 tests PASS. Initial focused856 tests:851pass,3 Python3.14 timing failures and2 unchanged infrastructure timeouts; rerun uses installed Python3.13/max-workers1. Final focused gate and fixed-SHA independent review follow in PR/lifecycle evidence.
+
+Storage healthy318GB and weekly allowance43% remaining at startup (account-wide); DeepSeek paused through Dec31. One GPT6.1-Sol/medium visual-verification worker handles ignored screenshot artifacts while coordinator runs source checks. Worker effective configuration/tokens and coordinator task-specific usage unknown. Visual worker delivered in about6minutes including cold Next compile; coordinator inspected full desktop and contact sheets, no corrections or file conflicts. Final code review will use one fresh GPT6.1-Sol/medium reviewer for this bounded standard-risk diff; default7launch/4batch/60minute review caps apply.
