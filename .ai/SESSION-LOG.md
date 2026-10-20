@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Gradebook proof integration and returned Assignment attribution
-
-Draft1619 implements contextual owner Gradebook writes/reads and own returned Grades/items with migration270. Independent SQL/security/application reviews clean after shared-reference and category-postcondition fixes. Disposable rollback contracts and genuine generated metadata passed; remaining native concurrency/SDK/cancellation/source-size proof is separately reviewed and running, not yet accepted. Four spent browser attempts remain failed: latest fixed diagnostic isolates mobile Classwork heading absence after nine captures, despite successful real login/manual grade/Return and own Grades/items reads; cleanup, immediate independent preservation and exact owned-resource absence passed.
-
-Offline actual Assignment-list service reproduced the cause: returned grader attribution incorrectly required UUID although canonical223 writes 'teacher' and existing grading supports string/null. One-field schema correction retains strict shape, current membership, own-document/returned-only selection and response limits. New tests reproduce teacher/AI503 then pass45cases, including zero, UUID/null, unreturned redaction and malformed/widened/peer rejection; nonincremental TypeScript/lint/audit pass. Rebased onto mainc75dade9 attendance-only correction; prior seven Gradebook patches unchanged except session-log context. No presentation/SQL270/generated metadata changes. Source-only native reviews248/251 and browser249/250 retain cumulative counters; source/final app proof, stable-head focused gate/CI and normal main merge remain. Production/shared-local249+/real-account/provider/cohort/home/page/cutover holds unchanged; no goal completion claim.
-
 ## 2026-10-19 — Gradebook native proof and component-owned pending marks read
 
 Reviewed native remaining proof42079c96 passed in fresh disposable6716351ab23b: category collision, current-context concurrency, all16 installed-SDK requests, real server cancellation with exact restoration, positive early-stream closure, expanded-source rejection and rollback equality. Independent preservation and exact resource absence passed. Its128-byte early-abort mechanism does not claim crossing the24MiB production wire cap. BrowserC5 component completed51exchanges/16captures once, but final database proof failed without retained witnesses; later reviewed evidence retention does not relax assertions. Latest spent attempt stopped earlier at mobile marks error; it is not acceptance evidence.
@@ -738,3 +732,30 @@ Final geometry review found the new name-only selectable rows inherited28px text
 ## 2026-10-20 — Integrate student inspector with final main grants changes
 
 All exact-head CI lanes and PR Gate passed at8a4b5082 (run39460032658). Main then advanced to e53401520 via1633 and produced archive-only conflicts. Rebased onto that main, retaining its complete continuity and the byte-identical six feature source/test files; regenerated normal session-log trimming. No migration applied or database touched. Targeted integration review, focused checks and fresh exact-head CI precede owner-authorized squash merge; production promotion remains outside scope.
+
+## 2026-10-20 — production migrations266–282 verified
+
+Owner approved production266–282 and acknowledged281's existing destructive
+call path. Manual rollout39476697299 applied exact sourcee534015201ea42758252f45dc7e19d56792d801e
+once, using preview39465198595/digest21867530234c92a4f98b79f08435e8e82a2c39fccf808431debccadc9148bbe1
+and CI39458606979. Applied-verified; independent metadata history is001–282.
+Read-only checks:47 final function bodies/owners/security/search paths/ACLs,
+151 relation/sequence grant objects with775 operations, client denial, closed
+postgres relation defaults, both narrow column grants,10 existing guard trigger
+attachments, and281 capability RLS/three validated constraints PASS. Existing
+decommission DB mode stayed enabled. No write fixture, purge/provider call,
+shared-local migration, application promotion or flag change. Approval consumed.
+Receipts retained privately under ~/.codex/receipts/production-migrations/2026-10-20T183940Z/.
+
+HQ read-only baseline investigation found654 source function-name body matches
+and75 retained source files, but no canonical migration ledger or authoritative
+execution/restore receipt in90 backup manifests. Body/file agreement does not
+prove backfills, overload signatures or execution history. No HQ application,
+history repair or hosted-project resume; owner edits preserved. Sol6.1/high
+worker returned metadata evidence; coordinator inspected conclusions/source.
+Weekly remaining75%; attributable tokens/active time unknown.
+
+Continuity-only receipt: startup79 tests PASS and prompt budget restored. The
+required focused run remains blocked by unchanged Mac process/timing fixtures
+in ci-tart-host and focused-checks; no test/control weakening or runtime fix.
+Keep the receipt PR draft until the complete focused gate passes.
