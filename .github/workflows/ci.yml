@@ -289,6 +289,9 @@ jobs:
       - name: Verify Pal outbox claim concurrency and lease recovery
         run: bash scripts/check-pal-outbox-concurrency.sh
 
+      - name: Verify contextual owner attendance policy writes and revocation fences
+        run: bash scripts/check-contextual-attendance-policy-write-database.sh
+
       - name: Verify Pal HTTP outage and queued recovery
         run: pnpm run smoke:pal-delivery-recovery
 

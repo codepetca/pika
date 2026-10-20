@@ -566,6 +566,20 @@ attendance records and overrides; earlier membership history remains preserved
 and available to the classroom owner. This read does not itself implement that
 learner-history boundary or delete any historical record.
 
+The next independent owner boundary is policy PUT. A prepared additive274 wraps
+the unchanged138 timing writer under the established classroom-operation/row and
+132 entitlement-revision locks, with current-owner, active/lifecycle, scope and
+roster checks in the same transaction. Existing expected-revision and timing
+semantics remain; exact-canary writes still require a pre-existing attendance
+entitlement. The wrapper does not provision grants or touch provider delivery,
+principal/mapping/history or outbox rows. Unmatched PUT and GET remain unchanged.
+Student-valued-owner tests assume a pre-existing synthetic grant:132's admin
+grant function still requires the teacher label, a separate remaining boundary.
+Source checks are not write/concurrency acceptance. Genuine274 types, isolated
+SQL/actual adapter writes, two-session ownership/lifecycle/entitlement contention,
+complete preservation, independent review and final CI remain gates. Shared local
+and production migration/application, provider and activation holds remain.
+
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the

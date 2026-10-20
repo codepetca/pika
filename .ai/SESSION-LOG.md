@@ -11,128 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Daily row hover synchronization
-- `codex/daily-row-hover`: removed the row-only color transition so First/Last/ID/Log and opaque sticky attendance cells highlight together; existing Daily/Attendance pattern reused, no new component or pattern. Teacher-only; student n/a. Risk profile: none.
-- Playwright reproduced the old fade frame by frame, then verified immediate matching colors on rapid row changes. Selected/unselected Daily scenario passed desktop 1440x900 and mobile 390x844, light/dark (4/4); screenshots inspected under `output/playwright/daily-hover` and `test-results`. Pattern Lab page mockups inspected as reference.
-- `pnpm check:focused -- --base origin/main` PASS (904 tests, architecture/UI/design policy, TypeScript, lint); TeacherAttendanceTab component suite 65/65 PASS. Audit reports missing-a11y-tests because it scans existing ARIA anywhere in the file: reviewed false positive for a class-only change; semantics/keyboard unchanged and existing semantic tests plus browser interaction matrix pass. No policy exception added.
-- Coordinator handled the small implementation directly; weekly allowance reading 60% remaining, storage healthy. Independent low-risk review next; no merge/production authorization inferred.
-
-## 2026-10-16 — Preserve Daily row fade
-- Owner requested PR #1603 retain the fade. `codex/daily-row-hover` now animates one opaque row background using semantic fast motion; attendance and Undo cells inherit that background, matching every frame without duplicated hover/selection styles. Reduced motion disables the row transition.
-- Reused/extended the approved teacher Daily/Attendance composition, no shared component or new pattern. Teacher-only; desktop 1440x900/mobile 390x844, light/dark, hover and selected screenshots inspected. Supplemental samples cover rapid hover, selected enter/exit and reduced motion in all four combinations (`output/playwright/daily-hover/fade-results.json`).
-- Focused checks PASS (904 tests, architecture/UI/design policies, TypeScript/lint); updated Daily E2E scenario PASS 4/4 including frame equality, retained fade and reduced-motion checks. Audit still flags the same reviewed false positive for existing ARIA; semantics/keyboard untouched.
-- PR returned to draft before edits; targeted independent review next. No merge/production authorization inferred. Prior implementation review remains applicable to unchanged behavior; coordinator owns changes, no implementation delegation.
-
-## 2026-10-16 — Block browser Find during active student tests
-
-In `codex/block-test-browser-find`, replace the short Ctrl/Cmd+F exit exemption
-with capture-phase shortcut prevention during an active unsubmitted attempt.
-Normal browser handling resumes outside exam mode; real subsequent departures
-retain incident tracking. Translator behavior held at owner request; reported
-case was likely Chrome selection translation from its context menu.
-Component/incident67 pass; browser coverage checks both shortcuts, focused
-unsaved draft, no false exit/lock, real blur, and Find after submission across
-student desktop/mobile and light/dark. Teacher n/a (no changed owner). Existing
-workspace and Pattern Lab student-test-attempt are references; extend keyboard
-listener, reuse form/compliance owners; no new visual pattern or composite.
-Independent review found a reference-frame gap; the corrected helper covers
-accessible frames, later loads and cleanup. Browser-owned PDF/external frames
-remain subject to browser access restrictions; sandbox/CSP unchanged. Focused
-runs at default/2/1 workers hit varying unchanged infrastructure timeouts.
-Independent review and gate receipts belong to the PR.
-
-## 2026-10-16 — Selected-text browser interaction exemption (PR1606)
-
-Owner authorized native Chrome reproduction and narrow right-click exemption;
-in-app translation remains deferred. Worktree block-test-browser-find, PR1606
-returned to draft before implementation; prior reviewed Find head326ba559e.
-Chrome155.0.8059.84 native Translate Selection popup reproduced after owner idle:
-trusted contextmenu -> blur4.119s later; fullscreen/dimensions unchanged. Trace
-/tmp/pika-translation-repro/ stores selection length only. Visibility was stale
-following macOS fullscreen switching; visible-page guard uses deterministic E2E.
-
-Reducer arms one blur for15s after scoped selected-text contextmenu while visible
-and compliant. Focus closes separate browser duration. Hidden, route/lifecycle,
-and sustained window violations flush browser evidence then log normal exits.
-Pointer/key/focus cancels pending intent; accessible references share document
-observation with Find. Browser-owned/cross-origin contents remain inaccessible.
-Existing away_end transport carries exact browser-interaction metadata; summary
-short-circuits before away accounting and dedups client/incident retries. Optional
-summary count/duration preserve old payloads; teacher existing Exits tooltip adds
-separate evidence, no exit highlight. No selected text, migration, dependency or
-in-app translation. Brief: docs/guidance/ui/changes/test-browser-interactions.md.
-
-Orchestration: Sol/medium read-only schema map completed and verified; Sol/high
-reducer then DOM helper implementation delivered41 reducer +16 helper tests,
-coordinator inspected and integrated. No overlapping ownership/rework conflicts.
-Worker tokens/time unknown; weekly47% remaining at start. TDD red/green for
-summary, student integration and teacher evidence. Focused6 suites306 passed;
-new window integration adds a passing fourth integration case.
-Types, lint, UI/design policy and audit pass. Browser matrix first run6/8 passed;
-2 desktop cases interrupted by live HMR edits (component_unmount/next load).
-Stable-source rerun8/8 passes52.5s and all8 role/theme/viewport screenshots
-visually inspected; focused gate pending. PR remains draft until fixed-SHA
-independent review. New translation delta review: standard behavioral risk,
-one Sol/high reviewer planned; prior Find review coverage retained. No merge or
-deploy authority assumed.
-
-## 2026-10-16 — Borderless content cards
-
-Owner requested removing Classwork/Test list and other decorative card outlines,
-and remembering this preference. Branch `codex/borderless-cards`; base59938479b.
-Updated shared Card and teacher work-item frame, student work actions, classroom,
-announcement, blueprint and calendar containers; preserved functional controls,
-focus, table rules, warning/error and drag indicators. Recorded the preference in
-DESIGN/stable guidance and the borderless-content-cards change brief. No behavior,
-database or dependency changes. Risk profile:none. Model recommendation: current
-coding model for implementation; gpt-6-luna/medium for bounded inventory and low-risk
-independent review. Inventory delivered read-only, verified against owners; no
-rework or integration conflicts. Effective worker settings/token usage unknown;
-weekly50% remaining at startup; storage healthy. Initial focused suite exposed
-four test files expecting decorative borders (updated),3441other tests passed.
-Resource-heavy concurrent rerun was terminated; final run uses four workers.
-Playwright role/viewport/theme capture checks cover border widths, hover, selected
-Test semantics, focus and overflow. Snapshot baseline refresh and final review/CI
-are recorded in the PR. Audit heuristic flags composite files based solely on
-existing aria/role markup; diff is className-only and preserves their semantics.
-Evidence: ignored output/playwright and /tmp/pika-borderless-*.log. No merge,
-production promotion or migration application authorized.
-Final local:24Playwright checks/captures and8Mac/Linux baselines pass;
-focused3443pass/3timing flakes, then isolated54/54pass; types/lint/architecture/
-UI/design policies pass. Existing lint warnings retained. One independent
-full-diff review planned on frozen commit; review budget1initial,up to1targeted
-if necessary,5min target; token telemetry unknown. Capture-script navigation
-style injection caused artifact-only hydration warnings; product markup unchanged.
-
-## 2026-10-16 — Assignment/Test title edit cue
-
-Owner follow-up adds the More actions Pencil at the right of editable selected
-Assignment/Test titles on hover and keyboard focus. Reused existing title buttons,
-edit callbacks and permissions; reserved icon space prevents hover reflow. No cue
-for read-only or pending Assignment detail state. Student n/a (no definition-edit
-control). Risk:none.206affected tests pass;8teacher desktop/mobile×light/dark
-browser cases pass (hover,focus,keyboard editor opening),normal/reduced motion
-verification included. UI/design policies and four-file audit pass. Parent
-borderless coverage atd8ce0bc16 reused; delta-focused workflow/static checks and
-fixed-head independent follow-up review recorded in PR1605. No new abstraction,
-dependency, database, merge or deployment. Model recommendation:gpt-6-luna/medium
-for small independent delta review. No implementation delegation; review token
-and effective-model telemetry unknown. Evidence:output/playwright/title-hover/.
-
-## 2026-10-16 — PR1605 merge authorization and snapshot correction
-
-Owner explicitly authorized squash merge after CI.026a196e9 Test & Build and dark
-experience lane passed; Pattern Lab dark failed screenshot comparisons. Returned
-PR to draft before correction. Diagnosed omitted student headers plus Linux
-capture runtime resolving system-ui to WenQuanYi rather than GitHub's DejaVu.
-Regenerated baselines with fonts-dejavu-core in ephemeral capture container;
-application fonts/dependencies/thresholds unchanged.8Linux comparisons against
-GitHub actuals pass existing tolerances (desktop pixel-identical);8Linux and4Mac
-snapshot cases pass. Product source/review unchanged; one batched snapshot-only
-remediation and independent delta review follow. PR Gate on reviewed final SHA
-still required before authorized main merge. Source evidence and artifacts in
-change brief and ignored output/playwright; CI38922863858 cancelled after draft.
-
 ## 2026-10-16 — Browser interaction review fix and main sync (PR1606)
 
 Initial191ad189 gate3755/188 passes all checks; native popup proof and8/8 browser
@@ -507,6 +385,7 @@ Owner rejected the colored favicon after native Chrome preview and approved the 
 ## 2026-10-19 — Classroom title fills available header width
 
 Owner requests the in-classroom name use the entire header until right-side controls require truncation. AppHeader classroom mode now uses minmax(0,1fr)/auto columns with the existing gap; removed the 320px title cap and empty center slot. Page-title/exam framing retained; original Pika favicon and browser title unchanged. Existing conditional fade responds to the available width, including fullscreen clock controls. UI brief: existing AppHeader/Pattern Lab application-header reference, extend grid only/reuse fade; teacher/student xdesktop/mobile xlight/dark, fit/overflow/resize/fullscreen; no new composite behavior/deps/schema. Expanded deterministic fixture/browser assertions prove a fitting desktop title and fade at actual control boundary, preserved44px control targets/no page overflow. Evidence and final checks/review/CI tracked in ignored artifacts/browser-tab-branding/title-width and PR1615; no merge/deployment.
+
 ## 2026-10-19 — Lifecycle and attached-service permission preparation
 
 Gradebook1619 merged b13e5d404 after all ten39335017417 checks/PRGate; canonical main cleanly fast-forwarded. Owner authorized lifecycle/attached-service integration without routine stops, production holds unchanged. New codex/contextual-lifecycle-services prepares archived owner recovery/export271 from earlier unapplied264 source and contextual Pal member token/visit272; current268 hot archive/restore retained. Actual ownership/membership, owner precedence, existing164 locks/generations, operational fences, export/Pal gates and legacy admission behavior remain separate. No new permission framework, dependencies or activation.
@@ -680,3 +559,24 @@ Owner selected current-membership-only learner attendance with older records and
 overrides preserved for the classroom owner; member integration remains future.
 PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
 Production/shared-local249+/provider/account/billing/AI/activation holds remain.
+
+## 2026-10-19 — Prepare contextual attendance owner policy writes
+
+Dependent worktree starts from reviewed read72d93; startup/environment verified,
+existing dependencies reused. Source-only274 wraps unchanged138 timing writes
+under operation-before-row and132 entitlement serialization, with locked owner,
+active/fence/scope/roster checks. Existing grants remain mandatory even for exact
+canary; no provider/principal/outbox/history operation is introduced. Admitted
+PUT uses either historical account label; GET and unmatched PUT remain legacy.
+Eight focused suites/110 tests and lint pass; only two expected genuine274 metadata
+references remain pending, not cast away. Core implementation writer stopped.
+Root CI once-only/order guards preserve53/54 historical and55 current primary
+proof inventories plus87 lifecycle. CI regressions pass271/5 and150/2 (overlap),
+including duplicate/rename/reorder/conditional/hidden-command refusals. Exact274
+raw/stored/name source seal extends all predecessor profiles;12 expected failures
+became1172 passing checks/9 suites, with275 unknown tails still rejected.
+Separate Sol/high worker prepares inert finite16-request write proof leaves;
+no native execution or source review acceptance is claimed yet. Student owner
+success assumes a pre-existing grant, not the still-teacher-only132 admin flow.
+PR1622 remains in exact-head CI39361093628; no production/shared-local249+/provider/
+real account/billing/AI/admission/home/page/cohort/cutover change is authorized.

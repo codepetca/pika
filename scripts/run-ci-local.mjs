@@ -154,6 +154,7 @@ const databaseProofInventories = {
   database: [
     [53, 'c1a9b76baedff767805250f8e2ede044ba1392cf3b40b783fde091044d287d39'],
     [54, 'aea74c33146c7771e669396cf7cd0efcc06034c2d3ab61b9df6a14687c3f966b'],
+    [55, '29551a6970c5d118eb2e8c3b4d6f5643b0e0113b968b3fb9297eb64c636770de'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -211,6 +212,15 @@ function validateDatabaseInventory(jobs) {
     || attendance[0].step.name !== attendanceName || attendance[0].step.run !== `bash ${attendanceScript}`
     || attendance[0].step.if || !databaseProofs(primary).includes(attendance[0].step))) {
     throw new Error('Canonical attendance database proof is missing, duplicated or changed.')
+  }
+  const writeName = 'Verify contextual owner attendance policy writes and revocation fences'
+  const writeScript = 'scripts/check-contextual-attendance-policy-write-database.sh'
+  const writes = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === writeName || step.run?.includes(writeScript)).map(step => ({ job, step })))
+  if (writes.length && (writes.length !== 1 || writes[0].job !== primary
+    || writes[0].step.name !== writeName || writes[0].step.run !== `bash ${writeScript}`
+    || writes[0].step.if || !databaseProofs(primary).includes(writes[0].step))) {
+    throw new Error('Canonical attendance write database proof is missing, duplicated or changed.')
   }
 }
 
