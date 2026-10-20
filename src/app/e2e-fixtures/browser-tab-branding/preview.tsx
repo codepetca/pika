@@ -35,6 +35,7 @@ export function BrowserTabBrandingFixture({ userRole: role }: { userRole: 'teach
           <Button onClick={() => setClassroom(null)}>Home</Button>
           <Button onClick={() => setClassroom((current) => current ? { ...current, title: 'Renamed classroom', theme_color: 'teal' } : current)}>Edit classroom</Button>
           <Button onClick={() => setClassroom((current) => current ? { ...current, title: 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design' } : current)}>Long classroom name</Button>
+          <Button onClick={() => setClassroom((current) => current ? { ...current, title: 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, Software Design, Programming Languages, Networks, Databases, and Applied Computing Projects' } : current)}>Overflowing classroom name</Button>
           <Button onClick={() => setClassroom((current) => current ? { ...current, title: 'ICS4U' } : current)}>Short classroom name</Button>
           <Button onClick={toggleTheme}>Toggle theme</Button>
           <Link href={`?userRole=${role === 'teacher' ? 'student' : 'teacher'}`} className="text-primary">Switch role route</Link>

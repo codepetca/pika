@@ -22,17 +22,44 @@ for (const role of ['teacher', 'student'] as const) {
     await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
     await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
 
-
     const longTitle = 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design'
     await page.getByRole('button', { name: 'Long classroom name', exact: true }).click()
     const title = page.getByRole('banner').getByTitle(longTitle, { exact: true })
     await expect(title).toHaveText(longTitle)
     await expect(page).toHaveTitle(longTitle)
     await expect(title).toHaveCSS('text-overflow', 'clip')
-    await expect.poll(() => title.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
-    expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      await expect(title).toHaveCSS('mask-image', 'none')
+      expect(await title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+      expect((await title.boundingBox())!.width).toBeGreaterThan(320)
+    } else {
+      await expect.poll(() => title.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+    }
+    await testInfo.attach('classroom-title-available-width', { body: await page.screenshot(), contentType: 'image/png' })
+
+    await page.getByRole('button', { name: 'Overflowing classroom name', exact: true }).click()
+    const overflowingTitle = page.getByRole('banner').locator('[title^="ICS4U"]')
+    await expect.poll(() => overflowingTitle.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+    expect(await overflowingTitle.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+    const fullscreen = page.getByRole('button', { name: 'Enter fullscreen', exact: true })
+    const control = await fullscreen.isVisible() ? fullscreen : page.getByRole('button', { name: 'User menu', exact: true })
+    const titleBox = (await overflowingTitle.boundingBox())!
+    const controlBox = (await control.boundingBox())!
+    expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(controlBox.x)
+    expect(titleBox.x + titleBox.width).toBeGreaterThan(controlBox.x - 16)
+    expect(controlBox.width).toBeGreaterThanOrEqual(44)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
-    await testInfo.attach('classroom-title-fade', { body: await page.screenshot(), contentType: 'image/png' })
+    await testInfo.attach('classroom-title-fade-at-controls', { body: await page.screenshot(), contentType: 'image/png' })
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      await fullscreen.click()
+      await expect(page.getByTestId('header-date-time')).toBeVisible()
+      const firstControl = (await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).boundingBox())!
+      const narrowedTitle = (await overflowingTitle.boundingBox())!
+      expect(narrowedTitle.x + narrowedTitle.width).toBeLessThanOrEqual(firstControl.x)
+      expect(narrowedTitle.width).toBeLessThan(titleBox.width)
+      await testInfo.attach('classroom-title-fullscreen-controls', { body: await page.screenshot(), contentType: 'image/png' })
+      await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).click()
+    }
 
     // An unchanged name must be remeasured when the available header width changes.
     await page.getByRole('button', { name: 'Short classroom name', exact: true }).click()

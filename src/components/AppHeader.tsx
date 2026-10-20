@@ -89,6 +89,7 @@ export function AppHeader({
   const classroomTheme = themedClassroom ? getClassroomThemeDefinition(themedClassroom.themeColor) : null
   const headerStyle = classroomTheme ? getClassroomThemeStyle(classroomTheme.value) : undefined
   const usesMobileClassroomNavigation = Boolean(onOpenSidebar) && !isExamMode && !pageTitle
+  const usesFullWidthClassroomTitle = Boolean(currentClassroom) && !isExamMode && !pageTitle
 
   useEffect(() => {
     const element = classroomTitleRef.current
@@ -152,7 +153,8 @@ export function AppHeader({
   return (
     <header
       className={[
-        'sticky top-0 z-app-chrome grid h-12 grid-cols-[1fr_minmax(0,1fr)_1fr] items-center bg-surface px-4',
+        'sticky top-0 z-app-chrome grid h-12 items-center bg-surface px-4',
+        usesFullWidthClassroomTitle ? 'grid-cols-[minmax(0,1fr)_auto] gap-3' : 'grid-cols-[1fr_minmax(0,1fr)_1fr]',
         classroomTheme ? 'classroom-theme classroom-theme-appbar' : '',
       ].filter(Boolean).join(' ')}
       data-classroom-theme-color={classroomTheme?.value}
@@ -162,7 +164,7 @@ export function AppHeader({
       <div
         className={[
           'flex min-w-0 items-center gap-3',
-          usesMobileClassroomNavigation ? 'col-span-2 lg:col-span-1' : '',
+          usesMobileClassroomNavigation && !usesFullWidthClassroomTitle ? 'col-span-2 lg:col-span-1' : '',
         ].filter(Boolean).join(' ')}
       >
         {/* Mobile sidebar trigger (classroom pages) */}
@@ -215,7 +217,7 @@ export function AppHeader({
           <div
             ref={classroomTitleRef}
             title={currentClassroom.title}
-            className="ml-1 max-w-full min-w-0 overflow-hidden whitespace-nowrap text-xl font-bold text-text-default sm:ml-4 sm:max-w-xs"
+            className="ml-1 max-w-full min-w-0 overflow-hidden whitespace-nowrap text-xl font-bold text-text-default sm:ml-4"
             style={classroomTitleOverflows ? {
               maskImage: 'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
               WebkitMaskImage: 'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
@@ -227,42 +229,44 @@ export function AppHeader({
       </div>
 
       {/* Center section - page title or exam mode status */}
-      <div
-        className={[
-          'min-w-0 items-center justify-center px-2',
-          usesMobileClassroomNavigation ? 'hidden lg:flex' : 'flex',
-        ].join(' ')}
-      >
-        {examModeHeader ? (
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 text-sm text-text-default">
-            <span className="truncate font-semibold">{examModeHeader.testTitle}</span>
-            <div className="inline-flex items-center gap-3 whitespace-nowrap text-text-muted tabular-nums">
-              <span
-                className={[
-                  'inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all duration-300',
-                  exitCountPulseActive
-                    ? 'motion-safe:scale-[1.03] border-warning bg-warning-bg font-semibold text-warning shadow-sm ring-2 ring-warning'
-                    : 'border-transparent text-text-muted',
-                ].join(' ')}
-                aria-label={`Exits ${examModeHeader.exitsCount}`}
-                aria-live="polite"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span>{examModeHeader.exitsCount}</span>
-                {exitCountPulseActive ? <span className="sr-only">Exit detected</span> : null}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <ClockAlert className="h-3.5 w-3.5" />
-                <span>{formatDuration(examModeHeader.awayTotalSeconds)}</span>
-              </span>
+      {!usesFullWidthClassroomTitle && (
+        <div
+          className={[
+            'min-w-0 items-center justify-center px-2',
+            usesMobileClassroomNavigation ? 'hidden lg:flex' : 'flex',
+          ].join(' ')}
+        >
+          {examModeHeader ? (
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 text-sm text-text-default">
+              <span className="truncate font-semibold">{examModeHeader.testTitle}</span>
+              <div className="inline-flex items-center gap-3 whitespace-nowrap text-text-muted tabular-nums">
+                <span
+                  className={[
+                    'inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all duration-300',
+                    exitCountPulseActive
+                      ? 'motion-safe:scale-[1.03] border-warning bg-warning-bg font-semibold text-warning shadow-sm ring-2 ring-warning'
+                      : 'border-transparent text-text-muted',
+                  ].join(' ')}
+                  aria-label={`Exits ${examModeHeader.exitsCount}`}
+                  aria-live="polite"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>{examModeHeader.exitsCount}</span>
+                  {exitCountPulseActive ? <span className="sr-only">Exit detected</span> : null}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <ClockAlert className="h-3.5 w-3.5" />
+                  <span>{formatDuration(examModeHeader.awayTotalSeconds)}</span>
+                </span>
+              </div>
             </div>
-          </div>
-        ) : pageTitle && isTextPageTitle ? (
-          <h1 className={`truncate font-semibold text-text-default ${pageTitleClassName}`}>{pageTitle}</h1>
-        ) : pageTitle ? (
-          <div className="min-w-0 max-w-full">{pageTitle}</div>
-        ) : null}
-      </div>
+          ) : pageTitle && isTextPageTitle ? (
+            <h1 className={`truncate font-semibold text-text-default ${pageTitleClassName}`}>{pageTitle}</h1>
+          ) : pageTitle ? (
+            <div className="min-w-0 max-w-full">{pageTitle}</div>
+          ) : null}
+        </div>
+      )}
 
       {/* Right section */}
       <div className="flex items-center justify-end gap-0">

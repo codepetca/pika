@@ -193,7 +193,8 @@ describe('AppHeader classroom theme', () => {
     )
 
     const leftSection = screen.getByRole('button', { name: 'Open classroom navigation' }).parentElement
-    expect(leftSection).toHaveClass('col-span-2', 'lg:col-span-1')
+    expect(screen.getByRole('banner')).toHaveClass('grid-cols-[minmax(0,1fr)_auto]')
+    expect(leftSection).not.toHaveClass('col-span-2')
     expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('hidden', 'lg:flex')
     expect(screen.getByText('A Longer Classroom Name')).toHaveClass('max-w-full')
   })
