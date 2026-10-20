@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 
 // Externally reviewed schema addition, never inferred from the fixture being checked.
 const quotaMigration = '253_classroom_test_tier_caps.sql'
@@ -17,7 +18,13 @@ export function classroomTestQuotaProofCatalog(
   assert.equal(additions.length, 1, 'Reviewed quota migration absent or duplicated')
   assert.equal(additions[0].sha256, quotaMigrationSha256)
   assert.equal(createHash('sha256').update(additions[0].sql).digest('hex'), quotaMigrationSha256)
-  const expected = [...new Set([...canonicalTables, quotaTable])].sort()
+  // A complete reviewed281 chain adds one private, normally empty capability
+  // table. Include its whole fingerprint; never hide it from preservation checks.
+  // A partial or self-hashed replacement cannot establish this source profile.
+  const hasDecommission = migrations.length >= 281 || migrations.some(migration => migration.name.startsWith('281_'))
+  if (hasDecommission) validateLifecycleServicesReviewedMigrations(migrations)
+  const expected = [...new Set([...canonicalTables, quotaTable,
+    ...(hasDecommission ? ['private.attendance_decommission_delete_capabilities'] : [])])].sort()
   assert(expected.length <= 1024)
   return Object.freeze(expected)
 }

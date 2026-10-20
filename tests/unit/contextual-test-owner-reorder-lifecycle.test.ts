@@ -25,9 +25,10 @@ const fixture = newTestOwnerReorderFixture(original)
 const names = [...TEST_OWNER_REORDER_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets', 'public.future_unrelated_table'].sort()
 const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name => [name, { count: 0, digest: 'a'.repeat(32) }]))),
   guard168Metadata: '{}', settings: '{}', cronJobs: '[]', resources: '[]' }
-const catalog = testOwnerReorderTableCatalogFromCanonical(canonical)
+const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
-  __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: names.map(table => ({ table, fingerprint: 'unchanged' })) })
+  __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities'].sort()
+    .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
@@ -77,8 +78,8 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current280 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(280)
+  it('binds the complete current281 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(281)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))

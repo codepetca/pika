@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-18 — Preserve Survey coverage while diagnosing rollback timing
-
-The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
-
-The first product gate exposed two stale source assertions still expecting the old single fixture and forbidding every INFO marker. Synced only the same fixed-code/family assertions already tested in the carrier, preserving the269 migration path. All13 payload tests/audit pass; a fresh complete product gate remains required. No runtime or SQL change in this follow-up.
-
 ## 2026-10-19 — Attendance check-in mismatch diagnosis
 
 Read-only investigation at f88b06a5e; relevant attendance paths match production
@@ -734,3 +728,21 @@ passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
 Consolidated purge source rebased onto that actual main; only roadmap/history
 overlaps required union, retaining main receipts and one copy of the identical
 already-archived entry. No migration resequencing, stash use or hold change.
+
+## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
+
+Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
+table-scoped DELETE capability only after verified remote completion. Existing
+ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
+private membership replay history is retained. Pending automatic cleanup jobs
+block new intent, including quarantine without an individual operation. Fresh
+read-committed admission avoids stale snapshots. Existing rollback harness adds
+both owner labels, historical generations, scoped/forged denial, failure rollback,
+fresh object-free final purge and saved-status/private-history preservation;
+existing contention harness adds both actual-RPC winner orders. No DB/provider
+execution or shared/production migration application during preparation. Exact281
+source-only profiles and complete capability-table fingerprints extend prior
+seals without rebinding old proofs. Initial focused run caught stale280 counts
+and mocked fingerprints; fixtures corrected without weakening restoration checks.
+Independent review, actual native verification and exact-head CI remain required.
+Production/shared-local249+/live-provider/configuration and activation holds stay.
