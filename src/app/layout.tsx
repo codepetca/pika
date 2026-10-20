@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import '@codepet/pal-widget/styles.css'
 import './globals.scss'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { BrowserTabProvider } from '@/components/BrowserTabBranding'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { ProgressBarProvider } from '@/components/ProgressBarProvider'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
@@ -11,14 +12,7 @@ import { withAuth } from '@workos-inc/authkit-nextjs'
 import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 
 export const metadata: Metadata = {
-  title: 'Pika',
   description: 'Classroom management for online high schools — journals, attendance, and assignments',
-  icons: {
-    icon: {
-      url: '/pika-icon-light.svg',
-      type: 'image/svg+xml',
-    },
-  },
 }
 
 const themeInitScript = `
@@ -48,21 +42,26 @@ export default async function RootLayout({
 
   const providers = (
     <ThemeProvider>
-      <MarkdownPreferenceProvider>
-        <TooltipProvider>
-          <AppMessageProvider>
-            <ProgressBarProvider>
-              {children}
-            </ProgressBarProvider>
-          </AppMessageProvider>
-        </TooltipProvider>
-      </MarkdownPreferenceProvider>
+      <BrowserTabProvider>
+        <MarkdownPreferenceProvider>
+          <TooltipProvider>
+            <AppMessageProvider>
+              <ProgressBarProvider>
+                {children}
+              </ProgressBarProvider>
+            </AppMessageProvider>
+          </TooltipProvider>
+        </MarkdownPreferenceProvider>
+      </BrowserTabProvider>
     </ThemeProvider>
   )
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <title>Pika</title>
+        <link id="pika-tab-icon" rel="icon" type="image/svg+xml" href="/pika-icon-light.svg" suppressHydrationWarning />
+        <meta id="pika-tab-color" name="theme-color" content="#f9fafb" suppressHydrationWarning />
         <script
           nonce={nonce}
           suppressHydrationWarning

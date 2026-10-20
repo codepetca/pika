@@ -1,0 +1,799 @@
+import { applyMaximumToCell, applyMaximumToColumn, maximumStateMap } from '@/lib/gradebook-maximum'
+import { getAssessmentColumnKey } from '@/lib/gradebook-display'
+import { calculateAssignmentStatus } from '@/lib/assignments'
+import { calculateAssessmentCourseWeight, calculateCategorizedFinalPercent, calculateFinalPercent } from '@/lib/gradebook'
+import type { Assignment, AssignmentDoc } from '@/types'
+import type { GradebookOwnerSource } from '@/lib/validations/contextual-gradebook'
+
+const DEFAULT_SETTINGS = {
+  use_weights: false,
+  assignments_weight: 50,
+  tests_weight: 30,
+}
+
+const ASSIGNMENT_POINTS_DEFAULT = 30
+type GradebookAssessmentType = 'assignment' | 'test' | 'item'
+type GradebookAssessmentStatus =
+  | 'missing'
+  | 'late'
+  | 'not_submitted'
+  | 'started'
+  | 'submitted'
+  | 'submitted_late'
+  | 'resubmitted'
+
+type GradebookAssessmentCell = {
+  returned_at?: string | null
+  assessment_id: string
+  assessment_type: GradebookAssessmentType
+  earned: number | null
+  possible: number
+  percent: number | null
+  is_graded: boolean
+  is_manual_override?: boolean
+  calculated_earned?: number | null
+  status?: GradebookAssessmentStatus | null
+}
+
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) {
+    return round2((sorted[mid - 1] + sorted[mid]) / 2)
+  }
+  return round2(sorted[mid])
+}
+
+function comparePositionThenTitle(
+  a: { position: number; title: string; id: string },
+  b: { position: number; title: string; id: string }
+): number {
+  return a.position - b.position || a.title.localeCompare(b.title) || a.id.localeCompare(b.id)
+}
+
+function assessmentCode(prefix: string, index: number): string {
+  return `${prefix}${index + 1}`
+}
+
+function cellKey(studentId: string, assessmentId: string): string {
+  return `${studentId}:${assessmentId}`
+}
+
+function scoreOverrideKey(studentId: string, assessmentType: GradebookAssessmentType, assessmentId: string): string {
+  return `${assessmentType}:${cellKey(studentId, assessmentId)}`
+}
+
+function blankAssessmentCell(
+  assessmentType: GradebookAssessmentType,
+  assessmentId: string,
+  possible: number,
+  isManualOverride?: boolean,
+  status?: GradebookAssessmentStatus | null
+): GradebookAssessmentCell {
+  return {
+    assessment_id: assessmentId,
+    assessment_type: assessmentType,
+    earned: null,
+    possible: round2(possible),
+    percent: null,
+    is_graded: false,
+    ...(isManualOverride == null ? {} : { is_manual_override: isManualOverride }),
+    ...(status ? { status } : {}),
+  }
+}
+
+function isPastDue(dueAt: string): boolean {
+  return new Date(dueAt).getTime() < Date.now()
+}
+
+function getAssignmentGradebookStatus(
+  assignment: {
+    id: string
+    title: string
+    due_at: string
+    position: number
+    is_draft: boolean
+  },
+  doc: ({
+    student_id: string
+    score_completion: number | null
+    score_thinking: number | null
+    score_workflow: number | null
+    is_submitted?: boolean | null
+    submitted_at?: string | null
+    returned_at?: string | null
+    teacher_cleared_at?: string | null
+    graded_at?: string | null
+  } | null | undefined),
+  isGraded: boolean
+): GradebookAssessmentStatus | null {
+  if (assignment.is_draft) return null
+
+  const normalizedDoc = doc
+    ? {
+        ...doc,
+        is_submitted: Boolean(doc.is_submitted ?? isGraded),
+        submitted_at: doc.submitted_at ?? (isGraded ? assignment.due_at : null),
+        returned_at: doc.returned_at ?? null,
+        teacher_cleared_at: doc.teacher_cleared_at ?? null,
+        graded_at: doc.graded_at ?? null,
+      } as AssignmentDoc
+    : null
+
+  const status = calculateAssignmentStatus({
+    id: assignment.id,
+    classroom_id: '',
+    title: assignment.title,
+    description: '',
+    instructions_markdown: null,
+    rich_instructions: null,
+    due_at: assignment.due_at,
+    position: assignment.position,
+    is_draft: assignment.is_draft,
+    released_at: null,
+    track_authenticity: false,
+    created_by: '',
+    created_at: '',
+    updated_at: '',
+  } as Assignment, normalizedDoc)
+
+  if (status === 'not_started') return isPastDue(assignment.due_at) ? 'missing' : null
+  if (status === 'in_progress_late') return 'late'
+  if (status === 'submitted_late') return 'submitted_late'
+  if (status === 'resubmitted') return 'resubmitted'
+  if (!isGraded && status === 'submitted_on_time') return 'submitted'
+  return null
+}
+
+function getTestGradebookStatus(input: {
+  testStatus: 'draft' | 'active' | 'closed' | null
+  hasResponses: boolean
+  isSubmitted: boolean
+  isGraded: boolean
+}): GradebookAssessmentStatus | null {
+  if (input.testStatus === 'draft') return null
+  if (input.testStatus === 'closed' && !input.isSubmitted) return 'not_submitted'
+  if (!input.isGraded && input.isSubmitted) return 'submitted'
+  if (!input.isGraded && input.hasResponses) return 'started'
+  return null
+}
+
+
+export type GradebookAvailability = { categories: boolean; scoreOverrides: boolean; maximumOverrides: boolean; items: boolean }
+export function gradebookSourceMaximumState(source: Record<'assignments' | 'tests' | 'items', Array<{ id: string; gradebook_maximum_override: number | null; gradebook_score_scale: number }>>) {
+  return maximumStateMap((['assignments', 'tests', 'items'] as const).flatMap((key) => source[key].map(row => ({
+    assessment_type: key === 'assignments' ? 'assignment' as const : key === 'tests' ? 'test' as const : 'item' as const,
+    assessment_id: row.id, maximum: row.gradebook_maximum_override, score_scale: row.gradebook_score_scale,
+  }))))
+}
+// Legacy schemas allowed a null Test status; retaining that value preserves the
+// existing public payload while contextual sources enforce the current enum.
+type OwnerProjectionSource = Omit<GradebookOwnerSource, 'tests'> & { tests: Array<Omit<GradebookOwnerSource['tests'][number], 'status'> & { status: 'draft' | 'active' | 'closed' | null }> }
+export function projectOwnerGradebook(source: OwnerProjectionSource, availability: GradebookAvailability, classroomId: string, selectedStudentId: string | null, maximumEditsEnabled: boolean) {
+  const maximumState = { available: availability.maximumOverrides, states: gradebookSourceMaximumState(source) }
+  const hasAdjustedMaximum = (type: 'assignment' | 'test', id: string) => { const state = maximumState.states.get(type + ':' + id); return Boolean(state && (state.maximum != null || state.score_scale !== 1)) }
+  const categories = source.categories.map(({ classroom_id: _classroom, ...row }) => row)
+  const categorySchemaAvailable = availability.categories
+  const scoreOverridesAvailable = availability.scoreOverrides
+  const itemsAvailable = availability.items
+  const enrollments = source.roster.map(row => ({ student_id: row.student_id, users: { email: row.email } }))
+  const studentIds = enrollments.map(row => row.student_id)
+  const enrolledStudentIds = new Set(studentIds)
+  const profiles = source.profiles
+  const profileMap = new Map(profiles.map(row => [row.user_id, row]))
+  const items = source.items
+  const itemScores = source.item_scores
+  const itemScoreMap = new Map(itemScores.map(score => [cellKey(score.student_id, score.item_id), score]))
+  const assignments = [...source.assignments].sort(comparePositionThenTitle)
+  const assignmentIds = assignments.map(row => row.id)
+  const docs = source.assignment_docs
+  type GradebookAssignmentDoc = {
+    student_id: string
+    score_completion: number | null
+    score_thinking: number | null
+    score_workflow: number | null
+    is_submitted?: boolean | null
+    submitted_at?: string | null
+    returned_at?: string | null
+    teacher_cleared_at?: string | null
+    graded_at?: string | null
+  }
+
+  const assignmentMap = new Map(assignments.map((a) => [a.id, a]))
+  const assignmentRowsByStudent = new Map<string, Array<{
+    earned: number
+    possible: number
+    weight: number
+    categoryId: string | null
+  }>>()
+  const assignmentDocMap = new Map<string, GradebookAssignmentDoc>()
+  const docsByAssignment = new Map<string, GradebookAssignmentDoc[]>()
+
+  for (const doc of docs || []) {
+    const docsForAssignment = docsByAssignment.get(doc.assignment_id) || []
+    const gradebookDoc = {
+      student_id: doc.student_id,
+      score_completion: doc.score_completion,
+      score_thinking: doc.score_thinking,
+      score_workflow: doc.score_workflow,
+      is_submitted: doc.is_submitted,
+      submitted_at: doc.submitted_at,
+      returned_at: doc.returned_at,
+      teacher_cleared_at: doc.teacher_cleared_at,
+      graded_at: doc.graded_at,
+    }
+    docsForAssignment.push(gradebookDoc)
+    docsByAssignment.set(doc.assignment_id, docsForAssignment)
+
+    assignmentDocMap.set(`${doc.student_id}:${doc.assignment_id}`, gradebookDoc)
+
+    const assignment = assignmentMap.get(doc.assignment_id)
+    if (!assignment || assignment.include_in_final === false) continue
+    if (assignment.is_draft) continue
+
+    const sc = doc.score_completion
+    const st = doc.score_thinking
+    const sw = doc.score_workflow
+    if (sc == null || st == null || sw == null) continue
+
+    const raw = Number(sc) + Number(st) + Number(sw)
+    const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
+    const earned = (raw / 30) * possible
+
+    const rows = assignmentRowsByStudent.get(doc.student_id) || []
+    rows.push({
+      earned,
+      possible,
+      weight: assignment.gradebook_weight,
+      categoryId: assignment.gradebook_category_id,
+    })
+    assignmentRowsByStudent.set(doc.student_id, rows)
+  }
+
+
+  const tests = [...source.tests].sort(comparePositionThenTitle)
+  const testIds = tests.map(row => row.id)
+  const scoreOverrides = source.score_overrides
+  const scoreOverrideMap = new Map<string, number>()
+  const finalScoreOverrideMap = new Map<string, number>()
+    for (const override of scoreOverrides || []) {
+      if (!enrolledStudentIds.has(override.student_id)) continue
+      if (override.assessment_type === 'final') {
+        if (override.assessment_id !== classroomId) continue
+        finalScoreOverrideMap.set(override.student_id, Number(override.earned))
+        continue
+      }
+      const knownAssessment = override.assessment_type === 'assignment'
+        ? assignmentIds.includes(override.assessment_id)
+        : testIds.includes(override.assessment_id)
+      if (!knownAssessment) continue
+      scoreOverrideMap.set(scoreOverrideKey(override.student_id, override.assessment_type, override.assessment_id), Number(override.earned))
+    }
+
+  const testQuestions = source.test_questions
+  const testResponses = source.test_responses
+  const testAttempts = source.test_attempts
+  const testMap = new Map(tests.map((test) => [test.id, test]))
+  const testQuestionsByTest = new Map<string, Array<{ id: string; points: number }>>()
+  for (const question of testQuestions || []) {
+    const rows = testQuestionsByTest.get(question.test_id) || []
+    rows.push({ id: question.id, points: Number(question.points ?? 0) })
+    testQuestionsByTest.set(question.test_id, rows)
+  }
+
+  const submittedTestAttempts = new Set<string>()
+  const testAttemptMap = new Map<string, { is_submitted: boolean; submitted_at: string | null; returned_at: string | null }>()
+  for (const attempt of testAttempts || []) {
+    testAttemptMap.set(`${attempt.test_id}:${attempt.student_id}`, {
+      is_submitted: Boolean(attempt.is_submitted),
+      submitted_at: attempt.submitted_at ?? null,
+      returned_at: attempt.returned_at ?? null,
+    })
+    if (!attempt.is_submitted) continue
+    submittedTestAttempts.add(`${attempt.test_id}:${attempt.student_id}`)
+  }
+
+  const testResponsesByStudentTest = new Map<string, Map<string, { score: number | null }>>()
+  for (const response of testResponses || []) {
+    const key = `${response.test_id}:${response.student_id}`
+    const byQuestion = testResponsesByStudentTest.get(key) || new Map<string, { score: number | null }>()
+    byQuestion.set(response.question_id, {
+      score: response.score == null ? null : Number(response.score),
+    })
+    testResponsesByStudentTest.set(key, byQuestion)
+  }
+
+  const testRowsByStudent = new Map<string, Array<{
+    earned: number
+    possible: number
+    weight: number
+    categoryId: string | null
+  }>>()
+  const testScoresByTest = new Map<string, Array<{ earned: number; possible: number }>>()
+  const testCellMap = new Map<string, GradebookAssessmentCell>()
+  const testDetailsByStudent = new Map<string, Array<{
+    test_id: string
+    title: string
+    earned: number
+    possible: number
+    percent: number
+    status: 'active' | 'closed' | 'draft' | null
+  }>>()
+
+  for (const studentId of studentIds) {
+    for (const testId of testIds) {
+      const test = testMap.get(testId)
+      if (!test) continue
+
+      const questionsForTest = testQuestionsByTest.get(testId) || []
+      const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      const effectivePossible = maximumState.states.get(`test:${testId}`)?.maximum ?? possible
+      let earned: number | null = null
+      const responseKey = `${testId}:${studentId}`
+      const responsesForStudent = testResponsesByStudentTest.get(responseKey)
+      const attempt = testAttemptMap.get(responseKey)
+      const isSubmitted = Boolean(attempt?.is_submitted)
+      const hasResponses = Boolean(responsesForStudent?.size)
+
+      if (
+        test.status !== 'draft' &&
+        effectivePossible > 0 &&
+        questionsForTest.length > 0 &&
+        (submittedTestAttempts.has(responseKey) || hasResponses)
+      ) {
+        let scoredEarned = 0
+        let isFullyScored = true
+        for (const question of questionsForTest) {
+          const response = responsesForStudent?.get(question.id)
+          if (!response || response.score == null) {
+            isFullyScored = false
+            break
+          }
+          scoredEarned += response.score
+        }
+        earned = isFullyScored ? scoredEarned : null
+      }
+
+      const testCellStatus = getTestGradebookStatus({
+        testStatus: test.status,
+        hasResponses,
+        isSubmitted,
+        isGraded: earned != null && effectivePossible > 0,
+      })
+
+      testCellMap.set(cellKey(studentId, testId), earned == null || effectivePossible <= 0
+        ? { ...blankAssessmentCell('test', testId, possible, undefined, testCellStatus), returned_at: attempt?.returned_at ?? null }
+        : {
+            assessment_id: testId,
+            assessment_type: 'test',
+            earned: hasAdjustedMaximum('test', testId) ? earned : round2(earned),
+            possible: hasAdjustedMaximum('test', testId) ? possible : round2(possible),
+            percent: round2((earned / effectivePossible) * 100),
+            is_graded: true,
+            returned_at: attempt?.returned_at ?? null,
+            ...(testCellStatus ? { status: testCellStatus } : {}),
+          }
+      )
+
+      if (test.include_in_final === false) continue
+      if (test.status === 'draft') continue
+      if (effectivePossible <= 0) continue
+      if (earned == null) continue
+
+      const rows = testRowsByStudent.get(studentId) || []
+      rows.push({
+        earned,
+        possible,
+        weight: test.gradebook_weight,
+        categoryId: test.gradebook_category_id,
+      })
+      testRowsByStudent.set(studentId, rows)
+
+      const testScores = testScoresByTest.get(test.id) || []
+      testScores.push({ earned, possible })
+      testScoresByTest.set(test.id, testScores)
+
+      const details = testDetailsByStudent.get(studentId) || []
+      details.push({
+        test_id: test.id,
+        title: test.title,
+        earned: round2(earned),
+        possible: round2(possible),
+        percent: round2((earned / effectivePossible) * 100),
+        status: test.status,
+      })
+      testDetailsByStudent.set(studentId, details)
+    }
+  }
+
+  function getAssignmentScore(
+    studentId: string,
+    assignment: typeof assignments[number]
+  ): { cell: GradebookAssessmentCell; rawEarned: number | null } {
+    const score = assignmentDocMap.get(cellKey(studentId, assignment.id))
+    const sc = score?.score_completion
+    const st = score?.score_thinking
+    const sw = score?.score_workflow
+    const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
+    const adjustedMaximum = hasAdjustedMaximum('assignment', assignment.id)
+    const effectivePossible = maximumState.states.get(`assignment:${assignment.id}`)?.maximum ?? possible
+    const isGraded = sc != null && st != null && sw != null
+    const status = getAssignmentGradebookStatus(assignment, score, isGraded)
+    if (assignment.is_draft) {
+      return {
+        rawEarned: null,
+        cell: { ...blankAssessmentCell('assignment', assignment.id, possible, undefined, status), returned_at: score?.returned_at ?? null },
+      }
+    }
+    const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
+    if (manualOverride != null) {
+      const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
+      return {
+        rawEarned: effectivePossible > 0 ? manualOverride : null,
+        cell: {
+          assessment_id: assignment.id,
+          assessment_type: 'assignment',
+          earned: manualOverride,
+          possible: adjustedMaximum ? possible : round2(possible),
+          percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
+          is_graded: effectivePossible > 0,
+          is_manual_override: true,
+          returned_at: score?.returned_at ?? null,
+          calculated_earned: calculatedEarned == null ? null : adjustedMaximum ? calculatedEarned : round2(calculatedEarned),
+          ...(status ? { status } : {}),
+        },
+      }
+    }
+    if (sc == null || st == null || sw == null) {
+      return {
+        rawEarned: null,
+        cell: { ...blankAssessmentCell('assignment', assignment.id, possible, undefined, status), returned_at: score?.returned_at ?? null },
+      }
+    }
+
+    const raw = Number(sc) + Number(st) + Number(sw)
+    const earned = (raw / 30) * possible
+
+    return {
+      rawEarned: earned,
+      cell: {
+        assessment_id: assignment.id,
+        assessment_type: 'assignment',
+        earned: adjustedMaximum ? earned : round2(earned),
+        possible: adjustedMaximum ? possible : round2(possible),
+        percent: round2((earned / possible) * 100),
+        is_graded: true,
+        returned_at: score?.returned_at ?? null,
+        ...(status ? { status } : {}),
+      },
+    }
+  }
+
+  const categoryMap = new Map(categories.map((category) => [category.id, category]))
+  const assessmentWeightsByCategory = new Map<string, number[]>()
+  for (const assessment of [
+    ...items.filter((item) => item.include_in_final).map((item) => ({
+      categoryId: item.gradebook_category_id, weight: Number(item.gradebook_weight),
+    })),
+    ...assignments
+      .filter((assignment) => assignment.include_in_final && !assignment.is_draft)
+      .map((assignment) => ({
+        categoryId: assignment.gradebook_category_id,
+        weight: assignment.gradebook_weight,
+      })),
+    ...tests
+      .filter((test) => test.include_in_final && test.status !== 'draft')
+      .map((test) => ({
+        categoryId: test.gradebook_category_id,
+        weight: test.gradebook_weight,
+      })),
+  ]) {
+    if (!assessment.categoryId) continue
+    const weights = assessmentWeightsByCategory.get(assessment.categoryId) || []
+    weights.push(assessment.weight)
+    assessmentWeightsByCategory.set(assessment.categoryId, weights)
+  }
+
+  function assessmentCategoryFields(categoryId: string | null, weight: number, isIncluded: boolean) {
+    const category = categoryId ? categoryMap.get(categoryId) : null
+    return {
+      category_id: category?.id ?? null,
+      category_name: category?.name ?? 'None',
+      category_percentage: category?.percentage ?? null,
+      exact_course_weight: category && isIncluded
+        ? calculateAssessmentCourseWeight({
+            categoryPercentage: category.percentage,
+            assessmentWeight: weight,
+            categoryAssessmentWeights: assessmentWeightsByCategory.get(category.id) || [],
+          })
+        : null,
+    }
+  }
+
+  const assessmentColumns = [
+    ...assignments.map((assignment, index) => ({
+      assessment_id: assignment.id,
+      assessment_type: 'assignment' as const,
+      code: assessmentCode('A', index),
+      title: assignment.title,
+      possible: round2(assignment.points_possible),
+      weight: assignment.gradebook_weight,
+      due_at: assignment.due_at,
+      is_draft: assignment.is_draft,
+      include_in_final: assignment.include_in_final,
+      ...assessmentCategoryFields(
+        assignment.gradebook_category_id,
+        assignment.gradebook_weight,
+        assignment.include_in_final && !assignment.is_draft,
+      ),
+    })),
+    ...tests.map((test, index) => {
+      const questionsForTest = testQuestionsByTest.get(test.id) || []
+      const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      return {
+        assessment_id: test.id,
+        assessment_type: 'test' as const,
+        code: assessmentCode('T', index),
+        title: test.title,
+        possible: round2(possible),
+        weight: test.gradebook_weight,
+        status: test.status,
+        include_in_final: test.include_in_final,
+        ...assessmentCategoryFields(
+          test.gradebook_category_id,
+          test.gradebook_weight,
+          test.include_in_final && test.status !== 'draft',
+        ),
+      }
+    }),
+    ...items.map((item, index) => ({
+      assessment_id: item.id, assessment_type: 'item' as const,
+      code: assessmentCode('I', index), title: item.title,
+      possible: Number(item.points_possible), weight: Number(item.gradebook_weight),
+      include_in_final: item.include_in_final,
+      scored_count: itemScores.filter((score) => score.item_id === item.id).length,
+      returned_count: itemScores.filter((score) => score.item_id === item.id && score.returned_at).length,
+      ...assessmentCategoryFields(item.gradebook_category_id, Number(item.gradebook_weight), item.include_in_final),
+    })),
+  ]
+
+  if (maximumState.available) for (const column of assessmentColumns) applyMaximumToColumn(column, maximumState.states.get(getAssessmentColumnKey(column)))
+
+  const students = (enrollments || []).map((enrollment) => {
+    const studentId = enrollment.student_id
+    const profile = profileMap.get(studentId)
+    const assignmentScores = assignments.map((assignment) => getAssignmentScore(studentId, assignment))
+    const assessmentScores = [
+      ...assignmentScores.map(({ cell }) => cell),
+      ...tests.map((test) => {
+        const questionsForTest = testQuestionsByTest.get(test.id) || []
+        const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+        const baseCell = testCellMap.get(cellKey(studentId, test.id)) || blankAssessmentCell('test', test.id, possible)
+        const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'test', test.id))
+        if (manualOverride == null || test.status === 'draft') return baseCell
+        return {
+          ...baseCell,
+          earned: manualOverride,
+          percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
+          is_graded: (maximumState.states.get(`test:${test.id}`)?.maximum ?? possible) > 0,
+          is_manual_override: true,
+          calculated_earned: baseCell.earned,
+        }
+      }),
+    ]
+    const standaloneCells: GradebookAssessmentCell[] = items.map((item) => {
+      const score = itemScoreMap.get(cellKey(studentId, item.id))
+      const possible = Number(item.points_possible)
+      if (!score) return blankAssessmentCell('item', item.id, possible)
+      const earned = Number(score.earned)
+      return { assessment_id: item.id, assessment_type: 'item', earned, possible,
+        percent: round2(earned / possible * 100), is_graded: true, returned_at: score.returned_at }
+    })
+    assessmentScores.push(...standaloneCells)
+    for (const cell of assessmentScores) applyMaximumToCell(cell, maximumState.states.get(getAssessmentColumnKey(cell)))
+    const itemRows = items.flatMap((item, index) => {
+      const cell = standaloneCells[index]
+      if (!item.include_in_final || cell.earned == null) return []
+      return [{ earned: cell.earned, possible: cell.possible, weight: Number(item.gradebook_weight), categoryId: item.gradebook_category_id }]
+    })
+    const assignmentRows = assignments.flatMap((assignment, index) => {
+      const { cell, rawEarned } = assignmentScores[index]
+      if (!assignment.include_in_final || assignment.is_draft || rawEarned == null || cell.possible <= 0) return []
+      return [{ earned: rawEarned * (maximumState.states.get(`assignment:${assignment.id}`)?.score_scale ?? 1), possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
+    })
+    const testOffset = assignments.length
+    const testRows = tests.flatMap((test, index) => {
+      const cell = assessmentScores[testOffset + index]
+      if (!test.include_in_final || test.status === 'draft' || cell.earned == null || cell.possible <= 0) return []
+      return [{ earned: cell.earned, possible: cell.possible, weight: test.gradebook_weight, categoryId: test.gradebook_category_id }]
+    })
+    const legacyCalc = calculateFinalPercent({
+      useWeights: false,
+      assignmentsWeight: DEFAULT_SETTINGS.assignments_weight,
+      testsWeight: DEFAULT_SETTINGS.tests_weight,
+      assignments: assignmentRows,
+      tests: testRows,
+    })
+    const categorizedCalc = categorySchemaAvailable
+      ? calculateCategorizedFinalPercent({
+          categories: categories.map((category) => ({
+            id: category.id,
+            percentage: category.percentage,
+          })),
+          items: [...assignmentRows, ...testRows, ...itemRows],
+        })
+      : null
+    const assignmentTotals = assignmentRows.reduce(
+      (totals, row) => ({
+        earned: totals.earned + row.earned,
+        possible: totals.possible + row.possible,
+      }),
+      { earned: 0, possible: 0 }
+    )
+    const testTotals = testRows.reduce(
+      (totals, row) => ({
+        earned: totals.earned + row.earned,
+        possible: totals.possible + row.possible,
+      }),
+      { earned: 0, possible: 0 }
+    )
+    const calculatedFinalPercent = categorizedCalc ? categorizedCalc.finalPercent : legacyCalc.finalPercent
+    const finalOverride = finalScoreOverrideMap.get(studentId)
+
+    return {
+      student_id: studentId,
+      student_email: (enrollment.users as unknown as { email: string }).email,
+      student_number: profile?.student_number ?? null,
+      student_first_name: profile?.first_name ?? null,
+      student_last_name: profile?.last_name ?? null,
+      assignments_earned: assignmentTotals.possible > 0 ? round2(assignmentTotals.earned) : null,
+      assignments_possible: assignmentTotals.possible > 0 ? round2(assignmentTotals.possible) : null,
+      assignments_percent: legacyCalc.assignmentsPercent,
+      tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
+      tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
+      tests_percent: legacyCalc.testsPercent,
+      final_percent: finalOverride == null ? calculatedFinalPercent : round2(finalOverride),
+      ...(finalOverride == null ? {} : { is_final_override: true, calculated_final_percent: calculatedFinalPercent }),
+      assessment_scores: assessmentScores,
+    }
+  })
+
+  students.sort((a, b) => {
+    const aName = `${a.student_last_name || ''} ${a.student_first_name || ''}`.trim() || a.student_email
+    const bName = `${b.student_last_name || ''} ${b.student_first_name || ''}`.trim() || b.student_email
+    return aName.localeCompare(bName)
+  })
+
+  const selectedStudent = selectedStudentId
+    ? students.find((student) => student.student_id === selectedStudentId) || null
+    : null
+
+  const classAssignmentSummaries = assignments.map((assignment, assignmentIndex) => {
+    const graded = students
+      .map((student) => student.assessment_scores[assignmentIndex]?.percent ?? null)
+      .filter((value): value is number => value != null)
+
+    const averagePercent = graded.length > 0
+      ? round2(graded.reduce((sum, value) => sum + value, 0) / graded.length)
+      : null
+    const medianPercent = median(graded)
+
+    return {
+      assignment_id: assignment.id,
+      title: assignment.title,
+      due_at: assignment.due_at,
+      is_draft: assignment.is_draft,
+      possible: round2(assignment.points_possible),
+      graded_count: graded.length,
+      average_percent: averagePercent,
+      median_percent: medianPercent,
+    }
+  })
+
+  const classTestSummaries = tests
+    .filter((test) => test.status !== 'draft')
+    .map((test) => {
+      const questionsForTest = testQuestionsByTest.get(test.id) || []
+      const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      const testIndex = assignments.length + tests.findIndex((candidate) => candidate.id === test.id)
+      const scored = students
+        .map((student) => student.assessment_scores[testIndex]?.percent ?? null)
+        .filter((value): value is number => value != null)
+      const averagePercent = scored.length > 0
+        ? round2(scored.reduce((sum, value) => sum + value, 0) / scored.length)
+        : null
+
+      return {
+        test_id: test.id,
+        title: test.title,
+        status: test.status,
+        possible: round2(possible),
+        scored_count: scored.length,
+        average_percent: averagePercent,
+      }
+    })
+
+  const finalPercents = students
+    .map((student) => student.final_percent)
+    .filter((value): value is number => value != null)
+
+  return {
+    settings: DEFAULT_SETTINGS,
+    categories,
+    category_schema_available: categorySchemaAvailable,
+    score_overrides_available: scoreOverridesAvailable,
+    maximum_overrides_available: maximumState.available,
+    maximum_edits_enabled: maximumState.available && maximumEditsEnabled,
+    items_available: itemsAvailable,
+    assessment_columns: assessmentColumns,
+    students,
+    selected_student: selectedStudent
+      ? {
+          ...selectedStudent,
+          assignments: assignments
+            .map((assignment, index) => {
+              const cell = selectedStudent.assessment_scores[index]
+              return {
+                assignment_id: assignment.id,
+                title: assignment.title,
+                due_at: assignment.due_at,
+                is_draft: assignment.is_draft,
+                earned: cell?.earned ?? null,
+                possible: cell?.possible ?? round2(assignment.points_possible),
+                percent: cell?.percent ?? null,
+                is_graded: cell?.is_graded ?? false,
+                ...(cell?.is_manual_override ? {
+                  is_manual_override: true,
+                  calculated_earned: cell.calculated_earned ?? null,
+                } : {}),
+              }
+            }),
+          tests: tests.flatMap((test, index) => {
+            const cell = selectedStudent.assessment_scores[assignments.length + index]
+            if (test.include_in_final === false || test.status === 'draft' || !cell?.is_graded || cell.earned == null || cell.possible <= 0) return []
+            return [{
+              test_id: test.id,
+              title: test.title,
+              earned: cell.earned,
+              possible: cell.possible,
+              percent: cell.percent ?? round2((cell.earned / cell.possible) * 100),
+              status: test.status,
+              ...(cell.is_manual_override ? {
+                is_manual_override: true,
+                calculated_earned: cell.calculated_earned ?? null,
+              } : {}),
+            }]
+          }),
+        }
+      : null,
+    class_summary: {
+      total_students: studentIds.length,
+      students_with_final: finalPercents.length,
+      average_final_percent: finalPercents.length > 0
+        ? round2(finalPercents.reduce((sum, value) => sum + value, 0) / finalPercents.length)
+        : null,
+      assignments: classAssignmentSummaries,
+      tests: classTestSummaries,
+      items: items.map((item) => {
+        const values = students.flatMap((student) => {
+          const cell = student.assessment_scores.find((cell) => cell.assessment_type === 'item' && cell.assessment_id === item.id)
+          return cell?.percent == null ? [] : [cell.percent]
+        })
+        return { item_id: item.id, title: item.title, possible: Number(item.points_possible),
+          scored_count: values.length, average_percent: values.length ? round2(values.reduce((sum, value) => sum + value, 0) / values.length) : null,
+          median_percent: median(values) }
+      }),
+    },
+    totals: {
+      items: items.length,
+      assignments: assignments.length || 0,
+      tests: tests.filter((test) => test.status !== 'draft').length || 0,
+    },
+  }
+}

@@ -491,6 +491,16 @@ grading entrypoint integration after Survey lands, then remaining lifecycle,
 navigation and integrated-release gates. All production/shared-local/account/
 provider/billing/cohort/home/page/cutover holds stay unchanged.
 
+2026-10-19 Survey landing: PR #1614 merged normally as
+`8ed854ca95571285f4c55abe8576326e54251230`; its tree equals reviewed `dbbc165a6`.
+All ten exact-head CI jobs, including PR Gate, passed in run `39300185484`;
+canonical main fast-forwarded cleanly. Fresh SQL and complete browser/16-visual
+evidence above remains valid for identical deployed-source bytes; no production
+deployment or shared-local migration occurred. The owner authorized continuing
+the consolidated [Gradebook and returned Grades group](contextual-gradebook.md)
+without routine approval stops, with production and activation holds unchanged.
+This is batch-2 implementation work, not a batch or full-goal exit.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

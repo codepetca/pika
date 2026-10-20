@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestLearnerWorkflowFixture } from '../../scripts/contextual-test-learner-proof-fixture'
@@ -19,7 +19,8 @@ import { createOfflineTestLearnerRepository } from '../helpers/test-learner-nati
 const repository = process.cwd(), head = 'a'.repeat(40)
 const original = newAssignmentListProofFixture(new Date('2026-10-11T12:00:00Z'))
 const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
-const current = platform.loadAssignmentListReviewedMigrations(repository)
+const loadMigrations = platform.loadAssignmentListReviewedMigrations
+const current = loadMigrations(repository).slice(0, 269)
 const observed = (fixture: { actors: readonly { id: string }[] }) => Object.freeze([1, 2].map(i =>
   Object.freeze({ actorId: fixture.actors[i].id, attemptId: randomUUID(), revision: 1 })))
 const learner = observed(newTestLearnerWorkflowFixture(original))
@@ -35,6 +36,8 @@ const profiles = [
   { name: 'owner deletion', validate: () => testOwnerDeletionNativePlan(original, head, repository) },
   { name: 'hot archive restore', validate: () => classroomHotLifecycleNativePlan(original, head, repository) },
 ]
+// Preserve the explicit historical269 profile while current-source270 has its own strict suite.
+beforeEach(() => { vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockImplementation(path => path === repository ? current : loadMigrations(path)) })
 afterEach(() => vi.restoreAllMocks())
 
 describe.each(profiles)('$name reviewed269 source profile (offline)', ({ validate }) => {

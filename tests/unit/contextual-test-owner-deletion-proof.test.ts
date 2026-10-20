@@ -51,7 +51,7 @@ describe('finite deletion proof source, never native acceptance',()=>{
     expect(testOwnerDeletionSnapshotSql(f)).toContain('public.test_attempt_history')
   })
   it('seals actual262 bytes and admits only eight registered source frames plus sixteen schedules',()=>{
-    const m=plan();expect(m.migrations).toHaveLength(269);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
+    const m=plan();expect(m.migrations).toHaveLength(270);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
     expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBe(40)
     expect(m.caps).toMatchObject({sqlBytes:524288,responseBytes:8388608,requestMs:12000,totalMs:180000,dispatches:40})
     expect(m.sourceSha256).toBe(hash(readFileSync('supabase/migrations/262_contextual_test_owner_delete.sql','utf8')))
@@ -145,9 +145,9 @@ describe('complete reviewed268 source profile (offline)', () => {
     const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
     try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
   })
-  it('rejects a contiguous unknown270 source tail', () => {
+  it('rejects a contiguous unknown271 source tail', () => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
-    migrations.push({ name: '270_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') })
+    migrations.push({ name: '271_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') })
     const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
     try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
   })

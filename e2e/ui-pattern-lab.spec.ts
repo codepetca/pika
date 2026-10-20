@@ -4,6 +4,103 @@ import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
 
+for (const role of ['teacher', 'student'] as const) {
+  test(`${role} browser tab follows classroom identity and theme`, async ({ page }, testInfo) => {
+    const theme = testInfo.project.metadata.theme === 'dark' ? 'dark' : 'light'
+    await page.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark' })
+    await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+    await page.goto(`/e2e-fixtures/browser-tab-branding?userRole=${role}`)
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
+    await expect(page.locator('link[rel="icon"]')).toHaveCount(1)
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
+    await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1)
+    await expect(page.locator('#pika-tab-color')).toHaveAttribute('content', theme === 'dark' ? '#fb7185' : '#f43f5e')
+    await testInfo.attach('classroom-tab-branding', { body: await page.screenshot(), contentType: 'image/png' })
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme === 'dark' ? 'light' : 'dark'}.svg`)
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
+
+    const longTitle = 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design'
+    await page.getByRole('button', { name: 'Long classroom name', exact: true }).click()
+    const title = page.getByRole('banner').getByTitle(longTitle, { exact: true })
+    await expect(title).toHaveText(longTitle)
+    await expect(page).toHaveTitle(longTitle)
+    await expect(title).toHaveCSS('text-overflow', 'clip')
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      await expect(title).toHaveCSS('mask-image', 'none')
+      expect(await title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+      expect((await title.boundingBox())!.width).toBeGreaterThan(320)
+    } else {
+      await expect.poll(() => title.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+    }
+    await testInfo.attach('classroom-title-available-width', { body: await page.screenshot(), contentType: 'image/png' })
+
+    await page.getByRole('button', { name: 'Overflowing classroom name', exact: true }).click()
+    const overflowingTitle = page.getByRole('banner').locator('[title^="ICS4U"]')
+    await expect.poll(() => overflowingTitle.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+    expect(await overflowingTitle.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+    const fullscreen = page.getByRole('button', { name: 'Enter fullscreen', exact: true })
+    const control = await fullscreen.isVisible() ? fullscreen : page.getByRole('button', { name: 'User menu', exact: true })
+    const titleBox = (await overflowingTitle.boundingBox())!
+    const controlBox = (await control.boundingBox())!
+    expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(controlBox.x)
+    expect(titleBox.x + titleBox.width).toBeGreaterThan(controlBox.x - 16)
+    expect(controlBox.width).toBeGreaterThanOrEqual(44)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await testInfo.attach('classroom-title-fade-at-controls', { body: await page.screenshot(), contentType: 'image/png' })
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      await fullscreen.click()
+      await expect(page.getByTestId('header-date-time')).toBeVisible()
+      const firstControl = (await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).boundingBox())!
+      const narrowedTitle = (await overflowingTitle.boundingBox())!
+      expect(narrowedTitle.x + narrowedTitle.width).toBeLessThanOrEqual(firstControl.x)
+      expect(narrowedTitle.width).toBeLessThan(titleBox.width)
+      await testInfo.attach('classroom-title-fullscreen-controls', { body: await page.screenshot(), contentType: 'image/png' })
+      await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).click()
+    }
+
+    // An unchanged name must be remeasured when the available header width changes.
+    await page.getByRole('button', { name: 'Short classroom name', exact: true }).click()
+    const shortTitle = page.getByRole('banner').getByTitle('ICS4U', { exact: true })
+    await expect(shortTitle).toHaveCSS('mask-image', 'none')
+    const wideViewport = page.viewportSize()!
+    const narrowViewport = { width: 280, height: wideViewport.height }
+    await page.setViewportSize(narrowViewport)
+    await page.getByRole('button', { name: 'Classroom 1', exact: true }).click()
+    const mediumTitle = page.getByRole('banner').getByTitle('PPZ3C — Health for Life', { exact: true })
+    await expect.poll(() => mediumTitle.evaluate((element) => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await expect(mediumTitle).toHaveCSS('mask-image', 'none')
+    await page.setViewportSize(wideViewport)
+
+    await page.getByRole('link', { name: 'Switch role route', exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`userRole=${role === 'teacher' ? 'student' : 'teacher'}$`))
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
+    await page.getByRole('button', { name: 'Classroom 2', exact: true }).click()
+    await expect(page).toHaveTitle('ICS4U — Computer Science')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
+    await page.getByRole('button', { name: 'Edit classroom', exact: true }).click()
+    await expect(page).toHaveTitle('Renamed classroom')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
+
+    await page.getByRole('button', { name: 'Home', exact: true }).click()
+    await expect(page).toHaveTitle('Pika')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    const toggledIcon = `/pika-icon-${theme === 'dark' ? 'light' : 'dark'}.svg`
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', toggledIcon)
+    await page.getByRole('button', { name: 'Classroom 1', exact: true }).click()
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
+    await page.getByRole('link', { name: 'Leave classroom', exact: true }).click()
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveTitle('Pika')
+    await expect(page.locator('link[rel="icon"]')).toHaveCount(1)
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', toggledIcon)
+  })
+}
+
 test.describe('selected tab visibility', () => {
   for (const role of ['teacher', 'student'] as const) {
     for (const reducedMotion of ['no-preference', 'reduce'] as const) {

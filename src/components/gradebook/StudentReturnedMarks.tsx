@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Button, Card, PageState } from '@/ui'
-import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSON } from '@/lib/request-cache'
 import type { ReturnedGradebookItem, ReturnedGradebookItemsResponse } from '@/lib/gradebook-student-items'
 
 type LoadState =
@@ -12,21 +12,24 @@ type LoadState =
 export function StudentReturnedMarks({ classroomId, isActive = true }: { classroomId: string; isActive?: boolean }) {
   const [state, setState] = useState<LoadState>({ classroomId, kind: 'loading' })
   const requestIdRef = useRef(0)
+  const pendingReadRef = useRef<{ classroomId: string; promise: Promise<ReturnedGradebookItemsResponse> } | null>(null)
   const currentClassroomIdRef = useRef(classroomId)
   currentClassroomIdRef.current = classroomId
-  const cacheKey = `student-returned-marks:${classroomId}`
-
-  const load = useCallback(async (refresh: boolean) => {
+  const load = useCallback(async () => {
     const requestId = ++requestIdRef.current
-    if (refresh) invalidateCachedJSON(cacheKey)
     // Discard stale content while checking whether marks changed or were cleared.
     setState({ classroomId, kind: 'loading' })
     try {
-      const data = await fetchCachedJSON<ReturnedGradebookItemsResponse>(
-        cacheKey,
-        `/api/student/classrooms/${classroomId}/gradebook-items`,
-        { ttlMs: 20_000, errorMessage: 'Could not load Gradebook marks', init: { cache: 'no-store' } },
-      )
+      if (pendingReadRef.current?.classroomId !== classroomId) {
+        const promise: Promise<ReturnedGradebookItemsResponse> = fetchJSON<ReturnedGradebookItemsResponse>(
+          `/api/student/classrooms/${classroomId}/gradebook-items`,
+          { errorMessage: 'Could not load Gradebook marks', init: { cache: 'no-store' } },
+        ).finally(() => {
+          if (pendingReadRef.current?.promise === promise) pendingReadRef.current = null
+        })
+        pendingReadRef.current = { classroomId, promise }
+      }
+      const data = await pendingReadRef.current.promise
       if (requestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
         setState({ classroomId, kind: 'loaded', data })
       }
@@ -35,12 +38,15 @@ export function StudentReturnedMarks({ classroomId, isActive = true }: { classro
         setState({ classroomId, kind: 'error' })
       }
     }
-  }, [cacheKey, classroomId])
+  }, [classroomId])
 
   useEffect(() => {
-    if (isActive) void load(true)
+    if (pendingReadRef.current?.classroomId !== classroomId || !isActive) pendingReadRef.current = null
+    if (isActive) void load()
+    // StrictMode replays cleanup/setup for this same active owner. Keep its
+    // unfinished read; real deactivation, classroom change and remount are fresh.
     return () => { requestIdRef.current += 1 }
-  }, [isActive, load])
+  }, [classroomId, isActive, load])
 
   const currentState = state.classroomId === classroomId ? state : null
   if (currentState?.kind === 'loaded' && currentState.data.items.length === 0) return null
@@ -59,7 +65,7 @@ export function StudentReturnedMarks({ classroomId, isActive = true }: { classro
           description="Try again to see marks your teacher entered in Gradebook."
           headingLevel="h3"
           compact
-          action={<Button onClick={() => void load(true)}>Retry Gradebook marks</Button>}
+          action={<Button onClick={() => void load()}>Retry Gradebook marks</Button>}
         />
       )}
     </Card>

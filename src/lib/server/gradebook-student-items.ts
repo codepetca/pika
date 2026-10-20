@@ -2,6 +2,7 @@ import { loadGradebookMaximumState } from '@/lib/server/gradebook-maximum'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { projectGradebookItemMark } from '@/lib/gradebook-member-projection'
 import type { ReturnedGradebookItem, ReturnedGradebookItemsResponse } from '@/lib/gradebook-student-items'
 
 export async function getStudentReturnedGradebookItems(
@@ -43,19 +44,7 @@ export async function getStudentReturnedGradebookItems(
     items.push(...(data ?? []).map(score => {
       const item = score.gradebook_items
       const state = maximumState.states.get(`item:${item.id}`)
-      const earned = Number(score.earned) * (state?.score_scale ?? 1)
-      const possible = state?.maximum ?? Number(item.points_possible)
-      return {
-        id: item.id,
-        title: item.title,
-        earned,
-        possible,
-        percent: Math.round((earned / possible) * 10_000) / 100,
-        categoryName: item.gradebook_categories?.name ?? null,
-        isZeroWeight: Number(item.gradebook_weight) === 0,
-        included: item.include_in_final && item.gradebook_weight > 0
-          && (item.gradebook_categories?.percentage ?? 0) > 0,
-      }
+      return projectGradebookItemMark(item, score.earned, item.gradebook_categories, state)
     }))
     if ((data?.length ?? 0) < pageSize) return { items, compactZeroWeightAssessments }
   }
