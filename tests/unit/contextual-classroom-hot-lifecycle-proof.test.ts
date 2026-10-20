@@ -87,7 +87,7 @@ describe('closed268 hot lifecycle proof; CPU evidence is not native acceptance',
     expect(f.actors.map(a=>a.role)).toEqual(['teacher','student','student','teacher'])
     expect(f.classes).toHaveLength(6);expect(f.allocatedIds.every(id=>!(original.allocatedIds as readonly string[]).includes(id))).toBe(true)
   })
-  it.each([268,269])('binds exact001–%i and exposes only finite source SQL',count=>{
+  it.each([268,269,277,278])('binds exact001–%i and exposes only finite source SQL',count=>{
     const inventory=platform.loadAssignmentListReviewedMigrations(process.cwd()).slice(0,count)
     const loader=vi.spyOn(platform,'loadAssignmentListReviewedMigrations').mockReturnValue(inventory)
     try {

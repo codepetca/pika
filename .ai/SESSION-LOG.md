@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — Integrate verified Test results coordination with main
-
-Coordinator owns codex/test-results-main-integration at main944c1735c. Ported only
-the two verified app-fix commits, preserving current publication/table/reporting
-work. Workspace-scoped in-flight reads, stale reply guards and field-level draft
-intent remain; no fulfilled cache, auth/SQL/lock changes or retries added.
-An integration regression caught a successful refresh clearing a newer grading
-failure summary; keep clearing at read entry only. All169 targeted tests pass.
-UI brief names reuse/extend decisions and separates prior real app050699bb proof
-from current-main fixture visuals. Focused gate, independent review and PR
-receipts follow. No merge or production operation in this preparation slice.
-
-Risk profile: workspace-state; standard interacting state management. One fresh
-Sol6.1/high reviewer is planned. Existing task waiver/counters carry (155 prior
-review turns/96 remediation batches); no provider pause bypass. Weekly12%
-remaining, ordinary usage allowed; DeepSeek paused through Dec31. Storage319GB
-healthy; dependency lock unchanged and existing node_modules reused. Effective
-reviewer configuration and per-task usage unavailable. Production/shared-local
-DB/provider/Survey/schema/billing/account/cutover holds unchanged.
-
-Independent complete review156 found one P2: a successful panel refresh could
-erase a newer save error and reset the conflict retry budget. Reproduced with
-two failing deferred500/409 regressions; move mutation-error/retry reset to the
-resource-scope transition, preserving explicit edit/save recovery. Remediation98
-adds no API, permission, styling or database change; targeted re-review and final
-checks/fixture captures follow on the new SHA. Original proof remains historical.
-
 ## 2026-10-17 — Contextual hot classroom lifecycle foundation
 
 The consolidated Test proof reached an unimplemented dependency: admitted
@@ -614,3 +587,22 @@ Immediate NEXTTOOLFIRST11479JOINED0 before any post-run action verifies7918sourc
 443895B installedapply_patch+cmp, removing only newRPC reconstructs entire276fac561.
 No original receipt rewritten; spent profile stays fail-closed. Final focused
 checks/review/CI remain gates. Cumulative305reviews/4batches and all holds retained.
+
+## 2026-10-20 — Frozen classroom authoring-guidance read preparation
+
+Coordinator owns codex/contextual-classroom-authoring-guidance-read, based on
+reviewed reorder1d1d2b while PR1626 finishes CI. Prepared278 and admitted GET bind
+actual classroom ownership and selected frozen structural/adopted saved Versions
+in one read-only snapshot. Preserve archived/null-pointer behavior and legacy
+unmatched routing; no live Draft/latest or extra Blueprint-owner requirement.
+Only service-role SELECT(course_blueprint_id) on the purge fence is added.
+Private8MiB/10000-item work bounds reject rather than truncate. No UI change.
+Core Sol6.1/high delivered SQL and exact278 closed-profile seals; leaf Sol6.1/high
+delivered finite12-HTTP/18-SQL/60-guard SDK fixture with full Blueprint/history
+preservation. Root independently inspected output;1075 integration tests/9files
+pass, plus1388 closed-profile tests/10suites. Only pending genuine278 RPC metadata
+fails TypeScript; no manual metadata/cast. Audit, independent security and
+compatibility review, isolated proof, genuine generation and stable-head CI
+remain. Cumulative306 review turns/4 fix batches preserved; workflow-stop waiver
+active, per-worker cost unknown. Production/shared-local249+/provider/accounts/
+billing/AI/admission/home/page/cutover holds unchanged; no phase-exit claim.

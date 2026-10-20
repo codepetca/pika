@@ -51,7 +51,7 @@ const plans = new WeakMap<object, TestOwnerUnpublicationNativePlan>()
 export function testOwnerUnpublicationNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
   const f = newTestOwnerUnpublicationFixture(original), inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
+  assert([261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
   assert.equal(inventory[252].name, '253_classroom_test_tier_caps.sql')
   assert.equal(inventory[252].sha256, '076bb9775a6959ecfc1012a652205968fda74b601daaad3ba6ef0e8f9975cc09')
   assert.equal(hash(inventory[252].sql), inventory[252].sha256)

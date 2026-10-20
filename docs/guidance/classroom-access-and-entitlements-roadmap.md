@@ -689,6 +689,25 @@ actor/string-array Json RPC; removing it reconstructs entire276. Final focused
 checks, metadata/evidence review and exact-head CI remain gates. No shared-local
 or production schema application, admission activation or phase exit is implied.
 
+The next bounded attached-service read is GET
+`/api/teacher/classrooms/[id]/authoring-guidance`. Prepared278 binds current
+classroom ownership, its frozen structural Version and explicitly adopted
+guidance Version (or structural fallback) in one service-only invoker snapshot.
+Account labels and the linked Blueprint's current owner do not authorize this
+classroom read; live Drafts and unselected latest Versions never supply its DTO.
+Archived owners retain access; missing structural pointers retain null context.
+Lifecycle/purge fences and malformed or mismatched saved Versions fail closed.
+Only SELECT on the Blueprint-purge fence's identifying column is added to the
+service role; no browser, whole-ledger or write privilege is added. Private
+8MiB aggregate selected-snapshot/wire bounds and10000 source title-item bounds
+reject rather than truncate and are not subscription quotas or UI notices.
+Admitted owners of either account label use the contextual reader; unmatched
+and absent admission retain the unchanged legacy path. Capture, adoption and
+other Blueprint writes remain separate. Source-only SQL/API/SDK contracts and
+the canonical CI lane are prepared. Independent review, one isolated full-chain
+proof, genuine metadata and stable-head CI remain gates; no native acceptance,
+shared-local249+ or production application, activation or phase exit is claimed.
+
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the

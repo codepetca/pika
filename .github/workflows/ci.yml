@@ -259,6 +259,9 @@ jobs:
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 
+      - name: Verify contextual owner frozen classroom authoring guidance and privileges
+        run: bash scripts/check-contextual-classroom-authoring-guidance-database.sh
+
       - name: Lint all database functions at error level
         run: supabase db lint --local --level error --fail-on error
 

@@ -25,7 +25,7 @@ export function createOfflineTestLearnerRepository(repository: string, count: 25
   // Validate the complete source inventory before taking an explicit historical
   // prefix; malformed, duplicate or unknown-numeric source must not disappear.
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277].includes(inventory.length), 'Unreviewed offline learner source profile')
+  assert([257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278].includes(inventory.length), 'Unreviewed offline learner source profile')
   if (inventory.length >= 258) validateStudentTestSessionStatusReviewedMigration(inventory[257])
   if (inventory.length >= 259) validateTestOwnerGradingReviewedMigration(inventory[258])
   if (inventory.length >= 260) validateTestOwnerRecoveryReviewedMigration(inventory[259])
