@@ -12898,6 +12898,10 @@ export type Database = {
         Args: { p_assignment_ids: Json; p_classroom_id: string }
         Returns: undefined
       }
+      reorder_classrooms_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_ids: string[] }
+        Returns: Json
+      }
       reorder_classwork_items: {
         Args: { p_classroom_id: string; p_items: Json }
         Returns: undefined

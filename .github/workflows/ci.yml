@@ -271,6 +271,9 @@ jobs:
       - name: Verify coordinated attendance decommission database contracts
         run: bash scripts/check-attendance-decommission-database.sh
 
+      - name: Verify contextual owner classroom list reorder transactions and privileges
+        run: bash scripts/check-contextual-classroom-list-reorder-database.sh
+
       - name: Require warning-free database functions
         run: supabase db lint --local --level warning --fail-on warning
 
