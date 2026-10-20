@@ -47609,3 +47609,13 @@ only those integration lines and continuity archive markers differ. Four snapsho
 checks and four teacher desktop/mobile×light/dark combined preference/browser
 casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
 Review ledger retains3launches/2batches; final integration review/CI remain gates.
+
+<!-- pika-session-log-archive-batch:503c5f10b5c63a344e966689be9e49ac4e2e76cb16e53e7082b5645f5070e9d8 -->
+## 2026-10-15 — Shared compact zero-weight assessments
+
+- User follow-up replaces #1597's two hide actions with one **Compact 0-weight assessments**, default on. New branch `codex/gradebook-compact-zero-weight` from main `0cfcc47cc`; previous feature/release #1597/#1598 already complete.
+- Extend existing toolbar/table/inspector and student Grades/returned-marks owners. All zero-weight work stays visible, muted and compact; off restores regular presentation. Ignore retired teacher preference/student hide flag. Shared classroom JSON setting preserves old clients and unrelated updates; migration267 prepares dormant metadata RPC compatibility without applying SQL or activating flags.
+- UI brief: `docs/guidance/ui/changes/gradebook-compact-zero-weight.md`. Composite checklist reviewed: semantic checked state, Enter activation, Escape/focus return covered; 44px primary actions maintained. Both roles, desktop/mobile, light/dark, compact/expanded verified in 36 Playwright captures. Mobile desktop-table fixture additionally unfreezes/scrolls to zero column; actual mobile presentation is the inspector.
+- Local targeted checks: persistence 770 tests/12 files, student 93/7, teacher/editor/surface 84/4 PASS. TypeScript, lint (existing warnings), UI/design policy and audit PASS. Broad focused run: 6124 passed with one unchanged proof test timing out at5s; its equivalent ID-disjointness assertion now uses Set membership (no relaxed timeout/criteria), all109 file tests PASS. Final focused rerun pending at this entry.
+- Orchestration: two bounded implementation workers requested GPT-6.1-sol/high; effective config and per-worker tokens/active time unknown. Both delivered verified, zero integration conflicts; third bounded visual turn inspected36 captures. Weekly allowance at start90% remaining; storage healthy ~315GB free. Development review planned standard risk, one GPT-6.1-sol/high full-diff wave; ledger0 launches/0 fix batches before publication, cap7 launches/4 batches/60min.
+- Evidence: `~/.codex/artifacts/pika/gradebook-compact-zero-weight/`; reviewed-head/PR/check receipts to be recorded there and in lifecycle metrics. No merge/deploy for this follow-up yet; old heartbeat remains paused.

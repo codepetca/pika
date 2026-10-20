@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { extractWorkflow, selectPlan } from '../../scripts/run-ci-local.mjs'
 
 describe('attendance owner policy database CI contract', () => {
   it('binds the rollback suite to the existing local project and database port', () => {
@@ -15,7 +16,15 @@ describe('attendance owner policy database CI contract', () => {
 
   it('runs the rollback suite in the existing ephemeral database lane', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    expect(workflow).toContain('run: bash scripts/check-contextual-attendance-policy-database.sh')
+    const jobs = extractWorkflow(workflow), command = 'bash scripts/check-contextual-attendance-policy-database.sh'
+    for (const lane of ['database', 'all']) {
+      const selected = selectPlan(jobs, lane).flatMap(job => job.steps.filter(step => step.run === command).map(step => ({ job, step })))
+      expect(selected).toHaveLength(1)
+      expect(selected[0].job.id).toBe('architecture-database-contracts')
+      const steps = selected[0].job.steps, at = steps.indexOf(selected[0].step)
+      expect(steps[at - 1].run).toBe('pnpm run check:bara-attendance-db')
+      expect(steps[at + 1].run).toBe('bash scripts/check-pal-outbox-concurrency.sh')
+    }
   })
 
   it('keeps the exact component verdict free of void SELECT output', () => {

@@ -12564,6 +12564,16 @@ export type Database = {
         }
         Returns: Json
       }
+      read_attendance_policy_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_classroom_id: string
+          p_scope_mode: string
+        }
+        Returns: Json
+      }
       read_classroom_archive_recovery_for_owner_v1: {
         Args: {
           p_actor_id: string

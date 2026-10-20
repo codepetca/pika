@@ -534,8 +534,10 @@ owner/unarchive/revision/compaction/purge begin/finalize/replay matrix remains
 batch3/cutover evidence, alongside authenticated/provider compatibility and the
 queued-fact/token policy; it is not marked passed. The unchanged archive writer
 protocol is not being recertified by this narrow read/postflight integration.
-No main merge, batch exit, real account/provider operation or rollout is claimed
-by these partial receipts.
+PR1620 merged normally into main as `2c9658abfa99153d98b96847679ffddf23c5fa9b`
+on2026-10-19 after all ten exact-head CI checks, including PR Gate, passed.
+Canonical main is fast-forwarded and clean. This dormant merge does not claim
+batch exit, real account/provider operation, production deployment or rollout.
 
 The next bounded attached-service read is owner attendance settings: admitted
 GET `/api/teacher/attendance/policy` uses additive273's one service-only invoker
@@ -547,8 +549,22 @@ Only the decommission ledger's `classroom_id` becomes service-readable to check
 its fence, not its provider/receipt columns or writes. No new UI or provider call.
 Source/unit evidence alone is not acceptance: isolated full-chain SQL, genuine
 metadata, bounded SDK/preservation, independent review and final CI remain gates.
-Member attendance, principal/QR/writer integration and rejoined-member history
-policy remain separate; this read must not silently decide them.
+The fresh isolated273 proof now passes complete replay/rollback SQL, genuine
+metadata and sixteen finite HTTP reads (thirteen actual adapter calls, three
+exact-canary RPCs). Current owner, denial and entitlement/roster/restoration cases
+pass with all original caps; complete fixture/complement preservation, canonical
+read-only equality and positive owned/global cleanup pass. Immediate independent
+source/dependency preservation and zero-process observation pass. Earlier failed
+fixture attempts remain spent; their temporary-schema alias and decommission
+prerequisite defects were corrected without changing product grants or triggers.
+Genuine metadata contains only the new RPC over the prior272 artifact. Independent
+final integration/evidence review and exact-head CI remain dormant-merge gates;
+these receipts are not the wider attendance/provider contract or batch3 exit.
+Member attendance and principal/QR/writer integration remain separate. Owner
+decision2026-10-19: a removed and rejoined learner sees only current-membership
+attendance records and overrides; earlier membership history remains preserved
+and available to the classroom owner. This read does not itself implement that
+learner-history boundary or delete any historical record.
 
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider

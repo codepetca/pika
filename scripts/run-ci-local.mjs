@@ -151,8 +151,11 @@ function parseStep(lines) {
 // Historical combined DB layouts retain their own commands and established
 // sentinels; today's inventories apply only to the explicit split layout.
 const databaseProofInventories = {
-  database: [53, 'c1a9b76baedff767805250f8e2ede044ba1392cf3b40b783fde091044d287d39'],
-  'database-lifecycle': [87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18'],
+  database: [
+    [53, 'c1a9b76baedff767805250f8e2ede044ba1392cf3b40b783fde091044d287d39'],
+    [54, 'aea74c33146c7771e669396cf7cd0efcc06034c2d3ab61b9df6a14687c3f966b'],
+  ],
+  'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
 function databaseProofs(job) {
   const start = job.steps.findIndex(step => step.id === 'supabase-start')
@@ -167,9 +170,9 @@ function validateDatabaseInventory(jobs) {
   if (secondary) {
     for (const lane of ['database', 'database-lifecycle']) {
       const job = jobs[jobsByLane[lane]], proofs = databaseProofs(job)
-      const [count, digest] = databaseProofInventories[lane]
       const namesDigest = createHash('sha256').update(JSON.stringify(proofs.map(step => step.name))).digest('hex')
-      if (job.id !== jobsByLane[lane] || job.lane !== lane || proofs.length !== count || namesDigest !== digest
+      if (job.id !== jobsByLane[lane] || job.lane !== lane
+        || !databaseProofInventories[lane].some(([count, digest]) => proofs.length === count && namesDigest === digest)
         || proofs.some(step => !step.run || step.uses || step.if)) {
         throw new Error(`Canonical ${lane} database proof inventory is incomplete, reordered or changed.`)
       }
@@ -197,6 +200,17 @@ function validateDatabaseInventory(jobs) {
         || matches[0].if || index <= previous) throw new Error('Incomplete historical combined database proof inventory.')
       previous = index
     }
+  }
+  // The pre-attendance inventories remain exact historical profiles. When the
+  // new proof is present, its one literal command belongs to the primary lane.
+  const attendanceName = 'Verify contextual owner attendance policy snapshot and privileges'
+  const attendanceScript = 'scripts/check-contextual-attendance-policy-database.sh'
+  const attendance = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === attendanceName || step.run?.includes(attendanceScript)).map(step => ({ job, step })))
+  if (attendance.length && (attendance.length !== 1 || attendance[0].job !== primary
+    || attendance[0].step.name !== attendanceName || attendance[0].step.run !== `bash ${attendanceScript}`
+    || attendance[0].step.if || !databaseProofs(primary).includes(attendance[0].step))) {
+    throw new Error('Canonical attendance database proof is missing, duplicated or changed.')
   }
 }
 

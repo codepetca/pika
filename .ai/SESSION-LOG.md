@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Shared compact zero-weight assessments
-
-- User follow-up replaces #1597's two hide actions with one **Compact 0-weight assessments**, default on. New branch `codex/gradebook-compact-zero-weight` from main `0cfcc47cc`; previous feature/release #1597/#1598 already complete.
-- Extend existing toolbar/table/inspector and student Grades/returned-marks owners. All zero-weight work stays visible, muted and compact; off restores regular presentation. Ignore retired teacher preference/student hide flag. Shared classroom JSON setting preserves old clients and unrelated updates; migration267 prepares dormant metadata RPC compatibility without applying SQL or activating flags.
-- UI brief: `docs/guidance/ui/changes/gradebook-compact-zero-weight.md`. Composite checklist reviewed: semantic checked state, Enter activation, Escape/focus return covered; 44px primary actions maintained. Both roles, desktop/mobile, light/dark, compact/expanded verified in 36 Playwright captures. Mobile desktop-table fixture additionally unfreezes/scrolls to zero column; actual mobile presentation is the inspector.
-- Local targeted checks: persistence 770 tests/12 files, student 93/7, teacher/editor/surface 84/4 PASS. TypeScript, lint (existing warnings), UI/design policy and audit PASS. Broad focused run: 6124 passed with one unchanged proof test timing out at5s; its equivalent ID-disjointness assertion now uses Set membership (no relaxed timeout/criteria), all109 file tests PASS. Final focused rerun pending at this entry.
-- Orchestration: two bounded implementation workers requested GPT-6.1-sol/high; effective config and per-worker tokens/active time unknown. Both delivered verified, zero integration conflicts; third bounded visual turn inspected36 captures. Weekly allowance at start90% remaining; storage healthy ~315GB free. Development review planned standard risk, one GPT-6.1-sol/high full-diff wave; ledger0 launches/0 fix batches before publication, cap7 launches/4 batches/60min.
-- Evidence: `~/.codex/artifacts/pika/gradebook-compact-zero-weight/`; reviewed-head/PR/check receipts to be recorded there and in lifecycle metrics. No merge/deploy for this follow-up yet; old heartbeat remains paused.
-
 ## 2026-10-16 — Daily row hover synchronization
 - `codex/daily-row-hover`: removed the row-only color transition so First/Last/ID/Log and opaque sticky attendance cells highlight together; existing Daily/Attendance pattern reused, no new component or pattern. Teacher-only; student n/a. Risk profile: none.
 - Playwright reproduced the old fade frame by frame, then verified immediate matching colors on rapid row changes. Selected/unselected Daily scenario passed desktop 1440x900 and mobile 390x844, light/dark (4/4); screenshots inspected under `output/playwright/daily-hover` and `test-results`. Pattern Lab page mockups inspected as reference.
@@ -667,3 +658,25 @@ unchanged. Source regression failed before correction;9 affected checks and lint
 pass. This is not yet real PostgreSQL regression acceptance. Original failed
 attempts remain spent; immediate FIRST and exact resource absence pass for both.
 Independent review and a new bounded isolated proof remain required; all holds stay.
+
+## 2026-10-19 — Complete isolated attendance owner-policy proof
+
+Fresh Bg888j actual proof passes complete001–273 replay, rollback SQL including
+the temporary-schema regression, genuine273 metadata and16 RPC reads:13 actual
+adapter plus3 exact-canary.64actions/1325controls/41887666bytes/max1final0sessions
+stay within original caps. Complete fixture/complement restoration, canonical
+read-only equality and positive owned/global cleanup pass. Immediate FIRST before
+any post-run changes preserves7853source/98970dependency files with zero matching
+processes; separate exact Docker/workdir absence passes. Earlier failures/spent
+records remain unchanged. Generated273 bytes installed exactly (SHA32368aa8ad6c),
+only the new RPC over prior272; full TypeScript now passes without casts.
+Full focused checks exposed two CI wiring omissions: closed local DB inventory
+and canonical workflow-test list. Exact54-proof current and53-proof historical
+profiles, once-only command/order and87-proof lifecycle lane are retained;
+369 affected/related tests pass. Final current-main focused checks and independent
+metadata/evidence/integration review remain before PR readiness. Native source
+reviews279–285 retained; no repeated runtime needed for metadata/docs/base sync.
+Owner selected current-membership-only learner attendance with older records and
+overrides preserved for the classroom owner; member integration remains future.
+PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
+Production/shared-local249+/provider/account/billing/AI/activation holds remain.
