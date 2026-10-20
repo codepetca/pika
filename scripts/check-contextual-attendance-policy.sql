@@ -49,7 +49,23 @@ begin
 end;
 $function$;
 -- Both grants are confined to this session's rollback-only temporary schema.
-grant usage on schema pg_temp to service_role;
+-- PostgreSQL17 GRANT uses a literal namespace lookup, not pg_temp alias
+-- resolution. Reproduce the original3F000 in a contained subtransaction, then
+-- grant the actual namespace obtained exclusively from this session's OID.
+do $temp_schema_usage$
+declare v_schema name;
+begin
+  begin
+    execute 'grant usage on schema pg_temp to service_role';
+    raise exception 'Temporary schema alias unexpectedly resolved';
+  exception when invalid_schema_name then null;
+  end;
+  select nspname into strict v_schema from pg_catalog.pg_namespace
+    where oid = pg_catalog.pg_my_temp_schema();
+  if v_schema !~ '^pg_temp_[0-9]+$' then raise exception 'Temporary schema identity invalid'; end if;
+  execute pg_catalog.format('grant usage on schema %I to service_role', v_schema);
+end;
+$temp_schema_usage$;
 revoke all on function pg_temp.expect_attendance_policy(uuid,uuid,text,text,uuid,uuid) from public, anon, authenticated;
 grant execute on function pg_temp.expect_attendance_policy(uuid,uuid,text,text,uuid,uuid) to service_role;
 do $helper_acl$

@@ -47585,3 +47585,27 @@ Read-only GPT-6.1 Sol/high diagnosis verified against the lifecycle implementati
 no worker edits or conflicts, attributable time/tokens unknown. Next: independent
 delta review, clean fixed-SHA native reproduction, actual cleanup correction if
 needed, final CI and authorized main merge. PR remains draft; heartbeat paused.
+
+<!-- pika-session-log-archive-batch:193ad45ee8eceb9989c7b9e0d8c3aa3c3dff5cffdced89a790649abd9ad54a09 -->
+## 2026-10-15 — PR1596 Assignment child-dialog focus correction
+
+Hosted diagnostic CI38742184503 passed updated Pattern Lab snapshots but exposed
+AssignmentModal's delayed title focus racing Schedule Release. Deterministic
+fake-timer regression reproduced the title stealing focus at100ms. Extend the
+existing title-focus guard to scheduling/post/revert child dialogs; shared
+ModalLayer/DialogPanel focus ownership remains unchanged.41component testsPASS,
+new regressionRED→GREEN. Real browser pending-timer/escape verificationPASS in
+teacher desktop/mobile×light/dark; screenshots inspected. Student n/a.
+Reference: shared nested-dialog focus contract; reuse ModalLayer/DialogPanel,
+extend feature-owned focus guard. Composite focus/keyboard checklist reviewed.
+Hosted c1139b535 diagnostic CI38742184503 passed all24installed-SDK cases,
+SQL/races, normal exact teardown/canonical equality and both forced cleanup
+cases. Original cleanup-only failure did not reproduce; exact cause unknown,
+new fixed-label diagnostics retained. Superseded diagnostic cancelled after
+this evidence, before final PR CI; no guard/budget/comparison weakened.
+Rebased onto main0009d60ee (#1597); resolve Gradebook preference/reference
+conflicts by retaining both zero-weight filters and gridlines. Range-diff confirms
+only those integration lines and continuity archive markers differ. Four snapshot
+checks and four teacher desktop/mobile×light/dark combined preference/browser
+casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
+Review ledger retains3launches/2batches; final integration review/CI remain gates.

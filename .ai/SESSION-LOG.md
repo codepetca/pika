@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — PR1596 Assignment child-dialog focus correction
-
-Hosted diagnostic CI38742184503 passed updated Pattern Lab snapshots but exposed
-AssignmentModal's delayed title focus racing Schedule Release. Deterministic
-fake-timer regression reproduced the title stealing focus at100ms. Extend the
-existing title-focus guard to scheduling/post/revert child dialogs; shared
-ModalLayer/DialogPanel focus ownership remains unchanged.41component testsPASS,
-new regressionRED→GREEN. Real browser pending-timer/escape verificationPASS in
-teacher desktop/mobile×light/dark; screenshots inspected. Student n/a.
-Reference: shared nested-dialog focus contract; reuse ModalLayer/DialogPanel,
-extend feature-owned focus guard. Composite focus/keyboard checklist reviewed.
-Hosted c1139b535 diagnostic CI38742184503 passed all24installed-SDK cases,
-SQL/races, normal exact teardown/canonical equality and both forced cleanup
-cases. Original cleanup-only failure did not reproduce; exact cause unknown,
-new fixed-label diagnostics retained. Superseded diagnostic cancelled after
-this evidence, before final PR CI; no guard/budget/comparison weakened.
-Rebased onto main0009d60ee (#1597); resolve Gradebook preference/reference
-conflicts by retaining both zero-weight filters and gridlines. Range-diff confirms
-only those integration lines and continuity archive markers differ. Four snapshot
-checks and four teacher desktop/mobile×light/dark combined preference/browser
-casesPASS, screenshots inspected; current92files/1562tests and static checksPASS.
-Review ledger retains3launches/2batches; final integration review/CI remain gates.
-
 ## 2026-10-15 — Shared compact zero-weight assessments
 
 - User follow-up replaces #1597's two hide actions with one **Compact 0-weight assessments**, default on. New branch `codex/gradebook-compact-zero-weight` from main `0cfcc47cc`; previous feature/release #1597/#1598 already complete.
@@ -677,3 +654,16 @@ checks that predecessor prerequisite;12 focused tests, lint and audit pass.
 Missing failure diagnostics prevent proving this was the first observed error.
 Independent review and a new bounded proof remain required. Production and shared
 local migration, provider, account and rollout holds are unchanged.
+
+## 2026-10-19 — Resolve the actual temporary schema for rollback helper usage
+
+The fresh corrected-fixture proof failed before HTTP with fixed command/3F000
+diagnostics. PostgreSQL17's GRANT resolves literal namespace names, unlike object
+lookup's pg_temp alias. The rollback suite now contains the original alias failure
+in an expected-error subtransaction, resolves only pg_my_temp_schema's actual
+catalog identity, and safely quotes that name for the session-only USAGE grant.
+Function client revocations, service-only execution and all production grants are
+unchanged. Source regression failed before correction;9 affected checks and lint
+pass. This is not yet real PostgreSQL regression acceptance. Original failed
+attempts remain spent; immediate FIRST and exact resource absence pass for both.
+Independent review and a new bounded isolated proof remain required; all holds stay.
