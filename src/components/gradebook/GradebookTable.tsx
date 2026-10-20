@@ -128,7 +128,7 @@ export function GradebookTable({
           <tbody>
             {students.map((student) => <DataTableRow key={student.student_id} id={getGradebookStudentRowId(student.student_id)}
               tabIndex={-1} aria-selected={selectedStudentId === student.student_id}
-              className={cn('cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', selectedStudentId === student.student_id ? 'bg-surface-3' : 'hover:bg-surface-hover')}
+              className={cn('h-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', selectedStudentId === student.student_id ? 'bg-surface-3' : 'hover:bg-surface-hover')}
               onClick={() => onStudentSelect(student)}>
               {orderedNames.map((column) => <DataTableCell key={column.key} className="truncate" title={getStudentIdentityValue(student, column.key)}>{getStudentIdentityValue(student, column.key)}</DataTableCell>)}
             </DataTableRow>)}
