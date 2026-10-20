@@ -537,6 +537,19 @@ protocol is not being recertified by this narrow read/postflight integration.
 No main merge, batch exit, real account/provider operation or rollout is claimed
 by these partial receipts.
 
+The next bounded attached-service read is owner attendance settings: admitted
+GET `/api/teacher/attendance/policy` uses additive273's one service-only invoker
+snapshot of current ownership, active/lifecycle fences, existing attendance scope
+and nullable policy. Both historical account labels can be owners, but this does
+not create an attendance grant. Exact-canary and teacher-entitlement modes and
+the transport kill switch remain; unmatched GET and all PUT behavior stay legacy.
+Only the decommission ledger's `classroom_id` becomes service-readable to check
+its fence, not its provider/receipt columns or writes. No new UI or provider call.
+Source/unit evidence alone is not acceptance: isolated full-chain SQL, genuine
+metadata, bounded SDK/preservation, independent review and final CI remain gates.
+Member attendance, principal/QR/writer integration and rejoined-member history
+policy remain separate; this read must not silently decide them.
+
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the

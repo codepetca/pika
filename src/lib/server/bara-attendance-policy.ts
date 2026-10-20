@@ -3,7 +3,7 @@ import type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
 export type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
 
 const timeFromDatabaseSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/)
-const policyRowSchema = z.object({
+export const attendancePolicyRowSchema = z.object({
   classroom_id: z.string().uuid(),
   timezone: z.literal('America/Toronto'),
   opens_local: timeFromDatabaseSchema,
@@ -44,7 +44,7 @@ function isMigrationError(error: { code?: string } | null) {
   return error?.code === '42P01' || error?.code === '42883' || error?.code === 'PGRST202' || error?.code === 'PGRST205'
 }
 
-function toPolicy(row: z.infer<typeof policyRowSchema>): TeacherAttendancePolicy {
+export function toTeacherAttendancePolicy(row: z.infer<typeof attendancePolicyRowSchema>): TeacherAttendancePolicy {
   return {
     classroomId: row.classroom_id,
     timezone: row.timezone,
@@ -74,9 +74,9 @@ export async function loadTeacherAttendancePolicy(input: {
     throw new TeacherAttendancePolicyError(isMigrationError(error) ? 'migration_required' : 'read_failed')
   }
   if (data === null) return null
-  const parsed = policyRowSchema.safeParse(data)
+  const parsed = attendancePolicyRowSchema.safeParse(data)
   if (!parsed.success) throw new TeacherAttendancePolicyError('invalid_result')
-  return toPolicy(parsed.data)
+  return toTeacherAttendancePolicy(parsed.data)
 }
 
 export async function saveTeacherAttendancePolicy(input: {

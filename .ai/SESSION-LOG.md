@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Test publication date menus
-
-Owner requested Publish today / Schedule test instead of the standalone date field, a published-date menu for changes/valid Unpublish, and future Tests hidden from the student Tests list while remaining on Calendar. Implemented one feature-owned control in selected workspace and authoring, reusing the existing menu, date-save acknowledgement and publication/unpublish APIs. Access remains separately teacher-controlled. Worked Tests cannot ordinarily move into the future; manual open access and submitted/returned work stay visible. Added Toronto-midnight reveal, friendly scheduled Calendar selections, editor-save and owner-change guards. No schema, migration, dependency or scheduler changes.
-
-Validation: focused --base origin/main --max-workers 2 PASS 1214 tests/78 files, architecture/UI/design/TypeScript/lint PASS; Pika audit PASS. Playwright 8/8 teacher/student × desktop/mobile × light/dark PASS, plus teacher flow after nonvisual owner/closing safeguards PASS. Screenshots inspected against Pattern Lab controls; artifacts output/playwright/test-publication-date and test-publication-date-guard. Composite checklist reviewed; keyboard/focus and semantic states covered; no manual follow-up. Initial unconstrained runs hit existing markdown/reorder timing failures, each passed isolated; bounded final suite passed. Browser regression caught and fixed editor Unpublish eligibility and post-success navigation.
-
-Coordinator branch codex/test-publish-date from 0009d60ee. GPT-6.1-Sol/high worker supplied contract investigation and student filtering; its 71 tests/3 files were accepted and integrated without student-slice corrections. Per-worker tokens/active time and coordinator attribution unknown; account weekly remaining 94% at start, 92% before review (shared account, no task-cost inference). Storage healthy ~319 GB; DeepSeek paused. Draft-first independent review/CI receipts belong to this PR lifecycle. No main merge or production operation authorized/performed.
-
-Post-review failure check reproduced Cancel retaining a failed date for close-time retry (two PATCHes). Cancel/Escape now reset the pending date to its acknowledged value. Regression RED then GREEN; updated focused1215/78 and all static checks PASS, audit PASS, browser8/8 PASS with failed-save captures in all four role/theme viewport combinations (teacher and student scenarios per project). Artifacts: output/playwright/test-publication-date-cancellation. Initial CI38749335978 cancelled while draft for this correction; one batched correction and targeted independent follow-up, with receipts in PR1599 lifecycle.
-
-CI38750707277 exposed two existing browser contracts still using the former Publish/More-actions paths (four dark-project failures, 191 passes). PR returned to draft and the remaining obsolete run cancelled. Updated publication/unpublication contracts to exercise Publish today with the Toronto date PATCH and date-menu Unpublish; aligned the existing exam-mode scenario too. All eight targeted experience-matrix cases PASS across desktop/mobile and light/dark; no product-code change in this correction.
-
-Synced main0cfcc47cc (optional student-table gridlines). Only archive append markers conflicted; retained both archive batches/content. Test workspace/gridline source and component coverage merged automatically. Final merged-head validation and CI remain required; no merge to main or production operation.
-
-Latest sync includes main5e71c54fd and its Gradebook updates. All our archived entries already exist on main (normalized content checked), so retained the canonical main archive without duplicate appends. Test publication source unchanged by this second sync. No migration application or production operation.
-
 ## 2026-10-15 — Student-table gridlines toggle
 
 Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
@@ -683,3 +667,18 @@ before this correction. All40 focused/classifier tests and root combined2,498/94
 focused checks plus policies, TypeScript, lint and audit pass. No workflow,
 application, schema, dependency, native capability or activation change. Targeted
 review and exact-head CI are still required; production and rollout stay held.
+
+## 2026-10-19 — Prepare contextual owner attendance-policy read
+
+Prepared admitted GET-only attendance settings with one bounded service-only273
+snapshot: current owner, lifecycle fences, unchanged attendance entitlement or
+exact canary and the existing nullable policy DTO. Legacy GET/PUT remain intact.
+Invoker gains only decommission classroom-id SELECT; provider columns/writes stay
+revoked. No provider or UI change. Feature76 checks and hardened SQL-source5,
+native-leaf15, CI/source22 and predecessor-profile1,123 checks pass (overlapping
+counts, not summed); architecture, targeted lint and shell syntax pass. Genuine
+273 metadata is pending; the only two TypeScript errors are its missing generated
+RPC keys, not hidden by casts. This source preparation is not native acceptance,
+PR readiness, a phase exit or rollout. All production/shared-local/real-state and
+activation holds persist. Sol6.1/high supplied bounded product, native leaf and
+existing-runner extension; coordinator owns integration/review and acceptance.

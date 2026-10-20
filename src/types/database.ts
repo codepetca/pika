@@ -279,6 +279,16 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  //273 canary filters default to SQLNULL. Preserve genuine generated keys.
+  read_attendance_policy_for_owner_v1: FunctionContract<
+    'read_attendance_policy_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['read_attendance_policy_for_owner_v1']['Args'], {
+      p_canary_actor_id?: string | null
+      p_canary_classroom_id?: string | null
+    }>
+  >
+
   //271 defaults both filters to SQLNULL. Retain genuine generated optionality
   // and every other argument; metadata does not encode input nullability.
   read_classroom_archive_recovery_for_owner_v1: FunctionContract<
