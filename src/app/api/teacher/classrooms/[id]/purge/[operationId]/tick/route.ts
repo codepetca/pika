@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
+import { authorizeSharedClassroomArchiveActor } from '@/lib/server/contextual-classroom-archive-recovery'
+import { advanceContextualClassroomPurge } from '@/lib/server/contextual-classroom-purge'
 import {
   advanceClassroomPurge,
   getClassroomPurgeStatus,
@@ -17,7 +19,8 @@ const emptyRequestSchema = z.object({}).strict()
 export const POST = withErrorHandler(
   'TickTeacherClassroomPurge',
   async (request, context) => {
-    const user = await requireRole('teacher')
+    const actor = await authorizeSharedClassroomArchiveActor()
+    const user = actor.mode === 'shared' ? actor.user : await requireRole('teacher')
     const { id, operationId } = await context.params
     const text = await request.text()
     if (text.trim()) {
@@ -30,6 +33,10 @@ export const POST = withErrorHandler(
     }
     const parsedOperationId = uuidSchema.parse(operationId)
     const parsedClassroomId = uuidSchema.parse(id)
+    if (actor.mode === 'shared') {
+      const result = await advanceContextualClassroomPurge({ actorId: user.id, classroomId: parsedClassroomId }, parsedOperationId)
+      return NextResponse.json(result, { status: result.operation.status === 'completed' ? 200 : 202 })
+    }
     const existing = await getClassroomPurgeStatus(user.id, parsedOperationId)
     if (existing.classroom_id !== parsedClassroomId) {
       return NextResponse.json({ error: 'Permanent deletion not found' }, { status: 404 })

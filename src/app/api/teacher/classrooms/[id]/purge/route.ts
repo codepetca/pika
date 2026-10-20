@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
+import { authorizeSharedClassroomArchiveActor } from '@/lib/server/contextual-classroom-archive-recovery'
+import { getContextualClassroomPurgeImpact, startContextualClassroomPurge } from '@/lib/server/contextual-classroom-purge'
 import {
   getActiveClassroomPurgeStatus,
   getClassroomPurgeImpact,
@@ -18,6 +20,11 @@ const classroomIdSchema = z.string().uuid()
 export const GET = withErrorHandler(
   'GetTeacherClassroomPurgeImpact',
   async (_request, context) => {
+    const actor = await authorizeSharedClassroomArchiveActor()
+    if (actor.mode === 'shared') {
+      const { id } = await context.params
+      return NextResponse.json(await getContextualClassroomPurgeImpact({ actorId: actor.user.id, classroomId: classroomIdSchema.parse(id) }))
+    }
     const user = await requireRole('teacher')
     const { id } = await context.params
     const classroomId = classroomIdSchema.parse(id)
@@ -32,6 +39,18 @@ export const GET = withErrorHandler(
 export const POST = withErrorHandler(
   'PostTeacherClassroomPurge',
   async (request, context) => {
+    const actor = await authorizeSharedClassroomArchiveActor()
+    if (actor.mode === 'shared') {
+      const { id } = await context.params
+      const input = classroomPurgeStartRequestSchema.parse(await request.json())
+      const operation = await startContextualClassroomPurge({ actorId: actor.user.id, classroomId: classroomIdSchema.parse(id) }, {
+        operationId: input.operation_id, confirmation: input.confirmation,
+        expectedSourceRevision: input.expected_source_revision,
+        expectedStorageInventorySha256: input.expected_storage_inventory_sha256,
+        expectedOperationalInventorySha256: input.expected_operational_inventory_sha256,
+      })
+      return NextResponse.json({ operation }, { status: operation.status === 'completed' ? 200 : 202 })
+    }
     const user = await requireRole('teacher')
     const { id } = await context.params
     const input = classroomPurgeStartRequestSchema.parse(await request.json())
