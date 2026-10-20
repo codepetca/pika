@@ -32,6 +32,42 @@ describe('atomic guidance adoption actual adapter / SDK proof (CPU only)',()=>{
     for(const patch of[{requests:13},{adapterCalls:7},{sourceRequests:5},{guardCalls:57},{controls:0},{maximumSessions:2},{bytes:0},{bytes:33554433},{nativeVerified:true},{unknown:true},{bindings:receipt.bindings.slice(1)},{bindings:receipt.bindings.map(b=>({...b,versionIdSha256:receipt.bindings[0].versionIdSha256}))},{physical:receipt.physical.slice(1)},{physical:receipt.physical.map(p=>({...p,dtoSha256:null}))}])expect(()=>assertClassroomGuidanceAdoptionProofReceipt({...receipt,...patch})).toThrow()
     await expect(h.proof.sdk()).rejects.toThrow();expect(h.original).toHaveBeenCalledTimes(12)
   })
+  async function timingHarness(delay:number){
+    vi.useFakeTimers()
+    // Model the unchanged actual adapter's per-RPC 10s caller signal on the CPU clock.
+    vi.spyOn(AbortSignal,'timeout').mockImplementation(ms=>{const controller=new AbortController();setTimeout(()=>controller.abort(),ms);return controller.signal})
+    const h=harness(),sql=h.controls.sql;let entered!:()=>void
+    const ready=new Promise<void>(resolve=>{entered=resolve})
+    h.controls.sql=async frame=>{if(frame.name==='source-0'){entered();await new Promise(resolve=>setTimeout(resolve,delay))}return sql(frame)}
+    const proof=createClassroomGuidanceAdoptionSdkProof(f,target,h.original,h.controls)
+    const result=proof.sdk().then(receipt=>({receipt,error:null}),error=>({receipt:null,error}))
+    await ready;await vi.advanceTimersByTimeAsync(delay)
+    return{h,proof,...await result}
+  }
+  it('excludes 8.1s source bookkeeping from the leaf network window while preserving the live 10s caller',async()=>{
+    try{const result=await timingHarness(8100);expect(result.error).toBeNull();expect(result.receipt).toMatchObject({complete:true,requests:12,descriptorCalls:17,guardCalls:58});expect(result.h.original).toHaveBeenCalledTimes(12)}
+    finally{vi.restoreAllMocks();vi.useRealTimers()}
+  })
+  it('refuses a 10.1s source prefix before writer dispatch when the unchanged caller expires',async()=>{
+    try{const result=await timingHarness(10100);expect(result.error?.message).toBe('classroom_guidance_adoption_proof_refused');expect(result.error?.verificationFailure).toEqual({phase:'write',stage:'preflight',abort:'caller'});expect(result.h.original).toHaveBeenCalledTimes(1);expect(result.proof.receipt()).toMatchObject({requests:1,writerRequests:0,descriptorCalls:6,guardCalls:15,restoreState:'restored',poisoned:false})}
+    finally{vi.restoreAllMocks();vi.useRealTimers()}
+  })
+  it.each(['transport','body']as const)('still enforces the 8s actual %s window and exposes only a frozen finite failure',async stage=>{
+    vi.useFakeTimers()
+    vi.spyOn(AbortSignal,'timeout').mockImplementation(ms=>{const controller=new AbortController();setTimeout(()=>controller.abort(),ms);return controller.signal})
+    try{const h=harness();let entered!:()=>void;const ready=new Promise<void>(resolve=>{entered=resolve})
+      const original:typeof fetch=vi.fn(async(_url,init)=>{entered();if(stage==='transport')return new Promise<Response>((_resolve,reject)=>init?.signal?.addEventListener('abort',()=>reject(Error('CPU private transport detail')),{once:true}));return new Response(new ReadableStream<Uint8Array>({start(controller){controller.enqueue(new TextEncoder().encode('{'))}}),{headers:{'content-type':'application/json'}})})
+      const proof=createClassroomGuidanceAdoptionSdkProof(f,target,original,h.controls),result=proof.sdk().then(()=>null,error=>error)
+      await ready;await vi.advanceTimersByTimeAsync(8000);const error=await result
+      expect(error.message).toBe('classroom_guidance_adoption_proof_refused');expect(error.verificationFailure).toEqual({phase:'source',stage,abort:'leaf-request'});expect(Object.isFrozen(error.verificationFailure)).toBe(true);expect(Object.getOwnPropertyDescriptor(error,'verificationFailure')).toMatchObject({writable:false,configurable:false});expect(JSON.stringify(error)).not.toContain('CPU private');expect(original).toHaveBeenCalledTimes(1);expect(proof.receipt()).toMatchObject({complete:false,requests:1,writerRequests:0})
+    }finally{vi.restoreAllMocks();vi.useRealTimers()}
+  })
+  it('keeps the first counted failure immutable and leaves the public receipt schema unchanged',async()=>{
+    const h=harness(undefined,()=>new Response('{',{headers:{'content-type':'application/json'}}));let error:unknown
+    try{await h.proof.sdk()}catch(caught){error=caught}
+    expect(error).toMatchObject({message:'classroom_guidance_adoption_proof_refused',verificationFailure:{phase:'source',stage:'body',abort:'none'}})
+    expect(h.proof.receipt()).not.toHaveProperty('verificationFailure');await expect(h.proof.sdk()).rejects.toMatchObject({verificationFailure:{phase:'source',stage:'body',abort:'none'}})
+  })
   it.each(['actor','parent','count','truncated','unknown','raw-sha']as const)('rejects source %s before writer dispatch, without fetch/environment shadowing',async mode=>{
     const h=harness((raw,n,write)=>{if(n||write)return raw;const source=classroomGuidanceAdoptionSource(f,0,rawHash(0));return mode==='actor'?{...source,actor_id:f.actors[2].id}:mode==='parent'?{...source,versions:{...source.versions,content:{...source.versions.content,course_blueprint_id:f.blueprints[1].id}}}:mode==='count'?{...source,counts:{...source.counts,materials:2}}:mode==='truncated'?{...source,source:{...source.source,materials:[]}}:mode==='unknown'?{...source,private:'unknown'}:{...source,source_sha256:'bad'}})
     await expect(h.proof.sdk()).rejects.toThrow(/^classroom_guidance_adoption_proof_refused$/);await h.proof.settle();expect(h.original).toHaveBeenCalledTimes(1);expect(h.events).not.toContain('sql:source-0');expect(h.proof.receipt().complete).toBe(false)

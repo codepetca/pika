@@ -649,3 +649,16 @@ and its failed receipt remain retained; no source/gate bypass or rollout.
 All280writers stopped. Root integration checks955/11 pass; leaf25/2 and concurrency
 10 plus carrier114/4 CPU checks pass. Genuine metadata/native acceptance remain
 pending. New private wrappers and carrier source remain deliberately unbound.
+
+Subsequent isolated280 SQL rollback and genuine metadata generation passed;
+SDK/concurrency acceptance remains pending. Earlier SQL42601 was corrected at
+three IF/CASE sites with source regression and independent review. A separate
+attempt stopped after source200 and before any writer dispatch. One offline8.1s
+delay reproduced its exact counters: the rehearsal's network timer included
+pre-request SQL/guards. The prepared two-file fix retains the actual ten-second
+caller abort, all58guards and all caps, with26 SDK/30 combined tests passing.
+Both failed attempts retain positive exact cleanup and immediate independent
+source/dependency preservation. Fixed private failure labels contain no payload,
+IDs or raw errors. Cumulative320 review turns/8 correction batches; further
+review and one separately bound proof remain, not runtime acceptance. All holds
+and the separate current-membership-only learner boundary remain unchanged.

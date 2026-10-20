@@ -782,6 +782,17 @@ gates. Shared-local249+, production, provider/account/billing and activation hol
 remain unchanged; learner attendance history and batch3 exit are not implemented
 or claimed by this write.
 
+The isolated280 SQL rollback suite and genuine metadata generation now pass.
+The full SDK proof is still incomplete: a failed first read/write transition
+exposed a rehearsal timer that incorrectly included pre-request SQL and safety
+checks in its network window. A CPU reproduction confirmed that boundary; the
+prepared fix times only physical transport/body work while preserving the actual
+adapter's continuous ten-second abort, all guards and all existing limits. Slow
+bookkeeping, expired caller signals and physical timeout regressions pass. Both
+failed attempts remain recorded with positive cleanup and immediate independent
+source/dependency preservation; no successful native SDK/concurrency or merge
+claim is made. Review and a fresh separately bound proof remain gates.
+
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
