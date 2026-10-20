@@ -73,6 +73,25 @@ describe('new public table migration policy', () => {
     expect(checkDataApiMigration("do $$ begin execute 'create sequence public.audit_seq'; end $$;")).toContain('dynamic public table DDL requires an explicit policy review')
     expect(checkDataApiMigration(String.raw`select E'example\'; grant truncate on public.example to authenticated;';`)).toEqual([])
   })
+  it.each([
+    "do 'begin grant truncate on table public.example to authenticated; end';",
+    String.raw`do E'begin execute \'grant select on public.example to anon\'; end';`,
+    "do 'begin alter default privileges grant select on tables to anon; end';",
+    "do 'begin create sequence public.audit_seq; end';",
+    "create function public.f() returns void as 'begin grant truncate on public.example to authenticated; end' language plpgsql;",
+    "create function public.f() returns void as'begin grant truncate on public.example to authenticated; end' language plpgsql;",
+    "create procedure public.p() language plpgsql as 'begin create sequence public.audit_seq; end';",
+  ])('rejects unsupported string-form executable bodies: %s', ddl => {
+    expect(checkDataApiMigration(ddl)).toContain('use dollar-quoted DO/function/procedure bodies for migration policy review')
+  })
+  it('handles function EXECUTE ACL whitespace consistently and does not invent sequences on DROP IDENTITY', () => {
+    for (const gap of [' ', '  ', '\n']) expect(checkDataApiMigration(`do $$ begin grant execute on${gap}function public.rpc() to service_role; end $$;`)).toEqual([])
+    expect(checkDataApiMigration('alter table public.example alter column id drop identity;')).toEqual([])
+  })
+  it('rejects unsupported executable body delimiters instead of ignoring them', () => {
+    expect(() => checkDataApiMigration('do $é$ begin grant truncate on public.example to authenticated; end $é$;')).toThrow('Use ASCII dollar-quote tags')
+    expect(checkDataApiMigration('create procedure public.p() language sql begin atomic grant truncate on public.example to authenticated; end;')).toContain('use dollar-quoted routine bodies instead of inline BEGIN ATOMIC')
+  })
   it('rejects alternate public search paths and dynamic table creation', () => {
     expect(checkDataApiMigration('set search_path=private; create table example(id uuid);')).toContain('use schema-qualified DDL instead of SET search_path')
     expect(checkDataApiMigration('do $$ begin execute \'create table public.example(id uuid)\'; end $$;')).toContain('dynamic public table DDL requires an explicit policy review')

@@ -49,7 +49,8 @@ grant table access. Do not copy generic `anon`/`authenticated` grants from examp
   explicitly revoke direct `service_role` access and grant only the reviewed RPC.
 - Make the same explicit grant/revoke decision for new public sequences,
   including identity/serial sequences. Grant `USAGE`/`SELECT` only when required.
-- Use schema-qualified permanent DDL and top-level ACL statements. Dynamic public
+- Use schema-qualified permanent DDL, dollar-quoted routine bodies, and top-level
+  relation ACL statements. String-form executable bodies require policy review. Dynamic public
   DDL or changed client access needs a policy review and corresponding checks;
   do not hide grants in routine bodies or restore automatic default grants.
 - Run `pnpm check:data-api-migrations` and
