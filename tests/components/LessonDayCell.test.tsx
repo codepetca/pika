@@ -392,6 +392,29 @@ describe('LessonDayCell agenda', () => {
     }} />
   }
 
+  it('keeps empty non-class weekday lesson and event keyboard actions independent', async () => {
+    const user = userEvent.setup()
+    const assignment = { id: 'nonclass-assignment', title: 'Independent event', is_draft: false } as Assignment
+    const onAssignmentClick = vi.fn()
+    const onContentChange = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={null} isClassDay={false}
+      assignments={[assignment]} onAssignmentClick={onAssignmentClick} onContentChange={onContentChange} />)
+    const add = screen.getByRole('button', { name: 'Add lesson for March 13, 2026' })
+    add.focus()
+    await user.keyboard('{Enter}')
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    editor.focus() // Native autofocus is covered by the browser regression.
+    expect(editor).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: 'Add lesson for March 13, 2026' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Due: Independent event' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(assignment)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(onContentChange).not.toHaveBeenCalled()
+  })
+
   it('starts editing when teacher lesson content is clicked', () => {
     renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={{ ...lessonPlan,
       content_markdown: 'Lesson text\n[Read notes](https://example.com/notes)',

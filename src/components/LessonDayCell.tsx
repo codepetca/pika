@@ -198,17 +198,17 @@ export const LessonDayCell = memo(function LessonDayCell({
               if (canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
             }}
           >
+            {canEdit && !isEditing && (
+              <Button
+                ref={editActionRef}
+                variant="ghost"
+                size="sm"
+                aria-label={`${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}`}
+                onClick={handleStartEditing}
+                className="absolute inset-0 h-full w-full cursor-text p-0"
+              />
+            )}
             <div ref={innerRef} className="relative min-w-0">
-              {canEdit && !isEditing && (
-                <Button
-                  ref={editActionRef}
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}`}
-                  onClick={handleStartEditing}
-                  className="absolute inset-0 h-full w-full cursor-text p-0"
-                />
-              )}
               {isEditing && canEdit ? (
                 <MarkdownContentEditor
                   markdown={localMarkdown}
