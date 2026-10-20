@@ -6,7 +6,7 @@ import { verifyPasswordResetContinuity, verifyLoginSignupTarget } from './helper
 import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
 import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
 import { verifyAttendanceReturnLink } from './helpers/attendance-return-link'
-import { verifyCalendarDayInteraction } from './helpers/calendar-day-interaction'
+import { verifyCalendarDayInteraction, verifyEmptyCalendarLessonTargets } from './helpers/calendar-day-interaction'
 import { verifyCourseGuideContinuity } from './helpers/course-guide-continuity'
 import {
   expect,
@@ -125,6 +125,9 @@ test.describe('Calendar day interaction', () => {
         test.use({ contextOptions: { reducedMotion: motion } })
         test('reads and dismisses the real Calendar day dialog', async ({ page }, testInfo) => {
           await verifyCalendarDayInteraction(page, testInfo, role, motion)
+        })
+        if (role === 'teacher') test('keeps empty non-class lesson targets clear of event controls', async ({ page }, testInfo) => {
+          await verifyEmptyCalendarLessonTargets(page, testInfo)
         })
       })
     }

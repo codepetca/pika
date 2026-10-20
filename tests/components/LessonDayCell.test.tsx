@@ -64,6 +64,31 @@ function renderWithTooltip(ui: ReactElement) {
 }
 
 describe('LessonDayCell', () => {
+  it('opens without scrolling the whole cell and restores the grid edit action on Escape', async () => {
+    const scrollIntoView = vi.fn()
+    const { container } = renderWithTooltip(<LessonDayCell date={lessonPlan.date}
+      day={new Date('2026-03-13T12:00:00')} lessonPlan={lessonPlan} isWeekend={false} isToday={false} editable />)
+    container.firstElementChild!.scrollIntoView = scrollIntoView
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    const editor = screen.getByRole('textbox')
+    editor.focus()
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })).toHaveFocus())
+  })
+
+  it('retires the editor immediately when editing permission is removed', () => {
+    const props = { date: lessonPlan.date, day: new Date('2026-03-13T12:00:00'), lessonPlan,
+      isWeekend: false, isToday: false, editable: true }
+    const { rerender } = renderWithTooltip(<LessonDayCell {...props} />)
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    rerender(<TooltipProvider><LessonDayCell {...props} editable={false} /></TooltipProvider>)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    rerender(<TooltipProvider><LessonDayCell {...props} /></TooltipProvider>)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
   it.each([
     { layout: 'agenda' as const, isWeekend: false },
     { layout: 'agenda' as const, isWeekend: true },
@@ -366,6 +391,29 @@ describe('LessonDayCell agenda', () => {
       setPlan((current) => ({ ...current, content_markdown: markdown }))
     }} />
   }
+
+  it('keeps empty non-class weekday lesson and event keyboard actions independent', async () => {
+    const user = userEvent.setup()
+    const assignment = { id: 'nonclass-assignment', title: 'Independent event', is_draft: false } as Assignment
+    const onAssignmentClick = vi.fn()
+    const onContentChange = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={null} isClassDay={false}
+      assignments={[assignment]} onAssignmentClick={onAssignmentClick} onContentChange={onContentChange} />)
+    const add = screen.getByRole('button', { name: 'Add lesson for March 13, 2026' })
+    add.focus()
+    await user.keyboard('{Enter}')
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    editor.focus() // Native autofocus is covered by the browser regression.
+    expect(editor).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: 'Add lesson for March 13, 2026' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Due: Independent event' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(assignment)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(onContentChange).not.toHaveBeenCalled()
+  })
 
   it('starts editing when teacher lesson content is clicked', () => {
     renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={{ ...lessonPlan,
