@@ -32,10 +32,17 @@ describe('externally sealed Test quota proof table addition', () => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const capability = 'private.attendance_decommission_delete_capabilities'
     const before = ['public.tests']
-    const expected = [capability, quota, ...before].sort()
+    const additions = ['private.attendance_participant_associations', 'private.attendance_override_event_generations']
+    const expected = [capability, quota, ...additions, ...before].sort()
     expect(classroomTestQuotaProofCatalog(before, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 280))).toEqual([quota, ...before].sort())
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 281))).toEqual([capability, quota, ...before].sort())
+    for (const table of additions) {
+      expect(expected).toContain(table)
+      expect(classroomTestQuotaProofCatalog(before, current.slice(0, 281))).not.toContain(table)
+    }
+    expect(() => classroomTestQuotaProofCatalog(before, [current[252], current[281]])).toThrow()
     for (const incomplete of [[current[252], current[280]], [...current, current[280]]]) {
       expect(() => classroomTestQuotaProofCatalog(before, incomplete)).toThrow()
     }

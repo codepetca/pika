@@ -102,7 +102,9 @@ export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[]
   assert.equal(historical.length, 184)
   assert.equal(testOwnerDigest(JSON.stringify(historical)), '8474c929e4a87299de8d0ac580aca9f7cfbe0dec364add175d872326b3388874')
   const expected = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
-  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, expected]
+  const decommission = migrations.length >= 281
+    ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 281)) : historical
+  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, expected]
   assert(accepted.some(profile => JSON.stringify([...catalog].sort()) === JSON.stringify(profile)), 'Unreviewed member-list canonical catalog')
   return classroomTestQuotaProofCatalog(catalog, migrations)
 }

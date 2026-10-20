@@ -43,6 +43,22 @@ function runFixture(project: string, binding: string) {
 }
 
 describe('attendance decommission database harness portability', () => {
+  it('scrubs every captured legacy reference atomically at the existing participant phase', () => {
+    const source = readFileSync(script, 'utf8')
+    for (const assertion of [
+      "version = '282'",
+      'private.capture_attendance_participant_association(',
+      'Historical association fixture did not retain all references',
+      'Participant phase failure changed association evidence',
+      'Authorized participant deletion did not scrub every scope association',
+      'Other classroom association evidence changed',
+      'Closed association reference was reusable',
+      'Forged participant capability changed association evidence',
+    ]) expect(source).toContain(assertion)
+    expect(source).toContain('create trigger decommission_participant_failure after delete on public.attendance_participant_mappings')
+    expect(source).not.toMatch(/disable trigger|session_replication_role/i)
+  })
+
   it('tests incomplete student purge separately from linked attendance guards', () => {
     const source = readFileSync(script, 'utf8')
     expect(source).toContain('Unlinked purge conflict fixture gained attendance')

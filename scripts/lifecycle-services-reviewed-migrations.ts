@@ -1,4 +1,4 @@
-/** Exact source-only271–281 extension. This does not grant migration, native
+/** Exact source-only271–282 extension. This does not grant migration, native
  * fixture, schema/catalog or activation authority. Historical seals stay owned
  * by their existing validators. */
 import assert from 'node:assert/strict'
@@ -18,6 +18,7 @@ export const LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS = Object.freeze([
   Object.freeze({ name: '279_contextual_classroom_guidance_preview.sql', sha256: '7542ae0d907691a0e46044790c73523dcff2782821c0a7370a86b4342a898bf3' }),
   Object.freeze({ name: '280_contextual_classroom_guidance_adoption.sql', sha256: '5786e1b83b3caed6a369f4a497aab5b296cdcee6fc918c12a7e031fcfce29555' }),
   Object.freeze({ name: '281_attendance_decommission_retained_generations.sql', sha256: '99dac4f2bc3324f92fbd30ba0bc75dc6458e5c699cdc07613f0d5aeb37ad302e' }),
+  Object.freeze({ name: '282_attendance_current_membership_foundation.sql', sha256: '5f47ec59d8ff11680b3ddc237d6359242518972b07ab0dc0b1da4504445cac0b' }),
 ] as const)
 
 export function validateLifecycleServicesReviewedMigrations(migrations: readonly { name: string; sql: string; sha256: string }[]) {

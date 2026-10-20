@@ -16,6 +16,24 @@ const localRehearsal = readFileSync(
 )
 
 describe('Bara attendance event inbox migration', () => {
+  it('keeps dormant membership association verification in the existing rollback harness', () => {
+    for (const assertion of [
+      "version = '282'",
+      'Dormant attendance foundation was populated before explicit capture',
+      'Private attendance foundation ACL leaked',
+      'Legacy capture invented a membership generation',
+      'Exact 171 capture lost its proven generation',
+      'Duplicate association capture changed evidence',
+      'Legacy repeat capture retroactively attributed a generation',
+      'Captured reference was reassigned to another scope',
+      'Wrong-class or missing participant resolved a subject',
+      'Closed generation resolved a subject',
+      'private.capture_attendance_participant_association(',
+      'private.resolve_attendance_participant_subject(',
+    ]) expect(databaseCheck).toContain(assertion)
+    expect(databaseCheck).not.toMatch(/disable trigger|session_replication_role/i)
+  })
+
   it('keeps operational verification bound to migration 127', () => {
     expect(databaseCheck).toContain("version = '127'")
     expect(databaseCheck).toContain('Migration 127 is not applied to the local database')

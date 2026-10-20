@@ -952,6 +952,28 @@ required. No migration, real deletion, provider/gate/account change, UI or rollo
 activation is authorized. Learner attendance generation integration remains
 separate and earlier records remain owner-visible under the approved policy.
 
+Current-membership attendance preparation — 2026-10-20: retained-generation
+decommission compatibility merged through PR1634 (`daaf1a64b`), after exact-head
+CI39445299624 and the rollback-only native contracts passed. The next source
+slice prepares private opaque participant-to-scope attribution, independently
+proven generation bindings and per-event override attribution. Installation
+captures no existing rows; unknown legacy generations stay unknown. Override
+attribution writes remain closed until their atomic writer is adopted.
+An existing cleanup read rejects uncovered historical participant references;
+authorized mapping erasure scrubs scope and generation from the new association
+directory, retaining closed reference tombstones. Existing immutable168/171
+evidence and exact provider-receipt requirements remain unchanged.
+
+The membership-bound confirmation HMAC is also prepared without active callers;
+shared class QR tokens and legacy confirmations remain unchanged. This slice
+does not implement the user-approved current-membership learner policy yet.
+Next, adopt pointer rotation, roster/token resolution and old-reference delivery
+together, followed by the complete learner read/check-in/override/cache path.
+Earlier history must remain available to the classroom owner. Source tests and
+authored rollback fixtures are not native database acceptance; independent
+review, final-head CI and normal main merge remain required. All production,
+shared-local249+, live-provider, configuration and activation holds remain.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

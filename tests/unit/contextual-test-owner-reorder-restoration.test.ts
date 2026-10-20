@@ -27,8 +27,9 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
     const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(n => [n, { count: 0, digest: 'a'.repeat(32) }]))),
       guard168Metadata: '{}', settings: '{}', cronJobs: '[]', resources: '[]' }
     const graph = { ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(t => [t, []])), __bulk_tests: [], __bulk_setup: [],
-      // The isolated281 schema adds this table; canonical pre/post stays exact.
-      __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities'].sort()
+      // The isolated282 schema adds these tables; canonical pre/post stays exact.
+      __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
+        'private.attendance_participant_associations', 'private.attendance_override_event_generations'].sort()
         .map(table => ({ table, fingerprint: 'unchanged' })) }
     vi.spyOn(Date, 'now').mockImplementation(() => clock)
     const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)

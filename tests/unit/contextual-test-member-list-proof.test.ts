@@ -161,8 +161,9 @@ describe('actual-source member migration profiles (offline)', () => {
   it('preserves both historical catalogs and the exact281 capability-table fingerprint', () => {
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248
     const prior = [...local, 'private.classroom_test_quota_settings'].sort()
-    const currentCatalog = [...prior, 'private.attendance_decommission_delete_capabilities'].sort()
-    for (const catalog of [local, prior, currentCatalog]) {
+    const decommission = [...prior, 'private.attendance_decommission_delete_capabilities'].sort()
+    const currentCatalog = [...decommission, 'private.attendance_participant_associations', 'private.attendance_override_event_generations'].sort()
+    for (const catalog of [local, prior, decommission, currentCatalog]) {
       expect(testMemberListReviewedIsolatedCatalog(catalog, current)).toEqual(currentCatalog)
     }
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 280))).toThrow()

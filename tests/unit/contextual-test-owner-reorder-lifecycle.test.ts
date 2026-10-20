@@ -27,7 +27,8 @@ const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name
   guard168Metadata: '{}', settings: '{}', cronJobs: '[]', resources: '[]' }
 const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
-  __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities'].sort()
+  __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
+    'private.attendance_participant_associations', 'private.attendance_override_event_generations'].sort()
     .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {

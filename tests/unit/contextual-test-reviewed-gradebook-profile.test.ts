@@ -141,8 +141,8 @@ describe('reviewed282 offline learner prefix helper', () => {
   })
 })
 
-describe('fixed lifecycle271/272/273/274/275/276/277/278/279/280/281 reviewed migration seals', () => {
-  it('retains all ten historical seals byte-for-byte and appends only the reviewed281 seal', () => {
+describe('fixed lifecycle271–282 reviewed migration seals', () => {
+  it('retains all eleven historical seals byte-for-byte and appends only the reviewed282 seal', () => {
     expect(LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS.map(({name,sha256}) => [name,sha256])).toEqual([
       ['271_contextual_archive_recovery.sql','1ba29a7b56dfd078030c7fabf0b5061ebf46823263167e7307cb742fb1bfd049'],
       ['272_contextual_pal_classroom_member.sql','8892d255d26afe904e420ad1402a1a1cb48f8837e02eca45d108cbf7fb9a9ed7'],
@@ -155,9 +155,10 @@ describe('fixed lifecycle271/272/273/274/275/276/277/278/279/280/281 reviewed mi
       ['279_contextual_classroom_guidance_preview.sql','7542ae0d907691a0e46044790c73523dcff2782821c0a7370a86b4342a898bf3'],
       ['280_contextual_classroom_guidance_adoption.sql','5786e1b83b3caed6a369f4a497aab5b296cdcee6fc918c12a7e031fcfce29555'],
       ['281_attendance_decommission_retained_generations.sql','99dac4f2bc3324f92fbd30ba0bc75dc6458e5c699cdc07613f0d5aeb37ad302e'],
+      ['282_attendance_current_membership_foundation.sql','5f47ec59d8ff11680b3ddc237d6359242518972b07ab0dc0b1da4504445cac0b'],
     ])
   })
-  it.each([271,272,273,274,275,276,277,278,279,280,281].flatMap(number => ['name','digest','bytes','self-hashed-bytes'].map(defect => ({number,defect}))))(
+  it.each([271,272,273,274,275,276,277,278,279,280,281,282].flatMap(number => ['name','digest','bytes','self-hashed-bytes'].map(defect => ({number,defect}))))(
     'directly rejects changed lifecycle $number $defect', ({number,defect}) => {
       const migrations=current.map(m=>({...m})),tail=migrations[number-1]
       if(defect==='name')tail.name=`${number}_unknown.sql`
@@ -166,7 +167,7 @@ describe('fixed lifecycle271/272/273/274/275/276/277/278/279/280/281 reviewed mi
       if(defect==='self-hashed-bytes')tail.sha256=digest(tail.sql)
       expect(()=>validateLifecycleServicesReviewedMigrations(migrations)).toThrow()
     })
-  it('validates all eleven exact source additions and rejects an unknown future tail', () => {
+  it('validates all twelve exact source additions and rejects an unknown future tail', () => {
     expect(() => validateLifecycleServicesReviewedMigrations(current)).not.toThrow()
     const sql = 'select 1;'
     expect(() => validateLifecycleServicesReviewedMigrations([...current, { name: '283_unknown.sql', sql, sha256: digest(sql) }])).toThrow()
