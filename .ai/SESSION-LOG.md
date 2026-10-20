@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — Contextual hot classroom lifecycle foundation
-
-The consolidated Test proof reached an unimplemented dependency: admitted
-classroom PATCH deliberately rejected archive/restore through its metadata-only
-contract. Stopped full browser attempts; preserved failed receipts and verified
-cleanup. Coordinator owns codex/contextual-hot-archive from current main eb4fa32b2.
-Add strict lifecycle dispatch, service-only migration268 and restore entitlement
-checks without widening metadata, changing legacy behavior or activating admission.
-No UI component, plan, retention or Storage change. Risk: consequential classroom
-authorization/lifecycle boundary; risk profile none (no workspace/AI/exam/runtime
-platform behavior). Native verification and generated types remain prerequisites.
-
-Astra/high bounded architect plan accepted after source verification. Sol6.1/high
-workers own SQL/rollback tests and the existing disposable harness's closed268
-profile; coordinator owns API/service/tests/CI/docs/integration. Offline API and SQL
-contract checks pass; actual database/concurrency acceptance is not yet established.
-Independent security and compatibility review required on stable cumulative source.
-Standing routine-approval/review-budget waiver retained, prior172 review turns and
-110 correction batches not reset. All production/shared-local/provider/account/
-admission/home/cutover holds unchanged; no migration applied. Existing harness,
-source/dependency preservation and one-shot exact-target disposal gates retained.
-
 ## 2026-10-17 — Hot lifecycle snapshot correction
 
 PR1613 remains draft after two independent source reviews. First fresh isolated
@@ -626,3 +604,35 @@ reviewed278 chain (2810other tests passed). Update only that count and its genui
 unknown-future tail to279; product/SQL/fixture/metadata bytes unchanged. This is
 batched remediation5, not a new native attempt or weakened profile. Final targeted
 integration review includes the delta; no routine approval needed under waiver.
+
+## 2026-10-20 — Dual-owner classroom guidance preview preparation
+
+Coordinator owns codex/contextual-classroom-guidance-preview, child of reviewed
+guidance-read23d71d while PR1627 finishes CI. GET authoring-guidance/update now has
+a dormant admitted branch requiring current active-classroom AND Blueprint
+ownership, independent of account label. Prepared279 is service-only invoker,
+single read snapshot/no locks/new data grants. Preserve normalized preview DTO,
+adopted/fallback Version lineage, exact errors, private8MiB bounds and legacy GET;
+POST adoption unchanged. No UI change or production/shared-local migration.
+Core/leaf Sol6.1/high delivered SQL,20-path exact279 seals and four finite SDK
+fixture/test paths. Root inspected full sources and graph predicate equivalence;
+67 API/adapter/SQL-source tests pass,28 leaf tests pass,1478 profile tests pass,
+309 CI/policy tests pass. Only pending genuine279 RPC metadata fails TypeScript.
+Independent security/compatibility review, frozen isolated proof, genuine metadata,
+current-main reconciliation/final checks and exact-head CI remain. Cumulative310
+actual review turns/5 remediation batches retained; task-stop waiver remains active.
+Production/shared-local249+/provider/accounts/billing/AI and activation holds unchanged.
+
+Initial311/312 and composition313 reviews CLEAN. Fresh isolatednaHFuy/project
+23c6d2c507aa actual59973JOINED0 passes001–279 rollback SQL/catalog/ACL/lineage/UTF8
+bounds/genuine metadata/12actualSDK18SQL60guards3DTO/full63-tablegraph/complement/
+restoration/canonical read-only/global equality and positive owned teardown.
+100actions1672controls51169222B12HTTPmax1/final0open or uncertain. Immediate next
+tool FIRST55092JOINED0 verifies7948source98970depsunchanged0process; freeze released
+only after join. Genuine279444192Ba0e2ff00 installedafterFIRST; removing only new
+RPC reconstructs entire27829a85e7b. Original false authority flags untouched; spent
+profile remains fail-closed, never rebound/replayed. PR1627 then merged normally
+e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
+tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
+preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
+313actual review turns/5fix batches and all holds retained.

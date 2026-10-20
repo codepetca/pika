@@ -720,8 +720,40 @@ resource equality and positive owned teardown passed.100actions/1675controls/
 Immediate NEXT-TOOL FIRST verifies7933source/98970dependency files unchanged and
 zero matching processes before post-run checks or edits. Genuine278 adds only the
 required two-UUID Json RPC; removing it reconstructs the entire277 artifact.
-Current-main integration, final checks/review and stable-head CI remain gates.
-No shared-local249+ or production application, activation or phase exit is claimed.
+Final focused checks passed2811tests/97files plus policies, full TypeScript and lint.
+Final integration review310 was clean; all ten exact23d71d CI39386625698 checks,
+including PR Gate, passed. PR1627 merged normally ase3d7727dc604164bf47655e2a0e2118a7b08f168
+at2026-10-20T08:05:10Z with identical reviewed/squash tree6aec81cb; canonical clean
+main fast-forwarded. No shared-local249+ or production application, activation or
+phase exit is claimed.
+
+The next prepared read is GET classroom `authoring-guidance/update`: a live-Draft
+preview requires BOTH the current active-classroom owner and the current linked
+Blueprint owner. Prepared279 resolves both identities, frozen structural/adopted
+Version lineage and current live guidance/revision in one service-only invoker
+snapshot. It does not save or adopt a Version; POST remains unchanged and separate.
+Either account label may be admitted; unmatched admission preserves legacy GET.
+Strict private wire decoding returns only the existing normalized preview DTO;
+`changed` compares normalized guidance, not Draft revision or raw JSON. Lifecycle,
+purge, malformed lineage and private aggregate/wire8MiB bounds fail closed without
+new data privileges, locks, truncation, plan quotas or UI notices. Source contracts,
+canonical CI and a finite12-HTTP/18-SQL/60-guard fixture are prepared, including
+dual-owner denials, archived/unlinked behavior, adopted/fallback guidance and
+full63-table fixture/complement preservation. These are CPU/source checks only;
+independent review, one isolated279 proof, genuine generated metadata and exact-head
+CI/normal main merge remain required. One fresh isolated001–279 proof now passed
+rollback SQL/catalog/ACL/lineage/UTF8 bounds, genuine generation and all12 actual
+installed-SDK adapter requests,18SQL/60guards and three complete DTO commitments.
+Full63-table fixture/complement preservation, restoration before final success,
+canonical read-only/global-resource equality and positive owned teardown passed.
+100actions/1672controls/51169222bytes/12HTTP/max1session/final0open,uncertain or
+unsettled retain original bounds. Immediate NEXT-TOOL FIRST verified7948source and
+98970dependency files unchanged/zero matching processes before any post-run action.
+Genuine279 adds only the required two-UUID Json RPC; removing it reconstructs the
+entire278 artifact. Current-main rebase preserves the exercised source tree; final
+checks, integration review and exact-head CI/normal merge remain. Shared-local249+,
+production, activation and all provider/account/billing holds remain unchanged;
+no phase exit is implied.
 
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider

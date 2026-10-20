@@ -256,6 +256,9 @@ jobs:
           fi
           echo 'PASS exact retained SDK intentional failure and unchanged baseline.'
 
+      - name: Verify contextual dual-owner classroom guidance preview and privileges
+        run: bash scripts/check-contextual-classroom-guidance-preview-database.sh
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 

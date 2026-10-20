@@ -4,6 +4,7 @@ import { ApiError } from '@/lib/api-handler'
 import { GET, POST } from '@/app/api/teacher/classrooms/[id]/authoring-guidance/update/route'
 const mocks = vi.hoisted(() => ({ role: vi.fn(), preview: vi.fn(), adopt: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.role }))
+vi.mock('@/lib/server/contextual-classroom-metadata', () => ({ authorizeSharedClassroomMetadataActor: vi.fn(async () => ({ mode: 'legacy' })) }))
 vi.mock('@/lib/server/classroom-guidance-adoption', () => ({ previewClassroomGuidanceAdoption: mocks.preview, adoptClassroomGuidance: mocks.adopt }))
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const context = { params: Promise.resolve({ id }) }
