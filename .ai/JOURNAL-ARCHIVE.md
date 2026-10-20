@@ -47981,3 +47981,52 @@ canonical equality and independent source/dependency equality PASS. Genuine268
 generated types installed byte-identically from private artifact1230d8e1…;
 temporary RPC signature removed. Targeted integration review and consolidated
 browser/CI gates remain. No shared-local/production migration or activation.
+
+<!-- pika-session-log-archive-batch:2cb3d6d375a53539e2dfddc4d3db486bac0f8942481f35a13cdbdfa7fa042560 -->
+## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
+
+PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
+passed. Consolidated manual Test lifecycle/permissions proof passed40exchanges and
+eight inspected captures, retained-work/canonical equality, exact cleanup and
+immediate independent source/dependency preservation. No production changes.
+
+Current-main Survey extraction carries the nine existing-route branches, current
+server/validation/SQL privacy fixes and focused tests, resequencing only filename
+263→269. Root verified17 donor files byte-identical, including SQL1db152f8…;
+package/CI/current generated types and legacy branches remain.119focused tests,
+lint/architecture/diff checks pass. Five TypeScript diagnostics are unresolved
+because the twelve new RPCs are not in the retained genuine generated artifact;
+no hand-written metadata/casts/stubs were added. This is source preparation, not
+ready for PR/merge. Genuine cumulative001–269 types, remaining native/app proof,
+independent cumulative review and final CI remain. All existing serious holds
+unchanged; private extraction map and proof receipts retained by coordinator.
+
+<!-- pika-session-log-archive-batch:7147ff9d80da4f5dc0fb6247081bfa05ae5f84081cf5d9a4751105124f0d03ff -->
+## 2026-10-17 — Survey UUID compatibility correction
+
+Independent current-base security review184 completed with no findings;
+compatibility review185 found accepted uppercase UUIDs were compared against
+canonical database IDs as raw strings. Reproduced ten failures, then normalized
+validated actor/parent/child identifiers before RPC arguments and comparisons,
+including the question route's child lookup. Kept output validation, ownership,
+owner-precedence and foreign-parent checks strict.102 focused tests/11 suites,
+lint/audit/diff PASS; genuine001–269 metadata is still required for the same five
+TypeScript diagnostics. Source correction only: no DB/production/activation.
+The user lifted the disposable-local Survey verification hold only. A closed
+current-schema compatibility/types prerequisite runner is being prepared under
+the unchanged bounds; full remaining-proof acceptance is not implied.
+- The owner approved only the disposable269 SDK proof allowance20→60 seconds. Its inert shared SDK companion now has a closed component entrypoint with the same14 calls and the original absolute deadline; the legacy entrypoint remains20 seconds. Carrier regressions cover actual controller expiry, early root deadline and unchanged cleanup. No application, SQL, generated-type or production change; a newly pinned reviewed one-shot prerequisite remains required.
+- Targeted review191 found the controller's own timeout could lose its causal label. The shared proof leaf now emits a fixed component-only deadline type; malformed inputs and unrelated errors stay distinct. Carrier regression checks cover pre/post-guard, own-timer and terminal expiry without dispatch or join changes. The fresh attempt is still unspent; all production and rollout holds remain.
+- After clean review192 and4303 carrier checks, the single fresh269 prerequisite PASSED: cumulative001–269 replay, rollback/effect equality, all14 real SDK calls and genuine CLI types. Exact cleanup, canonical/global resources and immediate source/dependency preservation passed. Generated metadata is mechanically copied from the verified artifact (SHAf5657479); the only delta is12 Survey RPC contracts/60lines. Full remaining concurrency/cancellation/payload proof and existing-screen role workflow remain incomplete; no production/cutover or whole-goal acceptance is implied. Private v3 receipts and outcome are retained by coordinator.
+
+<!-- pika-session-log-archive-batch:45a1672b33e6f5e462a3801a7f3e98059063f0e20b9f2f6cec550a56437ce8f0 -->
+## 2026-10-17 — Complete Survey payload matrix source preparation
+
+Prepared49 exact byte/count/shape SQL cases in the existing35s rollback dispatch, retaining real RPCs, literal-bounded fixtures, complete scoped row/revision restoration and compact versioned receipts.15 CPU/syntax checks pass; native acceptance and timing remain unproved. Product runtime/migration/generated types unchanged. Owner approved remaining-only6000controls/60sSDK; other caps and production/shared-local/cutover holds remain. Draft1614 stays draft; no spent proof replay.
+
+<!-- pika-session-log-archive-batch:8569107522d13d8bec729f2adb6d3f9a13646c6b005de36ed4ca4e692fbfd5ec -->
+## 2026-10-18 — Preserve Survey coverage while diagnosing rollback timing
+
+The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
+
+The first product gate exposed two stale source assertions still expecting the old single fixture and forbidding every INFO marker. Synced only the same fixed-code/family assertions already tested in the carrier, preserving the269 migration path. All13 payload tests/audit pass; a fresh complete product gate remains required. No runtime or SQL change in this follow-up.

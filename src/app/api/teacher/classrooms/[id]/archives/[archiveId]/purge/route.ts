@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
+import { authorizeSharedClassroomArchiveActor } from '@/lib/server/contextual-classroom-archive-recovery'
+import { getContextualClassroomPurgeImpact, startContextualClassroomPurge } from '@/lib/server/contextual-classroom-purge'
 import {
   getActiveColdClassroomPurgeStatus,
   getColdClassroomPurgeImpact,
@@ -18,6 +20,11 @@ const uuidSchema = z.string().uuid()
 export const GET = withErrorHandler(
   'GetTeacherColdClassroomPurgeImpact',
   async (_request, context) => {
+    const actor = await authorizeSharedClassroomArchiveActor()
+    if (actor.mode === 'shared') {
+      const { id, archiveId } = await context.params
+      return NextResponse.json(await getContextualClassroomPurgeImpact({ actorId: actor.user.id, classroomId: uuidSchema.parse(id), archiveId: uuidSchema.parse(archiveId) }))
+    }
     const user = await requireRole('teacher')
     const { id, archiveId } = await context.params
     const classroomId = uuidSchema.parse(id)
@@ -32,6 +39,18 @@ export const GET = withErrorHandler(
 export const POST = withErrorHandler(
   'PostTeacherColdClassroomPurge',
   async (request, context) => {
+    const actor = await authorizeSharedClassroomArchiveActor()
+    if (actor.mode === 'shared') {
+      const { id, archiveId } = await context.params
+      const input = coldClassroomPurgeStartRequestSchema.parse(await request.json())
+      const operation = await startContextualClassroomPurge({ actorId: actor.user.id, classroomId: uuidSchema.parse(id), archiveId: uuidSchema.parse(archiveId) }, {
+        operationId: input.operation_id, confirmation: input.confirmation,
+        expectedSourceRevision: input.expected_source_revision,
+        expectedStorageInventorySha256: input.expected_storage_inventory_sha256,
+        expectedColdResourceInventorySha256: input.expected_cold_resource_inventory_sha256,
+      })
+      return NextResponse.json({ operation }, { status: operation.status === 'completed' ? 200 : 202 })
+    }
     const user = await requireRole('teacher')
     const { id, archiveId } = await context.params
     const input = coldClassroomPurgeStartRequestSchema.parse(await request.json())

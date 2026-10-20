@@ -21,8 +21,8 @@ begin
       foreach privilege in array case when object.relkind = 'S'
         then array['SELECT','UPDATE','USAGE'] else array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN'] end
       loop
-        if case when object.relkind = 'S' then has_sequence_privilege(client, object.oid, privilege)
-          else has_table_privilege(client, object.oid, privilege) end then
+        if (case when object.relkind = 'S' then has_sequence_privilege(client, object.oid, privilege)
+          else has_table_privilege(client, object.oid, privilege) end) then
           raise exception 'Client privilege leaked: %.% % %', object.nspname, object.relname, client, privilege;
         end if;
       end loop;

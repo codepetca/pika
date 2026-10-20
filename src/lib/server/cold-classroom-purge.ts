@@ -8,7 +8,7 @@ import {
   shouldRequeueClassroomPurgeSafetyNet,
 } from '@/lib/server/classroom-purge'
 import { getServiceRoleClient } from '@/lib/supabase'
-import type { ClassroomPurgeStatus } from '@/lib/validations/classroom-purge'
+import { classroomPurgeOperationStatusSchema, type ClassroomPurgeStatus } from '@/lib/validations/classroom-purge'
 import {
   coldClassroomPurgeImpactSchema,
   type ColdClassroomPurgeImpact,
@@ -132,11 +132,12 @@ async function readOperationIdentity(
     )
   }
   const parsed = operationIdentitySchema.safeParse(response.data)
-  if (!parsed.success) {
+  if (!parsed.success || parsed.data.id.toLowerCase() !== operationId.toLowerCase()
+    || parsed.data.teacher_id.toLowerCase() !== teacherId.toLowerCase()) {
     throw new ClassroomPurgeError(
-      'cold_classroom_purge_not_found',
-      'Stored classroom deletion not found',
-      404,
+      'cold_purge_identity_unverified',
+      'Could not verify stored classroom deletion identity',
+      503,
     )
   }
   return parsed.data
@@ -161,8 +162,15 @@ export async function getColdClassroomPurgeImpact(
   )
   const result = rpcResultSchema.parse(value)
   if (!result.ok) parseResult(result)
+  if (result.status !== 200) {
+    throw new ClassroomPurgeError('cold_purge_inventory_unverified', 'Could not verify stored deletion impact', 503)
+  }
   const { ok: _ok, status: _status, ...impact } = result
-  return coldClassroomPurgeImpactSchema.parse(impact)
+  const parsed = coldClassroomPurgeImpactSchema.parse(impact)
+  if (parsed.classroom_id.toLowerCase() !== classroomId.toLowerCase() || parsed.archive_id.toLowerCase() !== archiveId.toLowerCase()) {
+    throw new ClassroomPurgeError('cold_purge_inventory_unverified', 'Could not verify stored deletion impact', 503)
+  }
+  return parsed
 }
 
 export async function getColdClassroomPurgeStatus(
@@ -183,7 +191,11 @@ export async function getColdClassroomPurgeStatus(
       404,
     )
   }
-  return getClassroomPurgeStatus(teacherId, operationId, 'cold_classroom')
+  const status = await getClassroomPurgeStatus(teacherId, operationId, 'cold_classroom')
+  if (status.operation_id.toLowerCase() !== operationId.toLowerCase() || status.classroom_id.toLowerCase() !== classroomId.toLowerCase()) {
+    throw new ClassroomPurgeError('cold_purge_status_unverified', 'Could not verify stored deletion state', 503)
+  }
+  return status
 }
 
 export async function getActiveColdClassroomPurgeStatus(
@@ -310,7 +322,7 @@ export async function startColdClassroomPurge(args: {
     cold_resource_inventory_sha256: args.expectedColdResourceInventorySha256,
     intent: 'delete_cold_classroom_permanently',
   })
-  parseResult(await rpc(supabase, 'begin_cold_archived_classroom_purge', {
+  const begun = parseResult(await rpc(supabase, 'begin_cold_archived_classroom_purge', {
     p_operation_id: args.operationId,
     p_teacher_id: args.teacherId,
     p_classroom_id: args.classroomId,
@@ -318,6 +330,10 @@ export async function startColdClassroomPurge(args: {
     p_request_sha256: requestSha256,
     p_impact_summary: impact,
   }))
+  if (begun.operation_id?.toLowerCase() !== args.operationId.toLowerCase() || ![200, 202].includes(begun.status)
+    || !classroomPurgeOperationStatusSchema.safeParse(begun.operation_status).success) {
+    throw new ClassroomPurgeError('cold_purge_begin_unverified', 'Stored deletion outcome could not be verified', 503)
+  }
   await advanceColdClassroomPurge(args.teacherId, args.operationId)
   return getClassroomPurgeStatus(args.teacherId, args.operationId, 'cold_classroom')
 }
@@ -338,6 +354,10 @@ export async function advanceColdClassroomPurge(
       p_lease_seconds: 60,
     },
   ))
+  if (claimed.length > 1 || claimed.some(object => object.operation_id.toLowerCase() !== operationId.toLowerCase()
+    || object.lease_token.toLowerCase() !== leaseToken.toLowerCase())) {
+    throw new ClassroomPurgeError('cold_purge_claim_unverified', 'Stored deletion lease could not be verified', 503)
+  }
   const object = claimed[0]
   if (!object) {
     parseResult(await rpc(supabase, 'finalize_cold_archived_classroom_purge', {

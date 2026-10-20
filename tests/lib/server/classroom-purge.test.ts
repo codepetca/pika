@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   countClassroomStudents,
   deleteClassroomPurgeStorageObject,
@@ -68,6 +68,36 @@ function operationListQuery(
 }
 
 describe('classroom purge helpers', () => {
+  beforeEach(() => vi.clearAllMocks())
+  it('preserves valid uppercase UUIDs on the legacy operation read', async () => {
+    const owner = 'b1800000-0000-4000-8000-000000000001'
+    const query = { eq: vi.fn(() => query), maybeSingle: vi.fn().mockResolvedValue({ data: {
+      id: operation.operation_id, classroom_id: operation.classroom_id, teacher_id: owner,
+      status: operation.status, retryable: null, error_code: null, resource_counts: {},
+      attempt_count: 1, completed_at: null, purge_scope: 'hot_classroom',
+    }, error: null }) }
+    serviceClient.from.mockReset().mockImplementation((table: string) => table === 'classroom_purge_operations'
+      ? { select: vi.fn(() => query) }
+      : { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) })
+    await expect(getClassroomPurgeStatus(owner.toUpperCase(), operation.operation_id.toUpperCase()))
+      .resolves.toMatchObject({ operation_id: operation.operation_id })
+  })
+  it.each([
+    { id: 'b1800000-0000-4000-8000-000000000299' },
+    { teacher_id: 'b1800000-0000-4000-8000-000000000099' },
+  ])('checks returned operation and actor identities before reading object progress %#', async patch => {
+    const owner = 'b1800000-0000-4000-8000-000000000001'
+    const query = { eq: vi.fn(() => query), maybeSingle: vi.fn().mockResolvedValue({ data: {
+      id: operation.operation_id, classroom_id: operation.classroom_id, teacher_id: owner,
+      status: operation.status, retryable: null, error_code: null, resource_counts: {},
+      attempt_count: 1, completed_at: null, purge_scope: 'hot_classroom', ...patch,
+    }, error: null }) }
+    serviceClient.from.mockReset().mockReturnValue({ select: vi.fn(() => query) })
+    await expect(getClassroomPurgeStatus(owner, operation.operation_id)).rejects.toMatchObject({ status: 404, code: 'purge_not_found' })
+    expect(serviceClient.from).toHaveBeenCalledTimes(1)
+    expect(serviceClient.from).not.toHaveBeenCalledWith('classroom_purge_objects')
+  })
+
   it('counts roster-only invitations without double-counting joined students', () => {
     expect(countClassroomStudents({
       classroom_roster: [{ email: 'joined@example.com' }, { email: 'invited@example.com' }],

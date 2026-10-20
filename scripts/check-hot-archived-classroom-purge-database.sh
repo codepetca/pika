@@ -40,7 +40,9 @@ grant execute on function storage.insert_classroom_purge_reappearance_fixture()
   to postgres;
 SQL
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+for fixture_owner_role in teacher student; do
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -v fixture_owner_role="$fixture_owner_role" <<'SQL'
 begin;
 
 do $privileges$
@@ -407,6 +409,11 @@ set rollout_mode = 'canary',
     canary_teacher_id = 'b1800000-0000-4000-8000-000000000001',
     canary_classroom_id = 'b1800000-0000-4000-8000-000000000010'
 where singleton;
+
+-- Vary current account label after fixture capture; retained historical actors stay unchanged.
+update public.users
+set role = :'fixture_owner_role'
+where id = 'b1800000-0000-4000-8000-000000000001';
 
 do $authorization_and_state$
 declare
@@ -926,6 +933,7 @@ $storage_reappeared$;
 
 rollback;
 SQL
+done
 
 cleanup_storage_reappearance_helper
 trap - EXIT

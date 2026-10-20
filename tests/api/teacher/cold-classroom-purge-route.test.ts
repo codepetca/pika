@@ -66,6 +66,14 @@ describe('teacher cold classroom purge routes', () => {
     mocks.tick.mockResolvedValue({ operation, advanced: true })
   })
 
+  it.each([getImpact, getStatus, tickPurge])('retains legacy teacher-label denial on each read/advance method', async handler => {
+    mocks.requireRole.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+    expect((await handler(new NextRequest('http://localhost/purge', { method: handler === tickPurge ? 'POST' : 'GET' }), context)).status).toBe(403)
+    expect(mocks.impact).not.toHaveBeenCalled()
+    expect(mocks.status).not.toHaveBeenCalled()
+    expect(mocks.tick).not.toHaveBeenCalled()
+  })
+
   it('returns impact and resumable state bound to teacher, classroom, and archive', async () => {
     mocks.active.mockResolvedValue(operation)
     const response = await getImpact(new NextRequest('http://localhost/purge'), context)

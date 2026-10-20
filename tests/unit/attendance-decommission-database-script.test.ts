@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -17,7 +17,7 @@ set -eu
 case "$1" in
   inspect) printf '%s\\n' "$FIXTURE_PROJECT_LABEL" ;;
   port) printf '%s\\n' "$FIXTURE_DB_BINDING" ;;
-  exec) printf '%s\\n' 'fixture-database-exec' ;;
+  exec) printf '%s\\n' "fixture-database-exec:$*" ;;
   *) exit 99 ;;
 esac
 `, { mode: 0o755 })
@@ -41,6 +41,17 @@ function runFixture(project: string, binding: string) {
 }
 
 describe('attendance decommission database harness portability', () => {
+  it('runs separate rollback-only matrices for both current owner labels', () => {
+    const result = runFixture('pika', '0.0.0.0:54322')
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout.match(/fixture-database-exec/g)).toHaveLength(2)
+    expect(result.stdout).toContain('fixture_owner_role=teacher')
+    expect(result.stdout).toContain('fixture_owner_role=student')
+    const source = readFileSync(script, 'utf8')
+    expect(source.includes('for fixture_owner_role in teacher student; do')).toBe(true)
+    expect(source.includes("update public.users set role = :'fixture_owner_role'\n where id = 'd1530000-0000-4000-8000-000000000001';")).toBe(true)
+    expect(source.includes('rollback;\nSQL\ndone')).toBe(true)
+  })
   it.each(['0.0.0.0:54322', '[::]:54322', '0.0.0.0:54322\n[::]:54322'])(
     'reaches the fixture without rg for the expected local binding %s', (binding) => {
       const result = runFixture('pika', binding)
