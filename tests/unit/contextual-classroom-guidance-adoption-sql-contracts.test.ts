@@ -5,6 +5,15 @@ const rollback='scripts/check-contextual-classroom-guidance-adoption.sql'
 const sql=()=>readFileSync(migration,'utf8')
 const section=(name:string)=>sql().split('create function '+name)[1]?.split('$function$;')[0]??''
 describe('contextual guidance adoption280 SQL source contracts, not PostgreSQL execution',()=>{
+ it('parenthesizes CASE expressions inside rollback IF conditions so inner THEN cannot terminate the condition',()=>{
+  const s=readFileSync(rollback,'utf8')
+  // PL/pgSQL reads IF through the first THEN outside parentheses, not CASE END.
+  // These are source regressions; actual PostgreSQL compilation is proved separately.
+  expect(s).toContain("p.provolatile<>(case when expected_args=9 then 'v' else 's' end)")
+  expect(s).toContain("(before_row->>'latest_version_number')::bigint+(case when new_version then 1 else 0 end)")
+  expect(s).toContain("jsonb_array_length(old_graph->'public.course_blueprint_versions')+(case when new_version then 1 else 0 end)")
+  expect(s).not.toMatch(/p\.provolatile<>case|\+case when new_version/)
+ })
  it('defines only the private projection and two required-argument service entrypoints',()=>{
   const s=sql();expect(s.match(/create function /g)).toHaveLength(3)
   for(const name of ['private.classroom_guidance_adoption_source_v1(p_blueprint_id uuid)','public.read_classroom_guidance_adoption_source_v1(','public.save_and_adopt_classroom_guidance_for_owner_v1('])expect(s).toContain(name)

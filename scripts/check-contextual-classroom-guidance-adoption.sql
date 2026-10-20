@@ -85,7 +85,7 @@ do $catalog$ declare p pg_catalog.pg_proc%rowtype;signature text;expected_args i
  foreach signature in array array['private.classroom_guidance_adoption_source_v1(uuid)','public.read_classroom_guidance_adoption_source_v1(uuid,uuid,uuid,uuid,uuid,bigint)','public.save_and_adopt_classroom_guidance_for_owner_v1(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text)'] loop
  select * into strict p from pg_catalog.pg_proc where oid=signature::regprocedure;
  expected_args:=case when signature like 'private.%' then 1 when signature like 'public.read_%' then 6 else 9 end;
- if not p.prosecdef or p.provolatile<>case when expected_args=9 then 'v' else 's' end or p.prokind<>'f' or p.proretset or p.proisstrict or p.proleakproof
+ if not p.prosecdef or p.provolatile<>(case when expected_args=9 then 'v' else 's' end) or p.prokind<>'f' or p.proretset or p.proisstrict or p.proleakproof
  or p.pronargs<>expected_args or p.pronargdefaults<>0 or p.prorettype<>'jsonb'::regtype or pg_get_userbyid(p.proowner)<>'postgres'
  or (select lanname from pg_catalog.pg_language where oid=p.prolang)<>'plpgsql'
  or p.proconfig is null or cardinality(p.proconfig)<>3 or not('search_path=""'=any(p.proconfig) and 'lock_timeout=1s'=any(p.proconfig) and 'statement_timeout=8s'=any(p.proconfig))
@@ -115,7 +115,7 @@ declare old_graph jsonb;new_graph jsonb;before_row jsonb;after_row jsonb;k text;
     or after_row->>'authoring_guidance_version_id'<>new_id::text or (after_row->>'updated_at')::timestamptz<>transaction_timestamp() then raise exception 'Adoption classroom footprint differs';end if;
    elsif k='public.course_blueprints' and before_row->>'id'=blueprint::text then
     if after_row-array['latest_version_number','updated_at'] is distinct from before_row-array['latest_version_number','updated_at']
-    or (after_row->>'latest_version_number')::bigint<>(before_row->>'latest_version_number')::bigint+case when new_version then 1 else 0 end
+    or (after_row->>'latest_version_number')::bigint<>(before_row->>'latest_version_number')::bigint+(case when new_version then 1 else 0 end)
     or (new_version and (after_row->>'updated_at')::timestamptz<>transaction_timestamp()) then raise exception 'Adoption Blueprint footprint differs';end if;
    elsif k='public.classroom_archive_revisions' and before_row->>'classroom_id'=classroom::text then
     if after_row-array['revision','updated_at'] is distinct from before_row-array['revision','updated_at']
@@ -124,7 +124,7 @@ declare old_graph jsonb;new_graph jsonb;before_row jsonb;after_row jsonb;k text;
    elsif after_row is distinct from before_row then raise exception 'Adoption other parent changed';end if;
   end loop;
  end loop;
- if jsonb_array_length(new_graph->'public.course_blueprint_versions')<>jsonb_array_length(old_graph->'public.course_blueprint_versions')+case when new_version then 1 else 0 end
+ if jsonb_array_length(new_graph->'public.course_blueprint_versions')<>jsonb_array_length(old_graph->'public.course_blueprint_versions')+(case when new_version then 1 else 0 end)
  or exists(select 1 from jsonb_array_elements(old_graph->'public.course_blueprint_versions') old_row where not (new_graph->'public.course_blueprint_versions') @> jsonb_build_array(old_row))
  then raise exception 'Adoption immutable Versions differ';end if;
  if new_version and not exists(select 1 from public.course_blueprint_versions where id=new_id and source_kind='pika' and source_metadata='{}'::jsonb)
