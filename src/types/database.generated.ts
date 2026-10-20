@@ -12531,6 +12531,10 @@ export type Database = {
         }
         Returns: Json
       }
+      preview_classroom_authoring_guidance_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
       publish_test_from_draft_atomic: {
         Args: {
           p_expected_draft_version: number

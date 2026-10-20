@@ -622,3 +622,17 @@ Independent security/compatibility review, frozen isolated proof, genuine metada
 current-main reconciliation/final checks and exact-head CI remain. Cumulative310
 actual review turns/5 remediation batches retained; task-stop waiver remains active.
 Production/shared-local249+/provider/accounts/billing/AI and activation holds unchanged.
+
+Initial311/312 and composition313 reviews CLEAN. Fresh isolatednaHFuy/project
+23c6d2c507aa actual59973JOINED0 passes001–279 rollback SQL/catalog/ACL/lineage/UTF8
+bounds/genuine metadata/12actualSDK18SQL60guards3DTO/full63-tablegraph/complement/
+restoration/canonical read-only/global equality and positive owned teardown.
+100actions1672controls51169222B12HTTPmax1/final0open or uncertain. Immediate next
+tool FIRST55092JOINED0 verifies7948source98970depsunchanged0process; freeze released
+only after join. Genuine279444192Ba0e2ff00 installedafterFIRST; removing only new
+RPC reconstructs entire27829a85e7b. Original false authority flags untouched; spent
+profile remains fail-closed, never rebound/replayed. PR1627 then merged normally
+e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
+tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
+preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
+313actual review turns/5fix batches and all holds retained.
