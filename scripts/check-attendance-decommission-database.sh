@@ -443,7 +443,16 @@ select pg_temp.expect_error($q$insert into public.attendance_roster_mappings (cl
 -- A separate fresh inventory and independently gated final purge may remove
 -- the Classroom only after attendance completes. This fixture has no objects;
 -- no Storage or provider request is made or represented as verified here.
-update public.managed_storage_settings set mode='enforced' where singleton;
+do $activate$
+declare v_run public.managed_storage_readiness_runs;
+begin
+ select * into v_run from public.refresh_managed_storage_readiness();
+ if v_run.status<>'ready' then
+  raise exception 'Managed storage fixture readiness blocked with % findings',v_run.finding_count;
+ end if;
+ perform public.activate_managed_storage_enforcement(v_run.generation,v_run.inventory_digest);
+end;
+$activate$;
 update public.classroom_purge_settings set rollout_mode='canary',
  canary_teacher_id='d1530000-0000-4000-8000-000000000001',
  canary_classroom_id='d1530000-0000-4000-8000-000000000010' where singleton;
