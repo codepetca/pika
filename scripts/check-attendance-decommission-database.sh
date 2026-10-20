@@ -458,7 +458,7 @@ do $$ declare v_inventory jsonb;v_result jsonb;v_saved jsonb;begin
    'd1530000-0000-4000-8000-000000000002','d1530000-0000-4000-8000-000000000003'))<>3
   or not exists(select 1 from public.attendance_principal_mappings
    where user_id='d1530000-0000-4000-8000-000000000001')
-  or exists((select kind,row from replay_before except
+  or exists((select kind,evidence from replay_before except
    (select 'pal',to_jsonb(generation) from private.pal_membership_generations generation
     union all select 'attendance',to_jsonb(generation) from private.attendance_membership_generations generation)))
   or (select count(*) from replay_before)<>(select count(*) from private.pal_membership_generations)+

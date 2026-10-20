@@ -50,6 +50,8 @@ describe('attendance decommission database harness portability', () => {
     expect(source).toContain('Final Classroom purge changed saved fence, other attendance, or private replay history')
     expect(source).toContain('public.get_hot_archived_classroom_purge_inventory(')
     expect(source).toContain('public.finalize_hot_archived_classroom_purge(')
+    expect(source.match(/select kind,evidence from replay_before except/g)).toHaveLength(2)
+    expect(source).not.toContain('select kind,row from replay_before')
   })
   it('keeps deletion authority private and separate from individual student cleanup', () => {
     expect(compatibility).toContain('capability.transaction_id=txid_current()')
