@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Compact selected-test student roster
-
-Task owner: current Codex chat; branch `codex/test-student-table-compact`.
-Teacher grading roster: Pending grading → Ungraded (recorded open response lacks
-score; no AI-job implication), Activity → Seen. Pane container queries prioritize
-selection, First, Last, Access, Seen and Exits below 840px; names truncate, while
-Score/Away/Status and saved resize widths return with space. Status resize moved
-to its left edge to keep the last target inside the table scroll bounds.
-UI brief: reference Attendance density + selected Test roster / Pattern Lab Daily;
-reuse shared table/sort/selection/access/tooltip owners; extend feature-local
-responsive rules. Teacher desktop/split/mobile, both themes; student n/a (teacher
-owner only). Default, long names, ungraded/numeric/empty scores, selected/sorted
-and open inspector covered. Primary signal remains table labels/status; no new
-shared primitive or experimental pattern. Nearby extraction/refactor: none.
-Composite checklist reviewed; existing keyboard/semantic tests retained; compact
-mode hides unavailable resize controls and full width restores them.
-124/124 component tests passed; first focused run hit concurrent-load timeouts;
-repeat with `--max-workers 2` passed963/963. Visual evidence under ignored
-`output/playwright`, deterministic intercepted GETs and blocked writes; no DB
-persistence claim. Final checks/review/SHA recorded in PR and lifecycle metadata.
-Implementation handled directly; one Luna/medium independent full-diff review
-clean at3c6dd36e7. Coordinator then found obsolete mobile Status-sort E2E
-expectations; returned1608 draft, cancelled first CI candidate, updated the
-existing browser scenario for compact columns/Seen sorting, retaining desktop
-Status sorting; all4 desktop/mobile light/dark cases pass (2.6m). One test-only remediation batch and final delta/cumulative
-review planned; final receipts in PR/lifecycle metadata. Weekly remaining44%; storage healthy320GB; attributable
-usage/time unknown. No database, production or merge operations authorized here.
-
 ## 2026-10-16 — PR 1608 deterministic workflow tests
 
 Owner request: fix failing tests and make1608 ready to merge; leave unmerged.
@@ -567,3 +539,23 @@ no native execution or source review acceptance is claimed yet. Student owner
 success assumes a pre-existing grant, not the still-teacher-only132 admin flow.
 PR1622 remains in exact-head CI39361093628; no production/shared-local249+/provider/
 real account/billing/AI/admission/home/page/cohort/cutover change is authorized.
+
+## 2026-10-20 — Prepare contextual owner attendance day-view reads
+
+Dependent worktree starts from reviewed owner-write218d7b2a; startup/environment
+verified and existing dependencies reused. Prepared275 is service-only, invoker,
+stable: current owner and all roster/day rows share one snapshot and DB clock.
+Archived/runtime-unavailable/unentitled/canary-mismatch owner responses remain
+roster-only; nonowner403 and lifecycle fence503. Pure converter retains existing
+DTO/V1 queue/override/invalidation semantics; legacy GET and every POST unchanged.
+Core Sol6.1/high delivery70tests/9suites and lint pass; two expected missing genuine
+275 metadata references remain, not cast away. Separate Sol6.1/high finite SDK
+leaf covers thirteen actual adapter plus three typed canary requests; source only.
+Root once-only CI/order checks302/5 pass, preserving historical inventories.
+Full-source seal extends exact275 and refuses changed bytes/unknown276; offline
+profile tests expose then correct the missing offline-helper tail, not a relaxed
+validator. No native execution or phase exit claimed. User current-membership-only
+learner rule remains recorded; earlier records preserved for owner, not implemented
+by this owner read. Parent PR1623 exact-head CI39366937586 still running. Production,
+shared-local249+, provider/real-account/billing/AI and activation holds unchanged.
+Weekly remaining93%; storage healthy287GB; per-worker time/tokens unknown.

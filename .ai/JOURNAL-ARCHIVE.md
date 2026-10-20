@@ -47790,3 +47790,32 @@ planned for standard behavioral delta, PR review turn5 (prior4), current user
 change1wave/0fix batches. Weekly46% remaining, storage healthy317GB; attributable
 worker/coordinator tokens unknown. Final reviewed SHA/checks in PR and local
 lifecycle records. No merge, deployment, database or in-app translation work.
+
+<!-- pika-session-log-archive-batch:ba6225140af669541881dc92204b1e1eeb7da8794281872eed23d7de504ae0c5 -->
+## 2026-10-16 — Compact selected-test student roster
+
+Task owner: current Codex chat; branch `codex/test-student-table-compact`.
+Teacher grading roster: Pending grading → Ungraded (recorded open response lacks
+score; no AI-job implication), Activity → Seen. Pane container queries prioritize
+selection, First, Last, Access, Seen and Exits below 840px; names truncate, while
+Score/Away/Status and saved resize widths return with space. Status resize moved
+to its left edge to keep the last target inside the table scroll bounds.
+UI brief: reference Attendance density + selected Test roster / Pattern Lab Daily;
+reuse shared table/sort/selection/access/tooltip owners; extend feature-local
+responsive rules. Teacher desktop/split/mobile, both themes; student n/a (teacher
+owner only). Default, long names, ungraded/numeric/empty scores, selected/sorted
+and open inspector covered. Primary signal remains table labels/status; no new
+shared primitive or experimental pattern. Nearby extraction/refactor: none.
+Composite checklist reviewed; existing keyboard/semantic tests retained; compact
+mode hides unavailable resize controls and full width restores them.
+124/124 component tests passed; first focused run hit concurrent-load timeouts;
+repeat with `--max-workers 2` passed963/963. Visual evidence under ignored
+`output/playwright`, deterministic intercepted GETs and blocked writes; no DB
+persistence claim. Final checks/review/SHA recorded in PR and lifecycle metadata.
+Implementation handled directly; one Luna/medium independent full-diff review
+clean at3c6dd36e7. Coordinator then found obsolete mobile Status-sort E2E
+expectations; returned1608 draft, cancelled first CI candidate, updated the
+existing browser scenario for compact columns/Seen sorting, retaining desktop
+Status sorting; all4 desktop/mobile light/dark cases pass (2.6m). One test-only remediation batch and final delta/cumulative
+review planned; final receipts in PR/lifecycle metadata. Weekly remaining44%; storage healthy320GB; attributable
+usage/time unknown. No database, production or merge operations authorized here.

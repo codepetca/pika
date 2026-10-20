@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
+const withoutSessionProof = (source: string) => source.replace(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 
 function combinedDatabaseWorkflow(source = workflow()) {
   const secondary = source.match(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)?.[0]
@@ -187,7 +188,7 @@ describe('local canonical CI', () => {
   })
 
   it('retains the exact pre-attendance database inventories and every historical layout', () => {
-    const source = workflow().replace(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m, '')
+    const source = withoutSessionProof(workflow()).replace(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m, '')
     const attendance = source.match(/^      - name: Verify contextual owner attendance policy snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
     const historical = source.replace(attendance, '')
     const currentJobs = extractWorkflow(source), historicalJobs = extractWorkflow(historical)
@@ -213,7 +214,7 @@ describe('local canonical CI', () => {
     ['conditional', (source: string) => source.replace('      - name: Verify contextual owner attendance policy snapshot and privileges\n', '      - name: Verify contextual owner attendance policy snapshot and privileges\n        if: success()\n')],
     ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-attendance-policy-database.sh')],
   ])('refuses the%s attendance inventory without accepting a partial historical fallback', (_, mutate) => {
-    const source = workflow().replace(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m, '')
+    const source = withoutSessionProof(workflow()).replace(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m, '')
     const block = source.match(/^      - name: Verify contextual owner attendance policy snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
     expect(() => extractWorkflow(mutate(source, block))).toThrow()
   })
@@ -232,7 +233,7 @@ describe('local canonical CI', () => {
   })
 
   it('retains the exact read-only attendance inventory before owner-write adoption', () => {
-    const source = workflow()
+    const source = withoutSessionProof(workflow())
     const block = source.match(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m)![0]
     const current = selectPlan(extractWorkflow(source), 'database')[0]
     const previous = selectPlan(extractWorkflow(source.replace(block, '')), 'database')[0]
@@ -250,6 +251,28 @@ describe('local canonical CI', () => {
   ])('refuses the%s owner-write inventory without a historical-profile bypass', (_, mutate) => {
     const source = workflow()
     const block = source.match(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the exact owner-write inventory before session-read adoption', () => {
+    const source = workflow(), historical = withoutSessionProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-attendance-session-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner attendance session snapshot and privileges', 'name: Renamed attendance session proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify Pal HTTP outage and queued recovery\n', block + '      - name: Verify Pal HTTP outage and queued recovery\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-attendance-session-database.sh', 'run: bash scripts/check-contextual-attendance-session-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner attendance session snapshot and privileges\n', '      - name: Verify contextual owner attendance session snapshot and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-attendance-session-database.sh')],
+  ])('refuses the%s attendance session proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
     expect(() => extractWorkflow(mutate(source, block))).toThrow()
   })
 

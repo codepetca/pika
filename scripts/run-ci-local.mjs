@@ -155,6 +155,7 @@ const databaseProofInventories = {
     [53, 'c1a9b76baedff767805250f8e2ede044ba1392cf3b40b783fde091044d287d39'],
     [54, 'aea74c33146c7771e669396cf7cd0efcc06034c2d3ab61b9df6a14687c3f966b'],
     [55, '29551a6970c5d118eb2e8c3b4d6f5643b0e0113b968b3fb9297eb64c636770de'],
+    [56, '3e0abee1c3953d8d6a0e15b432939ed285ccb19778f8b1af5ae10e7c072208d5'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -221,6 +222,15 @@ function validateDatabaseInventory(jobs) {
     || writes[0].step.name !== writeName || writes[0].step.run !== `bash ${writeScript}`
     || writes[0].step.if || !databaseProofs(primary).includes(writes[0].step))) {
     throw new Error('Canonical attendance write database proof is missing, duplicated or changed.')
+  }
+  const sessionName = 'Verify contextual owner attendance session snapshot and privileges'
+  const sessionScript = 'scripts/check-contextual-attendance-session-database.sh'
+  const sessions = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === sessionName || step.run?.includes(sessionScript)).map(step => ({ job, step })))
+  if (sessions.length && (sessions.length !== 1 || sessions[0].job !== primary
+    || sessions[0].step.name !== sessionName || sessions[0].step.run !== `bash ${sessionScript}`
+    || sessions[0].step.if || !databaseProofs(primary).includes(sessions[0].step))) {
+    throw new Error('Canonical attendance session database proof is missing, duplicated or changed.')
   }
 }
 

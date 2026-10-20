@@ -593,6 +593,19 @@ Shared-local and production migration/application, provider and activation holds
 remain. This is not learner-history integration, wider attendance/provider or
 batch3 exit, nor authorization to activate the cutover.
 
+The next bounded owner read is GET `/api/teacher/attendance/session`. Prepared275
+and its admitted adapter bind current ownership, server-owned runtime/scope and
+the complete roster/day projection in one database snapshot. Archived, runtime
+disabled/misconfigured, unentitled and canary-mismatched owners retain their
+existing roster-only response; nonowners disclose no roster and lifecycle fences
+fail closed. The converter retains existing V1 queue validation, overrides,
+invalidations, pending/failure precedence and browser DTO; all POST commands and
+unmatched GET remain legacy. This does not implement learner membership history,
+provide a grant, change provider/principal operations or activate admission.
+Source/CPU coverage is not runtime acceptance: isolated full-chain SQL, genuine
+metadata, installed-SDK/restoration proof, independent review and exact-head CI
+remain gates. Shared-local and production holds are unchanged.
+
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
