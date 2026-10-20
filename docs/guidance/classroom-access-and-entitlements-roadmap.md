@@ -516,7 +516,7 @@ routine approval stops. The first current-base group reuses the prepared
 as additive271 and adds [contextual classroom Pal membership](contextual-pal-classroom-membership.md)
 as272. Existing hot archive/restore268 is retained, not reimplemented. Prepared
 source/offline checks are not native or rollout acceptance. Genuine metadata,
-current-base SQL/SDK/lock/stored-byte proofs, UI matrix, independent review and
+current-base SQL/SDK/Pal272-lock/stored-byte proofs, UI matrix, independent review and
 final-head CI remain gates before the next main merge.
 
 Current bounded progress: complete001–272 rollback SQL/genuine metadata, actual
@@ -525,9 +525,14 @@ replay/denial/postflight uncertainty passed independent evidence review. Fresh
 immediate preservation and exact owned resource cleanup passed. Forty inspected
 actual-renderer visuals cover both labels/relationships and unavailable/legacy
 states across desktop/mobile and light/dark; these fixed-prop fixtures do not
-assert authenticated route or provider compatibility. The named contention/race
-checks and final stable-SHA review/CI remain required; no main merge, batch exit,
-real account/provider operation or rollout is claimed by these partial receipts.
+assert authenticated route or provider compatibility. Actual Pal272 contention
+and final stable-SHA review/CI remain dormant-merge gates. The exhaustive archive
+owner/unarchive/revision/compaction/purge begin/finalize/replay matrix remains
+batch3/cutover evidence, alongside authenticated/provider compatibility and the
+queued-fact/token policy; it is not marked passed. The unchanged archive writer
+protocol is not being recertified by this narrow read/postflight integration.
+No main merge, batch exit, real account/provider operation or rollout is claimed
+by these partial receipts.
 
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider

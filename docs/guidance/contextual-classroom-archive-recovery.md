@@ -44,13 +44,23 @@ Its synthetic ledger/archive pair proves read identity binding, not actual store
 bytes or coordinator finalization. It does not execute the historical archive-v2
 quizzes fixture harness.
 
-Acceptance still requires real SDK/PostgreSQL and strict private-object byte
-evidence for mixed-role owner exports, same-key retries/cross-class conflicts,
-owner/unarchive/revision/compaction/purge races at begin/finalize/replay, source
-preservation on successful and failed exports, finite fixture cleanup, independent
-review and final-SHA CI. Source preparation and mocked tests do not activate
-admission or certify those native checks. Shared local249+ and production holds
-remain in force; no migration or live proof is authorized by this document.
+Dormant main-merge acceptance requires current-base SQL/genuine metadata, real
+SDK/PostgreSQL and strict private-object byte evidence for mixed-role owner
+exports, same-key replay/cross-class conflicts, controlled postflight uncertainty,
+source preservation, finite fixture cleanup, the separate Pal272 contention
+proof, independent final review and final-SHA CI. Source preparation and mocked
+tests alone do not certify those native checks.
+
+The broader owner/unarchive/revision/compaction/purge race matrix at archive
+begin/finalize/replay remains batch3/cutover evidence, not a passed result or an
+additional dormant-merge experiment. This slice does not change the existing
+107/126 writer/coordinator synchronization:271 adds one SQL snapshot and the
+adapter adds a strict read-only postflight comparison. Native sequential current-
+owner/revision/unarchive/cold/deletion projection checks, real export/replay/byte
+evidence and adapter uncertainty tests cover that changed boundary. They do not
+certify every historical writer race or authenticated/provider rollout. Shared
+local249+ and production holds remain; this document authorizes no migration,
+live proof or admission activation.
 
 The current-base 271 implementation is resequenced from the older source-only264
 preparation; no applied migration is renamed or changed. The single SQL snapshot
