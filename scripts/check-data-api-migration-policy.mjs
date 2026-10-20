@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url'
 // bodies cannot satisfy an ACL decision. Unusual/dynamic DDL requires review.
 function statements(sql) {
   const result = []
-  let statement = '', dynamicPublicDdl = false
+  let statement = '', dynamicPublicDdl = false, bodyRelationAcl = false
   for (let i = 0; i < sql.length;) {
     if (sql.startsWith('--', i)) {
       const end = sql.indexOf('\n', i)
@@ -23,10 +23,12 @@ function statements(sql) {
       if (depth) throw new Error('Unterminated SQL comment')
       statement += ' '
     } else if (sql[i] === "'") {
+      const escaped = /(?:^|[^a-z0-9_])e$/i.test(statement)
       i++
       let closed = false
       while (i < sql.length) {
-        if (sql[i] === "'" && sql[i + 1] === "'") i += 2
+        if (escaped && sql[i] === '\\') i += 2
+        else if (sql[i] === "'" && sql[i + 1] === "'") i += 2
         else if (sql[i++] === "'") { closed = true; break }
       }
       if (!closed) throw new Error('Unterminated SQL string')
@@ -42,7 +44,12 @@ function statements(sql) {
       const end = sql.indexOf(tag, i + tag.length)
       if (end < 0) throw new Error('Unterminated SQL routine body')
       const body = sql.slice(i + tag.length, end)
-      if (/\bcreate\s+(?:unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(?:"?public"?\s*\.|[a-z_])/i.test(body)) dynamicPublicDdl = true
+      if (/\bcreate\s+(?:unlogged\s+)?(?:table|sequence)\s+(?:if\s+not\s+exists\s+)?(?:"?public"?\s*\.|[a-z_])/i.test(body) ||
+          /\balter\s+table\b[\s\S]*\b(?:smallserial|serial|bigserial|identity)\b/i.test(body)) dynamicPublicDdl = true
+      // Relation/default ACLs must be reviewable top-level statements, including
+      // statements passed to EXECUTE. Function EXECUTE grants keep their own policy.
+      if (/\b(?:grant|revoke)\s+[\s\S]*?\bon\s+(?!(?:function|procedure|schema|type)\b)/i.test(body) ||
+          /\balter\s+default\s+privileges\b/i.test(body)) bodyRelationAcl = true
       statement += ' <body> '
       i = end + tag.length
     } else if (sql[i] === ';') {
@@ -52,15 +59,16 @@ function statements(sql) {
     } else statement += sql[i++]
   }
   if (statement.trim()) result.push(statement.toLowerCase().trim())
-  return { sql: result, dynamicPublicDdl }
+  return { sql: result, dynamicPublicDdl, bodyRelationAcl }
 }
 
 const qualified = name => name.includes('.') ? name.replace(/\s+/g, '') : `public.${name.trim()}`
 
 export function checkDataApiMigration(source) {
   const errors = []
-  const { sql, dynamicPublicDdl } = statements(source)
+  const { sql, dynamicPublicDdl, bodyRelationAcl } = statements(source)
   if (dynamicPublicDdl) errors.push('dynamic public table DDL requires an explicit policy review')
+  if (bodyRelationAcl) errors.push('routine-body relation/default ACLs require top-level policy decisions')
   if (sql.some(s => /^(?:set|select\s+set_config).*\bsearch_path\b/.test(s))) errors.push('use schema-qualified DDL instead of SET search_path')
   const decisions = []
   for (const statement of sql) {
@@ -70,7 +78,7 @@ export function checkDataApiMigration(source) {
     }
     const acl = statement.match(/^(grant|revoke)\s+([\s\S]+?)\s+on\s+(?:(table|sequence)\s+)?([\s\S]+?)\s+(?:to|from)\s+([\s\S]+)$/)
     if (!acl || /^(?:function|procedure|schema|type)\b/.test(acl[4])) continue
-    const roles = acl[5].split(',').map(s => s.trim().split(/\s+/)[0])
+    const roles = acl[5].split(',').map(s => s.trim().replace(/^group\s+/, '').split(/\s+/)[0])
     const targets = acl[4].split(',').map(qualified)
     const publicTarget = targets.some(name => name.startsWith('public.')) || /\bin\s+schema\s+public\b/.test(acl[4])
     if (acl[1] === 'grant' && publicTarget && roles.some(role => ['public', 'anon', 'authenticated'].includes(role))) errors.push('public client table/sequence GRANT is forbidden')
@@ -79,13 +87,19 @@ export function checkDataApiMigration(source) {
   const objects = []
   for (const statement of sql) {
     const table = statement.match(/^create\s+(?:unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*(?:\s*\.\s*[a-z_][a-z0-9_]*)?)/)
-    const sequence = statement.match(/^create\s+sequence\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*(?:\s*\.\s*[a-z_][a-z0-9_]*)?)/)
+    const sequence = statement.match(/^create\s+(?:unlogged\s+)?sequence\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*(?:\s*\.\s*[a-z_][a-z0-9_]*)?)/)
     if (sequence) objects.push({ name: qualified(sequence[1]), kind: 'sequence' })
     if (table) {
       const name = qualified(table[1])
       objects.push({ name, kind: 'table' })
       for (const column of statement.slice(table[0].length).matchAll(/(?:\(|,)\s*([a-z_][a-z0-9_]*)\s+[^,;]*?\b(?:smallserial|serial|bigserial|identity)\b/g)) {
         objects.push({ name: `${name}_${column[1]}_seq`, kind: 'sequence' })
+      }
+    }
+    const altered = statement.match(/^alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?([a-z_][a-z0-9_]*(?:\s*\.\s*[a-z_][a-z0-9_]*)?)\s+([\s\S]+)$/)
+    if (altered) {
+      for (const action of altered[2].matchAll(/(?:^|,)\s*(?:add\s+(?:column\s+)?(?:if\s+not\s+exists\s+)?|alter\s+(?:column\s+)?)([a-z_][a-z0-9_]*)\s+[^,;]*?\b(?:smallserial|serial|bigserial|identity)\b/g)) {
+        objects.push({ name: `${qualified(altered[1])}_${action[1]}_seq`, kind: 'sequence' })
       }
     }
   }
