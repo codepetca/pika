@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
+import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { TEST_OWNER_CREATE_SNAPSHOT_TABLES } from '../../scripts/contextual-test-owner-create-proof-fixture'
 import { TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES } from '../../scripts/contextual-test-publication-proof-fixture'
 import { TEST_OWNER_PRISTINE_DISCARD_SNAPSHOT_TABLES } from '../../scripts/contextual-test-pristine-discard-proof-fixture'
@@ -27,6 +28,22 @@ const profiles = [
 ]
 
 describe('externally sealed Test quota proof table addition', () => {
+  it('includes the exact281 private capability table in complete preservation fingerprints', () => {
+    const current = loadAssignmentListReviewedMigrations(process.cwd())
+    const capability = 'private.attendance_decommission_delete_capabilities'
+    const before = ['public.tests']
+    const expected = [capability, quota, ...before].sort()
+    expect(classroomTestQuotaProofCatalog(before, current)).toEqual(expected)
+    expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 280))).toEqual([quota, ...before].sort())
+    for (const incomplete of [[current[252], current[280]], [...current, current[280]]]) {
+      expect(() => classroomTestQuotaProofCatalog(before, incomplete)).toThrow()
+    }
+    const changed = current.map(row => ({ ...row }))
+    changed[280].sql += '\n'
+    changed[280].sha256 = createHash('sha256').update(changed[280].sql).digest('hex')
+    expect(() => classroomTestQuotaProofCatalog(before, changed)).toThrow()
+  })
   it('requires exact reviewed migration bytes, not metadata alone', () => {
     for (const unreviewed of [[], [...migrations, ...migrations], [{ ...migrations[0], name: '254_unknown.sql' }],
       [{ ...migrations[0], sha256: 'a'.repeat(64) }], [{ ...migrations[0], sql: `${sql}\n` }]]) {

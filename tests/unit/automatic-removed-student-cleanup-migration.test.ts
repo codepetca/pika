@@ -96,6 +96,25 @@ describe('automatic removed-student cleanup migration', () => {
     expect(hardening).toContain("message='student_live_cleanup_prerequisite_paused'")
   })
 
+  it('exercises both actual removal and attendance decommission winners without weakening their locks', () => {
+    expect(concurrencyRunner).toContain('blocker.pid=any(pg_blocking_pids(activity.pid))')
+    expect(concurrencyRunner).toContain('wait_for_activity automatic_cleanup_begin_after_removal Lock automatic_cleanup_removal_before_decommission')
+    expect(concurrencyRunner).toContain('wait_for_activity automatic_cleanup_decommission_fence_first Timeout')
+    expect(concurrencyRunner).toMatch(/PGAPPNAME=automatic_cleanup_removal_before_decommission[\s\S]*?begin isolation level read committed;[\s\S]*?select public\.remove_classroom_students_preserving_data\([\s\S]*?update public\.classrooms set archived_at=clock_timestamp\(\)[\s\S]*?scenario='removal_before_decommission'[\s\S]*?commit;/)
+    expect(concurrencyRunner).toMatch(/PGAPPNAME=automatic_cleanup_begin_after_removal[\s\S]*?perform public\.begin_attendance_decommission\([\s\S]*?exception when sqlstate '55000' then\s*if sqlerrm <> 'classroom_operation_conflict' then raise;/)
+    expect(concurrencyRunner).toContain('Pending cleanup denial left an attendance fence')
+    expect(concurrencyRunner).toContain('Removal winner did not retain exactly one untouched queued job')
+    expect(concurrencyRunner).toMatch(/PGAPPNAME=automatic_cleanup_decommission_fence_first[\s\S]*?select public\.begin_attendance_decommission\([\s\S]*?scenario='decommission_fence_wins'[\s\S]*?commit;/)
+    expect(concurrencyRunner).toMatch(/PGAPPNAME=automatic_cleanup_removal_during_decommission[\s\S]*?perform public\.remove_classroom_students_preserving_data\([\s\S]*?exception when sqlstate '40001' then\s*if sqlerrm <> 'classroom_operation_busy' then raise;/)
+    expect(concurrencyRunner).toMatch(/wait "\$\{worker_pids\[6\]\}"[\s\S]*?perform public\.remove_classroom_students_preserving_data\([\s\S]*?exception when sqlstate '55000' then\s*if sqlerrm <> 'attendance_decommission_active' then raise;/)
+    expect(concurrencyRunner).toContain('v_snapshot.roster_digest is distinct from')
+    expect(concurrencyRunner).toContain('v_snapshot.enrollment_digest is distinct from')
+    expect(concurrencyRunner).toContain('v_snapshot.participant_digest is distinct from')
+    expect(concurrencyRunner).toContain('Fence winner left hidden outstanding cleanup')
+    expect(concurrencyRunner).toContain("and state='fenced' and phase=1 and deleted_count=0")
+    expect(concurrencyRunner).not.toMatch(/disable trigger|session_replication_role|pika\.[a-z_]+(?:',|\s*=)\s*'?on/i)
+  })
+
   it('adds a terminal quarantine excluded from due claims', () => {
     expect(hardening).toContain("'queued','processing','retry_wait','quarantined','completed'")
     expect(hardening).toContain("p_error_code='cleanup_quarantined'")

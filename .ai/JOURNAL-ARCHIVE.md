@@ -48023,3 +48023,10 @@ the unchanged bounds; full remaining-proof acceptance is not implied.
 ## 2026-10-17 — Complete Survey payload matrix source preparation
 
 Prepared49 exact byte/count/shape SQL cases in the existing35s rollback dispatch, retaining real RPCs, literal-bounded fixtures, complete scoped row/revision restoration and compact versioned receipts.15 CPU/syntax checks pass; native acceptance and timing remain unproved. Product runtime/migration/generated types unchanged. Owner approved remaining-only6000controls/60sSDK; other caps and production/shared-local/cutover holds remain. Draft1614 stays draft; no spent proof replay.
+
+<!-- pika-session-log-archive-batch:1620333ba2e19e6ed34fe3b8152bead2523ab9ff759e6494efe09cd427835176 -->
+## 2026-10-18 — Preserve Survey coverage while diagnosing rollback timing
+
+The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
+
+The first product gate exposed two stale source assertions still expecting the old single fixture and forbidding every INFO marker. Synced only the same fixed-code/family assertions already tested in the carrier, preserving the269 migration path. All13 payload tests/audit pass; a fresh complete product gate remains required. No runtime or SQL change in this follow-up.

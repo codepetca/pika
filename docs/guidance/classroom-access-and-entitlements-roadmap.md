@@ -840,6 +840,18 @@ provider mixed-role compatibility or historical Pal policy is complete. No migra
 or activation is included. This continuation shares the still-draft purge PR's
 final review candidate and CI run, not a separate release slice.
 
+2026-10-20 next bounded attendance dependency: prepare generation-compatible
+whole-class decommission and pre-intent pending-student-cleanup denial. Reuse the
+existing operation, receipt, gates and bounded tick. A private transaction-bound
+DELETE capability must prove exact saved operation/classroom/phase/table and
+retain immutable membership replay evidence; it must not become a broad fence
+bypass or erase learner history. Pending automatic cleanup jobs, including
+quarantined jobs without a reserved student-purge operation, must block new
+destructive intent under the same classroom serialization. Native rollback,
+batch-boundary and two-session contention evidence remain required. Source work
+is not migration application or live-provider acceptance; all production,
+shared-local249+, provider and activation holds remain unchanged.
+
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
