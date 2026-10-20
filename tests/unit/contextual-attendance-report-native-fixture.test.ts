@@ -50,6 +50,13 @@ describe('inert Daily Log owner report fixture (CPU only)',()=>{
     expect(witness).toContain("g.state='active'and g.scope_digest=private.pal_membership_scope(e.classroom_id,e.student_id)")
     expect(witness).toContain("'nonRosterEntries'")
   })
+  it('separates every observation number from SQL keywords, including negative first index',()=>{
+    for(let n=0;n<12;n++){
+      const sql=frames.find(r=>r.name===`observe-${n}`)!.sql
+      expect(sql).toContain(`<>${n-1} or (`)
+      expect(sql).not.toMatch(/\d(?:or|and)\b/i)
+    }
+  })
   it('checks every read and restores only exact synthetic purge rows without reenrolling or rewriting report facts',()=>{
     for(const[n,call]of calls.entries()){const sql=frames.find(r=>r.name===`observe-${n}`)!.sql;expect(sql).toContain(`<>${n-1}`);expect(sql).toContain('checkpoint');expect(sql).toContain('original_sha256');expect(sql).toContain(`'case','${call.label}'`)}
     const restore=frames.find(r=>r.name==='restore-baseline')!.sql
