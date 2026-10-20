@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutGuidancePreviewProof = (source: string) => source.replace(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutGuidanceAdoptionProof = (source: string) => source.replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutGuidancePreviewProof = (source: string) => withoutGuidanceAdoptionProof(source).replace(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutClassroomGuidanceProof = (source: string) => withoutGuidancePreviewProof(source).replace(/^      - name: Verify contextual owner frozen classroom authoring guidance and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutClassroomReorderProof = (source: string) => withoutClassroomGuidanceProof(source).replace(/^      - name: Verify contextual owner classroom list reorder transactions and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutReportProof = (source: string) => withoutClassroomReorderProof(source).replace(/^      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
@@ -355,7 +356,7 @@ describe('local canonical CI', () => {
   })
 
   it('retains the exact frozen guidance inventory before preview adoption', () => {
-    const source = workflow(), historical = withoutGuidancePreviewProof(source)
+    const source = withoutGuidanceAdoptionProof(workflow()), historical = withoutGuidancePreviewProof(source)
     const current = selectPlan(extractWorkflow(source), 'database')[0]
     const previous = selectPlan(extractWorkflow(historical), 'database')[0]
     const command = 'bash scripts/check-contextual-classroom-guidance-preview-database.sh'
@@ -373,6 +374,28 @@ describe('local canonical CI', () => {
   ])('refuses the%s preview proof without a historical-profile bypass', (_, mutate) => {
     const source = workflow()
     const block = source.match(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the complete preview inventory before atomic adoption', () => {
+    const source = workflow(), historical = withoutGuidanceAdoptionProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-classroom-guidance-adoption-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual atomic classroom guidance adoption and privileges', 'name: Renamed adoption proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify authentication session revocation and rate limits\n', block + '      - name: Verify authentication session revocation and rate limits\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-classroom-guidance-adoption-database.sh', 'run: bash scripts/check-contextual-classroom-guidance-adoption-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual atomic classroom guidance adoption and privileges\n', '      - name: Verify contextual atomic classroom guidance adoption and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-classroom-guidance-adoption-database.sh')],
+  ])('refuses the%s atomic adoption proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
     expect(() => extractWorkflow(mutate(source, block))).toThrow()
   })
 

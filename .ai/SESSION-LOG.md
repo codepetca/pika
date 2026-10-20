@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — Hot lifecycle snapshot correction
-
-PR1613 remains draft after two independent source reviews. First fresh isolated
-proof stopped before the initial learner RPC; exact teardown, canonical equality
-and independent source/dependency preservation passed. No native acceptance.
-Offline investigation found the snapshot's PL/pgSQL variable/column `v` collision
-and record/table-alias `t` collision. Qualified catalog aliases and a distinct
-record name fix both without changing snapshot coverage or SQL settings. The
-second isolated proof narrowed failure to snapshot-query with zero RPCs; cleanup
-and preservation again passed. PostgreSQL source confirms the second collision's
-undefined-record-field resolution; actual corrected execution remains pending.
-Added closed failure-shape, SQLSTATE, snapshot-step and transport-phase diagnostics
-without logging raw errors or data. Actual installed-SDK/learner helper regression
-passes offline. One bounded reviewed fresh proof remains required; spent attempt
-retained, all production/shared-local/provider/activation holds unchanged.
-
 ## 2026-10-17 — Bounded hot lifecycle witness transport
 
 Corrected snapshot executed in the fresh3196 proof:13 actual SDK calls,
@@ -636,3 +620,32 @@ e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
 tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
 preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
 313actual review turns/5fix batches and all holds retained.
+
+## 2026-10-20 — Atomic dual-owner guidance adoption preparation
+
+Prepared280 adds an admitted POST branch requiring current active-classroom AND
+linked Blueprint ownership, using the existing canonical snapshot builder and
+one atomic112-save/222-adopt composition. Complete five-collection source/digest
+prevents truncation and catches parent-only moves not reflected by older Draft
+revision triggers. Existing immutable Versions/provenance remain; a rejected
+transaction leaves no stray Version, but a lost post-commit response is uncertain
+and never retried or compensated by deletion. Legacy POST/GET stay unchanged.
+Root API/adapter/legacy tests93/5 pass, SQL source tests9 pass, CI/policy314/6 pass;
+complete source-codec/builder tests66/3 pass. Genuine280 metadata and native proof
+remain pending; only the two new RPC metadata references fail TypeScript. No
+runtime acceptance or phase exit is claimed. Sol6.1/high bounded workers own
+closed-profile extension and four finite SDK fixture/test paths. The proof will
+assert exact allowed committed changes and preserve existing history/complement,
+retaining only proven legitimate temporary-transition timestamps/revisions.
+Cumulative314 actual independent review turns/5 remediation batches retained;
+routine workflow-stop waiver active. Production/shared-local249+, provider,
+account/billing/AI and activation holds unchanged. Learner current-membership-only
+attendance is an approved separate boundary, not implemented by this write.
+
+Parent preview PR1628 merged normally ascd3876dfa at08:52:50Z after all ten
+exacte2d2fff3 CI39392011940 checks/PRGate passed. Reviewed/squash treeb3df6d46 is
+identical; clean canonical main fast-forwarded. Original CI host-port collision
+and its failed receipt remain retained; no source/gate bypass or rollout.
+All280writers stopped. Root integration checks955/11 pass; leaf25/2 and concurrency
+10 plus carrier114/4 CPU checks pass. Genuine metadata/native acceptance remain
+pending. New private wrappers and carrier source remain deliberately unbound.

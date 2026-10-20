@@ -47939,3 +47939,20 @@ Standing routine-approval/review-budget waiver retained, prior172 review turns a
 110 correction batches not reset. All production/shared-local/provider/account/
 admission/home/cutover holds unchanged; no migration applied. Existing harness,
 source/dependency preservation and one-shot exact-target disposal gates retained.
+
+<!-- pika-session-log-archive-batch:ea1565367400433bd4e891d150593704944d709fe2e856344f5c5f7450312849 -->
+## 2026-10-17 — Hot lifecycle snapshot correction
+
+PR1613 remains draft after two independent source reviews. First fresh isolated
+proof stopped before the initial learner RPC; exact teardown, canonical equality
+and independent source/dependency preservation passed. No native acceptance.
+Offline investigation found the snapshot's PL/pgSQL variable/column `v` collision
+and record/table-alias `t` collision. Qualified catalog aliases and a distinct
+record name fix both without changing snapshot coverage or SQL settings. The
+second isolated proof narrowed failure to snapshot-query with zero RPCs; cleanup
+and preservation again passed. PostgreSQL source confirms the second collision's
+undefined-record-field resolution; actual corrected execution remains pending.
+Added closed failure-shape, SQLSTATE, snapshot-step and transport-phase diagnostics
+without logging raw errors or data. Actual installed-SDK/learner helper regression
+passes offline. One bounded reviewed fresh proof remains required; spent attempt
+retained, all production/shared-local/provider/activation holds unchanged.

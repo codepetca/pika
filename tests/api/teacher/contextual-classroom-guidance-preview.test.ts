@@ -38,10 +38,10 @@ describe('contextual guidance preview GET admission and legacy POST separation',
   it.each([400, 403, 404, 409, 503])('retains authoritative%i without fallback', async status => {
     read.mockRejectedValue(new ApiError(status, 'Unavailable')); expect((await run()).status).toBe(status); expect(role).not.toHaveBeenCalled(); expect(legacy).not.toHaveBeenCalled()
   })
-  it('never applies shared admission or the new read to adoption POST', async () => {
-    admission.mockRejectedValue(new ApiError(503, 'Must not run')); const input = { blueprint_id: id, expected_content_version_id: id, expected_guidance_version_id: id, expected_draft_revision: 4 }
+  it('keeps unmatched adoption POST on the legacy helper, not the preview reader', async () => {
+    admission.mockResolvedValue({ mode: 'legacy' }); const input = { blueprint_id: id, expected_content_version_id: id, expected_guidance_version_id: id, expected_draft_revision: 4 }
     const response = await POST(new NextRequest(`http://localhost/api/teacher/classrooms/${id}/authoring-guidance/update`, { method: 'POST', body: JSON.stringify(input) }), { params: Promise.resolve({ id }) })
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ version: 3 })
-    expect(admission).not.toHaveBeenCalled(); expect(read).not.toHaveBeenCalled(); expect(role).toHaveBeenCalledWith('teacher'); expect(adopt).toHaveBeenCalledExactlyOnceWith(actor, id, input)
+    expect(admission).toHaveBeenCalledOnce(); expect(read).not.toHaveBeenCalled(); expect(role).toHaveBeenCalledWith('teacher'); expect(adopt).toHaveBeenCalledExactlyOnceWith(actor, id, input)
   })
 })

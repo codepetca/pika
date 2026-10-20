@@ -750,10 +750,37 @@ canonical read-only/global-resource equality and positive owned teardown passed.
 unsettled retain original bounds. Immediate NEXT-TOOL FIRST verified7948source and
 98970dependency files unchanged/zero matching processes before any post-run action.
 Genuine279 adds only the required two-UUID Json RPC; removing it reconstructs the
-entire278 artifact. Current-main rebase preserves the exercised source tree; final
-checks, integration review and exact-head CI/normal merge remain. Shared-local249+,
+entire278 artifact. Current-main rebase preserves the exercised source tree;
+final checks passed2884tests/99files and review314 was clean. All ten exact-head
+CI39392011940 checks, including PR Gate, passed; PR1628 merged normally as
+cd3876dfaf45f949b9dfc769d16562daf17303aa at2026-10-20T08:52:50Z. Reviewed/squash
+treeb3df6d46 is identical and canonical clean main fast-forwarded. The earlier
+CI startup port collision remains a separate failed receipt, not an app proof.
+Shared-local249+,
 production, activation and all provider/account/billing holds remain unchanged;
 no phase exit is implied.
+
+The next prepared write is POST classroom `authoring-guidance/update`. Additive280
+requires BOTH current active-classroom ownership and current linked Blueprint
+ownership, regardless of account label. Its admitted path reads a complete scalar
+Draft source, uses the unchanged canonical snapshot builder, then saves and adopts
+in one database transaction under the existing lifecycle and parent locks. A raw
+source digest also catches parent-only child moves omitted from the older Draft
+revision triggers. A database-rejected operation leaves no new Version; a lost or
+invalid post-commit response is uncertain and must never cause an automatic retry
+or compensating Version deletion. Existing immutable Versions and their original
+provenance remain untouched, including a legitimate deduplicated Version. The
+legacy POST helper and GET path are unchanged. Private8MiB bounds reject rather
+than truncate complete collections; these are not editor or subscription quotas.
+Source/API/unit and rollback contracts are prepared, not runtime acceptance. The
+isolated proof will verify exact allowed committed graph changes and preserve
+all previous history and complement rows. Temporary synthetic owner/parent
+restoration must retain legitimate timestamp and archive-revision history rather
+than fabricate old byte equality. Independent source/composition review, a fresh
+isolated full-chain proof, genuine metadata, final checks and exact-head CI remain
+gates. Shared-local249+, production, provider/account/billing and activation holds
+remain unchanged; learner attendance history and batch3 exit are not implemented
+or claimed by this write.
 
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
