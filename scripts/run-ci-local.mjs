@@ -39,7 +39,7 @@ const actions = new Set(['actions/checkout@v7', 'actions/setup-node@v6', 'pnpm/a
 const summaryNames = new Set(['Summarize dependency setup evidence', 'Summarize browser setup evidence'])
 const selector = "needs.classify-changes.outputs.run_test_build == 'true'"
 const cleanupCondition = "always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'"
-const startCommand = 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'
+const startCommand = 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector'
 const conditions = new Set([selector, 'always()', 'success()', `failure() && ${selector}`, cleanupCondition])
 const actionOptions = {
   'actions/checkout@v7': ['fetch-depth'],

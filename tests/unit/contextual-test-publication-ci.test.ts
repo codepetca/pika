@@ -15,7 +15,7 @@ describe('publication isolated CI closure', () => {
     expect(databaseLifecycle).toContain('name: Verify contextual Daily Log save atomicity and privileges')
     expect(databaseLifecycle).toContain('runs-on: ubuntu-latest')
     expect(databaseLifecycle).toContain('run: node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
-    expect(databaseLifecycle).toContain('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector')
+    expect(databaseLifecycle).toContain('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector')
     expect(databaseLifecycle).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
     expect(databaseLifecycle).toContain('run: supabase stop --no-backup')
     expect(databaseLifecycle!.indexOf('id: ci-isolation')).toBeLessThan(databaseLifecycle!.indexOf('id: supabase-start'))

@@ -47819,3 +47819,31 @@ existing browser scenario for compact columns/Seen sorting, retaining desktop
 Status sorting; all4 desktop/mobile light/dark cases pass (2.6m). One test-only remediation batch and final delta/cumulative
 review planned; final receipts in PR/lifecycle metadata. Weekly remaining44%; storage healthy320GB; attributable
 usage/time unknown. No database, production or merge operations authorized here.
+
+<!-- pika-session-log-archive-batch:770e6abf3d2802579545e63fc07f56de2ab90667686d81fcfcae500904b8e135 -->
+## 2026-10-16 — PR 1608 deterministic workflow tests
+
+Owner request: fix failing tests and make1608 ready to merge; leave unmerged.
+Branch `codex/test-student-table-compact`, continuation from54fcf280a.
+Test-only fixes: delayed-listener regression proves0.3s budget/startup race;
+fixture advances only the tested deadline clock after actual listener work.
+Retry-containment fixture shortens its reconnect wait, retaining real descendant
+and retry assertions. Orphan test waits for leader exit; real signal is delivered
+only after command owns its child, with child/group cleanup assertions retained.
+Python watchdog10s remains; Tart Vitest watchdog15s lets it report failures.
+Multi-worktree promotion fixture uses bounded Git commands and30s outer budget.
+No production runner limits, guards, source/UI, dependencies or SQL changed.
+Red2/3 delayed-start cases reproduced before deadline-clock correction; fixed
+Tart/promotion55/55 pass13s. Focused963/963 and architecture/UI/design/TS/lint
+pass on corrected tree; fixed-SHA delta review next. Original
+UI/browser evidence remains valid (unchanged product blobs, prior4-case pass).
+One Sol6.1/medium read-only diagnosis verified; no edits by worker. Automatic
+DeepSeek remains paused. Weekly41% remaining; storage healthy316GB. Attribution
+of coordinator/worker tokens and active time unknown. PR lifecycle carries final
+review/check/SHA receipts; prior2review turns/1test correction batch retained.
+CI on0c9 passed build, all database/SDK and dark browser lanes; cancelled while
+light browser still running after main1610 merged and conflicted at the table
+frame class. Merge1e471b7f9 retains scrollbar-stable plus container ownership;
+continuity union keeps every unique body once. Updated roster4-case browser
+matrix passes15.6s with both changes. Scrollbar geometry8-case integration passes26.4s (both themes/viewports and
+normal/reduced motion); fresh screenshots inspected. Final focused/delta review follow; no runtime or production change.

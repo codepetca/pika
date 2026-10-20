@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — PR 1608 deterministic workflow tests
-
-Owner request: fix failing tests and make1608 ready to merge; leave unmerged.
-Branch `codex/test-student-table-compact`, continuation from54fcf280a.
-Test-only fixes: delayed-listener regression proves0.3s budget/startup race;
-fixture advances only the tested deadline clock after actual listener work.
-Retry-containment fixture shortens its reconnect wait, retaining real descendant
-and retry assertions. Orphan test waits for leader exit; real signal is delivered
-only after command owns its child, with child/group cleanup assertions retained.
-Python watchdog10s remains; Tart Vitest watchdog15s lets it report failures.
-Multi-worktree promotion fixture uses bounded Git commands and30s outer budget.
-No production runner limits, guards, source/UI, dependencies or SQL changed.
-Red2/3 delayed-start cases reproduced before deadline-clock correction; fixed
-Tart/promotion55/55 pass13s. Focused963/963 and architecture/UI/design/TS/lint
-pass on corrected tree; fixed-SHA delta review next. Original
-UI/browser evidence remains valid (unchanged product blobs, prior4-case pass).
-One Sol6.1/medium read-only diagnosis verified; no edits by worker. Automatic
-DeepSeek remains paused. Weekly41% remaining; storage healthy316GB. Attribution
-of coordinator/worker tokens and active time unknown. PR lifecycle carries final
-review/check/SHA receipts; prior2review turns/1test correction batch retained.
-CI on0c9 passed build, all database/SDK and dark browser lanes; cancelled while
-light browser still running after main1610 merged and conflicted at the table
-frame class. Merge1e471b7f9 retains scrollbar-stable plus container ownership;
-continuity union keeps every unique body once. Updated roster4-case browser
-matrix passes15.6s with both changes. Scrollbar geometry8-case integration passes26.4s (both themes/viewports and
-normal/reduced motion); fresh screenshots inspected. Final focused/delta review follow; no runtime or production change.
-
 ## 2026-10-16 Stable student-table scrollbar space
 
 Task/branch: `codex/student-table-scrollbar`; risk profile `none`. Extend the
@@ -574,3 +547,23 @@ canonical main fast-forwarded. Clean session rebase949→2ef95168 keeps identica
 policies, resolving only the two generated275 gaps. Metadata/evidence review
 and session PR/CI remain;
 no production/shared-local249+/provider/activation or learner-history change.
+
+## 2026-10-20 — Correct the CI mail-service exclusion
+
+PR1624 first exact-head CI39370931599 failed on hosted lifecycle-job118458471791
+during initial Supabase startup, before SQL/proofs: mail container could not bind
+54324. Pinned CLI2.103.0 explicitly warned that inbucket is not a valid exclusion
+and listed mailpit as the recognized name. Returned PR to draft before correction;
+that transition cancelled the remaining lanes. No app/SQL failure was observed.
+Minimal fix adds mailpit to the existing seven startup commands and the identical
+local safety binding; old aliases remain to avoid unrelated component changes.
+Two source assertions RED before fix; all273 workflow/local-CI/session-CI checks
+pass after correction, including rejection of the ineffective old command.
+Full focused checks expose four legacy CI command assertions, updated to the
+same recognized exclusion;2611tests/97files plus TypeScript/lint/policies pass.
+Port preflight, cleanup conditions, proof inventories, required jobs and PR Gate
+are unchanged. Targeted CI-only review precedes a new ready SHA;
+no repeat native proof is needed for unchanged app/migration/fixture bytes.
+Existing review/runtime evidence and spent attempts remain immutable; no production,
+shared-local249+, provider, account or activation action. New report child worktree
+is independent source-only work; no migrations applied.

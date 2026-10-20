@@ -574,7 +574,7 @@ describe('CI workflow', () => {
     expect(workflow).toContain('Browser lane setup evidence')
     expect(workflow).toContain('(false means prefix restore or miss)')
     expect(workflow).toContain('Supabase remains a fresh ephemeral start and migration replay.')
-    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(7)
+    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector/g)).toHaveLength(7)
   })
 
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {

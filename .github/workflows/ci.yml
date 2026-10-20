@@ -148,7 +148,7 @@ jobs:
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
-        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
 
       - name: Rehearse the production-shaped Test identity migration
         run: bash scripts/check-blueprint-question-identity-migration-lifecycle.sh
@@ -505,7 +505,7 @@ jobs:
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
-        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
 
       - name: Verify isolated contextual Test owner reorder transactions
         shell: bash
@@ -1161,7 +1161,7 @@ jobs:
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
-        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
 
       - name: Verify isolated contextual Test owner-detail SDK reads
         shell: bash
@@ -1312,7 +1312,7 @@ jobs:
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
-        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
 
       - name: Verify isolated contextual Test owner-draft GET transactions
         shell: bash
@@ -1543,7 +1543,7 @@ jobs:
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
-        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
 
       - name: Export local Supabase environment
         shell: bash
@@ -1660,7 +1660,7 @@ jobs:
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
-        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
 
       - name: Export local Supabase environment
         shell: bash
@@ -1777,7 +1777,7 @@ jobs:
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
-        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
 
       - name: Export local Supabase environment
         shell: bash

@@ -8,6 +8,14 @@ import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment,
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 const withoutSessionProof = (source: string) => source.replace(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 
+describe('recognized Supabase mail exclusion', () => {
+  it('excludes mailpit in every canonical startup and refuses the ineffective old alias alone', () => {
+    const source = workflow()
+    expect(source.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector/g)).toHaveLength(7)
+    expect(() => extractWorkflow(source.replaceAll(',inbucket,mailpit,meta', ',inbucket,meta'))).toThrow('startup or cleanup changed')
+  })
+})
+
 function combinedDatabaseWorkflow(source = workflow()) {
   const secondary = source.match(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)?.[0]
   if (!secondary) return source
@@ -532,7 +540,7 @@ describe('local canonical CI', () => {
     ['different Node version', (text: string) => text.replaceAll("node-version: '24'", "node-version: '22'")],
     ['unknown job setting', (text: string) => text.replace('  test-and-build:\n', '  test-and-build:\n    container: unsafe-image\n')],
     ['action behavior override', (text: string) => text.replaceAll("node-version: '24'", "node-version: '24'\n          run-install: true")],
-    ['multiline startup drift', (text: string) => text.replace('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector', 'run: |\n          supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector\n          echo changed')],
+    ['multiline startup drift', (text: string) => text.replace('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector', 'run: |\n          supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector\n          echo changed')],
     ['cleanup guard drift', (text: string) => text.replace("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", 'if: always()')],
     ['SDK cleanup guard drift', (text: string) => {
       const start = text.indexOf('  contextual-test-owner-sdk:\n')
@@ -602,7 +610,7 @@ describe('local canonical CI', () => {
       const error = vi.spyOn(console, 'error').mockImplementation(() => {})
       const job = { lane, env: {}, steps: [
         { name: 'Verify isolated CI runner', id: 'ci-isolation', run: `node scripts/ci-runner-preflight.mjs --lane ${lane}`, env: {} },
-        { name: 'Start ephemeral Supabase and replay migrations', id: 'supabase-start', run: 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector', env: {} },
+        { name: 'Start ephemeral Supabase and replay migrations', id: 'supabase-start', run: 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector', env: {} },
         { name: 'A database contract', run: 'do-not-execute-real-contract', env: {} },
         { name: 'Stop ephemeral database', if: "always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", run: 'supabase stop --no-backup', env: {} },
       ] }
