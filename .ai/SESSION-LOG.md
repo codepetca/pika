@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — Complete Survey payload matrix source preparation
-
-Prepared49 exact byte/count/shape SQL cases in the existing35s rollback dispatch, retaining real RPCs, literal-bounded fixtures, complete scoped row/revision restoration and compact versioned receipts.15 CPU/syntax checks pass; native acceptance and timing remain unproved. Product runtime/migration/generated types unchanged. Owner approved remaining-only6000controls/60sSDK; other caps and production/shared-local/cutover holds remain. Draft1614 stays draft; no spent proof replay.
-
 ## 2026-10-18 — Preserve Survey coverage while diagnosing rollback timing
 
 The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
@@ -683,6 +679,7 @@ row/byte/teardown assertions; authored SDK/source checks are not native evidence
 Independent review, final-head CI and that real drill remain gates. Current-
 membership-only learner attendance remains separate; owners retain old records.
 All production, account/provider/billing and cutover holds remain unchanged.
+
 ## 2026-10-20 — Dormant contextual purge workflows
 
 Prepared the eight existing hot/cold impact/start/status/tick methods behind the
@@ -730,3 +727,10 @@ proportional independent review, latest-main integration and CI remain. No SQL
 migration, dependency, UI, gate, provider identity, real deletion or activation
 change. All production/shared-local249+ and provider/account/billing/AI holds
 remain. Source writer stopped; attributable active time/tokens unknown.
+
+Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
+all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
+passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
+Consolidated purge source rebased onto that actual main; only roadmap/history
+overlaps required union, retaining main receipts and one copy of the identical
+already-archived entry. No migration resequencing, stash use or hold change.

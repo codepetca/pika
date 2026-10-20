@@ -914,6 +914,14 @@ Independent review and successful final-head CI/drill remain required. Purge,
 learner attendance history, remaining services and batch3 exit are still separate;
 all production and activation holds remain unchanged.
 
+Superseding cold-recovery receipt: PR1631 merged normally as
+`f927926a5b4299920fbe90745adf4f2426381dbd` at2026-10-20T13:14:03Z. All ten
+exact-head CI39423632897 checks including PR Gate passed on reviewed
+`01fa8f2c24dcdb48c47546a6768064a58e3e9cac`; its real full-stack archive recovery
+drill passed for both current owner labels. The reviewed and squash trees are
+identical and clean canonical main fast-forwarded. No production/shared-local
+migration, provider/account change or admission/rollout activation followed.
+
 The next prepared owner group covers the eight existing hot/cold purge methods
 as complete impact/start/status/tick workflows, not a new deletion engine.
 Shared admission selects owner-based authorization for either account label;
