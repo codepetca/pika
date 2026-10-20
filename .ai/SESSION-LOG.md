@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Browser interaction review fix and main sync (PR1606)
-
-Initial191ad189 gate3755/188 passes all checks; native popup proof and8/8 browser
-matrix verified. Independent Sol/high review completed326ba559e..191ad189, one
-acceptedP2: reference menus armed intent but child-window blur/focus was not
-observed; prior E2E substituted top blur. Isolated trusted Chromium trace showed
-top:blur/frame:focus on entry, only frame:blur/frame:focus on external switch.
-Correction observes focus on accessible exam documents and ignores internal
-transfers via document.hasFocus. New component test red before/green after;
-116focused tests pass. Trusted frame click plus frame-owned synthetic popup
-events now pass8/8 desktop/mobile light/dark in1.0m; all8 screenshots rechecked.
-
-Merged main82a413518 (#1605 borderless/title UI, #1607 MC-option guidance) via
-37aa15af; only archive conflict, preserved both histories. Feature diff is narrow
-again. Audit of pending merge included a known layout-only main false positive;
-audit after merge passes for the actual remediation files. First sync focused
-run stopped because pre-merge HEAD classified main's already-merged changes;
-final gate runs against the merged ancestry. No tests/policies weakened.
-One batched correction/sync push planned while draft. Review ledger: prior Find
-2turns/1batch; translation initial1turn/1acceptedP2, targeted follow-up planned
-on final fixed SHA (4turns total after follow-up,2batches). Initial translation
-review17:49–17:52; exact reviewer elapsed/tokens unknown (92s final investigation
-interval only). Full local gate and targeted verdict recorded in PR/lifecycle
-metadata; no merge/deploy authority inferred. Synthetic diagnostic server stopped.
-
 ## 2026-10-16 — Owner removes translation exemption (PR1606)
 
 Owner explicitly revoked selected-text right-click exemption after app-switch
@@ -559,6 +534,23 @@ Owner selected current-membership-only learner attendance with older records and
 overrides preserved for the classroom owner; member integration remains future.
 PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
 Production/shared-local249+/provider/account/billing/AI/activation holds remain.
+
+## 2026-10-19 — Owner attendance read merged; write source reviews clean
+
+PR1622 exact72d93 passed all ten CI39361093628 gates, then normally squash-merged
+03e45f263 with reviewed tree79181 unchanged. Canonical clean main fast-forwarded;
+CI/merge receipts recorded. No production release or migration application.
+Owner-write C1ae388842 initial independent reviews287 Astra/security and288
+Sol/compatibility complete clean;360 combined CPU checks, staged audit/lint pass.
+Only two expected generated274 metadata errors remain. Added inert three-pair
+contention descriptors and nine CPU regressions;45 adjacent proof checks pass.
+Real RPC conflict/fresh authorization/savepoint rollback and full graph receipts
+are prepared, not executed. Existing carrier closed write assembly126 CPU checks
+passes, original127-action source plan before contention; native composition,
+genuine metadata, isolated SQL/SDK/locks and final CI remain gates. Current learner
+membership-only policy recorded; earlier owner history preserved, not implemented
+by this owner PUT. All production/shared-local249+/provider/account/activation
+holds unchanged; cumulative independent review counter288 and waiver retained.
 
 ## 2026-10-19 — Prepare contextual attendance owner policy writes
 

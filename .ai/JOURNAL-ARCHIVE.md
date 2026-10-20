@@ -47742,3 +47742,29 @@ snapshot cases pass. Product source/review unchanged; one batched snapshot-only
 remediation and independent delta review follow. PR Gate on reviewed final SHA
 still required before authorized main merge. Source evidence and artifacts in
 change brief and ignored output/playwright; CI38922863858 cancelled after draft.
+
+<!-- pika-session-log-archive-batch:81adb3f28f3bb2a4e56c8455a6468f2042be7c68f6ad81a8e811b43c386dc496 -->
+## 2026-10-16 — Browser interaction review fix and main sync (PR1606)
+
+Initial191ad189 gate3755/188 passes all checks; native popup proof and8/8 browser
+matrix verified. Independent Sol/high review completed326ba559e..191ad189, one
+acceptedP2: reference menus armed intent but child-window blur/focus was not
+observed; prior E2E substituted top blur. Isolated trusted Chromium trace showed
+top:blur/frame:focus on entry, only frame:blur/frame:focus on external switch.
+Correction observes focus on accessible exam documents and ignores internal
+transfers via document.hasFocus. New component test red before/green after;
+116focused tests pass. Trusted frame click plus frame-owned synthetic popup
+events now pass8/8 desktop/mobile light/dark in1.0m; all8 screenshots rechecked.
+
+Merged main82a413518 (#1605 borderless/title UI, #1607 MC-option guidance) via
+37aa15af; only archive conflict, preserved both histories. Feature diff is narrow
+again. Audit of pending merge included a known layout-only main false positive;
+audit after merge passes for the actual remediation files. First sync focused
+run stopped because pre-merge HEAD classified main's already-merged changes;
+final gate runs against the merged ancestry. No tests/policies weakened.
+One batched correction/sync push planned while draft. Review ledger: prior Find
+2turns/1batch; translation initial1turn/1acceptedP2, targeted follow-up planned
+on final fixed SHA (4turns total after follow-up,2batches). Initial translation
+review17:49–17:52; exact reviewer elapsed/tokens unknown (92s final investigation
+interval only). Full local gate and targeted verdict recorded in PR/lifecycle
+metadata; no merge/deploy authority inferred. Synthetic diagnostic server stopped.

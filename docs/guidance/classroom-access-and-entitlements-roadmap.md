@@ -558,8 +558,9 @@ source/dependency preservation and zero-process observation pass. Earlier failed
 fixture attempts remain spent; their temporary-schema alias and decommission
 prerequisite defects were corrected without changing product grants or triggers.
 Genuine metadata contains only the new RPC over the prior272 artifact. Independent
-final integration/evidence review and exact-head CI remain dormant-merge gates;
-these receipts are not the wider attendance/provider contract or batch3 exit.
+final integration/evidence review and all ten exact-head CI gates passed; PR1622
+normally squash-merged to main03e45f263 on2026-10-19 Toronto. These receipts are not
+the wider attendance/provider contract, production activation or batch3 exit.
 Member attendance and principal/QR/writer integration remain separate. Owner
 decision2026-10-19: a removed and rejoined learner sees only current-membership
 attendance records and overrides; earlier membership history remains preserved
@@ -579,6 +580,12 @@ Source checks are not write/concurrency acceptance. Genuine274 types, isolated
 SQL/actual adapter writes, two-session ownership/lifecycle/entitlement contention,
 complete preservation, independent review and final CI remain gates. Shared local
 and production migration/application, provider and activation holds remain.
+Initial security and compatibility source reviews are clean on ae388842. Prepared
+three-pair contention source uses actual RPC conflicts and fresh authorization in
+a rolled-back savepoint with complete graph checks. It does not prove committed
+ownership or lifecycle transitions; native execution and composition review remain
+pending. The separate SDK plan proves committed writes and revocation denials only
+after actual execution, not from CPU tests or source receipts.
 
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
