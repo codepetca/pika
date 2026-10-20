@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — Bounded hot lifecycle witness transport
-
-Corrected snapshot executed in the fresh3196 proof:13 actual SDK calls,
-privilege restoration and rollback SQL passed. Three committed races completed;
-the fourth holder output failed protocol with45actions/605controls. Source
-accounting identifies the nineteenth full graph; cumulative64MiB exhaustion is
-strongly supported but the spent diagnostic lacked bytes, so not runtime-proven.
-Compact witnesses retain full classroom/revision rows and every other table's
-count plus SHA256 of its complete ordered row JSON, table inventory and catalog.
-No caps or data coverage removed. Fixed protocol labels/counters now distinguish
-overflow; fake-child cumulative-cap regression and187 transport tests pass.
-All spent attempts have exact cleanup/canonical/source/dependency preservation;
-one targeted independent correction review and fresh native proof remain required.
-Sol6.1/high bounded read-only diagnosis then two-file implementation verified by
-coordinator; per-worker usage unknown. Cumulative176reviews/113correction batches,
-existing clocks and routine-approval waiver retained; production holds unchanged.
-
-Fresh1678418b proof subsequently PASS:13 actualSDK calls, rollbackSQL, four
-observed committed races;655controls51actions842800bytes0sessions. Exact disposal,
-canonical equality and independent source/dependency equality PASS. Genuine268
-generated types installed byte-identically from private artifact1230d8e1…;
-temporary RPC signature removed. Targeted integration review and consolidated
-browser/CI gates remain. No shared-local/production migration or activation.
-
 ## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
 
 PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
@@ -706,3 +682,22 @@ test-only correction: await a real fake-transport dispatch barrier, then advance
 fake timers through the unchanged80ms/160ms deadlines. All20 leaf tests pass;
 runtime proof/application/SQL/limits are unchanged. Targeted review and fresh CI
 remain; no native proof, migration, deployment or activation is implied.
+
+## 2026-10-20 — Contextual archived reuse workflow preparation
+
+Prepared eight existing HTTP methods for admitted actual owners of either account
+label: archived reuse, Blueprint list/detail, selected merge review, stored
+proposal list/apply and instantiation. Reused existing role-independent atomic
+writers, creation entitlements and managed-copy settlement; no SQL, new flag,
+dependency or UI change. Added current source owner/archive/link/Version/revision
+rechecks and stored classroom-origin/Blueprint-target proposal binding. Legacy
+teachers retain active-source review through final apply and all own proposal
+types behind explicit teacher guards; nonteacher admission grants none of those
+adjacent legacy capabilities. Root found compatibility gaps before formal review;
+RED10+4 cases became GREEN, and root independently passed237 checks/15 suites plus
+audit. Author TypeScript/lint/architecture pass. Existing partial manual review
+and automatic provenance semantics remain; no stronger source snapshot or atomic
+archive guarantee is claimed. Sol6.1/high source mapping and bounded implementation
+delivered; attributable usage/time unknown. Final checks, independent review,
+parent-main integration and CI remain. All production/shared-local249+,
+provider/account/plan/billing/AI and activation holds remain unchanged.
