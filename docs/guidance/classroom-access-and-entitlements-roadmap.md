@@ -826,6 +826,20 @@ checks pass3215 tests/127 files, TypeScript, lint and architecture/UI/design
 policies. Final metadata/evidence review, exact-head CI and normal main merge
 remain; no learner-history, batch3 exit, deployment or activation is claimed.
 
+The prepared permanent-purge workflow also carries its existing owner attendance-
+decommission begin/status/advance continuation. Shared admission selects either
+account label; current archived-hot ownership authorizes new intent, while saved
+actor/classroom/operation authorizes recovery. Existing independent gates, provider
+contract, receipt-before-local-deletion and durable fences remain. Installed-SDK
+sealed-transport/source checks are not live provider acceptance. The rollback SQL
+harness prepares both current owner labels. Retained-generation completion remains
+a concrete separate prerequisite: migration175 can block migration153's participant
+mapping deletion after remote completion. The adapter preserves that failure and
+inspectable saved state; it does not claim learner current-membership history,
+provider mixed-role compatibility or historical Pal policy is complete. No migration
+or activation is included. This continuation shares the still-draft purge PR's
+final review candidate and CI run, not a separate release slice.
+
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
