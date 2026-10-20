@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 Stable student-table scrollbar space
-
-Task/branch: `codex/student-table-scrollbar`; risk profile `none`. Extend the
-shared hover-scrollbar utility with opt-in stable gutter sizing; reuse the
-existing Tests and Classwork student table owners. Only the thumb visibility
-changes on hover/focus, preserving real horizontal overflow on narrow tables.
-UI brief: teacher rosters; Attendance/Test canon and Pattern Lab work-surface
-reference; desktop1440x900/mobile390x844, light/dark, idle/hover/focus/selected,
-normal/reduced motion. Primary signal: existing scrollbar thumb; no new controls,
-columns, widget semantics or business logic. Student role n/a (teacher rosters).
-Visual evidence: 16 production-owner matrix cases passed at localhost3147,
-synthetic read-only fixtures, `/tmp/pika-scrollbar-matrix`; four Pattern Lab
-reference cases passed. UI/design policy and TypeScript passed; final focused
-checks/review tracked in PR. Initial browser cold-compile timeout and a sampling
-race with the existing split animation were corrected in verification; an
-unrelated CI-inventory timeout triggered a lower-concurrency focused retry.
-Audit heuristic flags TeacherClassroomView for missing component tests despite
-class-only changes; actual keyboard focus/geometry regression coverage is in
-the existing CI experience matrix, with no semantic changes. No new component
-or experimental pattern; no adjacent refactor needed. Coordinator implementation;
-one Luna/medium independent review planned (low-risk CSS), no implementation
-worker. Initial weekly43% remaining, storage316GB healthy; per-task tokens and
-effective reviewer configuration unknown. No merge/deployment/DB changes.
-
 ## 2026-10-16 — Teacher Gradebook shows graded marks before Return
 
 Branch codex/gradebook-immediate-marks; coordinator owns implementation. User reverses PR1592 teacher-only Return restriction: fully graded assignment/Test marks and saved assessment overrides now appear immediately in cells, totals, class summaries and selected-student inspector. Student Grades keeps its per-document/attempt Return requirement, including overrides. Drafts stay blank and partially scored Tests stay pending without an override. No grading writes, migration, dependency, merge or production operation. Risk profile: none (existing read projection); standard behavioral review.
@@ -567,3 +543,25 @@ no repeat native proof is needed for unchanged app/migration/fixture bytes.
 Existing review/runtime evidence and spent attempts remain immutable; no production,
 shared-local249+, provider, account or activation action. New report child worktree
 is independent source-only work; no migrations applied.
+
+## 2026-10-20 — Dormant owner Daily Log attendance report preparation
+
+Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
+0bb2a2bc; owner Daily Log report GET only, no provider or learner-history change.
+276 adds a complete service-only current-owner snapshot. Existing pure attendance
+logic is unchanged (structural input types only); archived owners, full roster,
+Unicode/Toronto semantics and browser DTO preserved. Generic private response/work
+bounds fail closed without truncation or subscription notices. Source rollback
+contracts include real1004 enrollments,1001 days/entries and complete graph
+preservation; inert installed-SDK leaf specifies12 adapter reads/18SQL/60guards,
+six independent complete DTO commitments and restoration before final reads.
+Core112/7 and leaf33/2 CPU tests pass; one expected missing genuine276 RPC type
+remains until isolated generation. CI command/inventory RED then310/5GREEN;
+exact reviewed migration profile extension remains in progress. Sol6.1/high
+workers own core/seals and leaf/carrier, root integrates CI/evidence; effective
+configuration/tokens unknown. Weekly92% remaining; storage287GB healthy.
+Native verification, genuine metadata, independent security/compatibility review,
+final checks and exact-head CI remain gates. No canonical/shared-local249+,
+production, provider, real account, billing/AI or activation operations. Latest
+owner decision retains current-membership-only learner attendance with earlier
+records preserved for owner; this report does not claim learner provenance.

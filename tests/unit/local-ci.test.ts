@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutSessionProof = (source: string) => source.replace(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutReportProof = (source: string) => source.replace(/^      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutSessionProof = (source: string) => withoutReportProof(source).replace(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 
 describe('recognized Supabase mail exclusion', () => {
   it('excludes mailpit in every canonical startup and refuses the ineffective old alias alone', () => {
@@ -263,7 +264,7 @@ describe('local canonical CI', () => {
   })
 
   it('retains the exact owner-write inventory before session-read adoption', () => {
-    const source = workflow(), historical = withoutSessionProof(source)
+    const source = withoutReportProof(workflow()), historical = withoutSessionProof(source)
     const current = selectPlan(extractWorkflow(source), 'database')[0]
     const previous = selectPlan(extractWorkflow(historical), 'database')[0]
     const command = 'bash scripts/check-contextual-attendance-session-database.sh'
@@ -281,6 +282,28 @@ describe('local canonical CI', () => {
   ])('refuses the%s attendance session proof without a historical-profile bypass', (_, mutate) => {
     const source = workflow()
     const block = source.match(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the exact session-read inventory before Daily Log report adoption', () => {
+    const source = workflow(), historical = withoutReportProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-attendance-report-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner Daily Log attendance report snapshot and privileges', 'name: Renamed report proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify authentication session revocation and rate limits\n', block + '      - name: Verify authentication session revocation and rate limits\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-attendance-report-database.sh', 'run: bash scripts/check-contextual-attendance-report-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n', '      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-attendance-report-database.sh')],
+  ])('refuses the%s report proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
     expect(() => extractWorkflow(mutate(source, block))).toThrow()
   })
 

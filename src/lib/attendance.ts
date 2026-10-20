@@ -15,7 +15,7 @@ export function hasQualifyingDailyLogContent(
   return (text || '').trim().length > 0
 }
 
-export function entryHasContent(entry: Entry): boolean {
+export function entryHasContent(entry: Pick<Entry, 'text'>): boolean {
   return hasQualifyingDailyLogContent(entry.text)
 }
 
@@ -33,8 +33,8 @@ export function entryHasContent(entry: Entry): boolean {
  * - pending: today or future class day with no entry or empty entry yet
  */
 export function computeAttendanceStatusForStudent(
-  classDays: ClassDay[],
-  entries: Entry[],
+  classDays: Pick<ClassDay, 'date' | 'is_class_day'>[],
+  entries: Pick<Entry, 'date' | 'text'>[],
   today: string
 ): Record<string, AttendanceStatus> {
   const result: Record<string, AttendanceStatus> = {}
@@ -43,7 +43,7 @@ export function computeAttendanceStatusForStudent(
   const actualClassDays = classDays.filter(day => day.is_class_day)
 
   // Create a map of entries by date for quick lookup
-  const entryMap = new Map<string, Entry>()
+  const entryMap = new Map<string, Pick<Entry, 'date' | 'text'>>()
   entries.forEach(entry => {
     entryMap.set(entry.date, entry)
   })
@@ -94,8 +94,8 @@ export function buildStudentAttendanceHistory(
  */
 export function computeAttendanceRecords(
   students: Array<{ id: string; email: string; first_name: string; last_name: string }>,
-  classDays: ClassDay[],
-  allEntries: Entry[],
+  classDays: Pick<ClassDay, 'date' | 'is_class_day'>[],
+  allEntries: Pick<Entry, 'student_id' | 'date' | 'text'>[],
   today: string
 ): AttendanceRecord[] {
   return students.map(student => {

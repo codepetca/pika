@@ -621,6 +621,22 @@ checks pass2610tests/97files plus TypeScript/lint and repository policies.
 Independent metadata/evidence review and exact-head CI remain merge gates.
 Shared-local and production holds are unchanged; no learner-history or batch exit.
 
+The next independent owner read is the Daily Log-derived GET
+`/api/teacher/attendance`. Prepared276 binds actual current ownership, complete
+current roster, class days and matching entries in one service-only read snapshot;
+archived owners retain access. This report is independent of Bara runtime,
+principal, attendance grants and attendance decommissioning. Classroom lifecycle
+and purge fences still fail closed. Admitted users of either account label use
+the existing complete attendance DTO, Unicode-content and Toronto-date rules;
+unmatched GET remains legacy. Private8MiB snapshot/DTO,250000 projected cells and
+32000000 filter-comparison bounds reject rather than truncate; they are not plan
+quotas or new UI notices. SQL rollback and installed-SDK fixture source is
+prepared; native execution, genuine metadata, independent review and exact-head
+CI remain acceptance gates. No learner-history or phase-exit claim. The approved
+current-membership-only learner policy remains separate; earlier attendance is
+preserved for the owner. Shared-local249+, production, provider and rollout holds
+remain unchanged.
+
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the

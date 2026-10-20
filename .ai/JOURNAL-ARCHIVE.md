@@ -47847,3 +47847,28 @@ frame class. Merge1e471b7f9 retains scrollbar-stable plus container ownership;
 continuity union keeps every unique body once. Updated roster4-case browser
 matrix passes15.6s with both changes. Scrollbar geometry8-case integration passes26.4s (both themes/viewports and
 normal/reduced motion); fresh screenshots inspected. Final focused/delta review follow; no runtime or production change.
+
+<!-- pika-session-log-archive-batch:c6b479ef23c36d760c55c096eed5bf29f22714884656301e0ef2ebd43ce78cc6 -->
+## 2026-10-16 Stable student-table scrollbar space
+
+Task/branch: `codex/student-table-scrollbar`; risk profile `none`. Extend the
+shared hover-scrollbar utility with opt-in stable gutter sizing; reuse the
+existing Tests and Classwork student table owners. Only the thumb visibility
+changes on hover/focus, preserving real horizontal overflow on narrow tables.
+UI brief: teacher rosters; Attendance/Test canon and Pattern Lab work-surface
+reference; desktop1440x900/mobile390x844, light/dark, idle/hover/focus/selected,
+normal/reduced motion. Primary signal: existing scrollbar thumb; no new controls,
+columns, widget semantics or business logic. Student role n/a (teacher rosters).
+Visual evidence: 16 production-owner matrix cases passed at localhost3147,
+synthetic read-only fixtures, `/tmp/pika-scrollbar-matrix`; four Pattern Lab
+reference cases passed. UI/design policy and TypeScript passed; final focused
+checks/review tracked in PR. Initial browser cold-compile timeout and a sampling
+race with the existing split animation were corrected in verification; an
+unrelated CI-inventory timeout triggered a lower-concurrency focused retry.
+Audit heuristic flags TeacherClassroomView for missing component tests despite
+class-only changes; actual keyboard focus/geometry regression coverage is in
+the existing CI experience matrix, with no semantic changes. No new component
+or experimental pattern; no adjacent refactor needed. Coordinator implementation;
+one Luna/medium independent review planned (low-risk CSS), no implementation
+worker. Initial weekly43% remaining, storage316GB healthy; per-task tokens and
+effective reviewer configuration unknown. No merge/deployment/DB changes.

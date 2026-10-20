@@ -10,6 +10,8 @@ import {
   loadAttendanceRoster,
 } from '@/lib/server/attendance-report'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
+import { attendanceReportQuerySchema, loadContextualAttendanceReport } from '@/lib/server/contextual-attendance-report'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -19,6 +21,13 @@ export const revalidate = 0
  * Fetches attendance data for all students in a classroom
  */
 export const GET = withErrorHandler('GetAttendance', async (request: NextRequest) => {
+  const admission = await authorizeSharedAttendancePolicyActor()
+  if (admission.mode === 'shared') {
+    const input = attendanceReportQuerySchema.parse(Object.fromEntries(new URL(request.url).searchParams))
+    return NextResponse.json(await loadContextualAttendanceReport({
+      supabase:getServiceRoleClient(),actorId:admission.user.id,classroomId:input.classroom_id,
+    }))
+  }
   const user = await requireRole('teacher')
 
   const { searchParams } = new URL(request.url)
